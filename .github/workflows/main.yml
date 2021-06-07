@@ -1,0 +1,24 @@
+name: CI Actions
+on: [pull_request]
+jobs:
+  Unit-Tests:
+    runs-on: ubuntu-latest
+    steps:  
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Clone pyenv
+        run: git clone https://github.com/pyenv/pyenv.git ~/.pyenv
+      - name: Run the CI build script
+        run: bash .ci/build.sh build
+        env:
+          RALLY_HOME: env.GITHUB_WORKSPACE
+  DCO-Check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code with full commit history
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Run signoff check script
+        run: bash .ci/signoff-check.sh ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
