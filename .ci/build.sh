@@ -49,7 +49,7 @@ function build {
   make prereq
   make install
   make precommit
-  make it
+  make test
 }
 
 function license-scan {
