@@ -1,0 +1,172 @@
+    {
+      "name": "nested-search-challenge",
+      "description": "Indexes the document corpus for an hour using Elasticsearch default settings. After that randomized nested queries are run.",
+      "default": true,
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {{index_settings | default({}) | tojson}}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "sonested",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+       {
+          "operation": "index-append",
+          "warmup-time-period": 120,
+          "time-period": 3600,
+          "clients": {{bulk_indexing_clients | default(4)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+          "name": "refresh-after-index",
+          "operation": "refresh"
+        },
+        {
+          "operation": {
+            "operation-type": "force-merge",
+            "request-timeout": 7200
+          }
+        },
+        {
+          "name": "refresh-after-force-merge",
+          "operation": "refresh"
+        },
+        {
+          "name": "wait-until-merges-finish",
+          "operation": {
+            "operation-type": "index-stats",
+            "index": "_all",
+            "condition": {
+              "path": "_all.total.merges.current",
+              "expected-value": 0
+            },
+            "retry-until-success": true,
+            "include-in-reporting": false
+          }
+        },
+        {
+          "operation": "randomized-nested-queries",
+          "clients": 2,
+          "target-throughput": 20,
+          "warmup-iterations": 500,
+          "iterations": 1000
+        },
+        {
+          "operation": "randomized-term-queries",
+          "clients": 2,
+          "target-throughput": 25,
+          "warmup-iterations": 500,
+          "iterations": 200
+        },
+        {
+          "operation": "randomized-sorted-term-queries",
+          "clients": 2,
+          "warmup-iterations": 500,
+          "target-throughput": 16,
+          "iterations": 200
+        },
+        {
+          "operation": "match-all",
+          "clients": 2,
+          "target-throughput": 5,
+          "warmup-iterations": 500,
+          "iterations": 200
+        },
+        {
+          "operation": "nested-date-histo",
+          "clients": 2,
+          "target-throughput": 1,
+          "warmup-iterations": 100,
+          "iterations": 200
+        },
+        {
+          "operation": "randomized-nested-queries-with-inner-hits_default",
+          "clients": 2,
+          "target-throughput": 18,
+          "warmup-iterations": 500,
+          "iterations": 1000
+        },
+        {
+          "operation": "randomized-nested-queries-with-inner-hits_default_big_size",
+          "clients": 2,
+          "target-throughput": 16,
+          "warmup-iterations": 500,
+          "iterations": 1000
+        }
+      ]
+    },
+    {
+      "name": "index-only",
+      "description": "Indexes the document corpus for an hour using Elasticsearch default settings.",
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {{index_settings | default({}) | tojson}}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "sonested",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "index-append",
+          "warmup-time-period": 120,
+          "time-period": 3600,
+          "clients": {{bulk_indexing_clients | default(4)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+        "name": "refresh-after-index",
+        "operation": "refresh"
+        },
+        {
+          "operation": {
+            "operation-type": "force-merge",
+            "request-timeout": 7200
+          }
+        },
+        {
+          "name": "refresh-after-force-merge",
+          "operation": "refresh"
+        },
+        {
+          "name": "wait-until-merges-finish",
+          "operation": {
+            "operation-type": "index-stats",
+            "index": "_all",
+            "condition": {
+              "path": "_all.total.merges.current",
+              "expected-value": 0
+            },
+            "retry-until-success": true,
+            "include-in-reporting": false
+          }
+        }
+      ]
+    }

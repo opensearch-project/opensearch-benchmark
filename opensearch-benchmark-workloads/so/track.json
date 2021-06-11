@@ -1,0 +1,32 @@
+{% import "rally.helpers" as rally with context %}
+
+{
+  "version": 2,
+  "description": "Indexing benchmark using up to questions and answers from StackOverflow",
+  "indices": [
+    {
+      "name": "so",
+      "body": "index.json"
+    }
+  ],
+  "corpora": [
+    {
+      "name": "so",
+      "base-url": "https://rally-tracks.elastic.co/so",
+      "documents": [
+        {
+          "source-file": "posts.json.bz2",
+          "document-count": 36062278,
+          "compressed-bytes": 9600716233,
+          "uncompressed-bytes": 35564808298
+        }
+      ]
+    }
+  ],
+  "operations": [
+    {{ rally.collect(parts="operations/*.json") }}
+  ],
+  "challenges": [
+    {{ rally.collect(parts="challenges/*.json") }}
+  ]
+}

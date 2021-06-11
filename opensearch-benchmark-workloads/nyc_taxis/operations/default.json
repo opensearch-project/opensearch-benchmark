@@ -1,0 +1,317 @@
+    {
+      "name": "index",
+      "operation-type": "bulk",
+      "bulk-size": {{bulk_size | default(10000)}},
+      "ingest-percentage": {{ingest_percentage | default(100)}}
+    },
+    {
+      "name": "update",
+      "operation-type": "bulk",
+      "bulk-size": {{bulk_size | default(10000)}},
+      "ingest-percentage": {{ingest_percentage | default(100)}},
+      "conflicts": "{{conflicts | default('random')}}",
+      "on-conflict": "{{on_conflict | default('update')}}",
+      "conflict-probability": {{conflict_probability | default(25)}},
+      "recency": {{recency | default(0)}}
+    },
+    {
+      "name": "wait-until-merges-finish",
+      "operation-type": "index-stats",
+      "index": "_all",
+      "condition": {
+        "path": "_all.total.merges.current",
+        "expected-value": 0
+      },
+      "retry-until-success": true,
+      "include-in-reporting": false
+    },
+    {
+      "name": "default",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "match_all": {}
+        }
+      }
+    },
+    {
+      "name": "range",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "range": {
+            "total_amount": {
+              "gte": 5,
+              "lt": 15
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "distance_amount_agg",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "distance_histo": {
+            "histogram": {
+              "field": "distance",
+              "interval": 1
+            },
+            "aggs": {
+              "total_amount_stats": {
+                "stats": {
+                  "field": "total_amount"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "autohisto_agg",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "dropoff_datetime": {
+              "gte": "01/01/2015",
+              "lte": "21/01/2015",
+              "format": "dd/MM/yyyy"
+            }
+          }
+        },
+        "aggs": {
+          "dropoffs_over_time": {
+            "auto_date_histogram": {
+              "field": "dropoff_datetime",
+              "buckets": 20
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date_histogram_agg",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+              "dropoff_datetime": {
+              "gte": "01/01/2015",
+              "lte": "21/01/2015",
+              "format": "dd/MM/yyyy"
+            }
+          }
+        },
+        "aggs": {
+          "dropoffs_over_time": {
+            "date_histogram": {
+              "field": "dropoff_datetime",
+              "calendar_interval": "day"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date_histogram_calendar_interval",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "dropoff_datetime": {
+              "gte": "2015-01-01 00:00:00",
+              "lt": "2016-01-01 00:00:00"
+            }
+          }
+        },
+        "aggs": {
+          "dropoffs_over_time": {
+            "date_histogram": {
+              "field": "dropoff_datetime",
+              "calendar_interval": "month"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date_histogram_calendar_interval_with_tz",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "dropoff_datetime": {
+              "gte": "2015-01-01 00:00:00",
+              "lt": "2016-01-01 00:00:00"
+            }
+          }
+        },
+        "aggs": {
+          "dropoffs_over_time": {
+            "date_histogram": {
+              "field": "dropoff_datetime",
+              "calendar_interval": "month",
+              "time_zone": "America/New_York"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date_histogram_fixed_interval",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "dropoff_datetime": {
+              "gte": "2015-01-01 00:00:00",
+              "lt": "2016-01-01 00:00:00"
+            }
+          }
+        },
+        "aggs": {
+          "dropoffs_over_time": {
+            "date_histogram": {
+              "field": "dropoff_datetime",
+              "fixed_interval": "60d"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date_histogram_fixed_interval_with_tz",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "dropoff_datetime": {
+              "gte": "2015-01-01 00:00:00",
+              "lt": "2016-01-01 00:00:00"
+            }
+          }
+        },
+        "aggs": {
+          "dropoffs_over_time": {
+            "date_histogram": {
+              "field": "dropoff_datetime",
+              "fixed_interval": "60d",
+              "time_zone": "America/New_York"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date_histogram_fixed_interval_with_metrics",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "dropoff_datetime": {
+              "gte": "2015-01-01 00:00:00",
+              "lt": "2016-01-01 00:00:00"
+            }
+          }
+        },
+        "aggs": {
+          "dropoffs_over_time": {
+            "date_histogram": {
+              "field": "dropoff_datetime",
+              "fixed_interval": "60d"
+            },
+            "aggs": {
+              "total_amount": { "stats": { "field": "total_amount" } },
+              "tip_amount": { "stats": { "field": "tip_amount" } },
+              "trip_distance": { "stats": { "field": "trip_distance" } }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "auto_date_histogram",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "dropoff_datetime": {
+              "gte": "2015-01-01 00:00:00",
+              "lt": "2016-01-01 00:00:00"
+            }
+          }
+        },
+        "aggs": {
+          "dropoffs_over_time": {
+            "auto_date_histogram": {
+              "field": "dropoff_datetime",
+              "buckets": "12"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "auto_date_histogram_with_tz",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "dropoff_datetime": {
+              "gte": "2015-01-01 00:00:00",
+              "lt": "2016-01-01 00:00:00"
+            }
+          }
+        },
+        "aggs": {
+          "dropoffs_over_time": {
+            "auto_date_histogram": {
+              "field": "dropoff_datetime",
+              "buckets": "13",
+              "time_zone": "America/New_York"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "auto_date_histogram_with_metrics",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "dropoff_datetime": {
+              "gte": "2015-01-01 00:00:00",
+              "lt": "2016-01-01 00:00:00"
+            }
+          }
+        },
+        "aggs": {
+          "dropoffs_over_time": {
+            "auto_date_histogram": {
+              "field": "dropoff_datetime",
+              "buckets": "12"
+            },
+            "aggs": {
+              "total_amount": { "stats": { "field": "total_amount" } },
+              "tip_amount": { "stats": { "field": "tip_amount" } },
+              "trip_distance": { "stats": { "field": "trip_distance" } }
+            }
+          }
+        }
+      }
+    }

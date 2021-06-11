@@ -1,0 +1,32 @@
+{% import "rally.helpers" as rally with context %}
+
+{
+  "version": 2,
+  "description": "This benchmark indexes HTTP access logs generated based sample logs from the elastic.co website using the generator available in https://github.com/elastic/rally-eventdata-track",
+  "indices": [
+    {
+      "name": "eventdata",
+      "body": "index.json"
+    }
+  ],
+  "corpora": [
+    {
+      "name": "eventdata",
+      "base-url": "https://rally-tracks.elastic.co/eventdata",
+      "documents": [
+        {
+          "source-file": "eventdata.json.bz2",
+          "document-count": 20000000,
+          "compressed-bytes": 792768300,
+          "uncompressed-bytes": 16437108429
+        }
+      ]
+    }
+  ],
+  "operations": [
+    {{ rally.collect(parts="operations/*.json") }}
+  ],
+  "challenges": [
+    {{ rally.collect(parts="challenges/*.json") }}
+  ]
+}

@@ -1,0 +1,215 @@
+    {
+      "name": "append-no-conflicts",
+      "description": "Indexes the whole document corpus using Elasticsearch default settings. We only adjust the number of replicas as we benchmark a single node cluster and Rally will only start the benchmark if the cluster turns green. Document ids are unique so all index operations are append only. After that a couple of queries are run.",
+      "default": true,
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {{index_settings | default({}) | tojson}}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "osmgeopoints",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "index-append",
+          "warmup-time-period": 120,
+          "clients": {{bulk_indexing_clients | default(8)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+          "name": "refresh-after-index",
+          "operation": "refresh"
+        },
+        {
+          "operation": {
+            "operation-type": "force-merge",
+            "request-timeout": 7200{%- if max_num_segments is defined %},
+            "max-num-segments": {{max_num_segments}}
+             {%- endif %}
+          }
+        },
+        {
+          "name": "refresh-after-force-merge",
+          "operation": "refresh"
+        },
+        {
+          "name": "wait-until-merges-finish",
+          "operation": {
+            "operation-type": "index-stats",
+            "index": "_all",
+            "condition": {
+              "path": "_all.total.merges.current",
+              "expected-value": 0
+            },
+            "retry-until-success": true,
+            "include-in-reporting": false
+          }
+        },
+        {
+          "operation": "polygon",
+          "warmup-iterations": 200,
+          "iterations": 100,
+          "target-throughput": 2
+        },
+        {
+          "operation": "bbox",
+          "warmup-iterations": 200,
+          "iterations": 100,
+          "target-throughput": 2
+        },
+        {
+          "operation": "distance",
+          "warmup-iterations": 200,
+          "iterations": 100,
+          "target-throughput": 5
+        },
+        {
+          "operation": "distanceRange",
+          "warmup-iterations": 200,
+          "iterations": 100,
+          "target-throughput": 0.5
+        }
+      ]
+    },
+    {
+      "name": "append-no-conflicts-index-only",
+      "description": "Indexes the whole document corpus using Elasticsearch default settings. We only adjust the number of replicas as we benchmark a single node cluster and Rally will only start the benchmark if the cluster turns green. Document ids are unique so all index operations are append only.",
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {{index_settings | default({}) | tojson}}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "osmgeopoints",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "index-append",
+          "warmup-time-period": 120,
+          "clients": {{bulk_indexing_clients | default(8)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+        "name": "refresh-after-index",
+        "operation": "refresh"
+        },
+        {
+          "operation": {
+            "operation-type": "force-merge",
+            "request-timeout": 7200{%- if max_num_segments is defined %},
+            "max-num-segments": {{max_num_segments}}
+             {%- endif %}
+          }
+        },
+        {
+        "name": "refresh-after-force-merge",
+        "operation": "refresh"
+        },
+        {
+          "name": "wait-until-merges-finish",
+          "operation": {
+            "operation-type": "index-stats",
+            "index": "_all",
+            "condition": {
+              "path": "_all.total.merges.current",
+              "expected-value": 0
+            },
+            "retry-until-success": true,
+            "include-in-reporting": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "append-fast-with-conflicts",
+      "description": "Indexes the whole document corpus using a setup that will lead to a larger indexing throughput than the default settings. Rally will produce duplicate ids in 25% of all documents (not configurable) so we can simulate a scenario with appends most of the time and some updates in between.",
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {%- if index_settings is defined %} {{index_settings | tojson}} {%- else %} {
+              "index.refresh_interval": "30s",
+              "index.number_of_shards": {{number_of_shards | default(6)}},
+              "index.translog.flush_threshold_size": "4g"
+            }{%- endif %}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "osmgeopoints",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "index-update",
+          "warmup-time-period": 120,
+          "clients": {{bulk_indexing_clients | default(8)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+        "name": "refresh-after-index",
+        "operation": "refresh"
+        },
+        {
+          "operation": {
+            "operation-type": "force-merge",
+            "request-timeout": 7200{%- if max_num_segments is defined %},
+            "max-num-segments": {{max_num_segments}}
+             {%- endif %}
+          }
+        },
+        {
+        "name": "refresh-after-force-merge",
+        "operation": "refresh"
+        },
+        {
+          "name": "wait-until-merges-finish",
+          "operation": {
+            "operation-type": "index-stats",
+            "index": "_all",
+            "condition": {
+              "path": "_all.total.merges.current",
+              "expected-value": 0
+            },
+            "retry-until-success": true,
+            "include-in-reporting": false
+          }
+        }
+      ]
+    }

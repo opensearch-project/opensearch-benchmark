@@ -1,0 +1,563 @@
+    {
+      "name": "append-no-conflicts",
+      "description": "Indexes the whole document corpus using Elasticsearch default settings. We only adjust the number of replicas as we benchmark a single node cluster and Rally will only start the benchmark if the cluster turns green and we want to ensure that we don't use the query cache. Document ids are unique so all index operations are append only. After that a couple of queries are run.",
+      "default": true,
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {{index_settings | default({}) | tojson}}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "weather-data-2016",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "index",
+          "#COMMENT": "This is an incredibly short warmup time period but it is necessary to get also measurement samples. As this benchmark is rather about search than indexing this is ok.",
+          "warmup-time-period": 70,
+          "clients": {{bulk_indexing_clients | default(8)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+          "name": "refresh-after-index",
+          "operation": "refresh"
+        },
+        {
+          "operation": {
+            "operation-type": "force-merge",
+            "request-timeout": 7200
+          }
+        },
+        {
+          "name": "refresh-after-force-merge",
+          "operation": "refresh"
+        },
+        {
+          "name": "wait-until-merges-finish",
+          "operation": {
+            "operation-type": "index-stats",
+            "index": "_all",
+            "condition": {
+              "path": "_all.total.merges.current",
+              "expected-value": 0
+            },
+            "retry-until-success": true,
+            "include-in-reporting": false
+          }
+        },
+        {
+          "operation": "range_field_big_range",
+          "warmup-iterations": 100,
+          "iterations": 500,
+          "target-throughput": 6
+        },
+        {
+          "operation": "range_field_small_range",
+          "warmup-iterations": 100,
+          "iterations": 500,
+          "target-throughput": 10
+        },
+        {
+          "operation": "range_field_conjunction_big_range_small_term_query",
+          "warmup-iterations": 100,
+          "iterations": 500,
+          "target-throughput": 10
+        },
+        {
+          "operation": "range_field_conjunction_small_range_small_term_query",
+          "warmup-iterations": 100,
+          "iterations": 500,
+          "target-throughput": 10
+        },
+        {
+          "operation": "range_field_conjunction_small_range_big_term_query",
+          "warmup-iterations": 100,
+          "iterations": 500,
+          "target-throughput": 4
+        },
+        {
+          "operation": "range_field_conjunction_big_range_big_term_query",
+          "warmup-iterations": 100,
+          "iterations": 500,
+          "target-throughput": 1
+        },
+        {
+          "operation": "range_field_disjunction_small_range_small_term_query",
+          "warmup-iterations": 100,
+          "iterations": 500,
+          "target-throughput": 10
+        },
+        {
+          "operation": "range_field_disjunction_big_range_small_term_query",
+          "warmup-iterations": 100,
+          "iterations": 500,
+          "target-throughput": 6
+        }
+      ]
+    },
+    {
+      "name": "append-no-conflicts-index-only",
+      "description": "Indexes the whole document corpus using Elasticsearch default settings.",
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {{index_settings | default({}) | tojson}}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "weather-data-2016",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "index",
+          "#COMMENT": "This is an incredibly short warmup time period but it is necessary to get also measurement samples. As this benchmark is rather about search than indexing this is ok.",
+          "warmup-time-period": 70,
+          "clients": {{bulk_indexing_clients | default(8)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+          "name": "refresh-after-index",
+          "operation": "refresh"
+        },
+        {
+          "operation": {
+            "operation-type": "force-merge",
+            "request-timeout": 7200
+          }
+        },
+        {
+          "name": "refresh-after-force-merge",
+          "operation": "refresh"
+        },
+        {
+          "name": "wait-until-merges-finish",
+          "operation": {
+            "operation-type": "index-stats",
+            "index": "_all",
+            "condition": {
+              "path": "_all.total.merges.current",
+              "expected-value": 0
+            },
+            "retry-until-success": true,
+            "include-in-reporting": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "top_metrics",
+      "description": "Compares the performance of top_metrics and top_hits",
+      "default": false,
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {{index_settings | default({}) | tojson}}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "weather-data-2016",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "index",
+          "#COMMENT": "This is an incredibly short warmup time period but it is necessary to get also measurement samples. As this benchmark is rather about search than indexing this is ok.",
+          "warmup-time-period": 70,
+          "clients": {{bulk_indexing_clients | default(8)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+          "name": "refresh-after-index",
+          "operation": "refresh",
+          "clients": 1
+        },
+        {
+          "operation": "force-merge",
+          "clients": 1
+        },
+        {
+          "name": "refresh-after-force-merge",
+          "operation": "refresh",
+          "clients": 1
+        },
+        {
+          "operation": "max_temp",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 100,
+          "target-throughput": 4
+        },
+        {
+          "operation": "last_max_temp_top_hits",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 100,
+          "target-throughput": 4
+        },
+        {
+          "operation": "last_max_temp_top_metrics",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 100,
+          "target-throughput": 4
+        },
+        {
+          "operation": "max_temp_per_station_10",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 100,
+          "target-throughput": 2
+        },
+        {
+          "operation": "last_max_temp_per_station_top_hits_10",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 100,
+          "target-throughput": 2
+        },
+        {
+          "operation": "last_max_temp_per_station_top_metrics_10",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 100,
+          "target-throughput": 2
+        },
+        {
+          "operation": "last_min_and_max_temp_per_station_top_metrics_10",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 100,
+          "target-throughput": 2
+        },
+        {
+          "operation": "last_five_max_temp_per_station_top_metrics_10",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 100,
+          "target-throughput": 2
+        },
+        {
+          "operation": "max_temp_per_station_10_depth_first",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 100,
+          "target-throughput": 2
+        },
+        {
+          "operation": "last_max_temp_per_station_top_hits_10_depth_first",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 100,
+          "target-throughput": 1
+        },
+        {
+          "operation": "last_max_temp_per_station_top_metrics_10_depth_first",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 100,
+          "target-throughput": 1
+        },
+        {
+          "operation": "last_max_temp_per_station_top_metrics_10_sort_by",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 100,
+          "target-throughput": 1
+        },
+        {
+          "operation": "max_temp_per_station_5000",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 100,
+          "target-throughput": 1
+        },
+        {
+          "operation": "last_max_temp_per_station_top_hits_5000",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-throughput": 1
+        },
+        {
+          "operation": "last_max_temp_per_station_top_hits_5000_via_source",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-throughput": 1
+        },
+        {
+          "operation": "last_max_temp_per_station_top_metrics_5000",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-throughput": 1
+        },
+        {
+          "operation": "last_min_and_max_temp_per_station_top_metrics_5000",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-throughput": 1
+        },
+        {
+          "operation": "last_five_max_temp_per_station_top_metrics_5000",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-throughput": 1
+        },
+        {
+          "operation": "last_country_code_per_station_top_metrics_5000",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-throughput": 1
+        }
+      ]
+    },
+    {
+      "name": "aggs",
+      "description": "Checks the performance of many aggregations",
+      "default": false,
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {{index_settings | default({}) | tojson}}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "weather-data-2016",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "index",
+          "#COMMENT": "This is an incredibly short warmup time period but it is necessary to get also measurement samples. As this benchmark is rather about search than indexing this is ok.",
+          "warmup-time-period": 10,
+          "clients": {{bulk_indexing_clients | default(8)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+          "name": "refresh-after-index",
+          "operation": "refresh",
+          "clients": 1
+        },
+        {
+          "operation": "force-merge",
+          "clients": 1
+        },
+        {
+          "name": "refresh-after-force-merge",
+          "operation": "refresh",
+          "clients": 1
+        },
+        {
+          "operation": "keyword-terms",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 2
+        },
+        {
+          "operation": "keyword-terms-low-cardinality",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 0.1
+        },
+        {
+          "operation": "keyword-terms-min",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 3
+        },
+        {
+          "operation": "keyword-terms-low-cardinality-min",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 3
+        },
+        {
+          "operation": "keyword-terms-numeric-terms",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 5
+        },
+        {
+          "operation": "numeric-terms-numeric-terms",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 3
+        },
+        {
+          "operation": "date-histo-entire-range",
+          "clients": 1,
+          "warmup-iterations": 100,
+          "iterations": 500,
+          "target-interval": 0.2
+        },
+        {
+          "operation": "date-histo-numeric-terms",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 3
+        },
+        {
+          "operation": "date-histo-string-terms-via-map",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 17
+        },
+        {
+          "operation": "date-histo-string-terms-via-global-ords",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 6
+        },
+        {
+          "operation": "date-histo-string-terms-via-default-strategy",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 6
+        },
+        {
+          "operation": "date-histo-string-significant-terms-via-map",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 30
+        },
+        {
+          "operation": "date-histo-string-significant-terms-via-global-ords",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 15
+        },
+        {
+          "operation": "date-histo-string-significant-terms-via-default-strategy",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 15
+        },
+        {
+          "operation": "date-histo-histo",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 3
+        },
+        {
+          "operation": "date-histo-geohash-grid",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 4
+        },
+        {
+          "operation": "date-histo-geotile-grid",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 4
+        },
+        {
+          "operation": "range-numeric-significant-terms",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 16
+        },
+        {
+          "operation": "range-date-histo",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 3
+        },
+        {
+          "operation": "range-date-histo-with-metrics",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 6
+        },
+        {
+          "operation": "range-auto-date-histo",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 3
+        },
+        {
+          "operation": "range-auto-date-histo-with-metrics",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 6
+        },
+        {
+          "operation": "range-auto-date-histo-with-time-zone",
+          "clients": 1,
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 7
+        }
+      ]
+    }

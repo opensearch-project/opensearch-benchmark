@@ -1,0 +1,337 @@
+    {
+      "name": "index-append",
+      "operation-type": "bulk",
+      "bulk-size": {{bulk_size | default(5000)}},
+      "ingest-percentage": {{ingest_percentage | default(100)}},
+      "corpora": "http_logs"
+    },
+    {
+      "name": "index-append-with-ingest-baseline-pipeline",
+      "operation-type": "bulk",
+      "bulk-size": {{bulk_size | default(5000)}},
+      "ingest-percentage": {{ingest_percentage | default(100)}},
+      "pipeline": "http-log-baseline-pipeline",
+      "corpora": "http_logs"
+    },
+    {
+      "name": "index-append-with-ingest-grok-pipeline",
+      "operation-type": "bulk",
+      "bulk-size": {{bulk_size | default(5000)}},
+      "ingest-percentage": {{ingest_percentage | default(100)}},
+      "pipeline": "http-log-grok-pipeline",
+      "corpora": "http_logs_unparsed"
+    },
+    {
+      "name": "index-append-with-ingest-geoip-pipeline",
+      "operation-type": "bulk",
+      "bulk-size": {{bulk_size | default(5000)}},
+      "ingest-percentage": {{ingest_percentage | default(100)}},
+      "pipeline": "http-log-geoip-pipeline",
+      "corpora": "http_logs"
+    },
+    {
+      "name": "index-append-with-timestamp-pipeline",
+      "operation-type": "bulk",
+      "bulk-size": {{bulk_size | default(5000)}},
+      "ingest-percentage": {{ingest_percentage | default(100)}},
+      "pipeline": "timestamp-pipeline",
+      "corpora": "http_logs_unparsed"
+    },
+    {
+      "name": "update",
+      "operation-type": "bulk",
+      "bulk-size": {{bulk_size | default(5000)}},
+      "ingest-percentage": {{ingest_percentage | default(100)}},
+      "conflicts": "{{conflicts | default('random')}}",
+      "on-conflict": "{{on_conflict | default('update')}}",
+      "conflict-probability": {{conflict_probability | default(25)}},
+      "recency": {{recency | default(0)}},
+      "corpora": "http_logs"
+    },
+    {
+      "name": "default",
+      "operation-type": "search",
+      "index": "logs-*",
+      "body": {
+        "query": {
+          "match_all": {}
+        }
+      }
+    },
+    {
+      "name": "term",
+      "operation-type": "search",
+      "index": "logs-*",
+      "request-timeout": 7200,
+      "body": {
+        "query": {
+          "term": {
+            {%- if runtime_fields is defined %}
+              {# Runtime fields make a "path" instead of "request.raw" because that is what the canned example of grok and dissect typically do. #}
+              "path": {
+                "value": "/"
+              }
+            {%- else %}
+              "request.raw": {
+                "value": "GET / HTTP/1.0"
+              }
+            {%- endif %}
+          }
+        }
+      },
+      "detailed-results": true,
+      "assertions": [
+        {
+          "property": "hits",
+          "condition": "==",
+          "value": 10000
+        }
+      ]
+    },
+    {
+      "name": "range",
+      "operation-type": "search",
+      "index": "logs-*",
+      "body": {
+        "query": {
+          "range": {
+            "@timestamp": {
+              "gte": "now-{{'15-05-1998' | days_ago(now)}}d/d",
+              "lt": "now/d"
+            }
+          }
+        }
+      },
+      "detailed-results": true,
+      "assertions": [
+        {
+          "property": "hits",
+          "condition": "==",
+          "value": 10000
+        }
+      ]
+    },
+    {
+      "name": "200s-in-range",
+      "operation-type": "search",
+      "index": "logs-*",
+      "body": {
+        "query": {
+          "bool": {
+            "must": [
+              {
+                "range": {
+                  "@timestamp": {
+                    "gte": "1998-05-01T00:00:00Z",
+                    "lt": "1998-05-02T00:00:00Z"
+                  }
+                }
+              },
+              {
+                "match": {
+                  "status": "200"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "detailed-results": true,
+      "assertions": [
+        {
+          "property": "hits",
+          "condition": "==",
+          "value": 10000
+        }
+      ]
+    },
+    {
+      "name": "400s-in-range",
+      "operation-type": "search",
+      "index": "logs-*",
+      "body": {
+        "query": {
+          "bool": {
+            "must": [
+              {
+                "range": {
+                  "@timestamp": {
+                    "gte": "1998-05-01T00:00:00Z",
+                    "lt": "1998-05-02T00:00:00Z"
+                  }
+                }
+              },
+              {
+                "match": {
+                  "status": "400"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "detailed-results": true,
+      "assertions": [
+        {
+          "property": "hits",
+          "condition": "==",
+          "value": 20
+        }
+      ]
+    },
+    {
+      "name": "hourly_agg",
+      "operation-type": "search",
+      "index": "logs-*",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "by_hour": {
+            "date_histogram": {
+              "field": "@timestamp",
+              "calendar_interval": "hour"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "scroll",
+      "operation-type": "search",
+      "index": "logs-*",
+      "pages": 25,
+      "results-per-page": 1000,
+      "body": {
+        "query": {
+          "match_all": {}
+        }
+      }
+    },
+    {
+      "name": "desc_sort_timestamp",
+      "operation-type": "search",
+      "index": "logs-*",
+      "body": {
+        "query": {
+          "match_all": {}
+        },
+        "sort" : [
+          {"@timestamp" : "desc"}
+        ]
+      }
+    },
+    {
+      "name": "desc_sort_with_after_timestamp",
+      "operation-type": "search",
+      "index": "logs-*",
+      "body": {
+        "track_total_hits": false,
+        "query": {
+          "match_all": {}
+        },
+        "sort" : [
+          {"@timestamp" : "desc"}
+        ],
+        "search_after": ["1998-06-10"]
+      }
+    },
+    {
+      "name": "asc_sort_timestamp",
+      "operation-type": "search",
+      "index": "logs-*",
+      "body": {
+        "query": {
+          "match_all": {}
+        },
+        "sort" : [
+          {"@timestamp" : "asc"}
+        ]
+      }
+    },
+    {
+      "name": "asc_sort_with_after_timestamp",
+      "operation-type": "search",
+      "index": "logs-*",
+      "body": {
+        "track_total_hits": false,
+        "query": {
+          "match_all": {}
+        },
+        "sort" : [
+          {"@timestamp" : "asc"}
+        ],
+        "search_after": ["1998-06-10"]
+      }
+    },
+    {
+      "name": "create-http-log-baseline-pipeline",
+      "operation-type": "put-pipeline",
+      "id": "http-log-baseline-pipeline",
+      "body": {
+        "description": "Process an the documents with a processor that does nothing. Baseline for overhead of pipeline.",
+        "processors": [
+          {
+            "uppercase": {
+              "field": "doesnotexist",
+              "ignore_missing": true
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "create-http-log-grok-pipeline",
+      "operation-type": "put-pipeline",
+      "id": "http-log-grok-pipeline",
+      "body": {
+        "description": "Process an http log line with grok. Requires the `unparsed` data set.",
+        "processors": [
+          {
+            "grok": {
+              "field": "message",
+              "patterns": [
+                "%{IPORHOST:clientip} %{HTTPDUSER} %{USER} \\[%{TIMESTAMP_ISO8601:@timestamp}\\] \"(?:%{WORD} %{NOTSPACE:request}(?: HTTP/%{NUMBER})?|%{DATA})\" %{NUMBER:status} (?:%{NUMBER:size}|-)"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "create-http-log-geoip-pipeline",
+      "operation-type": "put-pipeline",
+      "id": "http-log-geoip-pipeline",
+      "body": {
+        "description": "Enrich the data with the geo-ip filter. Requires --elasticsearch-plugins='ingest-geoip'",
+        "processors": [
+          {
+            "geoip": {
+               "field": "clientip",
+               "properties": [
+                  "city_name",
+                  "country_name",
+                  "location"
+                ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "create-timestamp-pipeline",
+      "operation-type": "put-pipeline",
+      "id": "timestamp-pipeline",
+      "body": {
+        "description": "Process the timestamp out of an http log line with grok. Requires the `unparsed` data set.",
+        "processors": [
+          {
+            "grok": {
+              "field": "message",
+              "patterns": [
+                "%{IPORHOST} %{HTTPDUSER} %{USER} \\[%{TIMESTAMP_ISO8601:@timestamp}\\] \"(?:%{WORD} %{NOTSPACE}(?: HTTP/%{NUMBER})?|%{DATA})\" %{NUMBER} (?:%{NUMBER}|-)"
+              ]
+            }
+          }
+        ]
+      }
+    }

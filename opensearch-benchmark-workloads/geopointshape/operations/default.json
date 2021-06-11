@@ -1,0 +1,55 @@
+    {
+      "name": "index-append",
+      "operation-type": "bulk",
+      "bulk-size": {{bulk_size | default(5000)}},
+      "ingest-percentage": {{ingest_percentage | default(100)}}
+    },
+    {
+      "name": "index-update",
+      "operation-type": "bulk",
+      "bulk-size": {{bulk_size | default(5000)}},
+      "ingest-percentage": {{ingest_percentage | default(100)}},
+      "conflicts": "random",
+      "on-conflict": "{{on_conflict | default('index')}}",
+      "conflict-probability": {{conflict_probability | default(25)}},
+      "recency": {{recency | default(0)}}
+    },
+    {
+      "name": "polygon",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "geo_shape": {
+            "location": {
+               "shape": {
+                  "type": "polygon",
+                  "coordinates" : [[
+                    [-0.1, 49.0],
+                    [5.0, 48.0],
+                    [15.0, 49.0],
+                    [14.0, 60.0],
+                    [-0.1, 61.0],
+                    [-0.1, 49.0]
+                  ]]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "bbox",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "geo_shape": {
+            "location": {
+              "shape": {
+                 "type": "envelope",
+                 "coordinates" : [[-0.1, 61.0], [15.0, 48.0]]
+              }
+            }
+          }
+        }
+      }
+    }

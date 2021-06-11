@@ -1,0 +1,459 @@
+    {
+      "name": "append-no-conflicts",
+      "description": "Indexes the whole document corpus using Elasticsearch default settings. We only adjust the number of replicas as we benchmark a single node cluster and Rally will only start the benchmark if the cluster turns green. Document ids are unique so all index operations are append only.",
+      "default": true,
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {{index_settings | default({}) | tojson}}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "eventdata",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "index-append",
+          "warmup-time-period": 120,
+          "clients": {{bulk_indexing_clients | default(8)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+          "operation": {
+            "operation-type": "force-merge",
+            "request-timeout": 7200
+          }
+        },
+        {
+          "name": "wait-until-merges-finish",
+          "operation": {
+            "operation-type": "index-stats",
+            "index": "_all",
+            "condition": {
+              "path": "_all.total.merges.current",
+              "expected-value": 0
+            },
+            "retry-until-success": true,
+            "include-in-reporting": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "transform",
+      "description": "Indexes the whole document corpus using Elasticsearch default settings and run transforms to pivot data by terms, date and geo tiles.",
+      "default": false,
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {{index_settings | default({}) | tojson}}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "eventdata",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "index-append",
+          "warmup-time-period": 120,
+          "clients": {{bulk_indexing_clients | default(8)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+          "operation": {
+            "operation-type": "force-merge",
+            "request-timeout": 7200
+          }
+        },
+        {
+          "name": "wait-until-merges-finish",
+          "operation": {
+            "operation-type": "index-stats",
+            "index": "_all",
+            "condition": {
+              "path": "_all.total.merges.current",
+              "expected-value": 0
+            },
+            "retry-until-success": true,
+            "include-in-reporting": false
+          }
+        },
+        {
+          "name": "delete-transform-group-by-terms",
+          "operation": {
+            "operation-type": "delete-transform",
+            "transform-id": "transform-group-by-terms",
+            "force": true
+          }
+        },
+        {
+          "name": "create-transform-group-by-terms",
+          "operation": {
+            "operation-type": "create-transform",
+            "transform-id": "transform-group-by-terms",
+            "body": {
+              "source": {
+                "index": "eventdata"
+              },
+              "pivot": {
+                "group_by": {
+                  "browser": {
+                    "terms": {
+                      "field": "useragent.name"
+                    }
+                  },
+                  "os": {
+                    "terms": {
+                      "field": "useragent.os_name"
+                    }
+                  },
+                  "country_name": {
+                    "terms": {
+                      "field": "geoip.country_name"
+                    }
+                  }
+                },
+                "aggregations": {
+                  "count": {
+                    "value_count": {
+                      "field": "useragent.name"
+                    }
+                  },
+                  "200": {
+                    "filter": {
+                      "term": {
+                        "response": 200
+                      }
+                    }
+                  },
+                  "206": {
+                    "filter": {
+                      "term": {
+                        "response": 206
+                      }
+                    }
+                  },
+                  "301": {
+                    "filter": {
+                      "term": {
+                        "response": 301
+                      }
+                    }
+                  },
+                  "302": {
+                    "filter": {
+                      "term": {
+                        "response": 302
+                      }
+                    }
+                  },
+                  "304": {
+                    "filter": {
+                      "term": {
+                        "response": 304
+                      }
+                    }
+                  },
+                  "404": {
+                    "filter": {
+                      "term": {
+                        "response": 404
+                      }
+                    }
+                  },
+                  "405": {
+                    "filter": {
+                      "term": {
+                        "response": 405
+                      }
+                    }
+                  },
+                  "412": {
+                    "filter": {
+                      "term": {
+                        "response": 412
+                      }
+                    }
+                  },
+                  "499": {
+                    "filter": {
+                      "term": {
+                        "response": 499
+                      }
+                    }
+                  },
+                  "bytes.avg": {
+                    "avg": {
+                      "field": "bytes"
+                    }
+                  },
+                  "bytes.max": {
+                    "max": {
+                      "field": "bytes"
+                    }
+                  },
+                  "bytes.min": {
+                    "min": {
+                      "field": "bytes"
+                    }
+                  },
+                  "clientip.dc": {
+                    "cardinality": {
+                      "field": "clientip"
+                    }
+                  }
+                }
+              },
+              "dest": {
+                "index": "transform-group-by-terms"
+              },
+              "settings": {
+                "max_page_search_size": {{max_page_search_size | default(500)}}
+              }
+            }
+          }
+        },
+        {
+          "name": "start-transform-group-by-terms",
+          "operation": {
+            "operation-type": "start-transform",
+            "transform-id": "transform-group-by-terms"
+          }
+        },
+        {
+          "name": "wait-for-transform-group-by-terms",
+          "operation": {
+            "operation-type": "wait-for-transform",
+            "transform-id": "transform-group-by-terms",
+            "transform-timeout": 1800,
+            "timeout": "30m"
+          }
+        },
+        {
+          "name": "delete-transform-group-by-geo-tile",
+          "operation": {
+            "operation-type": "delete-transform",
+            "transform-id": "transform-group-by-geo-tile",
+            "force": true
+          }
+        },
+        {
+          "name": "create-transform-group-by-geo-tile",
+          "operation": {
+            "operation-type": "create-transform",
+            "transform-id": "transform-group-by-geo-tile",
+            "body": {
+              "source": {
+                "index": "eventdata"
+              },
+              "dest": {
+                "index": "transform-group-by-geo-tile"
+              },
+              "pivot": {
+                "group_by": {
+                  "tile": {
+                    "geotile_grid": {
+                      "field": "geoip.location",
+                      "precision": 15
+                    }
+                  }
+                },
+                "aggregations": {
+                  "200": {
+                    "filter": {
+                      "term": {
+                        "response": 200
+                      }
+                    }
+                  },
+                  "404": {
+                    "filter": {
+                      "term": {
+                        "response": 404
+                      }
+                    }
+                  },
+                  "count": {
+                    "value_count": {
+                      "field": "@timestamp"
+                    }
+                  },
+                  "clients_dc": {
+                    "cardinality": {
+                      "field": "clientip"
+                    }
+                  },
+                  "browser_dc": {
+                    "cardinality": {
+                      "field": "useragent.name"
+                    }
+                  },
+                  "os_dc": {
+                    "cardinality": {
+                      "field": "useragent.os_name"
+                    }
+                  },
+                  "bytes.avg": {
+                    "avg": {
+                      "field": "bytes"
+                    }
+                  },
+                  "bytes.max": {
+                    "max": {
+                      "field": "bytes"
+                    }
+                  }
+                }
+              },
+              "settings": {
+                "max_page_search_size": {{max_page_search_size | default(500)}}
+              }
+            }
+          }
+        },
+        {
+          "name": "start-transform-group-by-geo-tile",
+          "operation": {
+            "operation-type": "start-transform",
+            "transform-id": "transform-group-by-geo-tile"
+          }
+        },
+        {
+          "name": "wait-for-transform-group-by-geo-tile",
+          "operation": {
+            "operation-type": "wait-for-transform",
+            "transform-id": "transform-group-by-geo-tile",
+            "transform-timeout": 1800,
+            "timeout": "30m"
+          }
+        },
+        {
+          "name": "delete-transform-group-by-minute",
+          "operation": {
+            "operation-type": "delete-transform",
+            "transform-id": "transform-group-by-minute",
+            "force": true
+          }
+        },
+        {
+          "name": "create-transform-group-by-minute",
+          "operation": {
+            "operation-type": "create-transform",
+            "transform-id": "transform-group-by-minute",
+            "body": {
+              "source": {
+                "index": "eventdata"
+              },
+              "dest": {
+                "index": "transform-group-by-minute"
+              },
+              "pivot": {
+                "group_by": {
+                  "date": {
+                    "date_histogram": {
+                      "field": "@timestamp",
+                      "fixed_interval": "1m"
+                    }
+                  }
+                },
+                "aggregations": {
+                  "200": {
+                    "filter": {
+                      "term": {
+                        "response": 200
+                      }
+                    }
+                  },
+                  "404": {
+                    "filter": {
+                      "term": {
+                        "response": 404
+                      }
+                    }
+                  },
+                  "count": {
+                    "value_count": {
+                      "field": "@timestamp"
+                    }
+                  },
+                  "clients_dc": {
+                    "cardinality": {
+                      "field": "clientip"
+                    }
+                  },
+                  "browser_dc": {
+                    "cardinality": {
+                      "field": "useragent.name"
+                    }
+                  },
+                  "os_dc": {
+                    "cardinality": {
+                      "field": "useragent.os_name"
+                    }
+                  },
+                  "bytes.avg": {
+                    "avg": {
+                      "field": "bytes"
+                    }
+                  },
+                  "bytes.max": {
+                    "max": {
+                      "field": "bytes"
+                    }
+                  },
+                  "codes": {
+                    "terms": {
+                      "field": "",
+                      "size": 10
+                    }
+                  }
+                }
+              },
+              "settings": {
+                "max_page_search_size": {{max_page_search_size | default(500)}}
+              }
+            }
+          }
+        },
+        {
+          "name": "start-transform-group-by-minute",
+          "operation": {
+            "operation-type": "start-transform",
+            "transform-id": "transform-group-by-minute"
+          }
+        },
+        {
+          "name": "wait-for-transform-group-by-minute",
+          "operation": {
+            "operation-type": "wait-for-transform",
+            "transform-id": "transform-group-by-minute",
+            "transform-timeout": 1800,
+            "timeout": "30m"
+          }
+        }
+      ]
+    }

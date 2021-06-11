@@ -1,0 +1,43 @@
+{
+  "settings": {
+    "index.number_of_shards": {{number_of_shards | default(5)}},
+    "index.number_of_replicas": {{number_of_replicas | default(0)}},
+    "index.requests.cache.enable": false
+  },
+  "mappings": {
+    "_source": {
+      "enabled": {{ source_enabled | default(true) | tojson }}
+    },
+    "dynamic": "strict",
+    "properties": {
+      "name": {
+        "type": "keyword"
+      },
+      "journal": {
+        "type": "text"
+      },
+      "date": {
+        "type": "text"
+      },
+      "volume": {
+        "type": "text"
+      },
+      "issue": {
+        "type": "text"
+      },
+      "accession": {
+        "type": "keyword"
+      },
+      "timestamp": {
+        "type": "date",
+        "format": "yyyy-MM-dd HH:mm:ss"
+      },
+      "pmid": {
+        "type": "integer"
+      },
+      "body": {
+        "type": "text"
+      }
+    }
+  }
+}

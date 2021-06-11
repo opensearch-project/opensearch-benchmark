@@ -1,0 +1,66 @@
+    {
+      "name": "index-append",
+      "operation-type": "bulk",
+      "bulk-size": {{bulk_size | default(5000)}},
+      "ingest-percentage": {{ingest_percentage | default(100)}}
+    },
+    {
+      "name": "randomized-nested-queries",
+      "operation-type": "search",
+      "param-source": "nested-query-source"
+    },
+    {
+      "name": "randomized-nested-queries-with-inner-hits_default",
+      "operation-type": "search",
+      "param-source": "nested-query-source-with-inner-hits",
+      "size" : 10,
+      "inner_hits_size" : 3
+    },
+    {
+      "name": "randomized-nested-queries-with-inner-hits_default_big_size",
+      "operation-type": "search",
+      "param-source": "nested-query-source-with-inner-hits",
+      "size" : 100,
+      "inner_hits_size" : 100
+    },
+    {
+      "name": "randomized-term-queries",
+      "operation-type": "search",
+      "param-source": "term-query-source"
+    },
+    {
+      "name": "randomized-sorted-term-queries",
+      "operation-type": "search",
+      "param-source": "sorted-term-query-source"
+    },
+    {
+      "name": "match-all",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "match_all": {}
+        }
+      }
+    },
+    {
+      "name": "nested-date-histo",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "answers": {
+            "nested": {
+              "path": "answers"
+            },
+            "aggs": {
+              "date_histo": {
+                "date_histogram": {
+                  "field": "answers.date",
+                  "calendar_interval": "month"
+                }
+              }
+            }
+          }
+        }
+      }
+    }

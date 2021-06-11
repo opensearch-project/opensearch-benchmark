@@ -1,0 +1,111 @@
+    {
+      "name": "append-no-conflicts",
+      "description": "Indexes the whole document corpus using Elasticsearch default settings. We only adjust the number of replicas as we benchmark a single node cluster and Rally will only start the benchmark if the cluster turns green and we want to ensure that we don't use the query cache. Document ids are unique so all index operations are append only. After that a couple of queries are run.",
+      "default": true,
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {{index_settings | default({}) | tojson}}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "queries",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "index",
+          "#COMMENT": "This is an incredibly short warmup time period but it is necessary to get also measurement samples. As this benchmark is rather about search than indexing this is ok.",
+          "warmup-time-period": 10,
+          "clients": {{bulk_indexing_clients | default(8)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+          "name": "refresh-after-index",
+          "operation": "refresh"
+        },
+        {
+          "operation": {
+            "operation-type": "force-merge",
+            "request-timeout": 7200
+          }
+        },
+        {
+          "name": "refresh-after-force-merge",
+          "operation": "refresh"
+        },
+        {
+          "name": "wait-until-merges-finish",
+          "operation": {
+            "operation-type": "index-stats",
+            "index": "_all",
+            "condition": {
+              "path": "_all.total.merges.current",
+              "expected-value": 0
+            },
+            "retry-until-success": true,
+            "include-in-reporting": false
+          }
+        },
+        {
+          "operation": "percolator_with_content_president_bush",
+          "warmup-iterations": 100,
+          "iterations": 100,
+          "target-throughput": 50
+        },
+        {
+          "operation": "percolator_with_content_saddam_hussein",
+          "warmup-iterations": 100,
+          "iterations": 100,
+          "target-throughput": 50
+        },
+        {
+          "operation": "percolator_with_content_hurricane_katrina",
+          "warmup-iterations": 100,
+          "iterations": 100,
+          "target-throughput": 50
+        },
+        {
+          "operation": "percolator_with_content_google",
+          "warmup-iterations": 100,
+          "iterations": 100,
+          "target-throughput": 27
+        },
+        {
+          "operation": "percolator_no_score_with_content_google",
+          "warmup-iterations": 100,
+          "iterations": 100,
+          "target-throughput": 100
+        },
+        {
+          "operation": "percolator_with_highlighting",
+          "warmup-iterations": 100,
+          "iterations": 100,
+          "target-throughput": 50
+        },
+        {
+          "operation": "percolator_with_content_ignore_me",
+          "warmup-iterations": 10,
+          "iterations": 100,
+          "#COMMENT": "Be aware that we specify *target-interval* here! This means we issue one query every 12 seconds",
+          "target-interval": 12
+        },
+        {
+          "operation": "percolator_no_score_with_content_ignore_me",
+          "warmup-iterations": 100,
+          "iterations": 100,
+          "target-throughput": 15
+        }
+      ]
+    }

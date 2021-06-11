@@ -1,0 +1,6 @@
+linestrings.json.bz2
+linestrings-1k.json.bz2
+multilinestrings.json.bz2
+multilinestrings-1k.json.bz2
+polygons.json.bz2
+polygons-1k.json.bz2

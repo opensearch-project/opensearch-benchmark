@@ -1,0 +1,67 @@
+{% import "rally.helpers" as rally with context %}
+
+{
+  "version": 2,
+  "description": "Shapes from PlanetOSM",
+  "indices": [
+    {
+      "name": "osmlinestrings",
+      "body": "index.json"
+    },
+    {
+      "name": "osmmultilinestrings",
+      "body": "index.json"
+    },
+    {
+      "name": "osmpolygons",
+      "body": "index.json"
+    }
+  ],
+  "corpora": [
+    {
+      "name": "linestrings",
+      "base-url": "https://rally-tracks.elastic.co/geoshape",
+      "target-index": "osmlinestrings",
+      "documents": [
+        {
+          "source-file": "linestrings.json.bz2",
+          "document-count": 20532036,
+          "compressed-bytes": 3698508764,
+          "uncompressed-bytes": 12592499821
+        }
+      ]
+    },
+    {
+      "name": "multilinestrings",
+      "base-url": "https://rally-tracks.elastic.co/geoshape",
+      "target-index": "osmmultilinestrings",
+      "documents": [
+        {
+          "source-file": "multilinestrings.json.bz2",
+          "document-count": 532036,
+          "compressed-bytes": 1817213095,
+          "uncompressed-bytes": 5992834062
+        }
+      ]
+    },
+    {
+      "name": "polygons",
+      "base-url": "https://rally-tracks.elastic.co/geoshape",
+      "target-index": "osmpolygons",
+      "documents": [
+        {
+          "source-file": "polygons.json.bz2",
+          "document-count": 39459211,
+          "compressed-bytes": 8837117359,
+          "uncompressed-bytes": 30178820325
+        }
+      ]
+    }
+  ],
+  "operations": [
+    {{ rally.collect(parts="operations/*.json") }}
+  ],
+  "challenges": [
+    {{ rally.collect(parts="challenges/*.json") }}
+  ]
+}

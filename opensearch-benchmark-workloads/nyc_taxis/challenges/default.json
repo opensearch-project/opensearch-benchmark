@@ -1,0 +1,590 @@
+    {
+      "name": "append-no-conflicts",
+      "description": "Indexes the whole document corpus using a setup that will lead to a larger indexing throughput than the default settings and produce a smaller index (higher compression rate). Document ids are unique so all index operations are append only. After that a couple of queries are run.",
+      "default": true,
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {%- if index_settings is defined %} {{index_settings | tojson}} {%- else %} {
+              "index.codec": "best_compression",
+              "index.refresh_interval": "30s",
+              "index.translog.flush_threshold_size": "4g"
+            }{%- endif %}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "nyc_taxis",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "index",
+          "warmup-time-period": 240,
+          "clients": {{bulk_indexing_clients | default(8)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+          "name": "refresh-after-index",
+          "operation": "refresh"
+        },
+        {
+          "operation": {
+            "operation-type": "force-merge",
+            "request-timeout": 7200{%- if force_merge_max_num_segments is defined %},
+            "max-num-segments": {{ force_merge_max_num_segments | tojson }}
+            {%- endif %}
+          }
+        },
+        {
+          "name": "refresh-after-force-merge",
+          "operation": "refresh"
+        },
+        {
+          "operation": "wait-until-merges-finish"
+        },
+        {
+          "operation": "default",
+          "warmup-iterations": 50,
+          "iterations": 100,
+          "target-throughput": 3
+        },
+        {
+          "operation": "range",
+          "warmup-iterations": 50,
+          "iterations": 100,
+          "target-throughput": 0.7
+        },
+        {
+          "operation": "distance_amount_agg",
+          "warmup-iterations": 50,
+          "iterations": 100,
+          "target-throughput": 2
+        },
+        {
+          "operation": "autohisto_agg",
+          "warmup-iterations": 50,
+          "iterations": 100,
+          "target-throughput": 1.5
+        },
+        {
+          "operation": "date_histogram_agg",
+          "warmup-iterations": 50,
+          "iterations": 100,
+          "target-throughput": 1.5
+        }
+      ]
+    },
+    {
+      "name": "append-no-conflicts-index-only",
+      "description": "Indexes the whole document corpus using a setup that will lead to a larger indexing throughput than the default settings and produce a smaller index (higher compression rate). Document ids are unique so all index operations are append only.",
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {%- if index_settings is defined %} {{index_settings | tojson}} {%- else %} {
+              "index.codec": "best_compression",
+              "index.refresh_interval": "30s",
+              "index.translog.flush_threshold_size": "4g"
+            }{%- endif %}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "nyc_taxis",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "index",
+          "warmup-time-period": 240,
+          "clients": {{bulk_indexing_clients | default(8)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+          "name": "refresh-after-index",
+          "operation": "refresh"
+        },
+        {
+          "operation": {
+            "operation-type": "force-merge",
+            "request-timeout": 7200{%- if force_merge_max_num_segments is defined %},
+            "max-num-segments": {{ force_merge_max_num_segments | tojson }}
+            {%- endif %}
+          }
+        },
+        {
+          "name": "refresh-after-force-merge",
+          "operation": "refresh"
+        },
+        {
+          "operation": "wait-until-merges-finish"
+        }
+      ]
+    },
+    {
+      "name": "append-sorted-no-conflicts-index-only",
+      "description": "Indexes the whole document corpus in an index sorted by pickup_datetime field in descending order (most recent first) and using a setup that will lead to a larger indexing throughput than the default settings and produce a smaller index (higher compression rate). Document ids are unique so all index operations are append only.",
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {%- if index_settings is defined %} {{index_settings | tojson}} {%- else %} {
+              "index.codec": "best_compression",
+              "index.refresh_interval": "30s",
+              "index.translog.flush_threshold_size": "4g",
+              "index.sort.field": "pickup_datetime",
+              "index.sort.order": "desc"
+            }{%- endif %}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "nyc_taxis",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "index",
+          "warmup-time-period": 240,
+          "clients": {{bulk_indexing_clients | default(8)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+          "name": "refresh-after-index",
+          "operation": "refresh"
+        },
+        {
+          "operation": {
+            "operation-type": "force-merge",
+            "request-timeout": 7200{%- if force_merge_max_num_segments is defined %},
+            "max-num-segments": {{ force_merge_max_num_segments | tojson }}
+            {%- endif %}
+          }
+        },
+        {
+          "name": "refresh-after-force-merge",
+          "operation": "refresh"
+        },
+        {
+          "operation": "wait-until-merges-finish"
+        }
+      ]
+    },
+    {
+      "name": "update",
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {%- if index_settings is defined %} {{index_settings | tojson}} {%- else %} {
+              "index.number_of_shards": {{number_of_shards | default(1)}},
+              "index.number_of_replicas": {{number_of_replicas | default(0)}},
+              "index.store.type": "{{store_type | default('fs')}}"
+            }{%- endif %}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "nyc_taxis",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "update",
+          "warmup-time-period": 1200,
+          "clients": {{bulk_indexing_clients | default(8)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+          "name": "refresh-after-index",
+          "operation": "refresh"
+        },
+        {
+          "operation": {
+            "operation-type": "force-merge",
+            "request-timeout": 7200{%- if force_merge_max_num_segments is defined %},
+            "max-num-segments": {{ force_merge_max_num_segments | tojson }}
+            {%- endif %}
+          }
+        },
+        {
+          "name": "refresh-after-force-merge",
+          "operation": "refresh"
+        },
+        {
+          "operation": "wait-until-merges-finish"
+        }
+      ]
+    },
+{% set ml_job_id="benchmark_ml_job" %}
+{% set ml_feed_id="benchmark_nyc_taxis_feed" %}
+    {
+      "name": "append-ml",
+      "description": "Indexes the whole document corpus and executes a machine learning job",
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {%- if index_settings is defined %} {{index_settings | tojson}} {%- else %} {
+              "index.codec": "best_compression",
+              "index.refresh_interval": "30s",
+              "index.translog.flush_threshold_size": "4g"
+            }{%- endif %}
+          }
+        },
+        {
+          "operation": {
+            "operation-type": "delete-ml-datafeed",
+            "datafeed-id": "{{ml_feed_id}}",
+            "force": true
+          }
+        },
+        {
+          "operation": {
+            "operation-type": "delete-ml-job",
+            "job-id": "{{ml_job_id}}",
+            "force": true
+          }
+        },
+        {
+          "operation": {
+            "operation-type": "create-ml-job",
+            "job-id": "{{ml_job_id}}",
+            "body": {
+              "description": "NYC Taxis (count)",
+              "analysis_config": {
+                "bucket_span": "1h",
+                "influencers": [
+                  "rate_code_id",
+                  "vendor_id",
+                  "store_and_fwd_flag",
+                  "payment_type",
+                  "trip_type",
+                  "passenger_count"
+                ],
+                "detectors": [
+                  {
+                    "detector_description": "metric(trip_distance)",
+                    "function": "metric",
+                    "field_name": "trip_distance",
+                    "partition_field_name": "passenger_count",
+                    "use_null": true
+                  },
+                  {
+                    "detector_description": "metric(total_amount)",
+                    "function": "metric",
+                    "field_name": "total_amount",
+                    "partition_field_name": "passenger_count",
+                    "use_null": true
+                  },
+                  {
+                    "detector_description": "varp(trip_distance)",
+                    "function": "varp",
+                    "field_name": "trip_distance",
+                    "partition_field_name": "passenger_count",
+                    "use_null": true
+                  },
+                  {
+                    "detector_description": "varp(total_amount)",
+                    "function": "varp",
+                    "field_name": "total_amount",
+                    "partition_field_name": "passenger_count",
+                    "use_null": true
+                  },
+                  {
+                    "detector_description": "metric(trip_distance)",
+                    "function": "metric",
+                    "field_name": "trip_distance",
+                    "partition_field_name": "trip_type",
+                    "use_null": true
+                  },
+                  {
+                    "detector_description": "metric(total_amount)",
+                    "function": "metric",
+                    "field_name": "total_amount",
+                    "partition_field_name": "trip_type",
+                    "use_null": true
+                  },
+                  {
+                    "detector_description": "varp(trip_distance)",
+                    "function": "varp",
+                    "field_name": "trip_distance",
+                    "partition_field_name": "trip_type",
+                    "use_null": true
+                  },
+                  {
+                    "detector_description": "varp(total_amount)",
+                    "function": "varp",
+                    "field_name": "total_amount",
+                    "partition_field_name": "trip_type",
+                    "use_null": true
+                  },
+                  {
+                    "detector_description": "metric(trip_distance)",
+                    "function": "metric",
+                    "field_name": "trip_distance",
+                    "partition_field_name": "payment_type",
+                    "use_null": true
+                  },
+                  {
+                    "detector_description": "metric(total_amount)",
+                    "function": "metric",
+                    "field_name": "total_amount",
+                    "partition_field_name": "payment_type",
+                    "use_null": true
+                  },
+                  {
+                    "detector_description": "varp(trip_distance)",
+                    "function": "varp",
+                    "field_name": "trip_distance",
+                    "partition_field_name": "payment_type",
+                    "use_null": true
+                  },
+                  {
+                    "detector_description": "varp(total_amount)",
+                    "function": "varp",
+                    "field_name": "total_amount",
+                    "partition_field_name": "payment_type",
+                    "use_null": true
+                  },
+                  {
+                    "detector_description": "count",
+                    "function": "count",
+                    "partition_field_name": "passenger_count",
+                    "use_null": true
+                  },
+                  {
+                    "detector_description": "count",
+                    "function": "count",
+                    "partition_field_name": "payment_type",
+                    "use_null": true
+                  },
+                  {
+                    "detector_description": "count",
+                    "function": "count",
+                    "partition_field_name": "trip_type",
+                    "use_null": true
+                  }
+                ]
+              },
+              "data_description": {
+                "time_field": "pickup_datetime",
+                "time_format": "epoch_ms"
+              },
+              "model_plot_config": {
+                "enabled": false
+              }
+            }
+          }
+        },
+        {
+          "operation": {
+            "operation-type": "open-ml-job",
+            "job-id": "{{ml_job_id}}"
+          }
+        },
+        {
+          "operation": {
+            "operation-type": "create-ml-datafeed",
+            "datafeed-id": "{{ml_feed_id}}",
+            "body": {
+              "job_id": "{{ml_job_id}}",
+              "indices": [
+                "nyc_taxis"
+              ],
+              "scroll_size": 10000,
+              "chunking_config": {
+                "mode": "auto"
+              }
+            }
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "nyc_taxis",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "index",
+          "warmup-time-period": 240,
+          "clients": {{bulk_indexing_clients | default(8)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+          "name": "refresh-after-index",
+          "operation": "refresh"
+        },
+        {
+          "operation": {
+            "operation-type": "force-merge",
+            "request-timeout": 7200{%- if force_merge_max_num_segments is defined %},
+            "max-num-segments": {{ force_merge_max_num_segments | tojson }}
+            {%- endif %}
+          }
+        },
+        {
+          "name": "refresh-after-force-merge",
+          "operation": "refresh"
+        },
+        {
+          "operation": "wait-until-merges-finish"
+        },
+        {
+          "operation": {
+            "operation-type": "start-ml-datafeed",
+            "datafeed-id": "{{ml_feed_id}}",
+            "end": "now"
+          }
+        },
+        {
+          "operation": {
+            "operation-type": "wait-for-ml-lookback",
+            "include-in-reporting": false,
+            "datafeed-id": "{{ml_feed_id}}"
+          }
+        },
+        {
+          "operation": {
+            "operation-type": "close-ml-job",
+            "job-id": "{{ml_job_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "date-histogram",
+      "description": "Tests date_histogram.",
+      "schedule": [
+        {
+          "operation": "delete-index"
+        },
+        {
+          "operation": {
+            "operation-type": "create-index",
+            "settings": {%- if index_settings is defined %} {{index_settings | tojson}} {%- else %} {
+              "index.codec": "best_compression",
+              "index.refresh_interval": "30s",
+              "index.translog.flush_threshold_size": "4g"
+            }{%- endif %}
+          }
+        },
+        {
+          "name": "check-cluster-health",
+          "operation": {
+            "operation-type": "cluster-health",
+            "index": "nyc_taxis",
+            "request-params": {
+              "wait_for_status": "{{cluster_health | default('green')}}",
+              "wait_for_no_relocating_shards": "true"
+            },
+            "retry-until-success": true
+          }
+        },
+        {
+          "operation": "index",
+          "warmup-time-period": 240,
+          "clients": {{bulk_indexing_clients | default(8)}},
+          "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+        },
+        {
+          "name": "refresh-after-index",
+          "operation": "refresh"
+        },
+        {
+          "operation": "date_histogram_calendar_interval",
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 10
+        },
+        {
+          "operation": "date_histogram_calendar_interval_with_tz",
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 13
+        },
+        {
+          "operation": "date_histogram_fixed_interval",
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 10
+        },
+        {
+          "operation": "date_histogram_fixed_interval_with_tz",
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 13
+        },
+        {
+          "operation": "date_histogram_fixed_interval_with_metrics",
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 36
+        },
+        {
+          "operation": "auto_date_histogram",
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 12
+        },
+        {
+          "operation": "auto_date_histogram_with_tz",
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 20
+        },
+        {
+          "operation": "auto_date_histogram_with_metrics",
+          "warmup-iterations": 10,
+          "iterations": 50,
+          "target-interval": 46
+        }
+      ]
+    }

@@ -1,0 +1,101 @@
+    {
+      "name": "index-append",
+      "operation-type": "bulk",
+      "bulk-size": {{bulk_size | default(500)}},
+      "ingest-percentage": {{ingest_percentage | default(100)}}
+    },
+    {
+      "name": "index-update",
+      "operation-type": "bulk",
+      "bulk-size": {{bulk_size | default(500)}},
+      "ingest-percentage": {{ingest_percentage | default(100)}},
+      "conflicts": "{{conflicts | default('random')}}",
+      "on-conflict": "{{on_conflict | default('index')}}",
+      "conflict-probability": {{conflict_probability | default(25)}},
+      "recency": {{recency | default(0)}}
+    },
+    {
+      "name": "default",
+      "operation-type": "search",
+      "#COMMENT": "Large responses cause overhead on the client when decompressing the response. Disable to avoid the overhead",
+      "response-compression-enabled": false,
+      "body": {
+        "query": {
+          "match_all": {}
+        }
+      }
+    },
+    {
+      "name": "term",
+      "operation-type": "search",
+      "#COMMENT": "Large responses cause overhead on the client when decompressing the response. Disable to avoid the overhead",
+      "response-compression-enabled": false,
+      "body": {
+        "query": {
+          "term": {
+            "body": "physician"
+          }
+        }
+      }
+    },
+    {
+      "name": "phrase",
+      "operation-type": "search",
+      "#COMMENT": "Large responses cause overhead on the client when decompressing the response. Disable to avoid the overhead",
+      "response-compression-enabled": false,
+      "body": {
+        "query": {
+          "match_phrase": {
+            "body": "newspaper coverage"
+          }
+        }
+      }
+    },
+    {
+      "name": "articles_monthly_agg_uncached",
+      "operation-type": "search",
+      "#COMMENT": "Large responses cause overhead on the client when decompressing the response. Disable to avoid the overhead",
+      "response-compression-enabled": false,
+      "body": {
+        "size": 0,
+        "aggs": {
+          "articles_over_time": {
+            "date_histogram": {
+              "field": "timestamp",
+              "calendar_interval": "month"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "articles_monthly_agg_cached",
+      "operation-type": "search",
+      "cache": true,
+      "#COMMENT": "Large responses cause overhead on the client when decompressing the response. Disable to avoid the overhead",
+      "response-compression-enabled": false,
+      "body": {
+        "size": 0,
+        "aggs": {
+          "articles_over_time": {
+            "date_histogram": {
+              "field": "timestamp",
+              "calendar_interval": "month"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "scroll",
+      "operation-type": "search",
+      "pages": 25,
+      "results-per-page": 100,
+      "#COMMENT": "Large responses cause overhead on the client when decompressing the response. Disable to avoid the overhead",
+      "response-compression-enabled": false,
+      "body": {
+        "query": {
+          "match_all": {}
+        }
+      }
+    }

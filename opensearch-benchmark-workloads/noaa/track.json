@@ -1,0 +1,32 @@
+{% import "rally.helpers" as rally with context %}
+
+{
+  "version": 2,
+  "description": "Global daily weather measurements from NOAA",
+  "indices": [
+    {
+      "name": "weather-data-2016",
+      "body": "index.json"
+    }
+  ],
+  "corpora": [
+    {
+      "name": "noaa",
+      "base-url": "https://rally-tracks.elastic.co/noaa",
+      "documents": [
+        {
+          "source-file": "documents.json.bz2",
+          "document-count": 33659481,
+          "compressed-bytes": 995480468,
+          "uncompressed-bytes": 9684262698
+        }
+      ]
+    }
+  ],
+  "operations": [
+    {{ rally.collect(parts="operations/*.json") }}
+  ],
+  "challenges": [
+    {{ rally.collect(parts="challenges/*.json") }}
+  ]
+}

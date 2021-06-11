@@ -1,0 +1,93 @@
+{
+  "settings": {
+    "index.number_of_shards": {{number_of_shards | default(1)}},
+    "index.number_of_replicas": {{number_of_replicas | default(0)}},
+    "index.requests.cache.enable": false
+  },
+  "mappings": {
+    "_source": {
+      "enabled": {{ source_enabled | default(true) | tojson }}
+    },
+    "properties": {
+      "surcharge": {
+        "scaling_factor": 100,
+        "type": "scaled_float"
+      },
+      "dropoff_datetime": {
+        "type": "date",
+        "format": "yyyy-MM-dd HH:mm:ss"
+      },
+      "trip_type": {
+        "type": "keyword"
+      },
+      "mta_tax": {
+        "scaling_factor": 100,
+        "type": "scaled_float"
+      },
+      "rate_code_id": {
+        "type": "keyword"
+      },
+      "passenger_count": {
+        "type": "integer"
+      },
+      "pickup_datetime": {
+        "type": "date",
+        "format": "yyyy-MM-dd HH:mm:ss"
+      },
+      "tolls_amount": {
+        "scaling_factor": 100,
+        "type": "scaled_float"
+      },
+      "tip_amount": {
+        "scaling_factor": 100,
+        "type": "scaled_float"
+      },
+      "payment_type": {
+        "type": "keyword"
+      },
+      "extra": {
+        "scaling_factor": 100,
+        "type": "scaled_float"
+      },
+      "vendor_id": {
+        "type": "keyword"
+      },
+      "store_and_fwd_flag": {
+        "type": "keyword"
+      },
+      "improvement_surcharge": {
+        "scaling_factor": 100,
+        "type": "scaled_float"
+      },
+      "fare_amount": {
+        "scaling_factor": 100,
+        "type": "scaled_float"
+      },
+      "ehail_fee": {
+        "scaling_factor": 100,
+        "type": "scaled_float"
+      },
+      "cab_color": {
+        "type": "keyword"
+      },
+      "dropoff_location": {
+        "type": "geo_point"
+      },
+      "vendor_name": {
+        "type": "text"
+      },
+      "total_amount": {
+        "scaling_factor": 100,
+        "type": "scaled_float"
+      },
+      "trip_distance": {
+        "scaling_factor": 100,
+        "type": "scaled_float"
+      },
+      "pickup_location": {
+        "type": "geo_point"
+      }
+    },
+    "dynamic": "strict"
+  }
+}

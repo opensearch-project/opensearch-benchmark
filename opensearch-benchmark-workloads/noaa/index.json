@@ -1,0 +1,273 @@
+{
+  "settings": {
+    "index.number_of_shards": {{number_of_shards | default(1)}},
+    "index.number_of_replicas": {{number_of_replicas | default(0)}},
+    "index.queries.cache.enabled": false,
+    "index.requests.cache.enable": false,
+    "index.merge.policy.max_merged_segment": "100GB"
+  },
+  "mappings": {
+    "dynamic": "strict",
+    "_source": {
+      "enabled": {{ source_enabled | default(true) | tojson }}
+    },
+    "properties": {
+      "AWDR": {
+        "type": "keyword"
+      },
+      "AWND": {
+        "type": "float"
+      },
+      "DAPR": {
+        "type": "keyword"
+      },
+      "DASF": {
+        "type": "keyword"
+      },
+      "DATN": {
+        "type": "keyword"
+      },
+      "DATX": {
+        "type": "keyword"
+      },
+      "DWPR": {
+        "type": "keyword"
+      },
+      "EVAP": {
+        "type": "float"
+      },
+      "MDPR": {
+        "type": "float"
+      },
+      "MDSF": {
+        "type": "keyword"
+      },
+      "MDTN": {
+        "type": "float"
+      },
+      "MDTRANGE": {
+        "type": "double_range"
+      },
+      "MDTX": {
+        "type": "float"
+      },
+      "MNPN": {
+        "type": "float"
+      },
+      "MXPN": {
+        "type": "float"
+      },
+      "PGTM": {
+        "type": "keyword"
+      },
+      "PRCP": {
+        "type": "float"
+      },
+      "PSUN": {
+        "type": "keyword"
+      },
+      "SN31": {
+        "type": "keyword"
+      },
+      "SN32": {
+        "type": "keyword"
+      },
+      "SN33": {
+        "type": "keyword"
+      },
+      "SN35": {
+        "type": "keyword"
+      },
+      "SN36": {
+        "type": "keyword"
+      },
+      "SN51": {
+        "type": "keyword"
+      },
+      "SN52": {
+        "type": "keyword"
+      },
+      "SN53": {
+        "type": "keyword"
+      },
+      "SN55": {
+        "type": "keyword"
+      },
+      "SN56": {
+        "type": "keyword"
+      },
+      "SN57": {
+        "type": "keyword"
+      },
+      "SNOW": {
+        "type": "keyword"
+      },
+      "SNWD": {
+        "type": "keyword"
+      },
+      "SX31": {
+        "type": "keyword"
+      },
+      "SX32": {
+        "type": "keyword"
+      },
+      "SX33": {
+        "type": "keyword"
+      },
+      "SX35": {
+        "type": "keyword"
+      },
+      "SX36": {
+        "type": "keyword"
+      },
+      "SX51": {
+        "type": "keyword"
+      },
+      "SX52": {
+        "type": "keyword"
+      },
+      "SX53": {
+        "type": "keyword"
+      },
+      "SX55": {
+        "type": "keyword"
+      },
+      "SX56": {
+        "type": "keyword"
+      },
+      "SX57": {
+        "type": "keyword"
+      },
+      "TAVG": {
+        "type": "float"
+      },
+      "THIC": {
+        "type": "float"
+      },
+      "TMAX": {
+        "type": "float"
+      },
+      "TMIN": {
+        "type": "float"
+      },
+      "TOBS": {
+        "type": "float"
+      },
+      "TRANGE": {
+        "type": "double_range"
+      },
+      "TSUN": {
+        "type": "keyword"
+      },
+      "WDF2": {
+        "type": "keyword"
+      },
+      "WDF5": {
+        "type": "keyword"
+      },
+      "WDFG": {
+        "type": "keyword"
+      },
+      "WDMV": {
+        "type": "keyword"
+      },
+      "WESD": {
+        "type": "float"
+      },
+      "WESF": {
+        "type": "float"
+      },
+      "WSF2": {
+        "type": "float"
+      },
+      "WSF5": {
+        "type": "float"
+      },
+      "WSFG": {
+        "type": "float"
+      },
+      "WSFI": {
+        "type": "float"
+      },
+      "WT01": {
+        "type": "keyword"
+      },
+      "WT02": {
+        "type": "keyword"
+      },
+      "WT03": {
+        "type": "keyword"
+      },
+      "WT04": {
+        "type": "keyword"
+      },
+      "WT05": {
+        "type": "keyword"
+      },
+      "WT06": {
+        "type": "keyword"
+      },
+      "WT07": {
+        "type": "keyword"
+      },
+      "WT08": {
+        "type": "keyword"
+      },
+      "WT09": {
+        "type": "keyword"
+      },
+      "WT10": {
+        "type": "keyword"
+      },
+      "WT11": {
+        "type": "keyword"
+      },
+      "WT17": {
+        "type": "keyword"
+      },
+      "WT18": {
+        "type": "keyword"
+      },
+      "date": {
+        "type": "date"
+      },
+      "station": {
+        "properties": {
+          "country": {
+            "type": "keyword"
+          },
+          "country_code": {
+            "type": "keyword"
+          },
+          "elevation": {
+            "type": "float"
+          },
+          "gsn_flag": {
+            "type": "keyword"
+          },
+          "hcn_crn_flag": {
+            "type": "keyword"
+          },
+          "id": {
+            "type": "keyword"
+          },
+          "location": {
+            "type": "geo_point"
+          },
+          "name": {
+            "type": "keyword"
+          },
+          "state": {
+            "type": "keyword"
+          },
+          "state_code": {
+            "type": "keyword"
+          },
+          "wmo_id": {
+            "type": "keyword"
+          }
+        }
+      }
+    }
+  }
+}

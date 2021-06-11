@@ -1,0 +1,32 @@
+{% import "rally.helpers" as rally with context %}
+
+{
+  "version": 2,
+  "description": "Full text benchmark with academic papers from PMC",
+  "indices": [
+    {
+      "name": "pmc",
+      "body": "index.json"
+    }
+  ],
+  "corpora": [
+    {
+      "name": "pmc",
+      "base-url": "https://rally-tracks.elastic.co/pmc",
+      "documents": [
+        {
+          "source-file": "documents.json.bz2",
+          "document-count": 574199,
+          "compressed-bytes": 5931724449,
+          "uncompressed-bytes": 23256051757
+        }
+      ]
+    }
+  ],
+  "operations": [
+    {{ rally.collect(parts="operations/*.json") }}
+  ],
+  "challenges": [
+    {{ rally.collect(parts="challenges/*.json") }}
+  ]
+}

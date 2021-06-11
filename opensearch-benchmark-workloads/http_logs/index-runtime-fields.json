@@ -1,0 +1,100 @@
+{
+  "settings": {
+    "index.number_of_shards": {{ number_of_shards | default(5) }},
+    "index.number_of_replicas": {{ number_of_replicas | default(0) }},
+    "index.requests.cache.enable": false
+  },
+  "mappings": {
+    "dynamic": "strict",
+    "_source": {
+      "enabled": {{ source_enabled | default(true) | tojson }}
+    },
+    "properties": {
+      "@timestamp": {
+        "format": "strict_date_optional_time||epoch_second",
+        "type": "date"
+      },
+      "message": {
+        "type": "wildcard",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
+          }
+        }
+      }
+    },
+    "runtime": {
+      {%- set sources = [('source', 'message.source'), ('wildcard', 'message'), ('keyword', 'message.keyword')] %}
+      {%- for source_type, field in sources %}
+      "grok.from_{{source_type}}.clientip": {
+        "type": "ip",
+        "script": "emit(grok('%{IPORHOST:clientip} %{HTTPDUSER:httpduser} %{USER:user} \\\\[%{TIMESTAMP_ISO8601:timestamp}\\\\] \"(?:%{WORD:verb} %{NOTSPACE:path}(?: HTTP/%{NOTSPACE:version})?|%{DATA})\" %{NUMBER:status:int} (?:%{NUMBER:size:long}|-)').extract(doc['{{field}}'].value).clientip)"
+      },
+      "grok.from_{{source_type}}.path": {
+        "type": "keyword",
+        "script": "emit(grok('%{IPORHOST:clientip} %{HTTPDUSER:httpduser} %{USER:user} \\\\[%{TIMESTAMP_ISO8601:timestamp}\\\\] \"(?:%{WORD:verb} %{NOTSPACE:path}(?: HTTP/%{NOTSPACE:version})?|%{DATA})\" %{NUMBER:status:int} (?:%{NUMBER:size:long}|-)').extract(doc['{{field}}'].value).path)"
+      },
+      "grok.from_{{source_type}}.status": {
+        "type": "long",
+        "script": "emit(grok('%{IPORHOST:clientip} %{HTTPDUSER:httpduser} %{USER:user} \\\\[%{TIMESTAMP_ISO8601:timestamp}\\\\] \"(?:%{WORD:verb} %{NOTSPACE:path}(?: HTTP/%{NOTSPACE:version})?|%{DATA})\" %{NUMBER:status:int} (?:%{NUMBER:size:long}|-)').extract(doc['{{field}}'].value).status)"
+      },
+      "grok.from_{{source_type}}.size": {
+        "type": "long",
+        "script": "emit(grok('%{IPORHOST:clientip} %{HTTPDUSER:httpduser} %{USER:user} \\\\[%{TIMESTAMP_ISO8601:timestamp}\\\\] \"(?:%{WORD:verb} %{NOTSPACE:path}(?: HTTP/%{NOTSPACE:version})?|%{DATA})\" %{NUMBER:status:int} (?:%{NUMBER:size:long}|-)').extract(doc['{{field}}'].value).size)"
+      },
+      "grok.from_{{source_type}}.timestamp": {
+        "type": "date",
+        "script": "emit(parse(grok('%{IPORHOST:clientip} %{HTTPDUSER:httpduser} %{USER:user} \\\\[%{TIMESTAMP_ISO8601:timestamp}\\\\] \"(?:%{WORD:verb} %{NOTSPACE:path}(?: HTTP/%{NOTSPACE:version})?|%{DATA})\" %{NUMBER:status:int} (?:%{NUMBER:size:long}|-)').extract(doc['{{field}}'].value).timestamp))"
+      },
+      {%- endfor %}
+      {%- for source_type, field in sources %}
+      "dissect.from_{{source_type}}.clientip": {
+        "type": "ip",
+        "script": "emit(dissect('%{clientip} %{httpduser} %{user} [%{timestamp}] \"%{verb} %{path} HTTP/%{version}\" %{status} %{size}').extract(doc['{{field}}'].value).clientip)"
+      },
+      "dissect.from_{{source_type}}.path": {
+        "type": "keyword",
+        "script": "emit(dissect('%{clientip} %{httpduser} %{user} [%{timestamp}] \"%{verb} %{path} HTTP/%{version}\" %{status} %{size}').extract(doc['{{field}}'].value).path)"
+      },
+      "dissect.from_{{source_type}}.status": {
+        "type": "long",
+        "script": "emit(Integer.parseInt(dissect('%{clientip} %{httpduser} %{user} [%{timestamp}] \"%{verb} %{path} HTTP/%{version}\" %{status} %{size}').extract(doc['{{field}}'].value).status))"
+      },
+      "dissect.from_{{source_type}}.size": {
+        "type": "long",
+        "script": "emit(Long.parseLong(dissect('%{clientip} %{httpduser} %{user} [%{timestamp}] \"%{verb} %{path} HTTP/%{version}\" %{status} %{size}').extract(doc['{{field}}'].value).size))"
+      },
+      "dissect.from_{{source_type}}.timestamp": {
+        "type": "date",
+        "script": "emit(parse(dissect('%{clientip} %{httpduser} %{user} [%{timestamp}] \"%{verb} %{path} HTTP/%{version}\" %{status} %{size}').extract(doc['{{field}}'].value).status))"
+      },
+      {%- endfor %}
+      {%- for source_type, field in sources %}
+      "index_of.from_{{source_type}}.clientip": {
+        "type": "ip",
+        "script": "String m = doc[\"{{field}}\"].value; int end = m.indexOf(\" \"); emit(m.substring(0, end));"
+      },
+      "index_of.from_{{source_type}}.path": {
+        "type": "keyword",
+        "script": "String m = doc[\"{{field}}\"].value; int start = m.indexOf(\"\\\"\") + 1; int end = m.indexOf(\"\\\"\", start); emit(m.substring(start, end));"
+      },
+      "index_of.from_{{source_type}}.status": {
+        "type": "long",
+        "script": "String m = doc[\"{{field}}\"].value; int end = m.lastIndexOf(\" \"); int start = m.lastIndexOf(\" \", end - 1) + 1; emit(Long.parseLong(m.substring(start, end)));"
+      },
+      "index_of.from_{{source_type}}.size": {
+        "type": "long",
+        "script": "String m = doc[\"{{field}}\"].value; int start = m.lastIndexOf(\" \") + 1; emit(Long.parseLong(m.substring(start)));"
+      },
+      "index_of.from_{{source_type}}.timestamp": {
+        "type": "date",
+        "script": "String m = doc[\"{{field}}\"].value; int start = m.indexOf(\" \"); start = m.indexOf(\" \", start + 1); start = m.indexOf(\" \", start + 1); int end = m.indexOf(\" \", start + 1); emit(parse(m.substring(start + 2, end - 1)));"
+      },
+      {%- endfor %}
+      "message.source": {
+        "type": "keyword",
+        "script": "emit(params._source.message)"
+      }
+    }
+  }
+}

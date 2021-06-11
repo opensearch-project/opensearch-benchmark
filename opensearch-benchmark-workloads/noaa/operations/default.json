@@ -1,0 +1,1344 @@
+    {
+      "name": "index",
+      "operation-type": "bulk",
+      "bulk-size": {{bulk_size | default(5000)}},
+      "ingest-percentage": {{ingest_percentage | default(100)}}
+    },
+    {
+      "name": "range_field_big_range",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "range": {
+            "TRANGE": {
+              "gte": 0,
+              "lte": 30
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "range_field_small_range",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "range": {
+            "TRANGE": {
+              "gte": -20,
+              "lte": -10
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "range_field_conjunction_big_range_small_term_query",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "bool": {
+            "must": [
+              {
+                "term": {
+                  "station.country_code": "JA"
+                }
+              },
+              {
+                "range": {
+                  "TRANGE": {
+                    "gte": 0,
+                    "lte": 30
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "range_field_conjunction_small_range_small_term_query",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "bool": {
+            "must": [
+              {
+                "term": {
+                  "station.country_code": "JA"
+                }
+              },
+              {
+                "range": {
+                  "TRANGE": {
+                    "gte": -20,
+                    "lte": -10
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "range_field_conjunction_small_range_big_term_query",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "bool": {
+            "must": [
+              {
+                "term": {
+                  "station.country_code": "US"
+                }
+              },
+              {
+                "range": {
+                  "TRANGE": {
+                    "gte": -20,
+                    "lte": -10
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "range_field_conjunction_big_range_big_term_query",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "bool": {
+            "must": [
+              {
+                "term": {
+                  "station.country_code": "US"
+                }
+              },
+              {
+                "range": {
+                  "TRANGE": {
+                    "gte": 0,
+                    "lte": 30
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "range_field_disjunction_small_range_small_term_query",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "bool": {
+            "should": [
+              {
+                "term": {
+                  "station.country_code": "JA"
+                }
+              },
+              {
+                "range": {
+                  "TRANGE": {
+                    "gte": -20,
+                    "lte": -10
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "range_field_disjunction_big_range_small_term_query",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "bool": {
+            "should": [
+              {
+                "term": {
+                  "station.country_code": "JA"
+                }
+              },
+              {
+                "range": {
+                  "TRANGE": {
+                    "gte": 0,
+                    "lte": 30
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "max_temp",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "max_temp": {
+            "max": {
+              "field": "TMAX"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "last_max_temp_top_hits",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "last_temp": {
+            "top_hits": {
+              "size": 1,
+              "sort": {"date": "desc"},
+              "stored_fields": "_none_",
+              "docvalue_fields": ["TMAX"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "last_max_temp_top_metrics",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "last_temp": {
+            "top_metrics": {
+              "sort": {"date": "desc"},
+              "metrics": {"field": "TMAX"}
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "max_temp_per_station_10",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 10
+            },
+            "aggs": {
+              "max_temp": {
+                "max": {
+                  "field": "TMAX"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "last_max_temp_per_station_top_hits_10",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 10
+            },
+            "aggs": {
+              "last_temp": {
+                "top_hits": {
+                  "size": 1,
+                  "sort": {"date": "desc"},
+                  "stored_fields": "_none_",
+                  "docvalue_fields": ["TMAX"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "last_max_temp_per_station_top_metrics_10",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 10
+            },
+            "aggs": {
+              "last_temp": {
+                "top_metrics": {
+                  "sort": {"date": "desc"},
+                  "metrics": {"field": "TMAX"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "last_min_and_max_temp_per_station_top_metrics_10",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 10
+            },
+            "aggs": {
+              "last_temp": {
+                "top_metrics": {
+                  "sort": {"date": "desc"},
+                  "metrics": [
+                    {"field": "TMIN"},
+                    {"field": "TMAX"}
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "last_five_max_temp_per_station_top_metrics_10",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 10
+            },
+            "aggs": {
+              "last_temp": {
+                "top_metrics": {
+                  "size": 5,
+                  "sort": {"date": "desc"},
+                  "metrics": {"field": "TMAX"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "max_temp_per_station_10_depth_first",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 10,
+              "collect_mode" : "depth_first"
+            },
+            "aggs": {
+              "max_temp": {
+                "max": {
+                  "field": "TMAX"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "last_max_temp_per_station_top_hits_10_depth_first",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 10,
+              "collect_mode" : "depth_first"
+            },
+            "aggs": {
+              "last_temp": {
+                "top_hits": {
+                  "size": 1,
+                  "sort": {"date": "desc"},
+                  "stored_fields": "_none_",
+                  "docvalue_fields": ["TMAX"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "last_max_temp_per_station_top_metrics_10_depth_first",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 10,
+              "collect_mode" : "depth_first"
+            },
+            "aggs": {
+              "last_temp": {
+                "top_metrics": {
+                  "sort": {"date": "desc"},
+                  "metrics": {"field": "TMAX"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "last_max_temp_per_station_top_metrics_10_sort_by",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 10,
+              "order": { "last_temp.TMAX": "desc" }
+            },
+            "aggs": {
+              "last_temp": {
+                "top_metrics": {
+                  "sort": {"date": "desc"},
+                  "metrics": {"field": "TMAX"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "max_temp_per_station_5000",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 5000
+            },
+            "aggs": {
+              "max_temp": {
+                "max": {
+                  "field": "TMAX"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "last_max_temp_per_station_top_hits_5000",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 5000
+            },
+            "aggs": {
+              "last_temp": {
+                "top_hits": {
+                  "size": 1,
+                  "sort": {"date": "desc"},
+                  "stored_fields": "_none_",
+                  "docvalue_fields": ["TMAX"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "last_max_temp_per_station_top_hits_5000_via_source",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 5000
+            },
+            "aggs": {
+              "last_temp": {
+                "top_hits": {
+                  "size": 1,
+                  "sort": {"date": "desc"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "last_max_temp_per_station_top_metrics_5000",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 5000
+            },
+            "aggs": {
+              "last_temp": {
+                "top_metrics": {
+                  "sort": {"date": "desc"},
+                  "metrics": {"field": "TMAX"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "last_min_and_max_temp_per_station_top_metrics_5000",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 5000
+            },
+            "aggs": {
+              "last_temp": {
+                "top_metrics": {
+                  "sort": {"date": "desc"},
+                  "metrics": [
+                    {"field": "TMIN"},
+                    {"field": "TMAX"}
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "last_five_max_temp_per_station_top_metrics_5000",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 5000
+            },
+            "aggs": {
+              "last_temp": {
+                "top_metrics": {
+                  "size": 5,
+                  "sort": {"date": "desc"},
+                  "metrics": {"field": "TMAX"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "last_country_code_per_station_top_metrics_5000",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "range": {
+            "station.elevation": {
+              "gt": 1000
+            }
+          }
+        },
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 5000
+            },
+            "aggs": {
+              "last_temp": {
+                "top_metrics": {
+                  "sort": {"date": "desc"},
+                  "metrics": [
+                    {"field": "station.country_code"}
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "keyword-terms",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 500
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "keyword-terms-low-cardinality",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "country": {
+            "terms": {
+              "field": "station.country",
+              "size": 200
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "keyword-terms-min",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 500
+            },
+            "aggs": {
+              "tmin": {
+                "min": {
+                  "field": "TMIN"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "keyword-terms-low-cardinality-min",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "country": {
+            "terms": {
+              "field": "station.country",
+              "size": 200
+            },
+            "aggs": {
+              "tmin": {
+                "min": {
+                  "field": "TMIN"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "keyword-terms-numeric-terms",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "station": {
+            "terms": {
+              "field": "station.id",
+              "size": 500
+            },
+            "aggs": {
+              "date": {
+                "terms": {
+                  "field": "date",
+                  "size": 1
+                },
+                "aggs": {
+                  "max": {
+                    "max": { "field": "tmax" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "numeric-terms-numeric-terms",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "tmax": {
+            "terms": {
+              "field": "TMAX",
+              "size": 100
+            },
+            "aggs": {
+              "tavg": {
+                "terms": {
+                  "field": "TAVG"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date-histo-entire-range",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "date": {
+            "date_histogram": {
+              "field": "date",
+              "fixed_interval": "2000d"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date-histo-numeric-terms",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "date": {
+            "date_histogram": {
+              "field": "date",
+              "calendar_interval": "1w"
+            },
+            "aggs": {
+              "tavg": {
+                "terms": {
+                  "field": "TAVG"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date-histo-string-terms-via-map",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "date": {
+            "date_histogram": {
+              "field": "date",
+              "calendar_interval": "1w"
+            },
+            "aggs": {
+              "country": {
+                "terms": {
+                  "field": "station.country",
+                  "execution_hint": "map"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date-histo-string-terms-via-global-ords",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "date": {
+            "date_histogram": {
+              "field": "date",
+              "calendar_interval": "1w"
+            },
+            "aggs": {
+              "country": {
+                "terms": {
+                  "field": "station.country",
+                  "execution_hint": "global_ordinals"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date-histo-string-terms-via-default-strategy",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "date": {
+            "date_histogram": {
+              "field": "date",
+              "calendar_interval": "1w"
+            },
+            "aggs": {
+              "country": {
+                "terms": {
+                  "field": "station.country"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date-histo-string-significant-terms-via-map",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "date": {
+            "date_histogram": {
+              "field": "date",
+              "calendar_interval": "1w"
+            },
+            "aggs": {
+              "country": {
+                "significant_terms": {
+                  "field": "station.country",
+                  "execution_hint": "map"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date-histo-string-significant-terms-via-global-ords",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "date": {
+            "date_histogram": {
+              "field": "date",
+              "calendar_interval": "1w"
+            },
+            "aggs": {
+              "country": {
+                "significant_terms": {
+                  "field": "station.country",
+                  "execution_hint": "global_ordinals"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date-histo-string-significant-terms-via-default-strategy",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "date": {
+            "date_histogram": {
+              "field": "date",
+              "calendar_interval": "1w"
+            },
+            "aggs": {
+              "country": {
+                "significant_terms": {
+                  "field": "station.country"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date-histo-histo",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "date": {
+            "date_histogram": {
+              "field": "date",
+              "calendar_interval": "1w"
+            },
+            "aggs": {
+              "tavg": {
+                "histogram": {
+                  "field": "TAVG",
+                  "interval": 10
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date-histo-geohash-grid",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "geo_bounding_box": {
+            "station.location": {
+              "top_left": "c",
+              "bottom_right": "9"
+            }
+          }
+        },
+        "aggs": {
+          "date": {
+            "date_histogram": {
+              "field": "date",
+              "calendar_interval": "1w"
+            },
+            "aggs": {
+              "location": {
+                "geohash_grid": {
+                  "field": "station.location",
+                  "precision": 2
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "date-histo-geotile-grid",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "geo_bounding_box": {
+            "station.location": {
+              "top_left": "c",
+              "bottom_right": "9"
+            }
+          }
+        },
+        "aggs": {
+          "date": {
+            "date_histogram": {
+              "field": "date",
+              "calendar_interval": "1w"
+            },
+            "aggs": {
+              "location": {
+                "geotile_grid": {
+                  "field": "station.location",
+                  "precision": 2
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "range-numeric-significant-terms",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "tmax": {
+            "range": {
+              "field": "TMAX",
+              "ranges": [
+                {"to":   -10},
+                {"from": -10, "to":  0},
+                {"from":   0, "to": 10},
+                {"from":  10, "to": 20},
+                {"from":  20, "to": 30},
+                {"from":  30}
+              ]
+            },
+            "aggs": {
+              "date": {
+                "significant_terms": {
+                  "field": "date"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "range-date-histo",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "tmax": {
+            "range": {
+              "field": "TMAX",
+              "ranges": [
+                {"to":   -10},
+                {"from": -10, "to":  0},
+                {"from":   0, "to": 10},
+                {"from":  10, "to": 20},
+                {"from":  20, "to": 30},
+                {"from":  30}
+              ]
+            },
+            "aggs": {
+              "date": {
+                "date_histogram": {
+                  "field": "date",
+                  "calendar_interval": "1w"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "range-date-histo-with-metrics",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "tmax": {
+            "range": {
+              "field": "TMAX",
+              "ranges": [
+                {"to":   -10},
+                {"from": -10, "to":  0},
+                {"from":   0, "to": 10},
+                {"from":  10, "to": 20},
+                {"from":  20, "to": 30},
+                {"from":  30}
+              ]
+            },
+            "aggs": {
+              "date": {
+                "date_histogram": {
+                  "field": "date",
+                  "calendar_interval": "1w"
+                },
+                "aggs": {
+                  "tmin": {
+                    "min": {
+                      "field": "TMIN"
+                    }
+                  },
+                  "tavg": {
+                    "avg": {
+                      "field": "TAVG"
+                    }
+                  },
+                  "tmax": {
+                    "max": {
+                      "field": "TMAX"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "range-auto-date-histo",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "tmax": {
+            "range": {
+              "field": "TMAX",
+              "ranges": [
+                {"to":   -10},
+                {"from": -10, "to":  0},
+                {"from":   0, "to": 10},
+                {"from":  10, "to": 20},
+                {"from":  20, "to": 30},
+                {"from":  30}
+              ]
+            },
+            "aggs": {
+              "date": {
+                "auto_date_histogram": {
+                  "field": "date",
+                  "buckets": 20
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "range-auto-date-histo-with-metrics",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "tmax": {
+            "range": {
+              "field": "TMAX",
+              "ranges": [
+                {"to":   -10},
+                {"from": -10, "to":  0},
+                {"from":   0, "to": 10},
+                {"from":  10, "to": 20},
+                {"from":  20, "to": 30},
+                {"from":  30}
+              ]
+            },
+            "aggs": {
+              "date": {
+                "auto_date_histogram": {
+                  "field": "date",
+                  "buckets": 20
+                },
+                "aggs": {
+                  "tmin": {
+                    "min": {
+                      "field": "TMIN"
+                    }
+                  },
+                  "tavg": {
+                    "avg": {
+                      "field": "TAVG"
+                    }
+                  },
+                  "tmax": {
+                    "max": {
+                      "field": "TMAX"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "range-auto-date-histo-with-time-zone",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "tmax": {
+            "range": {
+              "field": "TMAX",
+              "ranges": [
+                {"to":   -10},
+                {"from": -10, "to":  0},
+                {"from":   0, "to": 10},
+                {"from":  10, "to": 20},
+                {"from":  20, "to": 30},
+                {"from":  30}
+              ]
+            },
+            "aggs": {
+              "date": {
+                "auto_date_histogram": {
+                  "field": "date",
+                  "buckets": 20,
+                  "time_zone": "America/New_York"
+                }
+              }
+            }
+          }
+        }
+      }
+    }

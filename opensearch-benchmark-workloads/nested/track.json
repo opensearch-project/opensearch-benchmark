@@ -1,0 +1,32 @@
+{% import "rally.helpers" as rally with context %}
+
+{
+  "version": 2,
+  "description": "StackOverflow Q&A stored as nested docs",
+  "indices": [
+    {
+      "name": "sonested",
+      "body": "index.json"
+    }
+  ],
+  "corpora": [
+    {
+      "name": "nested",
+      "base-url": "https://rally-tracks.elastic.co/nested",
+      "documents": [
+        {
+          "source-file": "documents.json.bz2",
+          "document-count": 11203029,
+          "compressed-bytes": 695550727,
+          "uncompressed-bytes": 3637747670
+        }
+      ]
+    }
+  ],
+  "operations": [
+    {{ rally.collect(parts="operations/*.json") }}
+  ],
+  "challenges": [
+    {{ rally.collect(parts="challenges/*.json") }}
+  ]
+}

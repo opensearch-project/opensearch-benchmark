@@ -1,0 +1,33 @@
+{% import "rally.helpers" as rally with context %}
+
+{
+  "version": 2,
+  "description": "Point coordinates from PlanetOSM",
+  "indices": [
+    {
+      "name": "osmgeopoints",
+      "body": "index.json"
+    }
+  ],
+  "corpora": [
+    {
+      "name": "geopoint",
+      "base-url": "https://rally-tracks.elastic.co/geopoint",
+      "documents": [
+        {
+          "source-file": "documents.json.bz2",
+          "document-count": 60844404,
+          "compressed-bytes": 505542241,
+          "uncompressed-bytes": 2448564579
+        }
+      ]
+    }
+  ],
+  "operations": [
+    {{ rally.collect(parts="operations/*.json") }}
+  ],
+  "challenges": [
+    {{ rally.collect(parts="challenges/*.json") }}
+  ]
+}
+

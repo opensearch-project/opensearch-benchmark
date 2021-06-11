@@ -1,0 +1,441 @@
+    {
+      "name": "index-append",
+      "operation-type": "bulk",
+      "bulk-size": {{bulk_size | default(5000)}},
+      "ingest-percentage": {{ingest_percentage | default(100)}}
+    },
+    {
+      "name": "index-update",
+      "operation-type": "bulk",
+      "bulk-size": {{bulk_size | default(5000)}},
+      "ingest-percentage": {{ingest_percentage | default(100)}},
+      "conflicts": "{{conflicts | default('random')}}",
+      "on-conflict": "{{on_conflict | default('index')}}",
+      "conflict-probability": {{conflict_probability | default(25)}},
+      "recency": {{recency | default(0)}}
+    },
+    {
+      "name": "default",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "match_all": {}
+        }
+      }
+    },
+    {
+      "name": "term",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "term": {
+            "country_code.raw": "AT"
+          }
+        }
+      }
+    },
+    {
+      "name": "phrase",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "match_phrase": {
+            "name": "Sankt Georgen"
+          }
+        }
+      }
+    },
+    {
+      "name": "country_agg_uncached",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "aggs": {
+          "country_population": {
+            "terms": {
+              "field": "country_code.raw"
+            },
+            "aggs": {
+              "sum_population": {
+                "sum": {
+                  "field": "population"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "country_agg_cached",
+      "operation-type": "search",
+      "cache": true,
+      "body": {
+        "size": 0,
+        "aggs": {
+          "country_population": {
+            "terms": {
+              "field": "country_code.raw"
+            },
+            "aggs": {
+              "sum_population": {
+                "sum": {
+                  "field": "population"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "scroll",
+      "operation-type": "search",
+      "pages": 25,
+      "results-per-page": 1000,
+      "body": {
+        "query": {
+          "match_all": {}
+        }
+      }
+    },
+    {
+      "name": "expression",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "function_score": {
+            "query": {
+              "match_all": {}
+            },
+            "functions": [
+              {
+                "script_score": {
+                  "script": {
+                    "source": "abs(ln(abs(doc['population']) + 1) + doc['location'].lon + doc['location'].lat) * _score",
+                    "lang": "expression"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "painless_static",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "function_score": {
+            "query": {
+              "match_all": {}
+            },
+            "functions": [
+              {
+                "script_score": {
+                  "script": {
+                    "source": "Math.abs(Math.log(Math.abs((int)((List)doc.population).get(0)) + 1) + (double)(doc.location.lon) * (double)(doc.location.lat))/_score",
+                    "lang": "painless"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "painless_dynamic",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "function_score": {
+            "query": {
+              "match_all": {}
+            },
+            "functions": [
+              {
+                "script_score": {
+                  "script": {
+                    "source": "Math.abs(Math.log(Math.abs(doc['population'].value) + 1) + doc['location'].lon * doc['location'].lat)/_score",
+                    "lang": "painless"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "decay_geo_gauss_function_score",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "function_score": {
+            "query": {
+              "match_all": {}
+            },  
+            "gauss": {
+              "location": {
+                "origin": "52.37, 4.8951",
+                "scale": "500km",
+                "offset": "0km",
+                "decay" : 0.1
+              }
+            }     
+          }
+        }
+      }
+    },
+   {
+      "name": "decay_geo_gauss_script_score",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "script_score": {
+            "query": {
+              "match_all": {}
+            },
+            "script": {
+              "source": "decayGeoGauss(params.origin, params.scale, params.offset, params.decay, doc['location'].value)",
+              "params": {
+                 "origin": "52.37, 4.8951",
+                  "scale": "500km",
+                  "offset": "0km",
+                  "decay" : 0.1 
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "field_value_function_score",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "function_score": {
+            "query": {
+              "match_all": {}
+            },
+            "field_value_factor": {
+              "field": "population",
+              "factor": 1.2,
+              "modifier": "log2p"
+            }  
+          }
+        }
+      }
+    }, 
+    {
+      "name": "field_value_script_score",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "script_score": {
+            "query": {
+              "match_all": {}
+            },
+            "script": {
+              "source": "Math.log10(doc['population'].value * 1.2 + 2)"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "large_terms",
+      "operation-type": "search",
+      "param-source": "pure-terms-query-source"
+    },
+    {
+      "name": "large_filtered_terms",
+      "operation-type": "search",
+      "param-source": "filtered-terms-query-source"
+    },
+    {
+      "name": "large_prohibited_terms",
+      "operation-type": "search",
+      "param-source": "prohibited-terms-query-source"
+    },
+    {
+      "name": "desc_sort_population",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "match_all": {}
+        },
+        "sort" : [
+          {"population" : "desc"}
+        ]
+      }
+    },
+    {
+      "name": "asc_sort_population",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "match_all": {}
+        },
+        "sort" : [
+          {"population" : "asc"}
+        ]
+      }
+    },
+    {
+      "name": "asc_sort_with_after_population",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "match_all": {}
+        },
+        "sort" : [
+          {"population" : "asc"}
+        ],
+        "search_after" : [1000000]
+      }
+    },
+    {
+      "name": "desc_sort_geonameid",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "match_all": {}
+        },
+        "sort" : [
+          {"geonameid" : "desc"}
+        ]
+      }
+    },
+    {
+      "name": "desc_sort_with_after_geonameid",
+      "operation-type": "search",
+      "body": {
+        "track_total_hits": false,
+        "query": {
+          "match_all": {}
+        },
+        "sort" : [
+          {"geonameid" : "desc"}
+        ],
+        "search_after": [5000000]
+      }
+    },
+    {
+      "name": "asc_sort_geonameid",
+      "operation-type": "search",
+      "body": {
+        "query": {
+          "match_all": {}
+        },
+        "sort" : [
+          {"geonameid" : "asc"}
+        ]
+      }
+    },
+    {
+      "name": "asc_sort_with_after_geonameid",
+      "operation-type": "search",
+      "body": {
+        "track_total_hits": false,
+        "query": {
+          "match_all": {}
+        },
+        "sort" : [
+          {"geonameid" : "asc"}
+        ],
+        "search_after": [5000000]
+      }
+    },
+    {
+      "name": "significant_text_selective",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "match": {
+            "alternatenames": "street"
+          }
+        },
+        "aggs": {
+          "sig": {
+            "significant_text": {
+              "field": "alternatenames"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "significant_text_sampled_selective",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "match": {
+            "alternatenames": "street"
+          }
+        },
+        "aggs": {
+          "s": {
+            "sampler": {
+              "shard_size": 100
+            },
+            "aggs": {
+              "sig": {
+                "significant_text": {
+                  "field": "alternatenames"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "significant_text_unselective",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "match": {
+            "timezone": "America"
+          }
+        },
+        "aggs": {
+          "sig": {
+            "significant_text": {
+              "field": "alternatenames"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "significant_text_sampled_unselective",
+      "operation-type": "search",
+      "body": {
+        "size": 0,
+        "query": {
+          "match": {
+            "timezone": "America"
+          }
+        },
+        "aggs": {
+          "s": {
+            "sampler": {
+              "shard_size": 100
+            },
+            "aggs": {
+              "sig": {
+                "significant_text": {
+                  "field": "alternatenames"
+                }
+              }
+            }
+          }
+        }
+      }
+    }

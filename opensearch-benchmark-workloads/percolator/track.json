@@ -1,0 +1,33 @@
+{% import "rally.helpers" as rally with context %}
+
+{
+  "version": 2,
+  "description": "Percolator benchmark based on AOL queries",
+  "indices": [
+    {
+      "name": "queries",
+      "body": "index.json"
+    }
+  ],
+  "corpora": [
+    {
+      "name": "percolator",
+      "base-url": "https://rally-tracks.elastic.co/percolator",
+      "documents": [
+        {
+          "source-file": "queries-2.json.bz2",
+          "document-count": 2000000,
+          "compressed-bytes": 124009,
+          "uncompressed-bytes": 110039748
+        }
+      ]
+    }
+  ],
+  "operations": [
+    {{ rally.collect(parts="operations/*.json") }}
+  ],
+  "challenges": [
+    {{ rally.collect(parts="challenges/*.json") }}
+  ]
+}
+

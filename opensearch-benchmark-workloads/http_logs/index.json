@@ -1,0 +1,49 @@
+{
+  "settings": {
+    "index.number_of_shards": {{ number_of_shards | default(5) }},
+    "index.number_of_replicas": {{ number_of_replicas | default(0) }},
+    "index.requests.cache.enable": false
+  },
+  "mappings": {
+    "dynamic": "strict",
+    "_source": {
+      "enabled": {{ source_enabled | default(true) | tojson }}
+    },
+    "properties": {
+      "@timestamp": {
+        "format": "strict_date_optional_time||epoch_second",
+        "type": "date"
+      },
+      "message": {
+        "type": "keyword",
+        "index": false,
+        "doc_values": false
+      },
+      "clientip": {
+        "type": "ip"
+      },
+      "request": {
+        "type": "text",
+        "fields": {
+          "raw": {
+            "ignore_above": 256,
+            "type": "keyword"
+          }
+        }
+      },
+      "status": {
+        "type": "integer"
+      },
+      "size": {
+        "type": "integer"
+      },
+      "geoip" : {
+        "properties" : {
+          "country_name": { "type": "keyword" },
+          "city_name": { "type": "keyword" },
+          "location" : { "type" : "geo_point" }
+        }
+      }
+    }
+  }
+}

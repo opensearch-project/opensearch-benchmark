@@ -1,0 +1,33 @@
+{% import "rally.helpers" as rally with context %}
+
+{
+  "version": 2,
+  "description": "Taxi rides in New York in 2015",
+  "indices": [
+    {
+      "name": "nyc_taxis",
+      "body": "index.json"
+    }
+  ],
+  "corpora": [
+    {
+      "name": "nyc_taxis",
+      "base-url": "https://rally-tracks.elastic.co/nyc_taxis",
+      "documents": [
+        {
+          "source-file": "documents.json.bz2",
+          "#COMMENT": "ML benchmark rely on the fact that the document count stays constant.",
+          "document-count": 165346692,
+          "compressed-bytes": 4820107188,
+          "uncompressed-bytes": 79802445255
+        }
+      ]
+    }
+  ],
+  "operations": [
+    {{ rally.collect(parts="operations/*.json") }}
+  ],
+  "challenges": [
+    {{ rally.collect(parts="challenges/*.json") }}
+  ]
+}
