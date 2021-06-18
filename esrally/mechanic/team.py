@@ -27,7 +27,6 @@ from esrally.utils import console, repo, io, modules
 
 TEAM_FORMAT_VERSION = 1
 
-
 def _path_for(team_root_path, team_member_type):
     root_path = os.path.join(team_root_path, team_member_type, "v{}".format(TEAM_FORMAT_VERSION))
     if not os.path.exists(root_path):
@@ -117,6 +116,7 @@ def load_plugins(repo, plugin_names, plugin_params=None):
 
 
 def team_path(cfg):
+    logger = logging.getLogger(__name__)
     root_path = cfg.opts("mechanic", "team.path", mandatory=False)
     if root_path:
         return root_path
@@ -131,9 +131,14 @@ def team_path(cfg):
         teams_dir = os.path.join(root, team_repositories)
 
         current_team_repo = repo.RallyRepository(remote_url, teams_dir, repo_name, "teams", offline)
-        if repo_revision:
+        if remote_url == "opensearch-benchmark-provisionconfigs":
+            #propose default local opensearch-benchmark-provisionconfigs if url is not provided
+            logger.info("Using opensearch-benchmark-provisionconfigs.")
+            return current_team_repo.useOpensearchBenchmarkProvisionConfigs()
+        elif repo_revision:
             current_team_repo.checkout(repo_revision)
         else:
+            logger.info("Updating repository distribution version.")
             current_team_repo.update(distribution_version)
             cfg.add(config.Scope.applicationOverride, "mechanic", "repository.revision", current_team_repo.revision)
         return current_team_repo.repo_dir
@@ -143,6 +148,7 @@ class CarLoader:
     def __init__(self, team_root_path):
         self.cars_dir = _path_for(team_root_path, "cars")
         self.logger = logging.getLogger(__name__)
+        self.logger.info("Team root path used [%s]", team_root_path)
 
     def car_names(self):
         def __car_name(path):
