@@ -19,7 +19,7 @@ import logging
 import os
 import sys
 
-from esrally import exceptions
+from esrally import exceptions, config
 from esrally.utils import io, git, console, versions
 
 
@@ -27,16 +27,18 @@ class RallyRepository:
     """
     Manages Rally resources (e.g. teams or tracks).
     """
+    default = "default-provision-config"
 
     def __init__(self, remote_url, root_dir, repo_name, resource_name, offline, fetch=True):
         # If no URL is found, we consider this a local only repo (but still require that it is a git repo)
         self.url = remote_url
-        self.remote = self.url is not None and self.url.strip() != ""
+        self.remote = self.url is not None and self.url != RallyRepository.default and self.url.strip() != ""
         self.repo_dir = os.path.join(root_dir, repo_name)
         self.resource_name = resource_name
         self.offline = offline
         self.logger = logging.getLogger(__name__)
         self.revision = None
+
         if self.remote and not self.offline and fetch:
             # a normal git repo with a remote
             if not git.is_working_copy(self.repo_dir):
@@ -48,12 +50,20 @@ class RallyRepository:
                     console.warn("Could not update %s. Continuing with your locally available state." % self.resource_name)
         else:
             if not git.is_working_copy(self.repo_dir):
-                if io.exists(self.repo_dir):
+                if io.exists(self.repo_dir) and repo_name != "default":
                     raise exceptions.SystemSetupError("[{src}] must be a git repository.\n\nPlease run:\ngit -C {src} init"
                                                       .format(src=self.repo_dir))
-                else:
-                    raise exceptions.SystemSetupError("Expected a git repository at [{src}] but the directory does not exist."
-                                                      .format(src=self.repo_dir))
+    def validate(self, repo_revision, distribution_version, cfg):
+        if self.url == RallyRepository.default:
+            self.useOpensearchBenchmarkProvisionConfigs()
+        elif repo_revision:
+            self.checkout(repo_revision)
+        else:
+            self.update(distribution_version)
+            cfg.add(config.Scope.applicationOverride, "mechanic", "repository.revision", self.revision)
+
+        return cfg
+
 
     def update(self, distribution_version):
         try:
@@ -113,3 +123,8 @@ class RallyRepository:
     def checkout(self, revision):
         self.logger.info("Checking out revision [%s] in [%s].", revision, self.repo_dir)
         git.checkout(self.repo_dir, revision)
+
+    def useOpensearchBenchmarkProvisionConfigs(self):
+        self.logger.info("Using default-provision-config directory within repository")
+        root_dir = os.getcwd().split("/esrally")[0]
+        self.repo_dir = os.path.join(root_dir, "opensearch-benchmark-provisionconfigs")

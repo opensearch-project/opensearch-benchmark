@@ -26,6 +26,7 @@ def test_list_races(cfg):
 @it.rally_in_mem
 def test_list_cars(cfg):
     assert it.esrally(cfg, "list cars") == 0
+    assert it.esrally(cfg, "list cars --team-repository=default") == 0
 
 
 @it.rally_in_mem

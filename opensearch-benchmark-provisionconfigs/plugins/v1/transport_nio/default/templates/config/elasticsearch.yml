@@ -1,0 +1,4 @@
+{%- if nio_transport_enabled is defined and nio_transport_enabled %}transport.type: nio-transport
+{% endif %}
+{%- if nio_http_enabled is defined and nio_http_enabled %}http.type: nio-http-transport
+{% endif %}
