@@ -96,7 +96,8 @@ datastore.password = notinuse
 default.url = https://github.com/opensearch-project/opensearch-benchmark-workloads
 
 [teams]
-default.url = https://github.com/elastic/rally-teams
+default.url = opensearch-benchmark-provisionconfigs
+rally-teams.url = https://github.com/elastic/rally-teams
 
 [defaults]
 preserve_benchmark_candidate = False
