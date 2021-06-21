@@ -54,6 +54,30 @@ function build {
   make test
 }
 
+function build_it {
+  export THESPLOG_FILE="${THESPLOG_FILE:-${RALLY_HOME}/.rally/logs/actor-system-internal.log}"
+  # this value is in bytes, the default is 50kB. We increase it to 200kiB.
+  export THESPLOG_FILE_MAXSIZE=${THESPLOG_FILE_MAXSIZE:-204800}
+  # adjust the default log level from WARNING
+  export THESPLOG_THRESHOLD="INFO"
+
+  # turn nounset off because some of the following commands fail if nounset is turned on
+  set +u
+
+  export PATH="$HOME/.pyenv/bin:$PATH"
+  export TERM=dumb
+  export LC_ALL=en_US.UTF-8
+  update_pyenv
+  eval "$(pyenv init -)"
+  # ensure pyenv shims are added to PATH, see https://github.com/pyenv/pyenv/issues/1906
+  eval "$(pyenv init --path)"
+  eval "$(pyenv virtualenv-init -)"
+
+  make prereq
+  make install
+  make precommit
+  make it
+}
 function license-scan {
   # turn nounset off because some of the following commands fail if nounset is turned on
   set +u
