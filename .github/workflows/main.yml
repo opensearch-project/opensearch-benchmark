@@ -22,3 +22,14 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Run signoff check script
         run: bash .ci/signoff-check.sh ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
+  Integration-Tests:
+    runs-on: ubuntu-latest
+    steps:  
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Clone pyenv
+        run: git clone https://github.com/pyenv/pyenv.git ~/.pyenv
+      - name: Run the CI build_it script
+        run: bash .ci/build.sh build_it
+        env:
+          RALLY_HOME: env.GITHUB_WORKSPACE
