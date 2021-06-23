@@ -18,9 +18,10 @@ A clear and concise description of what you expected to happen.
 **Logs**
 If applicable, add logs to help explain your problem.
 
-**Host/Environment (please complete the following information):**
- - OS: [e.g. iOS]
- - Version [e.g. 22]
+**More Context (please complete the following information):**
+- Workload(Share link for custom workloads)
+- Service(E.g OpenSearch)
+- Version (E.g. 1.0)
 
 **Additional context**
 Add any other context about the problem here.
