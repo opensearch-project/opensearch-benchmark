@@ -67,6 +67,20 @@ function build_it {
   export PATH="$HOME/.pyenv/bin:$PATH"
   export TERM=dumb
   export LC_ALL=en_US.UTF-8
+  export RALLY_HOME=$WORKSPACE
+  export HOME="/var/lib/jenkins"
+  export JAVA_HOME="$HOME/.java/openjdk16"
+  export JAVA16_HOME="$HOME/.java/openjdk16"
+  export JAVA15_HOME="$HOME/.java/openjdk15"
+  export JAVA14_HOME="$HOME/.java/openjdk14"
+  export JAVA13_HOME="$HOME/.java/openjdk13"
+  export JAVA12_HOME="$HOME/.java/openjdk12"
+  export JAVA11_HOME="$HOME/.java/java11"
+  export JAVA10_HOME="$HOME/.java/java10"
+  export JAVA9_HOME="$HOME/.java/java9"
+  export JAVA8_HOME="$HOME/.java/java8"
+  export JAVA7_HOME="$HOME/.java/java7"
+  export RUNTIME_JAVA_HOME="$HOME/.java/java8"
   update_pyenv
   eval "$(pyenv init -)"
   # ensure pyenv shims are added to PATH, see https://github.com/pyenv/pyenv/issues/1906
