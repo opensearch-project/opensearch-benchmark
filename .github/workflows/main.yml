@@ -12,32 +12,6 @@ jobs:
         run: bash .ci/build.sh build
         env:
           RALLY_HOME: env.GITHUB_WORKSPACE
-  Integration-Tests:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository code
-        uses: actions/checkout@v2
-      - name: Clone pyenv
-        run: git clone https://github.com/pyenv/pyenv.git ~/.pyenv
-      - name: Install JDK 8
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'adopt'
-          java-version: '8'
-      - name: Install JDK 11
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'adopt'
-          java-version: '11'
-      - name: Install JDK 15
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'adopt'
-          java-version: '15'
-      - name: Run the CI build_it script
-        run: bash .ci/build.sh build_it
-        env:
-          RALLY_HOME: env.GITHUB_WORKSPACE
   DCO-Check:
     runs-on: ubuntu-latest
     steps:
