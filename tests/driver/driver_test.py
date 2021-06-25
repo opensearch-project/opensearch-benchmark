@@ -103,7 +103,7 @@ class DriverTests(TestCase):
                      DriverTests.Holder(all_hosts={"default": ["localhost:9200"]}))
         self.cfg.add(config.Scope.application, "client", "options", DriverTests.Holder(all_client_options={"default": {}}))
         self.cfg.add(config.Scope.application, "driver", "load_driver_hosts", ["localhost"])
-        self.cfg.add(config.Scope.application, "reporting", "datastore.type", "in-memory")
+        self.cfg.add(config.Scope.application, "publishing_results", "datastore.type", "in-memory")
 
         default_challenge = track.Challenge("default", default=True, schedule=[
             track.Task(name="index", operation=track.Operation("index", operation_type=track.OperationType.Bulk), clients=4)

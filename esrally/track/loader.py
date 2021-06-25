@@ -1344,7 +1344,7 @@ class TrackSpecificationReader:
                     task = self.parse_task(op, ops, name)
                 schedule.append(task)
 
-            # verify we don't have any duplicate task names (which can be confusing / misleading in reporting).
+            # verify we don't have any duplicate task names (which can be confusing / misleading in publishing results).
             known_task_names = set()
             for task in schedule:
                 for sub_task in task:
@@ -1496,8 +1496,8 @@ class TrackSpecificationReader:
 
         try:
             op = track.OperationType.from_hyphenated_string(op_type_name)
-            if "include-in-reporting" not in params:
-                params["include-in-reporting"] = not op.admin_op
+            if "include-in-publishing_results" not in params:
+                params["include-in-publishing_results"] = not op.admin_op
             self.logger.debug("Using built-in operation type [%s] for operation [%s].", op_type_name, op_name)
         except KeyError:
             self.logger.info("Using user-provided operation type [%s] for operation [%s].", op_type_name, op_name)
