@@ -51,10 +51,10 @@ def unittest_pipeline():
 
 def test_finds_available_pipelines():
     expected = [
-        ["from-sources", "Builds and provisions Elasticsearch, runs a benchmark and reports results."],
+        ["from-sources", "Builds and provisions Elasticsearch, runs a benchmark and publishes results."],
         ["from-distribution",
-         "Downloads an Elasticsearch distribution, provisions it, runs a benchmark and reports results."],
-        ["benchmark-only", "Assumes an already running Elasticsearch instance, runs a benchmark and reports results"],
+         "Downloads an Elasticsearch distribution, provisions it, runs a benchmark and publishes results."],
+        ["benchmark-only", "Assumes an already running Elasticsearch instance, runs a benchmark and publishes results"],
     ]
 
     assert expected == racecontrol.available_pipelines()

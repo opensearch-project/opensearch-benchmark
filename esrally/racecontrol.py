@@ -301,14 +301,14 @@ Pipeline("from-sources",
          "Builds and provisions Elasticsearch, runs a benchmark and publish results.", from_sources)
 
 Pipeline("from-distribution",
-         "Downloads an Elasticsearch distribution, provisions it, runs a benchmark and publish results.", from_distribution)
+         "Downloads an Elasticsearch distribution, provisions it, runs a benchmark and publishes results.", from_distribution)
 
 Pipeline("benchmark-only",
-         "Assumes an already running Elasticsearch instance, runs a benchmark and publish results", benchmark_only)
+         "Assumes an already running Elasticsearch instance, runs a benchmark and publishes results", benchmark_only)
 
 # Very experimental Docker pipeline. Should only be used with great care and is also not supported on all platforms.
 Pipeline("docker",
-         "Runs a benchmark against the official Elasticsearch Docker container and publish results", docker, stable=False)
+         "Runs a benchmark against the official Elasticsearch Docker container and publishes results", docker, stable=False)
 
 
 def available_pipelines():
