@@ -38,14 +38,14 @@ FINAL_SCORE = r"""
 
 
 def summarize(results, cfg):
-    SummaryResultsPublisher(results, cfg).results()
+    SummaryResultsPublisher(results, cfg).publish()
 
 
 def compare(cfg, baseline_id, contender_id):
     if not baseline_id or not contender_id:
         raise exceptions.SystemSetupError("compare needs baseline and a contender")
     race_store = metrics.race_store(cfg)
-    ComparisonResultsPublisher(cfg).results(
+    ComparisonResultsPublisher(cfg).publish(
         race_store.find_by_race_id(baseline_id),
         race_store.find_by_race_id(contender_id))
 
@@ -92,18 +92,18 @@ def format_as_csv(headers, data):
 class SummaryResultsPublisher:
     def __init__(self, results, config):
         self.results = results
-        self.results_file = config.opts("results_publishing", "output.path")
-        self.results_format = config.opts("results_publishing", "format")
-        self.numbers_align = config.opts("results_publishing", "numbers.align",
+        self.results_file = config.opts("publishing_results", "output.path")
+        self.results_format = config.opts("publishing_results", "format")
+        self.numbers_align = config.opts("publishing_results", "numbers.align",
                                          mandatory=False, default_value="right")
-        results_publishing_values = config.opts("results_publishing", "values")
-        self.results_all_values = results_publishing_values == "all"
-        self.results_all_percentile_values = results_publishing_values == "all-percentiles"
-        self.show_processing_time = convert.to_bool(config.opts("results_publishing", "output.processingtime",
+        publishing_results_values = config.opts("publishing_results", "values")
+        self.results_all_values = publishing_results_values == "all"
+        self.results_all_percentile_values = publishing_results_values == "all-percentiles"
+        self.show_processing_time = convert.to_bool(config.opts("publishing_results", "output.processingtime",
                                                                 mandatory=False, default_value=False))
         self.cwd = config.opts("node", "rally.cwd")
 
-    def results(self):
+    def publish(self):
         print_header(FINAL_SCORE)
 
         stats = self.results
@@ -310,16 +310,16 @@ class SummaryResultsPublisher:
 
 class ComparisonResultsPublisher:
     def __init__(self, config):
-        self.results_file = config.opts("results_publishing", "output.path")
-        self.results_format = config.opts("results_publishing", "format")
-        self.numbers_align = config.opts("results_publishing", "numbers.align",
+        self.results_file = config.opts("publishing_results", "output.path")
+        self.results_format = config.opts("publishing_results", "format")
+        self.numbers_align = config.opts("publishing_results", "numbers.align",
                                          mandatory=False, default_value="right")
         self.cwd = config.opts("node", "rally.cwd")
-        self.show_processing_time = convert.to_bool(config.opts("results_publishing", "output.processingtime",
+        self.show_processing_time = convert.to_bool(config.opts("publishing_results", "output.processingtime",
                                                                 mandatory=False, default_value=False))
         self.plain = False
 
-    def results(self, r1, r2):
+    def publish(self, r1, r2):
         # we don't verify anything about the races as it is possible that the user benchmarks two different tracks intentionally
         baseline_stats = metrics.GlobalStats(r1.results)
         contender_stats = metrics.GlobalStats(r2.results)
