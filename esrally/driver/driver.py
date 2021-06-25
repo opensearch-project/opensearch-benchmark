@@ -524,7 +524,7 @@ class Driver:
         # which client ids are assigned to which workers?
         self.clients_per_worker = {}
 
-        self.progress_reporter = console.progress()
+        self.progress_results_publisher = console.progress()
         self.progress_counter = 0
         self.quiet = False
         self.allocations = None
@@ -778,7 +778,7 @@ class Driver:
         return self.current_step == self.number_of_steps
 
     def close(self):
-        self.progress_reporter.finish()
+        self.progress_results_publisher.finish()
         if self.metrics_store and self.metrics_store.opened:
             self.metrics_store.close()
 
@@ -804,9 +804,9 @@ class Driver:
 
                 num_clients = max(len(progress_per_client), 1)
                 total_progress = sum(progress_per_client) / num_clients
-            self.progress_reporter.print("Running %s" % tasks, "[%3d%% done]" % (round(total_progress * 100)))
+            self.progress_results_publisher.print("Running %s" % tasks, "[%3d%% done]" % (round(total_progress * 100)))
             if task_finished:
-                self.progress_reporter.finish()
+                self.progress_results_publisher.finish()
 
     def post_process_samples(self):
         # we do *not* do this here to avoid concurrent updates (actors are single-threaded) but rather to make it clear that we use

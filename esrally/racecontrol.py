@@ -23,7 +23,7 @@ import sys
 import tabulate
 import thespian.actors
 
-from esrally import actor, config, doc_link, driver, exceptions, mechanic, metrics, reporter, track, version, PROGRAM_NAME
+from esrally import actor, config, doc_link, driver, exceptions, mechanic, metrics, results_publisher, track, version, PROGRAM_NAME
 from esrally.utils import console, opts, versions
 
 
@@ -228,9 +228,9 @@ class BenchmarkCoordinator:
             self.race.add_results(final_results)
             self.race_store.store_race(self.race)
             metrics.results_store(self.cfg).store_results(self.race)
-            reporter.summarize(final_results, self.cfg)
+            results_publisher.summarize(final_results, self.cfg)
         else:
-            self.logger.info("Suppressing output of summary report. Cancelled = [%r], Error = [%r].", self.cancelled, self.error)
+            self.logger.info("Suppressing output of summary results. Cancelled = [%r], Error = [%r].", self.cancelled, self.error)
         self.metrics_store.close()
 
 

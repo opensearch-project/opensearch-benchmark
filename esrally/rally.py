@@ -27,7 +27,7 @@ import uuid
 import thespian.actors
 
 from esrally import PROGRAM_NAME, BANNER, FORUM_LINK, SKULL, check_python_version, doc_link, telemetry
-from esrally import version, actor, config, paths, racecontrol, reporter, metrics, track, chart_generator, exceptions, \
+from esrally import version, actor, config, paths, racecontrol, results_publisher, metrics, track, chart_generator, exceptions, \
     log
 from esrally.mechanic import team, mechanic
 from esrally.tracker import tracker
@@ -787,7 +787,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
     try:
         if sub_command == "compare":
             configure_reporting_params(args, cfg)
-            reporter.compare(cfg, args.baseline, args.contender)
+            results_publisher.compare(cfg, args.baseline, args.contender)
         elif sub_command == "list":
             cfg.add(config.Scope.applicationOverride, "system", "list.config.option", args.configuration)
             cfg.add(config.Scope.applicationOverride, "system", "list.races.max_results", args.limit)

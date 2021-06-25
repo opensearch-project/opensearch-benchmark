@@ -160,12 +160,12 @@ def println(msg, console_prefix=None, end="\n", flush=False, force=False, logger
 
 
 def progress(width=90):
-    return CmdLineProgressReporter(width, plain_output=PLAIN)
+    return CmdLineProgressResultsPublisher(width, plain_output=PLAIN)
 
 
-class CmdLineProgressReporter:
+class CmdLineProgressResultsPublisher:
     """
-    CmdLineProgressReporter supports displaying an updating progress indication together with an information message.
+    CmdLineProgressResultsPublisher supports displaying an updating progress indication together with an information message.
 
     :param printer: allow use of a different print method to assist with patching in unittests
     """

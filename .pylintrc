@@ -197,8 +197,8 @@ evaluation=10.0 - ((float(5 * error + warning + refactor + convention) / stateme
 #msg-template=
 
 # Set the output format. Available formats are text, parseable, colorized, json
-# and msvs (visual studio). You can also give a reporter class, e.g.
-# mypackage.mymodule.MyReporterClass.
+# and msvs (visual studio). You can also give a results publisher class, e.g.
+# mypackage.mymodule.MyResultsPublisherClass.
 output-format=text
 
 # Tells whether to display a full report or only the messages.
