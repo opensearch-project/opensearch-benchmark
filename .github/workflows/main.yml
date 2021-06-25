@@ -3,7 +3,7 @@ on: [pull_request]
 jobs:
   Unit-Tests:
     runs-on: ubuntu-latest
-    steps:  
+    steps:
       - name: Check out repository code
         uses: actions/checkout@v2
       - name: Clone pyenv
