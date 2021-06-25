@@ -298,7 +298,7 @@ def docker(cfg):
 
 
 Pipeline("from-sources",
-         "Builds and provisions Elasticsearch, runs a benchmark and publish results.", from_sources)
+         "Builds and provisions Elasticsearch, runs a benchmark and publishes results.", from_sources)
 
 Pipeline("from-distribution",
          "Downloads an Elasticsearch distribution, provisions it, runs a benchmark and publishes results.", from_distribution)
