@@ -2070,7 +2070,7 @@ class WaitForTransform(Runner):
             documents_processed_delta = documents_processed - self._last_documents_processed
             processing_time_delta = processing_time - self._last_processing_time
 
-            # only report if we have enough data or transform has completed
+            # only publish if we have enough data or transform has completed
             if self._completed or (documents_processed_delta > 5000 and processing_time_delta > 500):
                 stats = {
                     "transform-id": transform_id,

@@ -178,7 +178,7 @@ class AutoLoadConfigTests(TestCase):
         base_cfg = config.Config(config_name="unittest", config_file_class=InMemoryConfigStore)
         base_cfg.add(config.Scope.application, "meta", "config.version", config.Config.CURRENT_CONFIG_VERSION)
         base_cfg.add(config.Scope.application, "benchmarks", "local.dataset.cache", "/base-config/data-set-cache")
-        base_cfg.add(config.Scope.application, "reporting", "datastore.type", "elasticsearch")
+        base_cfg.add(config.Scope.application, "results_publishing", "datastore.type", "elasticsearch")
         base_cfg.add(config.Scope.application, "tracks", "metrics.url", "http://github.com/org/metrics")
         base_cfg.add(config.Scope.application, "teams", "private.url", "http://github.com/org/teams")
         base_cfg.add(config.Scope.application, "distributions", "release.cache", False)
@@ -189,7 +189,7 @@ class AutoLoadConfigTests(TestCase):
         # did not just copy base config
         self.assertNotEqual(base_cfg.opts("benchmarks", "local.dataset.cache"), cfg.opts("benchmarks", "local.dataset.cache"))
         # copied sections from base config
-        self.assert_equals_base_config(base_cfg, cfg, "reporting", "datastore.type")
+        self.assert_equals_base_config(base_cfg, cfg, "results_publishing", "datastore.type")
         self.assert_equals_base_config(base_cfg, cfg, "tracks", "metrics.url")
         self.assert_equals_base_config(base_cfg, cfg, "teams", "private.url")
         self.assert_equals_base_config(base_cfg, cfg, "distributions", "release.cache")
@@ -278,9 +278,9 @@ class ConfigMigrationTests(TestCase):
             "benchmarks": {
                 "metrics.stats.disk.device": "/dev/hdd1"
             },
-            "reporting": {
-                "report.base.dir": "/tests/rally/reporting",
-                "output.html.report.filename": "index.html"
+            "results_publishing": {
+                "results.base.dir": "/tests/rally/results_publishing",
+                "output.html.results.filename": "index.html"
             },
             "runtime": {
                 "java8.home": "/opt/jdk/8",
@@ -311,9 +311,9 @@ class ConfigMigrationTests(TestCase):
             "benchmarks": {
                 "metrics.stats.disk.device": "/dev/hdd1"
             },
-            "reporting": {
-                "report.base.dir": "/tests/rally/reporting",
-                "output.html.report.filename": "index.html"
+            "results_publishing": {
+                "results.base.dir": "/tests/rally/results_publishing",
+                "output.html.results.filename": "index.html"
             },
             "runtime": {
                 "java8.home": "/opt/jdk/8",

@@ -284,7 +284,7 @@ class UnitAwareScheduler(Scheduler):
             if actual_unit != expected_unit:
                 # *temporary* workaround to convert mismatching units to ops/s to stay backwards-compatible.
                 #
-                # This ensures that we throttle based on ops/s but report based on the original unit (as before).
+                # This ensures that we throttle based on ops/s but publish based on the original unit (as before).
                 if expected_unit == "ops/s":
                     weight = 1
                     if self.first_request:

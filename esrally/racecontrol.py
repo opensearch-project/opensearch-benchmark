@@ -38,7 +38,7 @@ class Pipeline:
     * Prepare the benchmark candidate: It can build Elasticsearch from sources, download a ZIP from somewhere etc.
     * Launch the benchmark candidate: This can be done directly, with tools like Ansible or it can assume the candidate is already launched
     * Run the benchmark
-    * Report results
+    * Pubilsh results
     """
 
     def __init__(self, name, description, target, stable=True):
@@ -298,17 +298,17 @@ def docker(cfg):
 
 
 Pipeline("from-sources",
-         "Builds and provisions Elasticsearch, runs a benchmark and reports results.", from_sources)
+         "Builds and provisions Elasticsearch, runs a benchmark and publish results.", from_sources)
 
 Pipeline("from-distribution",
-         "Downloads an Elasticsearch distribution, provisions it, runs a benchmark and reports results.", from_distribution)
+         "Downloads an Elasticsearch distribution, provisions it, runs a benchmark and publish results.", from_distribution)
 
 Pipeline("benchmark-only",
-         "Assumes an already running Elasticsearch instance, runs a benchmark and reports results", benchmark_only)
+         "Assumes an already running Elasticsearch instance, runs a benchmark and publish results", benchmark_only)
 
 # Very experimental Docker pipeline. Should only be used with great care and is also not supported on all platforms.
 Pipeline("docker",
-         "Runs a benchmark against the official Elasticsearch Docker container and reports results", docker, stable=False)
+         "Runs a benchmark against the official Elasticsearch Docker container and publish results", docker, stable=False)
 
 
 def available_pipelines():
