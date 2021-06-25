@@ -89,17 +89,17 @@ def format_as_csv(headers, data):
         return out.getvalue()
 
 
-class Summaryresultser:
+class SummaryResultsPublisher:
     def __init__(self, results, config):
         self.results = results
-        self.results_file = config.opts("resultsing", "output.path")
-        self.results_format = config.opts("resultsing", "format")
-        self.numbers_align = config.opts("resultsing", "numbers.align",
+        self.results_file = config.opts("results_publishing", "output.path")
+        self.results_format = config.opts("results_publishing", "format")
+        self.numbers_align = config.opts("results_publishing", "numbers.align",
                                          mandatory=False, default_value="right")
-        resultsing_values = config.opts("resultsing", "values")
-        self.results_all_values = resultsing_values == "all"
-        self.results_all_percentile_values = resultsing_values == "all-percentiles"
-        self.show_processing_time = convert.to_bool(config.opts("resultsing", "output.processingtime",
+        results_publishing_values = config.opts("results_publishing", "values")
+        self.results_all_values = results_publishing_values == "all"
+        self.results_all_percentile_values = results_publishing_values == "all-percentiles"
+        self.show_processing_time = convert.to_bool(config.opts("results_publishing", "output.processingtime",
                                                                 mandatory=False, default_value=False))
         self.cwd = config.opts("node", "rally.cwd")
 
@@ -308,14 +308,14 @@ class Summaryresultser:
             return []
 
 
-class Comparisonresultser:
+class ComparisonResultsPublisher:
     def __init__(self, config):
-        self.results_file = config.opts("resultsing", "output.path")
-        self.results_format = config.opts("resultsing", "format")
-        self.numbers_align = config.opts("resultsing", "numbers.align",
+        self.results_file = config.opts("results_publishing", "output.path")
+        self.results_format = config.opts("results_publishing", "format")
+        self.numbers_align = config.opts("results_publishing", "numbers.align",
                                          mandatory=False, default_value="right")
         self.cwd = config.opts("node", "rally.cwd")
-        self.show_processing_time = convert.to_bool(config.opts("resultsing", "output.processingtime",
+        self.show_processing_time = convert.to_bool(config.opts("results_publishing", "output.processingtime",
                                                                 mandatory=False, default_value=False))
         self.plain = False
 
