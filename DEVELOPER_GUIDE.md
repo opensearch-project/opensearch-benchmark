@@ -63,11 +63,13 @@ Once your changes and tests are ready to submit for review:
     Push your local changes to your forked copy of the repository and [submit a pull request](https://help.github.com/articles/using-pull-requests). In the pull request, choose a title which sums up the changes that you have made, and in the body provide more details about what your changes do. Also mention the number of the issue where discussion has taken place, eg "Closes #123".
     
     
-##Misc
+## Misc
 
-###git-secrets
+### git-secrets
 Security is our top priority. Avoid checking in credentials, install awslabs/git-secrets.
 
+```
 git clone https://github.com/awslabs/git-secrets.git
 cd git-secrets
 make install
+```
