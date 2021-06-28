@@ -131,7 +131,7 @@ def team_path(cfg):
 
         current_team_repo = repo.RallyRepository(remote_url, teams_dir, repo_name, "teams", offline)
 
-        cfg = current_team_repo.validate(repo_revision, distribution_version,cfg)
+        current_team_repo.validateRepository(repo_revision, distribution_version,cfg)
 
         return current_team_repo.repo_dir
 

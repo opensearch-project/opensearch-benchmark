@@ -53,7 +53,8 @@ class RallyRepository:
                 if io.exists(self.repo_dir) and repo_name != "default":
                     raise exceptions.SystemSetupError("[{src}] must be a git repository.\n\nPlease run:\ngit -C {src} init"
                                                       .format(src=self.repo_dir))
-    def validate(self, repo_revision, distribution_version, cfg):
+                                                        
+    def validateRepository(self, repo_revision, distribution_version, cfg):
         if self.url == RallyRepository.default:
             self.useOpensearchBenchmarkProvisionConfigs()
         elif repo_revision:
@@ -61,9 +62,6 @@ class RallyRepository:
         else:
             self.update(distribution_version)
             cfg.add(config.Scope.applicationOverride, "mechanic", "repository.revision", self.revision)
-
-        return cfg
-
 
     def update(self, distribution_version):
         try:
