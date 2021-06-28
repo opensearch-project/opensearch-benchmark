@@ -29,9 +29,9 @@ from unittest import TestCase
 
 import elasticsearch.exceptions
 
-from esrally import config, metrics, track, exceptions, paths
+from esrally import config, metrics, workload, exceptions, paths
 from esrally.metrics import GlobalStatsCalculator
-from esrally.track import Task, Operation, Challenge, Track
+from esrally.workload import Task, Operation, Challenge, Workload
 
 
 class MockClientFactory:
@@ -296,7 +296,7 @@ class EsMetricsTests(TestCase):
     def setUp(self):
         self.cfg = config.Config()
         self.cfg.add(config.Scope.application, "system", "env.name", "unittest")
-        self.cfg.add(config.Scope.application, "track", "params", {"shard-count": 3})
+        self.cfg.add(config.Scope.application, "workload", "params", {"shard-count": 3})
         self.metrics_store = metrics.EsMetricsStore(self.cfg,
                                                     client_factory_class=MockClientFactory,
                                                     index_template_provider_class=DummyIndexTemplateProvider,
@@ -317,8 +317,8 @@ class EsMetricsTests(TestCase):
             "relative-time-ms": 0,
             "environment": "unittest",
             "sample-type": "normal",
-            "track": "test",
-            "track-params": {
+            "workload": "test",
+            "workload-params": {
                 "shard-count": 3
             },
             "challenge": "append",
@@ -346,8 +346,8 @@ class EsMetricsTests(TestCase):
             "relative-time-ms": 10000,
             "environment": "unittest",
             "sample-type": "normal",
-            "track": "test",
-            "track-params": {
+            "workload": "test",
+            "workload-params": {
                 "shard-count": 3
             },
             "challenge": "append",
@@ -384,8 +384,8 @@ class EsMetricsTests(TestCase):
             "relative-time-ms": 0,
             "environment": "unittest",
             "sample-type": "normal",
-            "track": "test",
-            "track-params": {
+            "workload": "test",
+            "workload-params": {
                 "shard-count": 3
             },
             "challenge": "append",
@@ -421,8 +421,8 @@ class EsMetricsTests(TestCase):
             "race-timestamp": "20160131T000000Z",
             "relative-time-ms": 0,
             "environment": "unittest",
-            "track": "test",
-            "track-params": {
+            "workload": "test",
+            "workload-params": {
                 "shard-count": 3
             },
             "challenge": "append",
@@ -466,8 +466,8 @@ class EsMetricsTests(TestCase):
             "race-timestamp": "20160131T000000Z",
             "relative-time-ms": 0,
             "environment": "unittest",
-            "track": "test",
-            "track-params": {
+            "workload": "test",
+            "workload-params": {
                 "shard-count": 3
             },
             "challenge": "append",
@@ -977,9 +977,9 @@ class EsRaceStoreTests(TestCase):
                             "race-id": EsRaceStoreTests.RACE_ID,
                             "race-timestamp": "20160131T000000Z",
                             "pipeline": "from-sources",
-                            "track": "unittest",
+                            "workload": "unittest",
                             "challenge": "index",
-                            "track-revision": "abc1",
+                            "workload-revision": "abc1",
                             "car": "defaults",
                             "results": {
                                 "young_gc_time": 100,
@@ -1010,18 +1010,18 @@ class EsRaceStoreTests(TestCase):
 
     def test_store_race(self):
         schedule = [
-            track.Task("index #1", track.Operation("index", track.OperationType.Bulk))
+            workload.Task("index #1", workload.Operation("index", workload.OperationType.Bulk))
         ]
 
-        t = track.Track(name="unittest",
-                        indices=[track.Index(name="tests", types=["_doc"])],
-                        challenges=[track.Challenge(name="index", default=True, schedule=schedule)])
+        t = workload.Workload(name="unittest",
+                        indices=[workload.Index(name="tests", types=["_doc"])],
+                        challenges=[workload.Challenge(name="index", default=True, schedule=schedule)])
 
         race = metrics.Race(rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
                             race_id=EsRaceStoreTests.RACE_ID, race_timestamp=EsRaceStoreTests.RACE_TIMESTAMP,
-                            pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params={"shard-count": 3},
+                            pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params={"shard-count": 3},
                             challenge=t.default_challenge, car="defaults", car_params={"heap_size": "512mb"}, plugin_params=None,
-                            track_revision="abc1", team_revision="abc12333", distribution_version="5.0.0",
+                            workload_revision="abc1", team_revision="abc12333", distribution_version="5.0.0",
                             distribution_flavor="default", revision="aaaeeef",
                             results=EsRaceStoreTests.DictHolder(
                                 {
@@ -1054,12 +1054,12 @@ class EsRaceStoreTests(TestCase):
             "user-tags": {
                 "os": "Linux"
             },
-            "track": "unittest",
-            "track-params": {
+            "workload": "unittest",
+            "workload-params": {
                 "shard-count": 3
             },
             "challenge": "index",
-            "track-revision": "abc1",
+            "workload-revision": "abc1",
             "car": "defaults",
             "car-params": {
                 "heap_size": "512mb"
@@ -1110,20 +1110,20 @@ class EsResultsStoreTests(TestCase):
 
     def test_store_results(self):
         schedule = [
-            track.Task("index #1", track.Operation("index", track.OperationType.Bulk))
+            workload.Task("index #1", workload.Operation("index", workload.OperationType.Bulk))
         ]
 
-        t = track.Track(name="unittest-track",
-                        indices=[track.Index(name="tests", types=["_doc"])],
-                        challenges=[track.Challenge(
+        t = workload.Workload(name="unittest-workload",
+                        indices=[workload.Index(name="tests", types=["_doc"])],
+                        challenges=[workload.Challenge(
                             name="index", default=True, meta_data={"saturation": "70% saturated"}, schedule=schedule)],
-                        meta_data={"track-type": "saturation-degree", "saturation": "oversaturation"})
+                        meta_data={"workload-type": "saturation-degree", "saturation": "oversaturation"})
 
         race = metrics.Race(rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
                             race_id=EsResultsStoreTests.RACE_ID, race_timestamp=EsResultsStoreTests.RACE_TIMESTAMP,
-                            pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params=None,
+                            pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params=None,
                             challenge=t.default_challenge, car="4gheap", car_params=None, plugin_params={"some-param": True},
-                            track_revision="abc1", team_revision="123ab", distribution_version="5.0.0",
+                            workload_revision="abc1", team_revision="123ab", distribution_version="5.0.0",
                             distribution_flavor="oss", results=metrics.GlobalStats(
                                 {
                                     "young_gc_time": 100,
@@ -1134,7 +1134,7 @@ class EsResultsStoreTests(TestCase):
                                             "operation": "index",
                                             # custom op-metric which will override the defaults provided by the race
                                             "meta": {
-                                                "track-type": "saturation-degree",
+                                                "workload-type": "saturation-degree",
                                                 "saturation": "70% saturated",
                                                 "op-type": "bulk"
                                             },
@@ -1164,9 +1164,9 @@ class EsResultsStoreTests(TestCase):
                 "user-tags": {
                     "os": "Linux"
                 },
-                "track": "unittest-track",
+                "workload": "unittest-workload",
                 "team-revision": "123ab",
-                "track-revision": "abc1",
+                "workload-revision": "abc1",
                 "challenge": "index",
                 "car": "4gheap",
                 "plugin-params": {
@@ -1178,7 +1178,7 @@ class EsResultsStoreTests(TestCase):
                     "single": 5
                 },
                 "meta": {
-                    "track-type": "saturation-degree",
+                    "workload-type": "saturation-degree",
                     "saturation": "70% saturated"
                 }
             },
@@ -1194,9 +1194,9 @@ class EsResultsStoreTests(TestCase):
                 "user-tags": {
                     "os": "Linux"
                 },
-                "track": "unittest-track",
+                "workload": "unittest-workload",
                 "team-revision": "123ab",
-                "track-revision": "abc1",
+                "workload-revision": "abc1",
                 "challenge": "index",
                 "car": "4gheap",
                 "plugin-params": {
@@ -1213,7 +1213,7 @@ class EsResultsStoreTests(TestCase):
                     "unit": "docs/s"
                 },
                 "meta": {
-                    "track-type": "saturation-degree",
+                    "workload-type": "saturation-degree",
                     "saturation": "70% saturated",
                     "op-type": "bulk"
                 }
@@ -1230,9 +1230,9 @@ class EsResultsStoreTests(TestCase):
                 "user-tags": {
                     "os": "Linux"
                 },
-                "track": "unittest-track",
+                "workload": "unittest-workload",
                 "team-revision": "123ab",
-                "track-revision": "abc1",
+                "workload-revision": "abc1",
                 "challenge": "index",
                 "car": "4gheap",
                 "plugin-params": {
@@ -1244,7 +1244,7 @@ class EsResultsStoreTests(TestCase):
                     "single": 100
                 },
                 "meta": {
-                    "track-type": "saturation-degree",
+                    "workload-type": "saturation-degree",
                     "saturation": "70% saturated"
                 }
             }
@@ -1253,20 +1253,20 @@ class EsResultsStoreTests(TestCase):
 
     def test_store_results_with_missing_version(self):
         schedule = [
-            track.Task("index #1", track.Operation("index", track.OperationType.Bulk))
+            workload.Task("index #1", workload.Operation("index", workload.OperationType.Bulk))
         ]
 
-        t = track.Track(name="unittest-track",
-                        indices=[track.Index(name="tests", types=["_doc"])],
-                        challenges=[track.Challenge(
+        t = workload.Workload(name="unittest-workload",
+                        indices=[workload.Index(name="tests", types=["_doc"])],
+                        challenges=[workload.Challenge(
                             name="index", default=True, meta_data={"saturation": "70% saturated"}, schedule=schedule)],
-                        meta_data={"track-type": "saturation-degree", "saturation": "oversaturation"})
+                        meta_data={"workload-type": "saturation-degree", "saturation": "oversaturation"})
 
         race = metrics.Race(rally_version="0.4.4", rally_revision=None, environment_name="unittest",
                             race_id=EsResultsStoreTests.RACE_ID, race_timestamp=EsResultsStoreTests.RACE_TIMESTAMP,
-                            pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params=None,
+                            pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params=None,
                             challenge=t.default_challenge, car="4gheap", car_params=None, plugin_params=None,
-                            track_revision="abc1", team_revision="123ab", distribution_version=None,
+                            workload_revision="abc1", team_revision="123ab", distribution_version=None,
                             distribution_flavor=None, results=metrics.GlobalStats(
                 {
                     "young_gc_time": 100,
@@ -1277,7 +1277,7 @@ class EsResultsStoreTests(TestCase):
                             "operation": "index",
                             # custom op-metric which will override the defaults provided by the race
                             "meta": {
-                                "track-type": "saturation-degree",
+                                "workload-type": "saturation-degree",
                                 "saturation": "70% saturated",
                                 "op-type": "bulk"
                             },
@@ -1306,9 +1306,9 @@ class EsResultsStoreTests(TestCase):
                 "user-tags": {
                     "os": "Linux"
                 },
-                "track": "unittest-track",
+                "workload": "unittest-workload",
                 "team-revision": "123ab",
-                "track-revision": "abc1",
+                "workload-revision": "abc1",
                 "challenge": "index",
                 "car": "4gheap",
                 "active": True,
@@ -1317,7 +1317,7 @@ class EsResultsStoreTests(TestCase):
                     "single": 5
                 },
                 "meta": {
-                    "track-type": "saturation-degree",
+                    "workload-type": "saturation-degree",
                     "saturation": "70% saturated"
                 }
             },
@@ -1332,9 +1332,9 @@ class EsResultsStoreTests(TestCase):
                 "user-tags": {
                     "os": "Linux"
                 },
-                "track": "unittest-track",
+                "workload": "unittest-workload",
                 "team-revision": "123ab",
-                "track-revision": "abc1",
+                "workload-revision": "abc1",
                 "challenge": "index",
                 "car": "4gheap",
                 "active": True,
@@ -1348,7 +1348,7 @@ class EsResultsStoreTests(TestCase):
                     "unit": "docs/s"
                 },
                 "meta": {
-                    "track-type": "saturation-degree",
+                    "workload-type": "saturation-degree",
                     "saturation": "70% saturated",
                     "op-type": "bulk"
                 }
@@ -1364,9 +1364,9 @@ class EsResultsStoreTests(TestCase):
                 "user-tags": {
                     "os": "Linux"
                 },
-                "track": "unittest-track",
+                "workload": "unittest-workload",
                 "team-revision": "123ab",
-                "track-revision": "abc1",
+                "workload-revision": "abc1",
                 "challenge": "index",
                 "car": "4gheap",
                 "active": True,
@@ -1375,7 +1375,7 @@ class EsResultsStoreTests(TestCase):
                     "single": 100
                 },
                 "meta": {
-                    "track-type": "saturation-degree",
+                    "workload-type": "saturation-degree",
                     "saturation": "70% saturated"
                 }
             }
@@ -1390,7 +1390,7 @@ class InMemoryMetricsStoreTests(TestCase):
     def setUp(self):
         self.cfg = config.Config()
         self.cfg.add(config.Scope.application, "system", "env.name", "unittest")
-        self.cfg.add(config.Scope.application, "track", "params", {})
+        self.cfg.add(config.Scope.application, "workload", "params", {})
         self.metrics_store = metrics.InMemoryMetricsStore(self.cfg, clock=StaticClock)
 
     def tearDown(self):
@@ -1615,18 +1615,18 @@ class FileRaceStoreTests(TestCase):
 
     def test_store_race(self):
         schedule = [
-            track.Task("index #1", track.Operation("index", track.OperationType.Bulk))
+            workload.Task("index #1", workload.Operation("index", workload.OperationType.Bulk))
         ]
 
-        t = track.Track(name="unittest",
-                        indices=[track.Index(name="tests", types=["_doc"])],
-                        challenges=[track.Challenge(name="index", default=True, schedule=schedule)])
+        t = workload.Workload(name="unittest",
+                        indices=[workload.Index(name="tests", types=["_doc"])],
+                        challenges=[workload.Challenge(name="index", default=True, schedule=schedule)])
 
         race = metrics.Race(rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
                             race_id=FileRaceStoreTests.RACE_ID, race_timestamp=FileRaceStoreTests.RACE_TIMESTAMP,
-                            pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params={"clients": 12},
+                            pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params={"clients": 12},
                             challenge=t.default_challenge, car="4gheap", car_params=None, plugin_params=None,
-                            track_revision="abc1", team_revision="abc12333", distribution_version="5.0.0",
+                            workload_revision="abc1", team_revision="abc12333", distribution_version="5.0.0",
                             distribution_flavor="default", revision="aaaeeef",
                             results=FileRaceStoreTests.DictHolder(
                                 {
@@ -1667,41 +1667,43 @@ class StatsCalculatorTests(TestCase):
         cfg.add(config.Scope.application, "mechanic", "plugin.params", {})
         cfg.add(config.Scope.application, "race", "user.tag", "")
         cfg.add(config.Scope.application, "race", "pipeline", "from-sources")
-        cfg.add(config.Scope.application, "track", "params", {})
+        cfg.add(config.Scope.application, "workload", "params", {})
 
-        index1 = track.Task(name="index #1", operation=track.Operation(name="index", operation_type=track.OperationType.Bulk, params=None))
-        index2 = track.Task(name="index #2", operation=track.Operation(name="index", operation_type=track.OperationType.Bulk, params=None))
-        challenge = track.Challenge(name="unittest", schedule=[index1, index2], default=True)
-        t = track.Track("unittest", "unittest-track", challenges=[challenge])
+        index1 = workload.Task(name="index #1",
+                                    operation=workload.Operation(name="index", operation_type=workload.OperationType.Bulk, params=None))
+        index2 = workload.Task(name="index #2",
+                                    operation=workload.Operation(name="index", operation_type=workload.OperationType.Bulk, params=None))
+        challenge = workload.Challenge(name="unittest", schedule=[index1, index2], default=True)
+        t = workload.Workload("unittest", "unittest-workload", challenges=[challenge])
 
-        store = metrics.metrics_store(cfg, read_only=False, track=t, challenge=challenge)
+        store = metrics.metrics_store(cfg, read_only=False, workload=t, challenge=challenge)
 
-        store.put_value_cluster_level("throughput", 500, unit="docs/s", task="index #1", operation_type=track.OperationType.Bulk)
-        store.put_value_cluster_level("throughput", 1000, unit="docs/s", task="index #1", operation_type=track.OperationType.Bulk)
-        store.put_value_cluster_level("throughput", 1000, unit="docs/s", task="index #1", operation_type=track.OperationType.Bulk)
-        store.put_value_cluster_level("throughput", 2000, unit="docs/s", task="index #1", operation_type=track.OperationType.Bulk)
+        store.put_value_cluster_level("throughput", 500, unit="docs/s", task="index #1", operation_type=workload.OperationType.Bulk)
+        store.put_value_cluster_level("throughput", 1000, unit="docs/s", task="index #1", operation_type=workload.OperationType.Bulk)
+        store.put_value_cluster_level("throughput", 1000, unit="docs/s", task="index #1", operation_type=workload.OperationType.Bulk)
+        store.put_value_cluster_level("throughput", 2000, unit="docs/s", task="index #1", operation_type=workload.OperationType.Bulk)
 
-        store.put_value_cluster_level("latency", 2800, unit="ms", task="index #1", operation_type=track.OperationType.Bulk,
+        store.put_value_cluster_level("latency", 2800, unit="ms", task="index #1", operation_type=workload.OperationType.Bulk,
                                       sample_type=metrics.SampleType.Warmup)
-        store.put_value_cluster_level("latency", 200, unit="ms", task="index #1", operation_type=track.OperationType.Bulk)
-        store.put_value_cluster_level("latency", 220, unit="ms", task="index #1", operation_type=track.OperationType.Bulk)
-        store.put_value_cluster_level("latency", 225, unit="ms", task="index #1", operation_type=track.OperationType.Bulk)
+        store.put_value_cluster_level("latency", 200, unit="ms", task="index #1", operation_type=workload.OperationType.Bulk)
+        store.put_value_cluster_level("latency", 220, unit="ms", task="index #1", operation_type=workload.OperationType.Bulk)
+        store.put_value_cluster_level("latency", 225, unit="ms", task="index #1", operation_type=workload.OperationType.Bulk)
 
-        store.put_value_cluster_level("service_time", 250, unit="ms", task="index #1", operation_type=track.OperationType.Bulk,
+        store.put_value_cluster_level("service_time", 250, unit="ms", task="index #1", operation_type=workload.OperationType.Bulk,
                                       sample_type=metrics.SampleType.Warmup, meta_data={"success": False}, relative_time=536)
-        store.put_value_cluster_level("service_time", 190, unit="ms", task="index #1", operation_type=track.OperationType.Bulk,
+        store.put_value_cluster_level("service_time", 190, unit="ms", task="index #1", operation_type=workload.OperationType.Bulk,
                                       meta_data={"success": True}, relative_time=595)
-        store.put_value_cluster_level("service_time", 200, unit="ms", task="index #1", operation_type=track.OperationType.Bulk,
+        store.put_value_cluster_level("service_time", 200, unit="ms", task="index #1", operation_type=workload.OperationType.Bulk,
                                       meta_data={"success": False}, relative_time=709)
-        store.put_value_cluster_level("service_time", 210, unit="ms", task="index #1", operation_type=track.OperationType.Bulk,
+        store.put_value_cluster_level("service_time", 210, unit="ms", task="index #1", operation_type=workload.OperationType.Bulk,
                                       meta_data={"success": True}, relative_time=653)
 
         # only warmup samples
         store.put_value_cluster_level("throughput", 500, unit="docs/s", task="index #2",
-                                      sample_type=metrics.SampleType.Warmup, operation_type=track.OperationType.Bulk)
-        store.put_value_cluster_level("latency", 2800, unit="ms", task="index #2", operation_type=track.OperationType.Bulk,
+                                      sample_type=metrics.SampleType.Warmup, operation_type=workload.OperationType.Bulk)
+        store.put_value_cluster_level("latency", 2800, unit="ms", task="index #2", operation_type=workload.OperationType.Bulk,
                                       sample_type=metrics.SampleType.Warmup)
-        store.put_value_cluster_level("service_time", 250, unit="ms", task="index #2", operation_type=track.OperationType.Bulk,
+        store.put_value_cluster_level("service_time", 250, unit="ms", task="index #2", operation_type=workload.OperationType.Bulk,
                                       sample_type=metrics.SampleType.Warmup, relative_time=600)
 
         store.put_doc(doc={
@@ -1752,13 +1754,14 @@ class StatsCalculatorTests(TestCase):
         cfg.add(config.Scope.application, "mechanic", "plugin.params", {})
         cfg.add(config.Scope.application, "race", "user.tag", "")
         cfg.add(config.Scope.application, "race", "pipeline", "from-sources")
-        cfg.add(config.Scope.application, "track", "params", {})
+        cfg.add(config.Scope.application, "workload", "params", {})
 
-        index = track.Task(name="index #1", operation=track.Operation(name="index", operation_type=track.OperationType.Bulk, params=None))
-        challenge = track.Challenge(name="unittest", schedule=[index], default=True)
-        t = track.Track("unittest", "unittest-track", challenges=[challenge])
+        index = workload.Task(name="index #1",
+                                    operation=workload.Operation(name="index", operation_type=workload.OperationType.Bulk, params=None))
+        challenge = workload.Challenge(name="unittest", schedule=[index], default=True)
+        t = workload.Workload("unittest", "unittest-workload", challenges=[challenge])
 
-        store = metrics.metrics_store(cfg, read_only=False, track=t, challenge=challenge)
+        store = metrics.metrics_store(cfg, read_only=False, workload=t, challenge=challenge)
         store.add_meta_info(metrics.MetaInfoScope.node, "rally-node-0", "node_name", "rally-node-0")
 
         store.put_value_node_level("rally-node-0", "final_index_size_bytes", 2048, unit="bytes")
@@ -1793,7 +1796,7 @@ class GlobalStatsCalculatorTests(TestCase):
     def setUp(self):
         self.cfg = config.Config()
         self.cfg.add(config.Scope.application, "system", "env.name", "unittest")
-        self.cfg.add(config.Scope.application, "track", "params", {})
+        self.cfg.add(config.Scope.application, "workload", "params", {})
         self.metrics_store = metrics.InMemoryMetricsStore(self.cfg, clock=StaticClock)
 
     def tearDown(self):
@@ -1811,7 +1814,7 @@ class GlobalStatsCalculatorTests(TestCase):
                                         "relative-time-ms": 283.382,
                                         "race-id": "fb26018b-428d-4528-b36b-cf8c54a303ec",
                                         "race-timestamp": "20200728T003905Z", "environment": "local",
-                                        "track": "geonames", "challenge": "append-fast-with-conflicts",
+                                        "workload": "geonames", "challenge": "append-fast-with-conflicts",
                                         "car": "defaults", "name": "service_time", "value": 72.67997100007051,
                                         "unit": "ms", "sample-type": "normal",
                                         "meta": {"source_revision": "7f634e9f44834fbc12724506cc1da681b0c3b1e3",
@@ -1819,7 +1822,7 @@ class GlobalStatsCalculatorTests(TestCase):
                                                  "success": False}, "task": "delete-index", "operation": "delete-index",
                                         "operation-type": "DeleteIndex"})
 
-        result = GlobalStatsCalculator(store=self.metrics_store, track=Track(name='geonames', meta_data={}),
+        result = GlobalStatsCalculator(store=self.metrics_store, workload=Workload(name='geonames', meta_data={}),
                                        challenge=challenge)()
         assert "delete-index" in [op_metric.get('task') for op_metric in result.op_metrics]
 

@@ -25,7 +25,7 @@ from esrally.utils import io, git, console, versions
 
 class RallyRepository:
     """
-    Manages Rally resources (e.g. teams or tracks).
+    Manages Rally resources (e.g. teams or workloads).
     """
 
     def __init__(self, remote_url, root_dir, repo_name, resource_name, offline, fetch=True):

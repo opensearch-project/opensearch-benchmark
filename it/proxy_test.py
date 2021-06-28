@@ -69,7 +69,7 @@ def assert_log_line_present(log_file, text):
 
 @it.rally_in_mem
 def test_run_with_direct_internet_connection(cfg, http_proxy, fresh_log_file):
-    assert it.esrally(cfg, "list tracks") == 0
+    assert it.esrally(cfg, "list workloads") == 0
     assert_log_line_present(fresh_log_file, "Connecting directly to the Internet")
 
 
@@ -77,7 +77,7 @@ def test_run_with_direct_internet_connection(cfg, http_proxy, fresh_log_file):
 def test_anonymous_proxy_no_connection(cfg, http_proxy, fresh_log_file):
     env = dict(os.environ)
     env["http_proxy"] = http_proxy.anonymous_url
-    assert process.run_subprocess_with_logging(it.esrally_command_line_for(cfg, "list tracks"), env=env) == 0
+    assert process.run_subprocess_with_logging(it.esrally_command_line_for(cfg, "list workloads"), env=env) == 0
     assert_log_line_present(fresh_log_file, f"Connecting via proxy URL [{http_proxy.anonymous_url}] to the Internet")
     # unauthenticated proxy access is prevented
     assert_log_line_present(fresh_log_file, "No Internet connection detected")
@@ -87,7 +87,7 @@ def test_anonymous_proxy_no_connection(cfg, http_proxy, fresh_log_file):
 def test_authenticated_proxy_user_can_connect(cfg, http_proxy, fresh_log_file):
     env = dict(os.environ)
     env["http_proxy"] = http_proxy.authenticated_url
-    assert process.run_subprocess_with_logging(it.esrally_command_line_for(cfg, "list tracks"), env=env) == 0
+    assert process.run_subprocess_with_logging(it.esrally_command_line_for(cfg, "list workloads"), env=env) == 0
     assert_log_line_present(fresh_log_file,
                             f"Connecting via proxy URL [{http_proxy.authenticated_url}] to the Internet")
     # authenticated proxy access is allowed

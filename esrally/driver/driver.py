@@ -33,9 +33,9 @@ from enum import Enum
 
 import thespian.actors
 
-from esrally import actor, config, exceptions, metrics, track, client, paths, PROGRAM_NAME, telemetry
+from esrally import actor, config, exceptions, metrics, workload, client, paths, PROGRAM_NAME, telemetry
 from esrally.driver import runner, scheduler
-from esrally.track import TrackProcessorRegistry, load_track, load_track_plugins
+from esrally.workload import WorkloadProcessorRegistry, load_workload, load_workload_plugins
 from esrally.utils import convert, console, net
 
 
@@ -49,40 +49,40 @@ class PrepareBenchmark:
     Initiates preparation steps for a benchmark. The benchmark should only be started after StartBenchmark is sent.
     """
 
-    def __init__(self, config, track):
+    def __init__(self, config, workload):
         """
         :param config: Rally internal configuration object.
-        :param track: The track to use.
+        :param workload: The workload to use.
         """
         self.config = config
-        self.track = track
+        self.workload = workload
 
 
 class StartBenchmark:
     pass
 
 
-class PrepareTrack:
+class PrepareWorkload:
     """
-    Initiates preparation of a track.
+    Initiates preparation of a workload.
 
     """
-    def __init__(self, cfg, track):
+    def __init__(self, cfg, workload):
         """
         :param cfg: Rally internal configuration object.
-        :param track: The track to use.
+        :param workload: The workload to use.
         """
         self.config = cfg
-        self.track = track
+        self.workload = workload
 
 
-class TrackPrepared:
+class WorkloadPrepared:
     pass
 
 
 class StartTaskLoop:
-    def __init__(self, track_name, cfg):
-        self.track_name = track_name
+    def __init__(self, workload_name, cfg):
+        self.workload_name = workload_name
         self.cfg = cfg
 
 
@@ -121,16 +121,16 @@ class StartWorker:
     Starts a worker.
     """
 
-    def __init__(self, worker_id, config, track, client_allocations):
+    def __init__(self, worker_id, config, workload, client_allocations):
         """
         :param worker_id: Unique (numeric) id of the worker.
         :param config: Rally internal configuration object.
-        :param track: The track to use.
+        :param workload: The workload to use.
         :param client_allocations: A structure describing which clients need to run which tasks.
         """
         self.worker_id = worker_id
         self.config = config
-        self.track = track
+        self.workload = workload
         self.client_allocations = client_allocations
 
 
@@ -146,8 +146,8 @@ class Drive:
 class CompleteCurrentTask:
     """
     Tells a load generator to prematurely complete its current task. This is used to model task dependencies for parallel tasks (i.e. if a
-    specific task that is marked accordingly in the track finishes, it will also signal termination of all other tasks in the same parallel
-    element).
+    specific task that is marked accordingly in the workload finishes, it will also signal termination of all other tasks in
+    the same parallel element).
     """
 
 
@@ -213,7 +213,7 @@ class DriverActor(actor.RallyActor):
     def receiveMsg_PoisonMessage(self, poisonmsg, sender):
         self.logger.error("Main driver received a fatal indication from a load generator (%s). Shutting down.", poisonmsg.details)
         self.coordinator.close()
-        self.send(self.start_sender, actor.BenchmarkFailure("Fatal track or load generator indication", poisonmsg.details))
+        self.send(self.start_sender, actor.BenchmarkFailure("Fatal workload or load generator indication", poisonmsg.details))
 
     def receiveMsg_BenchmarkFailure(self, msg, sender):
         self.logger.error("Main driver received a fatal exception from a load generator. Shutting down.")
@@ -239,7 +239,7 @@ class DriverActor(actor.RallyActor):
                 self.logger.error("Worker [%d] has exited prematurely. Aborting benchmark.", worker_index)
                 self.send(self.start_sender, actor.BenchmarkFailure("Worker [{}] has exited prematurely.".format(worker_index)))
         else:
-            self.logger.info("A track preparator has exited.")
+            self.logger.info("A workload preparator has exited.")
 
     def receiveUnrecognizedMessage(self, msg, sender):
         self.logger.info("Main driver received unknown message [%s] (ignoring).", str(msg))
@@ -248,7 +248,7 @@ class DriverActor(actor.RallyActor):
     def receiveMsg_PrepareBenchmark(self, msg, sender):
         self.start_sender = sender
         self.coordinator = Driver(self, msg.config)
-        self.coordinator.prepare_benchmark(msg.track)
+        self.coordinator.prepare_benchmark(msg.workload)
 
     @actor.no_retry("driver")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StartBenchmark(self, msg, sender):
@@ -257,9 +257,9 @@ class DriverActor(actor.RallyActor):
         self.wakeupAfter(datetime.timedelta(seconds=DriverActor.WAKEUP_INTERVAL_SECONDS))
 
     @actor.no_retry("driver")  # pylint: disable=no-value-for-parameter
-    def receiveMsg_TrackPrepared(self, msg, sender):
+    def receiveMsg_WorkloadPrepared(self, msg, sender):
         self.transition_when_all_children_responded(sender, msg,
-                                                    expected_status=None, new_status=None, transition=self._after_track_prepared)
+                                                    expected_status=None, new_status=None, transition=self._after_workload_prepared)
 
     @actor.no_retry("driver")  # pylint: disable=no-value-for-parameter
     def receiveMsg_JoinPointReached(self, msg, sender):
@@ -284,8 +284,8 @@ class DriverActor(actor.RallyActor):
     def create_client(self, host):
         return self.createActor(Worker, targetActorRequirements=self._requirements(host))
 
-    def start_worker(self, driver, worker_id, cfg, track, allocations):
-        self.send(driver, StartWorker(worker_id, cfg, track, allocations))
+    def start_worker(self, driver, worker_id, cfg, workload, allocations):
+        self.send(driver, StartWorker(worker_id, cfg, workload, allocations))
 
     def drive_at(self, driver, client_start_timestamp):
         self.send(driver, Drive(client_start_timestamp))
@@ -309,17 +309,17 @@ class DriverActor(actor.RallyActor):
     def on_cluster_details_retrieved(self, cluster_details):
         self.cluster_details = cluster_details
 
-    def prepare_track(self, hosts, cfg, track):
-        self.logger.info("Starting prepare track process on hosts [%s]", hosts)
-        self.children = [self._create_track_preparator(h) for h in hosts]
-        msg = PrepareTrack(cfg, track)
+    def prepare_workload(self, hosts, cfg, workload):
+        self.logger.info("Starting prepare workload process on hosts [%s]", hosts)
+        self.children = [self._create_workload_preparator(h) for h in hosts]
+        msg = PrepareWorkload(cfg, workload)
         for child in self.children:
             self.send(child, msg)
 
-    def _create_track_preparator(self, host):
-        return self.createActor(TrackPreparationActor, targetActorRequirements=self._requirements(host))
+    def _create_workload_preparator(self, host):
+        return self.createActor(WorkloadPreparationActor, targetActorRequirements=self._requirements(host))
 
-    def _after_track_prepared(self):
+    def _after_workload_prepared(self):
         cluster_version = self.cluster_details["version"] if self.cluster_details else {}
         for child in self.children:
             self.send(child, thespian.actors.ActorExitRequest())
@@ -338,7 +338,7 @@ class DriverActor(actor.RallyActor):
 def load_local_config(coordinator_config):
     cfg = config.auto_load_local_config(coordinator_config, additional_sections=[
         # only copy the relevant bits
-        "track", "driver", "client",
+        "workload", "driver", "client",
         # due to distribution version...
         "mechanic",
         "telemetry"
@@ -359,17 +359,17 @@ class TaskExecutionActor(actor.RallyActor):
         self.wakeup_interval = 5
         self.parent = None
         self.logger = logging.getLogger(__name__)
-        self.track_name = None
+        self.workload_name = None
         self.cfg = None
 
     @actor.no_retry("task executor")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StartTaskLoop(self, msg, sender):
         self.parent = sender
-        self.track_name = msg.track_name
+        self.workload_name = msg.workload_name
         self.cfg = load_local_config(msg.cfg)
-        if self.cfg.opts("track", "test.mode.enabled"):
+        if self.cfg.opts("workload", "test.mode.enabled"):
             self.wakeup_interval = 0.5
-        track.load_track_plugins(self.cfg, self.track_name)
+        workload.load_workload_plugins(self.cfg, self.workload_name)
         self.send(self.parent, ReadyForWork())
 
     @actor.no_retry("task executor")  # pylint: disable=no-value-for-parameter
@@ -410,7 +410,7 @@ class TaskExecutionActor(actor.RallyActor):
         # sent by our no_retry infrastructure; forward to master
         self.send(self.parent, msg)
 
-class TrackPreparationActor(actor.RallyActor):
+class WorkloadPreparationActor(actor.RallyActor):
     class Status(Enum):
         INITIALIZING = "initializing"
         PROCESSOR_RUNNING = "processor running"
@@ -420,78 +420,78 @@ class TrackPreparationActor(actor.RallyActor):
         super().__init__()
         self.processors = queue.Queue()
         self.original_sender = None
-        self.logger.info("Track Preparator started")
+        self.logger.info("Workload Preparator started")
         self.status = self.Status.INITIALIZING
         self.children = []
         self.tasks = []
         self.cfg = None
         self.data_root_dir = None
-        self.track = None
+        self.workload = None
 
     def receiveMsg_PoisonMessage(self, poisonmsg, sender):
-        self.logger.error("Track Preparator received a fatal indication from a load generator (%s). Shutting down.", poisonmsg.details)
-        self.send(self.original_sender, actor.BenchmarkFailure("Fatal track preparation indication", poisonmsg.details))
+        self.logger.error("Workload Preparator received a fatal indication from a load generator (%s). Shutting down.", poisonmsg.details)
+        self.send(self.original_sender, actor.BenchmarkFailure("Fatal workload preparation indication", poisonmsg.details))
 
-    @actor.no_retry("track preparator")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("workload preparator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_ActorExitRequest(self, msg, sender):
         self.logger.info("ActorExitRequest received. Forwarding to children")
         for child in self.children:
             self.send(child, msg)
 
-    @actor.no_retry("track preparator")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("workload preparator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_BenchmarkFailure(self, msg, sender):
         # sent by our generic worker; forward to parent
         self.send(self.original_sender, msg)
 
-    @actor.no_retry("track preparator")  # pylint: disable=no-value-for-parameter
-    def receiveMsg_PrepareTrack(self, msg, sender):
+    @actor.no_retry("workload preparator")  # pylint: disable=no-value-for-parameter
+    def receiveMsg_PrepareWorkload(self, msg, sender):
         self.original_sender = sender
         # load node-specific config to have correct paths available
         self.cfg = load_local_config(msg.config)
         self.data_root_dir = self.cfg.opts("benchmarks", "local.dataset.cache")
-        tpr = TrackProcessorRegistry(self.cfg)
-        self.track = msg.track
-        self.logger.info("Preparing track [%s]", self.track.name)
-        self.logger.info("Reloading track [%s] to ensure plugins are up-to-date.", self.track.name)
-        # the track might have been loaded on a different machine (the coordinator machine) so we force a track
+        tpr = WorkloadProcessorRegistry(self.cfg)
+        self.workload = msg.workload
+        self.logger.info("Preparing workload [%s]", self.workload.name)
+        self.logger.info("Reloading workload [%s] to ensure plugins are up-to-date.", self.workload.name)
+        # the workload might have been loaded on a different machine (the coordinator machine) so we force a workload
         # update to ensure we use the latest version of plugins.
-        load_track(self.cfg)
-        load_track_plugins(self.cfg, self.track.name, register_track_processor=tpr.register_track_processor,
+        load_workload(self.cfg)
+        load_workload_plugins(self.cfg, self.workload.name, register_workload_processor=tpr.register_workload_processor,
                            force_update=True)
-        # we expect on_prepare_track can take a long time. seed a queue of tasks and delegate to child workers
+        # we expect on_prepare_workload can take a long time. seed a queue of tasks and delegate to child workers
         self.children = [self._create_task_executor() for _ in range(num_cores(self.cfg))]
         for processor in tpr.processors:
             self.processors.put(processor)
         self._seed_tasks(self.processors.get())
-        self.send_to_children_and_transition(self, StartTaskLoop(self.track.name, self.cfg), self.Status.INITIALIZING,
+        self.send_to_children_and_transition(self, StartTaskLoop(self.workload.name, self.cfg), self.Status.INITIALIZING,
                                              self.Status.PROCESSOR_RUNNING)
 
     def resume(self):
         if not self.processors.empty():
             self._seed_tasks(self.processors.get())
-            self.send_to_children_and_transition(self, StartTaskLoop(self.track.name, self.cfg), self.Status.PROCESSOR_COMPLETE,
+            self.send_to_children_and_transition(self, StartTaskLoop(self.workload.name, self.cfg), self.Status.PROCESSOR_COMPLETE,
                                                  self.Status.PROCESSOR_RUNNING)
         else:
-            self.send(self.original_sender, TrackPrepared())
+            self.send(self.original_sender, WorkloadPrepared())
 
     def _seed_tasks(self, processor):
         self.tasks = list(WorkerTask(func, params) for func, params in
-                          processor.on_prepare_track(self.track, self.data_root_dir))
+                          processor.on_prepare_workload(self.workload, self.data_root_dir))
 
     def _create_task_executor(self):
         return self.createActor(TaskExecutionActor)
 
-    @actor.no_retry("track preparator")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("workload preparator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_ReadyForWork(self, msg, sender):
         if self.tasks:
             next_task = self.tasks.pop()
         else:
             next_task = None
         new_msg = DoTask(next_task, self.cfg)
-        self.logger.debug("Track Preparator sending %s to %s", vars(new_msg), sender)
+        self.logger.debug("Workload Preparator sending %s to %s", vars(new_msg), sender)
         self.send(sender, new_msg)
 
-    @actor.no_retry("track preparator")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("workload preparator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_WorkerIdle(self, msg, sender):
         self.transition_when_all_children_responded(sender, msg, self.Status.PROCESSOR_RUNNING,
                                                     self.Status.PROCESSOR_COMPLETE, self.resume)
@@ -516,7 +516,7 @@ class Driver:
         self.target = target
         self.config = config
         self.es_client_factory = es_client_factory_class
-        self.track = None
+        self.workload = None
         self.challenge = None
         self.metrics_store = None
         self.load_driver_hosts = []
@@ -594,18 +594,18 @@ class Driver:
             return None
 
     def prepare_benchmark(self, t):
-        self.track = t
-        self.challenge = select_challenge(self.config, self.track)
+        self.workload = t
+        self.challenge = select_challenge(self.config, self.workload)
         self.quiet = self.config.opts("system", "quiet.mode", mandatory=False, default_value=False)
         downsample_factor = int(self.config.opts("reporting", "metrics.request.downsample.factor", mandatory=False, default_value=1))
         self.metrics_store = metrics.metrics_store(cfg=self.config,
-                                                   track=self.track.name,
+                                                   workload=self.workload.name,
                                                    challenge=self.challenge.name,
                                                    read_only=False)
 
         self.sample_post_processor = SamplePostprocessor(self.metrics_store,
                                                          downsample_factor,
-                                                         self.track.meta_data,
+                                                         self.workload.meta_data,
                                                          self.challenge.meta_data)
 
         es_clients = self.create_es_clients()
@@ -636,7 +636,7 @@ class Driver:
 
             self.load_driver_hosts.append(host_config)
 
-        self.target.prepare_track([h["host"] for h in self.load_driver_hosts], self.config, self.track)
+        self.target.prepare_workload([h["host"] for h in self.load_driver_hosts], self.config, self.workload)
 
     def start_benchmark(self):
         self.logger.info("Benchmark is about to start.")
@@ -671,7 +671,7 @@ class Driver:
                     for client_id in clients:
                         client_allocations.add(client_id, self.allocations[client_id])
                         self.clients_per_worker[client_id] = worker_id
-                    self.target.start_worker(worker, worker_id, self.config, self.track, client_allocations)
+                    self.target.start_worker(worker, worker_id, self.config, self.workload, client_allocations)
                     self.workers.append(worker)
                     worker_id += 1
 
@@ -715,7 +715,7 @@ class Driver:
             self.may_complete_current_task(task_allocations)
 
     def move_to_next_task(self, workers_curr_step):
-        if self.config.opts("track", "test.mode.enabled"):
+        if self.config.opts("workload", "test.mode.enabled"):
             # don't wait if test mode is enabled and start the next task immediately.
             waiting_period = 0
         else:
@@ -817,10 +817,10 @@ class Driver:
 
 
 class SamplePostprocessor:
-    def __init__(self, metrics_store, downsample_factor, track_meta_data, challenge_meta_data):
+    def __init__(self, metrics_store, downsample_factor, workload_meta_data, challenge_meta_data):
         self.logger = logging.getLogger(__name__)
         self.metrics_store = metrics_store
-        self.track_meta_data = track_meta_data
+        self.workload_meta_data = workload_meta_data
         self.challenge_meta_data = challenge_meta_data
         self.throughput_calculator = ThroughputCalculator()
         self.downsample_factor = downsample_factor
@@ -835,7 +835,7 @@ class SamplePostprocessor:
             if idx % self.downsample_factor == 0:
                 final_sample_count += 1
                 meta_data = self.merge(
-                    self.track_meta_data,
+                    self.workload_meta_data,
                     self.challenge_meta_data,
                     sample.operation_meta_data,
                     sample.task.meta_data,
@@ -875,7 +875,7 @@ class SamplePostprocessor:
         start = end
         for task, samples in aggregates.items():
             meta_data = self.merge(
-                self.track_meta_data,
+                self.workload_meta_data,
                 self.challenge_meta_data,
                 task.operation.meta_data,
                 task.meta_data
@@ -994,7 +994,7 @@ class Worker(actor.RallyActor):
         self.master = None
         self.worker_id = None
         self.config = None
-        self.track = None
+        self.workload = None
         self.client_allocations = None
         self.current_task_index = 0
         self.next_task_index = 0
@@ -1019,17 +1019,17 @@ class Worker(actor.RallyActor):
         self.config = load_local_config(msg.config)
         self.on_error = self.config.opts("driver", "on.error")
         self.sample_queue_size = int(self.config.opts("reporting", "sample.queue.size", mandatory=False, default_value=1 << 20))
-        self.track = msg.track
-        track.set_absolute_data_path(self.config, self.track)
+        self.workload = msg.workload
+        workload.set_absolute_data_path(self.config, self.workload)
         self.client_allocations = msg.client_allocations
         self.current_task_index = 0
         self.cancel.clear()
         # we need to wake up more often in test mode
-        if self.config.opts("track", "test.mode.enabled"):
+        if self.config.opts("workload", "test.mode.enabled"):
             self.wakeup_interval = 0.5
         runner.register_default_runners()
-        if self.track.has_plugins:
-            track.load_track_plugins(self.config, self.track.name, runner.register_runner, scheduler.register_scheduler)
+        if self.workload.has_plugins:
+            workload.load_workload_plugins(self.config, self.workload.name, runner.register_runner, scheduler.register_scheduler)
         self.drive()
 
     @actor.no_retry("worker")  # pylint: disable=no-value-for-parameter
@@ -1130,7 +1130,7 @@ class Worker(actor.RallyActor):
             else:
                 self.logger.info("Worker[%d] is executing tasks at index [%d].", self.worker_id, self.current_task_index)
                 self.sampler = Sampler(start_timestamp=time.perf_counter(), buffer_size=self.sample_queue_size)
-                executor = AsyncIoAdapter(self.config, self.track, task_allocations, self.sampler,
+                executor = AsyncIoAdapter(self.config, self.workload, task_allocations, self.sampler,
                                           self.cancel, self.complete, self.on_error)
 
                 self.executor_future = self.pool.submit(executor)
@@ -1242,12 +1242,12 @@ class Sample:
 
 
 def select_challenge(config, t):
-    challenge_name = config.opts("track", "challenge.name")
+    challenge_name = config.opts("workload", "challenge.name")
     selected_challenge = t.find_challenge_or_default(challenge_name)
 
     if not selected_challenge:
-        raise exceptions.SystemSetupError("Unknown challenge [%s] for track [%s]. You can list the available tracks and their "
-                                          "challenges with %s list tracks." % (challenge_name, t.name, PROGRAM_NAME))
+        raise exceptions.SystemSetupError("Unknown challenge [%s] for workload [%s]. You can list the available workloads and their "
+                                          "challenges with %s list workloads." % (challenge_name, t.name, PROGRAM_NAME))
     return selected_challenge
 
 
@@ -1398,9 +1398,9 @@ class ThroughputCalculator:
 
 
 class AsyncIoAdapter:
-    def __init__(self, cfg, track, task_allocations, sampler, cancel, complete, abort_on_error):
+    def __init__(self, cfg, workload, task_allocations, sampler, cancel, complete, abort_on_error):
         self.cfg = cfg
-        self.track = track
+        self.workload = workload
         self.task_allocations = task_allocations
         self.sampler = sampler
         self.cancel = cancel
@@ -1452,7 +1452,7 @@ class AsyncIoAdapter:
         for client_id, task_allocation in self.task_allocations:
             task = task_allocation.task
             if task not in params_per_task:
-                param_source = track.operation_parameters(self.track, task)
+                param_source = workload.operation_parameters(self.workload, task)
                 params_per_task[task] = param_source
             # We cannot use the global client index here because we need to support parallel execution of tasks
             # with multiple clients. Consider the following scenario:

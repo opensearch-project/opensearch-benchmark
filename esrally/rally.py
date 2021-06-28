@@ -27,7 +27,7 @@ import uuid
 import thespian.actors
 
 from esrally import PROGRAM_NAME, BANNER, FORUM_LINK, SKULL, check_python_version, doc_link, telemetry
-from esrally import version, actor, config, paths, racecontrol, reporter, metrics, track, chart_generator, exceptions, \
+from esrally import version, actor, config, paths, racecontrol, reporter, metrics, workload, chart_generator, exceptions, \
     log
 from esrally.mechanic import team, mechanic
 from esrally.tracker import tracker
@@ -64,20 +64,20 @@ def create_arg_parser():
                 raise argparse.ArgumentTypeError(f"must be at least {min_es_version} but was {v}")
         return v
 
-    def add_track_source(subparser):
-        track_source_group = subparser.add_mutually_exclusive_group()
-        track_source_group.add_argument(
-            "--track-repository",
-            help="Define the repository from where Rally will load tracks (default: default).",
-            # argparse is smart enough to use this default only if the user did not use --track-path and also did not specify anything
+    def add_workload_source(subparser):
+        workload_source_group = subparser.add_mutually_exclusive_group()
+        workload_source_group.add_argument(
+            "--workload-repository",
+            help="Define the repository from where Rally will load workload (default: default).",
+            # argparse is smart enough to use this default only if the user did not use --workload-path and also did not specify anything
             default="default"
         )
-        track_source_group.add_argument(
-            "--track-path",
-            help="Define the path to a track.")
+        workload_source_group.add_argument(
+            "--workload-path",
+            help="Define the path to a workload.")
         subparser.add_argument(
-            "--track-revision",
-            help="Define a specific revision in the track repository that Rally should use.",
+            "--workload-revision",
+            help="Define a specific revision in the workload repository that Rally should use.",
             default=None)
 
     # try to preload configurable defaults, but this does not work together with `--configuration-name` (which is undocumented anyway)
@@ -100,38 +100,38 @@ def create_arg_parser():
         help="")
 
     race_parser = subparsers.add_parser("race", help="Run a benchmark")
-    # change in favor of "list telemetry", "list tracks", "list pipelines"
+    # change in favor of "list telemetry", "list workload", "list pipelines"
     list_parser = subparsers.add_parser("list", help="List configuration options")
     list_parser.add_argument(
         "configuration",
         metavar="configuration",
         help="The configuration for which Rally should show the available options. "
-             "Possible values are: telemetry, tracks, pipelines, races, cars, elasticsearch-plugins",
-        choices=["telemetry", "tracks", "pipelines", "races", "cars", "elasticsearch-plugins"])
+             "Possible values are: telemetry, workload, pipelines, races, cars, elasticsearch-plugins",
+        choices=["telemetry", "workload", "pipelines", "races", "cars", "elasticsearch-plugins"])
     list_parser.add_argument(
         "--limit",
         help="Limit the number of search results for recent races (default: 10).",
         default=10,
     )
-    add_track_source(list_parser)
+    add_workload_source(list_parser)
 
-    info_parser = subparsers.add_parser("info", help="Show info about a track")
-    add_track_source(info_parser)
+    info_parser = subparsers.add_parser("info", help="Show info about a workload")
+    add_workload_source(info_parser)
     info_parser.add_argument(
-        "--track",
-        help=f"Define the track to use. List possible tracks with `{PROGRAM_NAME} list tracks`."
+        "--workload",
+        help=f"Define the workload to use. List possible workload with `{PROGRAM_NAME} list workload`."
         # we set the default value later on because we need to determine whether the user has provided this value.
         # default="geonames"
     )
 
     info_parser.add_argument(
-        "--track-params",
-        help="Define a comma-separated list of key:value pairs that are injected verbatim to the track as variables.",
+        "--workload-params",
+        help="Define a comma-separated list of key:value pairs that are injected verbatim to the workload as variables.",
         default=""
     )
     info_parser.add_argument(
         "--challenge",
-        help=f"Define the challenge to use. List possible challenges for tracks with `{PROGRAM_NAME} list tracks`."
+        help=f"Define the challenge to use. List possible challenges for workload with `{PROGRAM_NAME} list workload`."
     )
     info_task_filter_group = info_parser.add_mutually_exclusive_group()
     info_task_filter_group.add_argument(
@@ -141,29 +141,29 @@ def create_arg_parser():
         "--exclude-tasks",
         help="Defines a comma-separated list of tasks not to run. By default all tasks of a challenge are run.")
 
-    create_track_parser = subparsers.add_parser("create-track", help="Create a Rally track from existing data")
-    create_track_parser.add_argument(
-        "--track",
+    create_workload_parser = subparsers.add_parser("create-workload", help="Create a Rally workload from existing data")
+    create_workload_parser.add_argument(
+        "--workload",
         required=True,
-        help="Name of the generated track")
-    create_track_parser.add_argument(
+        help="Name of the generated workload")
+    create_workload_parser.add_argument(
         "--indices",
         type=non_empty_list,
         required=True,
-        help="Comma-separated list of indices to include in the track")
-    create_track_parser.add_argument(
+        help="Comma-separated list of indices to include in the workload")
+    create_workload_parser.add_argument(
         "--target-hosts",
         default="",
         required=True,
         help="Comma-separated list of host:port pairs which should be targeted")
-    create_track_parser.add_argument(
+    create_workload_parser.add_argument(
         "--client-options",
         default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS,
         help=f"Comma-separated list of client options to use. (default: {opts.ClientOptions.DEFAULT_CLIENT_OPTIONS})")
-    create_track_parser.add_argument(
+    create_workload_parser.add_argument(
         "--output-path",
-        default=os.path.join(os.getcwd(), "tracks"),
-        help="Track output directory (default: tracks/)")
+        default=os.path.join(os.getcwd(), "workload"),
+        help="Workloads output directory (default: workload/)")
 
     generate_parser = subparsers.add_parser("generate", help="Generate artifacts")
     generate_parser.add_argument(
@@ -171,7 +171,7 @@ def create_arg_parser():
         metavar="artifact",
         help="The artifact to create. Possible values are: charts",
         choices=["charts"])
-    # We allow to either have a chart-spec-path *or* define a chart-spec on the fly with track, challenge and car. Convincing
+    # We allow to either have a chart-spec-path *or* define a chart-spec on the fly with workload, challenge and car. Convincing
     # argparse to validate that everything is correct *might* be doable but it is simpler to just do this manually.
     generate_parser.add_argument(
         "--chart-spec-path",
@@ -416,19 +416,19 @@ def create_arg_parser():
              " The timestamp must be specified as: \"@ts\" where \"ts\" must be a valid ISO 8601 timestamp, "
              "e.g. \"@2013-07-27T10:37:00Z\" (default: current).",
         default="current")  # optimized for local usage, don't fetch sources
-    add_track_source(race_parser)
+    add_workload_source(race_parser)
     race_parser.add_argument(
-        "--track",
-        help=f"Define the track to use. List possible tracks with `{PROGRAM_NAME} list tracks`."
+        "--workload",
+        help=f"Define the workload to use. List possible workload with `{PROGRAM_NAME} list workload`."
     )
     race_parser.add_argument(
-        "--track-params",
-        help="Define a comma-separated list of key:value pairs that are injected verbatim to the track as variables.",
+        "--workload-params",
+        help="Define a comma-separated list of key:value pairs that are injected verbatim to the workload as variables.",
         default=""
     )
     race_parser.add_argument(
         "--challenge",
-        help=f"Define the challenge to use. List possible challenges for tracks with `{PROGRAM_NAME} list tracks`.")
+        help=f"Define the challenge to use. List possible challenges for workload with `{PROGRAM_NAME} list workload`.")
     race_parser.add_argument(
         "--car",
         help=f"Define the car to use. List possible cars with `{PROGRAM_NAME} list cars` (default: defaults).",
@@ -523,7 +523,7 @@ def create_arg_parser():
         action="store_true")
     race_parser.add_argument(
         "--test-mode",
-        help="Runs the given track in 'test mode'. Meant to check a track for errors but not for real benchmarks (default: false).",
+        help="Runs the given workload in 'test mode'. Meant to check a workload for errors but not for real benchmarks (default: false).",
         default=False,
         action="store_true")
     race_parser.add_argument(
@@ -563,7 +563,7 @@ def create_arg_parser():
         default=False)
 
     for p in [list_parser, race_parser, compare_parser, download_parser, install_parser,
-              start_parser, stop_parser, info_parser, generate_parser, create_track_parser]:
+              start_parser, stop_parser, info_parser, generate_parser, create_workload_parser]:
         # This option is needed to support a separate configuration for the integration tests on the same machine
         p.add_argument(
             "--configuration-name",
@@ -587,8 +587,8 @@ def dispatch_list(cfg):
     what = cfg.opts("system", "list.config.option")
     if what == "telemetry":
         telemetry.list_telemetry()
-    elif what == "tracks":
-        track.list_tracks(cfg)
+    elif what == "workload":
+        workload.list_workload(cfg)
     elif what == "pipelines":
         racecontrol.list_pipelines()
     elif what == "races":
@@ -715,31 +715,31 @@ def configure_telemetry_params(args, cfg):
     cfg.add(config.Scope.applicationOverride, "telemetry", "params", opts.to_dict(args.telemetry_params))
 
 
-def configure_track_params(arg_parser, args, cfg, command_requires_track=True):
-    cfg.add(config.Scope.applicationOverride, "track", "repository.revision", args.track_revision)
-    # We can assume here that if a track-path is given, the user did not specify a repository either (although argparse sets it to
+def configure_workload_params(arg_parser, args, cfg, command_requires_workload=True):
+    cfg.add(config.Scope.applicationOverride, "workload", "repository.revision", args.workload_revision)
+    # We can assume here that if a workload-path is given, the user did not specify a repository either (although argparse sets it to
     # its default value)
-    if args.track_path:
-        cfg.add(config.Scope.applicationOverride, "track", "track.path", os.path.abspath(io.normalize_path(args.track_path)))
-        cfg.add(config.Scope.applicationOverride, "track", "repository.name", None)
-        if args.track_revision:
+    if args.workload_path:
+        cfg.add(config.Scope.applicationOverride, "workload", "workload.path", os.path.abspath(io.normalize_path(args.workload_path)))
+        cfg.add(config.Scope.applicationOverride, "workload", "repository.name", None)
+        if args.workload_revision:
             # stay as close as possible to argparse errors although we have a custom validation.
-            arg_parser.error("argument --track-revision not allowed with argument --track-path")
-        if command_requires_track and args.track:
+            arg_parser.error("argument --workload-revision not allowed with argument --workload-path")
+        if command_requires_workload and args.workload:
             # stay as close as possible to argparse errors although we have a custom validation.
-            arg_parser.error("argument --track not allowed with argument --track-path")
+            arg_parser.error("argument --workload not allowed with argument --workload-path")
     else:
-        cfg.add(config.Scope.applicationOverride, "track", "repository.name", args.track_repository)
-        if command_requires_track:
-            if not args.track:
-                raise arg_parser.error("argument --track is required")
-            cfg.add(config.Scope.applicationOverride, "track", "track.name", args.track)
+        cfg.add(config.Scope.applicationOverride, "workload", "repository.name", args.workload_repository)
+        if command_requires_workload:
+            if not args.workload:
+                raise arg_parser.error("argument --workload is required")
+            cfg.add(config.Scope.applicationOverride, "workload", "workload.name", args.workload)
 
-    if command_requires_track:
-        cfg.add(config.Scope.applicationOverride, "track", "params", opts.to_dict(args.track_params))
-        cfg.add(config.Scope.applicationOverride, "track", "challenge.name", args.challenge)
-        cfg.add(config.Scope.applicationOverride, "track", "include.tasks", opts.csv_to_list(args.include_tasks))
-        cfg.add(config.Scope.applicationOverride, "track", "exclude.tasks", opts.csv_to_list(args.exclude_tasks))
+    if command_requires_workload:
+        cfg.add(config.Scope.applicationOverride, "workload", "params", opts.to_dict(args.workload_params))
+        cfg.add(config.Scope.applicationOverride, "workload", "challenge.name", args.challenge)
+        cfg.add(config.Scope.applicationOverride, "workload", "include.tasks", opts.csv_to_list(args.include_tasks))
+        cfg.add(config.Scope.applicationOverride, "workload", "exclude.tasks", opts.csv_to_list(args.exclude_tasks))
 
 
 def configure_mechanic_params(args, cfg, command_requires_car=True):
@@ -792,7 +792,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "system", "list.config.option", args.configuration)
             cfg.add(config.Scope.applicationOverride, "system", "list.races.max_results", args.limit)
             configure_mechanic_params(args, cfg, command_requires_car=False)
-            configure_track_params(arg_parser, args, cfg, command_requires_track=False)
+            configure_workload_params(arg_parser, args, cfg, command_requires_workload=False)
             dispatch_list(cfg)
         elif sub_command == "download":
             cfg.add(config.Scope.applicationOverride, "mechanic", "target.os", args.target_os)
@@ -839,8 +839,8 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "driver", "assertions", args.enable_assertions)
             cfg.add(config.Scope.applicationOverride, "driver", "on.error", args.on_error)
             cfg.add(config.Scope.applicationOverride, "driver", "load_driver_hosts", opts.csv_to_list(args.load_driver_hosts))
-            cfg.add(config.Scope.applicationOverride, "track", "test.mode.enabled", args.test_mode)
-            configure_track_params(arg_parser, args, cfg)
+            cfg.add(config.Scope.applicationOverride, "workload", "test.mode.enabled", args.test_mode)
+            configure_workload_params(arg_parser, args, cfg)
             configure_connection_params(arg_parser, args, cfg)
             configure_telemetry_params(args, cfg)
             configure_mechanic_params(args, cfg)
@@ -859,16 +859,16 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "generator", "chart.type", args.chart_type)
             cfg.add(config.Scope.applicationOverride, "generator", "output.path", args.output_path)
             generate(cfg)
-        elif sub_command == "create-track":
+        elif sub_command == "create-workload":
             cfg.add(config.Scope.applicationOverride, "generator", "indices", args.indices)
             cfg.add(config.Scope.applicationOverride, "generator", "output.path", args.output_path)
-            cfg.add(config.Scope.applicationOverride, "track", "track.name", args.track)
+            cfg.add(config.Scope.applicationOverride, "workload", "workload.name", args.workload)
             configure_connection_params(arg_parser, args, cfg)
 
-            tracker.create_track(cfg)
+            tracker.create_workload(cfg)
         elif sub_command == "info":
-            configure_track_params(arg_parser, args, cfg)
-            track.track_info(cfg)
+            configure_workload_params(arg_parser, args, cfg)
+            workload.workload_info(cfg)
         else:
             raise exceptions.SystemSetupError(f"Unknown subcommand [{sub_command}]")
         return True
@@ -930,7 +930,7 @@ def main():
     if not args.offline:
         probing_url = cfg.opts("system", "probing.url", default_value="https://github.com", mandatory=False)
         if not net.has_internet_connection(probing_url):
-            console.warn("No Internet connection detected. Automatic download of track data sets etc. is disabled.",
+            console.warn("No Internet connection detected. Automatic download of workload data sets etc. is disabled.",
                          logger=logger)
             cfg.add(config.Scope.applicationOverride, "system", "offline.mode", True)
         else:

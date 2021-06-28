@@ -92,7 +92,7 @@ datastore.secure = False
 datastore.user = elastic
 datastore.password = notinuse
 
-[tracks]
+[workloads]
 default.url = https://github.com/opensearch-project/opensearch-benchmark-workloads
 
 [teams]

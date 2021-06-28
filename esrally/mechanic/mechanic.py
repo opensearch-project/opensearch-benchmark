@@ -118,7 +118,7 @@ def stop(cfg):
         metrics_store.open(
             race_id=current_race.race_id,
             race_timestamp=current_race.race_timestamp,
-            track_name=current_race.track_name,
+            workload_name=current_race.workload_name,
             challenge_name=current_race.challenge_name
         )
     except exceptions.NotFound:
@@ -533,7 +533,7 @@ class NodeMechanicActor(actor.RallyActor):
             # Load node-specific configuration
             cfg = config.auto_load_local_config(msg.cfg, additional_sections=[
                 # only copy the relevant bits
-                "track", "mechanic", "client", "telemetry",
+                "workload", "mechanic", "client", "telemetry",
                 # allow metrics store to extract race meta-data
                 "race",
                 "source"

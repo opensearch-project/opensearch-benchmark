@@ -30,89 +30,89 @@ import tabulate
 from jinja2 import meta
 
 from esrally import exceptions, time, PROGRAM_NAME, config, version
-from esrally.track import params, track
+from esrally.workload import params, workload
 from esrally.utils import io, collections, convert, net, console, modules, opts, repo
 
 
-class TrackSyntaxError(exceptions.InvalidSyntax):
+class WorkloadSyntaxError(exceptions.InvalidSyntax):
     """
-    Raised whenever a syntax problem is encountered when loading the track specification.
+    Raised whenever a syntax problem is encountered when loading the workload specification.
     """
 
 
-class TrackProcessor:
-    def on_after_load_track(self, track):
+class WorkloadProcessor:
+    def on_after_load_workload(self, workload):
         """
-        This method is called by Rally after a track has been loaded. Implementations are expected to modify the
-        provided track object in place.
+        This method is called by Rally after a workload has been loaded. Implementations are expected to modify the
+        provided workload object in place.
 
-        :param track: The current track.
+        :param workload: The current workload.
         """
 
-    def on_prepare_track(self, track, data_root_dir):
+    def on_prepare_workload(self, workload, data_root_dir):
         """
-        This method is called by Rally after the "after_load_track" phase. Here, any data that is necessary for
+        This method is called by Rally after the "after_load_workload" phase. Here, any data that is necessary for
         benchmark execution should be prepared, e.g. by downloading data or generating it. Implementations should
-        be aware that this method might be called on a different machine than "on_after_load_track" and they cannot
+        be aware that this method might be called on a different machine than "on_after_load_workload" and they cannot
         share any state in between phases.
 
-        :param track: The current track. This parameter should be treated as effectively immutable. Any modifications
+        :param workload: The current workload. This parameter should be treated as effectively immutable. Any modifications
                       will not be reflected in subsequent phases of the benchmark.
         :param data_root_dir: The data root directory on the current machine as configured by the user.
-        :return: an Iterable[Callable, dict] of function/parameter pairs to be executed by the prepare track's executor
+        :return: an Iterable[Callable, dict] of function/parameter pairs to be executed by the prepare workload's executor
         actors.
         """
         return []
 
 
-class TrackProcessorRegistry:
+class WorkloadProcessorRegistry:
     def __init__(self, cfg):
-        self.required_processors = [TaskFilterTrackProcessor(cfg), TestModeTrackProcessor(cfg)]
-        self.track_processors = []
+        self.required_processors = [TaskFilterWorkloadProcessor(cfg), TestModeWorkloadProcessor(cfg)]
+        self.workload_processors = []
         self.offline = cfg.opts("system", "offline.mode")
-        self.test_mode = cfg.opts("track", "test.mode.enabled", mandatory=False, default_value=False)
+        self.test_mode = cfg.opts("workload", "test.mode.enabled", mandatory=False, default_value=False)
         self.base_config = cfg
         self.custom_configuration = False
 
-    def register_track_processor(self, processor):
+    def register_workload_processor(self, processor):
         if not self.custom_configuration:
             # given processor should become the only element
-            self.track_processors = []
-        if not isinstance(processor, DefaultTrackPreparator):
-            # stop resetting self.track_processors
+            self.workload_processors = []
+        if not isinstance(processor, DefaultWorkloadPreparator):
+            # stop resetting self.workload_processors
             self.custom_configuration = True
         if hasattr(processor, "downloader"):
             processor.downloader = Downloader(self.offline, self.test_mode)
         if hasattr(processor, "decompressor"):
             processor.decompressor = Decompressor()
-        self.track_processors.append(processor)
+        self.workload_processors.append(processor)
 
     @property
     def processors(self):
         if not self.custom_configuration:
-            self.register_track_processor(DefaultTrackPreparator(self.base_config))
-        return [*self.required_processors, *self.track_processors]
+            self.register_workload_processor(DefaultWorkloadPreparator(self.base_config))
+        return [*self.required_processors, *self.workload_processors]
 
 
-def tracks(cfg):
+def workloads(cfg):
     """
 
-    Lists all known tracks. Note that users can specify a distribution version so if different tracks are available for
+    Lists all known workloads. Note that users can specify a distribution version so if different workloads are available for
     different versions, this will be reflected in the output.
 
     :param cfg: The config object.
-    :return: A list of tracks that are available for the provided distribution version or else for the master version.
+    :return: A list of workloads that are available for the provided distribution version or else for the master version.
     """
-    repo = track_repo(cfg)
-    return [_load_single_track(cfg, repo, track_name) for track_name in repo.track_names]
+    repo = workload_repo(cfg)
+    return [_load_single_workload(cfg, repo, workload_name) for workload_name in repo.workload_names]
 
 
-def list_tracks(cfg):
-    available_tracks = tracks(cfg)
-    only_auto_generated_challenges = all(t.default_challenge.auto_generated for t in available_tracks)
+def list_workloads(cfg):
+    available_workloads = workloads(cfg)
+    only_auto_generated_challenges = all(t.default_challenge.auto_generated for t in available_workloads)
 
     data = []
-    for t in available_tracks:
+    for t in available_workloads:
         line = [t.name, t.description, convert.number_to_human_string(t.number_of_documents),
                 convert.bytes_to_human_string(t.compressed_size_in_bytes),
                 convert.bytes_to_human_string(t.uncompressed_size_in_bytes)]
@@ -126,11 +126,11 @@ def list_tracks(cfg):
         headers.append("Default Challenge")
         headers.append("All Challenges")
 
-    console.println("Available tracks:\n")
+    console.println("Available workloads:\n")
     console.println(tabulate.tabulate(tabular_data=data, headers=headers))
 
 
-def track_info(cfg):
+def workload_info(cfg):
     def format_task(t, indent="", num="", suffix=""):
         msg = "{}{}{}".format(indent, num, str(t))
         if t.clients > 1:
@@ -157,8 +157,8 @@ def track_info(cfg):
             else:
                 console.println(format_task(task, num="{}. ".format(num)))
 
-    t = load_track(cfg)
-    console.println("Showing details for track [{}]:\n".format(t.name))
+    t = load_workload(cfg)
+    console.println("Showing details for workload [{}]:\n".format(t.name))
     console.println("* Description: {}".format(t.description))
     if t.number_of_documents:
         console.println("* Documents: {}".format(convert.number_to_human_string(t.number_of_documents)))
@@ -174,60 +174,60 @@ def track_info(cfg):
             console.println("")
 
 
-def load_track(cfg):
+def load_workload(cfg):
     """
 
-    Loads a track
+    Loads a workload
 
-    :param cfg: The config object. It contains the name of the track to load.
-    :return: The loaded track.
+    :param cfg: The config object. It contains the name of the workload to load.
+    :return: The loaded workload.
     """
-    repo = track_repo(cfg)
-    return _load_single_track(cfg, repo, repo.track_name)
+    repo = workload_repo(cfg)
+    return _load_single_workload(cfg, repo, repo.workload_name)
 
 
-def _load_single_track(cfg, track_repository, track_name):
+def _load_single_workload(cfg, workload_repository, workload_name):
     try:
-        track_dir = track_repository.track_dir(track_name)
-        reader = TrackFileReader(cfg)
-        current_track = reader.read(track_name, track_repository.track_file(track_name), track_dir)
-        tpr = TrackProcessorRegistry(cfg)
-        has_plugins = load_track_plugins(cfg, track_name, register_track_processor=tpr.register_track_processor)
-        current_track.has_plugins = has_plugins
+        workload_dir = workload_repository.workload_dir(workload_name)
+        reader = WorkloadFileReader(cfg)
+        current_workload = reader.read(workload_name, workload_repository.workload_file(workload_name), workload_dir)
+        tpr = WorkloadProcessorRegistry(cfg)
+        has_plugins = load_workload_plugins(cfg, workload_name, register_workload_processor=tpr.register_workload_processor)
+        current_workload.has_plugins = has_plugins
         for processor in tpr.processors:
-            processor.on_after_load_track(current_track)
-        return current_track
+            processor.on_after_load_workload(current_workload)
+        return current_workload
     except FileNotFoundError as e:
-        logging.getLogger(__name__).exception("Cannot load track [%s]", track_name)
-        raise exceptions.SystemSetupError(f"Cannot load track [{track_name}]. "
-                                          f"List the available tracks with [{PROGRAM_NAME} list tracks].") from e
+        logging.getLogger(__name__).exception("Cannot load workload [%s]", workload_name)
+        raise exceptions.SystemSetupError(f"Cannot load workload [{workload_name}]. "
+                                          f"List the available workloads with [{PROGRAM_NAME} list workloads].") from e
     except BaseException:
-        logging.getLogger(__name__).exception("Cannot load track [%s]", track_name)
+        logging.getLogger(__name__).exception("Cannot load workload [%s]", workload_name)
         raise
 
 
-def load_track_plugins(cfg,
-                       track_name,
+def load_workload_plugins(cfg,
+                       workload_name,
                        register_runner=None,
                        register_scheduler=None,
-                       register_track_processor=None,
+                       register_workload_processor=None,
                        force_update=False):
     """
-    Loads plugins that are defined for the current track (as specified by the configuration).
+    Loads plugins that are defined for the current workload (as specified by the configuration).
 
     :param cfg: The config object.
-    :param track_name: Name of the track for which plugins should be loaded.
+    :param workload_name: Name of the workload for which plugins should be loaded.
     :param register_runner: An optional function where runners can be registered.
     :param register_scheduler: An optional function where custom schedulers can be registered.
-    :param register_track_processor: An optional function where track processors can be registered.
-    :param force_update: If set to ``True`` this ensures that the track is first updated from the remote repository.
+    :param register_workload_processor: An optional function where workload processors can be registered.
+    :param force_update: If set to ``True`` this ensures that the workload is first updated from the remote repository.
                          Defaults to ``False``.
-    :return: True iff this track defines plugins and they have been loaded.
+    :return: True iff this workload defines plugins and they have been loaded.
     """
-    repo = track_repo(cfg, fetch=force_update, update=force_update)
-    track_plugin_path = repo.track_dir(track_name)
-    logging.getLogger(__name__).debug("Invoking plugin_reader with name [%s] resolved to path [%s]", track_name, track_plugin_path)
-    plugin_reader = TrackPluginReader(track_plugin_path, register_runner, register_scheduler, register_track_processor)
+    repo = workload_repo(cfg, fetch=force_update, update=force_update)
+    workload_plugin_path = repo.workload_dir(workload_name)
+    logging.getLogger(__name__).debug("Invoking plugin_reader with name [%s] resolved to path [%s]", workload_name, workload_plugin_path)
+    plugin_reader = WorkloadPluginReader(workload_plugin_path, register_runner, register_scheduler, register_workload_processor)
 
     if plugin_reader.can_load():
         plugin_reader.load()
@@ -238,12 +238,13 @@ def load_track_plugins(cfg,
 
 def set_absolute_data_path(cfg, t):
     """
-    Sets an absolute data path on all document files in this track. Internally we store only relative paths in the track as long as possible
+    Sets an absolute data path on all document files in this workload.
+    Internally we store only relative paths in the workload as long as possible
     as the data root directory may be different on each host. In the end we need to have an absolute path though when we want to read the
     file on the target host.
 
     :param cfg: The config object.
-    :param t: The track to modify.
+    :param t: The workload to modify.
     """
 
     def first_existing(root_dirs, f):
@@ -263,109 +264,109 @@ def set_absolute_data_path(cfg, t):
                 document_set.document_file = first_existing(data_root, document_set.document_file)
 
 
-def is_simple_track_mode(cfg):
-    return cfg.exists("track", "track.path")
+def is_simple_workload_mode(cfg):
+    return cfg.exists("workload", "workload.path")
 
 
-def track_path(cfg):
-    repo = track_repo(cfg)
-    track_name = repo.track_name
-    track_dir = repo.track_dir(track_name)
-    return track_dir
+def workload_path(cfg):
+    repo = workload_repo(cfg)
+    workload_name = repo.workload_name
+    workload_dir = repo.workload_dir(workload_name)
+    return workload_dir
 
 
-def track_repo(cfg, fetch=True, update=True):
-    if is_simple_track_mode(cfg):
-        track_path = cfg.opts("track", "track.path")
-        return SimpleTrackRepository(track_path)
+def workload_repo(cfg, fetch=True, update=True):
+    if is_simple_workload_mode(cfg):
+        workload_path = cfg.opts("workload", "workload.path")
+        return SimpleWorkloadRepository(workload_path)
     else:
-        return GitTrackRepository(cfg, fetch, update)
+        return GitWorkloadRepository(cfg, fetch, update)
 
 
-def data_dir(cfg, track_name, corpus_name):
+def data_dir(cfg, workload_name, corpus_name):
     """
-    Determines potential data directories for the provided track and corpus name.
+    Determines potential data directories for the provided workload and corpus name.
 
     :param cfg: The config object.
-    :param track_name: Name of the current track.
+    :param workload_name: Name of the current workload.
     :param corpus_name: Name of the current corpus.
     :return: A list containing either one or two elements. Each element contains a path to a directory which may contain document files.
     """
     corpus_dir = os.path.join(cfg.opts("benchmarks", "local.dataset.cache"), corpus_name)
-    if is_simple_track_mode(cfg):
-        track_path = cfg.opts("track", "track.path")
-        r = SimpleTrackRepository(track_path)
-        # data should always be stored in the track's directory. If the user uses the same directory on all machines this will even work
+    if is_simple_workload_mode(cfg):
+        workload_path = cfg.opts("workload", "workload.path")
+        r = SimpleWorkloadRepository(workload_path)
+        # data should always be stored in the workload's directory. If the user uses the same directory on all machines this will even work
         # in the distributed case. However, the user is responsible to ensure that this is actually the case.
-        return [r.track_dir(track_name), corpus_dir]
+        return [r.workload_dir(workload_name), corpus_dir]
     else:
         return [corpus_dir]
 
 
-class GitTrackRepository:
+class GitWorkloadRepository:
     def __init__(self, cfg, fetch, update, repo_class=repo.RallyRepository):
-        # current track name (if any)
-        self.track_name = cfg.opts("track", "track.name", mandatory=False)
+        # current workload name (if any)
+        self.workload_name = cfg.opts("workload", "workload.name", mandatory=False)
         distribution_version = cfg.opts("mechanic", "distribution.version", mandatory=False)
-        repo_name = cfg.opts("track", "repository.name")
-        repo_revision = cfg.opts("track", "repository.revision", mandatory=False)
+        repo_name = cfg.opts("workload", "repository.name")
+        repo_revision = cfg.opts("workload", "repository.revision", mandatory=False)
         offline = cfg.opts("system", "offline.mode")
-        remote_url = cfg.opts("tracks", "%s.url" % repo_name, mandatory=False)
+        remote_url = cfg.opts("workloads", "%s.url" % repo_name, mandatory=False)
         root = cfg.opts("node", "root.dir")
-        track_repositories = cfg.opts("benchmarks", "track.repository.dir")
-        tracks_dir = os.path.join(root, track_repositories)
+        workload_repositories = cfg.opts("benchmarks", "workload.repository.dir")
+        workloads_dir = os.path.join(root, workload_repositories)
 
-        self.repo = repo_class(remote_url, tracks_dir, repo_name, "tracks", offline, fetch)
+        self.repo = repo_class(remote_url, workloads_dir, repo_name, "workloads", offline, fetch)
         if update:
             if repo_revision:
                 self.repo.checkout(repo_revision)
             else:
                 self.repo.update(distribution_version)
-                cfg.add(config.Scope.applicationOverride, "track", "repository.revision", self.repo.revision)
+                cfg.add(config.Scope.applicationOverride, "workload", "repository.revision", self.repo.revision)
 
     @property
-    def track_names(self):
-        return filter(lambda p: os.path.exists(self.track_file(p)), next(os.walk(self.repo.repo_dir))[1])
+    def workload_names(self):
+        return filter(lambda p: os.path.exists(self.workload_file(p)), next(os.walk(self.repo.repo_dir))[1])
 
-    def track_dir(self, track_name):
-        return os.path.join(self.repo.repo_dir, track_name)
+    def workload_dir(self, workload_name):
+        return os.path.join(self.repo.repo_dir, workload_name)
 
-    def track_file(self, track_name):
-        return os.path.join(self.track_dir(track_name), "track.json")
+    def workload_file(self, workload_name):
+        return os.path.join(self.workload_dir(workload_name), "workload.json")
 
 
-class SimpleTrackRepository:
-    def __init__(self, track_path):
-        if not os.path.exists(track_path):
-            raise exceptions.SystemSetupError("Track path %s does not exist" % track_path)
+class SimpleWorkloadRepository:
+    def __init__(self, workload_path):
+        if not os.path.exists(workload_path):
+            raise exceptions.SystemSetupError("Workload path %s does not exist" % workload_path)
 
-        if os.path.isdir(track_path):
-            self.track_name = io.basename(track_path)
-            self._track_dir = track_path
-            self._track_file = os.path.join(track_path, "track.json")
-            if not os.path.exists(self._track_file):
-                raise exceptions.SystemSetupError("Could not find track.json in %s" % track_path)
-        elif os.path.isfile(track_path):
-            if io.has_extension(track_path, ".json"):
-                self._track_dir = io.dirname(track_path)
-                self._track_file = track_path
-                self.track_name = io.splitext(io.basename(track_path))[0]
+        if os.path.isdir(workload_path):
+            self.workload_name = io.basename(workload_path)
+            self._workload_dir = workload_path
+            self._workload_file = os.path.join(workload_path, "workload.json")
+            if not os.path.exists(self._workload_file):
+                raise exceptions.SystemSetupError("Could not find workload.json in %s" % workload_path)
+        elif os.path.isfile(workload_path):
+            if io.has_extension(workload_path, ".json"):
+                self._workload_dir = io.dirname(workload_path)
+                self._workload_file = workload_path
+                self.workload_name = io.splitext(io.basename(workload_path))[0]
             else:
-                raise exceptions.SystemSetupError("%s has to be a JSON file" % track_path)
+                raise exceptions.SystemSetupError("%s has to be a JSON file" % workload_path)
         else:
-            raise exceptions.SystemSetupError("%s is neither a file nor a directory" % track_path)
+            raise exceptions.SystemSetupError("%s is neither a file nor a directory" % workload_path)
 
     @property
-    def track_names(self):
-        return [self.track_name]
+    def workload_names(self):
+        return [self.workload_name]
 
-    def track_dir(self, track_name):
-        assert track_name == self.track_name, "Expect provided track name [%s] to match [%s]" % (track_name, self.track_name)
-        return self._track_dir
+    def workload_dir(self, workload_name):
+        assert workload_name == self.workload_name, "Expect provided workload name [%s] to match [%s]" % (workload_name, self.workload_name)
+        return self._workload_dir
 
-    def track_file(self, track_name):
-        assert track_name == self.track_name
-        return self._track_file
+    def workload_file(self, workload_name):
+        assert workload_name == self.workload_name
+        return self._workload_file
 
 
 def operation_parameters(t, task):
@@ -390,38 +391,38 @@ def used_corpora(t):
     return corpora.values()
 
 
-class DefaultTrackPreparator(TrackProcessor):
+class DefaultWorkloadPreparator(WorkloadProcessor):
     def __init__(self, cfg):
         super().__init__()
         self.cfg = cfg
         # just declare here, will be injected later
         self.downloader = None
         self.decompressor = None
-        self.track = None
+        self.workload = None
 
     @staticmethod
-    def prepare_docs(cfg, track, corpus, preparator):
+    def prepare_docs(cfg, workload, corpus, preparator):
         for document_set in corpus.documents:
             if document_set.is_bulk:
-                data_root = data_dir(cfg, track.name, corpus.name)
-                logging.getLogger(__name__).info("Resolved data root directory for document corpus [%s] in track [%s] "
-                                                 "to [%s].", corpus.name, track.name, data_root)
+                data_root = data_dir(cfg, workload.name, corpus.name)
+                logging.getLogger(__name__).info("Resolved data root directory for document corpus [%s] in workload [%s] "
+                                                 "to [%s].", corpus.name, workload.name, data_root)
                 if len(data_root) == 1:
                     preparator.prepare_document_set(document_set, data_root[0])
                 # attempt to prepare everything in the current directory and fallback to the corpus directory
                 elif not preparator.prepare_bundled_document_set(document_set, data_root[0]):
                     preparator.prepare_document_set(document_set, data_root[1])
 
-    def on_prepare_track(self, track, data_root_dir):
-        prep = DocumentSetPreparator(track.name, self.downloader, self.decompressor)
-        for corpus in used_corpora(track):
+    def on_prepare_workload(self, workload, data_root_dir):
+        prep = DocumentSetPreparator(workload.name, self.downloader, self.decompressor)
+        for corpus in used_corpora(workload):
             params = {
                 "cfg": self.cfg,
-                "track": track,
+                "workload": workload,
                 "corpus": corpus,
                 "preparator": prep
             }
-            yield DefaultTrackPreparator.prepare_docs, params
+            yield DefaultWorkloadPreparator.prepare_docs, params
 
 
 class Decompressor:
@@ -430,17 +431,17 @@ class Decompressor:
 
     def decompress(self, archive_path, documents_path, uncompressed_size):
         if uncompressed_size:
-            msg = f"Decompressing track data from [{archive_path}] to [{documents_path}] (resulting size: " \
+            msg = f"Decompressing workload data from [{archive_path}] to [{documents_path}] (resulting size: " \
                   f"[{convert.bytes_to_gb(uncompressed_size):.2f}] GB) ... "
         else:
-            msg = f"Decompressing track data from [{archive_path}] to [{documents_path}] ... "
+            msg = f"Decompressing workload data from [{archive_path}] to [{documents_path}] ... "
 
         console.info(msg, end="", flush=True, logger=self.logger)
         io.decompress(archive_path, io.dirname(archive_path))
         console.println("[OK]")
         if not os.path.isfile(documents_path):
             raise exceptions.DataError(
-                f"Decompressing [{archive_path}] did not create [{documents_path}]. Please check with the track "
+                f"Decompressing [{archive_path}] did not create [{documents_path}]. Please check with the workload "
                 f"author if the compressed archive has been created correctly.")
 
         extracted_bytes = os.path.getsize(documents_path)
@@ -478,13 +479,13 @@ class Downloader:
                 self.logger.info("Downloading data from [%s] to [%s].", data_url, target_path)
 
             # we want to have a bit more accurate download progress as these files are typically very large
-            progress = net.Progress("[INFO] Downloading track data", accuracy=1)
+            progress = net.Progress("[INFO] Downloading workload data", accuracy=1)
             net.download(data_url, target_path, size_in_bytes, progress_indicator=progress)
             progress.finish()
             self.logger.info("Downloaded data from [%s] to [%s].", data_url, target_path)
         except urllib.error.HTTPError as e:
             if e.code == 404 and self.test_mode:
-                raise exceptions.DataError("This track does not support test mode. Ask the track author to add it or"
+                raise exceptions.DataError("This workload does not support test mode. Ask the workload author to add it or"
                                            " disable test mode and retry.") from None
             else:
                 msg = f"Could not download [{data_url}] to [{target_path}]"
@@ -507,8 +508,8 @@ class Downloader:
 
 
 class DocumentSetPreparator:
-    def __init__(self, track_name, downloader, decompressor):
-        self.track_name = track_name
+    def __init__(self, workload_name, downloader, decompressor):
+        self.workload_name = workload_name
         self.downloader = downloader
         self.decompressor = decompressor
 
@@ -523,7 +524,7 @@ class DocumentSetPreparator:
         lines_read = io.prepare_file_offset_table(document_file_path)
         if lines_read and lines_read != expected_number_of_lines:
             io.remove_file_offset_table(document_file_path)
-            raise exceptions.DataError(f"Data in [{document_file_path}] for track [{self.track_name}] are invalid. "
+            raise exceptions.DataError(f"Data in [{document_file_path}] for workload [{self.workload_name}] are invalid. "
                                        f"Expected [{expected_number_of_lines}] lines but got [{lines_read}].")
 
     def prepare_document_set(self, document_set, data_root):
@@ -561,7 +562,7 @@ class DocumentSetPreparator:
                     expected_size = document_set.uncompressed_size_in_bytes
                 else:
                     # this should not happen in practice as the JSON schema should take care of this
-                    raise exceptions.RallyAssertionError(f"Track {self.track_name} specifies documents but no corpus")
+                    raise exceptions.RallyAssertionError(f"Workload {self.workload_name} specifies documents but no corpus")
 
                 try:
                     self.downloader.download(document_set.base_url, target_path, expected_size)
@@ -578,7 +579,7 @@ class DocumentSetPreparator:
 
     def prepare_bundled_document_set(self, document_set, data_root):
         """
-        Prepares a document set that comes "bundled" with the track, i.e. the data files are in the same directory as the track.
+        Prepares a document set that comes "bundled" with the workload, i.e. the data files are in the same directory as the workload.
         This is a "lightweight" version of #prepare_document_set() which assumes that at least one file is already present in the
         current directory. It will attempt to find the appropriate files, decompress if necessary and create a file offset table.
 
@@ -592,7 +593,7 @@ class DocumentSetPreparator:
         If this method returns ``False`` either the document size is wrong or any files have not been found.
 
         :param document_set: A document set.
-        :param data_root: The data root directory for this document set (should be the same as the track file).
+        :param data_root: The data root directory for this document set (should be the same as the workload file).
         :return: See postcondition.
         """
         doc_path = os.path.join(data_root, document_set.document_file)
@@ -612,7 +613,7 @@ class DocumentSetPreparator:
                     self.decompressor.decompress(archive_path, doc_path, document_set.uncompressed_size_in_bytes)
                 else:
                     # treat this is an error because if the file is present but the size does not match, something is
-                    # really fishy. It is likely that the user is currently creating a new track and did not specify
+                    # really fishy. It is likely that the user is currently creating a new workload and did not specify
                     # the file size correctly.
                     raise exceptions.DataError(f"[{archive_path}] is present but does not have "
                                                f"the expected size of [{document_set.compressed_size_in_bytes}] bytes.")
@@ -622,8 +623,8 @@ class DocumentSetPreparator:
 
 class TemplateSource:
     """
-    Prepares the fully assembled track file from file or string.
-    Doesn't render using jinja2, but embeds track fragments referenced with
+    Prepares the fully assembled workload file from file or string.
+    Doesn't render using jinja2, but embeds workload fragments referenced with
     rally.collect(parts=...
     """
 
@@ -640,31 +641,31 @@ class TemplateSource:
     def load_template_from_file(self):
         loader = jinja2.FileSystemLoader(self.base_path)
         try:
-            base_track = loader.get_source(jinja2.Environment(), self.template_file_name)
+            base_workload = loader.get_source(jinja2.Environment(), self.template_file_name)
         except jinja2.TemplateNotFound:
-            self.logger.exception("Could not load track from [%s].", self.template_file_name)
-            raise TrackSyntaxError("Could not load track from '{}'".format(self.template_file_name))
-        self.assembled_source = self.replace_includes(self.base_path, base_track[0])
+            self.logger.exception("Could not load workload from [%s].", self.template_file_name)
+            raise WorkloadSyntaxError("Could not load workload from '{}'".format(self.template_file_name))
+        self.assembled_source = self.replace_includes(self.base_path, base_workload[0])
 
     def load_template_from_string(self, template_source):
         self.assembled_source = self.replace_includes(self.base_path, template_source)
 
-    def replace_includes(self, base_path, track_fragment):
-        match = TemplateSource.collect_parts_re.findall(track_fragment)
+    def replace_includes(self, base_path, workload_fragment):
+        match = TemplateSource.collect_parts_re.findall(workload_fragment)
         if match:
             # Construct replacement dict for matched captures
             repl = {}
             for glob_pattern in match:
                 full_glob_path = os.path.join(base_path, glob_pattern)
                 sub_source = self.read_glob_files(full_glob_path)
-                repl[glob_pattern] = self.replace_includes(base_path=io.dirname(full_glob_path), track_fragment=sub_source)
+                repl[glob_pattern] = self.replace_includes(base_path=io.dirname(full_glob_path), workload_fragment=sub_source)
 
             def replstring(matchobj):
                 # matchobj.groups() is a tuple and first element contains the matched group id
                 return repl[matchobj.groups()[0]]
 
-            return TemplateSource.collect_parts_re.sub(replstring, track_fragment)
-        return track_fragment
+            return TemplateSource.collect_parts_re.sub(replstring, workload_fragment)
+        return workload_fragment
 
     def read_glob_files(self, pattern):
         source = []
@@ -738,7 +739,7 @@ def render_template(template_source, template_vars=None, template_internal_vars=
     return template.render()
 
 
-def register_all_params_in_track(assembled_source, complete_track_params=None):
+def register_all_params_in_workload(assembled_source, complete_workload_params=None):
     j2env = jinja2.Environment()
 
     # we don't need the following j2 filters/macros but we define them anyway to prevent parsing failures
@@ -749,11 +750,11 @@ def register_all_params_in_track(assembled_source, complete_track_params=None):
 
     ast = j2env.parse(assembled_source)
     j2_variables = meta.find_undeclared_variables(ast)
-    if complete_track_params:
-        complete_track_params.populate_track_defined_params(j2_variables)
+    if complete_workload_params:
+        complete_workload_params.populate_workload_defined_params(j2_variables)
 
 
-def render_template_from_file(template_file_name, template_vars, complete_track_params=None):
+def render_template_from_file(template_file_name, template_vars, complete_workload_params=None):
     def relative_glob(start, f):
         result = glob.glob(os.path.join(start, f))
         if result:
@@ -764,7 +765,7 @@ def render_template_from_file(template_file_name, template_vars, complete_track_
     base_path = io.dirname(template_file_name)
     template_source = TemplateSource(base_path, io.basename(template_file_name))
     template_source.load_template_from_file()
-    register_all_params_in_track(template_source.assembled_source, complete_track_params)
+    register_all_params_in_workload(template_source.assembled_source, complete_workload_params)
 
     return render_template(loader=jinja2.FileSystemLoader(base_path),
                            template_source=template_source.assembled_source,
@@ -772,11 +773,11 @@ def render_template_from_file(template_file_name, template_vars, complete_track_
                            template_internal_vars=default_internal_template_vars(glob_helper=lambda f: relative_glob(base_path, f)))
 
 
-class TaskFilterTrackProcessor(TrackProcessor):
+class TaskFilterWorkloadProcessor(WorkloadProcessor):
     def __init__(self, cfg):
         self.logger = logging.getLogger(__name__)
-        include_tasks = cfg.opts("track", "include.tasks", mandatory=False)
-        exclude_tasks = cfg.opts("track", "exclude.tasks", mandatory=False)
+        include_tasks = cfg.opts("workload", "include.tasks", mandatory=False)
+        exclude_tasks = cfg.opts("workload", "exclude.tasks", mandatory=False)
 
         if include_tasks:
             filtered_tasks = include_tasks
@@ -792,12 +793,12 @@ class TaskFilterTrackProcessor(TrackProcessor):
             for t in filtered_tasks:
                 spec = t.split(":")
                 if len(spec) == 1:
-                    filters.append(track.TaskNameFilter(spec[0]))
+                    filters.append(workload.TaskNameFilter(spec[0]))
                 elif len(spec) == 2:
                     if spec[0] == "type":
-                        filters.append(track.TaskOpTypeFilter(spec[1]))
+                        filters.append(workload.TaskOpTypeFilter(spec[1]))
                     elif spec[0] == "tag":
-                        filters.append(track.TaskTagFilter(spec[1]))
+                        filters.append(workload.TaskTagFilter(spec[1]))
                     else:
                         raise exceptions.SystemSetupError(f"Invalid format for filtered tasks: [{t}]. "
                                                           f"Expected [type] but got [{spec[0]}].")
@@ -813,11 +814,11 @@ class TaskFilterTrackProcessor(TrackProcessor):
                 return self.exclude
         return not self.exclude
 
-    def on_after_load_track(self, track):
+    def on_after_load_workload(self, workload):
         if not self.filters:
-            return track
+            return workload
 
-        for challenge in track.challenges:
+        for challenge in workload.challenges:
             # don't modify the schedule while iterating over it
             tasks_to_remove = []
             for task in challenge.schedule:
@@ -836,19 +837,19 @@ class TaskFilterTrackProcessor(TrackProcessor):
                 self.logger.info("Removing task [%s] from challenge [%s] due to task filter.", task, challenge)
                 challenge.remove_task(task)
 
-        return track
+        return workload
 
 
-class TestModeTrackProcessor(TrackProcessor):
+class TestModeWorkloadProcessor(WorkloadProcessor):
     def __init__(self, cfg):
-        self.test_mode_enabled = cfg.opts("track", "test.mode.enabled", mandatory=False, default_value=False)
+        self.test_mode_enabled = cfg.opts("workload", "test.mode.enabled", mandatory=False, default_value=False)
         self.logger = logging.getLogger(__name__)
 
-    def on_after_load_track(self, track):
+    def on_after_load_workload(self, workload):
         if not self.test_mode_enabled:
-            return track
-        self.logger.info("Preparing track [%s] for test mode.", str(track))
-        for corpus in track.corpora:
+            return workload
+        self.logger.info("Preparing workload [%s] for test mode.", str(workload))
+        for corpus in workload.corpora:
             if self.logger.isEnabledFor(logging.DEBUG):
                 self.logger.debug("Reducing corpus size to 1000 documents for [%s]", corpus.name)
             for document_set in corpus.documents:
@@ -873,7 +874,7 @@ class TestModeTrackProcessor(TrackProcessor):
                     document_set.compressed_size_in_bytes = None
                     document_set.uncompressed_size_in_bytes = None
 
-        for challenge in track.challenges:
+        for challenge in workload.challenges:
             for task in challenge.schedule:
                 # we need iterate over leaf tasks and await iterating over possible intermediate 'parallel' elements
                 for leaf_task in task:
@@ -907,74 +908,75 @@ class TestModeTrackProcessor(TrackProcessor):
                         leaf_task.params.pop("target-interval", None)
                         leaf_task.params["target-throughput"] = f"{sys.maxsize} {original_throughput.unit}"
 
-        return track
+        return workload
 
 
-class CompleteTrackParams:
-    def __init__(self, user_specified_track_params=None):
-        self.track_defined_params = set()
-        self.user_specified_track_params = user_specified_track_params if user_specified_track_params else {}
+class CompleteWorkloadParams:
+    def __init__(self, user_specified_workload_params=None):
+        self.workload_defined_params = set()
+        self.user_specified_workload_params = user_specified_workload_params if user_specified_workload_params else {}
 
-    def populate_track_defined_params(self, list_of_track_params=None):
-        self.track_defined_params.update(set(list_of_track_params))
+    def populate_workload_defined_params(self, list_of_workload_params=None):
+        self.workload_defined_params.update(set(list_of_workload_params))
 
     @property
-    def sorted_track_defined_params(self):
-        return sorted(self.track_defined_params)
+    def sorted_workload_defined_params(self):
+        return sorted(self.workload_defined_params)
 
-    def unused_user_defined_track_params(self):
-        set_user_params = set(list(self.user_specified_track_params.keys()))
-        set_user_params.difference_update(self.track_defined_params)
+    def unused_user_defined_workload_params(self):
+        set_user_params = set(list(self.user_specified_workload_params.keys()))
+        set_user_params.difference_update(self.workload_defined_params)
 
         return list(set_user_params)
 
 
-class TrackFileReader:
+class WorkloadFileReader:
     MINIMUM_SUPPORTED_TRACK_VERSION = 2
     MAXIMUM_SUPPORTED_TRACK_VERSION = 2
     """
-    Creates a track from a track file.
+    Creates a workload from a workload file.
     """
 
     def __init__(self, cfg):
-        track_schema_file = os.path.join(cfg.opts("node", "rally.root"), "resources", "track-schema.json")
-        with open(track_schema_file, mode="rt", encoding="utf-8") as f:
-            self.track_schema = json.loads(f.read())
-        self.track_params = cfg.opts("track", "params", mandatory=False)
-        self.complete_track_params = CompleteTrackParams(user_specified_track_params=self.track_params)
-        self.read_track = TrackSpecificationReader(
-            track_params=self.track_params,
-            complete_track_params=self.complete_track_params,
-            selected_challenge=cfg.opts("track", "challenge.name", mandatory=False)
+        workload_schema_file = os.path.join(cfg.opts("node", "rally.root"), "resources", "workload-schema.json")
+        with open(workload_schema_file, mode="rt", encoding="utf-8") as f:
+            self.workload_schema = json.loads(f.read())
+        self.workload_params = cfg.opts("workload", "params", mandatory=False)
+        self.complete_workload_params = CompleteWorkloadParams(user_specified_workload_params=self.workload_params)
+        self.read_workload = WorkloadSpecificationReader(
+            workload_params=self.workload_params,
+            complete_workload_params=self.complete_workload_params,
+            selected_challenge=cfg.opts("workload", "challenge.name", mandatory=False)
         )
         self.logger = logging.getLogger(__name__)
 
-    def read(self, track_name, track_spec_file, mapping_dir):
+    def read(self, workload_name, workload_spec_file, mapping_dir):
         """
-        Reads a track file, verifies it against the JSON schema and if valid, creates a track.
+        Reads a workload file, verifies it against the JSON schema and if valid, creates a workload.
 
-        :param track_name: The name of the track.
-        :param track_spec_file: The complete path to the track specification file.
-        :param mapping_dir: The directory where the mapping files for this track are stored locally.
-        :return: A corresponding track instance if the track file is valid.
+        :param workload_name: The name of the workload.
+        :param workload_spec_file: The complete path to the workload specification file.
+        :param mapping_dir: The directory where the mapping files for this workload are stored locally.
+        :return: A corresponding workload instance if the workload file is valid.
         """
 
-        self.logger.info("Reading track specification file [%s].", track_spec_file)
-        # render the track to a temporary file instead of dumping it into the logs. It is easier to check for error messages
+        self.logger.info("Reading workload specification file [%s].", workload_spec_file)
+        # render the workload to a temporary file instead of dumping it into the logs. It is easier to check for error messages
         # involving lines numbers and it also does not bloat Rally's log file so much.
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
         try:
-            rendered = render_template_from_file(track_spec_file, self.track_params, complete_track_params=self.complete_track_params)
+            rendered = render_template_from_file(workload_spec_file, self.workload_params,
+                                        complete_workload_params=self.complete_workload_params)
             with open(tmp.name, "wt", encoding="utf-8") as f:
                 f.write(rendered)
-            self.logger.info("Final rendered track for '%s' has been written to '%s'.", track_spec_file, tmp.name)
-            track_spec = json.loads(rendered)
+            self.logger.info("Final rendered workload for '%s' has been written to '%s'.", workload_spec_file, tmp.name)
+            workload_spec = json.loads(rendered)
         except jinja2.exceptions.TemplateNotFound:
-            self.logger.exception("Could not load [%s]", track_spec_file)
-            raise exceptions.SystemSetupError("Track {} does not exist".format(track_name))
+            self.logger.exception("Could not load [%s]", workload_spec_file)
+            raise exceptions.SystemSetupError("Workload {} does not exist".format(workload_name))
         except json.JSONDecodeError as e:
-            self.logger.exception("Could not load [%s].", track_spec_file)
-            msg = "Could not load '{}': {}.".format(track_spec_file, str(e))
+            self.logger.exception("Could not load [%s].", workload_spec_file)
+            msg = "Could not load '{}': {}.".format(workload_spec_file, str(e))
             if e.doc and e.lineno > 0 and e.colno > 0:
                 line_idx = e.lineno - 1
                 lines = e.doc.split("\n")
@@ -984,71 +986,77 @@ class TrackFileReader:
                 erroneous_lines = lines[ctx_start:ctx_end]
                 erroneous_lines.insert(line_idx - ctx_start + 1, "-" * (e.colno - 1) + "^ Error is here")
                 msg += " Lines containing the error:\n\n{}\n\n".format("\n".join(erroneous_lines))
-            msg += "The complete track has been written to '{}' for diagnosis.".format(tmp.name)
-            raise TrackSyntaxError(msg)
+            msg += "The complete workload has been written to '{}' for diagnosis.".format(tmp.name)
+            raise WorkloadSyntaxError(msg)
         except Exception as e:
-            self.logger.exception("Could not load [%s].", track_spec_file)
-            msg = "Could not load '{}'. The complete track has been written to '{}' for diagnosis.".format(track_spec_file, tmp.name)
+            self.logger.exception("Could not load [%s].", workload_spec_file)
+            msg = "Could not load '{}'. The complete workload has been written to '{}' for diagnosis.".format(workload_spec_file, tmp.name)
             # Convert to string early on to avoid serialization errors with Jinja exceptions.
-            raise TrackSyntaxError(msg, str(e))
-        # check the track version before even attempting to validate the JSON format to avoid bogus errors.
-        raw_version = track_spec.get("version", TrackFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION)
+            raise WorkloadSyntaxError(msg, str(e))
+        # check the workload version before even attempting to validate the JSON format to avoid bogus errors.
+        raw_version = workload_spec.get("version", WorkloadFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION)
         try:
-            track_version = int(raw_version)
+            workload_version = int(raw_version)
         except ValueError:
-            raise exceptions.InvalidSyntax("version identifier for track %s must be numeric but was [%s]" % (track_name, str(raw_version)))
-        if TrackFileReader.MINIMUM_SUPPORTED_TRACK_VERSION > track_version:
-            raise exceptions.RallyError("Track {} is on version {} but needs to be updated at least to version {} to work with the "
-                                        "current version of Rally.".format(track_name, track_version,
-                                                                           TrackFileReader.MINIMUM_SUPPORTED_TRACK_VERSION))
-        if TrackFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION < track_version:
-            raise exceptions.RallyError("Track {} requires a newer version of Rally. Please upgrade Rally (supported track version: {}, "
-                                        "required track version: {}).".format(track_name, TrackFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION,
-                                                                              track_version))
+            raise exceptions.InvalidSyntax("version identifier for workload %s must be numeric but was [%s]"
+                                        % (workload_name, str(raw_version)))
+        if WorkloadFileReader.MINIMUM_SUPPORTED_TRACK_VERSION > workload_version:
+            raise exceptions.RallyError("Workload {} is on version {} but needs to be updated at least to "
+                                        "version {} to work with the "
+                                        "current version of Rally.".format(workload_name, workload_version,
+                                                                           WorkloadFileReader.MINIMUM_SUPPORTED_TRACK_VERSION))
+        if WorkloadFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION < workload_version:
+            raise exceptions.RallyError("Workload {} requires a newer version of Rally. "
+                                        "Please upgrade Rally (supported workload version: {}, "
+                                        "required workload version: {}).".format(workload_name,
+                                        WorkloadFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION,
+                                                                              workload_version))
         try:
-            jsonschema.validate(track_spec, self.track_schema)
+            jsonschema.validate(workload_spec, self.workload_schema)
         except jsonschema.exceptions.ValidationError as ve:
-            raise TrackSyntaxError(
-                "Track '{}' is invalid.\n\nError details: {}\nInstance: {}\nPath: {}\nSchema path: {}".format(
-                    track_name, ve.message, json.dumps(ve.instance, indent=4, sort_keys=True), ve.absolute_path, ve.absolute_schema_path))
+            raise WorkloadSyntaxError(
+                "Workload '{}' is invalid.\n\nError details: "
+                "{}\nInstance: {}\nPath: {}\nSchema path: {}".format(
+                    workload_name, ve.message, json.dumps(ve.instance, indent=4, sort_keys=True),
+                    ve.absolute_path, ve.absolute_schema_path))
 
-        current_track = self.read_track(track_name, track_spec, mapping_dir)
+        current_workload = self.read_workload(workload_name, workload_spec, mapping_dir)
 
-        unused_user_defined_track_params = self.complete_track_params.unused_user_defined_track_params()
-        if len(unused_user_defined_track_params) > 0:
+        unused_user_defined_workload_params = self.complete_workload_params.unused_user_defined_workload_params()
+        if len(unused_user_defined_workload_params) > 0:
             err_msg = (
-                "Some of your track parameter(s) {} are not used by this track; perhaps you intend to use {} instead.\n\n"
-                "All track parameters you provided are:\n"
+                "Some of your workload parameter(s) {} are not used by this workload; perhaps you intend to use {} instead.\n\n"
+                "All workload parameters you provided are:\n"
                 "{}\n\n"
-                "All parameters exposed by this track:\n"
+                "All parameters exposed by this workload:\n"
                 "{}".format(
-                    ",".join(opts.double_quoted_list_of(sorted(unused_user_defined_track_params))),
+                    ",".join(opts.double_quoted_list_of(sorted(unused_user_defined_workload_params))),
                     ",".join(opts.double_quoted_list_of(sorted(opts.make_list_of_close_matches(
-                        unused_user_defined_track_params,
-                        self.complete_track_params.track_defined_params
+                        unused_user_defined_workload_params,
+                        self.complete_workload_params.workload_defined_params
                     )))),
-                    "\n".join(opts.bulleted_list_of(sorted(list(self.track_params.keys())))),
-                    "\n".join(opts.bulleted_list_of(self.complete_track_params.sorted_track_defined_params))))
+                    "\n".join(opts.bulleted_list_of(sorted(list(self.workload_params.keys())))),
+                    "\n".join(opts.bulleted_list_of(self.complete_workload_params.sorted_workload_defined_params))))
 
             self.logger.critical(err_msg)
             # also dump the message on the console
             console.println(err_msg)
-            raise exceptions.TrackConfigError(
-                "Unused track parameters {}.".format(sorted(unused_user_defined_track_params))
+            raise exceptions.WorkloadConfigError(
+                "Unused workload parameters {}.".format(sorted(unused_user_defined_workload_params))
             )
-        return current_track
+        return current_workload
 
 
-class TrackPluginReader:
+class WorkloadPluginReader:
     """
-    Loads track plugins
+    Loads workload plugins
     """
 
-    def __init__(self, track_plugin_path, runner_registry=None, scheduler_registry=None, track_processor_registry=None):
+    def __init__(self, workload_plugin_path, runner_registry=None, scheduler_registry=None, workload_processor_registry=None):
         self.runner_registry = runner_registry
         self.scheduler_registry = scheduler_registry
-        self.track_processor_registry = track_processor_registry
-        self.loader = modules.ComponentLoader(root_path=track_plugin_path, component_entry_point="track")
+        self.workload_processor_registry = workload_processor_registry
+        self.loader = modules.ComponentLoader(root_path=workload_plugin_path, component_entry_point="workload")
 
     def can_load(self):
         return self.loader.can_load()
@@ -1059,7 +1067,7 @@ class TrackPluginReader:
             # every module needs to have a register() method
             root_module.register(self)
         except BaseException:
-            msg = "Could not register track plugin at [%s]" % self.loader.root_path
+            msg = "Could not register workload plugin at [%s]" % self.loader.root_path
             logging.getLogger(__name__).exception(msg)
             raise exceptions.SystemSetupError(msg)
 
@@ -1074,9 +1082,9 @@ class TrackPluginReader:
         if self.scheduler_registry:
             self.scheduler_registry(name, scheduler)
 
-    def register_track_processor(self, track_processor):
-        if self.track_processor_registry:
-            self.track_processor_registry(track_processor)
+    def register_workload_processor(self, workload_processor):
+        if self.workload_processor_registry:
+            self.workload_processor_registry(workload_processor)
 
     @property
     def meta_data(self):
@@ -1086,47 +1094,47 @@ class TrackPluginReader:
         }
 
 
-class TrackSpecificationReader:
+class WorkloadSpecificationReader:
     """
-    Creates a track instances based on its parsed JSON description.
+    Creates a workload instances based on its parsed JSON description.
     """
 
-    def __init__(self, track_params=None, complete_track_params=None, selected_challenge=None, source=io.FileSource):
+    def __init__(self, workload_params=None, complete_workload_params=None, selected_challenge=None, source=io.FileSource):
         self.name = None
-        self.track_params = track_params if track_params else {}
-        self.complete_track_params = complete_track_params
+        self.workload_params = workload_params if workload_params else {}
+        self.complete_workload_params = complete_workload_params
         self.selected_challenge = selected_challenge
         self.source = source
         self.logger = logging.getLogger(__name__)
 
-    def __call__(self, track_name, track_specification, mapping_dir):
-        self.name = track_name
-        description = self._r(track_specification, "description", mandatory=False, default_value="")
+    def __call__(self, workload_name, workload_specification, mapping_dir):
+        self.name = workload_name
+        description = self._r(workload_specification, "description", mandatory=False, default_value="")
 
-        meta_data = self._r(track_specification, "meta", mandatory=False)
+        meta_data = self._r(workload_specification, "meta", mandatory=False)
         indices = [self._create_index(idx, mapping_dir)
-                   for idx in self._r(track_specification, "indices", mandatory=False, default_value=[])]
+                   for idx in self._r(workload_specification, "indices", mandatory=False, default_value=[])]
         data_streams = [self._create_data_stream(idx)
-                        for idx in self._r(track_specification, "data-streams", mandatory=False, default_value=[])]
+                        for idx in self._r(workload_specification, "data-streams", mandatory=False, default_value=[])]
         if len(indices) > 0 and len(data_streams) > 0:
             # we guard against this early and support either or
-            raise TrackSyntaxError("indices and data-streams cannot both be specified")
+            raise WorkloadSyntaxError("indices and data-streams cannot both be specified")
         templates = [self._create_index_template(tpl, mapping_dir)
-                     for tpl in self._r(track_specification, "templates", mandatory=False, default_value=[])]
+                     for tpl in self._r(workload_specification, "templates", mandatory=False, default_value=[])]
         composable_templates = [self._create_index_template(tpl, mapping_dir)
-                     for tpl in self._r(track_specification, "composable-templates", mandatory=False, default_value=[])]
+                     for tpl in self._r(workload_specification, "composable-templates", mandatory=False, default_value=[])]
         component_templates = [self._create_component_template(tpl, mapping_dir)
-                     for tpl in self._r(track_specification, "component-templates", mandatory=False, default_value=[])]
-        corpora = self._create_corpora(self._r(track_specification, "corpora", mandatory=False, default_value=[]),
+                     for tpl in self._r(workload_specification, "component-templates", mandatory=False, default_value=[])]
+        corpora = self._create_corpora(self._r(workload_specification, "corpora", mandatory=False, default_value=[]),
                                        indices, data_streams)
-        challenges = self._create_challenges(track_specification)
-        # at this point, *all* track params must have been referenced in the templates
-        return track.Track(name=self.name, meta_data=meta_data, description=description, challenges=challenges, indices=indices,
+        challenges = self._create_challenges(workload_specification)
+        # at this point, *all* workload params must have been referenced in the templates
+        return workload.Workload(name=self.name, meta_data=meta_data, description=description, challenges=challenges, indices=indices,
                            data_streams=data_streams, templates=templates, composable_templates=composable_templates,
                            component_templates=component_templates, corpora=corpora)
 
     def _error(self, msg):
-        raise TrackSyntaxError("Track '%s' is invalid. %s" % (self.name, msg))
+        raise WorkloadSyntaxError("Workload '%s' is invalid. %s" % (self.name, msg))
 
     def _r(self, root, path, error_ctx=None, mandatory=True, default_value=None):
         if isinstance(path, str):
@@ -1159,10 +1167,10 @@ class TrackSpecificationReader:
         else:
             body = None
 
-        return track.Index(name=index_name, body=body, types=self._r(index_spec, "types", mandatory=False, default_value=[]))
+        return workload.Index(name=index_name, body=body, types=self._r(index_spec, "types", mandatory=False, default_value=[]))
 
     def _create_data_stream(self, data_stream_spec):
-        return track.DataStream(name=self._r(data_stream_spec, "name"))
+        return workload.DataStream(name=self._r(data_stream_spec, "name"))
 
     def _create_component_template(self, tpl_spec, mapping_dir):
         name = self._r(tpl_spec, "name")
@@ -1174,7 +1182,7 @@ class TrackSpecificationReader:
             template_content = self._load_template(
                 idx_tmpl_src.assembled_source,
                 f"definition for component template {name} in {template_file}")
-        return track.ComponentTemplate(name, template_content)
+        return workload.ComponentTemplate(name, template_content)
 
     def _create_index_template(self, tpl_spec, mapping_dir):
         name = self._r(tpl_spec, "name")
@@ -1188,22 +1196,22 @@ class TrackSpecificationReader:
             template_content = self._load_template(
                 idx_tmpl_src.assembled_source,
                 "definition for index template {} in {}".format(name, template_file))
-        return track.IndexTemplate(name, index_pattern, template_content, delete_matching_indices)
+        return workload.IndexTemplate(name, index_pattern, template_content, delete_matching_indices)
 
     def _load_template(self, contents, description):
         self.logger.info("Loading template [%s].", description)
-        register_all_params_in_track(contents, self.complete_track_params)
+        register_all_params_in_workload(contents, self.complete_workload_params)
         try:
             rendered = render_template(template_source=contents,
-                                       template_vars=self.track_params)
+                                       template_vars=self.workload_params)
             return json.loads(rendered)
         except Exception as e:
             self.logger.exception("Could not load file template for %s.", description)
-            raise TrackSyntaxError("Could not load file template for '%s'" % description, str(e))
+            raise WorkloadSyntaxError("Could not load file template for '%s'" % description, str(e))
 
     def _create_corpora(self, corpora_specs, indices, data_streams):
         if len(indices) > 0 and len(data_streams) > 0:
-            raise TrackSyntaxError("indices and data-streams cannot both be specified")
+            raise WorkloadSyntaxError("indices and data-streams cannot both be specified")
         document_corpora = []
         known_corpora_names = set()
         for corpus_spec in corpora_specs:
@@ -1214,11 +1222,11 @@ class TrackSpecificationReader:
             known_corpora_names.add(name)
 
             meta_data = self._r(corpus_spec, "meta", error_ctx=name, mandatory=False)
-            corpus = track.DocumentCorpus(name=name, meta_data=meta_data)
+            corpus = workload.DocumentCorpus(name=name, meta_data=meta_data)
             # defaults on corpus level
             default_base_url = self._r(corpus_spec, "base-url", mandatory=False, default_value=None)
             default_source_format = self._r(corpus_spec, "source-format", mandatory=False,
-                                            default_value=track.Documents.SOURCE_FORMAT_BULK)
+                                            default_value=workload.Documents.SOURCE_FORMAT_BULK)
             default_action_and_meta_data = self._r(corpus_spec, "includes-action-and-meta-data", mandatory=False,
                                                    default_value=False)
             corpus_target_idx = None
@@ -1246,7 +1254,7 @@ class TrackSpecificationReader:
                 base_url = self._r(doc_spec, "base-url", mandatory=False, default_value=default_base_url)
                 source_format = self._r(doc_spec, "source-format", mandatory=False, default_value=default_source_format)
 
-                if source_format == track.Documents.SOURCE_FORMAT_BULK:
+                if source_format == workload.Documents.SOURCE_FORMAT_BULK:
                     docs = self._r(doc_spec, "source-file")
                     if io.is_archive(docs):
                         document_archive = docs
@@ -1276,9 +1284,9 @@ class TrackSpecificationReader:
                                             error_ctx=docs)
                         if target_ds and len(indices) > 0:
                             # if indices are in use we error
-                            raise TrackSyntaxError("target-data-stream cannot be used when using indices")
+                            raise WorkloadSyntaxError("target-data-stream cannot be used when using indices")
                         elif target_ds and target_type:
-                            raise TrackSyntaxError("target-type cannot be used when using data-streams")
+                            raise WorkloadSyntaxError("target-type cannot be used when using data-streams")
 
                         # need an index if we're using indices and no meta-data are present and we don't have a default
                         target_idx = self._r(doc_spec, "target-index",
@@ -1288,14 +1296,14 @@ class TrackSpecificationReader:
                         # either target_idx or target_ds
                         if target_idx and len(data_streams) > 0:
                             # if data streams are in use we error
-                            raise TrackSyntaxError("target-index cannot be used when using data-streams")
+                            raise WorkloadSyntaxError("target-index cannot be used when using data-streams")
 
                         # we need one or the other
                         if target_idx is None and target_ds is None:
-                            raise TrackSyntaxError(f"a {'target-index' if len(indices) > 0 else 'target-data-stream'} "
+                            raise WorkloadSyntaxError(f"a {'target-index' if len(indices) > 0 else 'target-data-stream'} "
                                                    f"is required for {docs}" )
 
-                    docs = track.Documents(source_format=source_format,
+                    docs = workload.Documents(source_format=source_format,
                                            document_file=document_file,
                                            document_archive=document_archive,
                                            base_url=base_url,
@@ -1311,13 +1319,13 @@ class TrackSpecificationReader:
             document_corpora.append(corpus)
         return document_corpora
 
-    def _create_challenges(self, track_spec):
-        ops = self.parse_operations(self._r(track_spec, "operations", mandatory=False, default_value=[]))
-        track_params = self._r(track_spec, "parameters", mandatory=False, default_value={})
+    def _create_challenges(self, workload_spec):
+        ops = self.parse_operations(self._r(workload_spec, "operations", mandatory=False, default_value=[]))
+        workload_params = self._r(workload_spec, "parameters", mandatory=False, default_value={})
         challenges = []
         known_challenge_names = set()
         default_challenge = None
-        challenge_specs, auto_generated = self._get_challenge_specs(track_spec)
+        challenge_specs, auto_generated = self._get_challenge_specs(workload_spec)
         number_of_challenges = len(challenge_specs)
         for challenge_spec in challenge_specs:
             name = self._r(challenge_spec, "name", error_ctx="challenges")
@@ -1355,9 +1363,9 @@ class TrackSpecificationReader:
                         known_task_names.add(sub_task.name)
 
             # merge params
-            final_challenge_params = dict(collections.merge_dicts(track_params, challenge_params))
+            final_challenge_params = dict(collections.merge_dicts(workload_params, challenge_params))
 
-            challenge = track.Challenge(name=name,
+            challenge = workload.Challenge(name=name,
                                         parameters=final_challenge_params,
                                         meta_data=meta_data,
                                         description=description,
@@ -1372,14 +1380,14 @@ class TrackSpecificationReader:
             challenges.append(challenge)
 
         if challenges and default_challenge is None:
-            self._error("No default challenge specified. Please edit the track and add \"default\": true to one of the challenges %s."
+            self._error("No default challenge specified. Please edit the workload and add \"default\": true to one of the challenges %s."
                         % ", ".join([c.name for c in challenges]))
         return challenges
 
-    def _get_challenge_specs(self, track_spec):
-        schedule = self._r(track_spec, "schedule", mandatory=False)
-        challenge = self._r(track_spec, "challenge", mandatory=False)
-        challenges = self._r(track_spec, "challenges", mandatory=False)
+    def _get_challenge_specs(self, workload_spec):
+        schedule = self._r(workload_spec, "schedule", mandatory=False)
+        challenge = self._r(workload_spec, "challenge", mandatory=False)
+        challenges = self._r(workload_spec, "challenges", mandatory=False)
 
         count_defined = len(list(filter(lambda e: e is not None, [schedule, challenge, challenges])))
 
@@ -1424,7 +1432,7 @@ class TrackSpecificationReader:
             if not completion_task:
                 self._error("'parallel' element for challenge '%s' is marked with 'completed-by' with task name '%s' but no task with "
                             "this name exists." % (challenge_name, completed_by))
-        return track.Parallel(tasks, clients)
+        return workload.Parallel(tasks, clients)
 
     def parse_task(self, task_spec, ops, challenge_name, default_warmup_iterations=None, default_iterations=None,
                    default_warmup_time_period=None, default_time_period=None, completed_by_name=None):
@@ -1438,7 +1446,7 @@ class TrackSpecificationReader:
 
         schedule = self._r(task_spec, "schedule", error_ctx=op.name, mandatory=False)
         task_name = self._r(task_spec, "name", error_ctx=op.name, mandatory=False, default_value=op.name)
-        task = track.Task(name=task_name,
+        task = workload.Task(name=task_name,
                           operation=op,
                           tags=self._r(task_spec, "tags", error_ctx=op.name, mandatory=False),
                           meta_data=self._r(task_spec, "meta", error_ctx=op.name, mandatory=False),
@@ -1495,7 +1503,7 @@ class TrackSpecificationReader:
             params = op_spec
 
         try:
-            op = track.OperationType.from_hyphenated_string(op_type_name)
+            op = workload.OperationType.from_hyphenated_string(op_type_name)
             if "include-in-reporting" not in params:
                 params["include-in-reporting"] = not op.admin_op
             self.logger.debug("Using built-in operation type [%s] for operation [%s].", op_type_name, op_name)
@@ -1503,6 +1511,7 @@ class TrackSpecificationReader:
             self.logger.info("Using user-provided operation type [%s] for operation [%s].", op_type_name, op_name)
 
         try:
-            return track.Operation(name=op_name, meta_data=meta_data, operation_type=op_type_name, params=params, param_source=param_source)
+            return workload.Operation(name=op_name, meta_data=meta_data,
+                                        operation_type=op_type_name, params=params, param_source=param_source)
         except exceptions.InvalidSyntax as e:
-            raise TrackSyntaxError("Invalid operation [%s]: %s" % (op_name, str(e)))
+            raise WorkloadSyntaxError("Invalid operation [%s]: %s" % (op_name, str(e)))

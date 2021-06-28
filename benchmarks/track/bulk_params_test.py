@@ -19,7 +19,7 @@ import sys
 
 import pytest
 
-from esrally.track import params
+from esrally.workload import params
 
 
 class StaticSource:

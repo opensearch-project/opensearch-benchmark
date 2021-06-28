@@ -20,7 +20,7 @@ import json
 import logging
 import uuid
 
-from esrally import track, config, exceptions
+from esrally import workload, config, exceptions
 from esrally.utils import io, console
 
 color_scheme_rgba = [
@@ -64,8 +64,8 @@ class BarCharts:
 
     @staticmethod
     # flavor's unused but we need the same signature used by the corresponding method in TimeSeriesCharts
-    def format_title(environment, track_name, flavor=None, es_license=None, suffix=None):
-        title = f"{environment}-{track_name}"
+    def format_title(environment, workload_name, flavor=None, es_license=None, suffix=None):
+        title = f"{environment}-{workload_name}"
 
         if suffix:
             title += f"-{suffix}"
@@ -77,7 +77,7 @@ class BarCharts:
         if race_config.name:
             return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{race_config.name}\""
         else:
-            return f"environment:\"{environment}\" AND active:true AND track:\"{race_config.track}\""\
+            return f"environment:\"{environment}\" AND active:true AND workload:\"{race_config.workload}\""\
                    f" AND challenge:\"{race_config.challenge}\" AND car:\"{race_config.car}\" AND node-count:{race_config.node_count}"
 
     @staticmethod
@@ -449,7 +449,7 @@ class BarCharts:
     @staticmethod
     def query(environment, race_config, q):
         metric = "service_time"
-        title = BarCharts.format_title(environment, race_config.track, suffix="%s-%s-p99-%s" % (race_config.label, q, metric))
+        title = BarCharts.format_title(environment, race_config.workload, suffix="%s-%s-p99-%s" % (race_config.label, q, metric))
         label = "Query Service Time [ms]"
 
         vis_state = {
@@ -778,16 +778,16 @@ class BarCharts:
 
 class TimeSeriesCharts:
     @staticmethod
-    def format_title(environment, track_name, flavor=None, es_license=None, suffix=None):
+    def format_title(environment, workload_name, flavor=None, es_license=None, suffix=None):
         if flavor:
-            title = [environment, flavor, str(track_name)]
+            title = [environment, flavor, str(workload_name)]
         elif es_license:
-            title = [environment, es_license, str(track_name)]
+            title = [environment, es_license, str(workload_name)]
         elif flavor and es_license:
             raise exceptions.RallyAssertionError(
                 f"Specify either flavor [{flavor}] or license [{es_license}] but not both")
         else:
-            title = [environment, str(track_name)]
+            title = [environment, str(workload_name)]
         if suffix:
             title.append(suffix)
 
@@ -802,7 +802,7 @@ class TimeSeriesCharts:
         if race_config.name:
             return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{race_config.name}\"{nightly_extra_filter}"
         else:
-            return f"environment:\"{environment}\" AND active:true AND track:\"{race_config.track}\""\
+            return f"environment:\"{environment}\" AND active:true AND workload:\"{race_config.workload}\""\
                    f" AND challenge:\"{race_config.challenge}\" AND car:\"{race_config.car}\" AND node-count:{race_config.node_count}"
 
     @staticmethod
@@ -867,7 +867,8 @@ class TimeSeriesCharts:
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{race_config.track}\") AND ((NOT _exists_:chart) OR chart:gc) "
+                        "query_string": f"((NOT _exists_:workload) OR workload:\"{race_config.workload}\") "
+                                        f"AND ((NOT _exists_:chart) OR chart:gc) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
@@ -959,7 +960,7 @@ class TimeSeriesCharts:
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{race_config.track}\") "
+                        "query_string": f"((NOT _exists_:workload) OR workload:\"{race_config.workload}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:merge_times) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
@@ -1046,7 +1047,7 @@ class TimeSeriesCharts:
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{race_config.track}\") "
+                        "query_string": f"((NOT _exists_:workload) OR workload:\"{race_config.workload}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:merge_count) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
@@ -1139,7 +1140,8 @@ class TimeSeriesCharts:
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{race_config.track}\") AND ((NOT _exists_:chart) OR chart:io) "
+                        "query_string": f"((NOT _exists_:workload) OR workload:\"{race_config.workload}\") "
+                                        f"AND ((NOT _exists_:chart) OR chart:io) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
@@ -1200,7 +1202,7 @@ class TimeSeriesCharts:
                         "seperate_axis": 1,
                         "split_mode": "filters",
                         "stacked": "none",
-                        "filter": f"environment:{environment} AND track:\"{race_config.track}\"",
+                        "filter": f"environment:{environment} AND workload:\"{race_config.workload}\"",
                         "split_filters": [
                             {
                                 "filter": "memory_segments",
@@ -1253,7 +1255,7 @@ class TimeSeriesCharts:
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{race_config.track}\") "
+                        "query_string": f"((NOT _exists_:workload) OR workload:\"{race_config.workload}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:segment_memory) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
@@ -1288,7 +1290,7 @@ class TimeSeriesCharts:
     @staticmethod
     def query(environment, race_config, q):
         metric = "latency"
-        title = TimeSeriesCharts.format_title(environment, race_config.track, es_license=race_config.es_license,
+        title = TimeSeriesCharts.format_title(environment, race_config.workload, es_license=race_config.es_license,
                                               suffix="%s-%s-%s" % (race_config.label, q, metric))
 
         vis_state = {
@@ -1415,7 +1417,7 @@ class TimeSeriesCharts:
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{race_config.track}\") "
+                        "query_string": f"((NOT _exists_:workload) OR workload:\"{race_config.workload}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:query) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
@@ -1448,8 +1450,8 @@ class TimeSeriesCharts:
     @staticmethod
     def index(environment, race_configs, title):
         filters = []
-        # any race_config will do - they all belong to the same track
-        t = race_configs[0].track
+        # any race_config will do - they all belong to the same workload
+        t = race_configs[0].workload
         for idx, race_config in enumerate(race_configs):
             label = index_label(race_config)
             for bulk_task in race_config.bulk_tasks:
@@ -1491,7 +1493,7 @@ class TimeSeriesCharts:
                         "seperate_axis": 1,
                         "split_mode": "filters",
                         "stacked": "none",
-                        "filter": "environment:\"%s\" AND track:\"%s\"" % (environment, t),
+                        "filter": "environment:\"%s\" AND workload:\"%s\"" % (environment, t),
                         "split_filters": filters,
                         "label": "Indexing Throughput",
                         "value_template": "{{value}} docs/s",
@@ -1503,13 +1505,13 @@ class TimeSeriesCharts:
                 "drop_last_bucket": 0,
                 "time_field": "race-timestamp",
                 "type": "timeseries",
-                "filter": "environment:\"%s\" AND track:\"%s\" AND name:\"throughput\" AND active:true" % (environment, t),
+                "filter": "environment:\"%s\" AND workload:\"%s\" AND name:\"throughput\" AND active:true" % (environment, t),
                 "annotations": [
                     {
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{t}\") "
+                        "query_string": f"((NOT _exists_:workload) OR workload:\"{t}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:indexing) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
@@ -1540,32 +1542,32 @@ class TimeSeriesCharts:
         }
 
 
-class RaceConfigTrack:
+class RaceConfigWorkload:
     def __init__(self, cfg, repository, name=None):
         self.repository = repository
-        self.cached_track = self.load_track(cfg, name=name)
+        self.cached_workload = self.load_workload(cfg, name=name)
 
-    def load_track(self, cfg, name=None, params=None, excluded_tasks=None):
+    def load_workload(self, cfg, name=None, params=None, excluded_tasks=None):
         if not params:
             params = {}
-        # required in case a previous track using a different repository has specified the revision
-        if cfg.opts("track", "repository.name", mandatory=False) != self.repository:
-            cfg.add(config.Scope.applicationOverride, "track", "repository.revision", None)
-        # hack to make this work with multiple tracks (Rally core is usually not meant to be used this way)
+        # required in case a previous workload using a different repository has specified the revision
+        if cfg.opts("workload", "repository.name", mandatory=False) != self.repository:
+            cfg.add(config.Scope.applicationOverride, "workload", "repository.revision", None)
+        # hack to make this work with multiple workloads (Rally core is usually not meant to be used this way)
         if name:
-            cfg.add(config.Scope.applicationOverride, "track", "repository.name", self.repository)
-            cfg.add(config.Scope.applicationOverride, "track", "track.name", name)
-        # another hack to ensure any track-params in the race config are used by Rally's track loader
-        cfg.add(config.Scope.applicationOverride, "track", "params", params)
+            cfg.add(config.Scope.applicationOverride, "workload", "repository.name", self.repository)
+            cfg.add(config.Scope.applicationOverride, "workload", "workload.name", name)
+        # another hack to ensure any workload-params in the race config are used by Rally's workload loader
+        cfg.add(config.Scope.applicationOverride, "workload", "params", params)
         if excluded_tasks:
-            cfg.add(config.Scope.application, "track", "exclude.tasks", excluded_tasks)
-        return track.load_track(cfg)
+            cfg.add(config.Scope.application, "workload", "exclude.tasks", excluded_tasks)
+        return workload.load_workload(cfg)
 
-    def get_track(self, cfg, name=None, params=None, excluded_tasks=None):
+    def get_workload(self, cfg, name=None, params=None, excluded_tasks=None):
         if params or excluded_tasks:
-            return self.load_track(cfg, name, params, excluded_tasks)
-        # if no params specified, return the initially cached, (non-parametrized) track
-        return self.cached_track
+            return self.load_workload(cfg, name, params, excluded_tasks)
+        # if no params specified, return the initially cached, (non-parametrized) workload
+        return self.cached_workload
 
 
 def generate_index_ops(chart_type, race_configs, environment, logger):
@@ -1576,7 +1578,7 @@ def generate_index_ops(chart_type, race_configs, environment, logger):
     charts = []
 
     if idx_race_configs:
-        title = chart_type.format_title(environment, race_configs[0].track, flavor=race_configs[0].flavor, suffix="indexing-throughput")
+        title = chart_type.format_title(environment, race_configs[0].workload, flavor=race_configs[0].flavor, suffix="indexing-throughput")
         charts = [chart_type.index(environment, idx_race_configs, title)]
     return charts
 
@@ -1597,7 +1599,7 @@ def generate_io(chart_type, race_configs, environment):
     structures = []
     for race_config in race_configs:
         if "io" in race_config.charts:
-            title = chart_type.format_title(environment, race_config.track, es_license=race_config.es_license,
+            title = chart_type.format_title(environment, race_config.workload, es_license=race_config.es_license,
                                             suffix="%s-io" % race_config.label)
             structures.append(chart_type.io(title, environment, race_config))
 
@@ -1608,7 +1610,7 @@ def generate_gc(chart_type, race_configs, environment):
     structures = []
     for race_config in race_configs:
         if "gc" in race_config.charts:
-            title = chart_type.format_title(environment, race_config.track, es_license=race_config.es_license,
+            title = chart_type.format_title(environment, race_config.workload, es_license=race_config.es_license,
                                             suffix="%s-gc" % race_config.label)
             structures.append(chart_type.gc(title, environment, race_config))
 
@@ -1618,7 +1620,7 @@ def generate_merge_time(chart_type, race_configs, environment):
     structures = []
     for race_config in race_configs:
         if "merge_times" in race_config.charts:
-            title = chart_type.format_title(environment, race_config.track, es_license=race_config.es_license,
+            title = chart_type.format_title(environment, race_config.workload, es_license=race_config.es_license,
                                             suffix=f"{race_config.label}-merge-times")
             structures.append(chart_type.merge_time(title, environment, race_config))
 
@@ -1628,7 +1630,7 @@ def generate_merge_count(chart_type, race_configs, environment):
     structures = []
     for race_config in race_configs:
         if "merge_count" in race_config.charts:
-            title = chart_type.format_title(environment, race_config.track, es_license=race_config.es_license,
+            title = chart_type.format_title(environment, race_config.workload, es_license=race_config.es_license,
                                             suffix=f"{race_config.label}-merge-count")
             structures.append(chart_type.merge_count(title, environment, race_config))
 
@@ -1639,7 +1641,7 @@ def generate_segment_memory(chart_type, race_configs, environment):
     structures = []
     for race_config in race_configs:
         if "segment_memory" in race_config.charts:
-            title = chart_type.format_title(environment, race_config.track, es_license=race_config.es_license,
+            title = chart_type.format_title(environment, race_config.workload, es_license=race_config.es_license,
                                             suffix="%s-segment-memory" % race_config.label)
             chart = chart_type.segment_memory(title, environment, race_config)
             if chart:
@@ -1647,7 +1649,7 @@ def generate_segment_memory(chart_type, race_configs, environment):
     return structures
 
 
-def generate_dashboard(chart_type, environment, track, charts, flavor=None):
+def generate_dashboard(chart_type, environment, workload, charts, flavor=None):
     panels = []
 
     width = 24
@@ -1690,7 +1692,7 @@ def generate_dashboard(chart_type, environment, track, charts, flavor=None):
         "id": str(uuid.uuid4()),
         "type": "dashboard",
         "attributes": {
-            "title": chart_type.format_title(environment, track.name, flavor=flavor),
+            "title": chart_type.format_title(environment, workload.name, flavor=flavor),
             "hits": 0,
             "description": "",
             "panelsJSON": json.dumps(panels),
@@ -1721,8 +1723,8 @@ def generate_dashboard(chart_type, environment, track, charts, flavor=None):
 
 
 class RaceConfig:
-    def __init__(self, track, cfg=None, flavor=None, es_license=None, challenge=None, car=None, node_count=None, charts=None):
-        self.track = track
+    def __init__(self, workload, cfg=None, flavor=None, es_license=None, challenge=None, car=None, node_count=None, charts=None):
+        self.workload = workload
         if cfg:
             self.configuration = cfg
             self.configuration["flavor"] = flavor
@@ -1774,13 +1776,13 @@ class RaceConfig:
     @property
     def bulk_tasks(self):
         task_names = []
-        for task in self.track.find_challenge_or_default(self.challenge).schedule:
+        for task in self.workload.find_challenge_or_default(self.challenge).schedule:
             for sub_task in task:
                 # We are looking for type bulk operations to add to indexing throughput chart.
-                # For the observability track, the index operation is of type raw-bulk, instead of type bulk.
+                # For the observability workload, the index operation is of type raw-bulk, instead of type bulk.
                 # Doing a lenient match to allow for that.
-                if track.OperationType.Bulk.to_hyphenated_string() in sub_task.operation.type:
-                    if track.OperationType.Bulk.to_hyphenated_string() != sub_task.operation.type:
+                if workload.OperationType.Bulk.to_hyphenated_string() in sub_task.operation.type:
+                    if workload.OperationType.Bulk.to_hyphenated_string() != sub_task.operation.type:
                         console.info(f"Found [{sub_task.name}] of type [{sub_task.operation.type}] in "\
                                      f"[{self.challenge}], adding it to indexing dashboard.\n", flush=True)
                     task_names.append(sub_task.name)
@@ -1789,7 +1791,7 @@ class RaceConfig:
     @property
     def throttled_tasks(self):
         task_names = []
-        for task in self.track.find_challenge_or_default(self.challenge).schedule:
+        for task in self.workload.find_challenge_or_default(self.challenge).schedule:
             for sub_task in task:
                 # We are assuming here that each task with a target throughput or target interval is interesting for latency charts.
                 # We should refactor the chart generator to make this classification logic more flexible so the user can specify
@@ -1800,15 +1802,15 @@ class RaceConfig:
 
 
 def load_race_configs(cfg, chart_type, chart_spec_path=None):
-    def add_configs(race_configs_per_lic, flavor_name="oss", lic="oss", track_name=None):
+    def add_configs(race_configs_per_lic, flavor_name="oss", lic="oss", workload_name=None):
         configs_per_lic = []
         for race_config in race_configs_per_lic:
             excluded_tasks = None
             if "exclude-tasks" in race_config:
                 excluded_tasks = race_config.get("exclude-tasks").split(",")
             configs_per_lic.append(
-                RaceConfig(track=race_config_track.get_track(cfg, name=track_name,
-                                                             params=race_config.get("track-params", {}),
+                RaceConfig(workload=race_config_workload.get_workload(cfg, name=workload_name,
+                                                             params=race_config.get("workload-params", {}),
                                                              excluded_tasks=excluded_tasks),
                            cfg=race_config,
                            flavor=flavor_name,
@@ -1816,43 +1818,43 @@ def load_race_configs(cfg, chart_type, chart_spec_path=None):
             )
         return configs_per_lic
 
-    def add_race_configs(license_configs, flavor_name, track_name):
+    def add_race_configs(license_configs, flavor_name, workload_name):
         if chart_type == BarCharts:
             # Only one license config, "basic", is present in bar charts
             _lic_conf = [license_config["configurations"] for license_config in license_configs if license_config["name"] == "basic"]
             if _lic_conf:
-                race_configs_per_track.extend(add_configs(_lic_conf[0], track_name=track_name))
+                race_configs_per_workload.extend(add_configs(_lic_conf[0], workload_name=workload_name))
         else:
             for lic_config in license_configs:
-                race_configs_per_track.extend(add_configs(lic_config["configurations"],
+                race_configs_per_workload.extend(add_configs(lic_config["configurations"],
                                                           flavor_name,
                                                           lic_config["name"],
-                                                          track_name))
+                                                          workload_name))
 
     race_configs = {"oss": [], "default": []}
     if chart_type == BarCharts:
         race_configs = []
 
-    for _track_file in glob.glob(io.normalize_path(chart_spec_path)):
-        with open(_track_file, mode="rt", encoding="utf-8") as f:
+    for _workload_file in glob.glob(io.normalize_path(chart_spec_path)):
+        with open(_workload_file, mode="rt", encoding="utf-8") as f:
             for item in json.load(f):
-                _track_repository = item.get("track-repository", "default")
-                race_config_track = RaceConfigTrack(cfg, _track_repository, name=item["track"])
+                _workload_repository = item.get("workload-repository", "default")
+                race_config_workload = RaceConfigWorkload(cfg, _workload_repository, name=item["workload"])
                 for flavor in item["flavors"]:
-                    race_configs_per_track = []
+                    race_configs_per_workload = []
                     _flavor_name = flavor["name"]
-                    _track_name = item["track"]
-                    add_race_configs(flavor["licenses"], _flavor_name, _track_name)
+                    _workload_name = item["workload"]
+                    add_race_configs(flavor["licenses"], _flavor_name, _workload_name)
 
-                    if race_configs_per_track:
+                    if race_configs_per_workload:
                         if chart_type == BarCharts:
-                            race_configs.append(race_configs_per_track)
+                            race_configs.append(race_configs_per_workload)
                         else:
-                            race_configs[_flavor_name].append(race_configs_per_track)
+                            race_configs[_flavor_name].append(race_configs_per_workload)
     return race_configs
 
 
-def gen_charts_per_track_configs(race_configs, chart_type, env, flavor=None, logger=None):
+def gen_charts_per_workload_configs(race_configs, chart_type, env, flavor=None, logger=None):
     charts = generate_index_ops(chart_type, race_configs, env, logger) + \
              generate_io(chart_type, race_configs, env) + \
              generate_gc(chart_type, race_configs, env) + \
@@ -1861,28 +1863,28 @@ def gen_charts_per_track_configs(race_configs, chart_type, env, flavor=None, log
              generate_segment_memory(chart_type, race_configs, env) + \
              generate_queries(chart_type, race_configs, env)
 
-    dashboard = generate_dashboard(chart_type, env, race_configs[0].track, charts, flavor)
+    dashboard = generate_dashboard(chart_type, env, race_configs[0].workload, charts, flavor)
 
     return charts, dashboard
 
 
-def gen_charts_per_track(race_configs, chart_type, env, flavor=None, logger=None):
+def gen_charts_per_workload(race_configs, chart_type, env, flavor=None, logger=None):
     structures = []
-    for race_configs_per_track in race_configs:
-        charts, dashboard = gen_charts_per_track_configs(race_configs_per_track, chart_type, env, flavor, logger)
+    for race_configs_per_workload in race_configs:
+        charts, dashboard = gen_charts_per_workload_configs(race_configs_per_workload, chart_type, env, flavor, logger)
         structures.extend(charts)
         structures.append(dashboard)
 
     return structures
 
 
-def gen_charts_from_track_combinations(race_configs, chart_type, env, logger):
+def gen_charts_from_workload_combinations(race_configs, chart_type, env, logger):
     structures = []
     for flavor, race_configs_per_flavor in race_configs.items():
-        for race_configs_per_track in race_configs_per_flavor:
+        for race_configs_per_workload in race_configs_per_flavor:
             logger.debug("Generating charts for race_configs with name:[%s]/flavor:[%s]",
-                         race_configs_per_track[0].name, flavor)
-            charts, dashboard = gen_charts_per_track_configs(race_configs_per_track, chart_type, env, flavor, logger)
+                         race_configs_per_workload[0].name, flavor)
+            charts, dashboard = gen_charts_per_workload_configs(race_configs_per_workload, chart_type, env, flavor, logger)
 
             structures.extend(charts)
             structures.append(dashboard)
@@ -1899,7 +1901,7 @@ def generate(cfg):
     else:
         chart_type = BarCharts
 
-    console.info("Loading track data...", flush=True)
+    console.info("Loading workload data...", flush=True)
     race_configs = load_race_configs(cfg, chart_type, chart_spec_path)
     env = cfg.opts("system", "env.name")
 
@@ -1908,9 +1910,9 @@ def generate(cfg):
 
     if chart_type == BarCharts:
         # bar charts are flavor agnostic and split results based on a separate `user.setup` field
-        structures = gen_charts_per_track(race_configs, chart_type, env, logger=logger)
+        structures = gen_charts_per_workload(race_configs, chart_type, env, logger=logger)
     elif chart_type == TimeSeriesCharts:
-        structures = gen_charts_from_track_combinations(race_configs, chart_type, env, logger)
+        structures = gen_charts_from_workload_combinations(race_configs, chart_type, env, logger)
 
     output_path = cfg.opts("generator", "output.path")
     if output_path:

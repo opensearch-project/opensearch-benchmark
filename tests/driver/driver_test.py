@@ -26,17 +26,17 @@ from unittest import TestCase
 
 import elasticsearch
 
-from esrally import metrics, track, exceptions, config
+from esrally import metrics, workload, exceptions, config
 from esrally.driver import driver, runner, scheduler
-from esrally.track import params
+from esrally.workload import params
 from tests import run_async, as_future
 
 
 class DriverTestParamSource:
-    def __init__(self, track=None, params=None, **kwargs):
+    def __init__(self, workload=None, params=None, **kwargs):
         if params is None:
             params = {}
-        self._indices = track.indices
+        self._indices = workload.indices
         self._params = params
         self._current = 1
         self._total = params.get("size")
@@ -68,7 +68,7 @@ class DriverTests(TestCase):
     def __init__(self, methodName='runTest'):
         super().__init__(methodName)
         self.cfg = None
-        self.track = None
+        self.workload = None
 
     class StaticClientFactory:
         PATCHER = None
@@ -92,9 +92,9 @@ class DriverTests(TestCase):
         self.cfg.add(config.Scope.application, "system", "race.id", "6ebc6e53-ee20-4b0c-99b4-09697987e9f4")
         self.cfg.add(config.Scope.application, "system", "available.cores", 8)
         self.cfg.add(config.Scope.application, "node", "root.dir", "/tmp")
-        self.cfg.add(config.Scope.application, "track", "challenge.name", "default")
-        self.cfg.add(config.Scope.application, "track", "params", {})
-        self.cfg.add(config.Scope.application, "track", "test.mode.enabled", True)
+        self.cfg.add(config.Scope.application, "workload", "challenge.name", "default")
+        self.cfg.add(config.Scope.application, "workload", "params", {})
+        self.cfg.add(config.Scope.application, "workload", "test.mode.enabled", True)
         self.cfg.add(config.Scope.application, "telemetry", "devices", [])
         self.cfg.add(config.Scope.application, "telemetry", "params", {})
         self.cfg.add(config.Scope.application, "mechanic", "car.names", ["default"])
@@ -105,11 +105,12 @@ class DriverTests(TestCase):
         self.cfg.add(config.Scope.application, "driver", "load_driver_hosts", ["localhost"])
         self.cfg.add(config.Scope.application, "reporting", "datastore.type", "in-memory")
 
-        default_challenge = track.Challenge("default", default=True, schedule=[
-            track.Task(name="index", operation=track.Operation("index", operation_type=track.OperationType.Bulk), clients=4)
+        default_challenge = workload.Challenge("default", default=True, schedule=[
+            workload.Task(name="index", operation=workload.Operation("index", operation_type=workload.OperationType.Bulk), clients=4)
         ])
-        another_challenge = track.Challenge("other", default=False)
-        self.track = track.Track(name="unittest", description="unittest track", challenges=[another_challenge, default_challenge])
+        another_challenge = workload.Challenge("other", default=False)
+        self.workload = workload.Workload(name="unittest",
+                                    description="unittest workload", challenges=[another_challenge, default_challenge])
 
     def tearDown(self):
         DriverTests.StaticClientFactory.close()
@@ -122,16 +123,16 @@ class DriverTests(TestCase):
         return mock.Mock(**attrs)
 
     @mock.patch("esrally.utils.net.resolve")
-    def test_start_benchmark_and_prepare_track(self, resolve):
+    def test_start_benchmark_and_prepare_workload(self, resolve):
         # override load driver host
         self.cfg.add(config.Scope.applicationOverride, "driver", "load_driver_hosts", ["10.5.5.1", "10.5.5.2"])
         resolve.side_effect = ["10.5.5.1", "10.5.5.2"]
 
         target = self.create_test_driver_target()
         d = driver.Driver(target, self.cfg, es_client_factory_class=DriverTests.StaticClientFactory)
-        d.prepare_benchmark(t=self.track)
+        d.prepare_benchmark(t=self.workload)
 
-        target.prepare_track.assert_called_once_with(["10.5.5.1", "10.5.5.2"], self.cfg, self.track)
+        target.prepare_workload.assert_called_once_with(["10.5.5.1", "10.5.5.2"], self.cfg, self.workload)
         d.start_benchmark()
 
         target.create_client.assert_has_calls(calls=[
@@ -148,9 +149,9 @@ class DriverTests(TestCase):
         target = self.create_test_driver_target()
         d = driver.Driver(target, self.cfg, es_client_factory_class=DriverTests.StaticClientFactory)
 
-        d.prepare_benchmark(t=self.track)
+        d.prepare_benchmark(t=self.workload)
 
-        target.prepare_track.assert_called_once_with(["localhost"], self.cfg, self.track)
+        target.prepare_workload.assert_called_once_with(["localhost"], self.cfg, self.workload)
 
         d.start_benchmark()
 
@@ -168,7 +169,7 @@ class DriverTests(TestCase):
         target = self.create_test_driver_target()
         d = driver.Driver(target, self.cfg, es_client_factory_class=DriverTests.StaticClientFactory)
 
-        d.prepare_benchmark(t=self.track)
+        d.prepare_benchmark(t=self.workload)
         d.start_benchmark()
 
         self.assertEqual(0, len(d.workers_completed_current_step))
@@ -186,7 +187,7 @@ class DriverTests(TestCase):
         target = self.create_test_driver_target()
         d = driver.Driver(target, self.cfg, es_client_factory_class=DriverTests.StaticClientFactory)
 
-        d.prepare_benchmark(t=self.track)
+        d.prepare_benchmark(t=self.workload)
         d.start_benchmark()
 
         self.assertEqual(0, len(d.workers_completed_current_step))
@@ -241,7 +242,7 @@ class DriverTests(TestCase):
 
 
 def op(name, operation_type):
-    return track.Operation(name, operation_type, param_source="driver-test-param-source")
+    return workload.Operation(name, operation_type, param_source="driver-test-param-source")
 
 
 class SamplePostprocessorTests(TestCase):
@@ -282,10 +283,10 @@ class SamplePostprocessorTests(TestCase):
     def test_all_samples(self, metrics_store):
         post_process = driver.SamplePostprocessor(metrics_store,
                                                   downsample_factor=1,
-                                                  track_meta_data={},
+                                                  workload_meta_data={},
                                                   challenge_meta_data={})
 
-        task = track.Task("index", track.Operation("index-op", "bulk", param_source="driver-test-param-source"))
+        task = workload.Task("index", workload.Operation("index-op", "bulk", param_source="driver-test-param-source"))
         samples = [
             driver.Sample(0, 38598, 24, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2),
             driver.Sample(0, 38599, 25, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 2, 2 / 2),
@@ -305,10 +306,10 @@ class SamplePostprocessorTests(TestCase):
     def test_downsamples(self, metrics_store):
         post_process = driver.SamplePostprocessor(metrics_store,
                                                   downsample_factor=2,
-                                                  track_meta_data={},
+                                                  workload_meta_data={},
                                                   challenge_meta_data={})
 
-        task = track.Task("index", track.Operation("index-op", "bulk", param_source="driver-test-param-source"))
+        task = workload.Task("index", workload.Operation("index-op", "bulk", param_source="driver-test-param-source"))
 
         samples = [
             driver.Sample(0, 38598, 24, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2),
@@ -329,10 +330,10 @@ class SamplePostprocessorTests(TestCase):
     def test_dependent_samples(self, metrics_store):
         post_process = driver.SamplePostprocessor(metrics_store,
                                                   downsample_factor=1,
-                                                  track_meta_data={},
+                                                  workload_meta_data={},
                                                   challenge_meta_data={})
 
-        task = track.Task("index", track.Operation("index-op", "bulk", param_source="driver-test-param-source"))
+        task = workload.Task("index", workload.Operation("index-op", "bulk", param_source="driver-test-param-source"))
         samples = [
             driver.Sample(0, 38598, 24, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2,
                           dependent_timing=[
@@ -553,7 +554,7 @@ class AllocatorTests(TestCase):
         return driver.TaskAllocation(task, client_index_in_task)
 
     def test_allocates_one_task(self):
-        task = track.Task("index", op("index", track.OperationType.Bulk))
+        task = workload.Task("index", op("index", workload.OperationType.Bulk))
 
         allocator = driver.Allocator([task])
 
@@ -563,7 +564,7 @@ class AllocatorTests(TestCase):
         self.assertEqual([{task}], allocator.tasks_per_joinpoint)
 
     def test_allocates_two_serial_tasks(self):
-        task = track.Task("index", op("index", track.OperationType.Bulk))
+        task = workload.Task("index", op("index", workload.OperationType.Bulk))
 
         allocator = driver.Allocator([task, task])
 
@@ -574,9 +575,9 @@ class AllocatorTests(TestCase):
         self.assertEqual([{task}, {task}], allocator.tasks_per_joinpoint)
 
     def test_allocates_two_parallel_tasks(self):
-        task = track.Task("index", op("index", track.OperationType.Bulk))
+        task = workload.Task("index", op("index", workload.OperationType.Bulk))
 
-        allocator = driver.Allocator([track.Parallel([task, task])])
+        allocator = driver.Allocator([workload.Parallel([task, task])])
 
         self.assertEqual(2, allocator.clients)
         self.assertEqual(3, len(allocator.allocations[0]))
@@ -588,10 +589,10 @@ class AllocatorTests(TestCase):
             self.assertEqual(0, join_point.num_clients_executing_completing_task)
 
     def test_a_task_completes_the_parallel_structure(self):
-        taskA = track.Task("index-completing", op("index", track.OperationType.Bulk), completes_parent=True)
-        taskB = track.Task("index-non-completing", op("index", track.OperationType.Bulk))
+        taskA = workload.Task("index-completing", op("index", workload.OperationType.Bulk), completes_parent=True)
+        taskB = workload.Task("index-non-completing", op("index", workload.OperationType.Bulk))
 
-        allocator = driver.Allocator([track.Parallel([taskA, taskB])])
+        allocator = driver.Allocator([workload.Parallel([taskA, taskB])])
 
         self.assertEqual(2, allocator.clients)
         self.assertEqual(3, len(allocator.allocations[0]))
@@ -604,15 +605,15 @@ class AllocatorTests(TestCase):
         self.assertEqual([0], final_join_point.clients_executing_completing_task)
 
     def test_allocates_mixed_tasks(self):
-        index = track.Task("index", op("index", track.OperationType.Bulk))
-        stats = track.Task("stats", op("stats", track.OperationType.IndexStats))
-        search = track.Task("search", op("search", track.OperationType.Search))
+        index = workload.Task("index", op("index", workload.OperationType.Bulk))
+        stats = workload.Task("stats", op("stats", workload.OperationType.IndexStats))
+        search = workload.Task("search", op("search", workload.OperationType.Search))
 
         allocator = driver.Allocator([index,
-                                      track.Parallel([index, stats, stats]),
+                                      workload.Parallel([index, stats, stats]),
                                       index,
                                       index,
-                                      track.Parallel([search, search, search])])
+                                      workload.Parallel([search, search, search])])
 
         self.assertEqual(3, allocator.clients)
 
@@ -627,13 +628,13 @@ class AllocatorTests(TestCase):
             self.assertEqual(0, join_point.num_clients_executing_completing_task)
 
     def test_allocates_more_tasks_than_clients(self):
-        index_a = track.Task("index-a", op("index-a", track.OperationType.Bulk))
-        index_b = track.Task("index-b", op("index-b", track.OperationType.Bulk), completes_parent=True)
-        index_c = track.Task("index-c", op("index-c", track.OperationType.Bulk))
-        index_d = track.Task("index-d", op("index-d", track.OperationType.Bulk))
-        index_e = track.Task("index-e", op("index-e", track.OperationType.Bulk))
+        index_a = workload.Task("index-a", op("index-a", workload.OperationType.Bulk))
+        index_b = workload.Task("index-b", op("index-b", workload.OperationType.Bulk), completes_parent=True)
+        index_c = workload.Task("index-c", op("index-c", workload.OperationType.Bulk))
+        index_d = workload.Task("index-d", op("index-d", workload.OperationType.Bulk))
+        index_e = workload.Task("index-e", op("index-e", workload.OperationType.Bulk))
 
-        allocator = driver.Allocator([track.Parallel(tasks=[index_a, index_b, index_c, index_d, index_e], clients=2)])
+        allocator = driver.Allocator([workload.Parallel(tasks=[index_a, index_b, index_c, index_d, index_e], clients=2)])
 
         self.assertEqual(2, allocator.clients)
 
@@ -658,11 +659,11 @@ class AllocatorTests(TestCase):
         self.assertEqual([1], final_join_point.clients_executing_completing_task)
 
     def test_considers_number_of_clients_per_subtask(self):
-        index_a = track.Task("index-a", op("index-a", track.OperationType.Bulk))
-        index_b = track.Task("index-b", op("index-b", track.OperationType.Bulk))
-        index_c = track.Task("index-c", op("index-c", track.OperationType.Bulk), clients=2, completes_parent=True)
+        index_a = workload.Task("index-a", op("index-a", workload.OperationType.Bulk))
+        index_b = workload.Task("index-b", op("index-b", workload.OperationType.Bulk))
+        index_c = workload.Task("index-c", op("index-c", workload.OperationType.Bulk), clients=2, completes_parent=True)
 
-        allocator = driver.Allocator([track.Parallel(tasks=[index_a, index_b, index_c], clients=3)])
+        allocator = driver.Allocator([workload.Parallel(tasks=[index_a, index_b, index_c], clients=3)])
 
         self.assertEqual(3, allocator.clients)
 
@@ -701,7 +702,7 @@ class MetricsAggregationTests(TestCase):
         params.register_param_source_for_name("driver-test-param-source", DriverTestParamSource)
 
     def test_different_sample_types(self):
-        op = track.Operation("index", track.OperationType.Bulk, param_source="driver-test-param-source")
+        op = workload.Operation("index", workload.OperationType.Bulk, param_source="driver-test-param-source")
 
         samples = [
             driver.Sample(0, 1470838595, 21, 0, op, metrics.SampleType.Warmup, None, -1, -1, -1, None, 3000, "docs", 1, 1),
@@ -719,7 +720,7 @@ class MetricsAggregationTests(TestCase):
         self.assertEqual((1470838595.5, 21.5, metrics.SampleType.Normal, 3666.6666666666665, "docs/s"), throughput[1])
 
     def test_single_metrics_aggregation(self):
-        op = track.Operation("index", track.OperationType.Bulk, param_source="driver-test-param-source")
+        op = workload.Operation("index", workload.OperationType.Bulk, param_source="driver-test-param-source")
 
         samples = [
             driver.Sample(0, 38595, 21, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 1, 1 / 9),
@@ -749,7 +750,7 @@ class MetricsAggregationTests(TestCase):
         # self.assertEqual((1470838600.5, 26.5, metrics.SampleType.Normal, 10000), throughput[6])
 
     def test_use_provided_throughput(self):
-        op = track.Operation("index-recovery", track.OperationType.WaitForRecovery,
+        op = workload.Operation("index-recovery", workload.OperationType.WaitForRecovery,
                              param_source="driver-test-param-source")
 
         samples = [
@@ -824,7 +825,7 @@ class SchedulerTests(TestCase):
             self.assertEqual(len(expected_schedule), idx, msg="Number of elements in the schedules do not match")
 
     def setUp(self):
-        self.test_track = track.Track(name="unittest")
+        self.test_workload = workload.Workload(name="unittest")
         self.runner_with_progress = SchedulerTests.RunnerWithProgress()
         params.register_param_source_for_name("driver-test-param-source", DriverTestParamSource)
         runner.register_default_runners()
@@ -836,11 +837,11 @@ class SchedulerTests(TestCase):
         scheduler.remove_scheduler("custom-complex-scheduler")
 
     def test_injects_parameter_source_into_scheduler(self):
-        task = track.Task(name="search",
+        task = workload.Task(name="search",
                           schedule="custom-complex-scheduler",
-                          operation=track.Operation(
+                          operation=workload.Operation(
                               name="search",
-                              operation_type=track.OperationType.Search.to_hyphenated_string(),
+                              operation_type=workload.OperationType.Search.to_hyphenated_string(),
                               param_source="driver-test-param-source"
                           ),
                           clients=4,
@@ -848,7 +849,7 @@ class SchedulerTests(TestCase):
                               "target-throughput": "5000 ops/s"
                           })
 
-        param_source = track.operation_parameters(self.test_track, task)
+        param_source = workload.operation_parameters(self.test_workload, task)
         schedule = driver.schedule_for(task, 0, param_source)
 
         self.assertIsNotNone(schedule.sched.parameter_source, "Parameter source has not been injected into scheduler")
@@ -856,10 +857,10 @@ class SchedulerTests(TestCase):
 
     @run_async
     async def test_search_task_one_client(self):
-        task = track.Task("search", track.Operation("search", track.OperationType.Search.to_hyphenated_string(),
+        task = workload.Task("search", workload.Operation("search", workload.OperationType.Search.to_hyphenated_string(),
                                                     param_source="driver-test-param-source"),
                           warmup_iterations=3, iterations=5, clients=1, params={"target-throughput": 10, "clients": 1})
-        param_source = track.operation_parameters(self.test_track, task)
+        param_source = workload.operation_parameters(self.test_workload, task)
         schedule = driver.schedule_for(task, 0, param_source)
 
         expected_schedule = [
@@ -876,10 +877,10 @@ class SchedulerTests(TestCase):
 
     @run_async
     async def test_search_task_two_clients(self):
-        task = track.Task("search", track.Operation("search", track.OperationType.Search.to_hyphenated_string(),
+        task = workload.Task("search", workload.Operation("search", workload.OperationType.Search.to_hyphenated_string(),
                                                     param_source="driver-test-param-source"),
                           warmup_iterations=1, iterations=5, clients=2, params={"target-throughput": 10, "clients": 2})
-        param_source = track.operation_parameters(self.test_track, task)
+        param_source = workload.operation_parameters(self.test_workload, task)
         schedule = driver.schedule_for(task, 0, param_source)
 
         expected_schedule = [
@@ -895,12 +896,12 @@ class SchedulerTests(TestCase):
     @run_async
     async def test_schedule_param_source_determines_iterations_no_warmup(self):
         # we neither define any time-period nor any iteration count on the task.
-        task = track.Task("bulk-index", track.Operation("bulk-index", track.OperationType.Bulk.to_hyphenated_string(),
+        task = workload.Task("bulk-index", workload.Operation("bulk-index", workload.OperationType.Bulk.to_hyphenated_string(),
                                                         params={"body": ["a"], "size": 3},
                                                         param_source="driver-test-param-source"),
                           clients=4, params={"target-throughput": 4})
 
-        param_source = track.operation_parameters(self.test_track, task)
+        param_source = workload.operation_parameters(self.test_workload, task)
         schedule = driver.schedule_for(task, 0, param_source)
 
         await self.assert_schedule([
@@ -911,12 +912,12 @@ class SchedulerTests(TestCase):
 
     @run_async
     async def test_schedule_param_source_determines_iterations_including_warmup(self):
-        task = track.Task("bulk-index", track.Operation("bulk-index", track.OperationType.Bulk.to_hyphenated_string(),
+        task = workload.Task("bulk-index", workload.Operation("bulk-index", workload.OperationType.Bulk.to_hyphenated_string(),
                                                         params={"body": ["a"], "size": 5},
                                                         param_source="driver-test-param-source"),
                           warmup_iterations=2, clients=4, params={"target-throughput": 4})
 
-        param_source = track.operation_parameters(self.test_track, task)
+        param_source = workload.operation_parameters(self.test_workload, task)
         schedule = driver.schedule_for(task, 0, param_source)
 
         await self.assert_schedule([
@@ -930,12 +931,12 @@ class SchedulerTests(TestCase):
     @run_async
     async def test_schedule_defaults_to_iteration_based(self):
         # no time-period and no iterations specified on the task. Also, the parameter source does not define a size.
-        task = track.Task("bulk-index", track.Operation("bulk-index", track.OperationType.Bulk.to_hyphenated_string(),
+        task = workload.Task("bulk-index", workload.Operation("bulk-index", workload.OperationType.Bulk.to_hyphenated_string(),
                                                         params={"body": ["a"]},
                                                         param_source="driver-test-param-source"),
                           clients=1, params={"target-throughput": 4, "clients": 4})
 
-        param_source = track.operation_parameters(self.test_track, task)
+        param_source = workload.operation_parameters(self.test_workload, task)
         schedule = driver.schedule_for(task, 0, param_source)
 
         await self.assert_schedule([
@@ -944,12 +945,12 @@ class SchedulerTests(TestCase):
 
     @run_async
     async def test_schedule_for_warmup_time_based(self):
-        task = track.Task("time-based", track.Operation("time-based", track.OperationType.Bulk.to_hyphenated_string(),
+        task = workload.Task("time-based", workload.Operation("time-based", workload.OperationType.Bulk.to_hyphenated_string(),
                                                         params={"body": ["a"], "size": 11},
                                                         param_source="driver-test-param-source"),
                           warmup_time_period=0, clients=4, params={"target-throughput": 4, "clients": 4})
 
-        param_source = track.operation_parameters(self.test_track, task)
+        param_source = workload.operation_parameters(self.test_workload, task)
         schedule = driver.schedule_for(task, 0, param_source)
 
         await self.assert_schedule([
@@ -968,12 +969,12 @@ class SchedulerTests(TestCase):
 
     @run_async
     async def test_infinite_schedule_without_progress_indication(self):
-        task = track.Task("time-based", track.Operation("time-based", track.OperationType.Bulk.to_hyphenated_string(),
+        task = workload.Task("time-based", workload.Operation("time-based", workload.OperationType.Bulk.to_hyphenated_string(),
                                                         params={"body": ["a"]},
                                                         param_source="driver-test-param-source"),
                           warmup_time_period=0, clients=4, params={"target-throughput": 4, "clients": 4})
 
-        param_source = track.operation_parameters(self.test_track, task)
+        param_source = workload.operation_parameters(self.test_workload, task)
         schedule = driver.schedule_for(task, 0, param_source)
 
         await self.assert_schedule([
@@ -986,12 +987,12 @@ class SchedulerTests(TestCase):
 
     @run_async
     async def test_finite_schedule_with_progress_indication(self):
-        task = track.Task("time-based", track.Operation("time-based", track.OperationType.Bulk.to_hyphenated_string(),
+        task = workload.Task("time-based", workload.Operation("time-based", workload.OperationType.Bulk.to_hyphenated_string(),
                                                         params={"body": ["a"], "size": 5},
                                                         param_source="driver-test-param-source"),
                           warmup_time_period=0, clients=4, params={"target-throughput": 4, "clients": 4})
 
-        param_source = track.operation_parameters(self.test_track, task)
+        param_source = workload.operation_parameters(self.test_workload, task)
         schedule = driver.schedule_for(task, 0, param_source)
 
         await self.assert_schedule([
@@ -1004,13 +1005,13 @@ class SchedulerTests(TestCase):
 
     @run_async
     async def test_schedule_with_progress_determined_by_runner(self):
-        task = track.Task("time-based", track.Operation("time-based", "driver-test-runner-with-completion",
+        task = workload.Task("time-based", workload.Operation("time-based", "driver-test-runner-with-completion",
                                                         params={"body": ["a"]},
                                                         param_source="driver-test-param-source"),
                           clients=1,
                           params={"target-throughput": 1, "clients": 1})
 
-        param_source = track.operation_parameters(self.test_track, task)
+        param_source = workload.operation_parameters(self.test_workload, task)
         schedule = driver.schedule_for(task, 0, param_source)
 
         await self.assert_schedule([
@@ -1023,14 +1024,14 @@ class SchedulerTests(TestCase):
 
     @run_async
     async def test_schedule_for_time_based(self):
-        task = track.Task("time-based", track.Operation("time-based", track.OperationType.Bulk.to_hyphenated_string(),
+        task = workload.Task("time-based", workload.Operation("time-based", workload.OperationType.Bulk.to_hyphenated_string(),
                                                         params={"body": ["a"], "size": 11},
                                                         param_source="driver-test-param-source"),
                           warmup_time_period=0.1,
                           time_period=0.1,
                           clients=1)
 
-        param_source = track.operation_parameters(self.test_track, task)
+        param_source = workload.operation_parameters(self.test_workload, task)
         schedule_handle = driver.schedule_for(task, 0, param_source)
         schedule = schedule_handle()
 
@@ -1137,11 +1138,11 @@ class AsyncExecutorTests(TestCase):
         es.bulk.return_value = as_future(io.StringIO('{"errors": false, "took": 8}'))
 
         params.register_param_source_for_name("driver-test-param-source", DriverTestParamSource)
-        test_track = track.Track(name="unittest", description="unittest track",
+        test_workload = workload.Workload(name="unittest", description="unittest workload",
                                  indices=None,
                                  challenges=None)
 
-        task = track.Task("time-based", track.Operation("time-based", track.OperationType.Bulk.to_hyphenated_string(),
+        task = workload.Task("time-based", workload.Operation("time-based", workload.OperationType.Bulk.to_hyphenated_string(),
                                                         params={
                                                             "body": ["action_metadata_line", "index_line"],
                                                             "action-metadata-present": True,
@@ -1154,7 +1155,7 @@ class AsyncExecutorTests(TestCase):
                                                         },
                                                         param_source="driver-test-param-source"),
                           warmup_time_period=0, clients=4)
-        param_source = track.operation_parameters(test_track, task)
+        param_source = workload.operation_parameters(test_workload, task)
         schedule = driver.schedule_for(task, 0, param_source)
 
         sampler = driver.Sampler(start_timestamp=task_start)
@@ -1200,16 +1201,16 @@ class AsyncExecutorTests(TestCase):
         es.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
 
         params.register_param_source_for_name("driver-test-param-source", DriverTestParamSource)
-        test_track = track.Track(name="unittest", description="unittest track",
+        test_workload = workload.Workload(name="unittest", description="unittest workload",
                                  indices=None,
                                  challenges=None)
 
-        task = track.Task("time-based", track.Operation("time-based", operation_type="unit-test-recovery", params={
+        task = workload.Task("time-based", workload.Operation("time-based", operation_type="unit-test-recovery", params={
             "indices-to-restore": "*",
             # The runner will determine progress
             "size": None
         }, param_source="driver-test-param-source"), warmup_time_period=0, clients=4)
-        param_source = track.operation_parameters(test_track, task)
+        param_source = workload.operation_parameters(test_workload, task)
         schedule = driver.schedule_for(task, 0, param_source)
 
         sampler = driver.Sampler(start_timestamp=task_start)
@@ -1259,11 +1260,11 @@ class AsyncExecutorTests(TestCase):
         es.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
 
         params.register_param_source_for_name("driver-test-param-source", DriverTestParamSource)
-        test_track = track.Track(name="unittest", description="unittest track",
+        test_workload = workload.Workload(name="unittest", description="unittest workload",
                                  indices=None,
                                  challenges=None)
 
-        task = track.Task("override-throughput", track.Operation("override-throughput",
+        task = workload.Task("override-throughput", workload.Operation("override-throughput",
                                                                  operation_type="override-throughput", params={
                 # we need this because DriverTestParamSource does not know that we only have one iteration and hence
                 # size() returns incorrect results
@@ -1271,7 +1272,7 @@ class AsyncExecutorTests(TestCase):
             },
                                                                  param_source="driver-test-param-source"),
                           warmup_iterations=0, iterations=1, clients=1)
-        param_source = track.operation_parameters(test_track, task)
+        param_source = workload.operation_parameters(test_workload, task)
         schedule = driver.schedule_for(task, 0, param_source)
 
         sampler = driver.Sampler(start_timestamp=task_start)
@@ -1321,14 +1322,14 @@ class AsyncExecutorTests(TestCase):
         es.transport.perform_request.side_effect = perform_request
 
         params.register_param_source_for_name("driver-test-param-source", DriverTestParamSource)
-        test_track = track.Track(name="unittest", description="unittest track",
+        test_workload = workload.Workload(name="unittest", description="unittest workload",
                                  indices=None,
                                  challenges=None)
 
         # in one second (0.5 warmup + 0.5 measurement) we should get 1000 [ops/s] / 4 [clients] = 250 samples
         for target_throughput, bounds in {10: [2, 4], 100: [24, 26], 1000: [235, 255]}.items():
-            task = track.Task("time-based", track.Operation("time-based",
-                                                            track.OperationType.Search.to_hyphenated_string(),
+            task = workload.Task("time-based", workload.Operation("time-based",
+                                                            workload.OperationType.Search.to_hyphenated_string(),
                                                             params={
                                                                 "index": "_all",
                                                                 "type": None,
@@ -1346,7 +1347,7 @@ class AsyncExecutorTests(TestCase):
             cancel = threading.Event()
             complete = threading.Event()
 
-            param_source = track.operation_parameters(test_track, task)
+            param_source = workload.operation_parameters(test_workload, task)
             schedule = driver.schedule_for(task, 0, param_source)
             execute_schedule = driver.AsyncExecutor(client_id=0,
                                                     task=task,
@@ -1379,14 +1380,14 @@ class AsyncExecutorTests(TestCase):
         es.bulk.return_value = as_future(io.StringIO('{"errors": false, "took": 8}'))
 
         params.register_param_source_for_name("driver-test-param-source", DriverTestParamSource)
-        test_track = track.Track(name="unittest", description="unittest track",
+        test_workload = workload.Workload(name="unittest", description="unittest workload",
                                  indices=None,
                                  challenges=None)
 
         # in one second (0.5 warmup + 0.5 measurement) we should get 1000 [ops/s] / 4 [clients] = 250 samples
         for target_throughput in [10, 100, 1000]:
-            task = track.Task("time-based", track.Operation("time-based",
-                                                            track.OperationType.Bulk.to_hyphenated_string(),
+            task = workload.Task("time-based", workload.Operation("time-based",
+                                                            workload.OperationType.Bulk.to_hyphenated_string(),
                                                             params={
                                                                 "body": ["action_metadata_line", "index_line"],
                                                                 "action-metadata-present": True,
@@ -1396,7 +1397,7 @@ class AsyncExecutorTests(TestCase):
                               warmup_time_period=0.5, time_period=0.5, clients=4,
                               params={"target-throughput": target_throughput, "clients": 4})
 
-            param_source = track.operation_parameters(test_track, task)
+            param_source = workload.operation_parameters(test_workload, task)
             schedule = driver.schedule_for(task, 0, param_source)
             sampler = driver.Sampler(start_timestamp=0)
 
@@ -1444,7 +1445,7 @@ class AsyncExecutorTests(TestCase):
                 for invocation in invocations:
                     yield invocation
 
-        task = track.Task("no-op", track.Operation("no-op", track.OperationType.Bulk.to_hyphenated_string(),
+        task = workload.Task("no-op", workload.Operation("no-op", workload.OperationType.Bulk.to_hyphenated_string(),
                                                    params={},
                                                    param_source="driver-test-param-source"),
                           warmup_time_period=0.5, time_period=0.5, clients=4,

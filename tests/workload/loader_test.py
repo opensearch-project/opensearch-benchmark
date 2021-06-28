@@ -24,7 +24,7 @@ import urllib.error
 from unittest import TestCase
 
 from esrally import exceptions, config
-from esrally.track import loader, track
+from esrally.workload import loader, workload
 from esrally.utils import io
 
 
@@ -44,73 +44,73 @@ class StaticClock:
         return None
 
 
-class SimpleTrackRepositoryTests(TestCase):
+class SimpleWorkloadRepositoryTests(TestCase):
     @mock.patch("os.path.exists")
     @mock.patch("os.path.isdir")
-    def test_track_from_directory(self, is_dir, path_exists):
+    def test_workload_from_directory(self, is_dir, path_exists):
         is_dir.return_value = True
         path_exists.return_value = True
 
-        repo = loader.SimpleTrackRepository("/path/to/track/unit-test")
-        self.assertEqual("unit-test", repo.track_name)
-        self.assertEqual(["unit-test"], repo.track_names)
-        self.assertEqual("/path/to/track/unit-test", repo.track_dir("unit-test"))
-        self.assertEqual("/path/to/track/unit-test/track.json", repo.track_file("unit-test"))
+        repo = loader.SimpleWorkloadRepository("/path/to/workload/unit-test")
+        self.assertEqual("unit-test", repo.workload_name)
+        self.assertEqual(["unit-test"], repo.workload_names)
+        self.assertEqual("/path/to/workload/unit-test", repo.workload_dir("unit-test"))
+        self.assertEqual("/path/to/workload/unit-test/workload.json", repo.workload_file("unit-test"))
 
     @mock.patch("os.path.exists")
     @mock.patch("os.path.isdir")
     @mock.patch("os.path.isfile")
-    def test_track_from_file(self, is_file, is_dir, path_exists):
+    def test_workload_from_file(self, is_file, is_dir, path_exists):
         is_file.return_value = True
         is_dir.return_value = False
         path_exists.return_value = True
 
-        repo = loader.SimpleTrackRepository("/path/to/track/unit-test/my-track.json")
-        self.assertEqual("my-track", repo.track_name)
-        self.assertEqual(["my-track"], repo.track_names)
-        self.assertEqual("/path/to/track/unit-test", repo.track_dir("my-track"))
-        self.assertEqual("/path/to/track/unit-test/my-track.json", repo.track_file("my-track"))
+        repo = loader.SimpleWorkloadRepository("/path/to/workload/unit-test/my-workload.json")
+        self.assertEqual("my-workload", repo.workload_name)
+        self.assertEqual(["my-workload"], repo.workload_names)
+        self.assertEqual("/path/to/workload/unit-test", repo.workload_dir("my-workload"))
+        self.assertEqual("/path/to/workload/unit-test/my-workload.json", repo.workload_file("my-workload"))
 
     @mock.patch("os.path.exists")
     @mock.patch("os.path.isdir")
     @mock.patch("os.path.isfile")
-    def test_track_from_named_pipe(self, is_file, is_dir, path_exists):
+    def test_workload_from_named_pipe(self, is_file, is_dir, path_exists):
         is_file.return_value = False
         is_dir.return_value = False
         path_exists.return_value = True
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            loader.SimpleTrackRepository("a named pipe cannot point to a track")
-        self.assertEqual("a named pipe cannot point to a track is neither a file nor a directory", ctx.exception.args[0])
+            loader.SimpleWorkloadRepository("a named pipe cannot point to a workload")
+        self.assertEqual("a named pipe cannot point to a workload is neither a file nor a directory", ctx.exception.args[0])
 
     @mock.patch("os.path.exists")
-    def test_track_from_non_existing_path(self, path_exists):
+    def test_workload_from_non_existing_path(self, path_exists):
         path_exists.return_value = False
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            loader.SimpleTrackRepository("/path/does/not/exist")
-        self.assertEqual("Track path /path/does/not/exist does not exist", ctx.exception.args[0])
+            loader.SimpleWorkloadRepository("/path/does/not/exist")
+        self.assertEqual("Workload path /path/does/not/exist does not exist", ctx.exception.args[0])
 
     @mock.patch("os.path.isdir")
     @mock.patch("os.path.exists")
-    def test_track_from_directory_without_track(self, path_exists, is_dir):
+    def test_workload_from_directory_without_workload(self, path_exists, is_dir):
         # directory exists, but not the file
         path_exists.side_effect = [True, False]
         is_dir.return_value = True
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            loader.SimpleTrackRepository("/path/to/not/a/track")
-        self.assertEqual("Could not find track.json in /path/to/not/a/track", ctx.exception.args[0])
+            loader.SimpleWorkloadRepository("/path/to/not/a/workload")
+        self.assertEqual("Could not find workload.json in /path/to/not/a/workload", ctx.exception.args[0])
 
     @mock.patch("os.path.exists")
     @mock.patch("os.path.isdir")
     @mock.patch("os.path.isfile")
-    def test_track_from_file_but_not_json(self, is_file, is_dir, path_exists):
+    def test_workload_from_file_but_not_json(self, is_file, is_dir, path_exists):
         is_file.return_value = True
         is_dir.return_value = False
         path_exists.return_value = True
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            loader.SimpleTrackRepository("/path/to/track/unit-test/my-track.xml")
-        self.assertEqual("/path/to/track/unit-test/my-track.xml has to be a JSON file", ctx.exception.args[0])
+            loader.SimpleWorkloadRepository("/path/to/workload/unit-test/my-workload.xml")
+        self.assertEqual("/path/to/workload/unit-test/my-workload.xml has to be a JSON file", ctx.exception.args[0])
 
 
 class GitRepositoryTests(TestCase):
@@ -120,25 +120,25 @@ class GitRepositoryTests(TestCase):
 
     @mock.patch("os.path.exists")
     @mock.patch("os.walk")
-    def test_track_from_existing_repo(self, walk, exists):
+    def test_workload_from_existing_repo(self, walk, exists):
         walk.return_value = iter([(".", ["unittest", "unittest2", "unittest3"], [])])
         exists.return_value = True
         cfg = config.Config()
-        cfg.add(config.Scope.application, "track", "track.name", "unittest")
-        cfg.add(config.Scope.application, "track", "repository.name", "default")
+        cfg.add(config.Scope.application, "workload", "workload.name", "unittest")
+        cfg.add(config.Scope.application, "workload", "repository.name", "default")
         cfg.add(config.Scope.application, "system", "offline.mode", False)
         cfg.add(config.Scope.application, "node", "root.dir", "/tmp")
-        cfg.add(config.Scope.application, "benchmarks", "track.repository.dir", "tracks")
+        cfg.add(config.Scope.application, "benchmarks", "workload.repository.dir", "workloads")
 
-        repo = loader.GitTrackRepository(cfg, fetch=False, update=False, repo_class=GitRepositoryTests.MockGitRepo)
+        repo = loader.GitWorkloadRepository(cfg, fetch=False, update=False, repo_class=GitRepositoryTests.MockGitRepo)
 
-        self.assertEqual("unittest", repo.track_name)
-        self.assertEqual(["unittest", "unittest2", "unittest3"], list(repo.track_names))
-        self.assertEqual("/tmp/tracks/default/unittest", repo.track_dir("unittest"))
-        self.assertEqual("/tmp/tracks/default/unittest/track.json", repo.track_file("unittest"))
+        self.assertEqual("unittest", repo.workload_name)
+        self.assertEqual(["unittest", "unittest2", "unittest3"], list(repo.workload_names))
+        self.assertEqual("/tmp/workloads/default/unittest", repo.workload_dir("unittest"))
+        self.assertEqual("/tmp/workloads/default/unittest/workload.json", repo.workload_file("unittest"))
 
 
-class TrackPreparationTests(TestCase):
+class WorkloadPreparationTests(TestCase):
     @mock.patch("esrally.utils.io.prepare_file_offset_table")
     @mock.patch("os.path.getsize")
     @mock.patch("os.path.isfile")
@@ -147,11 +147,11 @@ class TrackPreparationTests(TestCase):
         get_size.return_value = 2000
         prepare_file_offset_table.return_value = 5
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
-        p.prepare_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                             document_file="docs.json",
                                                             document_archive="docs.json.bz2",
                                                             number_of_documents=5,
@@ -169,11 +169,11 @@ class TrackPreparationTests(TestCase):
         get_size.return_value = 2000
         prepare_file_offset_table.return_value = 5
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
-        p.prepare_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                             document_file="docs.json",
                                                             document_archive="docs.json.bz2",
                                                             number_of_documents=5,
@@ -195,12 +195,12 @@ class TrackPreparationTests(TestCase):
         # uncompressed is corrupt, only 1 byte available
         get_size.side_effect = [200, 1]
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.DataError) as ctx:
-            p.prepare_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                                 document_file="docs.json",
                                                                 document_archive="docs.json.bz2",
                                                                 number_of_documents=5,
@@ -222,12 +222,12 @@ class TrackPreparationTests(TestCase):
         # compressed file size is 200
         get_size.return_value = 200
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.DataError) as ctx:
-            p.prepare_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                                 base_url="http://benchmarks.elasticsearch.org/corpora/unit-test",
                                                                 document_file="docs.json",
                                                                 document_archive="docs.json.bz2",
@@ -235,7 +235,7 @@ class TrackPreparationTests(TestCase):
                                                                 compressed_size_in_bytes=200,
                                                                 uncompressed_size_in_bytes=2000),
                                    data_root="/tmp")
-        self.assertEqual("Decompressing [/tmp/docs.json.bz2] did not create [/tmp/docs.json]. Please check with the track author if the "
+        self.assertEqual("Decompressing [/tmp/docs.json.bz2] did not create [/tmp/docs.json]. Please check with the workload author if the "
                          "compressed archive has been created correctly.", ctx.exception.args[0])
 
         decompress.assert_called_with("/tmp/docs.json.bz2", "/tmp")
@@ -263,11 +263,11 @@ class TrackPreparationTests(TestCase):
 
         prepare_file_offset_table.return_value = 5
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
-        p.prepare_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                             base_url="http://benchmarks.elasticsearch.org/corpora/unit-test",
                                                             document_file="docs.json",
                                                             document_archive="docs.json.bz2",
@@ -300,11 +300,11 @@ class TrackPreparationTests(TestCase):
 
         prepare_file_offset_table.return_value = 5
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
-        p.prepare_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                             base_url=f"{scheme}://benchmarks.elasticsearch.org/corpora/unit-test/",
                                                             document_file="docs.json",
                                                             # --> We don't provide a document archive here <--
@@ -334,11 +334,11 @@ class TrackPreparationTests(TestCase):
 
         prepare_file_offset_table.return_value = 5
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
-        p.prepare_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                             base_url="http://benchmarks.elasticsearch.org/corpora/unit-test",
                                                             document_file="docs.json",
                                                             # --> We don't provide a document archive here <--
@@ -360,12 +360,12 @@ class TrackPreparationTests(TestCase):
         # uncompressed file does not exist
         is_file.return_value = False
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=True, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            p.prepare_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                                 base_url="http://benchmarks.elasticsearch.org/corpora/unit-test",
                                                                 document_file="docs.json",
                                                                 number_of_documents=5,
@@ -384,12 +384,12 @@ class TrackPreparationTests(TestCase):
         # uncompressed file does not exist
         is_file.return_value = False
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.DataError) as ctx:
-            p.prepare_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                                 base_url=None,
                                                                 document_file="docs.json",
                                                                 document_archive=None,
@@ -412,12 +412,12 @@ class TrackPreparationTests(TestCase):
         # but it's size is wrong
         get_size.return_value = 100
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.DataError) as ctx:
-            p.prepare_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                                 document_file="docs.json",
                                                                 number_of_documents=5,
                                                                 uncompressed_size_in_bytes=2000),
@@ -439,19 +439,19 @@ class TrackPreparationTests(TestCase):
         download.side_effect = urllib.error.HTTPError("http://benchmarks.elasticsearch.org.s3.amazonaws.com/corpora/unit-test/docs-1k.json",
                                                       404, "", None, None)
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=False, test_mode=True),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.DataError) as ctx:
-            p.prepare_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                                 base_url="http://benchmarks.elasticsearch.org/corpora/unit-test",
                                                                 document_file="docs-1k.json",
                                                                 number_of_documents=5,
                                                                 uncompressed_size_in_bytes=None),
                                    data_root="/tmp")
 
-        self.assertEqual("This track does not support test mode. Ask the track author to add it or disable "
+        self.assertEqual("This workload does not support test mode. Ask the workload author to add it or disable "
                          "test mode and retry.", ctx.exception.args[0])
 
         ensure_dir.assert_called_with("/tmp")
@@ -468,12 +468,12 @@ class TrackPreparationTests(TestCase):
         download.side_effect = urllib.error.HTTPError("http://benchmarks.elasticsearch.org/corpora/unit-test/docs.json",
                                                       500, "Internal Server Error", None, None)
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.DataError) as ctx:
-            p.prepare_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                                 base_url="http://benchmarks.elasticsearch.org/corpora/unit-test",
                                                                 document_file="docs.json",
                                                                 number_of_documents=5,
@@ -497,11 +497,11 @@ class TrackPreparationTests(TestCase):
         get_size.side_effect = [2000]
         prepare_file_offset_table.return_value = 5
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
-        self.assertTrue(p.prepare_bundled_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        self.assertTrue(p.prepare_bundled_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                                                     document_file="docs.json",
                                                                                     document_archive="docs.json.bz2",
                                                                                     number_of_documents=5,
@@ -519,11 +519,11 @@ class TrackPreparationTests(TestCase):
         # no files present
         is_file.return_value = False
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
-        self.assertFalse(p.prepare_bundled_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        self.assertFalse(p.prepare_bundled_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                                                      document_file="docs.json",
                                                                                      document_archive="docs.json.bz2",
                                                                                      number_of_documents=5,
@@ -535,7 +535,7 @@ class TrackPreparationTests(TestCase):
         self.assertEqual(0, prepare_file_offset_table.call_count)
 
     def test_used_corpora(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [
                 {"name": "logs-181998"},
@@ -654,9 +654,9 @@ class TrackPreparationTests(TestCase):
                 }
             ]
         }
-        reader = loader.TrackSpecificationReader(selected_challenge="default-challenge")
-        full_track = reader("unittest", track_specification, "/mappings")
-        used_corpora = sorted(loader.used_corpora(full_track), key=lambda c: c.name)
+        reader = loader.WorkloadSpecificationReader(selected_challenge="default-challenge")
+        full_workload = reader("unittest", workload_specification, "/mappings")
+        used_corpora = sorted(loader.used_corpora(full_workload), key=lambda c: c.name)
         self.assertEqual(2, len(used_corpora))
         self.assertEqual("http_logs", used_corpora[0].name)
         # each bulk operation requires a different data file but they should have been merged properly.
@@ -682,11 +682,11 @@ class TrackPreparationTests(TestCase):
         get_size.side_effect = [200, 2000, 2000]
         prepare_file_offset_table.return_value = 5
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
-        self.assertTrue(p.prepare_bundled_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        self.assertTrue(p.prepare_bundled_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                                                     document_file="docs.json",
                                                                                     document_archive="docs.json.bz2",
                                                                                     number_of_documents=5,
@@ -705,12 +705,12 @@ class TrackPreparationTests(TestCase):
         # compressed has wrong size
         get_size.side_effect = [150]
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.DataError) as ctx:
-            p.prepare_bundled_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            p.prepare_bundled_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                                         document_file="docs.json",
                                                                         document_archive="docs.json.bz2",
                                                                         number_of_documents=5,
@@ -731,12 +731,12 @@ class TrackPreparationTests(TestCase):
         # uncompressed
         get_size.side_effect = [1500]
 
-        p = loader.DocumentSetPreparator(track_name="unit-test",
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
                                          downloader=loader.Downloader(offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.DataError) as ctx:
-            p.prepare_bundled_document_set(document_set=track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            p.prepare_bundled_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                                         document_file="docs.json",
                                                                         document_archive="docs.json.bz2",
                                                                         number_of_documents=5,
@@ -753,11 +753,11 @@ class TemplateSource(TestCase):
     @mock.patch("esrally.utils.io.dirname")
     @mock.patch.object(loader.TemplateSource, "read_glob_files")
     def test_entrypoint_of_replace_includes(self, patched_read_glob, patched_dirname):
-        track = textwrap.dedent("""
+        workload = textwrap.dedent("""
         {% import "rally.helpers" as rally with context %}
         {
           "version": 2,
-          "description": "unittest track",
+          "description": "unittest workload",
           "data-url": "http://benchmarks.elasticsearch.org.s3.amazonaws.com/corpora/geonames",
           "indices": [
             {
@@ -793,15 +793,15 @@ class TemplateSource(TestCase):
 
         patched_read_glob.side_effect = dummy_read_glob
 
-        base_path = "~/.rally/benchmarks/tracks/default/geonames"
-        template_file_name = "track.json"
+        base_path = "~/.rally/benchmarks/workloads/default/geonames"
+        template_file_name = "workload.json"
         tmpl_src = loader.TemplateSource(base_path, template_file_name)
         # pylint: disable=trailing-whitespace
         expected_response = textwrap.dedent("""                                
             {% import "rally.helpers" as rally with context %}
             {
               "version": 2,
-              "description": "unittest track",
+              "description": "unittest workload",
               "data-url": "http://benchmarks.elasticsearch.org.s3.amazonaws.com/corpora/geonames",
               "indices": [
                 {
@@ -824,29 +824,29 @@ class TemplateSource(TestCase):
                 }
               ],
               "operations": [
-                {"replaced ~/.rally/benchmarks/tracks/default/geonames/operations/*.json": "true"}
+                {"replaced ~/.rally/benchmarks/workloads/default/geonames/operations/*.json": "true"}
               ],
               "challenges": [
-                {"replaced ~/.rally/benchmarks/tracks/default/geonames/challenges/*.json": "true"}
+                {"replaced ~/.rally/benchmarks/workloads/default/geonames/challenges/*.json": "true"}
               ]
             }
             """)
 
         self.assertEqual(
             expected_response,
-            tmpl_src.replace_includes(base_path, track)
+            tmpl_src.replace_includes(base_path, workload)
         )
 
     def test_read_glob_files(self):
         tmpl_obj = loader.TemplateSource(
-            base_path="/some/path/to/a/rally/track",
-            template_file_name="track.json",
+            base_path="/some/path/to/a/rally/workload",
+            template_file_name="workload.json",
             fileglobber=lambda pat: [
-                os.path.join(os.path.dirname(__file__), "resources", "track_fragment_1.json"),
-                os.path.join(os.path.dirname(__file__), "resources", "track_fragment_2.json")
+                os.path.join(os.path.dirname(__file__), "resources", "workload_fragment_1.json"),
+                os.path.join(os.path.dirname(__file__), "resources", "workload_fragment_2.json")
             ]
         )
-        response = tmpl_obj.read_glob_files("*track_fragment_*.json")
+        response = tmpl_obj.read_glob_files("*workload_fragment_*.json")
         expected_response = '{\n  "item1": "value1"\n}\n,\n{\n  "item2": "value2"\n}\n'
 
         self.assertEqual(expected_response, response)
@@ -924,7 +924,7 @@ class TemplateRenderTests(TestCase):
             ]
         })
 
-        template_source = loader.TemplateSource("", "track.json", source=source, fileglobber=key_globber)
+        template_source = loader.TemplateSource("", "workload.json", source=source, fileglobber=key_globber)
         template_source.load_template_from_string(template)
 
         rendered = loader.render_template(
@@ -971,7 +971,7 @@ class TemplateRenderTests(TestCase):
         self.assertEqual(strip_ws(expected), strip_ws(actual))
 
 
-class CompleteTrackParamsTests(TestCase):
+class CompleteWorkloadParamsTests(TestCase):
     assembled_source = textwrap.dedent("""{% import "rally.helpers" as rally with context %}
         "key1": "value1",
         "key2": {{ value2 | default(3) }},
@@ -979,33 +979,33 @@ class CompleteTrackParamsTests(TestCase):
         "key4": {{ value2 | default(3) }}
     """)
 
-    def test_check_complete_track_params_contains_all_track_params(self):
-        complete_track_params = loader.CompleteTrackParams()
-        loader.register_all_params_in_track(CompleteTrackParamsTests.assembled_source, complete_track_params)
+    def test_check_complete_workload_params_contains_all_workload_params(self):
+        complete_workload_params = loader.CompleteWorkloadParams()
+        loader.register_all_params_in_workload(CompleteWorkloadParamsTests.assembled_source, complete_workload_params)
 
         self.assertEqual(
             ["value2", "value3"],
-            complete_track_params.sorted_track_defined_params
+            complete_workload_params.sorted_workload_defined_params
         )
 
-    def test_check_complete_track_params_does_not_fail_with_no_track_params(self):
-        complete_track_params = loader.CompleteTrackParams()
-        loader.register_all_params_in_track('{}', complete_track_params)
+    def test_check_complete_workload_params_does_not_fail_with_no_workload_params(self):
+        complete_workload_params = loader.CompleteWorkloadParams()
+        loader.register_all_params_in_workload('{}', complete_workload_params)
 
         self.assertEqual(
             [],
-            complete_track_params.sorted_track_defined_params
+            complete_workload_params.sorted_workload_defined_params
         )
 
-    def test_unused_user_defined_track_params(self):
-        track_params = {
+    def test_unused_user_defined_workload_params(self):
+        workload_params = {
             "number_of_repliacs": 1,  # deliberate typo
             "enable_source": True,  # unknown parameter
             "number_of_shards": 5
         }
 
-        complete_track_params = loader.CompleteTrackParams(user_specified_track_params=track_params)
-        complete_track_params.populate_track_defined_params(list_of_track_params=[
+        complete_workload_params = loader.CompleteWorkloadParams(user_specified_workload_params=workload_params)
+        complete_workload_params.populate_workload_defined_params(list_of_workload_params=[
             "bulk_indexing_clients",
             "bulk_indexing_iterations",
             "bulk_size",
@@ -1016,12 +1016,12 @@ class CompleteTrackParamsTests(TestCase):
 
         self.assertEqual(
             ["enable_source", "number_of_repliacs"],
-            sorted(complete_track_params.unused_user_defined_track_params())
+            sorted(complete_workload_params.unused_user_defined_workload_params())
         )
 
-    def test_unused_user_defined_track_params_doesnt_fail_with_detaults(self):
-        complete_track_params = loader.CompleteTrackParams()
-        complete_track_params.populate_track_defined_params(list_of_track_params=[
+    def test_unused_user_defined_workload_params_doesnt_fail_with_detaults(self):
+        complete_workload_params = loader.CompleteWorkloadParams()
+        complete_workload_params.populate_workload_defined_params(list_of_workload_params=[
             "bulk_indexing_clients",
             "bulk_indexing_iterations",
             "bulk_size",
@@ -1032,12 +1032,12 @@ class CompleteTrackParamsTests(TestCase):
 
         self.assertEqual(
             [],
-            sorted(complete_track_params.unused_user_defined_track_params())
+            sorted(complete_workload_params.unused_user_defined_workload_params())
         )
 
 
-class TrackPostProcessingTests(TestCase):
-    track_with_params_as_string = textwrap.dedent("""{
+class WorkloadPostProcessingTests(TestCase):
+    workload_with_params_as_string = textwrap.dedent("""{
         "indices": [
             {
                 "name": "test-index",
@@ -1113,8 +1113,8 @@ class TrackPostProcessingTests(TestCase):
         ]
     }""")
 
-    def test_post_processes_track_spec(self):
-        track_specification = {
+    def test_post_processes_workload_spec(self):
+        workload_specification = {
             "indices": [
                 {
                     "name": "test-index",
@@ -1262,37 +1262,37 @@ class TrackPostProcessingTests(TestCase):
             ]
         }
 
-        complete_track_params = loader.CompleteTrackParams()
+        complete_workload_params = loader.CompleteWorkloadParams()
         index_body = '{"settings": {"index.number_of_shards": {{ number_of_shards | default(5) }}, '\
                      '"index.number_of_replicas": {{ number_of_replicas | default(0)}} }}'
 
         cfg = config.Config()
-        cfg.add(config.Scope.application, "track", "test.mode.enabled", True)
+        cfg.add(config.Scope.application, "workload", "test.mode.enabled", True)
 
         self.assertEqual(
-            self.as_track(expected_post_processed, complete_track_params=complete_track_params, index_body=index_body),
-            loader.TestModeTrackProcessor(cfg).on_after_load_track(
-                self.as_track(track_specification, complete_track_params=complete_track_params, index_body=index_body)
+            self.as_workload(expected_post_processed, complete_workload_params=complete_workload_params, index_body=index_body),
+            loader.TestModeWorkloadProcessor(cfg).on_after_load_workload(
+                self.as_workload(workload_specification, complete_workload_params=complete_workload_params, index_body=index_body)
             )
         )
 
         self.assertEqual(
             ["number_of_replicas", "number_of_shards"],
-            complete_track_params.sorted_track_defined_params
+            complete_workload_params.sorted_workload_defined_params
         )
 
-    def as_track(self, track_specification, track_params=None, complete_track_params=None, index_body=None):
-        reader = loader.TrackSpecificationReader(
-            track_params=track_params,
-            complete_track_params=complete_track_params,
+    def as_workload(self, workload_specification, workload_params=None, complete_workload_params=None, index_body=None):
+        reader = loader.WorkloadSpecificationReader(
+            workload_params=workload_params,
+            complete_workload_params=complete_workload_params,
             source=io.DictStringFileSourceFactory({
                 "/mappings/test-index-body.json": [index_body]
             })
         )
-        return reader("unittest", track_specification, "/mappings")
+        return reader("unittest", workload_specification, "/mappings")
 
 
-class TrackPathTests(TestCase):
+class WorkloadPathTests(TestCase):
     @mock.patch("os.path.exists")
     def test_sets_absolute_path(self, path_exists):
         path_exists.return_value = True
@@ -1300,19 +1300,19 @@ class TrackPathTests(TestCase):
         cfg = config.Config()
         cfg.add(config.Scope.application, "benchmarks", "local.dataset.cache", "/data")
 
-        default_challenge = track.Challenge("default", default=True, schedule=[
-            track.Task(name="index", operation=track.Operation("index", operation_type=track.OperationType.Bulk), clients=4)
+        default_challenge = workload.Challenge("default", default=True, schedule=[
+            workload.Task(name="index", operation=workload.Operation("index", operation_type=workload.OperationType.Bulk), clients=4)
         ])
-        another_challenge = track.Challenge("other", default=False)
-        t = track.Track(name="u", challenges=[another_challenge, default_challenge],
+        another_challenge = workload.Challenge("other", default=False)
+        t = workload.Workload(name="u", challenges=[another_challenge, default_challenge],
                         corpora=[
-                            track.DocumentCorpus("unittest", documents=[
-                                track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+                            workload.DocumentCorpus("unittest", documents=[
+                                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                 document_file="docs/documents.json",
                                                 document_archive="docs/documents.json.bz2")
                             ])
                         ],
-                        indices=[track.Index(name="test", types=["docs"])])
+                        indices=[workload.Index(name="test", types=["docs"])])
 
         loader.set_absolute_data_path(cfg, t)
 
@@ -1320,28 +1320,28 @@ class TrackPathTests(TestCase):
         self.assertEqual("/data/unittest/docs/documents.json.bz2", t.corpora[0].documents[0].document_archive)
 
 
-class TrackFilterTests(TestCase):
-    def filter(self, track_specification, include_tasks=None, exclude_tasks=None):
+class WorkloadFilterTests(TestCase):
+    def filter(self, workload_specification, include_tasks=None, exclude_tasks=None):
         cfg = config.Config()
-        cfg.add(config.Scope.application, "track", "include.tasks", include_tasks)
-        cfg.add(config.Scope.application, "track", "exclude.tasks", exclude_tasks)
+        cfg.add(config.Scope.application, "workload", "include.tasks", include_tasks)
+        cfg.add(config.Scope.application, "workload", "exclude.tasks", exclude_tasks)
 
-        processor = loader.TaskFilterTrackProcessor(cfg)
-        return processor.on_after_load_track(track_specification)
+        processor = loader.TaskFilterWorkloadProcessor(cfg)
+        return processor.on_after_load_workload(workload_specification)
 
     def test_rejects_invalid_syntax(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            self.filter(track_specification=None, include_tasks=["valid", "a:b:c"])
+            self.filter(workload_specification=None, include_tasks=["valid", "a:b:c"])
         self.assertEqual("Invalid format for filtered tasks: [a:b:c]", ctx.exception.args[0])
 
     def test_rejects_unknown_filter_type(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            self.filter(track_specification=None, include_tasks=["valid", "op-type:index"])
+            self.filter(workload_specification=None, include_tasks=["valid", "op-type:index"])
         self.assertEqual("Invalid format for filtered tasks: [op-type:index]. Expected [type] but got [op-type].",
                          ctx.exception.args[0])
 
     def test_filters_tasks(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index", "auto-managed": False}],
             "operations": [
@@ -1439,11 +1439,11 @@ class TrackFilterTests(TestCase):
                 }
             ]
         }
-        reader = loader.TrackSpecificationReader()
-        full_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(7, len(full_track.challenges[0].schedule))
+        reader = loader.WorkloadSpecificationReader()
+        full_workload = reader("unittest", workload_specification, "/mappings")
+        self.assertEqual(7, len(full_workload.challenges[0].schedule))
 
-        filtered = self.filter(full_track, include_tasks=["index-3",
+        filtered = self.filter(full_workload, include_tasks=["index-3",
                                                           "type:search",
                                                           # Filtering should also work for non-core operation types.
                                                           "type:custom-operation-type",
@@ -1458,7 +1458,7 @@ class TrackFilterTests(TestCase):
         self.assertEqual("final-cluster-stats", schedule[4].name)
 
     def test_filters_exclude_tasks(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index", "auto-managed": False}],
             "operations": [
@@ -1531,11 +1531,11 @@ class TrackFilterTests(TestCase):
                 }
             ]
         }
-        reader = loader.TrackSpecificationReader()
-        full_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(5, len(full_track.challenges[0].schedule))
+        reader = loader.WorkloadSpecificationReader()
+        full_workload = reader("unittest", workload_specification, "/mappings")
+        self.assertEqual(5, len(full_workload.challenges[0].schedule))
 
-        filtered = self.filter(full_track, exclude_tasks=["index-3", "type:search", "create-index"])
+        filtered = self.filter(full_workload, exclude_tasks=["index-3", "type:search", "create-index"])
 
         schedule = filtered.challenges[0].schedule
         self.assertEqual(3, len(schedule))
@@ -1544,7 +1544,7 @@ class TrackFilterTests(TestCase):
         self.assertEqual("cluster-stats", schedule[2].name)
 
     def test_unmatched_exclude_runs_everything(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index", "auto-managed": False}],
             "operations": [
@@ -1599,18 +1599,18 @@ class TrackFilterTests(TestCase):
             ]
         }
 
-        reader = loader.TrackSpecificationReader()
-        full_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(5, len(full_track.challenges[0].schedule))
+        reader = loader.WorkloadSpecificationReader()
+        full_workload = reader("unittest", workload_specification, "/mappings")
+        self.assertEqual(5, len(full_workload.challenges[0].schedule))
 
-        expected_schedule = full_track.challenges[0].schedule.copy()
-        filtered = self.filter(full_track, exclude_tasks=["nothing"])
+        expected_schedule = full_workload.challenges[0].schedule.copy()
+        filtered = self.filter(full_workload, exclude_tasks=["nothing"])
 
         schedule = filtered.challenges[0].schedule
         self.assertEqual(expected_schedule, schedule)
 
     def test_unmatched_include_runs_nothing(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index", "auto-managed": False}],
             "operations": [
@@ -1665,32 +1665,32 @@ class TrackFilterTests(TestCase):
             ]
         }
 
-        reader = loader.TrackSpecificationReader()
-        full_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(5, len(full_track.challenges[0].schedule))
+        reader = loader.WorkloadSpecificationReader()
+        full_workload = reader("unittest", workload_specification, "/mappings")
+        self.assertEqual(5, len(full_workload.challenges[0].schedule))
 
         expected_schedule = []
-        filtered = self.filter(full_track, include_tasks=["nothing"])
+        filtered = self.filter(full_workload, include_tasks=["nothing"])
 
         schedule = filtered.challenges[0].schedule
         self.assertEqual(expected_schedule, schedule)
 
 
 # pylint: disable=too-many-public-methods
-class TrackSpecificationReaderTests(TestCase):
+class WorkloadSpecificationReaderTests(TestCase):
     def test_description_is_optional(self):
-        track_specification = {
+        workload_specification = {
             # no description here
             "challenges": []
         }
-        reader = loader.TrackSpecificationReader()
+        reader = loader.WorkloadSpecificationReader()
 
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual("unittest", resulting_track.name)
-        self.assertEqual("", resulting_track.description)
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("unittest", resulting_workload.name)
+        self.assertEqual("", resulting_workload.description)
 
-    def test_can_read_track_info(self):
-        track_specification = {
+    def test_can_read_workload_info(self):
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index", "types": ["test-type"]}],
             "data-streams": [],
@@ -1698,13 +1698,13 @@ class TrackSpecificationReaderTests(TestCase):
             "operations": [],
             "challenges": []
         }
-        reader = loader.TrackSpecificationReader()
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual("unittest", resulting_track.name)
-        self.assertEqual("description for unit test", resulting_track.description)
+        reader = loader.WorkloadSpecificationReader()
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("unittest", resulting_workload.name)
+        self.assertEqual("description for unit test", resulting_workload.description)
 
     def test_document_count_mandatory_if_file_present(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index", "types": ["docs"]}],
             "corpora": [
@@ -1716,14 +1716,14 @@ class TrackSpecificationReaderTests(TestCase):
             ],
             "challenges": []
         }
-        reader = loader.TrackSpecificationReader()
-        with self.assertRaises(loader.TrackSyntaxError) as ctx:
-            reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Mandatory element 'document-count' is missing.", ctx.exception.args[0])
+        reader = loader.WorkloadSpecificationReader()
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("Workload 'unittest' is invalid. Mandatory element 'document-count' is missing.", ctx.exception.args[0])
 
-    @mock.patch("esrally.track.loader.register_all_params_in_track")
+    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
     def test_parse_with_mixed_warmup_iterations_and_measurement(self, mocked_params_checker):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [
                 {
@@ -1768,18 +1768,18 @@ class TrackSpecificationReaderTests(TestCase):
             ]
         }
 
-        reader = loader.TrackSpecificationReader(source=io.DictStringFileSourceFactory({
+        reader = loader.WorkloadSpecificationReader(source=io.DictStringFileSourceFactory({
             "/mappings/index.json": ['{"mappings": {"docs": "empty-for-test"}}'],
         }))
-        with self.assertRaises(loader.TrackSyntaxError) as ctx:
-            reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Operation 'index-append' in challenge 'default-challenge' defines '3' warmup "
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("Workload 'unittest' is invalid. Operation 'index-append' in challenge 'default-challenge' defines '3' warmup "
                          "iterations and a time period of '60' seconds. Please do not mix time periods and iterations.",
                          ctx.exception.args[0])
 
-    @mock.patch("esrally.track.loader.register_all_params_in_track")
+    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
     def test_parse_missing_challenge_or_challenges(self, mocked_params_checker):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [
                 {
@@ -1803,17 +1803,17 @@ class TrackSpecificationReaderTests(TestCase):
             ],
             # no challenge or challenges element
         }
-        reader = loader.TrackSpecificationReader(source=io.DictStringFileSourceFactory({
+        reader = loader.WorkloadSpecificationReader(source=io.DictStringFileSourceFactory({
             "/mappings/index.json": ['{"mappings": {"docs": "empty-for-test"}}'],
         }))
-        with self.assertRaises(loader.TrackSyntaxError) as ctx:
-            reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. You must define 'challenge', 'challenges' or 'schedule' but none is specified.",
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("Workload 'unittest' is invalid. You must define 'challenge', 'challenges' or 'schedule' but none is specified.",
                          ctx.exception.args[0])
 
-    @mock.patch("esrally.track.loader.register_all_params_in_track")
+    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
     def test_parse_challenge_and_challenges_are_defined(self, mocked_params_checker):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [
                 {
@@ -1839,17 +1839,17 @@ class TrackSpecificationReaderTests(TestCase):
             "challenge": {},
             "challenges": []
         }
-        reader = loader.TrackSpecificationReader(source=io.DictStringFileSourceFactory({
+        reader = loader.WorkloadSpecificationReader(source=io.DictStringFileSourceFactory({
             "/mappings/index.json": ['{"mappings": {"docs": "empty-for-test"}}'],
         }))
-        with self.assertRaises(loader.TrackSyntaxError) as ctx:
-            reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Multiple out of 'challenge', 'challenges' or 'schedule' are defined but only "
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("Workload 'unittest' is invalid. Multiple out of 'challenge', 'challenges' or 'schedule' are defined but only "
                          "one of them is allowed.", ctx.exception.args[0])
 
-    @mock.patch("esrally.track.loader.register_all_params_in_track")
+    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
     def test_parse_with_mixed_warmup_time_period_and_iterations(self, mocked_params_checker):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [
                 {
@@ -1894,17 +1894,17 @@ class TrackSpecificationReaderTests(TestCase):
             ]
         }
 
-        reader = loader.TrackSpecificationReader(source=io.DictStringFileSourceFactory({
+        reader = loader.WorkloadSpecificationReader(source=io.DictStringFileSourceFactory({
             "/mappings/index.json": ['{"mappings": {"docs": "empty-for-test"}}'],
         }))
-        with self.assertRaises(loader.TrackSyntaxError) as ctx:
-            reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Operation 'index-append' in challenge 'default-challenge' defines a warmup time "
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("Workload 'unittest' is invalid. Operation 'index-append' in challenge 'default-challenge' defines a warmup time "
                          "period of '20' seconds and '1000' iterations. Please do not mix time periods and iterations.",
                          ctx.exception.args[0])
 
     def test_parse_duplicate_implicit_task_names(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "operations": [
                 {
@@ -1927,15 +1927,16 @@ class TrackSpecificationReaderTests(TestCase):
                 ]
             }
         }
-        reader = loader.TrackSpecificationReader()
-        with self.assertRaises(loader.TrackSyntaxError) as ctx:
-            reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Challenge 'default-challenge' contains multiple tasks with the name 'search'. Please"
+        reader = loader.WorkloadSpecificationReader()
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("Workload 'unittest' is invalid. Challenge 'default-challenge' contains "
+                         "multiple tasks with the name 'search'. Please"
                          " use the task's name property to assign a unique name for each task.",
                          ctx.exception.args[0])
 
     def test_parse_duplicate_explicit_task_names(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "operations": [
                 {
@@ -1960,16 +1961,16 @@ class TrackSpecificationReaderTests(TestCase):
                 ]
             }
         }
-        reader = loader.TrackSpecificationReader()
-        with self.assertRaises(loader.TrackSyntaxError) as ctx:
-            reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Challenge 'default-challenge' contains multiple tasks with the name "
+        reader = loader.WorkloadSpecificationReader()
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("Workload 'unittest' is invalid. Challenge 'default-challenge' contains multiple tasks with the name "
                          "'duplicate-task-name'. Please use the task's name property to assign a unique name for each task.",
                          ctx.exception.args[0])
 
-    @mock.patch("esrally.track.loader.register_all_params_in_track")
+    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
     def test_load_invalid_index_body(self, mocked_params_checker):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [
                 {
@@ -2002,8 +2003,8 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        reader = loader.TrackSpecificationReader(
-            track_params={"number_of_shards": 3},
+        reader = loader.WorkloadSpecificationReader(
+            workload_params={"number_of_shards": 3},
             source=io.DictStringFileSourceFactory({
                 "/mappings/body.json": ["""
             {
@@ -2016,12 +2017,12 @@ class TrackSpecificationReaderTests(TestCase):
             }
             """]
             }))
-        with self.assertRaises(loader.TrackSyntaxError) as ctx:
-            reader("unittest", track_specification, "/mappings")
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
         self.assertEqual("Could not load file template for 'definition for index index-historical in body.json'", ctx.exception.args[0])
 
     def test_parse_unique_task_names(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "operations": [
                 {
@@ -2046,10 +2047,10 @@ class TrackSpecificationReaderTests(TestCase):
                 ]
             }
         }
-        reader = loader.TrackSpecificationReader(selected_challenge="default-challenge")
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual("unittest", resulting_track.name)
-        challenge = resulting_track.challenges[0]
+        reader = loader.WorkloadSpecificationReader(selected_challenge="default-challenge")
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("unittest", resulting_workload.name)
+        challenge = resulting_workload.challenges[0]
         self.assertTrue(challenge.selected)
         schedule = challenge.schedule
         self.assertEqual(2, len(schedule))
@@ -2058,8 +2059,8 @@ class TrackSpecificationReaderTests(TestCase):
         self.assertEqual("search-two-clients", schedule[1].name)
         self.assertEqual("search", schedule[1].operation.name)
 
-    def test_parse_indices_valid_track_specification(self):
-        track_specification = {
+    def test_parse_indices_valid_workload_specification(self):
+        workload_specification = {
             "description": "description for unit test",
             "indices": [
                 {
@@ -2142,10 +2143,10 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        complete_track_params = loader.CompleteTrackParams()
-        reader = loader.TrackSpecificationReader(
-            track_params={"number_of_shards": 3},
-            complete_track_params=complete_track_params,
+        complete_workload_params = loader.CompleteWorkloadParams()
+        reader = loader.WorkloadSpecificationReader(
+            workload_params={"number_of_shards": 3},
+            complete_workload_params=complete_workload_params,
             source=io.DictStringFileSourceFactory({
                 "/mappings/body.json": ["""
             {
@@ -2159,17 +2160,17 @@ class TrackSpecificationReaderTests(TestCase):
             }
             """]
             }))
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        # j2 variables defined in the track -- used for checking mismatching user track params
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        # j2 variables defined in the workload -- used for checking mismatching user workload params
         self.assertEqual(
             ["number_of_shards"],
-            complete_track_params.sorted_track_defined_params
+            complete_workload_params.sorted_workload_defined_params
         )
-        self.assertEqual("unittest", resulting_track.name)
-        self.assertEqual("description for unit test", resulting_track.description)
+        self.assertEqual("unittest", resulting_workload.name)
+        self.assertEqual("description for unit test", resulting_workload.description)
         # indices
-        self.assertEqual(1, len(resulting_track.indices))
-        self.assertEqual("index-historical", resulting_track.indices[0].name)
+        self.assertEqual(1, len(resulting_workload.indices))
+        self.assertEqual("index-historical", resulting_workload.indices[0].name)
         self.assertDictEqual({
             "settings": {
                 "number_of_shards": 3
@@ -2179,18 +2180,18 @@ class TrackSpecificationReaderTests(TestCase):
                     "main": "empty-for-test",
                     "secondary": "empty-for-test"
                 }
-        }, resulting_track.indices[0].body)
-        self.assertEqual(2, len(resulting_track.indices[0].types))
-        self.assertEqual("main", resulting_track.indices[0].types[0])
-        self.assertEqual("secondary", resulting_track.indices[0].types[1])
+        }, resulting_workload.indices[0].body)
+        self.assertEqual(2, len(resulting_workload.indices[0].types))
+        self.assertEqual("main", resulting_workload.indices[0].types[0])
+        self.assertEqual("secondary", resulting_workload.indices[0].types[1])
         # corpora
-        self.assertEqual(1, len(resulting_track.corpora))
-        self.assertEqual("test", resulting_track.corpora[0].name)
-        self.assertDictEqual({"test-corpus": True}, resulting_track.corpora[0].meta_data)
-        self.assertEqual(2, len(resulting_track.corpora[0].documents))
+        self.assertEqual(1, len(resulting_workload.corpora))
+        self.assertEqual("test", resulting_workload.corpora[0].name)
+        self.assertDictEqual({"test-corpus": True}, resulting_workload.corpora[0].meta_data)
+        self.assertEqual(2, len(resulting_workload.corpora[0].documents))
 
-        docs_primary = resulting_track.corpora[0].documents[0]
-        self.assertEqual(track.Documents.SOURCE_FORMAT_BULK, docs_primary.source_format)
+        docs_primary = resulting_workload.corpora[0].documents[0]
+        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK, docs_primary.source_format)
         self.assertEqual("documents-main.json", docs_primary.document_file)
         self.assertEqual("documents-main.json.bz2", docs_primary.document_archive)
         self.assertEqual("https://localhost/data", docs_primary.base_url)
@@ -2205,8 +2206,8 @@ class TrackSpecificationReaderTests(TestCase):
             "role": "main"
         }, docs_primary.meta_data)
 
-        docs_secondary = resulting_track.corpora[0].documents[1]
-        self.assertEqual(track.Documents.SOURCE_FORMAT_BULK, docs_secondary.source_format)
+        docs_secondary = resulting_workload.corpora[0].documents[1]
+        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK, docs_secondary.source_format)
         self.assertEqual("documents-secondary.json", docs_secondary.document_file)
         self.assertEqual("documents-secondary.json.bz2", docs_secondary.document_archive)
         self.assertEqual("https://localhost/data", docs_secondary.base_url)
@@ -2223,15 +2224,15 @@ class TrackSpecificationReaderTests(TestCase):
         }, docs_secondary.meta_data)
 
         # challenges
-        self.assertEqual(1, len(resulting_track.challenges))
-        self.assertEqual("default-challenge", resulting_track.challenges[0].name)
-        self.assertEqual("Default challenge", resulting_track.challenges[0].description)
-        self.assertEqual({"mixed": True, "max-clients": 8}, resulting_track.challenges[0].meta_data)
-        self.assertEqual({"append": True}, resulting_track.challenges[0].schedule[0].operation.meta_data)
-        self.assertEqual({"operation-index": 0}, resulting_track.challenges[0].schedule[0].meta_data)
+        self.assertEqual(1, len(resulting_workload.challenges))
+        self.assertEqual("default-challenge", resulting_workload.challenges[0].name)
+        self.assertEqual("Default challenge", resulting_workload.challenges[0].description)
+        self.assertEqual({"mixed": True, "max-clients": 8}, resulting_workload.challenges[0].meta_data)
+        self.assertEqual({"append": True}, resulting_workload.challenges[0].schedule[0].operation.meta_data)
+        self.assertEqual({"operation-index": 0}, resulting_workload.challenges[0].schedule[0].meta_data)
 
-    def test_parse_data_streams_valid_track_specification(self):
-        track_specification = {
+    def test_parse_data_streams_valid_workload_specification(self):
+        workload_specification = {
             "description": "description for unit test",
             "data-streams": [
                 {
@@ -2306,23 +2307,23 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        complete_track_params = loader.CompleteTrackParams()
-        reader = loader.TrackSpecificationReader(
-            complete_track_params=complete_track_params)
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        # j2 variables defined in the track -- used for checking mismatching user track params
-        self.assertEqual("unittest", resulting_track.name)
-        self.assertEqual("description for unit test", resulting_track.description)
+        complete_workload_params = loader.CompleteWorkloadParams()
+        reader = loader.WorkloadSpecificationReader(
+            complete_workload_params=complete_workload_params)
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        # j2 variables defined in the workload -- used for checking mismatching user workload params
+        self.assertEqual("unittest", resulting_workload.name)
+        self.assertEqual("description for unit test", resulting_workload.description)
         # data streams
-        self.assertEqual(1, len(resulting_track.data_streams))
-        self.assertEqual("data-stream-historical", resulting_track.data_streams[0].name)
+        self.assertEqual(1, len(resulting_workload.data_streams))
+        self.assertEqual("data-stream-historical", resulting_workload.data_streams[0].name)
         # corpora
-        self.assertEqual(1, len(resulting_track.corpora))
-        self.assertEqual("test", resulting_track.corpora[0].name)
-        self.assertEqual(3, len(resulting_track.corpora[0].documents))
+        self.assertEqual(1, len(resulting_workload.corpora))
+        self.assertEqual("test", resulting_workload.corpora[0].name)
+        self.assertEqual(3, len(resulting_workload.corpora[0].documents))
 
-        docs_primary = resulting_track.corpora[0].documents[0]
-        self.assertEqual(track.Documents.SOURCE_FORMAT_BULK, docs_primary.source_format)
+        docs_primary = resulting_workload.corpora[0].documents[0]
+        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK, docs_primary.source_format)
         self.assertEqual("documents-main.json", docs_primary.document_file)
         self.assertEqual("documents-main.json.bz2", docs_primary.document_archive)
         self.assertEqual("https://localhost/data", docs_primary.base_url)
@@ -2334,8 +2335,8 @@ class TrackSpecificationReaderTests(TestCase):
         self.assertIsNone(docs_primary.target_index)
         self.assertIsNone(docs_primary.target_type)
 
-        docs_secondary = resulting_track.corpora[0].documents[1]
-        self.assertEqual(track.Documents.SOURCE_FORMAT_BULK, docs_secondary.source_format)
+        docs_secondary = resulting_workload.corpora[0].documents[1]
+        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK, docs_secondary.source_format)
         self.assertEqual("documents-secondary.json", docs_secondary.document_file)
         self.assertEqual("documents-secondary.json.bz2", docs_secondary.document_archive)
         self.assertEqual("https://localhost/data", docs_secondary.base_url)
@@ -2348,8 +2349,8 @@ class TrackSpecificationReaderTests(TestCase):
         self.assertIsNone(docs_secondary.target_index)
         self.assertIsNone(docs_secondary.target_type)
 
-        docs_tertiary = resulting_track.corpora[0].documents[2]
-        self.assertEqual(track.Documents.SOURCE_FORMAT_BULK, docs_tertiary.source_format)
+        docs_tertiary = resulting_workload.corpora[0].documents[2]
+        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK, docs_tertiary.source_format)
         self.assertEqual("documents-main.json", docs_tertiary.document_file)
         self.assertEqual("documents-main.json.bz2", docs_tertiary.document_archive)
         self.assertEqual("https://localhost/data", docs_tertiary.base_url)
@@ -2361,16 +2362,16 @@ class TrackSpecificationReaderTests(TestCase):
         self.assertEqual("data-stream-historical", docs_tertiary.target_data_stream)
 
         # challenges
-        self.assertEqual(1, len(resulting_track.challenges))
-        self.assertEqual("default-challenge", resulting_track.challenges[0].name)
-        self.assertEqual("Default challenge", resulting_track.challenges[0].description)
-        self.assertEqual({"mixed": True, "max-clients": 8}, resulting_track.challenges[0].meta_data)
-        self.assertEqual({"append": True}, resulting_track.challenges[0].schedule[0].operation.meta_data)
-        self.assertEqual({"operation-index": 0}, resulting_track.challenges[0].schedule[0].meta_data)
+        self.assertEqual(1, len(resulting_workload.challenges))
+        self.assertEqual("default-challenge", resulting_workload.challenges[0].name)
+        self.assertEqual("Default challenge", resulting_workload.challenges[0].description)
+        self.assertEqual({"mixed": True, "max-clients": 8}, resulting_workload.challenges[0].meta_data)
+        self.assertEqual({"append": True}, resulting_workload.challenges[0].schedule[0].operation.meta_data)
+        self.assertEqual({"operation-index": 0}, resulting_workload.challenges[0].schedule[0].meta_data)
 
-    @mock.patch("esrally.track.loader.register_all_params_in_track")
+    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
     def test_parse_valid_without_types(self, mocked_param_checker):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [
                 {
@@ -2404,8 +2405,8 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        reader = loader.TrackSpecificationReader(
-            track_params={"number_of_shards": 3},
+        reader = loader.WorkloadSpecificationReader(
+            workload_params={"number_of_shards": 3},
             source=io.DictStringFileSourceFactory({
                 "/mappings/body.json": ["""
             {
@@ -2415,25 +2416,25 @@ class TrackSpecificationReaderTests(TestCase):
             }
             """]
             }))
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual("unittest", resulting_track.name)
-        self.assertEqual("description for unit test", resulting_track.description)
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("unittest", resulting_workload.name)
+        self.assertEqual("description for unit test", resulting_workload.description)
         # indices
-        self.assertEqual(1, len(resulting_track.indices))
-        self.assertEqual("index-historical", resulting_track.indices[0].name)
+        self.assertEqual(1, len(resulting_workload.indices))
+        self.assertEqual("index-historical", resulting_workload.indices[0].name)
         self.assertDictEqual({
             "settings": {
                 "number_of_shards": 3
             }
-        }, resulting_track.indices[0].body)
-        self.assertEqual(0, len(resulting_track.indices[0].types))
+        }, resulting_workload.indices[0].body)
+        self.assertEqual(0, len(resulting_workload.indices[0].types))
         # corpora
-        self.assertEqual(1, len(resulting_track.corpora))
-        self.assertEqual("test", resulting_track.corpora[0].name)
-        self.assertEqual(1, len(resulting_track.corpora[0].documents))
+        self.assertEqual(1, len(resulting_workload.corpora))
+        self.assertEqual("test", resulting_workload.corpora[0].name)
+        self.assertEqual(1, len(resulting_workload.corpora[0].documents))
 
-        docs_primary = resulting_track.corpora[0].documents[0]
-        self.assertEqual(track.Documents.SOURCE_FORMAT_BULK, docs_primary.source_format)
+        docs_primary = resulting_workload.corpora[0].documents[0]
+        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK, docs_primary.source_format)
         self.assertEqual("documents-main.json", docs_primary.document_file)
         self.assertEqual("documents-main.json.bz2", docs_primary.document_archive)
         self.assertEqual("https://localhost/data", docs_primary.base_url)
@@ -2446,11 +2447,11 @@ class TrackSpecificationReaderTests(TestCase):
         self.assertIsNone(docs_primary.target_data_stream)
 
         # challenges
-        self.assertEqual(1, len(resulting_track.challenges))
+        self.assertEqual(1, len(resulting_workload.challenges))
 
-    @mock.patch("esrally.track.loader.register_all_params_in_track")
+    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
     def test_parse_invalid_data_streams_with_indices(self, mocked_param_checker):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [
                 {
@@ -2488,15 +2489,15 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        complete_track_params = loader.CompleteTrackParams()
-        reader = loader.TrackSpecificationReader(
-            complete_track_params=complete_track_params)
-        with self.assertRaises(loader.TrackSyntaxError):
-            reader("unittest", track_specification, "/mapping")
+        complete_workload_params = loader.CompleteWorkloadParams()
+        reader = loader.WorkloadSpecificationReader(
+            complete_workload_params=complete_workload_params)
+        with self.assertRaises(loader.WorkloadSyntaxError):
+            reader("unittest", workload_specification, "/mapping")
 
-    @mock.patch("esrally.track.loader.register_all_params_in_track")
+    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
     def test_parse_invalid_data_streams_with_target_index(self, mocked_param_checker):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "data-streams": [
                 {
@@ -2529,15 +2530,15 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        complete_track_params = loader.CompleteTrackParams()
-        reader = loader.TrackSpecificationReader(
-            complete_track_params=complete_track_params)
-        with self.assertRaises(loader.TrackSyntaxError):
-            reader("unittest", track_specification, "/mapping")
+        complete_workload_params = loader.CompleteWorkloadParams()
+        reader = loader.WorkloadSpecificationReader(
+            complete_workload_params=complete_workload_params)
+        with self.assertRaises(loader.WorkloadSyntaxError):
+            reader("unittest", workload_specification, "/mapping")
 
-    @mock.patch("esrally.track.loader.register_all_params_in_track")
+    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
     def test_parse_invalid_data_streams_with_target_type(self, mocked_param_checker):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "data-streams": [
                 {
@@ -2570,15 +2571,15 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        complete_track_params = loader.CompleteTrackParams()
-        reader = loader.TrackSpecificationReader(
-            complete_track_params=complete_track_params)
-        with self.assertRaises(loader.TrackSyntaxError):
-            reader("unittest", track_specification, "/mapping")
+        complete_workload_params = loader.CompleteWorkloadParams()
+        reader = loader.WorkloadSpecificationReader(
+            complete_workload_params=complete_workload_params)
+        with self.assertRaises(loader.WorkloadSyntaxError):
+            reader("unittest", workload_specification, "/mapping")
 
-    @mock.patch("esrally.track.loader.register_all_params_in_track")
+    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
     def test_parse_invalid_no_data_stream_target(self, mocked_param_checker):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "data-streams": [
                 {
@@ -2613,15 +2614,15 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        complete_track_params = loader.CompleteTrackParams()
-        reader = loader.TrackSpecificationReader(
-            complete_track_params=complete_track_params)
-        with self.assertRaises(loader.TrackSyntaxError):
-            reader("unittest", track_specification, "/mapping")
+        complete_workload_params = loader.CompleteWorkloadParams()
+        reader = loader.WorkloadSpecificationReader(
+            complete_workload_params=complete_workload_params)
+        with self.assertRaises(loader.WorkloadSyntaxError):
+            reader("unittest", workload_specification, "/mapping")
 
-    @mock.patch("esrally.track.loader.register_all_params_in_track")
+    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
     def test_parse_valid_without_indices(self, mocked_param_checker):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "data-streams": [
                 {
@@ -2653,8 +2654,8 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        reader = loader.TrackSpecificationReader(
-            track_params={"number_of_shards": 3},
+        reader = loader.WorkloadSpecificationReader(
+            workload_params={"number_of_shards": 3},
             source=io.DictStringFileSourceFactory({
                 "/mappings/body.json": ["""
                 {
@@ -2664,21 +2665,21 @@ class TrackSpecificationReaderTests(TestCase):
                 }
                 """]
             }))
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual("unittest", resulting_track.name)
-        self.assertEqual("description for unit test", resulting_track.description)
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("unittest", resulting_workload.name)
+        self.assertEqual("description for unit test", resulting_workload.description)
         # indices
-        self.assertEqual(0, len(resulting_track.indices))
+        self.assertEqual(0, len(resulting_workload.indices))
         # data streams
-        self.assertEqual(1, len(resulting_track.data_streams))
-        self.assertEqual("historical-data-stream", resulting_track.data_streams[0].name)
+        self.assertEqual(1, len(resulting_workload.data_streams))
+        self.assertEqual("historical-data-stream", resulting_workload.data_streams[0].name)
         # corpora
-        self.assertEqual(1, len(resulting_track.corpora))
-        self.assertEqual("test", resulting_track.corpora[0].name)
-        self.assertEqual(1, len(resulting_track.corpora[0].documents))
+        self.assertEqual(1, len(resulting_workload.corpora))
+        self.assertEqual("test", resulting_workload.corpora[0].name)
+        self.assertEqual(1, len(resulting_workload.corpora[0].documents))
 
-        docs_primary = resulting_track.corpora[0].documents[0]
-        self.assertEqual(track.Documents.SOURCE_FORMAT_BULK, docs_primary.source_format)
+        docs_primary = resulting_workload.corpora[0].documents[0]
+        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK, docs_primary.source_format)
         self.assertEqual("documents-main.json", docs_primary.document_file)
         self.assertEqual("documents-main.json.bz2", docs_primary.document_archive)
         self.assertEqual("https://localhost/data", docs_primary.base_url)
@@ -2691,10 +2692,10 @@ class TrackSpecificationReaderTests(TestCase):
         self.assertIsNone(docs_primary.target_index)
 
         # challenges
-        self.assertEqual(1, len(resulting_track.challenges))
+        self.assertEqual(1, len(resulting_workload.challenges))
 
-    def test_parse_valid_track_specification_with_index_template(self):
-        track_specification = {
+    def test_parse_valid_workload_specification_with_index_template(self):
+        workload_specification = {
             "description": "description for unit test",
             "templates": [
                 {
@@ -2706,10 +2707,10 @@ class TrackSpecificationReaderTests(TestCase):
             "operations": [],
             "challenges": []
         }
-        complete_track_params = loader.CompleteTrackParams()
-        reader = loader.TrackSpecificationReader(
-            track_params={"index_pattern": "*"},
-            complete_track_params=complete_track_params,
+        complete_workload_params = loader.CompleteWorkloadParams()
+        reader = loader.WorkloadSpecificationReader(
+            workload_params={"index_pattern": "*"},
+            complete_workload_params=complete_workload_params,
             source=io.DictStringFileSourceFactory({
                 "/mappings/default-template.json": ["""
                 {
@@ -2720,28 +2721,28 @@ class TrackSpecificationReaderTests(TestCase):
                 }
                 """],
         }))
-        resulting_track = reader("unittest", track_specification, "/mappings")
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
         self.assertEqual(
             ["index_pattern", "number_of_shards"],
-            complete_track_params.sorted_track_defined_params
+            complete_workload_params.sorted_workload_defined_params
         )
-        self.assertEqual("unittest", resulting_track.name)
-        self.assertEqual("description for unit test", resulting_track.description)
-        self.assertEqual(0, len(resulting_track.indices))
-        self.assertEqual(1, len(resulting_track.templates))
-        self.assertEqual("my-index-template", resulting_track.templates[0].name)
-        self.assertEqual("*", resulting_track.templates[0].pattern)
+        self.assertEqual("unittest", resulting_workload.name)
+        self.assertEqual("description for unit test", resulting_workload.description)
+        self.assertEqual(0, len(resulting_workload.indices))
+        self.assertEqual(1, len(resulting_workload.templates))
+        self.assertEqual("my-index-template", resulting_workload.templates[0].name)
+        self.assertEqual("*", resulting_workload.templates[0].pattern)
         self.assertDictEqual(
             {
                 "index_patterns": ["*"],
                 "settings": {
                     "number_of_shards": 1
                 }
-            }, resulting_track.templates[0].content)
-        self.assertEqual(0, len(resulting_track.challenges))
+            }, resulting_workload.templates[0].content)
+        self.assertEqual(0, len(resulting_workload.challenges))
 
-    def test_parse_valid_track_specification_with_composable_template(self):
-        track_specification = {
+    def test_parse_valid_workload_specification_with_composable_template(self):
+        workload_specification = {
             "description": "description for unit test",
             "composable-templates": [
                 {
@@ -2763,10 +2764,10 @@ class TrackSpecificationReaderTests(TestCase):
             "operations": [],
             "challenges": []
         }
-        complete_track_params = loader.CompleteTrackParams()
-        reader = loader.TrackSpecificationReader(
-            track_params={"index_pattern": "logs-*", "number_of_replicas": 1},
-            complete_track_params=complete_track_params,
+        complete_workload_params = loader.CompleteWorkloadParams()
+        reader = loader.WorkloadSpecificationReader(
+            workload_params={"index_pattern": "logs-*", "number_of_replicas": 1},
+            complete_workload_params=complete_workload_params,
             source=io.DictStringFileSourceFactory({
                 "/mappings/default-template.json": ["""
                         {
@@ -2805,20 +2806,20 @@ class TrackSpecificationReaderTests(TestCase):
                         }
                         """]
             }))
-        resulting_track = reader("unittest", track_specification, "/mappings")
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
         self.assertEqual(
             ["index_pattern", "number_of_replicas", "number_of_shards"],
-            complete_track_params.sorted_track_defined_params
+            complete_workload_params.sorted_workload_defined_params
         )
-        self.assertEqual("unittest", resulting_track.name)
-        self.assertEqual("description for unit test", resulting_track.description)
-        self.assertEqual(0, len(resulting_track.indices))
-        self.assertEqual(1, len(resulting_track.composable_templates))
-        self.assertEqual(2, len(resulting_track.component_templates))
-        self.assertEqual("my-index-template", resulting_track.composable_templates[0].name)
-        self.assertEqual("*", resulting_track.composable_templates[0].pattern)
-        self.assertEqual("my-component-template-1", resulting_track.component_templates[0].name)
-        self.assertEqual("my-component-template-2", resulting_track.component_templates[1].name)
+        self.assertEqual("unittest", resulting_workload.name)
+        self.assertEqual("description for unit test", resulting_workload.description)
+        self.assertEqual(0, len(resulting_workload.indices))
+        self.assertEqual(1, len(resulting_workload.composable_templates))
+        self.assertEqual(2, len(resulting_workload.component_templates))
+        self.assertEqual("my-index-template", resulting_workload.composable_templates[0].name)
+        self.assertEqual("*", resulting_workload.composable_templates[0].pattern)
+        self.assertEqual("my-component-template-1", resulting_workload.component_templates[0].name)
+        self.assertEqual("my-component-template-2", resulting_workload.component_templates[1].name)
         self.assertDictEqual(
             {
                 "index_patterns": ["logs-*"],
@@ -2828,7 +2829,7 @@ class TrackSpecificationReaderTests(TestCase):
                     }
                 },
                 "composed_of": ["my-component-template-1", "my-component-template-2"]
-            }, resulting_track.composable_templates[0].content)
+            }, resulting_workload.composable_templates[0].content)
         self.assertDictEqual(
             {
                 "template": {
@@ -2836,7 +2837,7 @@ class TrackSpecificationReaderTests(TestCase):
                         "index.number_of_shards": 2
                     }
                 }
-            }, resulting_track.component_templates[0].content)
+            }, resulting_workload.component_templates[0].content)
         self.assertDictEqual(
             {
                 "template": {
@@ -2851,11 +2852,11 @@ class TrackSpecificationReaderTests(TestCase):
                         }
                     }
                 }
-            }, resulting_track.component_templates[1].content)
-        self.assertEqual(0, len(resulting_track.challenges))
+            }, resulting_workload.component_templates[1].content)
+        self.assertEqual(0, len(resulting_workload.challenges))
 
-    def test_parse_invalid_track_specification_with_composable_template(self):
-        track_specification = {
+    def test_parse_invalid_workload_specification_with_composable_template(self):
+        workload_specification = {
             "description": "description for unit test",
             "component-templates": [
                 {
@@ -2865,17 +2866,17 @@ class TrackSpecificationReaderTests(TestCase):
             "operations": [],
             "challenges": []
         }
-        complete_track_params = loader.CompleteTrackParams()
-        reader = loader.TrackSpecificationReader(
-            track_params={"index_pattern": "logs-*", "number_of_replicas": 1},
-            complete_track_params=complete_track_params)
-        with self.assertRaises(loader.TrackSyntaxError) as ctx:
-            reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Mandatory element 'template' is missing.",
+        complete_workload_params = loader.CompleteWorkloadParams()
+        reader = loader.WorkloadSpecificationReader(
+            workload_params={"index_pattern": "logs-*", "number_of_replicas": 1},
+            complete_workload_params=complete_workload_params)
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("Workload 'unittest' is invalid. Mandatory element 'template' is missing.",
                          ctx.exception.args[0])
 
     def test_unique_challenge_names(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
             "operations": [
@@ -2907,13 +2908,13 @@ class TrackSpecificationReaderTests(TestCase):
 
             ]
         }
-        reader = loader.TrackSpecificationReader()
-        with self.assertRaises(loader.TrackSyntaxError) as ctx:
-            reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Duplicate challenge with name 'test-challenge'.", ctx.exception.args[0])
+        reader = loader.WorkloadSpecificationReader()
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("Workload 'unittest' is invalid. Duplicate challenge with name 'test-challenge'.", ctx.exception.args[0])
 
     def test_not_more_than_one_default_challenge_possible(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
             "operations": [
@@ -2946,14 +2947,15 @@ class TrackSpecificationReaderTests(TestCase):
 
             ]
         }
-        reader = loader.TrackSpecificationReader()
-        with self.assertRaises(loader.TrackSyntaxError) as ctx:
-            reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Both 'default-challenge' and 'another-challenge' are defined as default challenges. "
+        reader = loader.WorkloadSpecificationReader()
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("Workload 'unittest' is invalid. Both 'default-challenge' "
+                         "and 'another-challenge' are defined as default challenges. "
                          "Please define only one of them as default.", ctx.exception.args[0])
 
     def test_at_least_one_default_challenge(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
             "operations": [
@@ -2982,14 +2984,15 @@ class TrackSpecificationReaderTests(TestCase):
 
             ]
         }
-        reader = loader.TrackSpecificationReader()
-        with self.assertRaises(loader.TrackSyntaxError) as ctx:
-            reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. No default challenge specified. Please edit the track and add \"default\": true "
+        reader = loader.WorkloadSpecificationReader()
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("Workload 'unittest' is invalid. No default challenge specified."
+                         " Please edit the workload and add \"default\": true "
                          "to one of the challenges challenge, another-challenge.", ctx.exception.args[0])
 
     def test_exactly_one_default_challenge(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
             "operations": [
@@ -3019,16 +3022,16 @@ class TrackSpecificationReaderTests(TestCase):
 
             ]
         }
-        reader = loader.TrackSpecificationReader(selected_challenge="another-challenge")
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(2, len(resulting_track.challenges))
-        self.assertEqual("challenge", resulting_track.challenges[0].name)
-        self.assertTrue(resulting_track.challenges[0].default)
-        self.assertFalse(resulting_track.challenges[1].default)
-        self.assertTrue(resulting_track.challenges[1].selected)
+        reader = loader.WorkloadSpecificationReader(selected_challenge="another-challenge")
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        self.assertEqual(2, len(resulting_workload.challenges))
+        self.assertEqual("challenge", resulting_workload.challenges[0].name)
+        self.assertTrue(resulting_workload.challenges[0].default)
+        self.assertFalse(resulting_workload.challenges[1].default)
+        self.assertTrue(resulting_workload.challenges[1].selected)
 
     def test_selects_sole_challenge_implicitly_as_default(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
             "operations": [
@@ -3046,15 +3049,15 @@ class TrackSpecificationReaderTests(TestCase):
                 ]
             }
         }
-        reader = loader.TrackSpecificationReader()
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(1, len(resulting_track.challenges))
-        self.assertEqual("challenge", resulting_track.challenges[0].name)
-        self.assertTrue(resulting_track.challenges[0].default)
-        self.assertTrue(resulting_track.challenges[0].selected)
+        reader = loader.WorkloadSpecificationReader()
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        self.assertEqual(1, len(resulting_workload.challenges))
+        self.assertEqual("challenge", resulting_workload.challenges[0].name)
+        self.assertTrue(resulting_workload.challenges[0].default)
+        self.assertTrue(resulting_workload.challenges[0].selected)
 
     def test_auto_generates_challenge_from_schedule(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
             "operations": [
@@ -3069,15 +3072,15 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        reader = loader.TrackSpecificationReader()
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(1, len(resulting_track.challenges))
-        self.assertTrue(resulting_track.challenges[0].auto_generated)
-        self.assertTrue(resulting_track.challenges[0].default)
-        self.assertTrue(resulting_track.challenges[0].selected)
+        reader = loader.WorkloadSpecificationReader()
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        self.assertEqual(1, len(resulting_workload.challenges))
+        self.assertTrue(resulting_workload.challenges[0].auto_generated)
+        self.assertTrue(resulting_workload.challenges[0].default)
+        self.assertTrue(resulting_workload.challenges[0].selected)
 
     def test_inline_operations(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
             "challenge": {
@@ -3097,16 +3100,16 @@ class TrackSpecificationReaderTests(TestCase):
                 ]
             }
         }
-        reader = loader.TrackSpecificationReader()
-        resulting_track = reader("unittest", track_specification, "/mappings")
+        reader = loader.WorkloadSpecificationReader()
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
 
-        challenge = resulting_track.challenges[0]
+        challenge = resulting_workload.challenges[0]
         self.assertEqual(2, len(challenge.schedule))
-        self.assertEqual(track.OperationType.Bulk.to_hyphenated_string(), challenge.schedule[0].operation.type)
-        self.assertEqual(track.OperationType.ForceMerge.to_hyphenated_string(), challenge.schedule[1].operation.type)
+        self.assertEqual(workload.OperationType.Bulk.to_hyphenated_string(), challenge.schedule[0].operation.type)
+        self.assertEqual(workload.OperationType.ForceMerge.to_hyphenated_string(), challenge.schedule[1].operation.type)
 
     def test_supports_target_throughput(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
             "operations": [
@@ -3125,12 +3128,12 @@ class TrackSpecificationReaderTests(TestCase):
                 ]
             }
         }
-        reader = loader.TrackSpecificationReader()
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(10, resulting_track.challenges[0].schedule[0].params["target-throughput"])
+        reader = loader.WorkloadSpecificationReader()
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        self.assertEqual(10, resulting_workload.challenges[0].schedule[0].params["target-throughput"])
 
     def test_supports_target_interval(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
             "operations": [
@@ -3151,12 +3154,12 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        reader = loader.TrackSpecificationReader()
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(5, resulting_track.challenges[0].schedule[0].params["target-interval"])
+        reader = loader.WorkloadSpecificationReader()
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        self.assertEqual(5, resulting_workload.challenges[0].schedule[0].params["target-interval"])
 
     def test_parallel_tasks_with_default_values(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
             "operations": [
@@ -3204,9 +3207,9 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        reader = loader.TrackSpecificationReader()
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        parallel_element = resulting_track.challenges[0].schedule[0]
+        reader = loader.WorkloadSpecificationReader()
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        parallel_element = resulting_workload.challenges[0].schedule[0]
         parallel_tasks = parallel_element.tasks
 
         self.assertEqual(22, parallel_element.clients)
@@ -3231,7 +3234,7 @@ class TrackSpecificationReaderTests(TestCase):
         self.assertEqual(10, parallel_tasks[2].params["target-throughput"])
 
     def test_parallel_tasks_with_default_clients_does_not_propagate(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
             "operations": [
@@ -3273,9 +3276,9 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        reader = loader.TrackSpecificationReader()
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        parallel_element = resulting_track.challenges[0].schedule[0]
+        reader = loader.WorkloadSpecificationReader()
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        parallel_element = resulting_workload.challenges[0].schedule[0]
         parallel_tasks = parallel_element.tasks
 
         # we will only have two clients *in total*
@@ -3285,7 +3288,7 @@ class TrackSpecificationReaderTests(TestCase):
             self.assertEqual(1, task.clients)
 
     def test_parallel_tasks_with_completed_by_set(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
             "operations": [
@@ -3321,9 +3324,9 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        reader = loader.TrackSpecificationReader()
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        parallel_element = resulting_track.challenges[0].schedule[0]
+        reader = loader.WorkloadSpecificationReader()
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        parallel_element = resulting_workload.challenges[0].schedule[0]
         parallel_tasks = parallel_element.tasks
 
         # we will only have two clients *in total*
@@ -3337,7 +3340,7 @@ class TrackSpecificationReaderTests(TestCase):
         self.assertTrue(parallel_tasks[1].completes_parent)
 
     def test_parallel_tasks_with_named_task_completed_by_set(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
             "operations": [
@@ -3375,9 +3378,9 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        reader = loader.TrackSpecificationReader()
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        parallel_element = resulting_track.challenges[0].schedule[0]
+        reader = loader.WorkloadSpecificationReader()
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        parallel_element = resulting_workload.challenges[0].schedule[0]
         parallel_tasks = parallel_element.tasks
 
         # we will only have two clients *in total*
@@ -3391,7 +3394,7 @@ class TrackSpecificationReaderTests(TestCase):
         self.assertTrue(parallel_tasks[1].completes_parent)
 
     def test_parallel_tasks_with_completed_by_set_no_task_matches(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
             "operations": [
@@ -3425,15 +3428,16 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        reader = loader.TrackSpecificationReader()
+        reader = loader.WorkloadSpecificationReader()
 
-        with self.assertRaises(loader.TrackSyntaxError) as ctx:
-            reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. 'parallel' element for challenge 'default-challenge' is marked with 'completed-by' "
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("Workload 'unittest' is invalid. 'parallel' element for challenge "
+                         "'default-challenge' is marked with 'completed-by' "
                          "with task name 'non-existing-task' but no task with this name exists.", ctx.exception.args[0])
 
     def test_parallel_tasks_with_completed_by_set_multiple_tasks_match(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
             "operations": [
@@ -3463,19 +3467,20 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ]
         }
-        reader = loader.TrackSpecificationReader()
+        reader = loader.WorkloadSpecificationReader()
 
-        with self.assertRaises(loader.TrackSyntaxError) as ctx:
-            reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. 'parallel' element for challenge 'default-challenge' contains multiple tasks with "
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("Workload 'unittest' is invalid. 'parallel' element "
+                         "for challenge 'default-challenge' contains multiple tasks with "
                          "the name 'index-1' which are marked with 'completed-by' but only task is allowed to match.",
                          ctx.exception.args[0])
 
     def test_propagate_parameters_to_challenge_level(self):
-        track_specification = {
+        workload_specification = {
             "description": "description for unit test",
             "parameters": {
-                "level": "track",
+                "level": "workload",
                 "value": 7
             },
             "indices": [{"name": "test-index"}],
@@ -3510,38 +3515,38 @@ class TrackSpecificationReaderTests(TestCase):
 
             ]
         }
-        reader = loader.TrackSpecificationReader(selected_challenge="another-challenge")
-        resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(2, len(resulting_track.challenges))
-        self.assertEqual("challenge", resulting_track.challenges[0].name)
-        self.assertTrue(resulting_track.challenges[0].default)
+        reader = loader.WorkloadSpecificationReader(selected_challenge="another-challenge")
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        self.assertEqual(2, len(resulting_workload.challenges))
+        self.assertEqual("challenge", resulting_workload.challenges[0].name)
+        self.assertTrue(resulting_workload.challenges[0].default)
         self.assertDictEqual({
             "level": "challenge",
             "value": 7,
             "another-value": 17
-        }, resulting_track.challenges[0].parameters)
+        }, resulting_workload.challenges[0].parameters)
 
-        self.assertFalse(resulting_track.challenges[1].default)
-        self.assertTrue(resulting_track.challenges[1].selected)
+        self.assertFalse(resulting_workload.challenges[1].default)
+        self.assertTrue(resulting_workload.challenges[1].selected)
         self.assertDictEqual({
-            "level": "track",
+            "level": "workload",
             "value": 7
-        }, resulting_track.challenges[1].parameters)
+        }, resulting_workload.challenges[1].parameters)
 
 
-class MyMockTrackProcessor(loader.TrackProcessor):
+class MyMockWorkloadProcessor(loader.WorkloadProcessor):
     pass
 
 
-class TrackProcessorRegistryTests(TestCase):
-    def test_default_track_processors(self):
+class WorkloadProcessorRegistryTests(TestCase):
+    def test_default_workload_processors(self):
         cfg = config.Config()
         cfg.add(config.Scope.application, "system", "offline.mode", False)
-        tpr = loader.TrackProcessorRegistry(cfg)
+        tpr = loader.WorkloadProcessorRegistry(cfg)
         expected_defaults = [
-            loader.TaskFilterTrackProcessor,
-            loader.TestModeTrackProcessor,
-            loader.DefaultTrackPreparator
+            loader.TaskFilterWorkloadProcessor,
+            loader.TestModeWorkloadProcessor,
+            loader.DefaultWorkloadPreparator
         ]
         actual_defaults = [proc.__class__ for proc in tpr.processors]
         self.assertCountEqual(expected_defaults, actual_defaults)
@@ -3549,14 +3554,14 @@ class TrackProcessorRegistryTests(TestCase):
     def test_override_default_preparator(self):
         cfg = config.Config()
         cfg.add(config.Scope.application, "system", "offline.mode", False)
-        tpr = loader.TrackProcessorRegistry(cfg)
+        tpr = loader.WorkloadProcessorRegistry(cfg)
         # call this once beforehand to make sure we don't "harden" the default in case calls are made out of order
         tpr.processors # pylint: disable=pointless-statement
-        tpr.register_track_processor(MyMockTrackProcessor())
+        tpr.register_workload_processor(MyMockWorkloadProcessor())
         expected_processors = [
-            loader.TaskFilterTrackProcessor,
-            loader.TestModeTrackProcessor,
-            MyMockTrackProcessor
+            loader.TaskFilterWorkloadProcessor,
+            loader.TestModeWorkloadProcessor,
+            MyMockWorkloadProcessor
         ]
         actual_processors = [proc.__class__ for proc in tpr.processors]
         self.assertCountEqual(expected_processors, actual_processors)
@@ -3564,16 +3569,16 @@ class TrackProcessorRegistryTests(TestCase):
     def test_allow_to_specify_default_preparator(self):
         cfg = config.Config()
         cfg.add(config.Scope.application, "system", "offline.mode", False)
-        tpr = loader.TrackProcessorRegistry(cfg)
-        tpr.register_track_processor(MyMockTrackProcessor())
+        tpr = loader.WorkloadProcessorRegistry(cfg)
+        tpr.register_workload_processor(MyMockWorkloadProcessor())
         # should be idempotent now that we have a custom config
         tpr.processors # pylint: disable=pointless-statement
-        tpr.register_track_processor(loader.DefaultTrackPreparator(cfg))
+        tpr.register_workload_processor(loader.DefaultWorkloadPreparator(cfg))
         expected_processors = [
-            loader.TaskFilterTrackProcessor,
-            loader.TestModeTrackProcessor,
-            MyMockTrackProcessor,
-            loader.DefaultTrackPreparator
+            loader.TaskFilterWorkloadProcessor,
+            loader.TestModeWorkloadProcessor,
+            MyMockWorkloadProcessor,
+            loader.DefaultWorkloadPreparator
         ]
         actual_processors = [proc.__class__ for proc in tpr.processors]
         self.assertCountEqual(expected_processors, actual_processors)

@@ -23,7 +23,7 @@ import sys
 import tabulate
 import thespian.actors
 
-from esrally import actor, config, doc_link, driver, exceptions, mechanic, metrics, reporter, track, version, PROGRAM_NAME
+from esrally import actor, config, doc_link, driver, exceptions, mechanic, metrics, reporter, workload, version, PROGRAM_NAME
 from esrally.utils import console, opts, versions
 
 
@@ -112,7 +112,7 @@ class BenchmarkActor(actor.RallyActor):
         self.coordinator.race.team_revision = msg.team_revision
         self.main_driver = self.createActor(driver.DriverActor, targetActorRequirements={"coordinator": True})
         self.logger.info("Telling driver to prepare for benchmarking.")
-        self.send(self.main_driver, driver.PrepareBenchmark(self.cfg, self.coordinator.current_track))
+        self.send(self.main_driver, driver.PrepareBenchmark(self.cfg, self.coordinator.current_workload))
 
     @actor.no_retry("race control")  # pylint: disable=no-value-for-parameter
     def receiveMsg_PreparationComplete(self, msg, sender):
@@ -163,12 +163,12 @@ class BenchmarkCoordinator:
         self.race_store = None
         self.cancelled = False
         self.error = False
-        self.track_revision = None
-        self.current_track = None
+        self.workload_revision = None
+        self.current_workload = None
         self.current_challenge = None
 
     def setup(self, sources=False):
-        # to load the track we need to know the correct cluster distribution version. Usually, this value should be set
+        # to load the workload we need to know the correct cluster distribution version. Usually, this value should be set
         # but there are rare cases (external pipeline and user did not specify the distribution version) where we need
         # to derive it ourselves. For source builds we always assume "master"
         if not sources and not self.cfg.exists("mechanic", "distribution.version"):
@@ -180,21 +180,21 @@ class BenchmarkCoordinator:
             if specified_version < min_es_version:
                 raise exceptions.SystemSetupError(f"Cluster version must be at least [{min_es_version}] but was [{distribution_version}]")
 
-        self.current_track = track.load_track(self.cfg)
-        self.track_revision = self.cfg.opts("track", "repository.revision", mandatory=False)
-        challenge_name = self.cfg.opts("track", "challenge.name")
-        self.current_challenge = self.current_track.find_challenge_or_default(challenge_name)
+        self.current_workload = workload.load_workload(self.cfg)
+        self.workload_revision = self.cfg.opts("workload", "repository.revision", mandatory=False)
+        challenge_name = self.cfg.opts("workload", "challenge.name")
+        self.current_challenge = self.current_workload.find_challenge_or_default(challenge_name)
         if self.current_challenge is None:
             raise exceptions.SystemSetupError(
-                "Track [{}] does not provide challenge [{}]. List the available tracks with {} list tracks.".format(
-                    self.current_track.name, challenge_name, PROGRAM_NAME))
+                "workload [{}] does not provide challenge [{}]. List the available workloads with {} list workloads.".format(
+                    self.current_workload.name, challenge_name, PROGRAM_NAME))
         if self.current_challenge.user_info:
             console.info(self.current_challenge.user_info)
-        self.race = metrics.create_race(self.cfg, self.current_track, self.current_challenge, self.track_revision)
+        self.race = metrics.create_race(self.cfg, self.current_workload, self.current_challenge, self.workload_revision)
 
         self.metrics_store = metrics.metrics_store(
             self.cfg,
-            track=self.race.track_name,
+            workload=self.race.workload_name,
             challenge=self.race.challenge_name,
             read_only=False
         )
@@ -207,11 +207,11 @@ class BenchmarkCoordinator:
         # store race initially (without any results) so other components can retrieve full metadata
         self.race_store.store_race(self.race)
         if self.race.challenge.auto_generated:
-            console.info("Racing on track [{}] and car {} with version [{}].\n"
-                         .format(self.race.track_name, self.race.car, self.race.distribution_version))
+            console.info("Racing on workload [{}] and car {} with version [{}].\n"
+                         .format(self.race.workload_name, self.race.car, self.race.distribution_version))
         else:
-            console.info("Racing on track [{}], challenge [{}] and car {} with version [{}].\n"
-                         .format(self.race.track_name, self.race.challenge_name, self.race.car, self.race.distribution_version))
+            console.info("Racing on workload [{}], challenge [{}] and car {} with version [{}].\n"
+                         .format(self.race.workload_name, self.race.challenge_name, self.race.car, self.race.distribution_version))
 
     def on_task_finished(self, new_metrics):
         self.logger.info("Task has finished.")

@@ -149,7 +149,7 @@ def get_metrics_store(cfg):
     ms = InMemoryMetricsStore(cfg)
     ms.open(race_id=str(uuid.uuid4()),
             race_timestamp=datetime.now(),
-            track_name="test",
+            workload_name="test",
             challenge_name="test",
             car_name="test")
     return ms

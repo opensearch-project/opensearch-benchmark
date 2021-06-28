@@ -320,7 +320,7 @@ class ComparisonReporter:
         self.plain = False
 
     def report(self, r1, r2):
-        # we don't verify anything about the races as it is possible that the user benchmarks two different tracks intentionally
+        # we don't verify anything about the races as it is possible that the user benchmarks two different workloads intentionally
         baseline_stats = metrics.GlobalStats(r1.results)
         contender_stats = metrics.GlobalStats(r2.results)
 

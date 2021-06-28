@@ -27,10 +27,10 @@ from esrally.utils import io
 class ComponentLoader:
     """
     Loads a dynamically defined component. A component in this terminology is any piece of code that is not part of the Rally core code base
-    but extends it. Examples include custom runners or parameter sources for tracks or install hooks for Elasticsearch plugins.
+    but extends it. Examples include custom runners or parameter sources for workloads or install hooks for Elasticsearch plugins.
 
-    A component has always a well-defined entry point. This is the "main" Python file (e.g. ``track.py`` for tracks or ``plugin.py`` for
-    install hooks. A component may also consist of multiple Python modules.
+    A component has always a well-defined entry point. This is the "main" Python file (e.g. ``workload.py`` for workloads or ``plugin.py``
+    for install hooks. A component may also consist of multiple Python modules.)
 
     """
     def __init__(self, root_path, component_entry_point, recurse=True):

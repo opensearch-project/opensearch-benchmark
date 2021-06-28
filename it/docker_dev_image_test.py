@@ -28,8 +28,8 @@ def test_docker_geonames():
     run_docker_compose_test(test_command)
 
 
-def test_docker_list_tracks():
-    test_command = "list tracks"
+def test_docker_list_workloads():
+    test_command = "list workloads"
     run_docker_compose_test(test_command)
 
 

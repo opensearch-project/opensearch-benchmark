@@ -28,28 +28,28 @@ import time
 from enum import Enum
 
 from esrally import exceptions
-from esrally.track import track
+from esrally.workload import workload
 from esrally.utils import io
 
 __PARAM_SOURCES_BY_OP = {}
 __PARAM_SOURCES_BY_NAME = {}
 
 
-def param_source_for_operation(op_type, track, params, task_name):
+def param_source_for_operation(op_type, workload, params, task_name):
     try:
         # we know that this can only be a Rally core parameter source
-        return __PARAM_SOURCES_BY_OP[op_type](track, params, operation_name=task_name)
+        return __PARAM_SOURCES_BY_OP[op_type](workload, params, operation_name=task_name)
     except KeyError:
-        return ParamSource(track, params, operation_name=task_name)
+        return ParamSource(workload, params, operation_name=task_name)
 
 
-def param_source_for_name(name, track, params):
+def param_source_for_name(name, workload, params):
     param_source = __PARAM_SOURCES_BY_NAME[name]
 
     if inspect.isfunction(param_source):
-        return DelegatingParamSource(track, params, param_source)
+        return DelegatingParamSource(workload, params, param_source)
     else:
-        return param_source(track, params)
+        return param_source(workload, params)
 
 
 def ensure_valid_param_source(param_source):
@@ -82,14 +82,14 @@ class ParamSource:
      before Rally invokes the corresponding runner (that will actually execute the operation against Elasticsearch).
     """
 
-    def __init__(self, track, params, **kwargs):
+    def __init__(self, workload, params, **kwargs):
         """
         Creates a new ParamSource instance.
 
-        :param track:  The current track definition
+        :param workload:  The current workload definition
         :param params: A hash of all parameters that have been extracted for this operation.
         """
-        self.track = track
+        self.workload = workload
         self._params = params
         self.kwargs = kwargs
 
@@ -150,17 +150,17 @@ class ParamSource:
 
 
 class DelegatingParamSource(ParamSource):
-    def __init__(self, track, params, delegate, **kwargs):
-        super().__init__(track, params, **kwargs)
+    def __init__(self, workload, params, delegate, **kwargs):
+        super().__init__(workload, params, **kwargs)
         self.delegate = delegate
 
     def params(self):
-        return self.delegate(self.track, self._params, **self.kwargs)
+        return self.delegate(self.workload, self._params, **self.kwargs)
 
 
 class SleepParamSource(ParamSource):
-    def __init__(self, track, params, **kwargs):
-        super().__init__(track, params, **kwargs)
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, **kwargs)
         try:
             duration = params["duration"]
         except KeyError:
@@ -176,16 +176,16 @@ class SleepParamSource(ParamSource):
 
 
 class CreateIndexParamSource(ParamSource):
-    def __init__(self, track, params, **kwargs):
-        super().__init__(track, params, **kwargs)
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, **kwargs)
         self.request_params = params.get("request-params", {})
         self.index_definitions = []
-        if track.indices:
+        if workload.indices:
             filter_idx = params.get("index")
             if isinstance(filter_idx, str):
                 filter_idx = [filter_idx]
             settings = params.get("settings")
-            for idx in track.indices:
+            for idx in workload.indices:
                 if not filter_idx or idx.name in filter_idx:
                     body = idx.body
                     if body and settings:
@@ -224,15 +224,15 @@ class CreateIndexParamSource(ParamSource):
 
 
 class CreateDataStreamParamSource(ParamSource):
-    def __init__(self, track, params, **kwargs):
-        super().__init__(track, params, **kwargs)
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, **kwargs)
         self.request_params = params.get("request-params", {})
         self.data_stream_definitions = []
-        if track.data_streams:
+        if workload.data_streams:
             filter_ds = params.get("data-stream")
             if isinstance(filter_ds, str):
                 filter_ds = [filter_ds]
-            for ds in track.data_streams:
+            for ds in workload.data_streams:
                 if not filter_ds or ds.name in filter_ds:
                     self.data_stream_definitions.append(ds.name)
         else:
@@ -256,8 +256,8 @@ class CreateDataStreamParamSource(ParamSource):
 
 
 class DeleteDataStreamParamSource(ParamSource):
-    def __init__(self, track, params, **kwargs):
-        super().__init__(track, params, **kwargs)
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, **kwargs)
         self.request_params = params.get("request-params", {})
         self.only_if_exists = params.get("only-if-exists", True)
 
@@ -267,8 +267,8 @@ class DeleteDataStreamParamSource(ParamSource):
             target_data_stream = [target_data_stream] if isinstance(target_data_stream, str) else target_data_stream
             for ds in target_data_stream:
                 self.data_stream_definitions.append(ds)
-        elif track.data_streams:
-            for ds in track.data_streams:
+        elif workload.data_streams:
+            for ds in workload.data_streams:
                 self.data_stream_definitions.append(ds.name)
         else:
             raise exceptions.InvalidSyntax("delete-data-stream operation targets no data stream")
@@ -286,8 +286,8 @@ class DeleteDataStreamParamSource(ParamSource):
 
 
 class DeleteIndexParamSource(ParamSource):
-    def __init__(self, track, params, **kwargs):
-        super().__init__(track, params, **kwargs)
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, **kwargs)
         self.request_params = params.get("request-params", {})
         self.only_if_exists = params.get("only-if-exists", True)
 
@@ -298,8 +298,8 @@ class DeleteIndexParamSource(ParamSource):
                 target_index = [target_index]
             for idx in target_index:
                 self.index_definitions.append(idx)
-        elif track.indices:
-            for idx in track.indices:
+        elif workload.indices:
+            for idx in workload.indices:
                 self.index_definitions.append(idx.name)
         else:
             raise exceptions.InvalidSyntax("delete-index operation targets no index")
@@ -317,14 +317,14 @@ class DeleteIndexParamSource(ParamSource):
 
 
 class CreateIndexTemplateParamSource(ParamSource):
-    def __init__(self, track, params, **kwargs):
-        super().__init__(track, params, **kwargs)
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, **kwargs)
         self.request_params = params.get("request-params", {})
         self.template_definitions = []
-        if track.templates:
+        if workload.templates:
             filter_template = params.get("template")
             settings = params.get("settings")
-            for template in track.templates:
+            for template in workload.templates:
                 if not filter_template or template.name == filter_template:
                     body = template.content
                     if body and settings:
@@ -353,14 +353,14 @@ class CreateIndexTemplateParamSource(ParamSource):
 
 
 class DeleteIndexTemplateParamSource(ParamSource):
-    def __init__(self, track, params, **kwargs):
-        super().__init__(track, params, **kwargs)
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, **kwargs)
         self.only_if_exists = params.get("only-if-exists", True)
         self.request_params = params.get("request-params", {})
         self.template_definitions = []
-        if track.templates:
+        if workload.templates:
             filter_template = params.get("template")
-            for template in track.templates:
+            for template in workload.templates:
                 if not filter_template or template.name == filter_template:
                     self.template_definitions.append((template.name, template.delete_matching_indices, template.pattern))
         else:
@@ -390,14 +390,14 @@ class DeleteIndexTemplateParamSource(ParamSource):
 
 
 class DeleteComponentTemplateParamSource(ParamSource):
-    def __init__(self, track, params, **kwargs):
-        super().__init__(track, params, **kwargs)
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, **kwargs)
         self.only_if_exists = params.get("only-if-exists", True)
         self.request_params = params.get("request-params", {})
         self.template_definitions = []
-        if track.templates:
+        if workload.templates:
             filter_template = params.get("template")
-            for template in track.templates:
+            for template in workload.templates:
                 if not filter_template or template.name == filter_template:
                     self.template_definitions.append(template.name)
         else:
@@ -416,8 +416,8 @@ class DeleteComponentTemplateParamSource(ParamSource):
 
 
 class CreateTemplateParamSource(ABC, ParamSource):
-    def __init__(self, track, params, templates, **kwargs):
-        super().__init__(track, params, **kwargs)
+    def __init__(self, workload, params, templates, **kwargs):
+        super().__init__(workload, params, **kwargs)
         self.request_params = params.get("request-params", {})
         self.template_definitions = []
         if "template" in params and "body" in params:
@@ -435,7 +435,7 @@ class CreateTemplateParamSource(ABC, ParamSource):
         else:
             raise exceptions.InvalidSyntax("Please set the properties 'template' and 'body' for the "
                                            f"{params.get('operation-type')} operation or declare composable and/or component "
-                                           "templates in the track")
+                                           "templates in the workload")
 
     @staticmethod
     def _create_or_merge(content, path, new_content):
@@ -465,19 +465,19 @@ class CreateTemplateParamSource(ABC, ParamSource):
 
 
 class CreateComposableTemplateParamSource(CreateTemplateParamSource):
-    def __init__(self, track, params, **kwargs):
-        super().__init__(track, params, track.composable_templates, **kwargs)
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, workload.composable_templates, **kwargs)
 
 
 class CreateComponentTemplateParamSource(CreateTemplateParamSource):
-    def __init__(self, track, params, **kwargs):
-        super().__init__(track, params, track.component_templates, **kwargs)
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, workload.component_templates, **kwargs)
 
 
 class SearchParamSource(ParamSource):
-    def __init__(self, track, params, **kwargs):
-        super().__init__(track, params, **kwargs)
-        target_name = get_target(track, params)
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, **kwargs)
+        target_name = get_target(workload, params)
         type_name = params.get("type")
         if params.get("data-stream") and type_name:
             raise exceptions.InvalidSyntax(
@@ -542,8 +542,8 @@ class IndexIdConflict(Enum):
 
 
 class BulkIndexParamSource(ParamSource):
-    def __init__(self, track, params, **kwargs):
-        super().__init__(track, params, **kwargs)
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, **kwargs)
         id_conflicts = params.get("conflicts", None)
         if not id_conflicts:
             self.id_conflicts = IndexIdConflict.NoConflicts
@@ -570,10 +570,10 @@ class BulkIndexParamSource(ParamSource):
             self.on_conflict = None
             self.recency = None
 
-        self.corpora = self.used_corpora(track, params)
+        self.corpora = self.used_corpora(workload, params)
 
         if len(self.corpora) == 0:
-            raise exceptions.InvalidSyntax(f"There is no document corpus definition for track {track}. You must add at "
+            raise exceptions.InvalidSyntax(f"There is no document corpus definition for workload {workload}. You must add at "
                                            f"least one before making bulk requests to Elasticsearch.")
 
         for corpus in self.corpora:
@@ -624,23 +624,23 @@ class BulkIndexParamSource(ParamSource):
 
     def used_corpora(self, t, params):
         corpora = []
-        track_corpora_names = [corpus.name for corpus in t.corpora]
-        corpora_names = params.get("corpora", track_corpora_names)
+        workload_corpora_names = [corpus.name for corpus in t.corpora]
+        corpora_names = params.get("corpora", workload_corpora_names)
         if isinstance(corpora_names, str):
             corpora_names = [corpora_names]
 
         for corpus in t.corpora:
             if corpus.name in corpora_names:
-                filtered_corpus = corpus.filter(source_format=track.Documents.SOURCE_FORMAT_BULK,
+                filtered_corpus = corpus.filter(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                 target_indices=params.get("indices"),
                                                 target_data_streams=params.get("data-streams"))
-                if filtered_corpus.number_of_documents(source_format=track.Documents.SOURCE_FORMAT_BULK) > 0:
+                if filtered_corpus.number_of_documents(source_format=workload.Documents.SOURCE_FORMAT_BULK) > 0:
                     corpora.append(filtered_corpus)
 
-        # the track has corpora but none of them match
+        # the workload has corpora but none of them match
         if t.corpora and not corpora:
             raise exceptions.RallyAssertionError("The provided corpus %s does not match any of the corpora %s." %
-                                                 (corpora_names, track_corpora_names))
+                                                 (corpora_names, workload_corpora_names))
 
         return corpora
 
@@ -727,9 +727,9 @@ class PartitionBulkIndexParamSource:
 
 
 class OpenPointInTimeParamSource(ParamSource):
-    def __init__(self, track, params, **kwargs):
-        super().__init__(track, params, **kwargs)
-        target_name = get_target(track, params)
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, **kwargs)
+        target_name = get_target(workload, params)
         self._index_name = target_name
         self._keep_alive = params.get("keep-alive")
 
@@ -743,8 +743,8 @@ class OpenPointInTimeParamSource(ParamSource):
 
 
 class ClosePointInTimeParamSource(ParamSource):
-    def __init__(self, track, params, **kwargs):
-        super().__init__(track, params, **kwargs)
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, **kwargs)
         self._pit_task_name = params.get("with-point-in-time-from")
 
     def params(self):
@@ -756,11 +756,11 @@ class ClosePointInTimeParamSource(ParamSource):
 
 
 class ForceMergeParamSource(ParamSource):
-    def __init__(self, track, params, **kwargs):
-        super().__init__(track, params, **kwargs)
-        if len(track.indices) > 0 or len(track.data_streams) > 0:
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, **kwargs)
+        if len(workload.indices) > 0 or len(workload.data_streams) > 0:
             # force merge data streams and indices - API call is the same so treat as indices
-            default_target = ','.join(map(str, track.indices + track.data_streams))
+            default_target = ','.join(map(str, workload.indices + workload.data_streams))
         else:
             default_target = "_all"
 
@@ -782,11 +782,11 @@ class ForceMergeParamSource(ParamSource):
         parsed_params.update(self._client_params())
         return parsed_params
 
-def get_target(track, params):
-    if len(track.indices) == 1:
-        default_target = track.indices[0].name
-    elif len(track.data_streams) == 1:
-        default_target = track.data_streams[0].name
+def get_target(workload, params):
+    if len(workload.indices) == 1:
+        default_target = workload.indices[0].name
+    elif len(workload.data_streams) == 1:
+        default_target = workload.data_streams[0].name
     else:
         default_target = None
     # indices are preferred but data streams can also be queried the same way
@@ -952,7 +952,8 @@ def bulk_data_based(num_clients, start_client_index, end_client_index, corpora, 
     :param recency: A number between [0.0, 1.0] indicating whether to bias generation of conflicting ids towards more recent ones.
                     May be None.
     :param pipeline: Name of the ingest pipeline to use. May be None.
-    :param original_params: A dict of original parameters that were passed from the track. They will be merged into the returned parameters.
+    :param original_params: A dict of original parameters that were passed from the workload.
+                    They will be merged into the returned parameters.
     :param create_reader: A function to create the index reader. By default a file based index reader will be created. This parameter is
                       intended for testing only.
     :return: A generator for the bulk operations of the given client.
@@ -1196,20 +1197,20 @@ class SourceOnlyIndexDataReader(IndexDataReader):
         return len(bulk_items) // 2, bulk_items
 
 
-register_param_source_for_operation(track.OperationType.Bulk, BulkIndexParamSource)
-register_param_source_for_operation(track.OperationType.Search, SearchParamSource)
-register_param_source_for_operation(track.OperationType.CreateIndex, CreateIndexParamSource)
-register_param_source_for_operation(track.OperationType.DeleteIndex, DeleteIndexParamSource)
-register_param_source_for_operation(track.OperationType.CreateDataStream, CreateDataStreamParamSource)
-register_param_source_for_operation(track.OperationType.DeleteDataStream, DeleteDataStreamParamSource)
-register_param_source_for_operation(track.OperationType.CreateIndexTemplate, CreateIndexTemplateParamSource)
-register_param_source_for_operation(track.OperationType.DeleteIndexTemplate, DeleteIndexTemplateParamSource)
-register_param_source_for_operation(track.OperationType.CreateComponentTemplate, CreateComponentTemplateParamSource)
-register_param_source_for_operation(track.OperationType.DeleteComponentTemplate, DeleteComponentTemplateParamSource)
-register_param_source_for_operation(track.OperationType.CreateComposableTemplate, CreateComposableTemplateParamSource)
-register_param_source_for_operation(track.OperationType.DeleteComposableTemplate, DeleteIndexTemplateParamSource)
-register_param_source_for_operation(track.OperationType.Sleep, SleepParamSource)
-register_param_source_for_operation(track.OperationType.ForceMerge, ForceMergeParamSource)
+register_param_source_for_operation(workload.OperationType.Bulk, BulkIndexParamSource)
+register_param_source_for_operation(workload.OperationType.Search, SearchParamSource)
+register_param_source_for_operation(workload.OperationType.CreateIndex, CreateIndexParamSource)
+register_param_source_for_operation(workload.OperationType.DeleteIndex, DeleteIndexParamSource)
+register_param_source_for_operation(workload.OperationType.CreateDataStream, CreateDataStreamParamSource)
+register_param_source_for_operation(workload.OperationType.DeleteDataStream, DeleteDataStreamParamSource)
+register_param_source_for_operation(workload.OperationType.CreateIndexTemplate, CreateIndexTemplateParamSource)
+register_param_source_for_operation(workload.OperationType.DeleteIndexTemplate, DeleteIndexTemplateParamSource)
+register_param_source_for_operation(workload.OperationType.CreateComponentTemplate, CreateComponentTemplateParamSource)
+register_param_source_for_operation(workload.OperationType.DeleteComponentTemplate, DeleteComponentTemplateParamSource)
+register_param_source_for_operation(workload.OperationType.CreateComposableTemplate, CreateComposableTemplateParamSource)
+register_param_source_for_operation(workload.OperationType.DeleteComposableTemplate, DeleteIndexTemplateParamSource)
+register_param_source_for_operation(workload.OperationType.Sleep, SleepParamSource)
+register_param_source_for_operation(workload.OperationType.ForceMerge, ForceMergeParamSource)
 
 # Also register by name, so users can use it too
 register_param_source_for_name("file-reader", BulkIndexParamSource)

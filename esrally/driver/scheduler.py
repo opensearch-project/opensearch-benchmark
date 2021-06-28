@@ -21,7 +21,7 @@ import random
 import types
 from abc import ABC, abstractmethod
 
-import esrally.track
+import esrally.workload
 from esrally import exceptions
 
 # Mapping from task to scheduler
@@ -79,7 +79,7 @@ task's parameter source into this property.
 """
 
 
-def scheduler_for(task: esrally.track.Task):
+def scheduler_for(task: esrally.workload.Task):
     """
     Creates a scheduler instance
 
@@ -265,7 +265,7 @@ class PoissonScheduler(SimpleScheduler):
 class UnitAwareScheduler(Scheduler):
     """
     Scheduler implementation that adjusts target throughput based on feedback from the runner. It delegates actual
-    scheduling to the scheduler provided by the user in the track.
+    scheduling to the scheduler provided by the user in the workload.
 
     """
     def __init__(self, task, scheduler_class):

@@ -21,7 +21,7 @@ from unittest import TestCase
 
 from esrally import exceptions
 from esrally.driver import scheduler
-from esrally.track import track
+from esrally.workload import workload
 
 
 class SchedulerTestCase(TestCase):
@@ -65,10 +65,10 @@ class PoissonSchedulerTests(SchedulerTestCase):
 
 class UnitAwareSchedulerTests(TestCase):
     def test_scheduler_rejects_differing_throughput_units(self):
-        task = track.Task(name="bulk-index",
-                          operation=track.Operation(
+        task = workload.Task(name="bulk-index",
+                          operation=workload.Operation(
                               name="bulk-index",
-                              operation_type=track.OperationType.Bulk.to_hyphenated_string()),
+                              operation_type=workload.OperationType.Bulk.to_hyphenated_string()),
                           clients=4,
                           params={
                               "target-throughput": "5000 MB/s"
@@ -81,10 +81,10 @@ class UnitAwareSchedulerTests(TestCase):
                          "is measured in [docs/s].", ex.exception.args[0])
 
     def test_scheduler_adapts_to_changed_weights(self):
-        task = track.Task(name="bulk-index",
-                          operation=track.Operation(
+        task = workload.Task(name="bulk-index",
+                          operation=workload.Operation(
                               name="bulk-index",
-                              operation_type=track.OperationType.Bulk.to_hyphenated_string()),
+                              operation_type=workload.OperationType.Bulk.to_hyphenated_string()),
                           clients=4,
                           params={
                               "target-throughput": "5000 docs/s"
@@ -108,10 +108,10 @@ class UnitAwareSchedulerTests(TestCase):
         self.assertEqual(2 * task.clients, s.next(0))
 
     def test_scheduler_accepts_differing_units_pages_and_ops(self):
-        task = track.Task(name="scroll-query",
-                          operation=track.Operation(
+        task = workload.Task(name="scroll-query",
+                          operation=workload.Operation(
                               name="scroll-query",
-                              operation_type=track.OperationType.Search.to_hyphenated_string()),
+                              operation_type=workload.OperationType.Search.to_hyphenated_string()),
                           clients=1,
                           params={
                               # implicitly: ops/s
@@ -131,10 +131,10 @@ class UnitAwareSchedulerTests(TestCase):
         self.assertEqual(0.1 * task.clients, s.next(0))
 
     def test_scheduler_does_not_change_throughput_for_empty_requests(self):
-        task = track.Task(name="match-all-query",
-                          operation=track.Operation(
+        task = workload.Task(name="match-all-query",
+                          operation=workload.Operation(
                               name="query",
-                              operation_type=track.OperationType.Search.to_hyphenated_string()),
+                              operation_type=workload.OperationType.Search.to_hyphenated_string()),
                           clients=1,
                           params={
                               # implicitly: ops/s
@@ -190,13 +190,13 @@ class SchedulerCategorizationTests(TestCase):
 
 class SchedulerThrottlingTests(TestCase):
     def task(self, schedule=None, target_throughput=None, target_interval=None):
-        op = track.Operation("bulk-index", track.OperationType.Bulk.to_hyphenated_string())
+        op = workload.Operation("bulk-index", workload.OperationType.Bulk.to_hyphenated_string())
         params = {}
         if target_throughput is not None:
             params["target-throughput"] = target_throughput
         if target_interval is not None:
             params["target-interval"] = target_interval
-        return track.Task("test", op, schedule=schedule, params=params)
+        return workload.Task("test", op, schedule=schedule, params=params)
 
     def test_throttled_by_target_throughput(self):
         self.assertFalse(scheduler.run_unthrottled(self.task(target_throughput=4, schedule="deterministic")))
@@ -230,10 +230,10 @@ class LegacyWrappingSchedulerTests(TestCase):
         scheduler.remove_scheduler("simple")
 
     def test_legacy_scheduler(self):
-        task = track.Task(name="raw-request",
-                          operation=track.Operation(
+        task = workload.Task(name="raw-request",
+                          operation=workload.Operation(
                               name="raw",
-                              operation_type=track.OperationType.RawRequest.to_hyphenated_string()),
+                              operation_type=workload.OperationType.RawRequest.to_hyphenated_string()),
                           clients=1,
                           schedule="simple")
 

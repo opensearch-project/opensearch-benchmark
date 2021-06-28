@@ -247,7 +247,7 @@ class MetaInfoScope(Enum):
 
 
 def calculate_results(store, race):
-    calc = GlobalStatsCalculator(store, race.track, race.challenge)
+    calc = GlobalStatsCalculator(store, race.workload, race.challenge)
     return calc()
 
 
@@ -256,7 +256,7 @@ def calculate_system_results(store, node_name):
     return calc()
 
 
-def metrics_store(cfg, read_only=True, track=None, challenge=None, car=None, meta_info=None):
+def metrics_store(cfg, read_only=True, workload=None, challenge=None, car=None, meta_info=None):
     """
     Creates a proper metrics store based on the current configuration.
 
@@ -272,7 +272,7 @@ def metrics_store(cfg, read_only=True, track=None, challenge=None, car=None, met
     race_timestamp = cfg.opts("system", "time.start")
     selected_car = cfg.opts("mechanic", "car.names") if car is None else car
 
-    store.open(race_id, race_timestamp, track, challenge, selected_car, create=not read_only)
+    store.open(race_id, race_timestamp, workload, challenge, selected_car, create=not read_only)
     return store
 
 
@@ -335,8 +335,8 @@ class MetricsStore:
         self._config = cfg
         self._race_id = None
         self._race_timestamp = None
-        self._track = None
-        self._track_params = cfg.opts("track", "params", default_value={}, mandatory=False)
+        self._workload = None
+        self._workload_params = cfg.opts("workload", "params", default_value={}, mandatory=False)
         self._challenge = None
         self._car = None
         self._car_name = None
@@ -355,13 +355,13 @@ class MetricsStore:
         self._stop_watch = self._clock.stop_watch()
         self.logger = logging.getLogger(__name__)
 
-    def open(self, race_id=None, race_timestamp=None, track_name=None, challenge_name=None, car_name=None, ctx=None, create=False):
+    def open(self, race_id=None, race_timestamp=None, workload_name=None, challenge_name=None, car_name=None, ctx=None, create=False):
         """
-        Opens a metrics store for a specific race, track, challenge and car.
+        Opens a metrics store for a specific race, workload, challenge and car.
 
         :param race_id: The race id. This attribute is sufficient to uniquely identify a race.
         :param race_timestamp: The race timestamp as a datetime.
-        :param track_name: Track name.
+        :param workload_name: Workload name.
         :param challenge_name: Challenge name.
         :param car_name: Car name.
         :param ctx: An metrics store open context retrieved from another metrics store with ``#open_context``.
@@ -371,13 +371,13 @@ class MetricsStore:
         if ctx:
             self._race_id = ctx["race-id"]
             self._race_timestamp = ctx["race-timestamp"]
-            self._track = ctx["track"]
+            self._workload = ctx["workload"]
             self._challenge = ctx["challenge"]
             self._car = ctx["car"]
         else:
             self._race_id = race_id
             self._race_timestamp = time.to_iso8601(race_timestamp)
-            self._track = track_name
+            self._workload = workload_name
             self._challenge = challenge_name
             self._car = car_name
         assert self._race_id is not None, "Attempting to open metrics store without a race id"
@@ -385,8 +385,8 @@ class MetricsStore:
 
         self._car_name = "+".join(self._car) if isinstance(self._car, list) else self._car
 
-        self.logger.info("Opening metrics store for race timestamp=[%s], track=[%s], challenge=[%s], car=[%s]",
-                         self._race_timestamp, self._track, self._challenge, self._car)
+        self.logger.info("Opening metrics store for race timestamp=[%s], workload=[%s], challenge=[%s], car=[%s]",
+                         self._race_timestamp, self._workload, self._challenge, self._car)
 
         user_tags = extract_user_tags_from_config(self._config)
         for k, v in user_tags.items():
@@ -453,7 +453,7 @@ class MetricsStore:
         return {
             "race-id": self._race_id,
             "race-timestamp": self._race_timestamp,
-            "track": self._track,
+            "workload": self._workload,
             "challenge": self._challenge,
             "car": self._car
         }
@@ -525,7 +525,7 @@ class MetricsStore:
             "race-id": self._race_id,
             "race-timestamp": self._race_timestamp,
             "environment": self._environment_name,
-            "track": self._track,
+            "workload": self._workload,
             "challenge": self._challenge,
             "car": self._car_name,
             "name": name,
@@ -540,13 +540,13 @@ class MetricsStore:
             doc["operation"] = operation
         if operation_type:
             doc["operation-type"] = operation_type
-        if self._track_params:
-            doc["track-params"] = self._track_params
+        if self._workload_params:
+            doc["workload-params"] = self._workload_params
         self._add(doc)
 
     def put_doc(self, doc, level=None, node_name=None, meta_data=None, absolute_time=None, relative_time=None):
         """
-        Adds a new document to the metrics store. It will merge additional properties into the doc such as timestamps or track info.
+        Adds a new document to the metrics store. It will merge additional properties into the doc such as timestamps or workload info.
 
         :param doc: The raw document as a ``dict``. Ownership is transferred to the metrics store (i.e. don't reuse that object).
         :param level: Whether these are cluster or node-level metrics. May be ``None`` if not applicable.
@@ -582,15 +582,15 @@ class MetricsStore:
             "race-id": self._race_id,
             "race-timestamp": self._race_timestamp,
             "environment": self._environment_name,
-            "track": self._track,
+            "workload": self._workload,
             "challenge": self._challenge,
             "car": self._car_name,
 
         })
         if meta:
             doc["meta"] = meta
-        if self._track_params:
-            doc["track-params"] = self._track_params
+        if self._workload_params:
+            doc["workload-params"] = self._workload_params
 
         self._add(doc)
 
@@ -771,9 +771,9 @@ class EsMetricsStore(MetricsStore):
         self._index_template_provider = index_template_provider_class(cfg)
         self._docs = None
 
-    def open(self, race_id=None, race_timestamp=None, track_name=None, challenge_name=None, car_name=None, ctx=None, create=False):
+    def open(self, race_id=None, race_timestamp=None, workload_name=None, challenge_name=None, car_name=None, ctx=None, create=False):
         self._docs = []
-        MetricsStore.open(self, race_id, race_timestamp, track_name, challenge_name, car_name, ctx, create)
+        MetricsStore.open(self, race_id, race_timestamp, workload_name, challenge_name, car_name, ctx, create)
         self._index = self.index_name()
         # reduce a bit of noise in the metrics cluster log
         if create:
@@ -808,9 +808,9 @@ class EsMetricsStore(MetricsStore):
             sw.start()
             self._client.bulk_index(index=self._index, doc_type=EsMetricsStore.METRICS_DOC_TYPE, items=self._docs)
             sw.stop()
-            self.logger.info("Successfully added %d metrics documents for race timestamp=[%s], track=[%s], "
+            self.logger.info("Successfully added %d metrics documents for race timestamp=[%s], workload=[%s], "
                              "challenge=[%s], car=[%s] in [%f] seconds.", len(self._docs), self._race_timestamp,
-                             self._track, self._challenge, self._car, sw.total_time())
+                             self._workload, self._challenge, self._car, sw.total_time())
         self._docs = []
         # ensure we can search immediately after flushing
         if refresh:
@@ -1150,46 +1150,48 @@ def list_races(cfg):
 
     races = []
     for race in race_store(cfg).list():
-        races.append([race.race_id, time.to_iso8601(race.race_timestamp), race.track, format_dict(race.track_params), race.challenge_name,
-                      race.car_name, format_dict(race.user_tags), race.track_revision, race.team_revision])
+        races.append([race.race_id, time.to_iso8601(race.race_timestamp), race.workload,
+                      format_dict(race.workload_params), race.challenge_name,
+                      race.car_name, format_dict(race.user_tags), race.workload_revision, race.team_revision])
 
     if len(races) > 0:
         console.println("\nRecent races:\n")
-        console.println(tabulate.tabulate(races, headers=["Race ID", "Race Timestamp", "Track", "Track Parameters", "Challenge", "Car",
-                                                          "User Tags", "Track Revision", "Team Revision"]))
+        console.println(tabulate.tabulate(races, headers=["Race ID", "Race Timestamp",
+                                                          "Workload", "Workload Parameters", "Challenge", "Car",
+                                                          "User Tags", "Workload Revision", "Team Revision"]))
     else:
         console.println("")
         console.println("No recent races found.")
 
 
-def create_race(cfg, track, challenge, track_revision=None):
+def create_race(cfg, workload, challenge, workload_revision=None):
     car = cfg.opts("mechanic", "car.names")
     environment = cfg.opts("system", "env.name")
     race_id = cfg.opts("system", "race.id")
     race_timestamp = cfg.opts("system", "time.start")
     user_tags = extract_user_tags_from_config(cfg)
     pipeline = cfg.opts("race", "pipeline")
-    track_params = cfg.opts("track", "params")
+    workload_params = cfg.opts("workload", "params")
     car_params = cfg.opts("mechanic", "car.params")
     plugin_params = cfg.opts("mechanic", "plugin.params")
     rally_version = version.version()
     rally_revision = version.revision()
 
-    return Race(rally_version, rally_revision, environment, race_id, race_timestamp, pipeline, user_tags, track,
-                track_params, challenge, car, car_params, plugin_params, track_revision)
+    return Race(rally_version, rally_revision, environment, race_id, race_timestamp, pipeline, user_tags, workload,
+                workload_params, challenge, car, car_params, plugin_params, workload_revision)
 
 
 class Race:
     def __init__(self, rally_version, rally_revision, environment_name, race_id, race_timestamp, pipeline, user_tags,
-                 track, track_params, challenge, car, car_params, plugin_params, track_revision=None, team_revision=None,
+                 workload, workload_params, challenge, car, car_params, plugin_params, workload_revision=None, team_revision=None,
                  distribution_version=None, distribution_flavor=None, revision=None, results=None, meta_data=None):
         if results is None:
             results = {}
         # this happens when the race is created initially
         if meta_data is None:
             meta_data = {}
-            if track:
-                meta_data.update(track.meta_data)
+            if workload:
+                meta_data.update(workload.meta_data)
             if challenge:
                 meta_data.update(challenge.meta_data)
         self.rally_version = rally_version
@@ -1199,13 +1201,13 @@ class Race:
         self.race_timestamp = race_timestamp
         self.pipeline = pipeline
         self.user_tags = user_tags
-        self.track = track
-        self.track_params = track_params
+        self.workload = workload
+        self.workload_params = workload_params
         self.challenge = challenge
         self.car = car
         self.car_params = car_params
         self.plugin_params = plugin_params
-        self.track_revision = track_revision
+        self.workload_revision = workload_revision
         self.team_revision = team_revision
         self.distribution_version = distribution_version
         self.distribution_flavor = distribution_flavor
@@ -1214,8 +1216,8 @@ class Race:
         self.meta_data = meta_data
 
     @property
-    def track_name(self):
-        return str(self.track)
+    def workload_name(self):
+        return str(self.workload)
 
     @property
     def challenge_name(self):
@@ -1240,7 +1242,7 @@ class Race:
             "race-timestamp": time.to_iso8601(self.race_timestamp),
             "pipeline": self.pipeline,
             "user-tags": self.user_tags,
-            "track": self.track_name,
+            "workload": self.workload_name,
             "car": self.car,
             "cluster": {
                 "revision": self.revision,
@@ -1251,12 +1253,12 @@ class Race:
         }
         if self.results:
             d["results"] = self.results.as_dict()
-        if self.track_revision:
-            d["track-revision"] = self.track_revision
+        if self.workload_revision:
+            d["workload-revision"] = self.workload_revision
         if not self.challenge.auto_generated:
             d["challenge"] = self.challenge_name
-        if self.track_params:
-            d["track-params"] = self.track_params
+        if self.workload_params:
+            d["workload-params"] = self.workload_params
         if self.car_params:
             d["car-params"] = self.car_params
         if self.plugin_params:
@@ -1276,7 +1278,7 @@ class Race:
             "distribution-version": self.distribution_version,
             "distribution-flavor": self.distribution_flavor,
             "user-tags": self.user_tags,
-            "track": self.track_name,
+            "workload": self.workload_name,
             "challenge": self.challenge_name,
             "car": self.car_name,
             # allow to logically delete records, e.g. for UI purposes when we only want to show the latest result
@@ -1286,10 +1288,10 @@ class Race:
             result_template["distribution-major-version"] = versions.major_version(self.distribution_version)
         if self.team_revision:
             result_template["team-revision"] = self.team_revision
-        if self.track_revision:
-            result_template["track-revision"] = self.track_revision
-        if self.track_params:
-            result_template["track-params"] = self.track_params
+        if self.workload_revision:
+            result_template["workload-revision"] = self.workload_revision
+        if self.workload_params:
+            result_template["workload-params"] = self.workload_params
         if self.car_params:
             result_template["car-params"] = self.car_params
         if self.plugin_params:
@@ -1312,9 +1314,9 @@ class Race:
         # TODO: cluster is optional for BWC. This can be removed after some grace period.
         cluster = d.get("cluster", {})
         return Race(d["rally-version"], d.get("rally-revision"), d["environment"], d["race-id"],
-                    time.from_is8601(d["race-timestamp"]), d["pipeline"], user_tags, d["track"], d.get("track-params"),
+                    time.from_is8601(d["race-timestamp"]), d["pipeline"], user_tags, d["workload"], d.get("workload-params"),
                     d.get("challenge"), d["car"], d.get("car-params"), d.get("plugin-params"),
-                    track_revision=d.get("track-revision"), team_revision=cluster.get("team-revision"),
+                    workload_revision=d.get("workload-revision"), team_revision=cluster.get("team-revision"),
                     distribution_version=cluster.get("distribution-version"),
                     distribution_flavor=cluster.get("distribution-flavor"),
                     revision=cluster.get("revision"), results=d.get("results"), meta_data=d.get("meta", {}))
@@ -1546,10 +1548,10 @@ def percentiles_for_sample_size(sample_size):
 
 
 class GlobalStatsCalculator:
-    def __init__(self, store, track, challenge):
+    def __init__(self, store, workload, challenge):
         self.store = store
         self.logger = logging.getLogger(__name__)
-        self.track = track
+        self.workload = workload
         self.challenge = challenge
 
     def __call__(self):
@@ -1573,7 +1575,7 @@ class GlobalStatsCalculator:
                         error_rate,
                         duration,
                         self.merge(
-                            self.track.meta_data,
+                            self.workload.meta_data,
                             self.challenge.meta_data,
                             task.operation.meta_data,
                             task.meta_data)
