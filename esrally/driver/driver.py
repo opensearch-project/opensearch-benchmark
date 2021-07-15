@@ -542,13 +542,16 @@ class Driver:
         self.telemetry = None
 
     def create_es_clients(self):
+        print(">>>>>>>>>>>>>>>>>> Generating ES clients ")
         all_hosts = self.config.opts("client", "hosts").all_hosts
+        print("All hosts>>>>>>>>>>>", all_hosts)
         es = {}
         for cluster_name, cluster_hosts in all_hosts.items():
             all_client_options = self.config.opts("client", "options").all_client_options
             cluster_client_options = dict(all_client_options[cluster_name])
             # Use retries to avoid aborts on long living connections for telemetry devices
             cluster_client_options["retry-on-timeout"] = True
+            print("Connecting to es client : ", cluster_hosts, all_client_options)
             es[cluster_name] = self.es_client_factory(cluster_hosts, cluster_client_options).create()
         return es
 

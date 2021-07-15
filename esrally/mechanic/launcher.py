@@ -46,10 +46,12 @@ class DockerLauncher:
             node_telemetry = [
                 # Don't attach any telemetry devices for now but keep the infrastructure in place
             ]
+            print("Healthy container has come up!")
             t = telemetry.Telemetry(devices=node_telemetry)
             node = cluster.Node(0, binary_path, host_name, node_name, t)
             t.attach_to_node(node)
             nodes.append(node)
+            print("Node attached!")
         return nodes
 
     def _start_process(self, binary_path):
@@ -62,21 +64,32 @@ class DockerLauncher:
             raise exceptions.LaunchError(msg)
 
         container_id = self._get_container_id(binary_path)
+        print("Watinig for healthy container to come up!")
         self._wait_for_healthy_running_container(container_id, DockerLauncher.PROCESS_WAIT_TIMEOUT_SECONDS)
 
     def _docker_compose(self, compose_config, cmd):
+        command = "docker-compose -f {} {}".format(os.path.join(compose_config, "docker-compose.yml"), cmd)
+        print("_docker_compose invoked >>>>>", command)
+        print(">>>>>>>>>>>>>>>>>>>>YML Starts >>>>>>>>>>>>>>>>>")
+        log = open(os.path.join(compose_config, "docker-compose.yml"), "r")
+        for line in log:
+            print(line)
+        print(">>>>>>>>>>>>>>>>>>>>YML Ends >>>>>>>>>>>>>>>>>>>")
         return "docker-compose -f {} {}".format(os.path.join(compose_config, "docker-compose.yml"), cmd)
 
     def _get_container_id(self, compose_config):
         compose_ps_cmd = self._docker_compose(compose_config, "ps -q")
+        print("Command for docker : >>>>>>>", compose_ps_cmd)
         return process.run_subprocess_with_output(compose_ps_cmd)[0]
 
     def _wait_for_healthy_running_container(self, container_id, timeout):
-        cmd = 'docker ps -a --filter "id={}" --filter "status=running" --filter "health=healthy" -q'.format(container_id)
+        cmd = 'docker ps -a --filter "id={}" --filter "status=running" -q'.format(container_id)
         stop_watch = self.clock.stop_watch()
         stop_watch.start()
         while stop_watch.split_time() < timeout:
             containers = process.run_subprocess_with_output(cmd)
+            print("Container list size is :", len(containers))
+            print("Containers are :", containers)
             if len(containers) > 0:
                 return
             time.sleep(0.5)

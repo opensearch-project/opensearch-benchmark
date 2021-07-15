@@ -134,16 +134,23 @@ def _resolve_single_path(major, mandatory=True, sysprop_reader=system_property):
     :return: The resolved path to the JDK or ``None`` if ``mandatory`` is ``False`` and no appropriate JDK has been found.
     """
     def do_resolve(env_var, major):
+        print("Resolving env_var, major", env_var, major)
         java_v_home = os.getenv(env_var)
+        print("Java v home is : ", java_v_home)
         if java_v_home:
             actual_major = major_version(java_v_home, sysprop_reader)
+            print("Actual major :", actual_major)
             if actual_major == major:
+                print("Returning java_v_home: ", java_v_home)
                 return java_v_home
             elif mandatory:
+                print("Madatory is trues, raising exception")
                 raise exceptions.SystemSetupError("{} points to JDK {} but it should point to JDK {}.".format(env_var, actual_major, major))
             else:
+                print("returning NONe")
                 return None
         else:
+            print("returning NONe>>>>>>")
             return None
 
     # this has to be consistent with _checked_env_vars()

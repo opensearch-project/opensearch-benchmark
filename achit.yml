@@ -1,0 +1,27 @@
+version: '2.2'
+services:
+  elasticsearch1:
+    cap_add:
+      - IPC_LOCK
+    image: "docker.elastic.co/elasticsearch/elasticsearch-oss:7.6.0"
+    labels:
+      io.rally.description: "elasticsearch-rally"
+    ports:
+      - 19200:19200
+      - 9300
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - /Users/achiojha/.rally/benchmarks/races/d6e6a5de-78b1-45a0-8eaf-647c3ee5f284/rally-node-0/data/8e0c930a-63c4-4c65-a413-6caeb0c7b9f3:/usr/share/elasticsearch/data
+      - /Users/achiojha/.rally/benchmarks/races/d6e6a5de-78b1-45a0-8eaf-647c3ee5f284/rally-node-0/logs/server:/var/log/elasticsearch
+      - /Users/achiojha/.rally/benchmarks/races/d6e6a5de-78b1-45a0-8eaf-647c3ee5f284/rally-node-0/heapdump:/usr/share/elasticsearch/heapdump
+      - /Users/achiojha/.rally/benchmarks/races/d6e6a5de-78b1-45a0-8eaf-647c3ee5f284/rally-node-0/install/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml
+      - /Users/achiojha/.rally/benchmarks/races/d6e6a5de-78b1-45a0-8eaf-647c3ee5f284/rally-node-0/install/config/log4j2.properties:/usr/share/elasticsearch/config/log4j2.properties
+      - /Users/achiojha/.rally/benchmarks/races/d6e6a5de-78b1-45a0-8eaf-647c3ee5f284/rally-node-0/install/config/jvm.options:/usr/share/elasticsearch/config/jvm.options
+    healthcheck:
+      test: nc -z 127.0.0.1 19200
+      interval: 5s
+      timeout: 2s
+      retries: 10

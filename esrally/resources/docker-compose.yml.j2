@@ -13,8 +13,10 @@ services:
     mem_limit: {{docker_mem_limit}}
     {%- endif %}
     ports:
-      - {{http_port}}:{{http_port}}
+      - 19200:9200
       - 9300
+    environment:
+      - discovery.type=single-node
     ulimits:
       memlock:
         soft: -1

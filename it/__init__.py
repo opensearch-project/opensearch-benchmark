@@ -79,6 +79,7 @@ def esrally(cfg, command_line):
     This method should be used for rally invocations of the all commands besides race.
     These commands may have different CLI options than race.
     """
+    print("Command to be executed is", esrally_command_line_for(cfg, command_line))
     return os.system(esrally_command_line_for(cfg, command_line))
 
 
@@ -112,13 +113,16 @@ def wait_until_port_is_free(port_number=39200, timeout=120):
     end = start + timeout
     while time.perf_counter() < end:
         c = socket.socket()
+        print(">>>>>>>>Check connection for 127.0.0.1:", port_number)
         connect_result = c.connect_ex(("127.0.0.1", port_number))
         # noinspection PyBroadException
         try:
             if connect_result == errno.ECONNREFUSED:
+                print(">>>>>>>>Connection is free")
                 c.close()
                 return
             else:
+                print(">>>>>>>>Connection not free")
                 c.close()
                 time.sleep(0.5)
         except Exception:
@@ -165,7 +169,10 @@ class TestCluster:
                                                                      node_name=node_name,
                                                                      car=car,
                                                                      transport_port=transport_port))
-            self.installation_id = json.loads("".join(output))["installation-id"]
+            print("Outpiut is>>>>>>>>>>>>>", output)
+            out = output[-3:]
+            print("out is >>>>", out)
+            self.installation_id = json.loads("".join(out))["installation-id"]
         except BaseException as e:
             raise AssertionError("Failed to install Elasticsearch {}.".format(distribution_version), e)
 
