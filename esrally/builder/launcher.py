@@ -73,6 +73,7 @@ class DockerLauncher:
         self._wait_for_healthy_running_container(container_id, DockerLauncher.PROCESS_WAIT_TIMEOUT_SECONDS)
 
     def _docker_compose(self, compose_config, cmd):
+        command = "docker-compose -f {} {}".format(os.path.join(compose_config, "docker-compose.yml"), cmd)
         return "docker-compose -f {} {}".format(os.path.join(compose_config, "docker-compose.yml"), cmd)
 
     def _get_container_id(self, compose_config):

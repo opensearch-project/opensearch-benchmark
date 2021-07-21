@@ -23,15 +23,15 @@
 # under the License.
 
 #
-# Simple helper script to create graphs based on multiple race.json files (it's a summary of the results of a single race which is
-# stored in ~/.rally/benchmarks/races/RACE_TS/). There is no specific integration into Rally and it is also not installed with Rally.
+# Simple helper script to create graphs based on multiple test_execution.json files (it's a summary of the results of a single test_execution which is
+# stored in ~/.rally/benchmarks/test_executions/TEST_EXECUTION_TS/). There is no specific integration into Rally and it is also not installed with Rally.
 #
 # It requires matplotlib (install with pip3 install matplotlib).
 #
 #
-# Usage: python3 analyze.py [--label=LABEL] /path1/to/race.json /path2/to/race.json
+# Usage: python3 analyze.py [--label=LABEL] /path1/to/test_execution.json /path2/to/test_execution.json
 #
-# Output: A bunch of .png files in the current directory. Each graph shows one data series per race. The label key is chosen based on the
+# Output: A bunch of .png files in the current directory. Each graph shows one data series per test_execution. The label key is chosen based on the
 #         command line parameter `--label`
 #
 
@@ -218,17 +218,17 @@ def plot(raw_data, label_key):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Turns race.json files into graphs")
+    parser = argparse.ArgumentParser(description="Turns test_execution.json files into graphs")
 
     parser.add_argument(
         "--label",
-        help="defines which attribute to use for labelling data series (default: race-timestamp).",
-        # choices=["environment", "race-timestamp", "user-tags", "challenge", "car"],
-        default="race-timestamp")
+        help="defines which attribute to use for labelling data series (default: test-execution-timestamp).",
+        # choices=["environment", "test-execution-timestamp", "user-tags", "challenge", "car"],
+        default="test-execution-timestamp")
 
     parser.add_argument("path",
                         nargs="+",
-                        help="Full path to one or more race.json files")
+                        help="Full path to one or more test_execution.json files")
 
     return parser.parse_args()
 
