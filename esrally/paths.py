@@ -18,10 +18,10 @@ import os
 
 
 def rally_confdir():
-    print(">>>>>>>>>>> Rally - COnfig dir : ")
+    # print(">>>>>>>>>>> Rally - COnfig dir : ")
     default_home = os.path.expanduser("/tmp/")
-    print("Default home is :>>>>>>", default_home)
-    print("Returning value : ", os.path.join(os.getenv("RALLY_HOME", default_home), ".rally"))
+    # print("Default home is :>>>>>>", default_home)
+    # print("Returning value : ", os.path.join(os.getenv("RALLY_HOME", default_home), ".rally"))
     return os.path.join(os.getenv("RALLY_HOME", default_home), ".rally")
 
 

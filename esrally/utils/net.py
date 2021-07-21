@@ -17,6 +17,7 @@
 import functools
 import logging
 import os
+import time
 import socket
 import urllib.error
 from urllib.parse import quote, parse_qs, urlencode, urlparse, urlunparse
@@ -28,27 +29,34 @@ from esrally import exceptions
 from esrally.utils import console, convert
 
 __HTTP = None
+# proxy_host_port = None
 
 
 def init():
     logger = logging.getLogger(__name__)
-    print(">>>>>>>> reached the file net.py -> init() method")
+    # print(">>>>>>>> reached the file net.py -> init() method")
     global __HTTP
+    # global proxy_host_port
     proxy_url = os.getenv("http_proxy")
-    print(">>>>>>>> proxy url is :", proxy_url)
+    # print(">>>>>>>> proxy url is :", proxy_url)
 
     if proxy_url and len(proxy_url) > 0:
-        print(">>>>>>>>>>>>>>>>Comes into the if logic>>>>>>>>>>>>>")
+        # print(">>>>>>>>>>>>>>>>Comes into the if logic>>>>>>>>>>>>>")
         parsed_url = urllib3.util.parse_url(proxy_url)
         logger.info("Connecting via proxy URL [%s] to the Internet (picked up from the env variable [http_proxy]).",
                     proxy_url)
+        auth_info = urllib3.make_headers(proxy_basic_auth=parsed_url.auth)
+        logger.info("AUTH INFO: [%s]", auth_info)
+        # proxy_host_port = f"{parsed_url.host}:{parsed_url.port}"
+        # logger.info("PROXY HOST PORT [%s]", proxy_host_port)
         __HTTP = urllib3.ProxyManager(proxy_url,
                                       cert_reqs='CERT_REQUIRED',
                                       ca_certs=certifi.where(),
                                       # appropriate headers will only be set if there is auth info
-                                      proxy_headers=urllib3.make_headers(proxy_basic_auth=parsed_url.auth))
+                                      proxy_headers=auth_info)
+        logger.info("Successfully connected Proxy URL")
     else:
-        print(">>>>>>>>>>>>>>>>Comes into the else logic>>>>>>>>>>>>>")
+        # print(">>>>>>>>>>>>>>>>Comes into the else logic>>>>>>>>>>>>>")
         logger.info("Connecting directly to the Internet (no proxy support).")
         __HTTP = urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
 
@@ -254,8 +262,12 @@ def has_internet_connection(probing_url):
         logger.debug("Checking for internet connection against [%s]", probing_url)
         # We do a HTTP request here to respect the HTTP proxy setting. If we'd open a plain socket connection we circumvent the
         # proxy and erroneously conclude we don't have an Internet connection.
+        logger.info("PROBING URL [%s]", probing_url)
+        time.sleep(30)
         response = __http().request("GET", probing_url, timeout=2.0)
+        logger.info("RESPONSE [%s]", response.status)
         status = response.status
+
         logger.debug("Probing result is HTTP status [%s]", str(status))
         return status == 200
     except BaseException:

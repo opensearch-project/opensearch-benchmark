@@ -16,12 +16,15 @@
 # under the License.
 
 import it
-
+import os
 
 @it.random_rally_config
 def test_sources(cfg):
     port = 19200
     it.wait_until_port_is_free(port_number=port)
+    print("OS ENV")
+    print(os.environ['JAVA15_HOME'])
+    print(os.environ['JAVA16_HOME'])
     assert it.race(cfg, f"--revision=latest --track=geonames --test-mode  --target-hosts=127.0.0.1:{port} "
                         f"--challenge=append-no-conflicts --car=4gheap --elasticsearch-plugins=analysis-icu") == 0
 

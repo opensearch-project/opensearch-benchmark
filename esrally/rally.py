@@ -928,7 +928,11 @@ def main():
     # Configure networking
     net.init()
     if not args.offline:
-        probing_url = cfg.opts("system", "probing.url", default_value="https://github.com", mandatory=False)
+        probing_url = cfg.opts("system", "probing.url", default_value="https://github.com/", mandatory=False)
+
+        # does_it_have_internet_connection = net.has_internet_connection(probing_url)
+        # logger.info("Does it have internet connection: [%s]", does_it_have_internet_connection)
+        
         if not net.has_internet_connection(probing_url):
             console.warn("No Internet connection detected. Automatic download of track data sets etc. is disabled.",
                          logger=logger)

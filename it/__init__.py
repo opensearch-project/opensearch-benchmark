@@ -169,10 +169,11 @@ class TestCluster:
                                                                      node_name=node_name,
                                                                      car=car,
                                                                      transport_port=transport_port))
-            print("Outpiut is>>>>>>>>>>>>>", output)
-            out = output[-3:]
-            print("out is >>>>", out)
-            self.installation_id = json.loads("".join(out))["installation-id"]
+            # print("Outpiut is>>>>>>>>>>>>>", output)
+            # out = output[-3:]
+            # print("out is >>>>", out)
+            self.installation_id = json.loads("".join(output))["installation-id"]
+            print("INSTALLATION ID:",self.installation_id)
         except BaseException as e:
             raise AssertionError("Failed to install Elasticsearch {}.".format(distribution_version), e)
 
@@ -241,6 +242,8 @@ def build_docker_image():
 
     command = f"docker build -t elastic/rally:{rally_version} --build-arg RALLY_VERSION --build-arg RALLY_LICENSE " \
               f"-f {ROOT_DIR}/docker/Dockerfiles/Dockerfile-dev {ROOT_DIR}"
+
+    print("DOCKER COMMAND: ", command)
 
     if process.run_subprocess_with_logging(command, env=env_variables) != 0:
         raise AssertionError("It was not possible to build the docker image from Dockerfile-dev")

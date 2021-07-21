@@ -48,8 +48,10 @@ def http_proxy():
 def fresh_log_file():
     cfg = it.ConfigFile(config_name=None)
     log_file = os.path.join(cfg.rally_home, "logs", "rally.log")
+    print("====== LOG FILE ======: ", log_file)
 
     if os.path.exists(log_file):
+        print("FILE EXISTS")
         bak = os.path.join(tempfile.mkdtemp(), "rally.log")
         shutil.move(log_file, bak)
         yield log_file
@@ -64,7 +66,9 @@ def fresh_log_file():
 
 def assert_log_line_present(log_file, text):
     with open(log_file, "r") as f:
-        assert any(text in line for line in f), f"Could not find [{text}] in [{log_file}]."
+        print(text)
+        log_lines_found = [True if text in line else False for line in f]
+        assert any(log_lines_found), f"Could not find [{text}] in [{log_file}]."
 
 
 @it.rally_in_mem
