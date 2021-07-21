@@ -268,11 +268,9 @@ def wait_for_rest_layer(es, max_attempts=40):
     # bullet-proof as a cluster could have e.g. dedicated masters which are not contained in our list of target hosts
     # but this is still better than just checking for any random node's REST API being reachable.
     expected_node_count = len(es.transport.hosts)
-    print("Expected Node count is >>>>", expected_node_count)
     logger = logging.getLogger(__name__)
     for attempt in range(max_attempts):
         logger.debug("REST API is available after %s attempts", attempt)
-        print("REST API is available after %s attempts", attempt)
         # pylint: disable=import-outside-toplevel
         import elasticsearch
         try:
@@ -280,7 +278,6 @@ def wait_for_rest_layer(es, max_attempts=40):
             # available when the cluster status is RED (as long as all required nodes are present)
             es.cluster.health(wait_for_nodes=">={}".format(expected_node_count))
             logger.info("REST API is available for >= [%s] nodes after [%s] attempts.", expected_node_count, attempt)
-            print("REST API is available for >= [%s] nodes after [%s] attempts.", expected_node_count, attempt)
             return True
         except elasticsearch.ConnectionError as e:
             if "SSL: UNKNOWN_PROTOCOL" in str(e):

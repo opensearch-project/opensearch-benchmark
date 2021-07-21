@@ -34,21 +34,16 @@ __HTTP = None
 
 def init():
     logger = logging.getLogger(__name__)
-    # print(">>>>>>>> reached the file net.py -> init() method")
     global __HTTP
     # global proxy_host_port
     proxy_url = os.getenv("http_proxy")
-    # print(">>>>>>>> proxy url is :", proxy_url)
 
     if proxy_url and len(proxy_url) > 0:
-        # print(">>>>>>>>>>>>>>>>Comes into the if logic>>>>>>>>>>>>>")
         parsed_url = urllib3.util.parse_url(proxy_url)
         logger.info("Connecting via proxy URL [%s] to the Internet (picked up from the env variable [http_proxy]).",
                     proxy_url)
         auth_info = urllib3.make_headers(proxy_basic_auth=parsed_url.auth)
         logger.info("AUTH INFO: [%s]", auth_info)
-        # proxy_host_port = f"{parsed_url.host}:{parsed_url.port}"
-        # logger.info("PROXY HOST PORT [%s]", proxy_host_port)
         __HTTP = urllib3.ProxyManager(proxy_url,
                                       cert_reqs='CERT_REQUIRED',
                                       ca_certs=certifi.where(),
@@ -56,7 +51,6 @@ def init():
                                       proxy_headers=auth_info)
         logger.info("Successfully connected Proxy URL")
     else:
-        # print(">>>>>>>>>>>>>>>>Comes into the else logic>>>>>>>>>>>>>")
         logger.info("Connecting directly to the Internet (no proxy support).")
         __HTTP = urllib3.PoolManager(cert_reqs='CERT_REQUIRED', ca_certs=certifi.where())
 

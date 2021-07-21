@@ -1,5 +1,5 @@
 {
-  "index_patterns": ["rally-races-*"],
+  "index_patterns": ["rally-test-executions-*"],
   "settings": {
     "index": {
       "refresh_interval": "5s",
@@ -24,10 +24,10 @@
         "enabled": true
       },
       "properties": {
-        "race-id": {
+        "test-execution-id": {
           "type": "keyword"
         },
-        "race-timestamp": {
+        "test-execution-timestamp": {
           "type": "date",
           "format": "basic_date_time_no_millis",
           "fields": {

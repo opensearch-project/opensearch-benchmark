@@ -105,10 +105,10 @@ class MechanicTests(TestCase):
 
     # We stub irrelevant methods for the test
     class TestMechanic(mechanic.Mechanic):
-        def _current_race(self):
-            return "race 17"
+        def _current_test_execution(self):
+            return "test_execution 17"
 
-        def _add_results(self, current_race, node):
+        def _add_results(self, current_test_execution, node):
             pass
 
     @mock.patch("esrally.mechanic.provisioner.cleanup")
@@ -117,7 +117,7 @@ class MechanicTests(TestCase):
         provisioners = [mock.Mock(), mock.Mock()]
         launcher = MechanicTests.TestLauncher()
         cfg = config.Config()
-        cfg.add(config.Scope.application, "system", "race.id", "17")
+        cfg.add(config.Scope.application, "system", "test_execution.id", "17")
         cfg.add(config.Scope.application, "mechanic", "preserve.install", False)
         metrics_store = mock.Mock()
         m = MechanicTests.TestMechanic(cfg, metrics_store, supplier, provisioners, launcher)

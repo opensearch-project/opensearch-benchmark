@@ -28,42 +28,42 @@ def test_tar_distributions(cfg):
     for dist in it.DISTRIBUTIONS:
         for track in it.TRACKS:
             it.wait_until_port_is_free(port_number=port)
-            assert it.race(cfg, f"--distribution-version=\"{dist}\" --track=\"{track}\" "
+            assert it.test_execution(cfg, f"--distribution-version=\"{dist}\" --track=\"{track}\" "
                                 f"--test-mode --car=4gheap --target-hosts=127.0.0.1:{port}") == 0
 
 
-# @it.random_rally_config
-# def test_docker_distribution(cfg):
-#     port = 19200
-#     # only test the most recent Docker distribution
-#     dist = it.DISTRIBUTIONS[-1]
-#     it.wait_until_port_is_free(port_number=port)
-#     assert it.race(cfg, f"--pipeline=\"docker\" --distribution-version=\"{dist}\" "
-#                         f"--track=\"geonames\" --challenge=\"append-no-conflicts-index-only\" --test-mode "
-#                         f"--car=4gheap --target-hosts=127.0.0.1:{port}") == 0
+@it.random_rally_config
+def test_docker_distribution(cfg):
+    port = 19200
+    # only test the most recent Docker distribution
+    dist = it.DISTRIBUTIONS[-1]
+    it.wait_until_port_is_free(port_number=port)
+    assert it.test_execution(cfg, f"--pipeline=\"docker\" --distribution-version=\"{dist}\" "
+                        f"--track=\"geonames\" --challenge=\"append-no-conflicts-index-only\" --test-mode "
+                        f"--car=4gheap --target-hosts=127.0.0.1:{port}") == 0
 
 
-# @it.random_rally_config
-# def test_does_not_benchmark_unsupported_distribution(cfg):
-#     port = 19200
-#     it.wait_until_port_is_free(port_number=port)
-#     assert it.race(cfg, f"--distribution-version=\"1.7.6\" --track=\"{it.TRACKS[0]}\" "
-#                         f"--target-hosts=127.0.0.1:{port} --test-mode --car=4gheap") != 0
+@it.random_rally_config
+def test_does_not_benchmark_unsupported_distribution(cfg):
+    port = 19200
+    it.wait_until_port_is_free(port_number=port)
+    assert it.test_execution(cfg, f"--distribution-version=\"1.7.6\" --track=\"{it.TRACKS[0]}\" "
+                        f"--target-hosts=127.0.0.1:{port} --test-mode --car=4gheap") != 0
 
 
-# @pytest.fixture(scope="module")
-# def test_cluster():
-#     cluster = it.TestCluster("in-memory-it")
-#     # test with a recent distribution as eventdata is not available for all versions
-#     dist = it.DISTRIBUTIONS[-1]
-#     port = 19200
-#     race_id = str(uuid.uuid4())
+@pytest.fixture(scope="module")
+def test_cluster():
+    cluster = it.TestCluster("in-memory-it")
+    # test with a recent distribution as eventdata is not available for all versions
+    dist = it.DISTRIBUTIONS[-1]
+    port = 19200
+    test_execution_id = str(uuid.uuid4())
 
-#     it.wait_until_port_is_free(port_number=port)
-#     cluster.install(distribution_version=dist, node_name="rally-node", car="4gheap", http_port=port)
-#     cluster.start(race_id=race_id)
-#     yield cluster
-#     cluster.stop()
+    it.wait_until_port_is_free(port_number=port)
+    cluster.install(distribution_version=dist, node_name="rally-node", car="4gheap", http_port=port)
+    cluster.start(test_execution_id=test_execution_id)
+    yield cluster
+    cluster.stop()
 
 
 # @it.random_rally_config
@@ -103,4 +103,4 @@ def test_tar_distributions(cfg):
 #         cmd = f"--test-mode --pipeline=benchmark-only --target-host=127.0.0.1:{test_cluster.http_port} " \
 #               f"--track-repository=eventdata --track=eventdata --track-params=\"{track_params}\" " \
 #               f"--challenge={challenge}"
-#         assert it.race(cfg, cmd) == 0
+#         assert it.test_execution(cfg, cmd) == 0

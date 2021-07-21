@@ -69,12 +69,6 @@ class DockerLauncher:
 
     def _docker_compose(self, compose_config, cmd):
         command = "docker-compose -f {} {}".format(os.path.join(compose_config, "docker-compose.yml"), cmd)
-        print("_docker_compose invoked >>>>>", command)
-        print(">>>>>>>>>>>>>>>>>>>>YML Starts >>>>>>>>>>>>>>>>>")
-        log = open(os.path.join(compose_config, "docker-compose.yml"), "r")
-        for line in log:
-            print(line)
-        print(">>>>>>>>>>>>>>>>>>>>YML Ends >>>>>>>>>>>>>>>>>>>")
         return "docker-compose -f {} {}".format(os.path.join(compose_config, "docker-compose.yml"), cmd)
 
     def _get_container_id(self, compose_config):
@@ -83,7 +77,7 @@ class DockerLauncher:
         return process.run_subprocess_with_output(compose_ps_cmd)[0]
 
     def _wait_for_healthy_running_container(self, container_id, timeout):
-        cmd = 'docker ps -a --filter "id={}" --filter "status=running" -q'.format(container_id)
+        cmd = 'docker ps -a --filter "id={}" --filter "status=running" --filter "health=healthy" -q'.format(container_id)
         stop_watch = self.clock.stop_watch()
         stop_watch.start()
         while stop_watch.split_time() < timeout:
