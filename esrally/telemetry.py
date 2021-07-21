@@ -1343,7 +1343,7 @@ class ExternalEnvironmentInfo(InternalTelemetryDevice):
 
 class JvmStatsSummary(InternalTelemetryDevice):
     """
-    Gathers a summary of various JVM statistics during the whole race.
+    Gathers a summary of various JVM statistics during the whole test execution.
     """
     def __init__(self, client, metrics_store):
         super().__init__()

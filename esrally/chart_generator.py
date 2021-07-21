@@ -41,15 +41,15 @@ color_scheme_rgba = [
 ]
 
 
-def index_label(race_config):
-    if race_config.label:
-        return race_config.label
+def index_label(test_execution_config):
+    if test_execution_config.label:
+        return test_execution_config.label
 
-    label = "%s-%s" % (race_config.challenge, race_config.car)
-    if race_config.plugins:
-        label += "-%s" % race_config.plugins.replace(":", "-").replace(",", "+")
-    if race_config.node_count > 1:
-        label += " (%d nodes)" % race_config.node_count
+    label = "%s-%s" % (test_execution_config.challenge, test_execution_config.car)
+    if test_execution_config.plugins:
+        label += "-%s" % test_execution_config.plugins.replace(":", "-").replace(",", "+")
+    if test_execution_config.node_count > 1:
+        label += " (%d nodes)" % test_execution_config.node_count
     return label
 
 
@@ -73,15 +73,15 @@ class BarCharts:
         return title
 
     @staticmethod
-    def filter_string(environment, race_config):
-        if race_config.name:
-            return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{race_config.name}\""
+    def filter_string(environment, test_execution_config):
+        if test_execution_config.name:
+            return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{test_execution_config.name}\""
         else:
-            return f"environment:\"{environment}\" AND active:true AND track:\"{race_config.track}\""\
-                   f" AND challenge:\"{race_config.challenge}\" AND car:\"{race_config.car}\" AND node-count:{race_config.node_count}"
+            return f"environment:\"{environment}\" AND active:true AND track:\"{test_execution_config.track}\""\
+                   f" AND challenge:\"{test_execution_config.challenge}\" AND car:\"{test_execution_config.car}\" AND node-count:{test_execution_config.node_count}"
 
     @staticmethod
-    def gc(title, environment, race_config):
+    def gc(title, environment, test_execution_config):
         vis_state = {
             "title": title,
             "type": "histogram",
@@ -240,7 +240,7 @@ class BarCharts:
             "index": "rally-results-*",
             "query": {
                 "query_string": {
-                    "query": BarCharts.filter_string(environment, race_config),
+                    "query": BarCharts.filter_string(environment, test_execution_config),
                     "analyze_wildcard": True
                 }
             },
@@ -263,7 +263,7 @@ class BarCharts:
         }
 
     @staticmethod
-    def io(title, environment, race_config):
+    def io(title, environment, test_execution_config):
         vis_state = {
             "title": title,
             "type": "histogram",
@@ -419,7 +419,7 @@ class BarCharts:
             "index": "rally-results-*",
             "query": {
                 "query_string": {
-                    "query": BarCharts.filter_string(environment, race_config),
+                    "query": BarCharts.filter_string(environment, test_execution_config),
                     "analyze_wildcard": True
                 }
             },
@@ -442,14 +442,14 @@ class BarCharts:
         }
 
     @staticmethod
-    def segment_memory(title, environment, race_config):
+    def segment_memory(title, environment, test_execution_config):
         # don't generate segment memory charts for releases
         return None
 
     @staticmethod
-    def query(environment, race_config, q):
+    def query(environment, test_execution_config, q):
         metric = "service_time"
-        title = BarCharts.format_title(environment, race_config.track, suffix="%s-%s-p99-%s" % (race_config.label, q, metric))
+        title = BarCharts.format_title(environment, test_execution_config.track, suffix="%s-%s-p99-%s" % (test_execution_config.label, q, metric))
         label = "Query Service Time [ms]"
 
         vis_state = {
@@ -577,7 +577,7 @@ class BarCharts:
             "index": "rally-results-*",
             "query": {
                 "query_string": {
-                    "query": "name:\"%s\" AND task:\"%s\" AND %s" % (metric, q, BarCharts.filter_string(environment, race_config)),
+                    "query": "name:\"%s\" AND task:\"%s\" AND %s" % (metric, q, BarCharts.filter_string(environment, test_execution_config)),
                     "analyze_wildcard": True
                 }
             },
@@ -600,18 +600,18 @@ class BarCharts:
         }
 
     @staticmethod
-    def index(environment, race_configs, title):
+    def index(environment, test_execution_configs, title):
         filters = []
-        for race_config in race_configs:
-            label = index_label(race_config)
+        for test_execution_config in test_execution_configs:
+            label = index_label(test_execution_config)
             # the assumption is that we only have one bulk task
-            for bulk_task in race_config.bulk_tasks:
+            for bulk_task in test_execution_config.bulk_tasks:
                 filters.append({
                     "input": {
                         "query": {
                             "query_string": {
                                 "analyze_wildcard": True,
-                                "query": "task:\"%s\" AND %s" % (bulk_task, BarCharts.filter_string(environment, race_config))
+                                "query": "task:\"%s\" AND %s" % (bulk_task, BarCharts.filter_string(environment, test_execution_config))
                             }
                         }
                     },
@@ -794,19 +794,19 @@ class TimeSeriesCharts:
         return "-".join(title)
 
     @staticmethod
-    def filter_string(environment, race_config):
+    def filter_string(environment, test_execution_config):
         nightly_extra_filter = ""
-        if race_config.es_license:
+        if test_execution_config.es_license:
             # Time series charts need to support different licenses and produce customized titles.
-            nightly_extra_filter = f" AND user-tags.license:\"{race_config.es_license}\""
-        if race_config.name:
-            return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{race_config.name}\"{nightly_extra_filter}"
+            nightly_extra_filter = f" AND user-tags.license:\"{test_execution_config.es_license}\""
+        if test_execution_config.name:
+            return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{test_execution_config.name}\"{nightly_extra_filter}"
         else:
-            return f"environment:\"{environment}\" AND active:true AND track:\"{race_config.track}\""\
-                   f" AND challenge:\"{race_config.challenge}\" AND car:\"{race_config.car}\" AND node-count:{race_config.node_count}"
+            return f"environment:\"{environment}\" AND active:true AND track:\"{test_execution_config.track}\""\
+                   f" AND challenge:\"{test_execution_config.challenge}\" AND car:\"{test_execution_config.car}\" AND node-count:{test_execution_config.node_count}"
 
     @staticmethod
-    def gc(title, environment, race_config):
+    def gc(title, environment, test_execution_config):
         vis_state = {
             "title": title,
             "type": "metrics",
@@ -859,19 +859,19 @@ class TimeSeriesCharts:
                 "show_legend": 1,
                 "show_grid": 1,
                 "drop_last_bucket": 0,
-                "time_field": "race-timestamp",
+                "time_field": "test-execution-timestamp",
                 "type": "timeseries",
-                "filter": TimeSeriesCharts.filter_string(environment, race_config),
+                "filter": TimeSeriesCharts.filter_string(environment, test_execution_config),
                 "annotations": [
                     {
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{race_config.track}\") AND ((NOT _exists_:chart) OR chart:gc) "
+                        "query_string": f"((NOT _exists_:track) OR track:\"{test_execution_config.track}\") AND ((NOT _exists_:chart) OR chart:gc) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
-                        "time_field": "race-timestamp",
+                        "time_field": "test-execution-timestamp",
                         "icon": "fa-tag",
                         "ignore_panel_filters": 1
                     }
@@ -898,7 +898,7 @@ class TimeSeriesCharts:
         }
 
     @staticmethod
-    def merge_time(title, environment, race_config):
+    def merge_time(title, environment, test_execution_config):
         vis_state = {
             "title": title,
             "type": "metrics",
@@ -951,20 +951,20 @@ class TimeSeriesCharts:
                 "show_legend": 1,
                 "show_grid": 1,
                 "drop_last_bucket": 0,
-                "time_field": "race-timestamp",
+                "time_field": "test-execution-timestamp",
                 "type": "timeseries",
-                "filter": TimeSeriesCharts.filter_string(environment, race_config),
+                "filter": TimeSeriesCharts.filter_string(environment, test_execution_config),
                 "annotations": [
                     {
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{race_config.track}\") "
+                        "query_string": f"((NOT _exists_:track) OR track:\"{test_execution_config.track}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:merge_times) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
-                        "time_field": "race-timestamp",
+                        "time_field": "test-execution-timestamp",
                         "icon": "fa-tag",
                         "ignore_panel_filters": 1
                     }
@@ -991,7 +991,7 @@ class TimeSeriesCharts:
         }
 
     @staticmethod
-    def merge_count(title, environment, race_config):
+    def merge_count(title, environment, test_execution_config):
         vis_state = {
             "title": title,
             "type": "metrics",
@@ -1038,20 +1038,20 @@ class TimeSeriesCharts:
                 "show_legend": 1,
                 "show_grid": 1,
                 "drop_last_bucket": 0,
-                "time_field": "race-timestamp",
+                "time_field": "test-execution-timestamp",
                 "type": "timeseries",
-                "filter": TimeSeriesCharts.filter_string(environment, race_config),
+                "filter": TimeSeriesCharts.filter_string(environment, test_execution_config),
                 "annotations": [
                     {
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{race_config.track}\") "
+                        "query_string": f"((NOT _exists_:track) OR track:\"{test_execution_config.track}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:merge_count) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
-                        "time_field": "race-timestamp",
+                        "time_field": "test-execution-timestamp",
                         "icon": "fa-tag",
                         "ignore_panel_filters": 1
                     }
@@ -1078,7 +1078,7 @@ class TimeSeriesCharts:
         }
 
     @staticmethod
-    def io(title, environment, race_config):
+    def io(title, environment, test_execution_config):
         vis_state = {
             "title": title,
             "type": "metrics",
@@ -1131,19 +1131,19 @@ class TimeSeriesCharts:
                 "show_legend": 1,
                 "show_grid": 1,
                 "drop_last_bucket": 0,
-                "time_field": "race-timestamp",
+                "time_field": "test-execution-timestamp",
                 "type": "timeseries",
-                "filter": TimeSeriesCharts.filter_string(environment, race_config),
+                "filter": TimeSeriesCharts.filter_string(environment, test_execution_config),
                 "annotations": [
                     {
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{race_config.track}\") AND ((NOT _exists_:chart) OR chart:io) "
+                        "query_string": f"((NOT _exists_:track) OR track:\"{test_execution_config.track}\") AND ((NOT _exists_:chart) OR chart:io) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
-                        "time_field": "race-timestamp",
+                        "time_field": "test-execution-timestamp",
                         "icon": "fa-tag",
                         "ignore_panel_filters": 1
                     }
@@ -1170,7 +1170,7 @@ class TimeSeriesCharts:
         }
 
     @staticmethod
-    def segment_memory(title, environment, race_config):
+    def segment_memory(title, environment, test_execution_config):
         vis_state = {
             "title": title,
             "type": "metrics",
@@ -1200,7 +1200,7 @@ class TimeSeriesCharts:
                         "seperate_axis": 1,
                         "split_mode": "filters",
                         "stacked": "none",
-                        "filter": f"environment:{environment} AND track:\"{race_config.track}\"",
+                        "filter": f"environment:{environment} AND track:\"{test_execution_config.track}\"",
                         "split_filters": [
                             {
                                 "filter": "memory_segments",
@@ -1245,20 +1245,20 @@ class TimeSeriesCharts:
                     }
                 ],
                 "show_legend": 1,
-                "time_field": "race-timestamp",
+                "time_field": "test-execution-timestamp",
                 "type": "timeseries",
-                "filter": TimeSeriesCharts.filter_string(environment, race_config),
+                "filter": TimeSeriesCharts.filter_string(environment, test_execution_config),
                 "annotations": [
                     {
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{race_config.track}\") "
+                        "query_string": f"((NOT _exists_:track) OR track:\"{test_execution_config.track}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:segment_memory) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
-                        "time_field": "race-timestamp",
+                        "time_field": "test-execution-timestamp",
                         "icon": "fa-tag",
                         "ignore_panel_filters": 1
                     }
@@ -1286,10 +1286,10 @@ class TimeSeriesCharts:
         }
 
     @staticmethod
-    def query(environment, race_config, q):
+    def query(environment, test_execution_config, q):
         metric = "latency"
-        title = TimeSeriesCharts.format_title(environment, race_config.track, es_license=race_config.es_license,
-                                              suffix="%s-%s-%s" % (race_config.label, q, metric))
+        title = TimeSeriesCharts.format_title(environment, test_execution_config.track, es_license=test_execution_config.es_license,
+                                              suffix="%s-%s-%s" % (test_execution_config.label, q, metric))
 
         vis_state = {
             "title": title,
@@ -1395,7 +1395,7 @@ class TimeSeriesCharts:
                         "value_template": "{{value}} ms",
                     }
                 ],
-                "time_field": "race-timestamp",
+                "time_field": "test-execution-timestamp",
                 "index_pattern": "rally-results-*",
                 "interval": "1d",
                 "axis_position": "left",
@@ -1409,18 +1409,18 @@ class TimeSeriesCharts:
                     }
                 ],
                 "filter": "task:\"%s\" AND name:\"%s\" AND %s" % (q, metric, TimeSeriesCharts.filter_string(
-                    environment, race_config)),
+                    environment, test_execution_config)),
                 "annotations": [
                     {
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{race_config.track}\") "
+                        "query_string": f"((NOT _exists_:track) OR track:\"{test_execution_config.track}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:query) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
-                        "time_field": "race-timestamp",
+                        "time_field": "test-execution-timestamp",
                         "icon": "fa-tag",
                         "ignore_panel_filters": 1
                     }
@@ -1446,16 +1446,16 @@ class TimeSeriesCharts:
         }
 
     @staticmethod
-    def index(environment, race_configs, title):
+    def index(environment, test_execution_configs, title):
         filters = []
-        # any race_config will do - they all belong to the same track
-        t = race_configs[0].track
-        for idx, race_config in enumerate(race_configs):
-            label = index_label(race_config)
-            for bulk_task in race_config.bulk_tasks:
+        # any test_execution_config will do - they all belong to the same track
+        t = test_execution_configs[0].track
+        for idx, test_execution_config in enumerate(test_execution_configs):
+            label = index_label(test_execution_config)
+            for bulk_task in test_execution_config.bulk_tasks:
                 filters.append(
                     {
-                        "filter": "task:\"%s\" AND %s" % (bulk_task, TimeSeriesCharts.filter_string(environment, race_config)),
+                        "filter": "task:\"%s\" AND %s" % (bulk_task, TimeSeriesCharts.filter_string(environment, test_execution_config)),
                         "label": label,
                         "color": color_scheme_rgba[idx % len(color_scheme_rgba)],
                         "id": str(uuid.uuid4())
@@ -1501,7 +1501,7 @@ class TimeSeriesCharts:
                 "show_legend": 1,
                 "show_grid": 1,
                 "drop_last_bucket": 0,
-                "time_field": "race-timestamp",
+                "time_field": "test-execution-timestamp",
                 "type": "timeseries",
                 "filter": "environment:\"%s\" AND track:\"%s\" AND name:\"throughput\" AND active:true" % (environment, t),
                 "annotations": [
@@ -1514,7 +1514,7 @@ class TimeSeriesCharts:
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
-                        "time_field": "race-timestamp",
+                        "time_field": "test-execution-timestamp",
                         "icon": "fa-tag",
                         "ignore_panel_filters": 1
                     }
@@ -1540,7 +1540,7 @@ class TimeSeriesCharts:
         }
 
 
-class RaceConfigTrack:
+class TestExecutionConfigTrack:
     def __init__(self, cfg, repository, name=None):
         self.repository = repository
         self.cached_track = self.load_track(cfg, name=name)
@@ -1555,7 +1555,7 @@ class RaceConfigTrack:
         if name:
             cfg.add(config.Scope.applicationOverride, "track", "repository.name", self.repository)
             cfg.add(config.Scope.applicationOverride, "track", "track.name", name)
-        # another hack to ensure any track-params in the race config are used by Rally's track loader
+        # another hack to ensure any track-params in the test_execution config are used by Rally's track loader
         cfg.add(config.Scope.applicationOverride, "track", "params", params)
         if excluded_tasks:
             cfg.add(config.Scope.application, "track", "exclude.tasks", excluded_tasks)
@@ -1568,80 +1568,80 @@ class RaceConfigTrack:
         return self.cached_track
 
 
-def generate_index_ops(chart_type, race_configs, environment, logger):
-    idx_race_configs = list(filter(lambda c: "indexing" in c.charts, race_configs))
-    for race_conf in idx_race_configs:
-        logger.debug("Gen index visualization for race config with name:[%s] / label:[%s] / flavor: [%s] / license: [%s]",
-                     race_conf.name, race_conf.label, race_conf.flavor, race_conf.es_license)
+def generate_index_ops(chart_type, test_execution_configs, environment, logger):
+    idx_test_execution_configs = list(filter(lambda c: "indexing" in c.charts, test_execution_configs))
+    for test_execution_conf in idx_test_execution_configs:
+        logger.debug("Gen index visualization for test_execution config with name:[%s] / label:[%s] / flavor: [%s] / license: [%s]",
+                     test_execution_conf.name, test_execution_conf.label, test_execution_conf.flavor, test_execution_conf.es_license)
     charts = []
 
-    if idx_race_configs:
-        title = chart_type.format_title(environment, race_configs[0].track, flavor=race_configs[0].flavor, suffix="indexing-throughput")
-        charts = [chart_type.index(environment, idx_race_configs, title)]
+    if idx_test_execution_configs:
+        title = chart_type.format_title(environment, test_execution_configs[0].track, flavor=test_execution_configs[0].flavor, suffix="indexing-throughput")
+        charts = [chart_type.index(environment, idx_test_execution_configs, title)]
     return charts
 
 
-def generate_queries(chart_type, race_configs, environment):
+def generate_queries(chart_type, test_execution_configs, environment):
     # output JSON structures
     structures = []
 
-    for race_config in race_configs:
-        if "query" in race_config.charts:
-            for q in race_config.throttled_tasks:
-                structures.append(chart_type.query(environment, race_config, q))
+    for test_execution_config in test_execution_configs:
+        if "query" in test_execution_config.charts:
+            for q in test_execution_config.throttled_tasks:
+                structures.append(chart_type.query(environment, test_execution_config, q))
     return structures
 
 
-def generate_io(chart_type, race_configs, environment):
+def generate_io(chart_type, test_execution_configs, environment):
     # output JSON structures
     structures = []
-    for race_config in race_configs:
-        if "io" in race_config.charts:
-            title = chart_type.format_title(environment, race_config.track, es_license=race_config.es_license,
-                                            suffix="%s-io" % race_config.label)
-            structures.append(chart_type.io(title, environment, race_config))
+    for test_execution_config in test_execution_configs:
+        if "io" in test_execution_config.charts:
+            title = chart_type.format_title(environment, test_execution_config.track, es_license=test_execution_config.es_license,
+                                            suffix="%s-io" % test_execution_config.label)
+            structures.append(chart_type.io(title, environment, test_execution_config))
 
     return structures
 
 
-def generate_gc(chart_type, race_configs, environment):
+def generate_gc(chart_type, test_execution_configs, environment):
     structures = []
-    for race_config in race_configs:
-        if "gc" in race_config.charts:
-            title = chart_type.format_title(environment, race_config.track, es_license=race_config.es_license,
-                                            suffix="%s-gc" % race_config.label)
-            structures.append(chart_type.gc(title, environment, race_config))
+    for test_execution_config in test_execution_configs:
+        if "gc" in test_execution_config.charts:
+            title = chart_type.format_title(environment, test_execution_config.track, es_license=test_execution_config.es_license,
+                                            suffix="%s-gc" % test_execution_config.label)
+            structures.append(chart_type.gc(title, environment, test_execution_config))
 
     return structures
 
-def generate_merge_time(chart_type, race_configs, environment):
+def generate_merge_time(chart_type, test_execution_configs, environment):
     structures = []
-    for race_config in race_configs:
-        if "merge_times" in race_config.charts:
-            title = chart_type.format_title(environment, race_config.track, es_license=race_config.es_license,
-                                            suffix=f"{race_config.label}-merge-times")
-            structures.append(chart_type.merge_time(title, environment, race_config))
+    for test_execution_config in test_execution_configs:
+        if "merge_times" in test_execution_config.charts:
+            title = chart_type.format_title(environment, test_execution_config.track, es_license=test_execution_config.es_license,
+                                            suffix=f"{test_execution_config.label}-merge-times")
+            structures.append(chart_type.merge_time(title, environment, test_execution_config))
 
     return structures
 
-def generate_merge_count(chart_type, race_configs, environment):
+def generate_merge_count(chart_type, test_execution_configs, environment):
     structures = []
-    for race_config in race_configs:
-        if "merge_count" in race_config.charts:
-            title = chart_type.format_title(environment, race_config.track, es_license=race_config.es_license,
-                                            suffix=f"{race_config.label}-merge-count")
-            structures.append(chart_type.merge_count(title, environment, race_config))
+    for test_execution_config in test_execution_configs:
+        if "merge_count" in test_execution_config.charts:
+            title = chart_type.format_title(environment, test_execution_config.track, es_license=test_execution_config.es_license,
+                                            suffix=f"{test_execution_config.label}-merge-count")
+            structures.append(chart_type.merge_count(title, environment, test_execution_config))
 
     return structures
 
 
-def generate_segment_memory(chart_type, race_configs, environment):
+def generate_segment_memory(chart_type, test_execution_configs, environment):
     structures = []
-    for race_config in race_configs:
-        if "segment_memory" in race_config.charts:
-            title = chart_type.format_title(environment, race_config.track, es_license=race_config.es_license,
-                                            suffix="%s-segment-memory" % race_config.label)
-            chart = chart_type.segment_memory(title, environment, race_config)
+    for test_execution_config in test_execution_configs:
+        if "segment_memory" in test_execution_config.charts:
+            title = chart_type.format_title(environment, test_execution_config.track, es_license=test_execution_config.es_license,
+                                            suffix="%s-segment-memory" % test_execution_config.label)
+            chart = chart_type.segment_memory(title, environment, test_execution_config)
             if chart:
                 structures.append(chart)
     return structures
@@ -1720,7 +1720,7 @@ def generate_dashboard(chart_type, environment, track, charts, flavor=None):
     }
 
 
-class RaceConfig:
+class TestExecutionConfig:
     def __init__(self, track, cfg=None, flavor=None, es_license=None, challenge=None, car=None, node_count=None, charts=None):
         self.track = track
         if cfg:
@@ -1799,90 +1799,90 @@ class RaceConfig:
         return task_names
 
 
-def load_race_configs(cfg, chart_type, chart_spec_path=None):
-    def add_configs(race_configs_per_lic, flavor_name="oss", lic="oss", track_name=None):
+def load_test_execution_configs(cfg, chart_type, chart_spec_path=None):
+    def add_configs(test_execution_configs_per_lic, flavor_name="oss", lic="oss", track_name=None):
         configs_per_lic = []
-        for race_config in race_configs_per_lic:
+        for test_execution_config in test_execution_configs_per_lic:
             excluded_tasks = None
-            if "exclude-tasks" in race_config:
-                excluded_tasks = race_config.get("exclude-tasks").split(",")
+            if "exclude-tasks" in test_execution_config:
+                excluded_tasks = test_execution_config.get("exclude-tasks").split(",")
             configs_per_lic.append(
-                RaceConfig(track=race_config_track.get_track(cfg, name=track_name,
-                                                             params=race_config.get("track-params", {}),
+                TestExecutionConfig(track=test_execution_config_track.get_track(cfg, name=track_name,
+                                                             params=test_execution_config.get("track-params", {}),
                                                              excluded_tasks=excluded_tasks),
-                           cfg=race_config,
+                           cfg=test_execution_config,
                            flavor=flavor_name,
                            es_license=lic)
             )
         return configs_per_lic
 
-    def add_race_configs(license_configs, flavor_name, track_name):
+    def add_test_execution_configs(license_configs, flavor_name, track_name):
         if chart_type == BarCharts:
             # Only one license config, "basic", is present in bar charts
             _lic_conf = [license_config["configurations"] for license_config in license_configs if license_config["name"] == "basic"]
             if _lic_conf:
-                race_configs_per_track.extend(add_configs(_lic_conf[0], track_name=track_name))
+                test_execution_configs_per_track.extend(add_configs(_lic_conf[0], track_name=track_name))
         else:
             for lic_config in license_configs:
-                race_configs_per_track.extend(add_configs(lic_config["configurations"],
+                test_execution_configs_per_track.extend(add_configs(lic_config["configurations"],
                                                           flavor_name,
                                                           lic_config["name"],
                                                           track_name))
 
-    race_configs = {"oss": [], "default": []}
+    test_execution_configs = {"oss": [], "default": []}
     if chart_type == BarCharts:
-        race_configs = []
+        test_execution_configs = []
 
     for _track_file in glob.glob(io.normalize_path(chart_spec_path)):
         with open(_track_file, mode="rt", encoding="utf-8") as f:
             for item in json.load(f):
                 _track_repository = item.get("track-repository", "default")
-                race_config_track = RaceConfigTrack(cfg, _track_repository, name=item["track"])
+                test_execution_config_track = TestExecutionConfigTrack(cfg, _track_repository, name=item["track"])
                 for flavor in item["flavors"]:
-                    race_configs_per_track = []
+                    test_execution_configs_per_track = []
                     _flavor_name = flavor["name"]
                     _track_name = item["track"]
-                    add_race_configs(flavor["licenses"], _flavor_name, _track_name)
+                    add_test_execution_configs(flavor["licenses"], _flavor_name, _track_name)
 
-                    if race_configs_per_track:
+                    if test_execution_configs_per_track:
                         if chart_type == BarCharts:
-                            race_configs.append(race_configs_per_track)
+                            test_execution_configs.append(test_execution_configs_per_track)
                         else:
-                            race_configs[_flavor_name].append(race_configs_per_track)
-    return race_configs
+                            test_execution_configs[_flavor_name].append(test_execution_configs_per_track)
+    return test_execution_configs
 
 
-def gen_charts_per_track_configs(race_configs, chart_type, env, flavor=None, logger=None):
-    charts = generate_index_ops(chart_type, race_configs, env, logger) + \
-             generate_io(chart_type, race_configs, env) + \
-             generate_gc(chart_type, race_configs, env) + \
-             generate_merge_time(chart_type, race_configs, env) + \
-             generate_merge_count(chart_type, race_configs, env) + \
-             generate_segment_memory(chart_type, race_configs, env) + \
-             generate_queries(chart_type, race_configs, env)
+def gen_charts_per_track_configs(test_execution_configs, chart_type, env, flavor=None, logger=None):
+    charts = generate_index_ops(chart_type, test_execution_configs, env, logger) + \
+             generate_io(chart_type, test_execution_configs, env) + \
+             generate_gc(chart_type, test_execution_configs, env) + \
+             generate_merge_time(chart_type, test_execution_configs, env) + \
+             generate_merge_count(chart_type, test_execution_configs, env) + \
+             generate_segment_memory(chart_type, test_execution_configs, env) + \
+             generate_queries(chart_type, test_execution_configs, env)
 
-    dashboard = generate_dashboard(chart_type, env, race_configs[0].track, charts, flavor)
+    dashboard = generate_dashboard(chart_type, env, test_execution_configs[0].track, charts, flavor)
 
     return charts, dashboard
 
 
-def gen_charts_per_track(race_configs, chart_type, env, flavor=None, logger=None):
+def gen_charts_per_track(test_execution_configs, chart_type, env, flavor=None, logger=None):
     structures = []
-    for race_configs_per_track in race_configs:
-        charts, dashboard = gen_charts_per_track_configs(race_configs_per_track, chart_type, env, flavor, logger)
+    for test_execution_configs_per_track in test_execution_configs:
+        charts, dashboard = gen_charts_per_track_configs(test_execution_configs_per_track, chart_type, env, flavor, logger)
         structures.extend(charts)
         structures.append(dashboard)
 
     return structures
 
 
-def gen_charts_from_track_combinations(race_configs, chart_type, env, logger):
+def gen_charts_from_track_combinations(test_execution_configs, chart_type, env, logger):
     structures = []
-    for flavor, race_configs_per_flavor in race_configs.items():
-        for race_configs_per_track in race_configs_per_flavor:
-            logger.debug("Generating charts for race_configs with name:[%s]/flavor:[%s]",
-                         race_configs_per_track[0].name, flavor)
-            charts, dashboard = gen_charts_per_track_configs(race_configs_per_track, chart_type, env, flavor, logger)
+    for flavor, test_execution_configs_per_flavor in test_execution_configs.items():
+        for test_execution_configs_per_track in test_execution_configs_per_flavor:
+            logger.debug("Generating charts for test_execution_configs with name:[%s]/flavor:[%s]",
+                         test_execution_configs_per_track[0].name, flavor)
+            charts, dashboard = gen_charts_per_track_configs(test_execution_configs_per_track, chart_type, env, flavor, logger)
 
             structures.extend(charts)
             structures.append(dashboard)
@@ -1900,7 +1900,7 @@ def generate(cfg):
         chart_type = BarCharts
 
     console.info("Loading track data...", flush=True)
-    race_configs = load_race_configs(cfg, chart_type, chart_spec_path)
+    test_execution_configs = load_test_execution_configs(cfg, chart_type, chart_spec_path)
     env = cfg.opts("system", "env.name")
 
     structures = []
@@ -1908,9 +1908,9 @@ def generate(cfg):
 
     if chart_type == BarCharts:
         # bar charts are flavor agnostic and split results based on a separate `user.setup` field
-        structures = gen_charts_per_track(race_configs, chart_type, env, logger=logger)
+        structures = gen_charts_per_track(test_execution_configs, chart_type, env, logger=logger)
     elif chart_type == TimeSeriesCharts:
-        structures = gen_charts_from_track_combinations(race_configs, chart_type, env, logger)
+        structures = gen_charts_from_track_combinations(test_execution_configs, chart_type, env, logger)
 
     output_path = cfg.opts("generator", "output.path")
     if output_path:

@@ -19,8 +19,8 @@ import it
 
 
 @it.all_rally_configs
-def test_list_races(cfg):
-    assert it.esrally(cfg, "list races") == 0
+def test_list_test_executions(cfg):
+    assert it.esrally(cfg, "list test_executions") == 0
 
 
 @it.rally_in_mem

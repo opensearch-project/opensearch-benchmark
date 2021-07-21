@@ -31,10 +31,10 @@
         "relative-time-ms": {
           "type": "float"
         },
-        "race-id": {
+        "test-execution-id": {
           "type": "keyword"
         },
-        "race-timestamp": {
+        "test-execution-timestamp": {
           "type": "date",
           "format": "basic_date_time_no_millis",
           "fields": {

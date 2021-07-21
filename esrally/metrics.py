@@ -220,8 +220,8 @@ class IndexTemplateProvider:
     def metrics_template(self):
         return self._read("metrics-template")
 
-    def races_template(self):
-        return self._read("races-template")
+    def test_executions_template(self):
+        return self._read("test-executions-template")
 
     def results_template(self):
         return self._read("results-template")
@@ -246,8 +246,8 @@ class MetaInfoScope(Enum):
     """
 
 
-def calculate_results(store, race):
-    calc = GlobalStatsCalculator(store, race.track, race.challenge)
+def calculate_results(store, test_execution):
+    calc = GlobalStatsCalculator(store, test_execution.track, test_execution.challenge)
     return calc()
 
 
@@ -268,11 +268,11 @@ def metrics_store(cfg, read_only=True, track=None, challenge=None, car=None, met
     store = cls(cfg=cfg, meta_info=meta_info)
     logging.getLogger(__name__).info("Creating %s", str(store))
 
-    race_id = cfg.opts("system", "race.id")
-    race_timestamp = cfg.opts("system", "time.start")
+    test_execution_id = cfg.opts("system", "test_execution.id")
+    test_execution_timestamp = cfg.opts("system", "time.start")
     selected_car = cfg.opts("mechanic", "car.names") if car is None else car
 
-    store.open(race_id, race_timestamp, track, challenge, selected_car, create=not read_only)
+    store.open(test_execution_id, test_execution_timestamp, track, challenge, selected_car, create=not read_only)
     return store
 
 
@@ -290,7 +290,7 @@ def extract_user_tags_from_config(cfg):
     :param cfg: The current configuration object.
     :return: A dict containing user tags. If no user tags are given, an empty dict is returned.
     """
-    user_tags = cfg.opts("race", "user.tag", mandatory=False)
+    user_tags = cfg.opts("test_execution", "user.tag", mandatory=False)
     return extract_user_tags_from_string(user_tags)
 
 
@@ -333,8 +333,8 @@ class MetricsStore:
         :param meta_info: This parameter is optional and intended for creating a metrics store with a previously serialized meta-info.
         """
         self._config = cfg
-        self._race_id = None
-        self._race_timestamp = None
+        self._test_execution_id = None
+        self._test_execution_timestamp = None
         self._track = None
         self._track_params = cfg.opts("track", "params", default_value={}, mandatory=False)
         self._challenge = None
@@ -355,12 +355,12 @@ class MetricsStore:
         self._stop_watch = self._clock.stop_watch()
         self.logger = logging.getLogger(__name__)
 
-    def open(self, race_id=None, race_timestamp=None, track_name=None, challenge_name=None, car_name=None, ctx=None, create=False):
+    def open(self, test_execution_id=None, test_execution_timestamp=None, track_name=None, challenge_name=None, car_name=None, ctx=None, create=False):
         """
-        Opens a metrics store for a specific race, track, challenge and car.
+        Opens a metrics store for a specific test_execution, track, challenge and car.
 
-        :param race_id: The race id. This attribute is sufficient to uniquely identify a race.
-        :param race_timestamp: The race timestamp as a datetime.
+        :param test_execution_id: The test_execution id. This attribute is sufficient to uniquely identify a test_execution.
+        :param test_execution_timestamp: The test_execution timestamp as a datetime.
         :param track_name: Track name.
         :param challenge_name: Challenge name.
         :param car_name: Car name.
@@ -369,30 +369,30 @@ class MetricsStore:
         False when it is just opened for reading (as we can assume all necessary indices exist at this point).
         """
         if ctx:
-            self._race_id = ctx["race-id"]
-            self._race_timestamp = ctx["race-timestamp"]
+            self._test_execution_id = ctx["test-execution-id"]
+            self._test_execution_timestamp = ctx["test-execution-timestamp"]
             self._track = ctx["track"]
             self._challenge = ctx["challenge"]
             self._car = ctx["car"]
         else:
-            self._race_id = race_id
-            self._race_timestamp = time.to_iso8601(race_timestamp)
+            self._test_execution_id = test_execution_id
+            self._test_execution_timestamp = time.to_iso8601(test_execution_timestamp)
             self._track = track_name
             self._challenge = challenge_name
             self._car = car_name
-        assert self._race_id is not None, "Attempting to open metrics store without a race id"
-        assert self._race_timestamp is not None, "Attempting to open metrics store without a race timestamp"
+        assert self._test_execution_id is not None, "Attempting to open metrics store without a test execution id"
+        assert self._test_execution_timestamp is not None, "Attempting to open metrics store without a test execution timestamp"
 
         self._car_name = "+".join(self._car) if isinstance(self._car, list) else self._car
 
-        self.logger.info("Opening metrics store for race timestamp=[%s], track=[%s], challenge=[%s], car=[%s]",
-                         self._race_timestamp, self._track, self._challenge, self._car)
+        self.logger.info("Opening metrics store for test execution timestamp=[%s], track=[%s], challenge=[%s], car=[%s]",
+                         self._test_execution_timestamp, self._track, self._challenge, self._car)
 
         user_tags = extract_user_tags_from_config(self._config)
         for k, v in user_tags.items():
             # prefix user tag with "tag_" in order to avoid clashes with our internal meta data
             self.add_meta_info(MetaInfoScope.cluster, None, "tag_%s" % k, v)
-        # Don't store it for each metrics record as it's probably sufficient on race level
+        # Don't store it for each metrics record as it's probably sufficient on test execution level
         # self.add_meta_info(MetaInfoScope.cluster, None, "rally_version", version.version())
         self._stop_watch.start()
         self.opened = True
@@ -451,8 +451,8 @@ class MetricsStore:
     @property
     def open_context(self):
         return {
-            "race-id": self._race_id,
-            "race-timestamp": self._race_timestamp,
+            "test-execution-id": self._test_execution_id,
+            "test-execution-timestamp": self._test_execution_timestamp,
             "track": self._track,
             "challenge": self._challenge,
             "car": self._car
@@ -522,8 +522,8 @@ class MetricsStore:
         doc = {
             "@timestamp": time.to_epoch_millis(absolute_time),
             "relative-time-ms": convert.seconds_to_ms(relative_time),
-            "race-id": self._race_id,
-            "race-timestamp": self._race_timestamp,
+            "test-execution-id": self._test_execution_id,
+            "test-execution-timestamp": self._test_execution_timestamp,
             "environment": self._environment_name,
             "track": self._track,
             "challenge": self._challenge,
@@ -579,8 +579,8 @@ class MetricsStore:
         doc.update({
             "@timestamp": time.to_epoch_millis(absolute_time),
             "relative-time-ms": convert.seconds_to_ms(relative_time),
-            "race-id": self._race_id,
-            "race-timestamp": self._race_timestamp,
+            "test-execution-id": self._test_execution_id,
+            "test-execution-timestamp": self._test_execution_timestamp,
             "environment": self._environment_name,
             "track": self._track,
             "challenge": self._challenge,
@@ -771,9 +771,9 @@ class EsMetricsStore(MetricsStore):
         self._index_template_provider = index_template_provider_class(cfg)
         self._docs = None
 
-    def open(self, race_id=None, race_timestamp=None, track_name=None, challenge_name=None, car_name=None, ctx=None, create=False):
+    def open(self, test_execution_id=None, test_execution_timestamp=None, track_name=None, challenge_name=None, car_name=None, ctx=None, create=False):
         self._docs = []
-        MetricsStore.open(self, race_id, race_timestamp, track_name, challenge_name, car_name, ctx, create)
+        MetricsStore.open(self, test_execution_id, test_execution_timestamp, track_name, challenge_name, car_name, ctx, create)
         self._index = self.index_name()
         # reduce a bit of noise in the metrics cluster log
         if create:
@@ -793,7 +793,7 @@ class EsMetricsStore(MetricsStore):
         self._client.refresh(index=self._index)
 
     def index_name(self):
-        ts = time.from_is8601(self._race_timestamp)
+        ts = time.from_is8601(self._test_execution_timestamp)
         return "rally-metrics-%04d-%02d" % (ts.year, ts.month)
 
     def _migrated_index_name(self, original_name):
@@ -808,8 +808,8 @@ class EsMetricsStore(MetricsStore):
             sw.start()
             self._client.bulk_index(index=self._index, doc_type=EsMetricsStore.METRICS_DOC_TYPE, items=self._docs)
             sw.stop()
-            self.logger.info("Successfully added %d metrics documents for race timestamp=[%s], track=[%s], "
-                             "challenge=[%s], car=[%s] in [%f] seconds.", len(self._docs), self._race_timestamp,
+            self.logger.info("Successfully added %d metrics documents for test execution timestamp=[%s], track=[%s], "
+                             "challenge=[%s], car=[%s] in [%f] seconds.", len(self._docs), self._test_execution_timestamp,
                              self._track, self._challenge, self._car, sw.total_time())
         self._docs = []
         # ensure we can search immediately after flushing
@@ -941,7 +941,7 @@ class EsMetricsStore(MetricsStore):
                 "filter": [
                     {
                         "term": {
-                            "race-id": self._race_id
+                            "test-execution-id": self._test_execution_id
                         }
                     },
                     {
@@ -1110,26 +1110,26 @@ class InMemoryMetricsStore(MetricsStore):
         return "in-memory metrics store"
 
 
-def race_store(cfg):
+def test_execution_store(cfg):
     """
-    Creates a proper race store based on the current configuration.
+    Creates a proper test_execution store based on the current configuration.
     :param cfg: Config object. Mandatory.
-    :return: A race store implementation.
+    :return: A test_execution store implementation.
     """
     logger = logging.getLogger(__name__)
     if cfg.opts("reporting", "datastore.type") == "elasticsearch":
-        logger.info("Creating ES race store")
-        return CompositeRaceStore(EsRaceStore(cfg), FileRaceStore(cfg))
+        logger.info("Creating ES test_execution store")
+        return CompositeTestExecutionStore(EsTestExecutionStore(cfg), FileTestExecutionStore(cfg))
     else:
-        logger.info("Creating file race store")
-        return FileRaceStore(cfg)
+        logger.info("Creating file test_execution store")
+        return FileTestExecutionStore(cfg)
 
 
 def results_store(cfg):
     """
-    Creates a proper race store based on the current configuration.
+    Creates a proper test_execution store based on the current configuration.
     :param cfg: Config object. Mandatory.
-    :return: A race store implementation.
+    :return: A test_execution store implementation.
     """
     logger = logging.getLogger(__name__)
     if cfg.opts("reporting", "datastore.type") == "elasticsearch":
@@ -1140,7 +1140,7 @@ def results_store(cfg):
         return NoopResultsStore()
 
 
-def list_races(cfg):
+def list_test_executions(cfg):
     def format_dict(d):
         if d:
             items=sorted(d.items())
@@ -1148,44 +1148,44 @@ def list_races(cfg):
         else:
             return None
 
-    races = []
-    for race in race_store(cfg).list():
-        races.append([race.race_id, time.to_iso8601(race.race_timestamp), race.track, format_dict(race.track_params), race.challenge_name,
-                      race.car_name, format_dict(race.user_tags), race.track_revision, race.team_revision])
+    test_executions = []
+    for test_execution in test_execution_store(cfg).list():
+        test_executions.append([test_execution.test_execution_id, time.to_iso8601(test_execution.test_execution_timestamp), test_execution.track, format_dict(test_execution.track_params), test_execution.challenge_name,
+                      test_execution.car_name, format_dict(test_execution.user_tags), test_execution.track_revision, test_execution.team_revision])
 
-    if len(races) > 0:
-        console.println("\nRecent races:\n")
-        console.println(tabulate.tabulate(races, headers=["Race ID", "Race Timestamp", "Track", "Track Parameters", "Challenge", "Car",
+    if len(test_executions) > 0:
+        console.println("\nRecent test_executions:\n")
+        console.println(tabulate.tabulate(test_executions, headers=["TestExecution ID", "TestExecution Timestamp", "Track", "Track Parameters", "Challenge", "Car",
                                                           "User Tags", "Track Revision", "Team Revision"]))
     else:
         console.println("")
-        console.println("No recent races found.")
+        console.println("No recent test_executions found.")
 
 
-def create_race(cfg, track, challenge, track_revision=None):
+def create_test_execution(cfg, track, challenge, track_revision=None):
     car = cfg.opts("mechanic", "car.names")
     environment = cfg.opts("system", "env.name")
-    race_id = cfg.opts("system", "race.id")
-    race_timestamp = cfg.opts("system", "time.start")
+    test_execution_id = cfg.opts("system", "test_execution.id")
+    test_execution_timestamp = cfg.opts("system", "time.start")
     user_tags = extract_user_tags_from_config(cfg)
-    pipeline = cfg.opts("race", "pipeline")
+    pipeline = cfg.opts("test_execution", "pipeline")
     track_params = cfg.opts("track", "params")
     car_params = cfg.opts("mechanic", "car.params")
     plugin_params = cfg.opts("mechanic", "plugin.params")
     rally_version = version.version()
     rally_revision = version.revision()
 
-    return Race(rally_version, rally_revision, environment, race_id, race_timestamp, pipeline, user_tags, track,
+    return TestExecution(rally_version, rally_revision, environment, test_execution_id, test_execution_timestamp, pipeline, user_tags, track,
                 track_params, challenge, car, car_params, plugin_params, track_revision)
 
 
-class Race:
-    def __init__(self, rally_version, rally_revision, environment_name, race_id, race_timestamp, pipeline, user_tags,
+class TestExecution:
+    def __init__(self, rally_version, rally_revision, environment_name, test_execution_id, test_execution_timestamp, pipeline, user_tags,
                  track, track_params, challenge, car, car_params, plugin_params, track_revision=None, team_revision=None,
                  distribution_version=None, distribution_flavor=None, revision=None, results=None, meta_data=None):
         if results is None:
             results = {}
-        # this happens when the race is created initially
+        # this happens when the test execution is created initially
         if meta_data is None:
             meta_data = {}
             if track:
@@ -1195,8 +1195,8 @@ class Race:
         self.rally_version = rally_version
         self.rally_revision = rally_revision
         self.environment_name = environment_name
-        self.race_id = race_id
-        self.race_timestamp = race_timestamp
+        self.test_execution_id = test_execution_id
+        self.test_execution_timestamp = test_execution_timestamp
         self.pipeline = pipeline
         self.user_tags = user_tags
         self.track = track
@@ -1230,14 +1230,14 @@ class Race:
 
     def as_dict(self):
         """
-        :return: A dict representation suitable for persisting this race instance as JSON.
+        :return: A dict representation suitable for persisting this test execution instance as JSON.
         """
         d = {
             "rally-version": self.rally_version,
             "rally-revision": self.rally_revision,
             "environment": self.environment_name,
-            "race-id": self.race_id,
-            "race-timestamp": time.to_iso8601(self.race_timestamp),
+            "test-execution-id": self.test_execution_id,
+            "test-execution-timestamp": time.to_iso8601(self.test_execution_timestamp),
             "pipeline": self.pipeline,
             "user-tags": self.user_tags,
             "track": self.track_name,
@@ -1265,14 +1265,14 @@ class Race:
 
     def to_result_dicts(self):
         """
-        :return: a list of dicts, suitable for persisting the results of this race in a format that is Kibana-friendly.
+        :return: a list of dicts, suitable for persisting the results of this test execution in a format that is Kibana-friendly.
         """
         result_template = {
             "rally-version": self.rally_version,
             "rally-revision": self.rally_revision,
             "environment": self.environment_name,
-            "race-id": self.race_id,
-            "race-timestamp": time.to_iso8601(self.race_timestamp),
+            "test-execution-id": self.test_execution_id,
+            "test-execution-timestamp": time.to_iso8601(self.test_execution_timestamp),
             "distribution-version": self.distribution_version,
             "distribution-flavor": self.distribution_flavor,
             "user-tags": self.user_tags,
@@ -1311,8 +1311,8 @@ class Race:
         user_tags = d.get("user-tags", {})
         # TODO: cluster is optional for BWC. This can be removed after some grace period.
         cluster = d.get("cluster", {})
-        return Race(d["rally-version"], d.get("rally-revision"), d["environment"], d["race-id"],
-                    time.from_is8601(d["race-timestamp"]), d["pipeline"], user_tags, d["track"], d.get("track-params"),
+        return TestExecution(d["rally-version"], d.get("rally-revision"), d["environment"], d["test-execution-id"],
+                    time.from_is8601(d["test-execution-timestamp"]), d["pipeline"], user_tags, d["track"], d.get("track-params"),
                     d.get("challenge"), d["car"], d.get("car-params"), d.get("plugin-params"),
                     track_revision=d.get("track-revision"), team_revision=cluster.get("team-revision"),
                     distribution_version=cluster.get("distribution-version"),
@@ -1320,85 +1320,85 @@ class Race:
                     revision=cluster.get("revision"), results=d.get("results"), meta_data=d.get("meta", {}))
 
 
-class RaceStore:
+class TestExecutionStore:
     def __init__(self, cfg):
         self.cfg = cfg
         self.environment_name = cfg.opts("system", "env.name")
 
-    def find_by_race_id(self, race_id):
+    def find_by_test_execution_id(self, test_execution_id):
         raise NotImplementedError("abstract method")
 
     def list(self):
         raise NotImplementedError("abstract method")
 
-    def store_race(self, race):
+    def store_test_execution(self, test_execution):
         raise NotImplementedError("abstract method")
 
     def _max_results(self):
-        return int(self.cfg.opts("system", "list.races.max_results"))
+        return int(self.cfg.opts("system", "list.test_executions.max_results"))
 
 
-# Does not inherit from RaceStore as it is only a delegator with the same API.
-class CompositeRaceStore:
+# Does not inherit from TestExecutionStore as it is only a delegator with the same API.
+class CompositeTestExecutionStore:
     """
-    Internal helper class to store races as file and to Elasticsearch in case users want Elasticsearch as a race store.
+    Internal helper class to store test executionss as file and to Elasticsearch in case users want Elasticsearch as a test executions store.
 
-    It provides the same API as RaceStore. It delegates writes to all stores and all read operations only the Elasticsearch race store.
+    It provides the same API as TestExecutionStore. It delegates writes to all stores and all read operations only the Elasticsearch test execution store.
     """
     def __init__(self, es_store, file_store):
         self.es_store = es_store
         self.file_store = file_store
 
-    def find_by_race_id(self, race_id):
-        return self.es_store.find_by_race_id(race_id)
+    def find_by_test_execution_id(self, test_execution_id):
+        return self.es_store.find_by_test_execution_id(test_execution_id)
 
-    def store_race(self, race):
-        self.file_store.store_race(race)
-        self.es_store.store_race(race)
+    def store_test_execution(self, test_execution):
+        self.file_store.store_test_execution(test_execution)
+        self.es_store.store_test_execution(test_execution)
 
     def list(self):
         return self.es_store.list()
 
 
-class FileRaceStore(RaceStore):
-    def store_race(self, race):
-        doc = race.as_dict()
-        race_path = paths.race_root(self.cfg, race_id=race.race_id)
-        io.ensure_dir(race_path)
-        with open(self._race_file(), mode="wt", encoding="utf-8") as f:
+class FileTestExecutionStore(TestExecutionStore):
+    def store_test_execution(self, test_execution):
+        doc = test_execution.as_dict()
+        test_execution_path = paths.test_execution_root(self.cfg, test_execution_id=test_execution.test_execution_id)
+        io.ensure_dir(test_execution_path)
+        with open(self._test_execution_file(), mode="wt", encoding="utf-8") as f:
             f.write(json.dumps(doc, indent=True, ensure_ascii=False))
 
-    def _race_file(self, race_id=None):
-        return os.path.join(paths.race_root(cfg=self.cfg, race_id=race_id), "race.json")
+    def _test_execution_file(self, test_execution_id=None):
+        return os.path.join(paths.test_execution_root(cfg=self.cfg, test_execution_id=test_execution_id), "test_execution.json")
 
     def list(self):
-        results = glob.glob(self._race_file(race_id="*"))
-        all_races = self._to_races(results)
-        return all_races[:self._max_results()]
+        results = glob.glob(self._test_execution_file(test_execution_id="*"))
+        all_test_executions = self._to_test_executions(results)
+        return all_test_executions[:self._max_results()]
 
-    def find_by_race_id(self, race_id):
-        race_file = self._race_file(race_id=race_id)
-        if io.exists(race_file):
-            races = self._to_races([race_file])
-            if races:
-                return races[0]
-        raise exceptions.NotFound("No race with race id [{}]".format(race_id))
+    def find_by_test_execution_id(self, test_execution_id):
+        test_execution_file = self._test_execution_file(test_execution_id=test_execution_id)
+        if io.exists(test_execution_file):
+            test_executions = self._to_test_executions([test_execution_file])
+            if test_executions:
+                return test_executions[0]
+        raise exceptions.NotFound("No test execution with test execution id [{}]".format(test_execution_id))
 
-    def _to_races(self, results):
-        races = []
+    def _to_test_executions(self, results):
+        test_executions = []
         for result in results:
             # noinspection PyBroadException
             try:
                 with open(result, mode="rt", encoding="utf-8") as f:
-                    races.append(Race.from_dict(json.loads(f.read())))
+                    test_executions.append(TestExecution.from_dict(json.loads(f.read())))
             except BaseException:
-                logging.getLogger(__name__).exception("Could not load race file [%s] (incompatible format?) Skipping...", result)
-        return sorted(races, key=lambda r: r.race_timestamp, reverse=True)
+                logging.getLogger(__name__).exception("Could not load test_execution file [%s] (incompatible format?) Skipping...", result)
+        return sorted(test_executions, key=lambda r: r.test_execution_timestamp, reverse=True)
 
 
-class EsRaceStore(RaceStore):
-    INDEX_PREFIX = "rally-races-"
-    RACE_DOC_TYPE = "_doc"
+class EsTestExecutionStore(TestExecutionStore):
+    INDEX_PREFIX = "rally-test-executions-"
+    TEST_EXECUTION_DOC_TYPE = "_doc"
 
     def __init__(self, cfg, client_factory_class=EsClientFactory, index_template_provider_class=IndexTemplateProvider):
         """
@@ -1412,15 +1412,15 @@ class EsRaceStore(RaceStore):
         self.client = client_factory_class(cfg).create()
         self.index_template_provider = index_template_provider_class(cfg)
 
-    def store_race(self, race):
-        doc = race.as_dict()
+    def store_test_execution(self, test_execution):
+        doc = test_execution.as_dict()
         # always update the mapping to the latest version
-        self.client.put_template("rally-races", self.index_template_provider.races_template())
-        self.client.index(index=self.index_name(race), doc_type=EsRaceStore.RACE_DOC_TYPE, item=doc, id=race.race_id)
+        self.client.put_template("rally-test-executions", self.index_template_provider.test_executions_template())
+        self.client.index(index=self.index_name(test_execution), doc_type=EsTestExecutionStore.TEST_EXECUTION_DOC_TYPE, item=doc, id=test_execution.test_execution_id)
 
-    def index_name(self, race):
-        race_timestamp = race.race_timestamp
-        return f"{EsRaceStore.INDEX_PREFIX}{race_timestamp:%Y-%m}"
+    def index_name(self, test_execution):
+        test_execution_timestamp = test_execution.test_execution_timestamp
+        return f"{EsTestExecutionStore.INDEX_PREFIX}{test_execution_timestamp:%Y-%m}"
 
     def list(self):
         filters = [{
@@ -1438,53 +1438,53 @@ class EsRaceStore(RaceStore):
             "size": self._max_results(),
             "sort": [
                 {
-                    "race-timestamp": {
+                    "test-execution-timestamp": {
                         "order": "desc"
                     }
                 }
             ]
         }
-        result = self.client.search(index="%s*" % EsRaceStore.INDEX_PREFIX, body=query)
+        result = self.client.search(index="%s*" % EsTestExecutionStore.INDEX_PREFIX, body=query)
         hits = result["hits"]["total"]
         # Elasticsearch 7.0+
         if isinstance(hits, dict):
             hits = hits["value"]
         if hits > 0:
-            return [Race.from_dict(v["_source"]) for v in result["hits"]["hits"]]
+            return [TestExecution.from_dict(v["_source"]) for v in result["hits"]["hits"]]
         else:
             return []
 
-    def find_by_race_id(self, race_id):
+    def find_by_test_execution_id(self, test_execution_id):
         query = {
             "query": {
                 "bool": {
                     "filter": [
                         {
                             "term": {
-                                "race-id": race_id
+                                "test-execution-id": test_execution_id
                             }
                         }
                     ]
                 }
             }
         }
-        result = self.client.search(index="%s*" % EsRaceStore.INDEX_PREFIX, body=query)
+        result = self.client.search(index="%s*" % EsTestExecutionStore.INDEX_PREFIX, body=query)
         hits = result["hits"]["total"]
         # Elasticsearch 7.0+
         if isinstance(hits, dict):
             hits = hits["value"]
         if hits == 1:
-            return Race.from_dict(result["hits"]["hits"][0]["_source"])
+            return TestExecution.from_dict(result["hits"]["hits"][0]["_source"])
         elif hits > 1:
             raise exceptions.RallyAssertionError(
-                "Expected exactly one race to match race id [{}] but there were [{}] matches.".format(race_id, hits))
+                "Expected exactly one test_execution to match test_execution id [{}] but there were [{}] matches.".format(test_execution_id, hits))
         else:
-            raise exceptions.NotFound("No race with race id [{}]".format(race_id))
+            raise exceptions.NotFound("No test_execution with test_execution id [{}]".format(test_execution_id))
 
 
 class EsResultsStore:
     """
-    Stores the results of a race in a format that is better suited for reporting with Kibana.
+    Stores the results of a test_execution in a format that is better suited for reporting with Kibana.
     """
     INDEX_PREFIX = "rally-results-"
     RESULTS_DOC_TYPE = "_doc"
@@ -1501,23 +1501,23 @@ class EsResultsStore:
         self.client = client_factory_class(cfg).create()
         self.index_template_provider = index_template_provider_class(cfg)
 
-    def store_results(self, race):
+    def store_results(self, test_execution):
         # always update the mapping to the latest version
         self.client.put_template("rally-results", self.index_template_provider.results_template())
-        self.client.bulk_index(index=self.index_name(race),
+        self.client.bulk_index(index=self.index_name(test_execution),
                                doc_type=EsResultsStore.RESULTS_DOC_TYPE,
-                               items=race.to_result_dicts())
+                               items=test_execution.to_result_dicts())
 
-    def index_name(self, race):
-        race_timestamp = race.race_timestamp
-        return f"{EsResultsStore.INDEX_PREFIX}{race_timestamp:%Y-%m}"
+    def index_name(self, test_execution):
+        test_execution_timestamp = test_execution.test_execution_timestamp
+        return f"{EsResultsStore.INDEX_PREFIX}{test_execution_timestamp:%Y-%m}"
 
 
 class NoopResultsStore:
     """
-    Does not store any results separately as these are stored as part of the race on the file system.
+    Does not store any results separately as these are stored as part of the test_execution on the file system.
     """
-    def store_results(self, race):
+    def store_results(self, test_execution):
         pass
 
 
@@ -1873,11 +1873,11 @@ class GlobalStats:
         self.op_metrics.append(doc)
 
     def tasks(self):
-        # ensure we can read race.json files before Rally 0.8.0
+        # ensure we can read test_execution.json files before Rally 0.8.0
         return [v.get("task", v["operation"]) for v in self.op_metrics]
 
     def metrics(self, task):
-        # ensure we can read race.json files before Rally 0.8.0
+        # ensure we can read test_execution.json files before Rally 0.8.0
         for r in self.op_metrics:
             if r.get("task", r["operation"]) == task:
                 return r

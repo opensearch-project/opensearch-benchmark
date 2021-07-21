@@ -21,7 +21,7 @@ import unittest.mock as mock
 
 import pytest
 
-from esrally import config, exceptions, racecontrol
+from esrally import config, exceptions, test_execution_control
 
 
 @pytest.fixture
@@ -35,18 +35,18 @@ def running_in_docker():
 @pytest.fixture
 def benchmark_only_pipeline():
     test_pipeline_name = "benchmark-only"
-    original = racecontrol.pipelines[test_pipeline_name]
-    pipeline = racecontrol.Pipeline(test_pipeline_name, "Pipeline intended for unit-testing", mock.Mock())
+    original = test_execution_control.pipelines[test_pipeline_name]
+    pipeline = test_execution_control.Pipeline(test_pipeline_name, "Pipeline intended for unit-testing", mock.Mock())
     yield pipeline
     # restore prior pipeline!
-    racecontrol.pipelines[test_pipeline_name] = original
+    test_execution_control.pipelines[test_pipeline_name] = original
 
 
 @pytest.fixture
 def unittest_pipeline():
-    pipeline = racecontrol.Pipeline("unit-test-pipeline", "Pipeline intended for unit-testing", mock.Mock())
+    pipeline = test_execution_control.Pipeline("unit-test-pipeline", "Pipeline intended for unit-testing", mock.Mock())
     yield pipeline
-    del racecontrol.pipelines[pipeline.name]
+    del test_execution_control.pipelines[pipeline.name]
 
 
 def test_finds_available_pipelines():
@@ -57,35 +57,35 @@ def test_finds_available_pipelines():
         ["benchmark-only", "Assumes an already running Elasticsearch instance, runs a benchmark and reports results"],
     ]
 
-    assert expected == racecontrol.available_pipelines()
+    assert expected == test_execution_control.available_pipelines()
 
 
 def test_prevents_running_an_unknown_pipeline():
     cfg = config.Config()
-    cfg.add(config.Scope.benchmark, "system", "race.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
-    cfg.add(config.Scope.benchmark, "race", "pipeline", "invalid")
+    cfg.add(config.Scope.benchmark, "system", "test_execution.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
+    cfg.add(config.Scope.benchmark, "test_execution", "pipeline", "invalid")
     cfg.add(config.Scope.benchmark, "mechanic", "distribution.version", "5.0.0")
 
     with pytest.raises(
             exceptions.SystemSetupError,
             match=r"Unknown pipeline \[invalid]. List the available pipelines with [\S]+? list pipelines."):
-        racecontrol.run(cfg)
+        test_execution_control.run(cfg)
 
 
 def test_passes_benchmark_only_pipeline_in_docker(running_in_docker, benchmark_only_pipeline):
     cfg = config.Config()
-    cfg.add(config.Scope.benchmark, "system", "race.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
-    cfg.add(config.Scope.benchmark, "race", "pipeline", "benchmark-only")
+    cfg.add(config.Scope.benchmark, "system", "test_execution.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
+    cfg.add(config.Scope.benchmark, "test_execution", "pipeline", "benchmark-only")
 
-    racecontrol.run(cfg)
+    test_execution_control.run(cfg)
 
     benchmark_only_pipeline.target.assert_called_once_with(cfg)
 
 
 def test_fails_without_benchmark_only_pipeline_in_docker(running_in_docker, unittest_pipeline):
     cfg = config.Config()
-    cfg.add(config.Scope.benchmark, "system", "race.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
-    cfg.add(config.Scope.benchmark, "race", "pipeline", "unit-test-pipeline")
+    cfg.add(config.Scope.benchmark, "system", "test_execution.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
+    cfg.add(config.Scope.benchmark, "test_execution", "pipeline", "unit-test-pipeline")
 
     with pytest.raises(
             exceptions.SystemSetupError,
@@ -95,15 +95,15 @@ def test_fails_without_benchmark_only_pipeline_in_docker(running_in_docker, unit
                 "For more details read the docs for the benchmark-only pipeline in "
                 "https://esrally.readthedocs.io/en/latest/pipelines.html#benchmark-only\n"
             )):
-        racecontrol.run(cfg)
+        test_execution_control.run(cfg)
 
 
 def test_runs_a_known_pipeline(unittest_pipeline):
     cfg = config.Config()
-    cfg.add(config.Scope.benchmark, "system", "race.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
-    cfg.add(config.Scope.benchmark, "race", "pipeline", "unit-test-pipeline")
+    cfg.add(config.Scope.benchmark, "system", "test_execution.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
+    cfg.add(config.Scope.benchmark, "test_execution", "pipeline", "unit-test-pipeline")
     cfg.add(config.Scope.benchmark, "mechanic", "distribution.version", "")
 
-    racecontrol.run(cfg)
+    test_execution_control.run(cfg)
 
     unittest_pipeline.target.assert_called_once_with(cfg)

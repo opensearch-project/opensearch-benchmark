@@ -114,7 +114,7 @@ def kill_all(predicate):
     def kill(p):
         logging.getLogger(__name__).info("Killing lingering process with PID [%s] and command line [%s].", p.pid, p.cmdline())
         p.kill()
-        # wait until process has terminated, at most 3 seconds. Otherwise we might run into race conditions with actor system
+        # wait until process has terminated, at most 3 seconds. Otherwise we might run into TestExecution conditions with actor system
         # sockets that are still open.
         for _ in range(3):
             try:
