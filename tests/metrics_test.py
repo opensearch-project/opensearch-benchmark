@@ -56,8 +56,13 @@ class DummyIndexTemplateProvider:
     def metrics_template(self):
         return "metrics-test-template"
 
+<<<<<<< HEAD
     def races_template(self):
         return "races-test-template"
+=======
+    def test_executions_template(self):
+        return "test-executions-test-template"
+>>>>>>> ba64e7b... Corrected unit tests
 
     def results_template(self):
         return "results-test-template"
@@ -1094,7 +1099,7 @@ class EsRaceStoreTests(TestCase):
                 ]
             }
         }
-        self.es_mock.index.assert_called_with(index="rally-races-2016-01",
+        self.es_mock.index.assert_called_with(index="rally-test-executions-2016-01",
                                               doc_type="_doc",
                                               id=EsRaceStoreTests.RACE_ID,
                                               item=expected_doc)
@@ -1615,8 +1620,13 @@ class FileRaceStoreTests(TestCase):
         self.cfg.add(config.Scope.application, "system", "race.id", FileRaceStoreTests.RACE_ID)
         self.race_store = metrics.FileRaceStore(self.cfg)
 
+<<<<<<< HEAD
     def test_race_not_found(self):
         with self.assertRaisesRegex(exceptions.NotFound, r"No race with race id \[.*\]"):
+=======
+    def test_test_execution_not_found(self):
+        with self.assertRaisesRegex(exceptions.NotFound, r"No test execution with test execution id \[.*\]"):
+>>>>>>> ba64e7b... Corrected unit tests
             # did not store anything yet
             self.race_store.find_by_race_id(FileRaceStoreTests.RACE_ID)
 

@@ -606,6 +606,7 @@ class DockerProvisionerTests(TestCase):
 
         docker_cfg = docker._render_template_from_file(docker.docker_vars(mounts={}))
 
+        self.assertEqual.__self__.maxDiff = None
         self.assertEqual(
 """version: '2.2'
 services:
@@ -616,8 +617,10 @@ services:
     labels:
       io.rally.description: "elasticsearch-rally"
     ports:
-      - 39200:39200
+      - 19200:9200
       - 9300
+    environment:
+      - discovery.type=single-node
     ulimits:
       memlock:
         soft: -1
@@ -658,6 +661,7 @@ services:
 
         docker_cfg = docker._render_template_from_file(docker.docker_vars(mounts={}))
 
+        self.assertEqual.__self__.maxDiff = None
         self.assertEqual(
 """version: '2.2'
 services:
@@ -670,8 +674,10 @@ services:
     cpu_count: 2
     mem_limit: 256m
     ports:
-      - 39200:39200
+      - 19200:9200
       - 9300
+    environment:
+      - discovery.type=single-node
     ulimits:
       memlock:
         soft: -1

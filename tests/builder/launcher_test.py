@@ -33,6 +33,7 @@ from unittest.mock import mock_open
 
 import elasticsearch
 import psutil
+import logging
 
 from esrally import config, exceptions, telemetry
 from esrally.builder import launcher, cluster
@@ -391,6 +392,7 @@ class DockerLauncherTests(TestCase):
     @mock.patch("esrally.utils.process.run_subprocess_with_logging")
     @mock.patch("esrally.utils.process.run_subprocess_with_output")
     def test_container_not_started(self, run_subprocess_with_output, run_subprocess_with_logging, sleep):
+        logger = logging.getLogger(__name__)
         run_subprocess_with_logging.return_value = 0
         # Docker container id (from docker-compose ps), but NO Docker container id (from docker ps --filter...) twice
         run_subprocess_with_output.side_effect = [["de604d0d"], [], []]
