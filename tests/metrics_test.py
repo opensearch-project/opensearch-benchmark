@@ -50,7 +50,7 @@ class DummyIndexTemplateProvider:
         return "metrics-test-template"
 
     def test_executions_template(self):
-        return "test_executions-test-template"
+        return "test-executions-test-template"
 
     def results_template(self):
         return "results-test-template"
@@ -1087,7 +1087,7 @@ class EsTestExecutionStoreTests(TestCase):
                 ]
             }
         }
-        self.es_mock.index.assert_called_with(index="rally-test_executions-2016-01",
+        self.es_mock.index.assert_called_with(index="rally-test-executions-2016-01",
                                               doc_type="_doc",
                                               id=EsTestExecutionStoreTests.TEST_EXECUTION_ID,
                                               item=expected_doc)
@@ -1609,7 +1609,7 @@ class FileTestExecutionStoreTests(TestCase):
         self.test_execution_store = metrics.FileTestExecutionStore(self.cfg)
 
     def test_test_execution_not_found(self):
-        with self.assertRaisesRegex(exceptions.NotFound, r"No test_execution with test_execution id \[.*\]"):
+        with self.assertRaisesRegex(exceptions.NotFound, r"No test execution with test execution id \[.*\]"):
             # did not store anything yet
             self.test_execution_store.find_by_test_execution_id(FileTestExecutionStoreTests.TEST_EXECUTION_ID)
 
