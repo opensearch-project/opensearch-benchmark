@@ -49,18 +49,8 @@ class DummyIndexTemplateProvider:
     def metrics_template(self):
         return "metrics-test-template"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-    def races_template(self):
-        return "races-test-template"
-=======
     def test_executions_template(self):
         return "test-executions-test-template"
->>>>>>> ba64e7b... Corrected unit tests
-=======
-    def test_executions_template(self):
-        return "test_executions-test-template"
->>>>>>> 18d9281... Renamed races to test_executions
 
     def results_template(self):
         return "results-test-template"
@@ -1097,11 +1087,7 @@ class EsTestExecutionStoreTests(TestCase):
                 ]
             }
         }
-<<<<<<< HEAD
         self.es_mock.index.assert_called_with(index="rally-test-executions-2016-01",
-=======
-        self.es_mock.index.assert_called_with(index="rally-test_executions-2016-01",
->>>>>>> 18d9281... Renamed races to test_executions
                                               doc_type="_doc",
                                               id=EsTestExecutionStoreTests.TEST_EXECUTION_ID,
                                               item=expected_doc)
@@ -1622,18 +1608,8 @@ class FileTestExecutionStoreTests(TestCase):
         self.cfg.add(config.Scope.application, "system", "test_execution.id", FileTestExecutionStoreTests.TEST_EXECUTION_ID)
         self.test_execution_store = metrics.FileTestExecutionStore(self.cfg)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-    def test_race_not_found(self):
-        with self.assertRaisesRegex(exceptions.NotFound, r"No race with race id \[.*\]"):
-=======
     def test_test_execution_not_found(self):
         with self.assertRaisesRegex(exceptions.NotFound, r"No test execution with test execution id \[.*\]"):
->>>>>>> ba64e7b... Corrected unit tests
-=======
-    def test_test_execution_not_found(self):
-        with self.assertRaisesRegex(exceptions.NotFound, r"No test_execution with test_execution id \[.*\]"):
->>>>>>> 18d9281... Renamed races to test_executions
             # did not store anything yet
             self.test_execution_store.find_by_test_execution_id(FileTestExecutionStoreTests.TEST_EXECUTION_ID)
 
