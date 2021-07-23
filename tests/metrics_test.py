@@ -1615,7 +1615,10 @@ class FileTestExecutionStoreTests(TestCase):
         self.cfg.add(config.Scope.application, "system", "test_execution.id", FileTestExecutionStoreTests.TEST_EXECUTION_ID)
         self.test_execution_store = metrics.FileTestExecutionStore(self.cfg)
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> Refactoring Tests
     def test_test_execution_not_found(self):
         with self.assertRaisesRegex(exceptions.NotFound, r"No test execution with test execution id \[.*\]"):
             # did not store anything yet
