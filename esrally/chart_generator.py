@@ -80,12 +80,13 @@ class BarCharts:
         return title
 
     @staticmethod
-    def filter_string(environment, test_execution_config):
-        if test_execution_config.name:
-            return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{test_execution_config.name}\""
+    def filter_string(environment, test_ex_config):
+        if test_ex_config.name:
+            return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{test_ex_config.name}\""
         else:
-            return f"environment:\"{environment}\" AND active:true AND track:\"{test_execution_config.track}\""\
-                   f" AND challenge:\"{test_execution_config.challenge}\" AND car:\"{test_execution_config.car}\" AND node-count:{test_execution_config.node_count}"
+            return f"environment:\"{environment}\" AND active:true AND track:\"{test_ex_config.track}\""\
+                   f" AND challenge:\"{test_ex_config.challenge}\" AND car:\"{test_ex_config.car}\""\
+                   f" AND node-count:{test_ex_config.node_count}"
 
     @staticmethod
     def gc(title, environment, test_execution_config):
@@ -456,7 +457,12 @@ class BarCharts:
     @staticmethod
     def query(environment, test_execution_config, q):
         metric = "service_time"
-        title = BarCharts.format_title(environment, test_execution_config.track, suffix="%s-%s-p99-%s" % (test_execution_config.label, q, metric))
+        title = BarCharts.format_title(
+            environment,
+            test_execution_config.track,
+            suffix="%s-%s-p99-%s" % (test_execution_config.label,
+            q,
+            metric))
         label = "Query Service Time [ms]"
 
         vis_state = {
@@ -584,7 +590,12 @@ class BarCharts:
             "index": "rally-results-*",
             "query": {
                 "query_string": {
-                    "query": "name:\"%s\" AND task:\"%s\" AND %s" % (metric, q, BarCharts.filter_string(environment, test_execution_config)),
+                    "query": "name:\"%s\" AND task:\"%s\" AND %s" % (
+                        metric,
+                        q,
+                        BarCharts.filter_string(
+                            environment,
+                            test_execution_config)),
                     "analyze_wildcard": True
                 }
             },
@@ -801,19 +812,20 @@ class TimeSeriesCharts:
         return "-".join(title)
 
     @staticmethod
-    def filter_string(environment, test_execution_config):
+    def filter_string(environment, test_ex_config):
         nightly_extra_filter = ""
-        if test_execution_config.es_license:
+        if test_ex_config.es_license:
             # Time series charts need to support different licenses and produce customized titles.
-            nightly_extra_filter = f" AND user-tags.license:\"{test_execution_config.es_license}\""
-        if test_execution_config.name:
-            return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{test_execution_config.name}\"{nightly_extra_filter}"
+            nightly_extra_filter = f" AND user-tags.license:\"{test_ex_config.es_license}\""
+        if test_ex_config.name:
+            return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{test_ex_config.name}\"{nightly_extra_filter}"
         else:
-            return f"environment:\"{environment}\" AND active:true AND track:\"{test_execution_config.track}\""\
-                   f" AND challenge:\"{test_execution_config.challenge}\" AND car:\"{test_execution_config.car}\" AND node-count:{test_execution_config.node_count}"
+            return f"environment:\"{environment}\" AND active:true AND track:\"{test_ex_config.track}\""\
+                   f" AND challenge:\"{test_ex_config.challenge}\" AND car:\"{test_ex_config.car}\""\
+                   f" AND node-count:{test_ex_config.node_count}"
 
     @staticmethod
-    def gc(title, environment, test_execution_config):
+    def gc(title, environment, test_ex_config):
         vis_state = {
             "title": title,
             "type": "metrics",
@@ -868,13 +880,14 @@ class TimeSeriesCharts:
                 "drop_last_bucket": 0,
                 "time_field": "test-execution-timestamp",
                 "type": "timeseries",
-                "filter": TimeSeriesCharts.filter_string(environment, test_execution_config),
+                "filter": TimeSeriesCharts.filter_string(environment, test_ex_config),
                 "annotations": [
                     {
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{test_execution_config.track}\") AND ((NOT _exists_:chart) OR chart:gc) "
+                        "query_string": f"((NOT _exists_:track) OR track:\"{test_ex_config.track}\") "\
+                            f"AND ((NOT _exists_:chart) OR chart:gc) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
@@ -1085,7 +1098,7 @@ class TimeSeriesCharts:
         }
 
     @staticmethod
-    def io(title, environment, test_execution_config):
+    def io(title, environment, test_ex_config):
         vis_state = {
             "title": title,
             "type": "metrics",
@@ -1140,13 +1153,14 @@ class TimeSeriesCharts:
                 "drop_last_bucket": 0,
                 "time_field": "test-execution-timestamp",
                 "type": "timeseries",
-                "filter": TimeSeriesCharts.filter_string(environment, test_execution_config),
+                "filter": TimeSeriesCharts.filter_string(environment, test_ex_config),
                 "annotations": [
                     {
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{test_execution_config.track}\") AND ((NOT _exists_:chart) OR chart:io) "
+                        "query_string": f"((NOT _exists_:track) OR track:\"{test_ex_config.track}\") "\
+                            f"AND ((NOT _exists_:chart) OR chart:io) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
@@ -1177,7 +1191,7 @@ class TimeSeriesCharts:
         }
 
     @staticmethod
-    def segment_memory(title, environment, test_execution_config):
+    def segment_memory(title, environment, test_ex_config):
         vis_state = {
             "title": title,
             "type": "metrics",
@@ -1207,7 +1221,7 @@ class TimeSeriesCharts:
                         "seperate_axis": 1,
                         "split_mode": "filters",
                         "stacked": "none",
-                        "filter": f"environment:{environment} AND track:\"{test_execution_config.track}\"",
+                        "filter": f"environment:{environment} AND track:\"{test_ex_config.track}\"",
                         "split_filters": [
                             {
                                 "filter": "memory_segments",
@@ -1254,13 +1268,13 @@ class TimeSeriesCharts:
                 "show_legend": 1,
                 "time_field": "test-execution-timestamp",
                 "type": "timeseries",
-                "filter": TimeSeriesCharts.filter_string(environment, test_execution_config),
+                "filter": TimeSeriesCharts.filter_string(environment, test_ex_config),
                 "annotations": [
                     {
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{test_execution_config.track}\") "
+                        "query_string": f"((NOT _exists_:track) OR track:\"{test_ex_config.track}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:segment_memory) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
@@ -1293,10 +1307,10 @@ class TimeSeriesCharts:
         }
 
     @staticmethod
-    def query(environment, test_execution_config, q):
+    def query(environment, test_ex_config, q):
         metric = "latency"
-        title = TimeSeriesCharts.format_title(environment, test_execution_config.track, es_license=test_execution_config.es_license,
-                                              suffix="%s-%s-%s" % (test_execution_config.label, q, metric))
+        title = TimeSeriesCharts.format_title(environment, test_ex_config.track, es_license=test_ex_config.es_license,
+                                              suffix="%s-%s-%s" % (test_ex_config.label, q, metric))
 
         vis_state = {
             "title": title,
@@ -1416,13 +1430,13 @@ class TimeSeriesCharts:
                     }
                 ],
                 "filter": "task:\"%s\" AND name:\"%s\" AND %s" % (q, metric, TimeSeriesCharts.filter_string(
-                    environment, test_execution_config)),
+                    environment, test_ex_config)),
                 "annotations": [
                     {
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "rally-annotations",
-                        "query_string": f"((NOT _exists_:track) OR track:\"{test_execution_config.track}\") "
+                        "query_string": f"((NOT _exists_:track) OR track:\"{test_ex_config.track}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:query) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
@@ -1579,7 +1593,10 @@ def generate_index_ops(chart_type, test_execution_configs, environment, logger):
     idx_test_execution_configs = list(filter(lambda c: "indexing" in c.charts, test_execution_configs))
     for test_execution_conf in idx_test_execution_configs:
         logger.debug("Gen index visualization for test_execution config with name:[%s] / label:[%s] / flavor: [%s] / license: [%s]",
-                     test_execution_conf.name, test_execution_conf.label, test_execution_conf.flavor, test_execution_conf.es_license)
+                     test_execution_conf.name,
+                     test_execution_conf.label,
+                     test_execution_conf.flavor,
+                     test_execution_conf.es_license)
     charts = []
 
     if idx_test_execution_configs:

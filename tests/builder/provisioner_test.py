@@ -617,10 +617,8 @@ services:
     labels:
       io.rally.description: "elasticsearch-rally"
     ports:
-      - 19200:9200
+      - 39200:39200
       - 9300
-    environment:
-      - discovery.type=single-node
     ulimits:
       memlock:
         soft: -1
@@ -674,10 +672,8 @@ services:
     cpu_count: 2
     mem_limit: 256m
     ports:
-      - 19200:9200
+      - 39200:39200
       - 9300
-    environment:
-      - discovery.type=single-node
     ulimits:
       memlock:
         soft: -1

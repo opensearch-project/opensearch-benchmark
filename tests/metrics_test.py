@@ -314,7 +314,10 @@ class EsMetricsTests(TestCase):
 
     def test_put_value_without_meta_info(self):
         throughput = 5000
-        self.metrics_store.open(EsMetricsTests.TEST_EXECUTION_ID, EsMetricsTests.TEST_EXECUTION_TIMESTAMP, "test", "append", "defaults", create=True)
+        self.metrics_store.open(
+            EsMetricsTests.TEST_EXECUTION_ID,
+            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            "test", "append", "defaults", create=True)
 
         self.metrics_store.put_value_cluster_level("indexing_throughput", throughput, "docs/s")
         expected_doc = {
@@ -342,7 +345,10 @@ class EsMetricsTests(TestCase):
 
     def test_put_value_with_explicit_timestamps(self):
         throughput = 5000
-        self.metrics_store.open(EsMetricsTests.TEST_EXECUTION_ID, EsMetricsTests.TEST_EXECUTION_TIMESTAMP, "test", "append", "defaults", create=True)
+        self.metrics_store.open(
+            EsMetricsTests.TEST_EXECUTION_ID,
+            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            "test", "append", "defaults", create=True)
 
         self.metrics_store.put_value_cluster_level(name="indexing_throughput", value=throughput, unit="docs/s",
                                                    absolute_time=0, relative_time=10)
@@ -373,7 +379,10 @@ class EsMetricsTests(TestCase):
         throughput = 5000
         # add a user-defined tag
         self.cfg.add(config.Scope.application, "test_execution", "user.tag", "intention:testing,disk_type:hdd")
-        self.metrics_store.open(EsMetricsTests.TEST_EXECUTION_ID, EsMetricsTests.TEST_EXECUTION_TIMESTAMP, "test", "append", "defaults", create=True)
+        self.metrics_store.open(
+            EsMetricsTests.TEST_EXECUTION_ID,
+            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            "test", "append", "defaults", create=True)
 
         # Ensure we also merge in cluster level meta info
         self.metrics_store.add_meta_info(metrics.MetaInfoScope.cluster, None, "source_revision", "abc123")
@@ -414,7 +423,10 @@ class EsMetricsTests(TestCase):
         self.es_mock.bulk_index.assert_called_with(index="rally-metrics-2016-01", doc_type="_doc", items=[expected_doc])
 
     def test_put_doc_no_meta_data(self):
-        self.metrics_store.open(EsMetricsTests.TEST_EXECUTION_ID, EsMetricsTests.TEST_EXECUTION_TIMESTAMP, "test", "append", "defaults", create=True)
+        self.metrics_store.open(
+            EsMetricsTests.TEST_EXECUTION_ID,
+            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            "test", "append", "defaults", create=True)
 
         self.metrics_store.put_doc(doc={
             "name": "custom_metric",
@@ -447,7 +459,10 @@ class EsMetricsTests(TestCase):
     def test_put_doc_with_metadata(self):
         # add a user-defined tag
         self.cfg.add(config.Scope.application, "test_execution", "user.tag", "intention:testing,disk_type:hdd")
-        self.metrics_store.open(EsMetricsTests.TEST_EXECUTION_ID, EsMetricsTests.TEST_EXECUTION_TIMESTAMP, "test", "append", "defaults", create=True)
+        self.metrics_store.open(
+            EsMetricsTests.TEST_EXECUTION_ID,
+            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            "test", "append", "defaults", create=True)
 
         # Ensure we also merge in cluster level meta info
         self.metrics_store.add_meta_info(metrics.MetaInfoScope.cluster, None, "source_revision", "abc123")
@@ -520,7 +535,10 @@ class EsMetricsTests(TestCase):
         }
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
-        self.metrics_store.open(EsMetricsTests.TEST_EXECUTION_ID, EsMetricsTests.TEST_EXECUTION_TIMESTAMP, "test", "append-no-conflicts", "defaults")
+        self.metrics_store.open(
+            EsMetricsTests.TEST_EXECUTION_ID,
+            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            "test", "append-no-conflicts", "defaults")
 
         expected_query = {
             "query": {
@@ -567,7 +585,10 @@ class EsMetricsTests(TestCase):
         }
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
-        self.metrics_store.open(EsMetricsTests.TEST_EXECUTION_ID, EsMetricsTests.TEST_EXECUTION_TIMESTAMP, "test", "append-no-conflicts", "defaults")
+        self.metrics_store.open(
+            EsMetricsTests.TEST_EXECUTION_ID,
+            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            "test", "append-no-conflicts", "defaults")
 
         expected_query = {
             "query": {
@@ -621,7 +642,10 @@ class EsMetricsTests(TestCase):
         }
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
-        self.metrics_store.open(EsMetricsTests.TEST_EXECUTION_ID, EsMetricsTests.TEST_EXECUTION_TIMESTAMP, "test", "append-no-conflicts", "defaults")
+        self.metrics_store.open(
+            EsMetricsTests.TEST_EXECUTION_ID,
+            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            "test", "append-no-conflicts", "defaults")
 
         expected_query = {
             "query": {
@@ -666,7 +690,10 @@ class EsMetricsTests(TestCase):
         }
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
-        self.metrics_store.open(EsMetricsTests.TEST_EXECUTION_ID, EsMetricsTests.TEST_EXECUTION_TIMESTAMP, "test", "append-no-conflicts", "defaults")
+        self.metrics_store.open(
+            EsMetricsTests.TEST_EXECUTION_ID,
+            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            "test", "append-no-conflicts", "defaults")
 
         expected_query = {
             "query": {
@@ -717,7 +744,10 @@ class EsMetricsTests(TestCase):
         }
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
-        self.metrics_store.open(EsMetricsTests.TEST_EXECUTION_ID, EsMetricsTests.TEST_EXECUTION_TIMESTAMP, "test", "append-no-conflicts", "defaults")
+        self.metrics_store.open(
+            EsMetricsTests.TEST_EXECUTION_ID,
+            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            "test", "append-no-conflicts", "defaults")
 
         expected_query = {
             "query": {
@@ -773,7 +803,10 @@ class EsMetricsTests(TestCase):
         }
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
-        self.metrics_store.open(EsMetricsTests.TEST_EXECUTION_ID, EsMetricsTests.TEST_EXECUTION_TIMESTAMP, "test", "append-no-conflicts", "defaults")
+        self.metrics_store.open(
+            EsMetricsTests.TEST_EXECUTION_ID,
+            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            "test", "append-no-conflicts", "defaults")
 
         expected_query = {
             "query": {
@@ -907,7 +940,10 @@ class EsMetricsTests(TestCase):
         }
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
-        self.metrics_store.open(EsMetricsTests.TEST_EXECUTION_ID, EsMetricsTests.TEST_EXECUTION_TIMESTAMP, "test", "append-no-conflicts", "defaults")
+        self.metrics_store.open(
+            EsMetricsTests.TEST_EXECUTION_ID,
+            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            "test", "append-no-conflicts", "defaults")
 
         expected_query = {
             "query": {
@@ -1025,7 +1061,8 @@ class EsTestExecutionStoreTests(TestCase):
                         challenges=[track.Challenge(name="index", default=True, schedule=schedule)])
 
         test_execution = metrics.TestExecution(rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
-                            test_execution_id=EsTestExecutionStoreTests.TEST_EXECUTION_ID, test_execution_timestamp=EsTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
+                            test_execution_id=EsTestExecutionStoreTests.TEST_EXECUTION_ID,
+                            test_execution_timestamp=EsTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params={"shard-count": 3},
                             challenge=t.default_challenge, car="defaults", car_params={"heap_size": "512mb"}, plugin_params=None,
                             track_revision="abc1", team_revision="abc12333", distribution_version="5.0.0",
@@ -1127,7 +1164,8 @@ class EsResultsStoreTests(TestCase):
                         meta_data={"track-type": "saturation-degree", "saturation": "oversaturation"})
 
         test_execution = metrics.TestExecution(rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
-                            test_execution_id=EsResultsStoreTests.TEST_EXECUTION_ID, test_execution_timestamp=EsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
+                            test_execution_id=EsResultsStoreTests.TEST_EXECUTION_ID,
+                            test_execution_timestamp=EsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params=None,
                             challenge=t.default_challenge, car="4gheap", car_params=None, plugin_params={"some-param": True},
                             track_revision="abc1", team_revision="123ab", distribution_version="5.0.0",
@@ -1256,7 +1294,10 @@ class EsResultsStoreTests(TestCase):
                 }
             }
         ]
-        self.es_mock.bulk_index.assert_called_with(index="rally-results-2016-01", doc_type="_doc", items=expected_docs)
+        self.es_mock.bulk_index.assert_called_with(
+            index="rally-results-2016-01",
+            doc_type="_doc",
+            items=expected_docs)
 
     def test_store_results_with_missing_version(self):
         schedule = [
@@ -1612,7 +1653,9 @@ class FileTestExecutionStoreTests(TestCase):
         self.cfg.add(config.Scope.application, "system", "env.name", "unittest-env")
         self.cfg.add(config.Scope.application, "system", "list.test_executions.max_results", 100)
         self.cfg.add(config.Scope.application, "system", "time.start", FileTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP)
-        self.cfg.add(config.Scope.application, "system", "test_execution.id", FileTestExecutionStoreTests.TEST_EXECUTION_ID)
+        self.cfg.add(
+            config.Scope.application, "system", "test_execution.id",
+            FileTestExecutionStoreTests.TEST_EXECUTION_ID)
         self.test_execution_store = metrics.FileTestExecutionStore(self.cfg)
 
 <<<<<<< HEAD
@@ -1633,7 +1676,8 @@ class FileTestExecutionStoreTests(TestCase):
                         indices=[track.Index(name="tests", types=["_doc"])],
                         challenges=[track.Challenge(name="index", default=True, schedule=schedule)])
 
-        test_execution = metrics.TestExecution(rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
+        test_execution = metrics.TestExecution(
+            rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
                             test_execution_id=FileTestExecutionStoreTests.TEST_EXECUTION_ID, test_execution_timestamp=FileTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params={"clients": 12},
                             challenge=t.default_challenge, car="4gheap", car_params=None, plugin_params=None,

@@ -23,7 +23,7 @@
 # under the License.
 
 import it
-
+import os
 
 @it.random_rally_config
 def test_sources(cfg):

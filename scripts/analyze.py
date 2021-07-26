@@ -22,17 +22,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
-#
-# Simple helper script to create graphs based on multiple test_execution.json files (it's a summary of the results of a single test_execution which is
-# stored in ~/.rally/benchmarks/test_executions/TEST_EXECUTION_TS/). There is no specific integration into Rally and it is also not installed with Rally.
+# Simple helper script to create graphs based on multiple
+# test_execution.json files (it's a summary of the results of
+# a single test_execution which is
+# stored in ~/.rally/benchmarks/test_executions/RACE_TS/).
+# There is no specific integration into Rally and it is also not
+# installed with Rally.
 #
 # It requires matplotlib (install with pip3 install matplotlib).
 #
 #
-# Usage: python3 analyze.py [--label=LABEL] /path1/to/test_execution.json /path2/to/test_execution.json
+# Usage:
+# python3 analyze.py [--label=LABEL] /path1/to/test_execution.json /path2/to/test_execution.json
 #
-# Output: A bunch of .png files in the current directory. Each graph shows one data series per test_execution. The label key is chosen based on the
-#         command line parameter `--label`
+# Output: A bunch of .png files in the current directory.
+# Each graph shows one data series per test_execution.
+# The label key is chosen based on the
+# command line parameter `--label`
 #
 
 

@@ -362,7 +362,7 @@ class MetricsStore:
         self._stop_watch = self._clock.stop_watch()
         self.logger = logging.getLogger(__name__)
 
-    def open(self, test_execution_id=None, test_execution_timestamp=None, track_name=None, challenge_name=None, car_name=None, ctx=None, create=False):
+    def open(self, test_ex_id=None, test_ex_timestamp=None, track_name=None, challenge_name=None, car_name=None, ctx=None, create=False):
         """
         Opens a metrics store for a specific test_execution, track, challenge and car.
 
@@ -382,8 +382,8 @@ class MetricsStore:
             self._challenge = ctx["challenge"]
             self._car = ctx["car"]
         else:
-            self._test_execution_id = test_execution_id
-            self._test_execution_timestamp = time.to_iso8601(test_execution_timestamp)
+            self._test_execution_id = test_ex_id
+            self._test_execution_timestamp = time.to_iso8601(test_ex_timestamp)
             self._track = track_name
             self._challenge = challenge_name
             self._car = car_name
@@ -778,9 +778,9 @@ class EsMetricsStore(MetricsStore):
         self._index_template_provider = index_template_provider_class(cfg)
         self._docs = None
 
-    def open(self, test_execution_id=None, test_execution_timestamp=None, track_name=None, challenge_name=None, car_name=None, ctx=None, create=False):
+    def open(self, test_ex_id=None, test_ex_timestamp=None, track_name=None, challenge_name=None, car_name=None, ctx=None, create=False):
         self._docs = []
-        MetricsStore.open(self, test_execution_id, test_execution_timestamp, track_name, challenge_name, car_name, ctx, create)
+        MetricsStore.open(self, test_ex_id, test_ex_timestamp, track_name, challenge_name, car_name, ctx, create)
         self._index = self.index_name()
         # reduce a bit of noise in the metrics cluster log
         if create:
@@ -1157,13 +1157,32 @@ def list_test_executions(cfg):
 
     test_executions = []
     for test_execution in test_execution_store(cfg).list():
-        test_executions.append([test_execution.test_execution_id, time.to_iso8601(test_execution.test_execution_timestamp), test_execution.track, format_dict(test_execution.track_params), test_execution.challenge_name,
-                      test_execution.car_name, format_dict(test_execution.user_tags), test_execution.track_revision, test_execution.team_revision])
+        test_executions.append([
+            test_execution.test_execution_id,
+            time.to_iso8601(test_execution.test_execution_timestamp),
+            test_execution.track,
+            format_dict(test_execution.track_params),
+            test_execution.challenge_name,
+            test_execution.car_name,
+            format_dict(test_execution.user_tags),
+            test_execution.track_revision,
+            test_execution.team_revision])
 
     if len(test_executions) > 0:
         console.println("\nRecent test_executions:\n")
-        console.println(tabulate.tabulate(test_executions, headers=["TestExecution ID", "TestExecution Timestamp", "Track", "Track Parameters", "Challenge", "Car",
-                                                          "User Tags", "Track Revision", "Team Revision"]))
+        console.println(tabulate.tabulate(
+            test_executions,
+            headers=[
+                "TestExecution ID",
+                "TestExecution Timestamp",
+                "Track",
+                "Track Parameters",
+                "Challenge",
+                "Car",
+                "User Tags",
+                "Track Revision",
+                "Team Revision"
+                ]))
     else:
         console.println("")
         console.println("No recent test_executions found.")
@@ -1182,8 +1201,11 @@ def create_test_execution(cfg, track, challenge, track_revision=None):
     rally_version = version.version()
     rally_revision = version.revision()
 
-    return TestExecution(rally_version, rally_revision, environment, test_execution_id, test_execution_timestamp, pipeline, user_tags, track,
-                track_params, challenge, car, car_params, plugin_params, track_revision)
+    return TestExecution(rally_version, rally_revision,
+    environment, test_execution_id, test_execution_timestamp,
+    pipeline, user_tags, track,
+    track_params, challenge, car, car_params,
+    plugin_params, track_revision)
 
 
 class TestExecution:
@@ -1348,9 +1370,11 @@ class TestExecutionStore:
 # Does not inherit from TestExecutionStore as it is only a delegator with the same API.
 class CompositeTestExecutionStore:
     """
-    Internal helper class to store test executionss as file and to Elasticsearch in case users want Elasticsearch as a test executions store.
+    Internal helper class to store test executionss as file and to Elasticsearch in case users
+    want Elasticsearch as a test executions store.
 
-    It provides the same API as TestExecutionStore. It delegates writes to all stores and all read operations only the Elasticsearch test execution store.
+    It provides the same API as TestExecutionStore. It delegates writes to all stores
+    and all read operations only the Elasticsearch test execution store.
     """
     def __init__(self, es_store, file_store):
         self.es_store = es_store
@@ -1413,7 +1437,8 @@ class EsTestExecutionStore(TestExecutionStore):
 
         :param cfg: The config object. Mandatory.
         :param client_factory_class: This parameter is optional and needed for testing.
-        :param index_template_provider_class: This parameter is optional and needed for testing.
+        :param index_template_provider_class: This parameter is optional
+        and needed for testing.
         """
         super().__init__(cfg)
         self.client = client_factory_class(cfg).create()
@@ -1423,7 +1448,11 @@ class EsTestExecutionStore(TestExecutionStore):
         doc = test_execution.as_dict()
         # always update the mapping to the latest version
         self.client.put_template("rally-test-executions", self.index_template_provider.test_executions_template())
-        self.client.index(index=self.index_name(test_execution), doc_type=EsTestExecutionStore.TEST_EXECUTION_DOC_TYPE, item=doc, id=test_execution.test_execution_id)
+        self.client.index(
+            index=self.index_name(test_execution),
+            doc_type=EsTestExecutionStore.TEST_EXECUTION_DOC_TYPE,
+            item=doc,
+            id=test_execution.test_execution_id)
 
     def index_name(self, test_execution):
         test_execution_timestamp = test_execution.test_execution_timestamp
@@ -1484,14 +1513,15 @@ class EsTestExecutionStore(TestExecutionStore):
             return TestExecution.from_dict(result["hits"]["hits"][0]["_source"])
         elif hits > 1:
             raise exceptions.RallyAssertionError(
-                "Expected exactly one test_execution to match test_execution id [{}] but there were [{}] matches.".format(test_execution_id, hits))
+                "Expected one test execution to match test ex id [{}] but there were [{}] matches.".format(test_execution_id, hits))
         else:
             raise exceptions.NotFound("No test_execution with test_execution id [{}]".format(test_execution_id))
 
 
 class EsResultsStore:
     """
-    Stores the results of a test_execution in a format that is better suited for results_publishing with Kibana.
+    Stores the results of a test_execution in a format that is
+    better suited for reporting with Kibana.
     """
     INDEX_PREFIX = "rally-results-"
     RESULTS_DOC_TYPE = "_doc"
