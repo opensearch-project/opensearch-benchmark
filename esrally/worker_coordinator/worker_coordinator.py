@@ -211,12 +211,12 @@ class WorkerCoordinatorActor(actor.RallyActor):
         self.cluster_details = None
 
     def receiveMsg_PoisonMessage(self, poisonmsg, sender):
-        self.logger.error("Main worker_coordinator received a fatal indication from a load generator (%s). Shutting down.", poisonmsg.details)
+        self.logger.error("Main worker_coordinator received a fatal indication from load generator (%s). Shutting down.", poisonmsg.details)
         self.coordinator.close()
         self.send(self.start_sender, actor.BenchmarkFailure("Fatal track or load generator indication", poisonmsg.details))
 
     def receiveMsg_BenchmarkFailure(self, msg, sender):
-        self.logger.error("Main worker_coordinator received a fatal exception from a load generator. Shutting down.")
+        self.logger.error("Main worker_coordinator received a fatal exception from load generator. Shutting down.")
         self.coordinator.close()
         self.send(self.start_sender, msg)
 
