@@ -110,7 +110,10 @@ class BenchmarkActor(actor.RallyActor):
     def receiveMsg_EngineStarted(self, msg, sender):
         self.logger.info("Mechanic has started engine successfully.")
         self.coordinator.race.team_revision = msg.team_revision
-        self.main_worker_coordinator = self.createActor(worker_coordinator.WorkerCoordinatorActor, targetActorRequirements={"coordinator": True})
+        self.main_worker_coordinator = self.createActor(
+            worker_coordinator.WorkerCoordinatorActor,
+            targetActorRequirements={"coordinator": True}
+            )
         self.logger.info("Telling worker_coordinator to prepare for benchmarking.")
         self.send(self.main_worker_coordinator, worker_coordinator.PrepareBenchmark(self.cfg, self.coordinator.current_track))
 

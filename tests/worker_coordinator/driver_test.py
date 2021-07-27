@@ -287,8 +287,12 @@ class SamplePostprocessorTests(TestCase):
 
         task = track.Task("index", track.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
         samples = [
-            worker_coordinator.Sample(0, 38598, 24, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2),
-            worker_coordinator.Sample(0, 38599, 25, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 2, 2 / 2),
+            worker_coordinator.Sample(
+                0, 38598, 24, 0, task, metrics.SampleType.Normal,
+                None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2),
+            worker_coordinator.Sample(
+                0, 38599, 25, 0, task, metrics.SampleType.Normal,
+                None, 0.01, 0.007, 0.009, None, 5000, "docs", 2, 2 / 2),
         ]
 
         post_process(samples)
@@ -311,8 +315,12 @@ class SamplePostprocessorTests(TestCase):
         task = track.Task("index", track.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
 
         samples = [
-            worker_coordinator.Sample(0, 38598, 24, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2),
-            worker_coordinator.Sample(0, 38599, 25, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 2, 2 / 2),
+            worker_coordinator.Sample(
+                0, 38598, 24, 0, task, metrics.SampleType.Normal,
+                None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2),
+            worker_coordinator.Sample(
+                0, 38599, 25, 0, task, metrics.SampleType.Normal,
+                None, 0.01, 0.007, 0.009, None, 5000, "docs", 2, 2 / 2),
         ]
 
         post_process(samples)
@@ -334,7 +342,9 @@ class SamplePostprocessorTests(TestCase):
 
         task = track.Task("index", track.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
         samples = [
-            worker_coordinator.Sample(0, 38598, 24, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2,
+            worker_coordinator.Sample(
+                0, 38598, 24, 0, task, metrics.SampleType.Normal,
+                None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2,
                           dependent_timing=[
                               {
                                   "absolute_time": 38601,
@@ -1476,7 +1486,11 @@ class AsyncExecutorTests(TestCase):
         runner = mock.Mock()
         runner.return_value = as_future()
 
-        ops, unit, request_meta_data = await worker_coordinator.execute_single(self.context_managed(runner), es, params, on_error="continue")
+        ops, unit, request_meta_data = await worker_coordinator.execute_single(
+            self.context_managed(runner),
+            es,
+            params,
+            on_error="continue")
 
         self.assertEqual(1, ops)
         self.assertEqual("ops", unit)
@@ -1489,7 +1503,11 @@ class AsyncExecutorTests(TestCase):
         runner = mock.Mock()
         runner.return_value = as_future(result=(500, "MB"))
 
-        ops, unit, request_meta_data = await worker_coordinator.execute_single(self.context_managed(runner), es, params, on_error="continue")
+        ops, unit, request_meta_data = await worker_coordinator.execute_single(
+            self.context_managed(runner),
+            es,
+            params,
+            on_error="continue")
 
         self.assertEqual(500, ops)
         self.assertEqual("MB", unit)
@@ -1507,7 +1525,11 @@ class AsyncExecutorTests(TestCase):
             "http-status": 200
         })
 
-        ops, unit, request_meta_data = await worker_coordinator.execute_single(self.context_managed(runner), es, params, on_error="continue")
+        ops, unit, request_meta_data = await worker_coordinator.execute_single(
+            self.context_managed(runner),
+            es,
+            params,
+            on_error="continue")
 
         self.assertEqual(50, ops)
         self.assertEqual("docs", unit)

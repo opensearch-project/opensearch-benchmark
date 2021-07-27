@@ -838,7 +838,11 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "worker_coordinator", "profiling", args.enable_worker_coordinator_profiling)
             cfg.add(config.Scope.applicationOverride, "worker_coordinator", "assertions", args.enable_assertions)
             cfg.add(config.Scope.applicationOverride, "worker_coordinator", "on.error", args.on_error)
-            cfg.add(config.Scope.applicationOverride, "worker_coordinator", "load_worker_coordinator_hosts", opts.csv_to_list(args.load_worker_coordinator_hosts))
+            cfg.add(
+                config.Scope.applicationOverride,
+                "worker_coordinator",
+                "load_worker_coordinator_hosts",
+                opts.csv_to_list(args.load_worker_coordinator_hosts))
             cfg.add(config.Scope.applicationOverride, "track", "test.mode.enabled", args.test_mode)
             configure_track_params(arg_parser, args, cfg)
             configure_connection_params(arg_parser, args, cfg)

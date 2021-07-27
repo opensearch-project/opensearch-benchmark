@@ -460,7 +460,8 @@ class BulkIndex(Runner):
 
         * ``pipeline``: If present, runs the the specified ingest pipeline for this bulk.
         * ``detailed-results``: If ``True``, the runner will analyze the response and add detailed meta-data. Defaults to ``False``. Note
-        that this has a very significant impact on performance and will very likely cause a bottleneck in the benchmark worker_coordinator so please
+        that this has a very significant impact on performance and will very
+        likely cause a bottleneck in the benchmark worker_coordinator so please
         be very cautious enabling this feature. Our own measurements have shown a median overhead of several thousand times (execution time
          is in the single digit microsecond range when this feature is disabled and in the single digit millisecond range when this feature
          is enabled; numbers based on a bulk size of 500 elements and no errors). For details please refer to the respective benchmarks
