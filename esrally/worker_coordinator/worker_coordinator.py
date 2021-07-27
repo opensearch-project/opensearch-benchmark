@@ -34,14 +34,14 @@ from enum import Enum
 import thespian.actors
 
 from esrally import actor, config, exceptions, metrics, track, client, paths, PROGRAM_NAME, telemetry
-from esrally.driver import runner, scheduler
+from esrally.worker_coordinator import runner, scheduler
 from esrally.track import TrackProcessorRegistry, load_track, load_track_plugins
 from esrally.utils import convert, console, net
 
 
 ##################################
 #
-# Messages sent between drivers
+# Messages sent between worker_coordinators
 #
 ##################################
 class PrepareBenchmark:
@@ -170,7 +170,7 @@ class JoinPointReached:
         self.worker_id = worker_id
         # Using perf_counter here is fine even in the distributed case. Although we "leak" this value to other
         # machines, we will only ever interpret this value on the same machine (see `Drive` and the implementation
-        # in `Driver#joinpoint_reached()`).
+        # in `WorkerCoordinator#joinpoint_reached()`).
         self.worker_timestamp = time.perf_counter()
         self.task = task
 
@@ -190,7 +190,7 @@ class TaskFinished:
         self.next_task_scheduled_in = next_task_scheduled_in
 
 
-class DriverActor(actor.RallyActor):
+class WorkerCoordinatorActor(actor.RallyActor):
     RESET_RELATIVE_TIME_MARKER = "reset_relative_time"
 
     WAKEUP_INTERVAL_SECONDS = 1
@@ -199,7 +199,7 @@ class DriverActor(actor.RallyActor):
     POST_PROCESS_INTERVAL_SECONDS = 30
 
     """
-    Coordinates all workers. This is actually only a thin actor wrapper layer around ``Driver`` which does the actual work.
+    Coordinates all workers. This is actually only a thin actor wrapper layer around ``WorkerCoordinator`` which does the actual work.
     """
 
     def __init__(self):
@@ -211,22 +211,22 @@ class DriverActor(actor.RallyActor):
         self.cluster_details = None
 
     def receiveMsg_PoisonMessage(self, poisonmsg, sender):
-        self.logger.error("Main driver received a fatal indication from a load generator (%s). Shutting down.", poisonmsg.details)
+        self.logger.error("Main worker_coordinator received a fatal indication from a load generator (%s). Shutting down.", poisonmsg.details)
         self.coordinator.close()
         self.send(self.start_sender, actor.BenchmarkFailure("Fatal track or load generator indication", poisonmsg.details))
 
     def receiveMsg_BenchmarkFailure(self, msg, sender):
-        self.logger.error("Main driver received a fatal exception from a load generator. Shutting down.")
+        self.logger.error("Main worker_coordinator received a fatal exception from a load generator. Shutting down.")
         self.coordinator.close()
         self.send(self.start_sender, msg)
 
     def receiveMsg_BenchmarkCancelled(self, msg, sender):
-        self.logger.info("Main driver received a notification that the benchmark has been cancelled.")
+        self.logger.info("Main worker_coordinator received a notification that the benchmark has been cancelled.")
         self.coordinator.close()
         self.send(self.start_sender, msg)
 
     def receiveMsg_ActorExitRequest(self, msg, sender):
-        self.logger.info("Main driver received ActorExitRequest and will terminate all load generators.")
+        self.logger.info("Main worker_coordinator received ActorExitRequest and will terminate all load generators.")
         self.status = "exiting"
 
     def receiveMsg_ChildActorExited(self, msg, sender):
@@ -242,60 +242,60 @@ class DriverActor(actor.RallyActor):
             self.logger.info("A track preparator has exited.")
 
     def receiveUnrecognizedMessage(self, msg, sender):
-        self.logger.info("Main driver received unknown message [%s] (ignoring).", str(msg))
+        self.logger.info("Main worker_coordinator received unknown message [%s] (ignoring).", str(msg))
 
-    @actor.no_retry("driver")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_PrepareBenchmark(self, msg, sender):
         self.start_sender = sender
-        self.coordinator = Driver(self, msg.config)
+        self.coordinator = WorkerCoordinator(self, msg.config)
         self.coordinator.prepare_benchmark(msg.track)
 
-    @actor.no_retry("driver")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StartBenchmark(self, msg, sender):
         self.start_sender = sender
         self.coordinator.start_benchmark()
-        self.wakeupAfter(datetime.timedelta(seconds=DriverActor.WAKEUP_INTERVAL_SECONDS))
+        self.wakeupAfter(datetime.timedelta(seconds=WorkerCoordinatorActor.WAKEUP_INTERVAL_SECONDS))
 
-    @actor.no_retry("driver")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_TrackPrepared(self, msg, sender):
         self.transition_when_all_children_responded(sender, msg,
                                                     expected_status=None, new_status=None, transition=self._after_track_prepared)
 
-    @actor.no_retry("driver")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_JoinPointReached(self, msg, sender):
         self.coordinator.joinpoint_reached(msg.worker_id, msg.worker_timestamp, msg.task)
 
-    @actor.no_retry("driver")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_UpdateSamples(self, msg, sender):
         self.coordinator.update_samples(msg.samples)
 
-    @actor.no_retry("driver")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_WakeupMessage(self, msg, sender):
-        if msg.payload == DriverActor.RESET_RELATIVE_TIME_MARKER:
+        if msg.payload == WorkerCoordinatorActor.RESET_RELATIVE_TIME_MARKER:
             self.coordinator.reset_relative_time()
         elif not self.coordinator.finished():
-            self.post_process_timer += DriverActor.WAKEUP_INTERVAL_SECONDS
-            if self.post_process_timer >= DriverActor.POST_PROCESS_INTERVAL_SECONDS:
+            self.post_process_timer += WorkerCoordinatorActor.WAKEUP_INTERVAL_SECONDS
+            if self.post_process_timer >= WorkerCoordinatorActor.POST_PROCESS_INTERVAL_SECONDS:
                 self.post_process_timer = 0
                 self.coordinator.post_process_samples()
             self.coordinator.update_progress_message()
-            self.wakeupAfter(datetime.timedelta(seconds=DriverActor.WAKEUP_INTERVAL_SECONDS))
+            self.wakeupAfter(datetime.timedelta(seconds=WorkerCoordinatorActor.WAKEUP_INTERVAL_SECONDS))
 
     def create_client(self, host):
         return self.createActor(Worker, targetActorRequirements=self._requirements(host))
 
-    def start_worker(self, driver, worker_id, cfg, track, allocations):
-        self.send(driver, StartWorker(worker_id, cfg, track, allocations))
+    def start_worker(self, worker_coordinator, worker_id, cfg, track, allocations):
+        self.send(worker_coordinator, StartWorker(worker_id, cfg, track, allocations))
 
-    def drive_at(self, driver, client_start_timestamp):
-        self.send(driver, Drive(client_start_timestamp))
+    def drive_at(self, worker_coordinator, client_start_timestamp):
+        self.send(worker_coordinator, Drive(client_start_timestamp))
 
-    def complete_current_task(self, driver):
-        self.send(driver, CompleteCurrentTask())
+    def complete_current_task(self, worker_coordinator):
+        self.send(worker_coordinator, CompleteCurrentTask())
 
     def on_task_finished(self, metrics, next_task_scheduled_in):
         if next_task_scheduled_in > 0:
-            self.wakeupAfter(datetime.timedelta(seconds=next_task_scheduled_in), payload=DriverActor.RESET_RELATIVE_TIME_MARKER)
+            self.wakeupAfter(datetime.timedelta(seconds=next_task_scheduled_in), payload=WorkerCoordinatorActor.RESET_RELATIVE_TIME_MARKER)
         else:
             self.coordinator.reset_relative_time()
         self.send(self.start_sender, TaskFinished(metrics, next_task_scheduled_in))
@@ -338,7 +338,7 @@ class DriverActor(actor.RallyActor):
 def load_local_config(coordinator_config):
     cfg = config.auto_load_local_config(coordinator_config, additional_sections=[
         # only copy the relevant bits
-        "track", "driver", "client",
+        "track", "worker_coordinator", "client",
         # due to distribution version...
         "mechanic",
         "telemetry"
@@ -502,7 +502,7 @@ def num_cores(cfg):
                          default_value=multiprocessing.cpu_count()))
 
 
-class Driver:
+class WorkerCoordinator:
     def __init__(self, target, config, es_client_factory_class=client.EsClientFactory):
         """
         Coordinates all workers. It is technology-agnostic, i.e. it does not know anything about actors. To allow us to hook in an actor,
@@ -519,7 +519,7 @@ class Driver:
         self.track = None
         self.challenge = None
         self.metrics_store = None
-        self.load_driver_hosts = []
+        self.load_worker_coordinator_hosts = []
         self.workers = []
         # which client ids are assigned to which workers?
         self.clients_per_worker = {}
@@ -624,7 +624,7 @@ class Driver:
         # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
         self.prepare_telemetry(es_clients, enable=not uses_static_responses)
 
-        for host in self.config.opts("driver", "load_driver_hosts"):
+        for host in self.config.opts("worker_coordinator", "load_worker_coordinator_hosts"):
             host_config = {
                 # for simplicity we assume that all benchmark machines have the same specs
                 "cores": num_cores(self.config)
@@ -634,9 +634,9 @@ class Driver:
             else:
                 host_config["host"] = host
 
-            self.load_driver_hosts.append(host_config)
+            self.load_worker_coordinator_hosts.append(host_config)
 
-        self.target.prepare_track([h["host"] for h in self.load_driver_hosts], self.config, self.track)
+        self.target.prepare_track([h["host"] for h in self.load_worker_coordinator_hosts], self.config, self.track)
 
     def start_benchmark(self):
         self.logger.info("Benchmark is about to start.")
@@ -657,7 +657,7 @@ class Driver:
         if allocator.clients < 128:
             self.logger.info("Allocation matrix:\n%s", "\n".join([str(a) for a in self.allocations]))
 
-        worker_assignments = calculate_worker_assignments(self.load_driver_hosts, allocator.clients)
+        worker_assignments = calculate_worker_assignments(self.load_worker_coordinator_hosts, allocator.clients)
         worker_id = 0
         for assignment in worker_assignments:
             host = assignment["host"]
@@ -1017,7 +1017,7 @@ class Worker(actor.RallyActor):
         self.master = sender
         self.worker_id = msg.worker_id
         self.config = load_local_config(msg.config)
-        self.on_error = self.config.opts("driver", "on.error")
+        self.on_error = self.config.opts("worker_coordinator", "on.error")
         self.sample_queue_size = int(self.config.opts("reporting", "sample.queue.size", mandatory=False, default_value=1 << 20))
         self.track = msg.track
         track.set_absolute_data_path(self.config, self.track)
@@ -1069,7 +1069,7 @@ class Worker(actor.RallyActor):
                 if e:
                     self.logger.exception("Worker[%s] has detected a benchmark failure. Notifying master...",
                                           str(self.worker_id), exc_info=e)
-                    # the exception might be user-defined and not be on the load path of the master driver. Hence, it cannot be
+                    # the exception might be user-defined and not be on the load path of the master worker_coordinator. Hence, it cannot be
                     # deserialized on the receiver so we convert it here to a plain string.
                     self.send(self.master, actor.BenchmarkFailure("Error in load generator [{}]".format(self.worker_id), str(e)))
                 else:
@@ -1406,8 +1406,8 @@ class AsyncIoAdapter:
         self.cancel = cancel
         self.complete = complete
         self.abort_on_error = abort_on_error
-        self.profiling_enabled = self.cfg.opts("driver", "profiling")
-        self.assertions_enabled = self.cfg.opts("driver", "assertions")
+        self.profiling_enabled = self.cfg.opts("worker_coordinator", "profiling")
+        self.assertions_enabled = self.cfg.opts("worker_coordinator", "assertions")
         self.debug_event_loop = self.cfg.opts("system", "async.debug", mandatory=False, default_value=False)
         self.logger = logging.getLogger(__name__)
 

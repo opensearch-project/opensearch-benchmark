@@ -458,7 +458,7 @@ def create_arg_parser():
              "(default: localhost:9200).",
         default="")  # actually the default is pipeline specific and it is set later
     race_parser.add_argument(
-        "--load-driver-hosts",
+        "--load-worker-coordinator-hosts",
         help="Define a comma-separated list of hosts which should generate load (default: localhost).",
         default="localhost")
     race_parser.add_argument(
@@ -527,8 +527,8 @@ def create_arg_parser():
         default=False,
         action="store_true")
     race_parser.add_argument(
-        "--enable-driver-profiling",
-        help="Enables a profiler for analyzing the performance of calls in Rally's driver (default: false).",
+        "--enable-worker-coordinator-profiling",
+        help="Enables a profiler for analyzing the performance of calls in Rally's worker coordinator (default: false).",
         default=False,
         action="store_true")
     race_parser.add_argument(
@@ -835,10 +835,10 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "system", "install.id", args.race_id)
             cfg.add(config.Scope.applicationOverride, "race", "pipeline", args.pipeline)
             cfg.add(config.Scope.applicationOverride, "race", "user.tag", args.user_tag)
-            cfg.add(config.Scope.applicationOverride, "driver", "profiling", args.enable_driver_profiling)
-            cfg.add(config.Scope.applicationOverride, "driver", "assertions", args.enable_assertions)
-            cfg.add(config.Scope.applicationOverride, "driver", "on.error", args.on_error)
-            cfg.add(config.Scope.applicationOverride, "driver", "load_driver_hosts", opts.csv_to_list(args.load_driver_hosts))
+            cfg.add(config.Scope.applicationOverride, "worker_coordinator", "profiling", args.enable_worker_coordinator_profiling)
+            cfg.add(config.Scope.applicationOverride, "worker_coordinator", "assertions", args.enable_assertions)
+            cfg.add(config.Scope.applicationOverride, "worker_coordinator", "on.error", args.on_error)
+            cfg.add(config.Scope.applicationOverride, "worker_coordinator", "load_worker_coordinator_hosts", opts.csv_to_list(args.load_worker_coordinator_hosts))
             cfg.add(config.Scope.applicationOverride, "track", "test.mode.enabled", args.test_mode)
             configure_track_params(arg_parser, args, cfg)
             configure_connection_params(arg_parser, args, cfg)

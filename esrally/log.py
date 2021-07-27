@@ -108,7 +108,7 @@ def configure_logging():
     # Avoid failures such as the following (shortened a bit):
     #
     # ---------------------------------------------------------------------------------------------
-    # "esrally/driver/driver.py", line 220, in create_client
+    # "esrally/worker_coordinator/worker_coordinator.py", line 220, in create_client
     # "thespian-3.8.0-py3.5.egg/thespian/actors.py", line 187, in createActor
     # [...]
     # "thespian-3.8.0-py3.5.egg/thespian/system/multiprocCommon.py", line 348, in _startChildActor

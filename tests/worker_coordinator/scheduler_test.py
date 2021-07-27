@@ -20,7 +20,7 @@ import random
 from unittest import TestCase
 
 from esrally import exceptions
-from esrally.driver import scheduler
+from esrally.worker_coordinator import scheduler
 from esrally.track import track
 
 

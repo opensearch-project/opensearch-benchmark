@@ -27,12 +27,12 @@ from unittest import TestCase
 import elasticsearch
 
 from esrally import metrics, track, exceptions, config
-from esrally.driver import driver, runner, scheduler
+from esrally.worker_coordinator import worker_coordinator, runner, scheduler
 from esrally.track import params
 from tests import run_async, as_future
 
 
-class DriverTestParamSource:
+class WorkerCoordinatorTestParamSource:
     def __init__(self, track=None, params=None, **kwargs):
         if params is None:
             params = {}
@@ -58,7 +58,7 @@ class DriverTestParamSource:
         return self._params
 
 
-class DriverTests(TestCase):
+class WorkerCoordinatorTests(TestCase):
     class Holder:
         def __init__(self, all_hosts=None, all_client_options=None):
             self.all_hosts = all_hosts
@@ -74,8 +74,8 @@ class DriverTests(TestCase):
         PATCHER = None
 
         def __init__(self, *args, **kwargs):
-            DriverTests.StaticClientFactory.PATCHER = mock.patch("elasticsearch.Elasticsearch")
-            self.es = DriverTests.StaticClientFactory.PATCHER.start()
+            WorkerCoordinatorTests.StaticClientFactory.PATCHER = mock.patch("elasticsearch.Elasticsearch")
+            self.es = WorkerCoordinatorTests.StaticClientFactory.PATCHER.start()
             self.es.indices.stats.return_value = {"mocked": True}
 
         def create(self):
@@ -83,7 +83,7 @@ class DriverTests(TestCase):
 
         @classmethod
         def close(cls):
-            DriverTests.StaticClientFactory.PATCHER.stop()
+            WorkerCoordinatorTests.StaticClientFactory.PATCHER.stop()
 
     def setUp(self):
         self.cfg = config.Config()
@@ -100,9 +100,9 @@ class DriverTests(TestCase):
         self.cfg.add(config.Scope.application, "mechanic", "car.names", ["default"])
         self.cfg.add(config.Scope.application, "mechanic", "skip.rest.api.check", True)
         self.cfg.add(config.Scope.application, "client", "hosts",
-                     DriverTests.Holder(all_hosts={"default": ["localhost:9200"]}))
-        self.cfg.add(config.Scope.application, "client", "options", DriverTests.Holder(all_client_options={"default": {}}))
-        self.cfg.add(config.Scope.application, "driver", "load_driver_hosts", ["localhost"])
+                     WorkerCoordinatorTests.Holder(all_hosts={"default": ["localhost:9200"]}))
+        self.cfg.add(config.Scope.application, "client", "options", WorkerCoordinatorTests.Holder(all_client_options={"default": {}}))
+        self.cfg.add(config.Scope.application, "worker_coordinator", "load_worker_coordinator_hosts", ["localhost"])
         self.cfg.add(config.Scope.application, "reporting", "datastore.type", "in-memory")
 
         default_challenge = track.Challenge("default", default=True, schedule=[
@@ -112,9 +112,9 @@ class DriverTests(TestCase):
         self.track = track.Track(name="unittest", description="unittest track", challenges=[another_challenge, default_challenge])
 
     def tearDown(self):
-        DriverTests.StaticClientFactory.close()
+        WorkerCoordinatorTests.StaticClientFactory.close()
 
-    def create_test_driver_target(self):
+    def create_test_worker_coordinator_target(self):
         client = "client_marker"
         attrs = {
             "create_client.return_value": client
@@ -123,12 +123,12 @@ class DriverTests(TestCase):
 
     @mock.patch("esrally.utils.net.resolve")
     def test_start_benchmark_and_prepare_track(self, resolve):
-        # override load driver host
-        self.cfg.add(config.Scope.applicationOverride, "driver", "load_driver_hosts", ["10.5.5.1", "10.5.5.2"])
+        # override load worker_coordinator host
+        self.cfg.add(config.Scope.applicationOverride, "worker_coordinator", "load_worker_coordinator_hosts", ["10.5.5.1", "10.5.5.2"])
         resolve.side_effect = ["10.5.5.1", "10.5.5.2"]
 
-        target = self.create_test_driver_target()
-        d = driver.Driver(target, self.cfg, es_client_factory_class=DriverTests.StaticClientFactory)
+        target = self.create_test_worker_coordinator_target()
+        d = worker_coordinator.WorkerCoordinator(target, self.cfg, es_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
         d.prepare_benchmark(t=self.track)
 
         target.prepare_track.assert_called_once_with(["10.5.5.1", "10.5.5.2"], self.cfg, self.track)
@@ -144,9 +144,9 @@ class DriverTests(TestCase):
         # Did we start all load generators? There is no specific mock assert for this...
         self.assertEqual(4, target.start_worker.call_count)
 
-    def test_assign_drivers_round_robin(self):
-        target = self.create_test_driver_target()
-        d = driver.Driver(target, self.cfg, es_client_factory_class=DriverTests.StaticClientFactory)
+    def test_assign_worker_coordinators_round_robin(self):
+        target = self.create_test_worker_coordinator_target()
+        d = worker_coordinator.WorkerCoordinator(target, self.cfg, es_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
 
         d.prepare_benchmark(t=self.track)
 
@@ -165,8 +165,8 @@ class DriverTests(TestCase):
         self.assertEqual(4, target.start_worker.call_count)
 
     def test_client_reaches_join_point_others_still_executing(self):
-        target = self.create_test_driver_target()
-        d = driver.Driver(target, self.cfg, es_client_factory_class=DriverTests.StaticClientFactory)
+        target = self.create_test_worker_coordinator_target()
+        d = worker_coordinator.WorkerCoordinator(target, self.cfg, es_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
 
         d.prepare_benchmark(t=self.track)
         d.start_benchmark()
@@ -175,7 +175,7 @@ class DriverTests(TestCase):
 
         d.joinpoint_reached(worker_id=0,
                             worker_local_timestamp=10,
-                            task_allocations=[driver.ClientAllocation(client_id=0, task=driver.JoinPoint(id=0))])
+                            task_allocations=[worker_coordinator.ClientAllocation(client_id=0, task=worker_coordinator.JoinPoint(id=0))])
 
         self.assertEqual(1, len(d.workers_completed_current_step))
 
@@ -183,8 +183,8 @@ class DriverTests(TestCase):
         self.assertEqual(0, target.drive_at.call_count)
 
     def test_client_reaches_join_point_which_completes_parent(self):
-        target = self.create_test_driver_target()
-        d = driver.Driver(target, self.cfg, es_client_factory_class=DriverTests.StaticClientFactory)
+        target = self.create_test_worker_coordinator_target()
+        d = worker_coordinator.WorkerCoordinator(target, self.cfg, es_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
 
         d.prepare_benchmark(t=self.track)
         d.start_benchmark()
@@ -194,21 +194,21 @@ class DriverTests(TestCase):
         d.joinpoint_reached(worker_id=0,
                             worker_local_timestamp=10,
                             task_allocations=[
-                                driver.ClientAllocation(client_id=0,
-                                                        task=driver.JoinPoint(id=0,
+                                worker_coordinator.ClientAllocation(client_id=0,
+                                                        task=worker_coordinator.JoinPoint(id=0,
                                                                               clients_executing_completing_task=[0]))])
 
         self.assertEqual(-1, d.current_step)
         self.assertEqual(1, len(d.workers_completed_current_step))
-        # notified all drivers that they should complete the current task ASAP
+        # notified all worker_coordinators that they should complete the current task ASAP
         self.assertEqual(4, target.complete_current_task.call_count)
 
         # awaiting responses of other clients
         d.joinpoint_reached(worker_id=1,
                             worker_local_timestamp=11,
                             task_allocations=[
-                                driver.ClientAllocation(client_id=1,
-                                                        task=driver.JoinPoint(id=0,
+                                worker_coordinator.ClientAllocation(client_id=1,
+                                                        task=worker_coordinator.JoinPoint(id=0,
                                                                               clients_executing_completing_task=[0]))])
 
         self.assertEqual(-1, d.current_step)
@@ -217,8 +217,8 @@ class DriverTests(TestCase):
         d.joinpoint_reached(worker_id=2,
                             worker_local_timestamp=12,
                             task_allocations=[
-                                driver.ClientAllocation(client_id=2,
-                                                        task=driver.JoinPoint(id=0,
+                                worker_coordinator.ClientAllocation(client_id=2,
+                                                        task=worker_coordinator.JoinPoint(id=0,
                                                                               clients_executing_completing_task=[0]))])
         self.assertEqual(-1, d.current_step)
         self.assertEqual(3, len(d.workers_completed_current_step))
@@ -226,8 +226,8 @@ class DriverTests(TestCase):
         d.joinpoint_reached(worker_id=3,
                             worker_local_timestamp=13,
                             task_allocations=[
-                                driver.ClientAllocation(client_id=3,
-                                                        task=driver.JoinPoint(id=0,
+                                worker_coordinator.ClientAllocation(client_id=3,
+                                                        task=worker_coordinator.JoinPoint(id=0,
                                                                               clients_executing_completing_task=[0]))])
 
         # by now the previous step should be considered completed and we are at the next one
@@ -241,7 +241,7 @@ class DriverTests(TestCase):
 
 
 def op(name, operation_type):
-    return track.Operation(name, operation_type, param_source="driver-test-param-source")
+    return track.Operation(name, operation_type, param_source="worker-coordinator-test-param-source")
 
 
 class SamplePostprocessorTests(TestCase):
@@ -280,15 +280,15 @@ class SamplePostprocessorTests(TestCase):
 
     @mock.patch("esrally.metrics.MetricsStore")
     def test_all_samples(self, metrics_store):
-        post_process = driver.SamplePostprocessor(metrics_store,
+        post_process = worker_coordinator.SamplePostprocessor(metrics_store,
                                                   downsample_factor=1,
                                                   track_meta_data={},
                                                   challenge_meta_data={})
 
-        task = track.Task("index", track.Operation("index-op", "bulk", param_source="driver-test-param-source"))
+        task = track.Task("index", track.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
         samples = [
-            driver.Sample(0, 38598, 24, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2),
-            driver.Sample(0, 38599, 25, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 2, 2 / 2),
+            worker_coordinator.Sample(0, 38598, 24, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2),
+            worker_coordinator.Sample(0, 38599, 25, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 2, 2 / 2),
         ]
 
         post_process(samples)
@@ -303,16 +303,16 @@ class SamplePostprocessorTests(TestCase):
 
     @mock.patch("esrally.metrics.MetricsStore")
     def test_downsamples(self, metrics_store):
-        post_process = driver.SamplePostprocessor(metrics_store,
+        post_process = worker_coordinator.SamplePostprocessor(metrics_store,
                                                   downsample_factor=2,
                                                   track_meta_data={},
                                                   challenge_meta_data={})
 
-        task = track.Task("index", track.Operation("index-op", "bulk", param_source="driver-test-param-source"))
+        task = track.Task("index", track.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
 
         samples = [
-            driver.Sample(0, 38598, 24, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2),
-            driver.Sample(0, 38599, 25, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 2, 2 / 2),
+            worker_coordinator.Sample(0, 38598, 24, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2),
+            worker_coordinator.Sample(0, 38599, 25, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 2, 2 / 2),
         ]
 
         post_process(samples)
@@ -327,14 +327,14 @@ class SamplePostprocessorTests(TestCase):
 
     @mock.patch("esrally.metrics.MetricsStore")
     def test_dependent_samples(self, metrics_store):
-        post_process = driver.SamplePostprocessor(metrics_store,
+        post_process = worker_coordinator.SamplePostprocessor(metrics_store,
                                                   downsample_factor=1,
                                                   track_meta_data={},
                                                   challenge_meta_data={})
 
-        task = track.Task("index", track.Operation("index-op", "bulk", param_source="driver-test-param-source"))
+        task = track.Task("index", track.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
         samples = [
-            driver.Sample(0, 38598, 24, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2,
+            worker_coordinator.Sample(0, 38598, 24, 0, task, metrics.SampleType.Normal, None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2,
                           dependent_timing=[
                               {
                                   "absolute_time": 38601,
@@ -372,7 +372,7 @@ class WorkerAssignmentTests(TestCase):
             "cores": 4
         }]
 
-        assignments = driver.calculate_worker_assignments(host_configs, client_count=4)
+        assignments = worker_coordinator.calculate_worker_assignments(host_configs, client_count=4)
 
         self.assertEqual([
             {
@@ -392,7 +392,7 @@ class WorkerAssignmentTests(TestCase):
             "cores": 4
         }]
 
-        assignments = driver.calculate_worker_assignments(host_configs, client_count=6)
+        assignments = worker_coordinator.calculate_worker_assignments(host_configs, client_count=6)
 
         self.assertEqual([
             {
@@ -412,7 +412,7 @@ class WorkerAssignmentTests(TestCase):
             "cores": 4
         }]
 
-        assignments = driver.calculate_worker_assignments(host_configs, client_count=2)
+        assignments = worker_coordinator.calculate_worker_assignments(host_configs, client_count=2)
 
         self.assertEqual([
             {
@@ -438,7 +438,7 @@ class WorkerAssignmentTests(TestCase):
             }
         ]
 
-        assignments = driver.calculate_worker_assignments(host_configs, client_count=16)
+        assignments = worker_coordinator.calculate_worker_assignments(host_configs, client_count=16)
 
         self.assertEqual([
             {
@@ -473,7 +473,7 @@ class WorkerAssignmentTests(TestCase):
             }
         ]
 
-        assignments = driver.calculate_worker_assignments(host_configs, client_count=4)
+        assignments = worker_coordinator.calculate_worker_assignments(host_configs, client_count=4)
 
         self.assertEqual([
             {
@@ -512,7 +512,7 @@ class WorkerAssignmentTests(TestCase):
             }
         ]
 
-        assignments = driver.calculate_worker_assignments(host_configs, client_count=17)
+        assignments = worker_coordinator.calculate_worker_assignments(host_configs, client_count=17)
 
         self.assertEqual([
             {
@@ -547,15 +547,15 @@ class WorkerAssignmentTests(TestCase):
 
 class AllocatorTests(TestCase):
     def setUp(self):
-        params.register_param_source_for_name("driver-test-param-source", DriverTestParamSource)
+        params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
 
     def ta(self, task, client_index_in_task):
-        return driver.TaskAllocation(task, client_index_in_task)
+        return worker_coordinator.TaskAllocation(task, client_index_in_task)
 
     def test_allocates_one_task(self):
         task = track.Task("index", op("index", track.OperationType.Bulk))
 
-        allocator = driver.Allocator([task])
+        allocator = worker_coordinator.Allocator([task])
 
         self.assertEqual(1, allocator.clients)
         self.assertEqual(3, len(allocator.allocations[0]))
@@ -565,7 +565,7 @@ class AllocatorTests(TestCase):
     def test_allocates_two_serial_tasks(self):
         task = track.Task("index", op("index", track.OperationType.Bulk))
 
-        allocator = driver.Allocator([task, task])
+        allocator = worker_coordinator.Allocator([task, task])
 
         self.assertEqual(1, allocator.clients)
         # we have two operations and three join points
@@ -576,7 +576,7 @@ class AllocatorTests(TestCase):
     def test_allocates_two_parallel_tasks(self):
         task = track.Task("index", op("index", track.OperationType.Bulk))
 
-        allocator = driver.Allocator([track.Parallel([task, task])])
+        allocator = worker_coordinator.Allocator([track.Parallel([task, task])])
 
         self.assertEqual(2, allocator.clients)
         self.assertEqual(3, len(allocator.allocations[0]))
@@ -591,7 +591,7 @@ class AllocatorTests(TestCase):
         taskA = track.Task("index-completing", op("index", track.OperationType.Bulk), completes_parent=True)
         taskB = track.Task("index-non-completing", op("index", track.OperationType.Bulk))
 
-        allocator = driver.Allocator([track.Parallel([taskA, taskB])])
+        allocator = worker_coordinator.Allocator([track.Parallel([taskA, taskB])])
 
         self.assertEqual(2, allocator.clients)
         self.assertEqual(3, len(allocator.allocations[0]))
@@ -608,7 +608,7 @@ class AllocatorTests(TestCase):
         stats = track.Task("stats", op("stats", track.OperationType.IndexStats))
         search = track.Task("search", op("search", track.OperationType.Search))
 
-        allocator = driver.Allocator([index,
+        allocator = worker_coordinator.Allocator([index,
                                       track.Parallel([index, stats, stats]),
                                       index,
                                       index,
@@ -633,7 +633,7 @@ class AllocatorTests(TestCase):
         index_d = track.Task("index-d", op("index-d", track.OperationType.Bulk))
         index_e = track.Task("index-e", op("index-e", track.OperationType.Bulk))
 
-        allocator = driver.Allocator([track.Parallel(tasks=[index_a, index_b, index_c, index_d, index_e], clients=2)])
+        allocator = worker_coordinator.Allocator([track.Parallel(tasks=[index_a, index_b, index_c, index_d, index_e], clients=2)])
 
         self.assertEqual(2, allocator.clients)
 
@@ -662,7 +662,7 @@ class AllocatorTests(TestCase):
         index_b = track.Task("index-b", op("index-b", track.OperationType.Bulk))
         index_c = track.Task("index-c", op("index-c", track.OperationType.Bulk), clients=2, completes_parent=True)
 
-        allocator = driver.Allocator([track.Parallel(tasks=[index_a, index_b, index_c], clients=3)])
+        allocator = worker_coordinator.Allocator([track.Parallel(tasks=[index_a, index_b, index_c], clients=3)])
 
         self.assertEqual(3, allocator.clients)
 
@@ -698,14 +698,14 @@ class AllocatorTests(TestCase):
 
 class MetricsAggregationTests(TestCase):
     def setUp(self):
-        params.register_param_source_for_name("driver-test-param-source", DriverTestParamSource)
+        params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
 
     def test_different_sample_types(self):
-        op = track.Operation("index", track.OperationType.Bulk, param_source="driver-test-param-source")
+        op = track.Operation("index", track.OperationType.Bulk, param_source="worker-coordinator-test-param-source")
 
         samples = [
-            driver.Sample(0, 1470838595, 21, 0, op, metrics.SampleType.Warmup, None, -1, -1, -1, None, 3000, "docs", 1, 1),
-            driver.Sample(0, 1470838595.5, 21.5, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 2500, "docs", 1, 1),
+            worker_coordinator.Sample(0, 1470838595, 21, 0, op, metrics.SampleType.Warmup, None, -1, -1, -1, None, 3000, "docs", 1, 1),
+            worker_coordinator.Sample(0, 1470838595.5, 21.5, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 2500, "docs", 1, 1),
         ]
 
         aggregated = self.calculate_global_throughput(samples)
@@ -719,18 +719,18 @@ class MetricsAggregationTests(TestCase):
         self.assertEqual((1470838595.5, 21.5, metrics.SampleType.Normal, 3666.6666666666665, "docs/s"), throughput[1])
 
     def test_single_metrics_aggregation(self):
-        op = track.Operation("index", track.OperationType.Bulk, param_source="driver-test-param-source")
+        op = track.Operation("index", track.OperationType.Bulk, param_source="worker-coordinator-test-param-source")
 
         samples = [
-            driver.Sample(0, 38595, 21, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 1, 1 / 9),
-            driver.Sample(0, 38596, 22, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 2, 2 / 9),
-            driver.Sample(0, 38597, 23, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 3, 3 / 9),
-            driver.Sample(0, 38598, 24, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 4, 4 / 9),
-            driver.Sample(0, 38599, 25, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 5, 5 / 9),
-            driver.Sample(0, 38600, 26, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 6, 6 / 9),
-            driver.Sample(1, 38598.5, 24.5, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 4.5, 7 / 9),
-            driver.Sample(1, 38599.5, 25.5, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 5.5, 8 / 9),
-            driver.Sample(1, 38600.5, 26.5, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 6.5, 9 / 9)
+            worker_coordinator.Sample(0, 38595, 21, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 1, 1 / 9),
+            worker_coordinator.Sample(0, 38596, 22, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 2, 2 / 9),
+            worker_coordinator.Sample(0, 38597, 23, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 3, 3 / 9),
+            worker_coordinator.Sample(0, 38598, 24, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 4, 4 / 9),
+            worker_coordinator.Sample(0, 38599, 25, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 5, 5 / 9),
+            worker_coordinator.Sample(0, 38600, 26, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 6, 6 / 9),
+            worker_coordinator.Sample(1, 38598.5, 24.5, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 4.5, 7 / 9),
+            worker_coordinator.Sample(1, 38599.5, 25.5, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 5.5, 8 / 9),
+            worker_coordinator.Sample(1, 38600.5, 26.5, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 6.5, 9 / 9)
         ]
 
         aggregated = self.calculate_global_throughput(samples)
@@ -750,12 +750,12 @@ class MetricsAggregationTests(TestCase):
 
     def test_use_provided_throughput(self):
         op = track.Operation("index-recovery", track.OperationType.WaitForRecovery,
-                             param_source="driver-test-param-source")
+                             param_source="worker-coordinator-test-param-source")
 
         samples = [
-            driver.Sample(0, 38595, 21, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, 8000, 5000, "byte", 1, 1 / 3),
-            driver.Sample(0, 38596, 22, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, 8000, 5000, "byte", 2, 2 / 3),
-            driver.Sample(0, 38597, 23, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, 8000, 5000, "byte", 3, 3 / 3),
+            worker_coordinator.Sample(0, 38595, 21, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, 8000, 5000, "byte", 1, 1 / 3),
+            worker_coordinator.Sample(0, 38596, 22, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, 8000, 5000, "byte", 2, 2 / 3),
+            worker_coordinator.Sample(0, 38597, 23, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, 8000, 5000, "byte", 3, 3 / 3),
         ]
 
         aggregated = self.calculate_global_throughput(samples)
@@ -770,7 +770,7 @@ class MetricsAggregationTests(TestCase):
         self.assertEqual((38597, 23, metrics.SampleType.Normal, 8000, "byte/s"), throughput[2])
 
     def calculate_global_throughput(self, samples):
-        return driver.ThroughputCalculator().calculate(samples)
+        return worker_coordinator.ThroughputCalculator().calculate(samples)
 
 
 class SchedulerTests(TestCase):
@@ -826,13 +826,13 @@ class SchedulerTests(TestCase):
     def setUp(self):
         self.test_track = track.Track(name="unittest")
         self.runner_with_progress = SchedulerTests.RunnerWithProgress()
-        params.register_param_source_for_name("driver-test-param-source", DriverTestParamSource)
+        params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         runner.register_default_runners()
-        runner.register_runner("driver-test-runner-with-completion", self.runner_with_progress, async_runner=True)
+        runner.register_runner("worker-coordinator-test-runner-with-completion", self.runner_with_progress, async_runner=True)
         scheduler.register_scheduler("custom-complex-scheduler", SchedulerTests.CustomComplexScheduler)
 
     def tearDown(self):
-        runner.remove_runner("driver-test-runner-with-completion")
+        runner.remove_runner("worker-coordinator-test-runner-with-completion")
         scheduler.remove_scheduler("custom-complex-scheduler")
 
     def test_injects_parameter_source_into_scheduler(self):
@@ -841,7 +841,7 @@ class SchedulerTests(TestCase):
                           operation=track.Operation(
                               name="search",
                               operation_type=track.OperationType.Search.to_hyphenated_string(),
-                              param_source="driver-test-param-source"
+                              param_source="worker-coordinator-test-param-source"
                           ),
                           clients=4,
                           params={
@@ -849,7 +849,7 @@ class SchedulerTests(TestCase):
                           })
 
         param_source = track.operation_parameters(self.test_track, task)
-        schedule = driver.schedule_for(task, 0, param_source)
+        schedule = worker_coordinator.schedule_for(task, 0, param_source)
 
         self.assertIsNotNone(schedule.sched.parameter_source, "Parameter source has not been injected into scheduler")
         self.assertEqual(param_source, schedule.sched.parameter_source)
@@ -857,10 +857,10 @@ class SchedulerTests(TestCase):
     @run_async
     async def test_search_task_one_client(self):
         task = track.Task("search", track.Operation("search", track.OperationType.Search.to_hyphenated_string(),
-                                                    param_source="driver-test-param-source"),
+                                                    param_source="worker-coordinator-test-param-source"),
                           warmup_iterations=3, iterations=5, clients=1, params={"target-throughput": 10, "clients": 1})
         param_source = track.operation_parameters(self.test_track, task)
-        schedule = driver.schedule_for(task, 0, param_source)
+        schedule = worker_coordinator.schedule_for(task, 0, param_source)
 
         expected_schedule = [
             (0, metrics.SampleType.Warmup, 1 / 8, {}),
@@ -877,10 +877,10 @@ class SchedulerTests(TestCase):
     @run_async
     async def test_search_task_two_clients(self):
         task = track.Task("search", track.Operation("search", track.OperationType.Search.to_hyphenated_string(),
-                                                    param_source="driver-test-param-source"),
+                                                    param_source="worker-coordinator-test-param-source"),
                           warmup_iterations=1, iterations=5, clients=2, params={"target-throughput": 10, "clients": 2})
         param_source = track.operation_parameters(self.test_track, task)
-        schedule = driver.schedule_for(task, 0, param_source)
+        schedule = worker_coordinator.schedule_for(task, 0, param_source)
 
         expected_schedule = [
             (0, metrics.SampleType.Warmup, 1 / 6, {}),
@@ -897,11 +897,11 @@ class SchedulerTests(TestCase):
         # we neither define any time-period nor any iteration count on the task.
         task = track.Task("bulk-index", track.Operation("bulk-index", track.OperationType.Bulk.to_hyphenated_string(),
                                                         params={"body": ["a"], "size": 3},
-                                                        param_source="driver-test-param-source"),
+                                                        param_source="worker-coordinator-test-param-source"),
                           clients=4, params={"target-throughput": 4})
 
         param_source = track.operation_parameters(self.test_track, task)
-        schedule = driver.schedule_for(task, 0, param_source)
+        schedule = worker_coordinator.schedule_for(task, 0, param_source)
 
         await self.assert_schedule([
             (0.0, metrics.SampleType.Normal, 1 / 3, {"body": ["a"], "size": 3}),
@@ -913,11 +913,11 @@ class SchedulerTests(TestCase):
     async def test_schedule_param_source_determines_iterations_including_warmup(self):
         task = track.Task("bulk-index", track.Operation("bulk-index", track.OperationType.Bulk.to_hyphenated_string(),
                                                         params={"body": ["a"], "size": 5},
-                                                        param_source="driver-test-param-source"),
+                                                        param_source="worker-coordinator-test-param-source"),
                           warmup_iterations=2, clients=4, params={"target-throughput": 4})
 
         param_source = track.operation_parameters(self.test_track, task)
-        schedule = driver.schedule_for(task, 0, param_source)
+        schedule = worker_coordinator.schedule_for(task, 0, param_source)
 
         await self.assert_schedule([
             (0.0, metrics.SampleType.Warmup, 1 / 5, {"body": ["a"], "size": 5}),
@@ -932,11 +932,11 @@ class SchedulerTests(TestCase):
         # no time-period and no iterations specified on the task. Also, the parameter source does not define a size.
         task = track.Task("bulk-index", track.Operation("bulk-index", track.OperationType.Bulk.to_hyphenated_string(),
                                                         params={"body": ["a"]},
-                                                        param_source="driver-test-param-source"),
+                                                        param_source="worker-coordinator-test-param-source"),
                           clients=1, params={"target-throughput": 4, "clients": 4})
 
         param_source = track.operation_parameters(self.test_track, task)
-        schedule = driver.schedule_for(task, 0, param_source)
+        schedule = worker_coordinator.schedule_for(task, 0, param_source)
 
         await self.assert_schedule([
             (0.0, metrics.SampleType.Normal, 1 / 1, {"body": ["a"]}),
@@ -946,11 +946,11 @@ class SchedulerTests(TestCase):
     async def test_schedule_for_warmup_time_based(self):
         task = track.Task("time-based", track.Operation("time-based", track.OperationType.Bulk.to_hyphenated_string(),
                                                         params={"body": ["a"], "size": 11},
-                                                        param_source="driver-test-param-source"),
+                                                        param_source="worker-coordinator-test-param-source"),
                           warmup_time_period=0, clients=4, params={"target-throughput": 4, "clients": 4})
 
         param_source = track.operation_parameters(self.test_track, task)
-        schedule = driver.schedule_for(task, 0, param_source)
+        schedule = worker_coordinator.schedule_for(task, 0, param_source)
 
         await self.assert_schedule([
             (0.0, metrics.SampleType.Normal, 1 / 11, {"body": ["a"], "size": 11}),
@@ -970,11 +970,11 @@ class SchedulerTests(TestCase):
     async def test_infinite_schedule_without_progress_indication(self):
         task = track.Task("time-based", track.Operation("time-based", track.OperationType.Bulk.to_hyphenated_string(),
                                                         params={"body": ["a"]},
-                                                        param_source="driver-test-param-source"),
+                                                        param_source="worker-coordinator-test-param-source"),
                           warmup_time_period=0, clients=4, params={"target-throughput": 4, "clients": 4})
 
         param_source = track.operation_parameters(self.test_track, task)
-        schedule = driver.schedule_for(task, 0, param_source)
+        schedule = worker_coordinator.schedule_for(task, 0, param_source)
 
         await self.assert_schedule([
             (0.0, metrics.SampleType.Normal, None, {"body": ["a"]}),
@@ -988,11 +988,11 @@ class SchedulerTests(TestCase):
     async def test_finite_schedule_with_progress_indication(self):
         task = track.Task("time-based", track.Operation("time-based", track.OperationType.Bulk.to_hyphenated_string(),
                                                         params={"body": ["a"], "size": 5},
-                                                        param_source="driver-test-param-source"),
+                                                        param_source="worker-coordinator-test-param-source"),
                           warmup_time_period=0, clients=4, params={"target-throughput": 4, "clients": 4})
 
         param_source = track.operation_parameters(self.test_track, task)
-        schedule = driver.schedule_for(task, 0, param_source)
+        schedule = worker_coordinator.schedule_for(task, 0, param_source)
 
         await self.assert_schedule([
             (0.0, metrics.SampleType.Normal, 1 / 5, {"body": ["a"], "size": 5}),
@@ -1004,14 +1004,14 @@ class SchedulerTests(TestCase):
 
     @run_async
     async def test_schedule_with_progress_determined_by_runner(self):
-        task = track.Task("time-based", track.Operation("time-based", "driver-test-runner-with-completion",
+        task = track.Task("time-based", track.Operation("time-based", "worker-coordinator-test-runner-with-completion",
                                                         params={"body": ["a"]},
-                                                        param_source="driver-test-param-source"),
+                                                        param_source="worker-coordinator-test-param-source"),
                           clients=1,
                           params={"target-throughput": 1, "clients": 1})
 
         param_source = track.operation_parameters(self.test_track, task)
-        schedule = driver.schedule_for(task, 0, param_source)
+        schedule = worker_coordinator.schedule_for(task, 0, param_source)
 
         await self.assert_schedule([
             (0.0, metrics.SampleType.Normal, None, {"body": ["a"]}),
@@ -1025,13 +1025,13 @@ class SchedulerTests(TestCase):
     async def test_schedule_for_time_based(self):
         task = track.Task("time-based", track.Operation("time-based", track.OperationType.Bulk.to_hyphenated_string(),
                                                         params={"body": ["a"], "size": 11},
-                                                        param_source="driver-test-param-source"),
+                                                        param_source="worker-coordinator-test-param-source"),
                           warmup_time_period=0.1,
                           time_period=0.1,
                           clients=1)
 
         param_source = track.operation_parameters(self.test_track, task)
-        schedule_handle = driver.schedule_for(task, 0, param_source)
+        schedule_handle = worker_coordinator.schedule_for(task, 0, param_source)
         schedule = schedule_handle()
 
         last_progress = -1
@@ -1136,7 +1136,7 @@ class AsyncExecutorTests(TestCase):
 
         es.bulk.return_value = as_future(io.StringIO('{"errors": false, "took": 8}'))
 
-        params.register_param_source_for_name("driver-test-param-source", DriverTestParamSource)
+        params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_track = track.Track(name="unittest", description="unittest track",
                                  indices=None,
                                  challenges=None)
@@ -1147,21 +1147,21 @@ class AsyncExecutorTests(TestCase):
                                                             "action-metadata-present": True,
                                                             "bulk-size": 1,
                                                             "unit": "docs",
-                                                            # we need this because DriverTestParamSource does not know
+                                                            # we need this because WorkerCoordinatorTestParamSource does not know
                                                             # that we only have one bulk and hence size() returns
                                                             # incorrect results
                                                             "size": 1
                                                         },
-                                                        param_source="driver-test-param-source"),
+                                                        param_source="worker-coordinator-test-param-source"),
                           warmup_time_period=0, clients=4)
         param_source = track.operation_parameters(test_track, task)
-        schedule = driver.schedule_for(task, 0, param_source)
+        schedule = worker_coordinator.schedule_for(task, 0, param_source)
 
-        sampler = driver.Sampler(start_timestamp=task_start)
+        sampler = worker_coordinator.Sampler(start_timestamp=task_start)
         cancel = threading.Event()
         complete = threading.Event()
 
-        execute_schedule = driver.AsyncExecutor(client_id=2,
+        execute_schedule = worker_coordinator.AsyncExecutor(client_id=2,
                                                 task=task,
                                                 schedule=schedule,
                                                 es={
@@ -1199,7 +1199,7 @@ class AsyncExecutorTests(TestCase):
         task_start = time.perf_counter()
         es.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
 
-        params.register_param_source_for_name("driver-test-param-source", DriverTestParamSource)
+        params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_track = track.Track(name="unittest", description="unittest track",
                                  indices=None,
                                  challenges=None)
@@ -1208,15 +1208,15 @@ class AsyncExecutorTests(TestCase):
             "indices-to-restore": "*",
             # The runner will determine progress
             "size": None
-        }, param_source="driver-test-param-source"), warmup_time_period=0, clients=4)
+        }, param_source="worker-coordinator-test-param-source"), warmup_time_period=0, clients=4)
         param_source = track.operation_parameters(test_track, task)
-        schedule = driver.schedule_for(task, 0, param_source)
+        schedule = worker_coordinator.schedule_for(task, 0, param_source)
 
-        sampler = driver.Sampler(start_timestamp=task_start)
+        sampler = worker_coordinator.Sampler(start_timestamp=task_start)
         cancel = threading.Event()
         complete = threading.Event()
 
-        execute_schedule = driver.AsyncExecutor(client_id=2,
+        execute_schedule = worker_coordinator.AsyncExecutor(client_id=2,
                                                 task=task,
                                                 schedule=schedule,
                                                 es={
@@ -1258,27 +1258,27 @@ class AsyncExecutorTests(TestCase):
         task_start = time.perf_counter()
         es.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
 
-        params.register_param_source_for_name("driver-test-param-source", DriverTestParamSource)
+        params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_track = track.Track(name="unittest", description="unittest track",
                                  indices=None,
                                  challenges=None)
 
         task = track.Task("override-throughput", track.Operation("override-throughput",
                                                                  operation_type="override-throughput", params={
-                # we need this because DriverTestParamSource does not know that we only have one iteration and hence
+                # we need this because WorkerCoordinatorTestParamSource does not know that we only have one iteration and hence
                 # size() returns incorrect results
                 "size": 1
             },
-                                                                 param_source="driver-test-param-source"),
+                                                                 param_source="worker-coordinator-test-param-source"),
                           warmup_iterations=0, iterations=1, clients=1)
         param_source = track.operation_parameters(test_track, task)
-        schedule = driver.schedule_for(task, 0, param_source)
+        schedule = worker_coordinator.schedule_for(task, 0, param_source)
 
-        sampler = driver.Sampler(start_timestamp=task_start)
+        sampler = worker_coordinator.Sampler(start_timestamp=task_start)
         cancel = threading.Event()
         complete = threading.Event()
 
-        execute_schedule = driver.AsyncExecutor(client_id=0,
+        execute_schedule = worker_coordinator.AsyncExecutor(client_id=0,
                                                 task=task,
                                                 schedule=schedule,
                                                 es={
@@ -1320,7 +1320,7 @@ class AsyncExecutorTests(TestCase):
         # one has been "consumed".
         es.transport.perform_request.side_effect = perform_request
 
-        params.register_param_source_for_name("driver-test-param-source", DriverTestParamSource)
+        params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_track = track.Track(name="unittest", description="unittest track",
                                  indices=None,
                                  challenges=None)
@@ -1337,18 +1337,18 @@ class AsyncExecutorTests(TestCase):
                                                                 "cache": False,
                                                                 "response-compression-enabled": True
                                                             },
-                                                            param_source="driver-test-param-source"),
+                                                            param_source="worker-coordinator-test-param-source"),
                               warmup_time_period=0.5, time_period=0.5, clients=4,
                               params={"target-throughput": target_throughput, "clients": 4},
                               completes_parent=True)
-            sampler = driver.Sampler(start_timestamp=0)
+            sampler = worker_coordinator.Sampler(start_timestamp=0)
 
             cancel = threading.Event()
             complete = threading.Event()
 
             param_source = track.operation_parameters(test_track, task)
-            schedule = driver.schedule_for(task, 0, param_source)
-            execute_schedule = driver.AsyncExecutor(client_id=0,
+            schedule = worker_coordinator.schedule_for(task, 0, param_source)
+            execute_schedule = worker_coordinator.AsyncExecutor(client_id=0,
                                                     task=task,
                                                     schedule=schedule,
                                                     es={
@@ -1378,7 +1378,7 @@ class AsyncExecutorTests(TestCase):
         }
         es.bulk.return_value = as_future(io.StringIO('{"errors": false, "took": 8}'))
 
-        params.register_param_source_for_name("driver-test-param-source", DriverTestParamSource)
+        params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_track = track.Track(name="unittest", description="unittest track",
                                  indices=None,
                                  challenges=None)
@@ -1392,17 +1392,17 @@ class AsyncExecutorTests(TestCase):
                                                                 "action-metadata-present": True,
                                                                 "bulk-size": 1
                                                             },
-                                                            param_source="driver-test-param-source"),
+                                                            param_source="worker-coordinator-test-param-source"),
                               warmup_time_period=0.5, time_period=0.5, clients=4,
                               params={"target-throughput": target_throughput, "clients": 4})
 
             param_source = track.operation_parameters(test_track, task)
-            schedule = driver.schedule_for(task, 0, param_source)
-            sampler = driver.Sampler(start_timestamp=0)
+            schedule = worker_coordinator.schedule_for(task, 0, param_source)
+            sampler = worker_coordinator.Sampler(start_timestamp=0)
 
             cancel = threading.Event()
             complete = threading.Event()
-            execute_schedule = driver.AsyncExecutor(client_id=0,
+            execute_schedule = worker_coordinator.AsyncExecutor(client_id=0,
                                                     task=task,
                                                     schedule=schedule,
                                                     es={
@@ -1446,14 +1446,14 @@ class AsyncExecutorTests(TestCase):
 
         task = track.Task("no-op", track.Operation("no-op", track.OperationType.Bulk.to_hyphenated_string(),
                                                    params={},
-                                                   param_source="driver-test-param-source"),
+                                                   param_source="worker-coordinator-test-param-source"),
                           warmup_time_period=0.5, time_period=0.5, clients=4,
                           params={"clients": 4})
 
-        sampler = driver.Sampler(start_timestamp=0)
+        sampler = worker_coordinator.Sampler(start_timestamp=0)
         cancel = threading.Event()
         complete = threading.Event()
-        execute_schedule = driver.AsyncExecutor(client_id=2,
+        execute_schedule = worker_coordinator.AsyncExecutor(client_id=2,
                                                 task=task,
                                                 schedule=ScheduleHandle(),
                                                 es={
@@ -1476,7 +1476,7 @@ class AsyncExecutorTests(TestCase):
         runner = mock.Mock()
         runner.return_value = as_future()
 
-        ops, unit, request_meta_data = await driver.execute_single(self.context_managed(runner), es, params, on_error="continue")
+        ops, unit, request_meta_data = await worker_coordinator.execute_single(self.context_managed(runner), es, params, on_error="continue")
 
         self.assertEqual(1, ops)
         self.assertEqual("ops", unit)
@@ -1489,7 +1489,7 @@ class AsyncExecutorTests(TestCase):
         runner = mock.Mock()
         runner.return_value = as_future(result=(500, "MB"))
 
-        ops, unit, request_meta_data = await driver.execute_single(self.context_managed(runner), es, params, on_error="continue")
+        ops, unit, request_meta_data = await worker_coordinator.execute_single(self.context_managed(runner), es, params, on_error="continue")
 
         self.assertEqual(500, ops)
         self.assertEqual("MB", unit)
@@ -1507,7 +1507,7 @@ class AsyncExecutorTests(TestCase):
             "http-status": 200
         })
 
-        ops, unit, request_meta_data = await driver.execute_single(self.context_managed(runner), es, params, on_error="continue")
+        ops, unit, request_meta_data = await worker_coordinator.execute_single(self.context_managed(runner), es, params, on_error="continue")
 
         self.assertEqual(50, ops)
         self.assertEqual("docs", unit)
@@ -1527,7 +1527,7 @@ class AsyncExecutorTests(TestCase):
                 runner = mock.Mock(side_effect=as_future(exception=elasticsearch.ConnectionError("N/A", "no route to host", None)))
 
                 with self.assertRaises(exceptions.RallyAssertionError) as ctx:
-                    await driver.execute_single(self.context_managed(runner), es, params, on_error=on_error)
+                    await worker_coordinator.execute_single(self.context_managed(runner), es, params, on_error=on_error)
                 self.assertEqual(
                     "Request returned an error. Error type: transport, Description: no route to host",
                     ctx.exception.args[0])
@@ -1540,7 +1540,7 @@ class AsyncExecutorTests(TestCase):
                            as_future(exception=elasticsearch.NotFoundError(404, "not found", "the requested document could not be found")))
 
         with self.assertRaises(exceptions.RallyAssertionError) as ctx:
-            await driver.execute_single(self.context_managed(runner), es, params, on_error="abort")
+            await worker_coordinator.execute_single(self.context_managed(runner), es, params, on_error="abort")
         self.assertEqual(
             "Request returned an error. Error type: transport, Description: not found (the requested document could not be found)",
             ctx.exception.args[0])
@@ -1553,7 +1553,7 @@ class AsyncExecutorTests(TestCase):
         runner = mock.Mock(side_effect=
                            as_future(exception=elasticsearch.NotFoundError(404, "not found", "the requested document could not be found")))
 
-        ops, unit, request_meta_data = await driver.execute_single(
+        ops, unit, request_meta_data = await worker_coordinator.execute_single(
             self.context_managed(runner), es, params, on_error="continue")
 
         self.assertEqual(0, ops)
@@ -1572,7 +1572,7 @@ class AsyncExecutorTests(TestCase):
         runner = mock.Mock(side_effect=
                            as_future(exception=elasticsearch.NotFoundError(413, b"", b"")))
 
-        ops, unit, request_meta_data = await driver.execute_single(
+        ops, unit, request_meta_data = await worker_coordinator.execute_single(
             self.context_managed(runner), es, params, on_error="continue")
 
         self.assertEqual(0, ops)
@@ -1601,7 +1601,7 @@ class AsyncExecutorTests(TestCase):
         runner = FailingRunner()
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            await driver.execute_single(self.context_managed(runner), es, params, on_error="continue")
+            await worker_coordinator.execute_single(self.context_managed(runner), es, params, on_error="continue")
         self.assertEqual(
             "Cannot execute [failing_mock_runner]. Provided parameters are: ['bulk', 'mode']. Error: ['bulk-size missing'].",
             ctx.exception.args[0])
@@ -1614,7 +1614,7 @@ class AsyncProfilerTests(TestCase):
             await asyncio.sleep(x)
             return x * 2
 
-        profiler = driver.AsyncProfiler(f)
+        profiler = worker_coordinator.AsyncProfiler(f)
         start = time.perf_counter()
         # this should take roughly 1 second and should return something
         return_value = await profiler(1)
