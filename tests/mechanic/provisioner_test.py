@@ -22,7 +22,7 @@ import unittest.mock as mock
 from unittest import TestCase
 
 from esrally import exceptions
-from esrally.mechanic import provisioner, team
+from esrally.builder import provisioner, team
 
 HOME_DIR = os.path.expanduser("~")
 
@@ -130,7 +130,7 @@ class BareProvisionerTests(TestCase):
     @mock.patch("glob.glob", lambda p: ["/opt/elasticsearch-5.0.0"])
     @mock.patch("esrally.utils.io.decompress")
     @mock.patch("esrally.utils.io.ensure_dir")
-    @mock.patch("esrally.mechanic.provisioner.PluginInstaller.install")
+    @mock.patch("esrally.builder.provisioner.PluginInstaller.install")
     @mock.patch("shutil.rmtree")
     def test_prepare_distribution_lt_63_with_plugins(self, mock_rm, mock_ensure_dir, mock_install, mock_decompress):
         """
@@ -208,7 +208,7 @@ class BareProvisionerTests(TestCase):
     @mock.patch("glob.glob", lambda p: ["/opt/elasticsearch-6.3.0"])
     @mock.patch("esrally.utils.io.decompress")
     @mock.patch("esrally.utils.io.ensure_dir")
-    @mock.patch("esrally.mechanic.provisioner.PluginInstaller.install")
+    @mock.patch("esrally.builder.provisioner.PluginInstaller.install")
     @mock.patch("shutil.rmtree")
     def test_prepare_distribution_ge_63_with_plugins(self, mock_rm, mock_ensure_dir, mock_install, mock_decompress):
         """

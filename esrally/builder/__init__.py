@@ -16,5 +16,5 @@
 # under the License.
 
 # expose only the minimum API
-from .mechanic import StartEngine, EngineStarted, StopEngine, EngineStopped, ResetRelativeTime, MechanicActor, \
+from .builder import StartEngine, EngineStarted, StopEngine, EngineStopped, ResetRelativeTime, BuilderActor, \
     cluster_distribution_version, download, install, start, stop

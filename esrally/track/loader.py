@@ -306,7 +306,7 @@ class GitTrackRepository:
     def __init__(self, cfg, fetch, update, repo_class=repo.RallyRepository):
         # current track name (if any)
         self.track_name = cfg.opts("track", "track.name", mandatory=False)
-        distribution_version = cfg.opts("mechanic", "distribution.version", mandatory=False)
+        distribution_version = cfg.opts("builder", "distribution.version", mandatory=False)
         repo_name = cfg.opts("track", "repository.name")
         repo_revision = cfg.opts("track", "repository.revision", mandatory=False)
         offline = cfg.opts("system", "offline.mode")

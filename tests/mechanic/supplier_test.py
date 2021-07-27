@@ -22,7 +22,7 @@ import unittest.mock as mock
 from unittest import TestCase
 
 from esrally import exceptions, config
-from esrally.mechanic import supplier, team
+from esrally.builder import supplier, team
 
 
 class RevisionExtractorTests(TestCase):
@@ -188,7 +188,7 @@ class TemplateRendererTests(TestCase):
 class CachedElasticsearchSourceSupplierTests(TestCase):
     @mock.patch("esrally.utils.io.ensure_dir")
     @mock.patch("shutil.copy")
-    @mock.patch("esrally.mechanic.supplier.ElasticsearchSourceSupplier")
+    @mock.patch("esrally.builder.supplier.ElasticsearchSourceSupplier")
     def test_does_not_cache_when_no_revision(self, es, copy, ensure_dir):
         def add_es_artifact(binaries):
             binaries["elasticsearch"] = "/path/to/artifact.tar.gz"
@@ -224,7 +224,7 @@ class CachedElasticsearchSourceSupplierTests(TestCase):
         self.assertEqual("/path/to/artifact.tar.gz", binaries["elasticsearch"])
 
     @mock.patch("os.path.exists")
-    @mock.patch("esrally.mechanic.supplier.ElasticsearchSourceSupplier")
+    @mock.patch("esrally.builder.supplier.ElasticsearchSourceSupplier")
     def test_uses_already_cached_artifact(self, es, path_exists):
         # assume that the artifact is already cached
         path_exists.return_value = True
@@ -259,7 +259,7 @@ class CachedElasticsearchSourceSupplierTests(TestCase):
     @mock.patch("esrally.utils.io.ensure_dir")
     @mock.patch("os.path.exists")
     @mock.patch("shutil.copy")
-    @mock.patch("esrally.mechanic.supplier.ElasticsearchSourceSupplier")
+    @mock.patch("esrally.builder.supplier.ElasticsearchSourceSupplier")
     def test_caches_artifact(self, es, copy, path_exists, ensure_dir):
         def add_es_artifact(binaries):
             binaries["elasticsearch"] = "/path/to/artifact.tar.gz"
@@ -311,7 +311,7 @@ class CachedElasticsearchSourceSupplierTests(TestCase):
     @mock.patch("esrally.utils.io.ensure_dir")
     @mock.patch("os.path.exists")
     @mock.patch("shutil.copy")
-    @mock.patch("esrally.mechanic.supplier.ElasticsearchSourceSupplier")
+    @mock.patch("esrally.builder.supplier.ElasticsearchSourceSupplier")
     def test_does_not_cache_on_copy_error(self, es, copy, path_exists, ensure_dir):
         def add_es_artifact(binaries):
             binaries["elasticsearch"] = "/path/to/artifact.tar.gz"
@@ -660,10 +660,10 @@ class CreateSupplierTests(TestCase):
 
     def test_create_suppliers_for_es_only_config(self):
         cfg = config.Config()
-        cfg.add(config.Scope.application, "mechanic", "distribution.version", "6.0.0")
+        cfg.add(config.Scope.application, "builder", "distribution.version", "6.0.0")
         # default value from command line
-        cfg.add(config.Scope.application, "mechanic", "source.revision", "current")
-        cfg.add(config.Scope.application, "mechanic", "distribution.repository", "release")
+        cfg.add(config.Scope.application, "builder", "source.revision", "current")
+        cfg.add(config.Scope.application, "builder", "distribution.repository", "release")
         cfg.add(config.Scope.application, "distributions", "release.url",
                 "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{VERSION}}.tar.gz")
         cfg.add(config.Scope.application, "distributions", "release.cache", True)
@@ -679,10 +679,10 @@ class CreateSupplierTests(TestCase):
     @mock.patch("esrally.utils.jvm.resolve_path", lambda v: (v, "/opt/java/java{}".format(v)))
     def test_create_suppliers_for_es_distribution_plugin_source_build(self):
         cfg = config.Config()
-        cfg.add(config.Scope.application, "mechanic", "distribution.version", "6.0.0")
+        cfg.add(config.Scope.application, "builder", "distribution.version", "6.0.0")
         # default value from command line
-        cfg.add(config.Scope.application, "mechanic", "source.revision", "community-plugin:current")
-        cfg.add(config.Scope.application, "mechanic", "distribution.repository", "release")
+        cfg.add(config.Scope.application, "builder", "source.revision", "community-plugin:current")
+        cfg.add(config.Scope.application, "builder", "distribution.repository", "release")
         cfg.add(config.Scope.application, "distributions", "release.url",
                 "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{VERSION}}.tar.gz")
         cfg.add(config.Scope.application, "distributions", "release.cache", True)
@@ -712,8 +712,8 @@ class CreateSupplierTests(TestCase):
     @mock.patch("esrally.utils.jvm.resolve_path", lambda v: (v, "/opt/java/java{}".format(v)))
     def test_create_suppliers_for_es_and_plugin_source_build(self):
         cfg = config.Config()
-        cfg.add(config.Scope.application, "mechanic", "source.revision", "elasticsearch:abc,community-plugin:current")
-        cfg.add(config.Scope.application, "mechanic", "distribution.repository", "release")
+        cfg.add(config.Scope.application, "builder", "source.revision", "elasticsearch:abc,community-plugin:current")
+        cfg.add(config.Scope.application, "builder", "distribution.repository", "release")
         cfg.add(config.Scope.application, "distributions", "release.url",
                 "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{VERSION}}.tar.gz")
         cfg.add(config.Scope.application, "distributions", "release.cache", True)

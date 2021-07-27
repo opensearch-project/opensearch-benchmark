@@ -19,7 +19,7 @@ import os
 from unittest import TestCase
 
 from esrally import exceptions
-from esrally.mechanic import team
+from esrally.builder import team
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 

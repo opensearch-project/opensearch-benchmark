@@ -19,7 +19,7 @@ import unittest.mock as mock
 from unittest import TestCase
 
 from esrally import config, exceptions
-from esrally.mechanic import mechanic
+from esrally.builder import builder
 
 
 class HostHandlingTests(TestCase):
@@ -38,7 +38,7 @@ class HostHandlingTests(TestCase):
             ("127.0.0.1", 9200),
             ("10.16.23.5", 9200),
             ("11.22.33.44", 9200),
-        ], mechanic.to_ip_port(hosts))
+        ], builder.to_ip_port(hosts))
 
     @mock.patch("esrally.utils.net.resolve")
     def test_rejects_hosts_with_unexpected_properties(self, resolver):
@@ -51,7 +51,7 @@ class HostHandlingTests(TestCase):
         ]
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            mechanic.to_ip_port(hosts)
+            builder.to_ip_port(hosts)
         self.assertEqual("When specifying nodes to be managed by Rally you can only supply hostname:port pairs (e.g. 'localhost:9200'), "
                          "any additional options cannot be supported.", ctx.exception.args[0])
 
@@ -71,7 +71,7 @@ class HostHandlingTests(TestCase):
                 ("10.16.23.5", 9200): [3],
                 ("11.22.33.44", 9200): [4, 5],
 
-            }, mechanic.nodes_by_host(ip_port)
+            }, builder.nodes_by_host(ip_port)
         )
 
     def test_extract_all_node_ips(self):
@@ -84,10 +84,10 @@ class HostHandlingTests(TestCase):
             ("11.22.33.44", 9200),
         ]
         self.assertSetEqual({"127.0.0.1", "10.16.23.5", "11.22.33.44"},
-                            mechanic.extract_all_node_ips(ip_port))
+                            builder.extract_all_node_ips(ip_port))
 
 
-class MechanicTests(TestCase):
+class BuilderTests(TestCase):
     class Node:
         def __init__(self, node_name):
             self.node_name = node_name
@@ -98,29 +98,29 @@ class MechanicTests(TestCase):
 
         def start(self, node_configs):
             self.started = True
-            return [MechanicTests.Node("rally-node-{}".format(n)) for n in range(len(node_configs))]
+            return [BuilderTests.Node("rally-node-{}".format(n)) for n in range(len(node_configs))]
 
         def stop(self, nodes, metrics_store):
             self.started = False
 
     # We stub irrelevant methods for the test
-    class TestMechanic(mechanic.Mechanic):
+    class TestBuilder(builder.Builder):
         def _current_race(self):
             return "race 17"
 
         def _add_results(self, current_race, node):
             pass
 
-    @mock.patch("esrally.mechanic.provisioner.cleanup")
+    @mock.patch("esrally.builder.provisioner.cleanup")
     def test_start_stop_nodes(self, cleanup):
         supplier = lambda: "/home/user/src/elasticsearch/es.tar.gz"
         provisioners = [mock.Mock(), mock.Mock()]
-        launcher = MechanicTests.TestLauncher()
+        launcher = BuilderTests.TestLauncher()
         cfg = config.Config()
         cfg.add(config.Scope.application, "system", "race.id", "17")
-        cfg.add(config.Scope.application, "mechanic", "preserve.install", False)
+        cfg.add(config.Scope.application, "builder", "preserve.install", False)
         metrics_store = mock.Mock()
-        m = MechanicTests.TestMechanic(cfg, metrics_store, supplier, provisioners, launcher)
+        m = BuilderTests.TestBuilder(cfg, metrics_store, supplier, provisioners, launcher)
         m.start_engine()
         self.assertTrue(launcher.started)
         for p in provisioners:

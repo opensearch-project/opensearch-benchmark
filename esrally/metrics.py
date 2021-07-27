@@ -270,7 +270,7 @@ def metrics_store(cfg, read_only=True, track=None, challenge=None, car=None, met
 
     race_id = cfg.opts("system", "race.id")
     race_timestamp = cfg.opts("system", "time.start")
-    selected_car = cfg.opts("mechanic", "car.names") if car is None else car
+    selected_car = cfg.opts("builder", "car.names") if car is None else car
 
     store.open(race_id, race_timestamp, track, challenge, selected_car, create=not read_only)
     return store
@@ -1163,15 +1163,15 @@ def list_races(cfg):
 
 
 def create_race(cfg, track, challenge, track_revision=None):
-    car = cfg.opts("mechanic", "car.names")
+    car = cfg.opts("builder", "car.names")
     environment = cfg.opts("system", "env.name")
     race_id = cfg.opts("system", "race.id")
     race_timestamp = cfg.opts("system", "time.start")
     user_tags = extract_user_tags_from_config(cfg)
     pipeline = cfg.opts("race", "pipeline")
     track_params = cfg.opts("track", "params")
-    car_params = cfg.opts("mechanic", "car.params")
-    plugin_params = cfg.opts("mechanic", "plugin.params")
+    car_params = cfg.opts("builder", "car.params")
+    plugin_params = cfg.opts("builder", "plugin.params")
     rally_version = version.version()
     rally_revision = version.revision()
 

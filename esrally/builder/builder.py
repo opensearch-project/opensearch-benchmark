@@ -27,7 +27,7 @@ from collections import defaultdict
 import thespian.actors
 
 from esrally import actor, client, paths, config, metrics, exceptions, PROGRAM_NAME
-from esrally.mechanic import supplier, provisioner, launcher, team
+from esrally.builder import supplier, provisioner, launcher, team
 from esrally.utils import net, console
 
 METRIC_FLUSH_INTERVAL_SECONDS = 30
@@ -46,14 +46,14 @@ def install(cfg):
     car, plugins = load_team(cfg, external=False)
 
     # A non-empty distribution-version is provided
-    distribution = bool(cfg.opts("mechanic", "distribution.version", mandatory=False))
+    distribution = bool(cfg.opts("builder", "distribution.version", mandatory=False))
     sources = not distribution
-    build_type = cfg.opts("mechanic", "build.type")
-    ip = cfg.opts("mechanic", "network.host")
-    http_port = int(cfg.opts("mechanic", "network.http.port"))
-    node_name = cfg.opts("mechanic", "node.name")
-    master_nodes = cfg.opts("mechanic", "master.nodes")
-    seed_hosts = cfg.opts("mechanic", "seed.hosts")
+    build_type = cfg.opts("builder", "build.type")
+    ip = cfg.opts("builder", "network.host")
+    http_port = int(cfg.opts("builder", "network.http.port"))
+    node_name = cfg.opts("builder", "node.name")
+    master_nodes = cfg.opts("builder", "master.nodes")
+    seed_hosts = cfg.opts("builder", "seed.hosts")
 
     if build_type == "tar":
         binary_supplier = supplier.create(cfg, sources, distribution, car, plugins)
@@ -140,7 +140,7 @@ def stop(cfg):
         metrics_store.close()
 
     # TODO: Do we need to expose this as a separate command as well?
-    provisioner.cleanup(preserve=cfg.opts("mechanic", "preserve.install"),
+    provisioner.cleanup(preserve=cfg.opts("builder", "preserve.install"),
                         install_dir=node_config.binary_path,
                         data_paths=node_config.data_paths)
 
@@ -211,7 +211,7 @@ class ResetRelativeTime:
 
 
 ##############################
-# Mechanic internal messages
+# Builder internal messages
 ##############################
 
 class StartNodes:
@@ -299,11 +299,11 @@ def nodes_by_host(ip_port_pairs):
     return nodes
 
 
-class MechanicActor(actor.RallyActor):
+class BuilderActor(actor.RallyActor):
     WAKEUP_RESET_RELATIVE_TIME = "relative_time"
 
     """
-    This actor coordinates all associated mechanics on remote hosts (which do the actual work).
+    This actor coordinates all associated builders on remote hosts (which do the actual work).
     """
 
     def __init__(self):
@@ -317,7 +317,7 @@ class MechanicActor(actor.RallyActor):
         self.externally_provisioned = False
 
     def receiveUnrecognizedMessage(self, msg, sender):
-        self.logger.info("MechanicActor#receiveMessage unrecognized(msg = [%s] sender = [%s])", str(type(msg)), str(sender))
+        self.logger.info("BuilderActor#receiveMessage unrecognized(msg = [%s] sender = [%s])", str(type(msg)), str(sender))
 
     def receiveMsg_ChildActorExited(self, msg, sender):
         if self.is_current_status_expected(["cluster_stopping", "cluster_stopped"]):
@@ -328,7 +328,7 @@ class MechanicActor(actor.RallyActor):
         self.send(self.race_control, actor.BenchmarkFailure(failmsg))
 
     def receiveMsg_PoisonMessage(self, msg, sender):
-        self.logger.info("MechanicActor#receiveMessage poison(msg = [%s] sender = [%s])", str(msg.poisonMessage), str(sender))
+        self.logger.info("BuilderActor#receiveMessage poison(msg = [%s] sender = [%s])", str(msg.poisonMessage), str(sender))
         # something went wrong with a child actor (or another actor with which we have communicated)
         if isinstance(msg.poisonMessage, StartEngine):
             failmsg = "Could not start benchmark candidate. Are Rally daemons on all targeted machines running?"
@@ -337,16 +337,16 @@ class MechanicActor(actor.RallyActor):
         self.logger.error(failmsg)
         self.send(self.race_control, actor.BenchmarkFailure(failmsg))
 
-    @actor.no_retry("mechanic")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("builder")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StartEngine(self, msg, sender):
         self.logger.info("Received signal from race control to start engine.")
         self.race_control = sender
         self.cfg = msg.cfg
         self.car, _ = load_team(self.cfg, msg.external)
         # TODO: This is implicitly set by #load_team() - can we gather this elsewhere?
-        self.team_revision = self.cfg.opts("mechanic", "repository.revision")
+        self.team_revision = self.cfg.opts("builder", "repository.revision")
 
-        # In our startup procedure we first create all mechanics. Only if this succeeds we'll continue.
+        # In our startup procedure we first create all builders. Only if this succeeds we'll continue.
         hosts = self.cfg.opts("client", "hosts").default
         if len(hosts) == 0:
             raise exceptions.LaunchError("No target hosts are configured.")
@@ -369,7 +369,7 @@ class MechanicActor(actor.RallyActor):
             self.status = "starting"
             self.received_responses = []
 
-    @actor.no_retry("mechanic")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("builder")  # pylint: disable=no-value-for-parameter
     def receiveMsg_NodesStarted(self, msg, sender):
         # Initially the addresses of the children are not
         # known and there is just a None placeholder in the
@@ -381,15 +381,15 @@ class MechanicActor(actor.RallyActor):
 
         self.transition_when_all_children_responded(sender, msg, "starting", "cluster_started", self.on_all_nodes_started)
 
-    @actor.no_retry("mechanic")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("builder")  # pylint: disable=no-value-for-parameter
     def receiveMsg_ResetRelativeTime(self, msg, sender):
         if msg.reset_in_seconds > 0:
-            self.wakeupAfter(msg.reset_in_seconds, payload=MechanicActor.WAKEUP_RESET_RELATIVE_TIME)
+            self.wakeupAfter(msg.reset_in_seconds, payload=BuilderActor.WAKEUP_RESET_RELATIVE_TIME)
         else:
             self.reset_relative_time()
 
     def receiveMsg_WakeupMessage(self, msg, sender):
-        if msg.payload == MechanicActor.WAKEUP_RESET_RELATIVE_TIME:
+        if msg.payload == BuilderActor.WAKEUP_RESET_RELATIVE_TIME:
             self.reset_relative_time()
         else:
             raise exceptions.RallyAssertionError("Unknown wakeup reason [{}]".format(msg.payload))
@@ -397,7 +397,7 @@ class MechanicActor(actor.RallyActor):
     def receiveMsg_BenchmarkFailure(self, msg, sender):
         self.send(self.race_control, msg)
 
-    @actor.no_retry("mechanic")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("builder")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StopEngine(self, msg, sender):
         # we might have experienced a launch error or the user has cancelled the benchmark. Hence we need to allow to stop the
         # cluster from various states and we don't check here for a specific one.
@@ -406,7 +406,7 @@ class MechanicActor(actor.RallyActor):
         else:
             self.send_to_children_and_transition(sender, StopNodes(), [], "cluster_stopping")
 
-    @actor.no_retry("mechanic")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("builder")  # pylint: disable=no-value-for-parameter
     def receiveMsg_NodesStopped(self, msg, sender):
         self.transition_when_all_children_responded(sender, msg, "cluster_stopping", "cluster_stopped", self.on_all_nodes_stopped)
 
@@ -419,7 +419,7 @@ class MechanicActor(actor.RallyActor):
 
     def on_all_nodes_stopped(self):
         self.send(self.race_control, EngineStopped())
-        # clear all state as the mechanic might get reused later
+        # clear all state as the builder might get reused later
         for m in self.children:
             self.send(m, thespian.actors.ActorExitRequest())
         self.children = []
@@ -429,11 +429,11 @@ class MechanicActor(actor.RallyActor):
 @thespian.actors.requireCapability('coordinator')
 class Dispatcher(actor.RallyActor):
     """This Actor receives a copy of the startmsg (with the computed hosts
-       attached) and creates a NodeMechanicActor on each targeted
+       attached) and creates a NodeBuilderActor on each targeted
        remote host.  It uses Thespian SystemRegistration to get
        notification of when remote nodes are available.  As a special
-       case, if an IP address is localhost, the NodeMechanicActor is
-       immediately created locally.  Once All NodeMechanicActors are
+       case, if an IP address is localhost, the NodeBuilderActor is
+       immediately created locally.  Once All NodeBuilderActors are
        started, it will send them all their startup message, with a
        reply-to back to the actor that made the request of the
        Dispatcher.
@@ -445,7 +445,7 @@ class Dispatcher(actor.RallyActor):
         self.pending = None
         self.remotes = None
 
-    @actor.no_retry("mechanic dispatcher")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("builder dispatcher")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StartEngine(self, startmsg, sender):
         self.start_sender = sender
         self.pending = []
@@ -459,7 +459,7 @@ class Dispatcher(actor.RallyActor):
             submsg = startmsg.for_nodes(all_node_ips, all_node_ids, ip, port, node)
             submsg.reply_to = sender
             if ip == '127.0.0.1':
-                m = self.createActor(NodeMechanicActor,
+                m = self.createActor(NodeBuilderActor,
                                      targetActorRequirements={"coordinator": True})
                 self.pending.append((m, submsg))
             else:
@@ -477,14 +477,14 @@ class Dispatcher(actor.RallyActor):
 
     def receiveMsg_ActorSystemConventionUpdate(self, convmsg, sender):
         if not convmsg.remoteAdded:
-            self.logger.warning("Remote Rally node [%s] exited during NodeMechanicActor startup process.", convmsg.remoteAdminAddress)
+            self.logger.warning("Remote Rally node [%s] exited during NodeBuilderActor startup process.", convmsg.remoteAdminAddress)
             self.start_sender(actor.BenchmarkFailure("Remote Rally node [%s] has been shutdown prematurely." % convmsg.remoteAdminAddress))
         else:
             remote_ip = convmsg.remoteCapabilities.get('ip', None)
             self.logger.info("Remote Rally node [%s] has started.", remote_ip)
 
             for eachmsg in self.remotes[remote_ip]:
-                self.pending.append((self.createActor(NodeMechanicActor,
+                self.pending.append((self.createActor(NodeBuilderActor,
                                                       targetActorRequirements={"ip": remote_ip}),
                                      eachmsg))
             if remote_ip in self.remotes:
@@ -496,7 +496,7 @@ class Dispatcher(actor.RallyActor):
 
     def send_all_pending(self):
         # Invoked when all remotes have checked in and self.pending is
-        # the list of remote NodeMechanic actors and messages to send.
+        # the list of remote NodeBuilder actors and messages to send.
         for each in self.pending:
             self.send(*each)
         self.pending = []
@@ -508,10 +508,10 @@ class Dispatcher(actor.RallyActor):
         self.send(self.start_sender, actor.BenchmarkFailure(msg.details))
 
     def receiveUnrecognizedMessage(self, msg, sender):
-        self.logger.info("mechanic.Dispatcher#receiveMessage unrecognized(msg = [%s] sender = [%s])", str(type(msg)), str(sender))
+        self.logger.info("builder.Dispatcher#receiveMessage unrecognized(msg = [%s] sender = [%s])", str(type(msg)), str(sender))
 
 
-class NodeMechanicActor(actor.RallyActor):
+class NodeBuilderActor(actor.RallyActor):
     """
     One instance of this actor is run on each target host and coordinates the actual work of starting / stopping all nodes that should run
     on this host.
@@ -519,7 +519,7 @@ class NodeMechanicActor(actor.RallyActor):
 
     def __init__(self):
         super().__init__()
-        self.mechanic = None
+        self.builder = None
         self.host = None
 
     def receiveMsg_StartNodes(self, msg, sender):
@@ -533,7 +533,7 @@ class NodeMechanicActor(actor.RallyActor):
             # Load node-specific configuration
             cfg = config.auto_load_local_config(msg.cfg, additional_sections=[
                 # only copy the relevant bits
-                "track", "mechanic", "client", "telemetry",
+                "track", "builder", "client", "telemetry",
                 # allow metrics store to extract race meta-data
                 "race",
                 "source"
@@ -548,9 +548,9 @@ class NodeMechanicActor(actor.RallyActor):
             metrics_store.open(ctx=msg.open_metrics_context)
             # avoid follow-up errors in case we receive an unexpected ActorExitRequest due to an early failure in a parent actor.
 
-            self.mechanic = create(cfg, metrics_store, msg.ip, msg.port, msg.all_node_ips, msg.all_node_ids,
+            self.builder = create(cfg, metrics_store, msg.ip, msg.port, msg.all_node_ips, msg.all_node_ids,
                                    msg.sources, msg.distribution, msg.external, msg.docker)
-            self.mechanic.start_engine()
+            self.builder.start_engine()
             self.wakeupAfter(METRIC_FLUSH_INTERVAL_SECONDS)
             self.send(getattr(msg, "reply_to", sender), NodesStarted())
         except Exception:
@@ -568,23 +568,23 @@ class NodeMechanicActor(actor.RallyActor):
 
     def receiveUnrecognizedMessage(self, msg, sender):
         # at the moment, we implement all message handling blocking. This is not ideal but simple to get started with. Besides, the caller
-        # needs to block anyway. The only reason we implement mechanic as an actor is to distribute them.
+        # needs to block anyway. The only reason we implement builder as an actor is to distribute them.
         # noinspection PyBroadException
         try:
-            self.logger.debug("NodeMechanicActor#receiveMessage(msg = [%s] sender = [%s])", str(type(msg)), str(sender))
-            if isinstance(msg, ResetRelativeTime) and self.mechanic:
-                self.mechanic.reset_relative_time()
-            elif isinstance(msg, thespian.actors.WakeupMessage) and self.mechanic:
-                self.mechanic.flush_metrics()
+            self.logger.debug("NodeBuilderActor#receiveMessage(msg = [%s] sender = [%s])", str(type(msg)), str(sender))
+            if isinstance(msg, ResetRelativeTime) and self.builder:
+                self.builder.reset_relative_time()
+            elif isinstance(msg, thespian.actors.WakeupMessage) and self.builder:
+                self.builder.flush_metrics()
                 self.wakeupAfter(METRIC_FLUSH_INTERVAL_SECONDS)
             elif isinstance(msg, StopNodes):
-                self.mechanic.stop_engine()
+                self.builder.stop_engine()
                 self.send(sender, NodesStopped())
-                self.mechanic = None
+                self.builder = None
             elif isinstance(msg, thespian.actors.ActorExitRequest):
-                if self.mechanic:
-                    self.mechanic.stop_engine()
-                    self.mechanic = None
+                if self.builder:
+                    self.builder.stop_engine()
+                    self.builder = None
         except BaseException as e:
             self.logger.exception("Cannot process message [%s]", msg)
             self.send(getattr(msg, "reply_to", sender), actor.BenchmarkFailure("Error on host %s" % str(self.host), e))
@@ -601,10 +601,10 @@ def load_team(cfg, external):
         plugins = []
     else:
         team_path = team.team_path(cfg)
-        car = team.load_car(team_path, cfg.opts("mechanic", "car.names"), cfg.opts("mechanic", "car.params"))
+        car = team.load_car(team_path, cfg.opts("builder", "car.names"), cfg.opts("builder", "car.params"))
         plugins = team.load_plugins(team_path,
-                                    cfg.opts("mechanic", "car.plugins", mandatory=False),
-                                    cfg.opts("mechanic", "plugin.params", mandatory=False))
+                                    cfg.opts("builder", "car.plugins", mandatory=False),
+                                    cfg.opts("builder", "plugin.params", mandatory=False))
     return car, plugins
 
 
@@ -626,7 +626,7 @@ def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_i
                                   all_node_names, race_root_path, node_name))
         l = launcher.ProcessLauncher(cfg)
     elif external:
-        raise exceptions.RallyAssertionError("Externally provisioned clusters should not need to be managed by Rally's mechanic")
+        raise exceptions.RallyAssertionError("Externally provisioned clusters should not need to be managed by Rally's builder")
     elif docker:
         if len(plugins) > 0:
             raise exceptions.SystemSetupError("You cannot specify any plugins for Docker clusters. Please remove "
@@ -641,18 +641,18 @@ def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_i
         # It is a programmer error (and not a user error) if this function is called with wrong parameters
         raise RuntimeError("One of sources, distribution, docker or external must be True")
 
-    return Mechanic(cfg, metrics_store, s, p, l)
+    return Builder(cfg, metrics_store, s, p, l)
 
 
-class Mechanic:
+class Builder:
     """
-    Mechanic is responsible for preparing the benchmark candidate (i.e. all benchmark candidate related activities before and after
+    Builder is responsible for preparing the benchmark candidate (i.e. all benchmark candidate related activities before and after
     running the benchmark).
     """
 
     def __init__(self, cfg, metrics_store, supply, provisioners, launcher):
         self.cfg = cfg
-        self.preserve_install = cfg.opts("mechanic", "preserve.install")
+        self.preserve_install = cfg.opts("builder", "preserve.install")
         self.metrics_store = metrics_store
         self.supply = supply
         self.provisioners = provisioners

@@ -25,18 +25,18 @@ import uuid
 import jinja2
 
 from esrally import exceptions
-from esrally.mechanic import team, java_resolver
+from esrally.builder import team, java_resolver
 from esrally.utils import console, convert, io, process, versions
 
 
 def local(cfg, car, plugins, ip, http_port, all_node_ips, all_node_names, target_root, node_name):
-    distribution_version = cfg.opts("mechanic", "distribution.version", mandatory=False)
+    distribution_version = cfg.opts("builder", "distribution.version", mandatory=False)
 
     node_root_dir = os.path.join(target_root, node_name)
 
     runtime_jdk_bundled = convert.to_bool(car.mandatory_var("runtime.jdk.bundled"))
     runtime_jdk = car.mandatory_var("runtime.jdk")
-    _, java_home = java_resolver.java_home(runtime_jdk, cfg.opts("mechanic", "runtime.jdk"), runtime_jdk_bundled)
+    _, java_home = java_resolver.java_home(runtime_jdk, cfg.opts("builder", "runtime.jdk"), runtime_jdk_bundled)
 
     es_installer = ElasticsearchInstaller(car, java_home, node_name, node_root_dir, all_node_ips, all_node_names, ip, http_port)
     plugin_installers = [PluginInstaller(plugin, java_home) for plugin in plugins]
@@ -45,7 +45,7 @@ def local(cfg, car, plugins, ip, http_port, all_node_ips, all_node_names, target
 
 
 def docker(cfg, car, ip, http_port, target_root, node_name):
-    distribution_version = cfg.opts("mechanic", "distribution.version", mandatory=False)
+    distribution_version = cfg.opts("builder", "distribution.version", mandatory=False)
     rally_root = cfg.opts("node", "rally.root")
 
     node_root_dir = os.path.join(target_root, node_name)
