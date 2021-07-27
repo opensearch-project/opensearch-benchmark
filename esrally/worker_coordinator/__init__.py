@@ -16,4 +16,4 @@
 # under the License.
 
 # expose only the minimum API
-from .driver import DriverActor, PrepareBenchmark, PreparationComplete, StartBenchmark, BenchmarkComplete, TaskFinished
+from .worker_coordinator import WorkerCoordinatorActor, PrepareBenchmark, PreparationComplete, StartBenchmark, BenchmarkComplete, TaskFinished
