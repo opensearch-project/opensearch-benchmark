@@ -212,7 +212,7 @@ def download(url, local_path, expected_size_in_bytes=None, progress_indicator=No
     :param url: The remote URL specifying one file that should be downloaded. May be either a HTTP, HTTPS, S3 or GS URL.
     :param local_path: The local file name of the file that should be downloaded.
     :param expected_size_in_bytes: The expected file size in bytes if known. It will be used to verify that all data have been downloaded.
-    :param progress_indicator A callable that can be use to report progress to the user. It is expected to take two parameters
+    :param progress_indicator A callable that can be use to publish progress to the user. It is expected to take two parameters
     ``bytes_read`` and ``total_bytes``. If not provided, no progress is shown. Note that ``total_bytes`` is derived from
     the ``Content-Length`` header and not from the parameter ``expected_size_in_bytes`` for downloads via HTTP(S).
     """

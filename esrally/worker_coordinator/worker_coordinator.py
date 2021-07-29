@@ -524,7 +524,7 @@ class WorkerCoordinator:
         # which client ids are assigned to which workers?
         self.clients_per_worker = {}
 
-        self.progress_reporter = console.progress()
+        self.progress_results_publisher = console.progress()
         self.progress_counter = 0
         self.quiet = False
         self.allocations = None
@@ -597,7 +597,7 @@ class WorkerCoordinator:
         self.track = t
         self.challenge = select_challenge(self.config, self.track)
         self.quiet = self.config.opts("system", "quiet.mode", mandatory=False, default_value=False)
-        downsample_factor = int(self.config.opts("reporting", "metrics.request.downsample.factor", mandatory=False, default_value=1))
+        downsample_factor = int(self.config.opts("publishing", "metrics.request.downsample.factor", mandatory=False, default_value=1))
         self.metrics_store = metrics.metrics_store(cfg=self.config,
                                                    track=self.track.name,
                                                    challenge=self.challenge.name,
@@ -778,7 +778,7 @@ class WorkerCoordinator:
         return self.current_step == self.number_of_steps
 
     def close(self):
-        self.progress_reporter.finish()
+        self.progress_results_publisher.finish()
         if self.metrics_store and self.metrics_store.opened:
             self.metrics_store.close()
 
@@ -804,9 +804,9 @@ class WorkerCoordinator:
 
                 num_clients = max(len(progress_per_client), 1)
                 total_progress = sum(progress_per_client) / num_clients
-            self.progress_reporter.print("Running %s" % tasks, "[%3d%% done]" % (round(total_progress * 100)))
+            self.progress_results_publisher.print("Running %s" % tasks, "[%3d%% done]" % (round(total_progress * 100)))
             if task_finished:
-                self.progress_reporter.finish()
+                self.progress_results_publisher.finish()
 
     def post_process_samples(self):
         # we do *not* do this here to avoid concurrent updates (actors are single-threaded) but rather to make it clear that we use
@@ -1018,7 +1018,7 @@ class Worker(actor.RallyActor):
         self.worker_id = msg.worker_id
         self.config = load_local_config(msg.config)
         self.on_error = self.config.opts("worker_coordinator", "on.error")
-        self.sample_queue_size = int(self.config.opts("reporting", "sample.queue.size", mandatory=False, default_value=1 << 20))
+        self.sample_queue_size = int(self.config.opts("publishing", "sample.queue.size", mandatory=False, default_value=1 << 20))
         self.track = msg.track
         track.set_absolute_data_path(self.config, self.track)
         self.client_allocations = msg.client_allocations

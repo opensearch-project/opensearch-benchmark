@@ -1168,7 +1168,7 @@ class DiskIo(InternalTelemetryDevice):
     def detach_from_node(self, node, running):
         if running:
             # Be aware the semantics of write counts etc. are different for disk and process statistics.
-            # Thus we're conservative and only report I/O bytes now.
+            # Thus we're conservative and only publish I/O bytes now.
             # noinspection PyBroadException
             try:
                 es_process = sysstats.setup_process_stats(node.pid)

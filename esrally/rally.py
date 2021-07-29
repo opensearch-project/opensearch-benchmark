@@ -27,7 +27,7 @@ import uuid
 import thespian.actors
 
 from esrally import PROGRAM_NAME, BANNER, FORUM_LINK, SKULL, check_python_version, doc_link, telemetry
-from esrally import version, actor, config, paths, test_execution_orchestrator, reporter, metrics, track, chart_generator, exceptions, \
+from esrally import version, actor, config, paths, test_execution_orchestrator, results_publisher, metrics, track, chart_generator, exceptions, \
     log
 from esrally.builder import team, builder
 from esrally.tracker import tracker
@@ -198,21 +198,21 @@ def create_arg_parser():
         required=True,
         help=f"Race ID of the contender (see {PROGRAM_NAME} list races).")
     compare_parser.add_argument(
-        "--report-format",
-        help="Define the output format for the command line report (default: markdown).",
+        "--publish-format",
+        help="Define the output format for the command line results (default: markdown).",
         choices=["markdown", "csv"],
         default="markdown")
     compare_parser.add_argument(
-        "--report-numbers-align",
-        help="Define the output column number alignment for the command line report (default: right).",
+        "--publish-numbers-align",
+        help="Define the output column number alignment for the command line results (default: right).",
         choices=["right", "center", "left", "decimal"],
         default="right")
     compare_parser.add_argument(
-        "--report-file",
-        help="Write the command line report also to the provided file.",
+        "--publish-file",
+        help="Write the command line results also to the provided file.",
         default="")
     compare_parser.add_argument(
-        "--show-in-report",
+        "--show-in-publish",
         help="Whether to include the comparison in the results file.",
         default=True)
 
@@ -504,23 +504,23 @@ def create_arg_parser():
              "Example: intention:baseline-ticket-12345",
         default="")
     race_parser.add_argument(
-        "--report-format",
-        help="Define the output format for the command line report (default: markdown).",
+        "--publish-format",
+        help="Define the output format for the command line results (default: markdown).",
         choices=["markdown", "csv"],
         default="markdown")
     race_parser.add_argument(
-        "--report-numbers-align",
-        help="Define the output column number alignment for the command line report (default: right).",
+        "--publish-numbers-align",
+        help="Define the output column number alignment for the command line results (default: right).",
         choices=["right", "center", "left", "decimal"],
         default="right")
     race_parser.add_argument(
-        "--show-in-report",
-        help="Define which values are shown in the summary report (default: available).",
+        "--show-in-publish",
+        help="Define which values are shown in the summary publish (default: available).",
         choices=["available", "all-percentiles", "all"],
         default="available")
     race_parser.add_argument(
-        "--report-file",
-        help="Write the command line report also to the provided file.",
+        "--publish-file",
+        help="Write the command line results also to the provided file.",
         default="")
     race_parser.add_argument(
         "--preserve-install",
@@ -777,11 +777,11 @@ def configure_connection_params(arg_parser, args, cfg):
         arg_parser.error("--target-hosts and --client-options must define the same keys for multi cluster setups.")
 
 
-def configure_reporting_params(args, cfg):
-    cfg.add(config.Scope.applicationOverride, "reporting", "format", args.report_format)
-    cfg.add(config.Scope.applicationOverride, "reporting", "values", args.show_in_report)
-    cfg.add(config.Scope.applicationOverride, "reporting", "output.path", args.report_file)
-    cfg.add(config.Scope.applicationOverride, "reporting", "numbers.align", args.report_numbers_align)
+def configure_publishing_params(args, cfg):
+    cfg.add(config.Scope.applicationOverride, "publishing", "format", args.publish_format)
+    cfg.add(config.Scope.applicationOverride, "publishing", "values", args.show_in_publish)
+    cfg.add(config.Scope.applicationOverride, "publishing", "output.path", args.publish_file)
+    cfg.add(config.Scope.applicationOverride, "publishing", "numbers.align", args.publish_numbers_align)
 
 
 def dispatch_sub_command(arg_parser, args, cfg):
@@ -792,8 +792,8 @@ def dispatch_sub_command(arg_parser, args, cfg):
 
     try:
         if sub_command == "compare":
-            configure_reporting_params(args, cfg)
-            reporter.compare(cfg, args.baseline, args.contender)
+            configure_publishing_params(args, cfg)
+            results_publisher.compare(cfg, args.baseline, args.contender)
         elif sub_command == "list":
             cfg.add(config.Scope.applicationOverride, "system", "list.config.option", args.configuration)
             cfg.add(config.Scope.applicationOverride, "system", "list.races.max_results", args.limit)
@@ -861,7 +861,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "builder", "preserve.install", convert.to_bool(args.preserve_install))
             cfg.add(config.Scope.applicationOverride, "builder", "skip.rest.api.check", convert.to_bool(args.skip_rest_api_check))
 
-            configure_reporting_params(args, cfg)
+            configure_publishing_params(args, cfg)
 
             race(cfg, args.kill_running_processes)
         elif sub_command == "generate":
