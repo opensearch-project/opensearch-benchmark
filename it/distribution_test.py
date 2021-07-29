@@ -17,9 +17,9 @@
 
 import uuid
 
-import pytest
+# import pytest
 
-import it
+# import it
 
 
 @it.random_rally_config
