@@ -93,7 +93,7 @@ datastore.user = elastic
 datastore.password = notinuse
 
 [tracks]
-default.url = https://github.com/IanHoang/my-workloads
+default.url = https://github.com/opensearch-project/opensearch-benchmark-workloads
 
 [teams]
 default.url = https://github.com/elastic/rally-teams
