@@ -1020,9 +1020,15 @@ class EsRaceStoreTests(TestCase):
         race = metrics.Race(rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
                             race_id=EsRaceStoreTests.RACE_ID, race_timestamp=EsRaceStoreTests.RACE_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params={"shard-count": 3},
-                            challenge=t.default_challenge, provision_config="defaults", provision_config_params={"heap_size": "512mb"}, plugin_params=None,
-                            track_revision="abc1", team_revision="abc12333", distribution_version="5.0.0",
-                            distribution_flavor="default", revision="aaaeeef",
+                            challenge=t.default_challenge,
+                            provision_config="defaults",
+                            provision_config_params={"heap_size": "512mb"},
+                            plugin_params=None,
+                            track_revision="abc1",
+                            team_revision="abc12333",
+                            distribution_version="5.0.0",
+                            distribution_flavor="default",
+                            revision="aaaeeef",
                             results=EsRaceStoreTests.DictHolder(
                                 {
                                     "young_gc_time": 100,
@@ -1116,7 +1122,9 @@ class EsResultsStoreTests(TestCase):
         t = track.Track(name="unittest-track",
                         indices=[track.Index(name="tests", types=["_doc"])],
                         challenges=[track.Challenge(
-                            name="index", default=True, meta_data={"saturation": "70% saturated"}, schedule=schedule)],
+                            name="index", default=True,
+                            meta_data={"saturation": "70% saturated"},
+                            schedule=schedule)],
                         meta_data={"track-type": "saturation-degree", "saturation": "oversaturation"})
 
         race = metrics.Race(rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",

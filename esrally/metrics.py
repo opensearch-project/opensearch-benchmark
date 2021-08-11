@@ -355,7 +355,9 @@ class MetricsStore:
         self._stop_watch = self._clock.stop_watch()
         self.logger = logging.getLogger(__name__)
 
-    def open(self, race_id=None, race_timestamp=None, track_name=None, challenge_name=None, provision_config_name=None, ctx=None, create=False):
+    def open(self, race_id=None, race_timestamp=None,
+             track_name=None, challenge_name=None,
+             provision_config_name=None, ctx=None, create=False):
         """
         Opens a metrics store for a specific race, track, challenge and provision_config.
 
@@ -383,7 +385,8 @@ class MetricsStore:
         assert self._race_id is not None, "Attempting to open metrics store without a race id"
         assert self._race_timestamp is not None, "Attempting to open metrics store without a race timestamp"
 
-        self._provision_config_name = "+".join(self._provision_config) if isinstance(self._provision_config, list) else self._provision_config
+        self._provision_config_name = "+".join(self._provision_config) \
+            if isinstance(self._provision_config, list) else self._provision_config
 
         self.logger.info("Opening metrics store for race timestamp=[%s], track=[%s], challenge=[%s], provision_config=[%s]",
                          self._race_timestamp, self._track, self._challenge, self._provision_config)
@@ -771,7 +774,8 @@ class EsMetricsStore(MetricsStore):
         self._index_template_provider = index_template_provider_class(cfg)
         self._docs = None
 
-    def open(self, race_id=None, race_timestamp=None, track_name=None, challenge_name=None, provision_config_name=None, ctx=None, create=False):
+    def open(self, race_id=None, race_timestamp=None, track_name=None,
+                 challenge_name=None, provision_config_name=None, ctx=None, create=False):
         self._docs = []
         MetricsStore.open(self, race_id, race_timestamp, track_name, challenge_name, provision_config_name, ctx, create)
         self._index = self.index_name()
@@ -1155,8 +1159,11 @@ def list_races(cfg):
 
     if len(races) > 0:
         console.println("\nRecent races:\n")
-        console.println(tabulate.tabulate(races, headers=["Race ID", "Race Timestamp", "Track", "Track Parameters", "Challenge", "Provision Config",
-                                                          "User Tags", "Track Revision", "Team Revision"]))
+        console.println(tabulate.tabulate(races,
+            headers=[
+                "Race ID", "Race Timestamp", "Track",
+                "Track Parameters", "Challenge", "Provision Config",
+                "User Tags", "Track Revision", "Team Revision"]))
     else:
         console.println("")
         console.println("No recent races found.")
@@ -1181,8 +1188,11 @@ def create_race(cfg, track, challenge, track_revision=None):
 
 class Race:
     def __init__(self, rally_version, rally_revision, environment_name, race_id, race_timestamp, pipeline, user_tags,
-                 track, track_params, challenge, provision_config, provision_config_params, plugin_params, track_revision=None, team_revision=None,
-                 distribution_version=None, distribution_flavor=None, revision=None, results=None, meta_data=None):
+                 track, track_params, challenge, provision_config,
+                 provision_config_params, plugin_params,
+                 track_revision=None, team_revision=None,
+                 distribution_version=None, distribution_flavor=None,
+                 revision=None, results=None, meta_data=None):
         if results is None:
             results = {}
         # this happens when the race is created initially

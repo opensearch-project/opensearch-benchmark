@@ -240,7 +240,8 @@ def create_arg_parser():
         default="release")
     download_parser.add_argument(
         "--provision_config",
-        help=f"Define the provision_config to use. List possible provision_configs with `{PROGRAM_NAME} list provision_configs` (default: defaults).",
+        help=f"Define the provision_config to use. \
+            List possible provision_configs with `{PROGRAM_NAME} list provision_configs` (default: defaults).",
         default="defaults")  # optimized for local usage
     download_parser.add_argument(
         "--provision_config-params",
@@ -298,7 +299,8 @@ def create_arg_parser():
         default="")
     install_parser.add_argument(
         "--provision_config",
-        help=f"Define the provision_config to use. List possible provision_configs with `{PROGRAM_NAME} list provision_configs` (default: defaults).",
+        help=f"Define the provision_config to use. \
+            List possible provision_configs with `{PROGRAM_NAME} list provision_configs` (default: defaults).",
         default="defaults")  # optimized for local usage
     install_parser.add_argument(
         "--provision_config-params",
@@ -431,7 +433,8 @@ def create_arg_parser():
         help=f"Define the challenge to use. List possible challenges for tracks with `{PROGRAM_NAME} list tracks`.")
     race_parser.add_argument(
         "--provision_config",
-        help=f"Define the provision_config to use. List possible provision_configs with `{PROGRAM_NAME} list provision_configs` (default: defaults).",
+        help=f"Define the provision_config to use. \
+            List possible provision_configs with `{PROGRAM_NAME} list provision_configs` (default: defaults).",
         default="defaults")  # optimized for local usage
     race_parser.add_argument(
         "--provision_config-params",

@@ -78,7 +78,9 @@ class BarCharts:
             return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{race_config.name}\""
         else:
             return f"environment:\"{environment}\" AND active:true AND track:\"{race_config.track}\""\
-                   f" AND challenge:\"{race_config.challenge}\" AND provision_config:\"{race_config.provision_config}\" AND node-count:{race_config.node_count}"
+                   f" AND challenge:\"{race_config.challenge}\""\
+                   f" AND provision_config:\"{race_config.provision_config}\""\
+                   f" AND node-count:{race_config.node_count}"
 
     @staticmethod
     def gc(title, environment, race_config):
@@ -803,7 +805,9 @@ class TimeSeriesCharts:
             return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{race_config.name}\"{nightly_extra_filter}"
         else:
             return f"environment:\"{environment}\" AND active:true AND track:\"{race_config.track}\""\
-                   f" AND challenge:\"{race_config.challenge}\" AND provision_config:\"{race_config.provision_config}\" AND node-count:{race_config.node_count}"
+                   f" AND challenge:\"{race_config.challenge}\""\
+                       f" AND provision_config:\"{race_config.provision_config}\""\
+                       f" AND node-count:{race_config.node_count}"
 
     @staticmethod
     def gc(title, environment, race_config):

@@ -42,9 +42,17 @@ class ProvisionConfigLoaderTests(TestCase):
         )
 
     def test_load_known_provision_config(self):
-        provision_config = team.load_provision_config(self.team_dir, ["default"], provision_config_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
+        provision_config = team.load_provision_config(
+            self.team_dir, ["default"],
+            provision_config_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
         self.assertEqual("default", provision_config.name)
-        self.assertEqual([os.path.join(current_dir, "data", "provision_configs", "v1", "vanilla", "templates")], provision_config.config_paths)
+        self.assertEqual(
+            [
+                os.path.join(
+                    current_dir, "data", "provision_configs",
+                    "v1", "vanilla", "templates")
+            ],
+            provision_config.config_paths)
         self.assertIsNone(provision_config.root_path)
         self.assertDictEqual({
             "heap_size": "1g",
@@ -56,7 +64,13 @@ class ProvisionConfigLoaderTests(TestCase):
     def test_load_provision_config_with_mixin_single_config_base(self):
         provision_config = team.load_provision_config(self.team_dir, ["32gheap", "ea"])
         self.assertEqual("32gheap+ea", provision_config.name)
-        self.assertEqual([os.path.join(current_dir, "data", "provision_configs", "v1", "vanilla", "templates")], provision_config.config_paths)
+        self.assertEqual(
+            [
+                os.path.join(
+                    current_dir, "data", "provision_configs",
+                    "v1", "vanilla", "templates")
+            ],
+            provision_config.config_paths)
         self.assertIsNone(provision_config.root_path)
         self.assertEqual({
             "heap_size": "32g",
@@ -81,7 +95,9 @@ class ProvisionConfigLoaderTests(TestCase):
         }, provision_config.variables)
 
     def test_load_provision_config_with_install_hook(self):
-        provision_config = team.load_provision_config(self.team_dir, ["default", "with_hook"], provision_config_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
+        provision_config = team.load_provision_config(
+            self.team_dir, ["default", "with_hook"],
+            provision_config_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
         self.assertEqual("default+with_hook", provision_config.name)
         self.assertEqual([
             os.path.join(current_dir, "data", "provision_configs", "v1", "vanilla", "templates"),

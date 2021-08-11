@@ -211,7 +211,11 @@ class BenchmarkCoordinator:
                          .format(self.race.track_name, self.race.provision_config, self.race.distribution_version))
         else:
             console.info("Racing on track [{}], challenge [{}] and provision_config {} with version [{}].\n"
-                         .format(self.race.track_name, self.race.challenge_name, self.race.provision_config, self.race.distribution_version))
+                         .format(
+                             self.race.track_name,
+                             self.race.challenge_name,
+                             self.race.provision_config,
+                             self.race.distribution_version))
 
     def on_task_finished(self, new_metrics):
         self.logger.info("Task has finished.")

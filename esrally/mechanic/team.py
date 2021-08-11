@@ -44,7 +44,8 @@ def list_provision_configs(cfg):
     # idiomatic way according to https://docs.python.org/3/howto/sorting.html#sort-stability-and-complex-sorts
     provision_configs = sorted(sorted(provision_configs, key=lambda c: c.name), key=lambda c: c.type)
     console.println("Available provision_configs:\n")
-    console.println(tabulate.tabulate([[c.name, c.type, c.description] for c in provision_configs], headers=["Name", "Type", "Description"]))
+    console.println(tabulate.tabulate([[c.name, c.type, c.description] \
+        for c in provision_configs], headers=["Name", "Type", "Description"]))
 
 
 def load_provision_config(repo, name, provision_config_params=None):
@@ -160,7 +161,8 @@ class ProvisionConfigLoader:
     def load_provision_config(self, name, provision_config_params=None):
         provision_config_config_file = self._provision_config_file(name)
         if not io.exists(provision_config_config_file):
-            raise exceptions.SystemSetupError("Unknown provision_config [{}]. List the available provision_configs with {} list provision_configs.".format(name, PROGRAM_NAME))
+            raise exceptions.SystemSetupError(
+                "Unknown provision_config [{}]. List the available provision_configs with {} list provision_configs.".format(name, PROGRAM_NAME))
         config = self._config_loader(provision_config_config_file)
         root_paths = []
         config_paths = []

@@ -65,7 +65,10 @@ def install(cfg):
         if len(plugins) > 0:
             raise exceptions.SystemSetupError("You cannot specify any plugins for Docker clusters. Please remove "
                                               "\"--elasticsearch-plugins\" and try again.")
-        p = provisioner.docker(cfg=cfg, provision_config=provision_config, ip=ip, http_port=http_port, target_root=root_path, node_name=node_name)
+        p = provisioner.docker(
+            cfg=cfg, provision_config=provision_config,
+            ip=ip, http_port=http_port, target_root=root_path,
+            node_name=node_name)
         # there is no binary for Docker that can be downloaded / built upfront
         node_config = p.prepare(binary=None)
     else:
@@ -601,7 +604,9 @@ def load_team(cfg, external):
         plugins = []
     else:
         team_path = team.team_path(cfg)
-        provision_config = team.load_provision_config(team_path, cfg.opts("mechanic", "provision_config.names"), cfg.opts("mechanic", "provision_config.params"))
+        provision_config = team.load_provision_config(
+            team_path, cfg.opts("mechanic", "provision_config.names"),
+            cfg.opts("mechanic", "provision_config.params"))
         plugins = team.load_plugins(team_path,
                                     cfg.opts("mechanic", "provision_config.plugins", mandatory=False),
                                     cfg.opts("mechanic", "plugin.params", mandatory=False))
