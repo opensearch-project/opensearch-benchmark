@@ -472,7 +472,7 @@ Migrating to Rally 1.0.0
 Handling of JDK versions
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Previously the path to the JDK needed to be configured in Rally's configuration file (``~/.rally/rally.ini``) but this is too inflexible given the increased JDK release cadence. In order to keep up, we define now the allowed runtime JDKs in `rally-teams <https://github.com/elastic/rally-teams/blob/master/cars/v1/vanilla/config.ini>`_ per Elasticsearch version.
+Previously the path to the JDK needed to be configured in Rally's configuration file (``~/.rally/rally.ini``) but this is too inflexible given the increased JDK release cadence. In order to keep up, we define now the allowed runtime JDKs in `rally-teams <https://github.com/IanHoang/rally-teams/blob/master/cars/v1/vanilla/config.ini>`_ per Elasticsearch version.
 
 To resolve the path to the appropriate JDK you need to define the environment variable ``JAVA_HOME`` on each targeted machine.
 

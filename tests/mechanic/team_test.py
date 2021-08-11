@@ -24,7 +24,7 @@ from esrally.mechanic import team
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 
-class CarLoaderTests(TestCase):
+class ProvisionConfigLoaderTests(TestCase):
     def __init__(self, args):
         super().__init__(args)
         self.team_dir = None
@@ -32,102 +32,102 @@ class CarLoaderTests(TestCase):
 
     def setUp(self):
         self.team_dir = os.path.join(current_dir, "data")
-        self.loader = team.CarLoader(self.team_dir)
+        self.loader = team.ProvisionConfigLoader(self.team_dir)
 
-    def test_lists_car_names(self):
+    def test_lists_provision_config_names(self):
         # contrary to the name this assertion compares contents but does not care about order.
         self.assertCountEqual(
             ["default", "with_hook", "32gheap", "missing_cfg_base", "empty_cfg_base", "ea", "verbose", "multi_hook", "another_with_hook"],
-            self.loader.car_names()
+            self.loader.provision_config_names()
         )
 
-    def test_load_known_car(self):
-        car = team.load_car(self.team_dir, ["default"], car_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
-        self.assertEqual("default", car.name)
-        self.assertEqual([os.path.join(current_dir, "data", "cars", "v1", "vanilla", "templates")], car.config_paths)
-        self.assertIsNone(car.root_path)
+    def test_load_known_provision_config(self):
+        provision_config = team.load_provision_config(self.team_dir, ["default"], provision_config_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
+        self.assertEqual("default", provision_config.name)
+        self.assertEqual([os.path.join(current_dir, "data", "provision_configs", "v1", "vanilla", "templates")], provision_config.config_paths)
+        self.assertIsNone(provision_config.root_path)
         self.assertDictEqual({
             "heap_size": "1g",
             "clean_command": "./gradlew clean",
             "data_paths": ["/mnt/disk0", "/mnt/disk1"]
-        }, car.variables)
-        self.assertIsNone(car.root_path)
+        }, provision_config.variables)
+        self.assertIsNone(provision_config.root_path)
 
-    def test_load_car_with_mixin_single_config_base(self):
-        car = team.load_car(self.team_dir, ["32gheap", "ea"])
-        self.assertEqual("32gheap+ea", car.name)
-        self.assertEqual([os.path.join(current_dir, "data", "cars", "v1", "vanilla", "templates")], car.config_paths)
-        self.assertIsNone(car.root_path)
+    def test_load_provision_config_with_mixin_single_config_base(self):
+        provision_config = team.load_provision_config(self.team_dir, ["32gheap", "ea"])
+        self.assertEqual("32gheap+ea", provision_config.name)
+        self.assertEqual([os.path.join(current_dir, "data", "provision_configs", "v1", "vanilla", "templates")], provision_config.config_paths)
+        self.assertIsNone(provision_config.root_path)
         self.assertEqual({
             "heap_size": "32g",
             "clean_command": "./gradlew clean",
             "assertions": "true"
-        }, car.variables)
-        self.assertIsNone(car.root_path)
+        }, provision_config.variables)
+        self.assertIsNone(provision_config.root_path)
 
-    def test_load_car_with_mixin_multiple_config_bases(self):
-        car = team.load_car(self.team_dir, ["32gheap", "ea", "verbose"])
-        self.assertEqual("32gheap+ea+verbose", car.name)
+    def test_load_provision_config_with_mixin_multiple_config_bases(self):
+        provision_config = team.load_provision_config(self.team_dir, ["32gheap", "ea", "verbose"])
+        self.assertEqual("32gheap+ea+verbose", provision_config.name)
         self.assertEqual([
-            os.path.join(current_dir, "data", "cars", "v1", "vanilla", "templates"),
-            os.path.join(current_dir, "data", "cars", "v1", "verbose_logging", "templates"),
-        ], car.config_paths)
-        self.assertIsNone(car.root_path)
+            os.path.join(current_dir, "data", "provision_configs", "v1", "vanilla", "templates"),
+            os.path.join(current_dir, "data", "provision_configs", "v1", "verbose_logging", "templates"),
+        ], provision_config.config_paths)
+        self.assertIsNone(provision_config.root_path)
         self.assertEqual({
             "heap_size": "32g",
             "clean_command": "./gradlew clean",
             "verbose_logging": "true",
             "assertions": "true"
-        }, car.variables)
+        }, provision_config.variables)
 
-    def test_load_car_with_install_hook(self):
-        car = team.load_car(self.team_dir, ["default", "with_hook"], car_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
-        self.assertEqual("default+with_hook", car.name)
+    def test_load_provision_config_with_install_hook(self):
+        provision_config = team.load_provision_config(self.team_dir, ["default", "with_hook"], provision_config_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
+        self.assertEqual("default+with_hook", provision_config.name)
         self.assertEqual([
-            os.path.join(current_dir, "data", "cars", "v1", "vanilla", "templates"),
-            os.path.join(current_dir, "data", "cars", "v1", "with_hook", "templates"),
-        ], car.config_paths)
-        self.assertEqual(os.path.join(current_dir, "data", "cars", "v1", "with_hook"), car.root_path)
+            os.path.join(current_dir, "data", "provision_configs", "v1", "vanilla", "templates"),
+            os.path.join(current_dir, "data", "provision_configs", "v1", "with_hook", "templates"),
+        ], provision_config.config_paths)
+        self.assertEqual(os.path.join(current_dir, "data", "provision_configs", "v1", "with_hook"), provision_config.root_path)
         self.assertDictEqual({
             "heap_size": "1g",
             "clean_command": "./gradlew clean",
             "data_paths": ["/mnt/disk0", "/mnt/disk1"]
-        }, car.variables)
+        }, provision_config.variables)
 
-    def test_load_car_with_multiple_bases_referring_same_install_hook(self):
-        car = team.load_car(self.team_dir, ["with_hook", "another_with_hook"])
-        self.assertEqual("with_hook+another_with_hook", car.name)
+    def test_load_provision_config_with_multiple_bases_referring_same_install_hook(self):
+        provision_config = team.load_provision_config(self.team_dir, ["with_hook", "another_with_hook"])
+        self.assertEqual("with_hook+another_with_hook", provision_config.name)
         self.assertEqual([
-            os.path.join(current_dir, "data", "cars", "v1", "vanilla", "templates"),
-            os.path.join(current_dir, "data", "cars", "v1", "with_hook", "templates"),
-            os.path.join(current_dir, "data", "cars", "v1", "verbose_logging", "templates")
-        ], car.config_paths)
-        self.assertEqual(os.path.join(current_dir, "data", "cars", "v1", "with_hook"), car.root_path)
+            os.path.join(current_dir, "data", "provision_configs", "v1", "vanilla", "templates"),
+            os.path.join(current_dir, "data", "provision_configs", "v1", "with_hook", "templates"),
+            os.path.join(current_dir, "data", "provision_configs", "v1", "verbose_logging", "templates")
+        ], provision_config.config_paths)
+        self.assertEqual(os.path.join(current_dir, "data", "provision_configs", "v1", "with_hook"), provision_config.root_path)
         self.assertDictEqual({
             "heap_size": "16g",
             "clean_command": "./gradlew clean",
             "verbose_logging": "true"
-        }, car.variables)
+        }, provision_config.variables)
 
-    def test_raises_error_on_unknown_car(self):
+    def test_raises_error_on_unknown_provision_config(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            team.load_car(self.team_dir, ["don_t-know-you"])
-        self.assertRegex(ctx.exception.args[0], r"Unknown car \[don_t-know-you\]. List the available cars with [^\s]+ list cars.")
+            team.load_provision_config(self.team_dir, ["don_t-know-you"])
+        self.assertRegex(ctx.exception.args[0], r"Unknown provision_config \[don_t-know-you\]. List the available provision_configs with [^\s]+ list provision_configs.")
 
     def test_raises_error_on_empty_config_base(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            team.load_car(self.team_dir, ["empty_cfg_base"])
-        self.assertEqual("At least one config base is required for car ['empty_cfg_base']", ctx.exception.args[0])
+            team.load_provision_config(self.team_dir, ["empty_cfg_base"])
+        self.assertEqual("At least one config base is required for provision_config ['empty_cfg_base']", ctx.exception.args[0])
 
     def test_raises_error_on_missing_config_base(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            team.load_car(self.team_dir, ["missing_cfg_base"])
-        self.assertEqual("At least one config base is required for car ['missing_cfg_base']", ctx.exception.args[0])
+            team.load_provision_config(self.team_dir, ["missing_cfg_base"])
+        self.assertEqual("At least one config base is required for provision_config ['missing_cfg_base']", ctx.exception.args[0])
 
     def test_raises_error_if_more_than_one_different_install_hook(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            team.load_car(self.team_dir, ["multi_hook"])
-        self.assertEqual("Invalid car: ['multi_hook']. Multiple bootstrap hooks are forbidden.", ctx.exception.args[0])
+            team.load_provision_config(self.team_dir, ["multi_hook"])
+        self.assertEqual("Invalid provision_config: ['multi_hook']. Multiple bootstrap hooks are forbidden.", ctx.exception.args[0])
 
 
 class PluginLoaderTests(TestCase):

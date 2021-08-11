@@ -322,7 +322,7 @@ class EsMetricsTests(TestCase):
                 "shard-count": 3
             },
             "challenge": "append",
-            "car": "defaults",
+            "provision_config": "defaults",
             "name": "indexing_throughput",
             "value": throughput,
             "unit": "docs/s",
@@ -351,7 +351,7 @@ class EsMetricsTests(TestCase):
                 "shard-count": 3
             },
             "challenge": "append",
-            "car": "defaults",
+            "provision_config": "defaults",
             "name": "indexing_throughput",
             "value": throughput,
             "unit": "docs/s",
@@ -389,7 +389,7 @@ class EsMetricsTests(TestCase):
                 "shard-count": 3
             },
             "challenge": "append",
-            "car": "defaults",
+            "provision_config": "defaults",
             "name": "indexing_throughput",
             "value": throughput,
             "unit": "docs/s",
@@ -426,7 +426,7 @@ class EsMetricsTests(TestCase):
                 "shard-count": 3
             },
             "challenge": "append",
-            "car": "defaults",
+            "provision_config": "defaults",
             "name": "custom_metric",
             "total": 1234567,
             "per-shard": [17, 18, 1289, 273, 222],
@@ -471,7 +471,7 @@ class EsMetricsTests(TestCase):
                 "shard-count": 3
             },
             "challenge": "append",
-            "car": "defaults",
+            "provision_config": "defaults",
             "name": "custom_metric",
             "total": 1234567,
             "per-shard": [17, 18, 1289, 273, 222],
@@ -980,7 +980,7 @@ class EsRaceStoreTests(TestCase):
                             "track": "unittest",
                             "challenge": "index",
                             "track-revision": "abc1",
-                            "car": "defaults",
+                            "provision_config": "defaults",
                             "results": {
                                 "young_gc_time": 100,
                                 "old_gc_time": 5,
@@ -1020,7 +1020,7 @@ class EsRaceStoreTests(TestCase):
         race = metrics.Race(rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
                             race_id=EsRaceStoreTests.RACE_ID, race_timestamp=EsRaceStoreTests.RACE_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params={"shard-count": 3},
-                            challenge=t.default_challenge, car="defaults", car_params={"heap_size": "512mb"}, plugin_params=None,
+                            challenge=t.default_challenge, provision_config="defaults", provision_config_params={"heap_size": "512mb"}, plugin_params=None,
                             track_revision="abc1", team_revision="abc12333", distribution_version="5.0.0",
                             distribution_flavor="default", revision="aaaeeef",
                             results=EsRaceStoreTests.DictHolder(
@@ -1060,8 +1060,8 @@ class EsRaceStoreTests(TestCase):
             },
             "challenge": "index",
             "track-revision": "abc1",
-            "car": "defaults",
-            "car-params": {
+            "provision_config": "defaults",
+            "provision_config-params": {
                 "heap_size": "512mb"
             },
             "cluster": {
@@ -1122,7 +1122,7 @@ class EsResultsStoreTests(TestCase):
         race = metrics.Race(rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
                             race_id=EsResultsStoreTests.RACE_ID, race_timestamp=EsResultsStoreTests.RACE_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params=None,
-                            challenge=t.default_challenge, car="4gheap", car_params=None, plugin_params={"some-param": True},
+                            challenge=t.default_challenge, provision_config="4gheap", provision_config_params=None, plugin_params={"some-param": True},
                             track_revision="abc1", team_revision="123ab", distribution_version="5.0.0",
                             distribution_flavor="oss", results=metrics.GlobalStats(
                                 {
@@ -1168,7 +1168,7 @@ class EsResultsStoreTests(TestCase):
                 "team-revision": "123ab",
                 "track-revision": "abc1",
                 "challenge": "index",
-                "car": "4gheap",
+                "provision_config": "4gheap",
                 "plugin-params": {
                     "some-param": True
                 },
@@ -1198,7 +1198,7 @@ class EsResultsStoreTests(TestCase):
                 "team-revision": "123ab",
                 "track-revision": "abc1",
                 "challenge": "index",
-                "car": "4gheap",
+                "provision_config": "4gheap",
                 "plugin-params": {
                     "some-param": True
                 },
@@ -1234,7 +1234,7 @@ class EsResultsStoreTests(TestCase):
                 "team-revision": "123ab",
                 "track-revision": "abc1",
                 "challenge": "index",
-                "car": "4gheap",
+                "provision_config": "4gheap",
                 "plugin-params": {
                     "some-param": True
                 },
@@ -1265,7 +1265,7 @@ class EsResultsStoreTests(TestCase):
         race = metrics.Race(rally_version="0.4.4", rally_revision=None, environment_name="unittest",
                             race_id=EsResultsStoreTests.RACE_ID, race_timestamp=EsResultsStoreTests.RACE_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params=None,
-                            challenge=t.default_challenge, car="4gheap", car_params=None, plugin_params=None,
+                            challenge=t.default_challenge, provision_config="4gheap", provision_config_params=None, plugin_params=None,
                             track_revision="abc1", team_revision="123ab", distribution_version=None,
                             distribution_flavor=None, results=metrics.GlobalStats(
                 {
@@ -1310,7 +1310,7 @@ class EsResultsStoreTests(TestCase):
                 "team-revision": "123ab",
                 "track-revision": "abc1",
                 "challenge": "index",
-                "car": "4gheap",
+                "provision_config": "4gheap",
                 "active": True,
                 "name": "old_gc_time",
                 "value": {
@@ -1336,7 +1336,7 @@ class EsResultsStoreTests(TestCase):
                 "team-revision": "123ab",
                 "track-revision": "abc1",
                 "challenge": "index",
-                "car": "4gheap",
+                "provision_config": "4gheap",
                 "active": True,
                 "name": "throughput",
                 "task": "index #1",
@@ -1368,7 +1368,7 @@ class EsResultsStoreTests(TestCase):
                 "team-revision": "123ab",
                 "track-revision": "abc1",
                 "challenge": "index",
-                "car": "4gheap",
+                "provision_config": "4gheap",
                 "active": True,
                 "name": "young_gc_time",
                 "value": {
@@ -1625,7 +1625,7 @@ class FileRaceStoreTests(TestCase):
         race = metrics.Race(rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
                             race_id=FileRaceStoreTests.RACE_ID, race_timestamp=FileRaceStoreTests.RACE_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params={"clients": 12},
-                            challenge=t.default_challenge, car="4gheap", car_params=None, plugin_params=None,
+                            challenge=t.default_challenge, provision_config="4gheap", provision_config_params=None, plugin_params=None,
                             track_revision="abc1", team_revision="abc12333", distribution_version="5.0.0",
                             distribution_flavor="default", revision="aaaeeef",
                             results=FileRaceStoreTests.DictHolder(
@@ -1662,8 +1662,8 @@ class StatsCalculatorTests(TestCase):
         cfg.add(config.Scope.application, "system", "time.start", datetime.datetime.now())
         cfg.add(config.Scope.application, "system", "race.id", "6ebc6e53-ee20-4b0c-99b4-09697987e9f4")
         cfg.add(config.Scope.application, "reporting", "datastore.type", "in-memory")
-        cfg.add(config.Scope.application, "mechanic", "car.names", ["unittest_car"])
-        cfg.add(config.Scope.application, "mechanic", "car.params", {})
+        cfg.add(config.Scope.application, "mechanic", "provision_config.names", ["unittest_provision_config"])
+        cfg.add(config.Scope.application, "mechanic", "provision_config.params", {})
         cfg.add(config.Scope.application, "mechanic", "plugin.params", {})
         cfg.add(config.Scope.application, "race", "user.tag", "")
         cfg.add(config.Scope.application, "race", "pipeline", "from-sources")
@@ -1747,8 +1747,8 @@ class StatsCalculatorTests(TestCase):
         cfg.add(config.Scope.application, "system", "time.start", datetime.datetime.now())
         cfg.add(config.Scope.application, "system", "race.id", "6ebc6e53-ee20-4b0c-99b4-09697987e9f4")
         cfg.add(config.Scope.application, "reporting", "datastore.type", "in-memory")
-        cfg.add(config.Scope.application, "mechanic", "car.names", ["unittest_car"])
-        cfg.add(config.Scope.application, "mechanic", "car.params", {})
+        cfg.add(config.Scope.application, "mechanic", "provision_config.names", ["unittest_provision_config"])
+        cfg.add(config.Scope.application, "mechanic", "provision_config.params", {})
         cfg.add(config.Scope.application, "mechanic", "plugin.params", {})
         cfg.add(config.Scope.application, "race", "user.tag", "")
         cfg.add(config.Scope.application, "race", "pipeline", "from-sources")
@@ -1812,7 +1812,7 @@ class GlobalStatsCalculatorTests(TestCase):
                                         "race-id": "fb26018b-428d-4528-b36b-cf8c54a303ec",
                                         "race-timestamp": "20200728T003905Z", "environment": "local",
                                         "track": "geonames", "challenge": "append-fast-with-conflicts",
-                                        "car": "defaults", "name": "service_time", "value": 72.67997100007051,
+                                        "provision_config": "defaults", "name": "service_time", "value": 72.67997100007051,
                                         "unit": "ms", "sample-type": "normal",
                                         "meta": {"source_revision": "7f634e9f44834fbc12724506cc1da681b0c3b1e3",
                                                  "distribution_version": "7.6.0", "distribution_flavor": "oss",

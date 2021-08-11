@@ -97,7 +97,7 @@ class DriverTests(TestCase):
         self.cfg.add(config.Scope.application, "track", "test.mode.enabled", True)
         self.cfg.add(config.Scope.application, "telemetry", "devices", [])
         self.cfg.add(config.Scope.application, "telemetry", "params", {})
-        self.cfg.add(config.Scope.application, "mechanic", "car.names", ["default"])
+        self.cfg.add(config.Scope.application, "mechanic", "provision_config.names", ["default"])
         self.cfg.add(config.Scope.application, "mechanic", "skip.rest.api.check", True)
         self.cfg.add(config.Scope.application, "client", "hosts",
                      DriverTests.Holder(all_hosts={"default": ["localhost:9200"]}))

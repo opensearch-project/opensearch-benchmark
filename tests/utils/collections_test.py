@@ -34,7 +34,7 @@ class TestMergeDicts:
     def test_can_merge_randomized_empty_and_non_empty_dict(self, seed):
         random.seed(seed)
 
-        dct = {"params": {"car-params": {"data_paths": "/mnt/local_ssd"}}}
+        dct = {"params": {"provision_config-params": {"data_paths": "/mnt/local_ssd"}}}
         d1: Mapping[Any, Any] = random.choice([{}, dct])
         d2: Mapping[Any, Any] = dct if not d1 else {}
 
@@ -43,8 +43,8 @@ class TestMergeDicts:
     def test_can_merge_nested_dicts(self):
         d1 = {
             "params": {
-                "car": "4gheap",
-                "car-params": {
+                "provision_config": "4gheap",
+                "provision_config-params": {
                     "additional_cluster_settings": {
                         "indices.queries.cache.size": "5%",
                         "transport.tcp.compress": True
@@ -54,17 +54,17 @@ class TestMergeDicts:
             }
         }
 
-        d2 = {"params": {"car-params": {"data_paths": "/mnt/local_ssd"}}}
+        d2 = {"params": {"provision_config-params": {"data_paths": "/mnt/local_ssd"}}}
 
         assert dict(collections.merge_dicts(d1, d2)) == {
             "params": {
-                "car-params": {
+                "provision_config-params": {
                     "additional_cluster_settings": {
                         "indices.queries.cache.size": "5%",
                         "transport.tcp.compress": True
                     },
                     "data_paths": "/mnt/local_ssd"},
-                "car": "4gheap",
+                "provision_config": "4gheap",
                 "unique-param": "foobar"
             }
         }

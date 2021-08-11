@@ -18,7 +18,7 @@
                 "track-params": {
                   "number_of_replicas": 1
                 },
-                "car": "4gheap",
+                "provision_config": "4gheap",
                 "node-count": 3
               }
             ]

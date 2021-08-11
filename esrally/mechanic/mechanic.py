@@ -34,16 +34,16 @@ METRIC_FLUSH_INTERVAL_SECONDS = 30
 
 
 def download(cfg):
-    car, plugins = load_team(cfg, external=False)
+    provision_config, plugins = load_team(cfg, external=False)
 
-    s = supplier.create(cfg, sources=False, distribution=True, car=car, plugins=plugins)
+    s = supplier.create(cfg, sources=False, distribution=True, provision_config=provision_config, plugins=plugins)
     binaries = s()
     console.println(json.dumps(binaries, indent=2), force=True)
 
 
 def install(cfg):
     root_path = paths.install_root(cfg)
-    car, plugins = load_team(cfg, external=False)
+    provision_config, plugins = load_team(cfg, external=False)
 
     # A non-empty distribution-version is provided
     distribution = bool(cfg.opts("mechanic", "distribution.version", mandatory=False))
@@ -56,8 +56,8 @@ def install(cfg):
     seed_hosts = cfg.opts("mechanic", "seed.hosts")
 
     if build_type == "tar":
-        binary_supplier = supplier.create(cfg, sources, distribution, car, plugins)
-        p = provisioner.local(cfg=cfg, car=car, plugins=plugins, ip=ip, http_port=http_port,
+        binary_supplier = supplier.create(cfg, sources, distribution, provision_config, plugins)
+        p = provisioner.local(cfg=cfg, provision_config=provision_config, plugins=plugins, ip=ip, http_port=http_port,
                               all_node_ips=seed_hosts, all_node_names=master_nodes, target_root=root_path,
                               node_name=node_name)
         node_config = p.prepare(binary=binary_supplier())
@@ -65,7 +65,7 @@ def install(cfg):
         if len(plugins) > 0:
             raise exceptions.SystemSetupError("You cannot specify any plugins for Docker clusters. Please remove "
                                               "\"--elasticsearch-plugins\" and try again.")
-        p = provisioner.docker(cfg=cfg, car=car, ip=ip, http_port=http_port, target_root=root_path, node_name=node_name)
+        p = provisioner.docker(cfg=cfg, provision_config=provision_config, ip=ip, http_port=http_port, target_root=root_path, node_name=node_name)
         # there is no binary for Docker that can be downloaded / built upfront
         node_config = p.prepare(binary=None)
     else:
@@ -312,7 +312,7 @@ class MechanicActor(actor.RallyActor):
         self.race_control = None
         self.cluster_launcher = None
         self.cluster = None
-        self.car = None
+        self.provision_config = None
         self.team_revision = None
         self.externally_provisioned = False
 
@@ -342,7 +342,7 @@ class MechanicActor(actor.RallyActor):
         self.logger.info("Received signal from race control to start engine.")
         self.race_control = sender
         self.cfg = msg.cfg
-        self.car, _ = load_team(self.cfg, msg.external)
+        self.provision_config, _ = load_team(self.cfg, msg.external)
         # TODO: This is implicitly set by #load_team() - can we gather this elsewhere?
         self.team_revision = self.cfg.opts("mechanic", "repository.revision")
 
@@ -595,17 +595,17 @@ class NodeMechanicActor(actor.RallyActor):
 #####################################################
 
 def load_team(cfg, external):
-    # externally provisioned clusters do not support cars / plugins
+    # externally provisioned clusters do not support provision_configs / plugins
     if external:
-        car = None
+        provision_config = None
         plugins = []
     else:
         team_path = team.team_path(cfg)
-        car = team.load_car(team_path, cfg.opts("mechanic", "car.names"), cfg.opts("mechanic", "car.params"))
+        provision_config = team.load_provision_config(team_path, cfg.opts("mechanic", "provision_config.names"), cfg.opts("mechanic", "provision_config.params"))
         plugins = team.load_plugins(team_path,
-                                    cfg.opts("mechanic", "car.plugins", mandatory=False),
+                                    cfg.opts("mechanic", "provision_config.plugins", mandatory=False),
                                     cfg.opts("mechanic", "plugin.params", mandatory=False))
-    return car, plugins
+    return provision_config, plugins
 
 
 def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_ids, sources=False, distribution=False,
@@ -613,16 +613,16 @@ def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_i
     race_root_path = paths.race_root(cfg)
     node_ids = cfg.opts("provisioning", "node.ids", mandatory=False)
     node_name_prefix = cfg.opts("provisioning", "node.name.prefix")
-    car, plugins = load_team(cfg, external)
+    provision_config, plugins = load_team(cfg, external)
 
     if sources or distribution:
-        s = supplier.create(cfg, sources, distribution, car, plugins)
+        s = supplier.create(cfg, sources, distribution, provision_config, plugins)
         p = []
         all_node_names = ["%s-%s" % (node_name_prefix, n) for n in all_node_ids]
         for node_id in node_ids:
             node_name = "%s-%s" % (node_name_prefix, node_id)
             p.append(
-                provisioner.local(cfg, car, plugins, node_ip, node_http_port, all_node_ips,
+                provisioner.local(cfg, provision_config, plugins, node_ip, node_http_port, all_node_ips,
                                   all_node_names, race_root_path, node_name))
         l = launcher.ProcessLauncher(cfg)
     elif external:
@@ -635,7 +635,7 @@ def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_i
         p = []
         for node_id in node_ids:
             node_name = "%s-%s" % (node_name_prefix, node_id)
-            p.append(provisioner.docker(cfg, car, node_ip, node_http_port, race_root_path, node_name))
+            p.append(provisioner.docker(cfg, provision_config, node_ip, node_http_port, race_root_path, node_name))
         l = launcher.DockerLauncher(cfg)
     else:
         # It is a programmer error (and not a user error) if this function is called with wrong parameters

@@ -54,7 +54,7 @@
         "challenge": {
           "type": "keyword"
         },
-        "car": {
+        "provision_config": {
           "type": "keyword"
         },
         "node-count": {

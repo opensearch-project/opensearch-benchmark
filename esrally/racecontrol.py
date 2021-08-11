@@ -207,11 +207,11 @@ class BenchmarkCoordinator:
         # store race initially (without any results) so other components can retrieve full metadata
         self.race_store.store_race(self.race)
         if self.race.challenge.auto_generated:
-            console.info("Racing on track [{}] and car {} with version [{}].\n"
-                         .format(self.race.track_name, self.race.car, self.race.distribution_version))
+            console.info("Racing on track [{}] and provision_config {} with version [{}].\n"
+                         .format(self.race.track_name, self.race.provision_config, self.race.distribution_version))
         else:
-            console.info("Racing on track [{}], challenge [{}] and car {} with version [{}].\n"
-                         .format(self.race.track_name, self.race.challenge_name, self.race.car, self.race.distribution_version))
+            console.info("Racing on track [{}], challenge [{}] and provision_config {} with version [{}].\n"
+                         .format(self.race.track_name, self.race.challenge_name, self.race.provision_config, self.race.distribution_version))
 
     def on_task_finished(self, new_metrics):
         self.logger.info("Task has finished.")
@@ -287,8 +287,8 @@ def from_distribution(cfg):
 
 def benchmark_only(cfg):
     set_default_hosts(cfg)
-    # We'll use a special car name for external benchmarks.
-    cfg.add(config.Scope.benchmark, "mechanic", "car.names", ["external"])
+    # We'll use a special provision_config name for external benchmarks.
+    cfg.add(config.Scope.benchmark, "mechanic", "provision_config.names", ["external"])
     return race(cfg, external=True)
 
 

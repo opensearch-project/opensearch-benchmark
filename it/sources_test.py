@@ -23,8 +23,8 @@ def test_sources(cfg):
     port = 19200
     it.wait_until_port_is_free(port_number=port)
     assert it.race(cfg, f"--revision=latest --track=geonames --test-mode  --target-hosts=127.0.0.1:{port} "
-                        f"--challenge=append-no-conflicts --car=4gheap --elasticsearch-plugins=analysis-icu") == 0
+                        f"--challenge=append-no-conflicts --provision_config=4gheap --elasticsearch-plugins=analysis-icu") == 0
 
     it.wait_until_port_is_free(port_number=port)
     assert it.race(cfg, f"--pipeline=from-sources --track=geonames --test-mode --target-hosts=127.0.0.1:{port} "
-                        f"--challenge=append-no-conflicts-index-only --car=\"4gheap,ea\"") == 0
+                        f"--challenge=append-no-conflicts-index-only --provision_config=\"4gheap,ea\"") == 0

@@ -106,8 +106,8 @@ def create_arg_parser():
         "configuration",
         metavar="configuration",
         help="The configuration for which Rally should show the available options. "
-             "Possible values are: telemetry, tracks, pipelines, races, cars, elasticsearch-plugins",
-        choices=["telemetry", "tracks", "pipelines", "races", "cars", "elasticsearch-plugins"])
+             "Possible values are: telemetry, tracks, pipelines, races, provision_configs, elasticsearch-plugins",
+        choices=["telemetry", "tracks", "pipelines", "races", "provision_configs", "elasticsearch-plugins"])
     list_parser.add_argument(
         "--limit",
         help="Limit the number of search results for recent races (default: 10).",
@@ -171,7 +171,7 @@ def create_arg_parser():
         metavar="artifact",
         help="The artifact to create. Possible values are: charts",
         choices=["charts"])
-    # We allow to either have a chart-spec-path *or* define a chart-spec on the fly with track, challenge and car. Convincing
+    # We allow to either have a chart-spec-path *or* define a chart-spec on the fly with track, challenge and provision_config. Convincing
     # argparse to validate that everything is correct *might* be doable but it is simpler to just do this manually.
     generate_parser.add_argument(
         "--chart-spec-path",
@@ -219,7 +219,7 @@ def create_arg_parser():
     download_parser = subparsers.add_parser("download", help="Downloads an artifact")
     download_parser.add_argument(
         "--team-repository",
-        help="Define the repository from where Rally will load teams and cars (default: default).",
+        help="Define the repository from where Rally will load teams and provision_configs (default: default).",
         default="default")
     download_parser.add_argument(
         "--team-revision",
@@ -227,7 +227,7 @@ def create_arg_parser():
         default=None)
     download_parser.add_argument(
         "--team-path",
-        help="Define the path to the car and plugin configurations to use.")
+        help="Define the path to the provision_config and plugin configurations to use.")
     download_parser.add_argument(
         "--distribution-version",
         type=supported_es_version,
@@ -239,12 +239,12 @@ def create_arg_parser():
         help="Define the repository from where the Elasticsearch distribution should be downloaded (default: release).",
         default="release")
     download_parser.add_argument(
-        "--car",
-        help=f"Define the car to use. List possible cars with `{PROGRAM_NAME} list cars` (default: defaults).",
+        "--provision_config",
+        help=f"Define the provision_config to use. List possible provision_configs with `{PROGRAM_NAME} list provision_configs` (default: defaults).",
         default="defaults")  # optimized for local usage
     download_parser.add_argument(
-        "--car-params",
-        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the car.",
+        "--provision_config-params",
+        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the provision_config.",
         default=""
     )
     download_parser.add_argument(
@@ -272,7 +272,7 @@ def create_arg_parser():
         default="tar")
     install_parser.add_argument(
         "--team-repository",
-        help="Define the repository from where Rally will load teams and cars (default: default).",
+        help="Define the repository from where Rally will load teams and provision_configs (default: default).",
         default="default")
     install_parser.add_argument(
         "--team-revision",
@@ -280,7 +280,7 @@ def create_arg_parser():
         default=None)
     install_parser.add_argument(
         "--team-path",
-        help="Define the path to the car and plugin configurations to use.")
+        help="Define the path to the provision_config and plugin configurations to use.")
     install_parser.add_argument(
         "--runtime-jdk",
         type=runtime_jdk,
@@ -297,12 +297,12 @@ def create_arg_parser():
              "Check https://www.elastic.co/downloads/elasticsearch for released versions.",
         default="")
     install_parser.add_argument(
-        "--car",
-        help=f"Define the car to use. List possible cars with `{PROGRAM_NAME} list cars` (default: defaults).",
+        "--provision_config",
+        help=f"Define the provision_config to use. List possible provision_configs with `{PROGRAM_NAME} list provision_configs` (default: defaults).",
         default="defaults")  # optimized for local usage
     install_parser.add_argument(
-        "--car-params",
-        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the car.",
+        "--provision_config-params",
+        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the provision_config.",
         default=""
     )
     install_parser.add_argument(
@@ -390,10 +390,10 @@ def create_arg_parser():
             default="")
         p.add_argument(
             "--team-path",
-            help="Define the path to the car and plugin configurations to use.")
+            help="Define the path to the provision_config and plugin configurations to use.")
         p.add_argument(
             "--team-repository",
-            help="Define the repository from where Rally will load teams and cars (default: default).",
+            help="Define the repository from where Rally will load teams and provision_configs (default: default).",
             default="default")
         p.add_argument(
             "--team-revision",
@@ -430,12 +430,12 @@ def create_arg_parser():
         "--challenge",
         help=f"Define the challenge to use. List possible challenges for tracks with `{PROGRAM_NAME} list tracks`.")
     race_parser.add_argument(
-        "--car",
-        help=f"Define the car to use. List possible cars with `{PROGRAM_NAME} list cars` (default: defaults).",
+        "--provision_config",
+        help=f"Define the provision_config to use. List possible provision_configs with `{PROGRAM_NAME} list provision_configs` (default: defaults).",
         default="defaults")  # optimized for local usage
     race_parser.add_argument(
-        "--car-params",
-        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the car.",
+        "--provision_config-params",
+        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the provision_config.",
         default=""
     )
     race_parser.add_argument(
@@ -593,8 +593,8 @@ def dispatch_list(cfg):
         racecontrol.list_pipelines()
     elif what == "races":
         metrics.list_races(cfg)
-    elif what == "cars":
-        team.list_cars(cfg)
+    elif what == "provision_configs":
+        team.list_provision_configs(cfg)
     elif what == "elasticsearch-plugins":
         team.list_plugins(cfg)
     else:
@@ -742,7 +742,7 @@ def configure_track_params(arg_parser, args, cfg, command_requires_track=True):
         cfg.add(config.Scope.applicationOverride, "track", "exclude.tasks", opts.csv_to_list(args.exclude_tasks))
 
 
-def configure_mechanic_params(args, cfg, command_requires_car=True):
+def configure_mechanic_params(args, cfg, command_requires_provision_config=True):
     if args.team_path:
         cfg.add(config.Scope.applicationOverride, "mechanic", "team.path", os.path.abspath(io.normalize_path(args.team_path)))
         cfg.add(config.Scope.applicationOverride, "mechanic", "repository.name", None)
@@ -751,12 +751,12 @@ def configure_mechanic_params(args, cfg, command_requires_car=True):
         cfg.add(config.Scope.applicationOverride, "mechanic", "repository.name", args.team_repository)
         cfg.add(config.Scope.applicationOverride, "mechanic", "repository.revision", args.team_revision)
 
-    if command_requires_car:
+    if command_requires_provision_config:
         if args.distribution_version:
             cfg.add(config.Scope.applicationOverride, "mechanic", "distribution.version", args.distribution_version)
         cfg.add(config.Scope.applicationOverride, "mechanic", "distribution.repository", args.distribution_repository)
-        cfg.add(config.Scope.applicationOverride, "mechanic", "car.names", opts.csv_to_list(args.car))
-        cfg.add(config.Scope.applicationOverride, "mechanic", "car.params", opts.to_dict(args.car_params))
+        cfg.add(config.Scope.applicationOverride, "mechanic", "provision_config.names", opts.csv_to_list(args.provision_config))
+        cfg.add(config.Scope.applicationOverride, "mechanic", "provision_config.params", opts.to_dict(args.provision_config_params))
 
 
 def configure_connection_params(arg_parser, args, cfg):
@@ -791,7 +791,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
         elif sub_command == "list":
             cfg.add(config.Scope.applicationOverride, "system", "list.config.option", args.configuration)
             cfg.add(config.Scope.applicationOverride, "system", "list.races.max_results", args.limit)
-            configure_mechanic_params(args, cfg, command_requires_car=False)
+            configure_mechanic_params(args, cfg, command_requires_provision_config=False)
             configure_track_params(arg_parser, args, cfg, command_requires_track=False)
             dispatch_list(cfg)
         elif sub_command == "download":
@@ -809,7 +809,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "mechanic", "node.name", args.node_name)
             cfg.add(config.Scope.applicationOverride, "mechanic", "master.nodes", opts.csv_to_list(args.master_nodes))
             cfg.add(config.Scope.applicationOverride, "mechanic", "seed.hosts", opts.csv_to_list(args.seed_hosts))
-            cfg.add(config.Scope.applicationOverride, "mechanic", "car.plugins", opts.csv_to_list(args.elasticsearch_plugins))
+            cfg.add(config.Scope.applicationOverride, "mechanic", "provision_config.plugins", opts.csv_to_list(args.elasticsearch_plugins))
             cfg.add(config.Scope.applicationOverride, "mechanic", "plugin.params", opts.to_dict(args.plugin_params))
             configure_mechanic_params(args, cfg)
             mechanic.install(cfg)
@@ -846,7 +846,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             configure_mechanic_params(args, cfg)
             cfg.add(config.Scope.applicationOverride, "mechanic", "runtime.jdk", args.runtime_jdk)
             cfg.add(config.Scope.applicationOverride, "mechanic", "source.revision", args.revision)
-            cfg.add(config.Scope.applicationOverride, "mechanic", "car.plugins", opts.csv_to_list(args.elasticsearch_plugins))
+            cfg.add(config.Scope.applicationOverride, "mechanic", "provision_config.plugins", opts.csv_to_list(args.elasticsearch_plugins))
             cfg.add(config.Scope.applicationOverride, "mechanic", "plugin.params", opts.to_dict(args.plugin_params))
             cfg.add(config.Scope.applicationOverride, "mechanic", "preserve.install", convert.to_bool(args.preserve_install))
             cfg.add(config.Scope.applicationOverride, "mechanic", "skip.rest.api.check", convert.to_bool(args.skip_rest_api_check))

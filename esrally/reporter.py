@@ -330,7 +330,7 @@ class ComparisonReporter:
         print_internal("  Race timestamp: %s" % r1.race_timestamp)
         if r1.challenge_name:
             print_internal("  Challenge: %s" % r1.challenge_name)
-        print_internal("  Car: %s" % r1.car_name)
+        print_internal("  ProvisionConfig: %s" % r1.provision_config_name)
         if r1.user_tags:
             r1_user_tags = ", ".join(["%s=%s" % (k, v) for k, v in sorted(r1.user_tags.items())])
             print_internal("  User tags: %s" % r1_user_tags)
@@ -340,7 +340,7 @@ class ComparisonReporter:
         print_internal("  Race timestamp: %s" % r2.race_timestamp)
         if r2.challenge_name:
             print_internal("  Challenge: %s" % r2.challenge_name)
-        print_internal("  Car: %s" % r2.car_name)
+        print_internal("  ProvisionConfig: %s" % r2.provision_config_name)
         if r2.user_tags:
             r2_user_tags = ", ".join(["%s=%s" % (k, v) for k, v in sorted(r2.user_tags.items())])
             print_internal("  User tags: %s" % r2_user_tags)

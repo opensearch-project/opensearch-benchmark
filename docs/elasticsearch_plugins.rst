@@ -148,7 +148,7 @@ Then you can use ``--elasticsearch-plugins=my-plugin`` to run a benchmark with y
 Plugins which require configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-If the plugin needs a custom configuration we recommend to fork the `official Rally teams repository <https://github.com/elastic/rally-teams>`_ and add your plugin configuration there. Suppose, you want to benchmark "my-plugin" which has the following settings that can be configured in ``elasticsearch.yml``:
+If the plugin needs a custom configuration we recommend to fork the `official Rally teams repository <https://github.com/IanHoang/rally-teams>`_ and add your plugin configuration there. Suppose, you want to benchmark "my-plugin" which has the following settings that can be configured in ``elasticsearch.yml``:
 
 * ``myplugin.active``: a boolean which activates the plugin
 * ``myplugin.mode``: Either ``simple`` or ``advanced``

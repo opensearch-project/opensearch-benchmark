@@ -4,7 +4,7 @@ set -e
 source .elastic-version
 
 # Start metrics store
-docker-compose -f ./metricstore-docker-compose.yml up -d 
+docker-compose -f ./metricstore-docker-compose.yml up -d
 
 # Start Elasticsearch
 docker-compose up -d
@@ -96,7 +96,7 @@ datastore.password = notinuse
 default.url = https://github.com/IanHoang/my-workloads
 
 [teams]
-default.url = https://github.com/elastic/rally-teams
+default.url = https://github.com/IanHoang/rally-teams
 
 [defaults]
 preserve_benchmark_candidate = False

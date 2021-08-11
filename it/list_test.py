@@ -24,8 +24,8 @@ def test_list_races(cfg):
 
 
 @it.rally_in_mem
-def test_list_cars(cfg):
-    assert it.esrally(cfg, "list cars") == 0
+def test_list_provision_configs(cfg):
+    assert it.esrally(cfg, "list provision_configs") == 0
 
 
 @it.rally_in_mem
@@ -36,7 +36,7 @@ def test_list_elasticsearch_plugins(cfg):
 @it.rally_in_mem
 def test_list_tracks(cfg):
     assert it.esrally(cfg, "list tracks") == 0
-    assert it.esrally(cfg, "list tracks --track-repository=eventdata") == 0
+    # assert it.esrally(cfg, "list tracks --track-repository=eventdata") == 0
     assert it.esrally(cfg, "list tracks --track-repository=default "
                            "--track-revision=4080dc9850d07e23b6fc7cfcdc7cf57b14e5168d") == 0
 

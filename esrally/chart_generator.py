@@ -45,7 +45,7 @@ def index_label(race_config):
     if race_config.label:
         return race_config.label
 
-    label = "%s-%s" % (race_config.challenge, race_config.car)
+    label = "%s-%s" % (race_config.challenge, race_config.provision_config)
     if race_config.plugins:
         label += "-%s" % race_config.plugins.replace(":", "-").replace(",", "+")
     if race_config.node_count > 1:
@@ -78,7 +78,7 @@ class BarCharts:
             return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{race_config.name}\""
         else:
             return f"environment:\"{environment}\" AND active:true AND track:\"{race_config.track}\""\
-                   f" AND challenge:\"{race_config.challenge}\" AND car:\"{race_config.car}\" AND node-count:{race_config.node_count}"
+                   f" AND challenge:\"{race_config.challenge}\" AND provision_config:\"{race_config.provision_config}\" AND node-count:{race_config.node_count}"
 
     @staticmethod
     def gc(title, environment, race_config):
@@ -803,7 +803,7 @@ class TimeSeriesCharts:
             return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{race_config.name}\"{nightly_extra_filter}"
         else:
             return f"environment:\"{environment}\" AND active:true AND track:\"{race_config.track}\""\
-                   f" AND challenge:\"{race_config.challenge}\" AND car:\"{race_config.car}\" AND node-count:{race_config.node_count}"
+                   f" AND challenge:\"{race_config.challenge}\" AND provision_config:\"{race_config.provision_config}\" AND node-count:{race_config.node_count}"
 
     @staticmethod
     def gc(title, environment, race_config):
@@ -1721,7 +1721,7 @@ def generate_dashboard(chart_type, environment, track, charts, flavor=None):
 
 
 class RaceConfig:
-    def __init__(self, track, cfg=None, flavor=None, es_license=None, challenge=None, car=None, node_count=None, charts=None):
+    def __init__(self, track, cfg=None, flavor=None, es_license=None, challenge=None, provision_config=None, node_count=None, charts=None):
         self.track = track
         if cfg:
             self.configuration = cfg
@@ -1731,7 +1731,7 @@ class RaceConfig:
             self.configuration = {
                 "charts": charts,
                 "challenge": challenge,
-                "car": car,
+                "provision_config": provision_config,
                 "node-count": node_count
             }
 
@@ -1764,8 +1764,8 @@ class RaceConfig:
         return self.configuration["challenge"]
 
     @property
-    def car(self):
-        return self.configuration["car"]
+    def provision_config(self):
+        return self.configuration["provision_config"]
 
     @property
     def plugins(self):
