@@ -345,7 +345,9 @@ def create_arg_parser():
         "--installation-id",
         required=True,
         help="The id of the installation to start",
-        # the default will be dynamically derived by test_execution_orchestrator based on the presence / absence of other command line options
+        # the default will be dynamically derived by
+        # test_execution_orchestrator based on the
+        # presence / absence of other command line options
         default="")
     start_parser.add_argument(
         "--race-id",
@@ -373,7 +375,9 @@ def create_arg_parser():
         "--installation-id",
         required=True,
         help="The id of the installation to stop",
-        # the default will be dynamically derived by test_execution_orchestrator based on the presence / absence of other command line options
+        # the default will be dynamically derived by
+        # test_execution_orchestrator based on the
+        # presence / absence of other command line options
         default="")
     stop_parser.add_argument(
         "--preserve-install",
@@ -407,7 +411,9 @@ def create_arg_parser():
     race_parser.add_argument(
         "--pipeline",
         help="Select the pipeline to run.",
-        # the default will be dynamically derived by test_execution_orchestrator based on the presence / absence of other command line options
+        # the default will be dynamically derived by
+        # test_execution_orchestrator based on the
+        # presence / absence of other command line options
         default="")
     race_parser.add_argument(
         "--revision",
