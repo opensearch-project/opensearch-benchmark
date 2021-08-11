@@ -1130,9 +1130,15 @@ class EsResultsStoreTests(TestCase):
         race = metrics.Race(rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
                             race_id=EsResultsStoreTests.RACE_ID, race_timestamp=EsResultsStoreTests.RACE_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params=None,
-                            challenge=t.default_challenge, provision_config="4gheap", provision_config_params=None, plugin_params={"some-param": True},
-                            track_revision="abc1", team_revision="123ab", distribution_version="5.0.0",
-                            distribution_flavor="oss", results=metrics.GlobalStats(
+                            challenge=t.default_challenge,
+                            provision_config="4gheap",
+                            provision_config_params=None,
+                            plugin_params={"some-param": True},
+                            track_revision="abc1",
+                            team_revision="123ab",
+                            distribution_version="5.0.0",
+                            distribution_flavor="oss",
+                            results=metrics.GlobalStats(
                                 {
                                     "young_gc_time": 100,
                                     "old_gc_time": 5,

@@ -162,7 +162,8 @@ class ProvisionConfigLoader:
         provision_config_config_file = self._provision_config_file(name)
         if not io.exists(provision_config_config_file):
             raise exceptions.SystemSetupError(
-                "Unknown provision_config [{}]. List the available provision_configs with {} list provision_configs.".format(name, PROGRAM_NAME))
+                "Unknown provision_config [{}]. List the available provision_configs with {} list provision_configs.".format(
+                    name, PROGRAM_NAME))
         config = self._config_loader(provision_config_config_file)
         root_paths = []
         config_paths = []

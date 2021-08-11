@@ -17,7 +17,7 @@
 
 # import uuid
 
-import pytest
+# import pytest
 
 import it
 

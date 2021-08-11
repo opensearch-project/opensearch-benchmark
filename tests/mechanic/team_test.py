@@ -128,7 +128,9 @@ class ProvisionConfigLoaderTests(TestCase):
     def test_raises_error_on_unknown_provision_config(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             team.load_provision_config(self.team_dir, ["don_t-know-you"])
-        self.assertRegex(ctx.exception.args[0], r"Unknown provision_config \[don_t-know-you\]. List the available provision_configs with [^\s]+ list provision_configs.")
+        self.assertRegex(
+            ctx.exception.args[0],
+            r"Unknown provision_config \[don_t-know-you\]. List the available provision_configs with [^\s]+ list provision_configs.")
 
     def test_raises_error_on_empty_config_base(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
