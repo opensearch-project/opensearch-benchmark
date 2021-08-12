@@ -366,8 +366,8 @@ class MetricsStore:
         """
         Opens a metrics store for a specific test_execution, track, challenge and car.
 
-        :param test_execution_id: The test_execution id. This attribute is sufficient to uniquely identify a test_execution.
-        :param test_execution_timestamp: The test_execution timestamp as a datetime.
+        :param test_ex_id: The test execution id. This attribute is sufficient to uniquely identify a test_execution.
+        :param test_ex_timestamp: The test execution timestamp as a datetime.
         :param track_name: Track name.
         :param challenge_name: Challenge name.
         :param car_name: Car name.
