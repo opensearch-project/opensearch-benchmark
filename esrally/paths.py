@@ -18,7 +18,7 @@ import os
 
 
 def rally_confdir():
-    default_home = os.path.expanduser("/tmp/")
+    default_home = os.path.expanduser("~")
     return os.path.join(os.getenv("RALLY_HOME", default_home), ".rally")
 
 
