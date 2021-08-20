@@ -460,11 +460,12 @@ class BulkIndex(Runner):
 
         * ``pipeline``: If present, runs the the specified ingest pipeline for this bulk.
         * ``detailed-results``: If ``True``, the runner will analyze the response and add detailed meta-data. Defaults to ``False``. Note
-        that this has a very significant impact on performance and will very likely cause a bottleneck in the benchmark driver so please
+        that this has a very significant impact on performance and will very
+        likely cause a bottleneck in the benchmark worker_coordinator so please
         be very cautious enabling this feature. Our own measurements have shown a median overhead of several thousand times (execution time
          is in the single digit microsecond range when this feature is disabled and in the single digit millisecond range when this feature
          is enabled; numbers based on a bulk size of 500 elements and no errors). For details please refer to the respective benchmarks
-         in ``benchmarks/driver``.
+         in ``benchmarks/worker_coordinator``.
         * ``request-timeout``: a non-negative float indicating the client-side timeout for the operation.  If not present, defaults to
          ``None`` and potentially falls back to the global timeout setting.
         """
@@ -1022,7 +1023,7 @@ class SearchAfterExtractor:
 
     def _get_last_sort(self, response):
         """
-        Algorithm is based on findings from benchmarks/driver/parsing_test.py. Potentially a huge time sink if changed.
+        Algorithm is based on findings from benchmarks/worker_coordinator/parsing_test.py. Potentially a huge time sink if changed.
         """
         response_str = response.getvalue().decode("UTF-8")
         index_of_last_sort = response_str.rfind('"sort"')

@@ -17,7 +17,7 @@
 
 import pytest
 
-from esrally.driver import runner
+from esrally.worker_coordinator import runner
 
 bulk_index = runner.BulkIndex()
 

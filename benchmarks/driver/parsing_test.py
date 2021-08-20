@@ -23,7 +23,7 @@ from unittest import TestCase
 import pytest
 import ujson
 
-from esrally.driver import runner
+from esrally.worker_coordinator import runner
 
 @pytest.mark.benchmark(
     group="parse",

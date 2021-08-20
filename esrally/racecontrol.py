@@ -23,7 +23,7 @@ import sys
 import tabulate
 import thespian.actors
 
-from esrally import actor, config, doc_link, driver, exceptions, mechanic, metrics, reporter, track, version, PROGRAM_NAME
+from esrally import actor, config, doc_link, worker_coordinator, exceptions, mechanic, metrics, reporter, track, version, PROGRAM_NAME
 from esrally.utils import console, opts, versions
 
 
@@ -79,7 +79,7 @@ class BenchmarkActor(actor.RallyActor):
         self.cfg = None
         self.start_sender = None
         self.mechanic = None
-        self.main_driver = None
+        self.main_worker_coordinator = None
         self.coordinator = None
 
     def receiveMsg_PoisonMessage(self, msg, sender):
@@ -110,21 +110,24 @@ class BenchmarkActor(actor.RallyActor):
     def receiveMsg_EngineStarted(self, msg, sender):
         self.logger.info("Mechanic has started engine successfully.")
         self.coordinator.race.team_revision = msg.team_revision
-        self.main_driver = self.createActor(driver.DriverActor, targetActorRequirements={"coordinator": True})
-        self.logger.info("Telling driver to prepare for benchmarking.")
-        self.send(self.main_driver, driver.PrepareBenchmark(self.cfg, self.coordinator.current_track))
+        self.main_worker_coordinator = self.createActor(
+            worker_coordinator.WorkerCoordinatorActor,
+            targetActorRequirements={"coordinator": True}
+            )
+        self.logger.info("Telling worker_coordinator to prepare for benchmarking.")
+        self.send(self.main_worker_coordinator, worker_coordinator.PrepareBenchmark(self.cfg, self.coordinator.current_track))
 
     @actor.no_retry("race control")  # pylint: disable=no-value-for-parameter
     def receiveMsg_PreparationComplete(self, msg, sender):
         self.coordinator.on_preparation_complete(msg.distribution_flavor, msg.distribution_version, msg.revision)
-        self.logger.info("Telling driver to start benchmark.")
-        self.send(self.main_driver, driver.StartBenchmark())
+        self.logger.info("Telling worker_coordinator to start benchmark.")
+        self.send(self.main_worker_coordinator, worker_coordinator.StartBenchmark())
 
     @actor.no_retry("race control")  # pylint: disable=no-value-for-parameter
     def receiveMsg_TaskFinished(self, msg, sender):
         self.coordinator.on_task_finished(msg.metrics)
         # We choose *NOT* to reset our own metrics store's timer as this one is only used to collect complete metrics records from
-        # other stores (used by driver and mechanic). Hence there is no need to reset the timer in our own metrics store.
+        # other stores (used by worker_coordinator and mechanic). Hence there is no need to reset the timer in our own metrics store.
         self.send(self.mechanic, mechanic.ResetRelativeTime(msg.next_task_scheduled_in))
 
     @actor.no_retry("race control")  # pylint: disable=no-value-for-parameter
@@ -143,8 +146,8 @@ class BenchmarkActor(actor.RallyActor):
     @actor.no_retry("race control")  # pylint: disable=no-value-for-parameter
     def receiveMsg_BenchmarkComplete(self, msg, sender):
         self.coordinator.on_benchmark_complete(msg.metrics)
-        self.send(self.main_driver, thespian.actors.ActorExitRequest())
-        self.main_driver = None
+        self.send(self.main_worker_coordinator, thespian.actors.ActorExitRequest())
+        self.main_worker_coordinator = None
         self.logger.info("Asking mechanic to stop the engine.")
         self.send(self.mechanic, mechanic.StopEngine())
 

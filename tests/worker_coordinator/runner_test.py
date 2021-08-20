@@ -25,7 +25,7 @@ from unittest import TestCase
 import elasticsearch
 
 from esrally import client, exceptions
-from esrally.driver import runner
+from esrally.worker_coordinator import runner
 from tests import run_async, as_future
 
 
