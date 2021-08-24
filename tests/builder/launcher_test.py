@@ -28,8 +28,8 @@ import elasticsearch
 import psutil
 
 from esrally import config, exceptions, telemetry
-from esrally.mechanic import launcher, cluster
-from esrally.mechanic.provisioner import NodeConfiguration
+from esrally.builder import launcher, cluster
+from esrally.builder.provisioner import NodeConfiguration
 from esrally.metrics import InMemoryMetricsStore
 
 
@@ -160,16 +160,16 @@ MOCK_PID_VALUE = 1234
 
 class ProcessLauncherTests(TestCase):
     @mock.patch('subprocess.Popen', new=MockPopen)
-    @mock.patch('esrally.mechanic.java_resolver.java_home', return_value=(12, "/java_home/"))
+    @mock.patch('esrally.builder.java_resolver.java_home', return_value=(12, "/java_home/"))
     @mock.patch('esrally.utils.jvm.supports_option', return_value=True)
     @mock.patch('esrally.utils.io.get_size')
     @mock.patch('os.chdir')
-    @mock.patch('esrally.mechanic.launcher.wait_for_pidfile', return_value=MOCK_PID_VALUE)
+    @mock.patch('esrally.builder.launcher.wait_for_pidfile', return_value=MOCK_PID_VALUE)
     @mock.patch('psutil.Process', new=MockProcess)
     def test_daemon_start_stop(self, wait_for_pidfile, chdir, get_size, supports, java_home):
         cfg = config.Config()
         cfg.add(config.Scope.application, "node", "root.dir", "test")
-        cfg.add(config.Scope.application, "mechanic", "runtime.jdk", None)
+        cfg.add(config.Scope.application, "builder", "runtime.jdk", None)
         cfg.add(config.Scope.application, "telemetry", "devices", [])
         cfg.add(config.Scope.application, "telemetry", "params", None)
         cfg.add(config.Scope.application, "system", "env.name", "test")

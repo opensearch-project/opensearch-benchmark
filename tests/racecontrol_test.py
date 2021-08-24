@@ -64,7 +64,7 @@ def test_prevents_running_an_unknown_pipeline():
     cfg = config.Config()
     cfg.add(config.Scope.benchmark, "system", "race.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
     cfg.add(config.Scope.benchmark, "race", "pipeline", "invalid")
-    cfg.add(config.Scope.benchmark, "mechanic", "distribution.version", "5.0.0")
+    cfg.add(config.Scope.benchmark, "builder", "distribution.version", "5.0.0")
 
     with pytest.raises(
             exceptions.SystemSetupError,
@@ -102,7 +102,7 @@ def test_runs_a_known_pipeline(unittest_pipeline):
     cfg = config.Config()
     cfg.add(config.Scope.benchmark, "system", "race.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
     cfg.add(config.Scope.benchmark, "race", "pipeline", "unit-test-pipeline")
-    cfg.add(config.Scope.benchmark, "mechanic", "distribution.version", "")
+    cfg.add(config.Scope.benchmark, "builder", "distribution.version", "")
 
     racecontrol.run(cfg)
 

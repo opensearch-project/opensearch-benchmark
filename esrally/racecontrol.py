@@ -23,7 +23,7 @@ import sys
 import tabulate
 import thespian.actors
 
-from esrally import actor, config, doc_link, worker_coordinator, exceptions, mechanic, metrics, reporter, track, version, PROGRAM_NAME
+from esrally import actor, config, doc_link, worker_coordinator, exceptions, builder, metrics, reporter, track, version, PROGRAM_NAME
 from esrally.utils import console, opts, versions
 
 
@@ -78,7 +78,7 @@ class BenchmarkActor(actor.RallyActor):
         super().__init__()
         self.cfg = None
         self.start_sender = None
-        self.mechanic = None
+        self.builder = None
         self.main_worker_coordinator = None
         self.coordinator = None
 
@@ -97,9 +97,9 @@ class BenchmarkActor(actor.RallyActor):
         self.cfg = msg.cfg
         self.coordinator = BenchmarkCoordinator(msg.cfg)
         self.coordinator.setup(sources=msg.sources)
-        self.logger.info("Asking mechanic to start the engine.")
-        self.mechanic = self.createActor(mechanic.MechanicActor, targetActorRequirements={"coordinator": True})
-        self.send(self.mechanic, mechanic.StartEngine(self.cfg,
+        self.logger.info("Asking builder to start the engine.")
+        self.builder = self.createActor(builder.BuilderActor, targetActorRequirements={"coordinator": True})
+        self.send(self.builder, builder.StartEngine(self.cfg,
                                                       self.coordinator.metrics_store.open_context,
                                                       msg.sources,
                                                       msg.distribution,
@@ -108,7 +108,7 @@ class BenchmarkActor(actor.RallyActor):
 
     @actor.no_retry("race control")  # pylint: disable=no-value-for-parameter
     def receiveMsg_EngineStarted(self, msg, sender):
-        self.logger.info("Mechanic has started engine successfully.")
+        self.logger.info("Builder has started engine successfully.")
         self.coordinator.race.team_revision = msg.team_revision
         self.main_worker_coordinator = self.createActor(
             worker_coordinator.WorkerCoordinatorActor,
@@ -127,8 +127,8 @@ class BenchmarkActor(actor.RallyActor):
     def receiveMsg_TaskFinished(self, msg, sender):
         self.coordinator.on_task_finished(msg.metrics)
         # We choose *NOT* to reset our own metrics store's timer as this one is only used to collect complete metrics records from
-        # other stores (used by worker_coordinator and mechanic). Hence there is no need to reset the timer in our own metrics store.
-        self.send(self.mechanic, mechanic.ResetRelativeTime(msg.next_task_scheduled_in))
+        # other stores (used by worker_coordinator and builder). Hence there is no need to reset the timer in our own metrics store.
+        self.send(self.builder, builder.ResetRelativeTime(msg.next_task_scheduled_in))
 
     @actor.no_retry("race control")  # pylint: disable=no-value-for-parameter
     def receiveMsg_BenchmarkCancelled(self, msg, sender):
@@ -148,12 +148,12 @@ class BenchmarkActor(actor.RallyActor):
         self.coordinator.on_benchmark_complete(msg.metrics)
         self.send(self.main_worker_coordinator, thespian.actors.ActorExitRequest())
         self.main_worker_coordinator = None
-        self.logger.info("Asking mechanic to stop the engine.")
-        self.send(self.mechanic, mechanic.StopEngine())
+        self.logger.info("Asking builder to stop the engine.")
+        self.send(self.builder, builder.StopEngine())
 
     @actor.no_retry("race control")  # pylint: disable=no-value-for-parameter
     def receiveMsg_EngineStopped(self, msg, sender):
-        self.logger.info("Mechanic has stopped engine successfully.")
+        self.logger.info("Builder has stopped engine successfully.")
         self.send(self.start_sender, Success())
 
 
@@ -174,10 +174,10 @@ class BenchmarkCoordinator:
         # to load the track we need to know the correct cluster distribution version. Usually, this value should be set
         # but there are rare cases (external pipeline and user did not specify the distribution version) where we need
         # to derive it ourselves. For source builds we always assume "master"
-        if not sources and not self.cfg.exists("mechanic", "distribution.version"):
-            distribution_version = mechanic.cluster_distribution_version(self.cfg)
+        if not sources and not self.cfg.exists("builder", "distribution.version"):
+            distribution_version = builder.cluster_distribution_version(self.cfg)
             self.logger.info("Automatically derived distribution version [%s]", distribution_version)
-            self.cfg.add(config.Scope.benchmark, "mechanic", "distribution.version", distribution_version)
+            self.cfg.add(config.Scope.benchmark, "builder", "distribution.version", distribution_version)
             min_es_version = versions.Version.from_string(version.minimum_es_version())
             specified_version = versions.Version.from_string(distribution_version)
             if specified_version < min_es_version:
@@ -291,7 +291,7 @@ def from_distribution(cfg):
 def benchmark_only(cfg):
     set_default_hosts(cfg)
     # We'll use a special car name for external benchmarks.
-    cfg.add(config.Scope.benchmark, "mechanic", "car.names", ["external"])
+    cfg.add(config.Scope.benchmark, "builder", "car.names", ["external"])
     return race(cfg, external=True)
 
 
@@ -330,7 +330,7 @@ def run(cfg):
     logger.info("Race id [%s]", race_id)
     if len(name) == 0:
         # assume from-distribution pipeline if distribution.version has been specified and --pipeline cli arg not set
-        if cfg.exists("mechanic", "distribution.version"):
+        if cfg.exists("builder", "distribution.version"):
             name = "from-distribution"
         else:
             name = "from-sources"

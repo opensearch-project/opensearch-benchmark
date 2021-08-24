@@ -29,7 +29,7 @@ import thespian.actors
 from esrally import PROGRAM_NAME, BANNER, FORUM_LINK, SKULL, check_python_version, doc_link, telemetry
 from esrally import version, actor, config, paths, racecontrol, reporter, metrics, track, chart_generator, exceptions, \
     log
-from esrally.mechanic import team, mechanic
+from esrally.builder import team, builder
 from esrally.tracker import tracker
 from esrally.utils import io, convert, process, console, net, opts, versions
 
@@ -742,25 +742,25 @@ def configure_track_params(arg_parser, args, cfg, command_requires_track=True):
         cfg.add(config.Scope.applicationOverride, "track", "exclude.tasks", opts.csv_to_list(args.exclude_tasks))
 
 
-def configure_mechanic_params(args, cfg, command_requires_car=True):
+def configure_builder_params(args, cfg, command_requires_car=True):
     if args.team_path:
-        cfg.add(config.Scope.applicationOverride, "mechanic", "team.path", os.path.abspath(io.normalize_path(args.team_path)))
-        cfg.add(config.Scope.applicationOverride, "mechanic", "repository.name", None)
-        cfg.add(config.Scope.applicationOverride, "mechanic", "repository.revision", None)
+        cfg.add(config.Scope.applicationOverride, "builder", "team.path", os.path.abspath(io.normalize_path(args.team_path)))
+        cfg.add(config.Scope.applicationOverride, "builder", "repository.name", None)
+        cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", None)
     else:
-        cfg.add(config.Scope.applicationOverride, "mechanic", "repository.name", args.team_repository)
-        cfg.add(config.Scope.applicationOverride, "mechanic", "repository.revision", args.team_revision)
+        cfg.add(config.Scope.applicationOverride, "builder", "repository.name", args.team_repository)
+        cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", args.team_revision)
 
     if command_requires_car:
         if args.distribution_version:
-            cfg.add(config.Scope.applicationOverride, "mechanic", "distribution.version", args.distribution_version)
-        cfg.add(config.Scope.applicationOverride, "mechanic", "distribution.repository", args.distribution_repository)
-        cfg.add(config.Scope.applicationOverride, "mechanic", "car.names", opts.csv_to_list(args.car))
-        cfg.add(config.Scope.applicationOverride, "mechanic", "car.params", opts.to_dict(args.car_params))
+            cfg.add(config.Scope.applicationOverride, "builder", "distribution.version", args.distribution_version)
+        cfg.add(config.Scope.applicationOverride, "builder", "distribution.repository", args.distribution_repository)
+        cfg.add(config.Scope.applicationOverride, "builder", "car.names", opts.csv_to_list(args.car))
+        cfg.add(config.Scope.applicationOverride, "builder", "car.params", opts.to_dict(args.car_params))
 
 
 def configure_connection_params(arg_parser, args, cfg):
-    # Also needed by mechanic (-> telemetry) - duplicate by module?
+    # Also needed by builder (-> telemetry) - duplicate by module?
     target_hosts = opts.TargetHosts(args.target_hosts)
     cfg.add(config.Scope.applicationOverride, "client", "hosts", target_hosts)
     client_options = opts.ClientOptions(args.client_options, target_hosts=target_hosts)
@@ -791,38 +791,38 @@ def dispatch_sub_command(arg_parser, args, cfg):
         elif sub_command == "list":
             cfg.add(config.Scope.applicationOverride, "system", "list.config.option", args.configuration)
             cfg.add(config.Scope.applicationOverride, "system", "list.races.max_results", args.limit)
-            configure_mechanic_params(args, cfg, command_requires_car=False)
+            configure_builder_params(args, cfg, command_requires_car=False)
             configure_track_params(arg_parser, args, cfg, command_requires_track=False)
             dispatch_list(cfg)
         elif sub_command == "download":
-            cfg.add(config.Scope.applicationOverride, "mechanic", "target.os", args.target_os)
-            cfg.add(config.Scope.applicationOverride, "mechanic", "target.arch", args.target_arch)
-            configure_mechanic_params(args, cfg)
-            mechanic.download(cfg)
+            cfg.add(config.Scope.applicationOverride, "builder", "target.os", args.target_os)
+            cfg.add(config.Scope.applicationOverride, "builder", "target.arch", args.target_arch)
+            configure_builder_params(args, cfg)
+            builder.download(cfg)
         elif sub_command == "install":
             cfg.add(config.Scope.applicationOverride, "system", "install.id", str(uuid.uuid4()))
-            cfg.add(config.Scope.applicationOverride, "mechanic", "network.host", args.network_host)
-            cfg.add(config.Scope.applicationOverride, "mechanic", "network.http.port", args.http_port)
-            cfg.add(config.Scope.applicationOverride, "mechanic", "source.revision", args.revision)
-            cfg.add(config.Scope.applicationOverride, "mechanic", "build.type", args.build_type)
-            cfg.add(config.Scope.applicationOverride, "mechanic", "runtime.jdk", args.runtime_jdk)
-            cfg.add(config.Scope.applicationOverride, "mechanic", "node.name", args.node_name)
-            cfg.add(config.Scope.applicationOverride, "mechanic", "master.nodes", opts.csv_to_list(args.master_nodes))
-            cfg.add(config.Scope.applicationOverride, "mechanic", "seed.hosts", opts.csv_to_list(args.seed_hosts))
-            cfg.add(config.Scope.applicationOverride, "mechanic", "car.plugins", opts.csv_to_list(args.elasticsearch_plugins))
-            cfg.add(config.Scope.applicationOverride, "mechanic", "plugin.params", opts.to_dict(args.plugin_params))
-            configure_mechanic_params(args, cfg)
-            mechanic.install(cfg)
+            cfg.add(config.Scope.applicationOverride, "builder", "network.host", args.network_host)
+            cfg.add(config.Scope.applicationOverride, "builder", "network.http.port", args.http_port)
+            cfg.add(config.Scope.applicationOverride, "builder", "source.revision", args.revision)
+            cfg.add(config.Scope.applicationOverride, "builder", "build.type", args.build_type)
+            cfg.add(config.Scope.applicationOverride, "builder", "runtime.jdk", args.runtime_jdk)
+            cfg.add(config.Scope.applicationOverride, "builder", "node.name", args.node_name)
+            cfg.add(config.Scope.applicationOverride, "builder", "master.nodes", opts.csv_to_list(args.master_nodes))
+            cfg.add(config.Scope.applicationOverride, "builder", "seed.hosts", opts.csv_to_list(args.seed_hosts))
+            cfg.add(config.Scope.applicationOverride, "builder", "car.plugins", opts.csv_to_list(args.elasticsearch_plugins))
+            cfg.add(config.Scope.applicationOverride, "builder", "plugin.params", opts.to_dict(args.plugin_params))
+            configure_builder_params(args, cfg)
+            builder.install(cfg)
         elif sub_command == "start":
             cfg.add(config.Scope.applicationOverride, "system", "race.id", args.race_id)
             cfg.add(config.Scope.applicationOverride, "system", "install.id", args.installation_id)
-            cfg.add(config.Scope.applicationOverride, "mechanic", "runtime.jdk", args.runtime_jdk)
+            cfg.add(config.Scope.applicationOverride, "builder", "runtime.jdk", args.runtime_jdk)
             configure_telemetry_params(args, cfg)
-            mechanic.start(cfg)
+            builder.start(cfg)
         elif sub_command == "stop":
-            cfg.add(config.Scope.applicationOverride, "mechanic", "preserve.install", convert.to_bool(args.preserve_install))
+            cfg.add(config.Scope.applicationOverride, "builder", "preserve.install", convert.to_bool(args.preserve_install))
             cfg.add(config.Scope.applicationOverride, "system", "install.id", args.installation_id)
-            mechanic.stop(cfg)
+            builder.stop(cfg)
         elif sub_command == "race":
             # As the race command is doing more work than necessary at the moment, we duplicate several parameters
             # in this section that actually belong to dedicated subcommands (like install, start or stop). Over time
@@ -847,13 +847,13 @@ def dispatch_sub_command(arg_parser, args, cfg):
             configure_track_params(arg_parser, args, cfg)
             configure_connection_params(arg_parser, args, cfg)
             configure_telemetry_params(args, cfg)
-            configure_mechanic_params(args, cfg)
-            cfg.add(config.Scope.applicationOverride, "mechanic", "runtime.jdk", args.runtime_jdk)
-            cfg.add(config.Scope.applicationOverride, "mechanic", "source.revision", args.revision)
-            cfg.add(config.Scope.applicationOverride, "mechanic", "car.plugins", opts.csv_to_list(args.elasticsearch_plugins))
-            cfg.add(config.Scope.applicationOverride, "mechanic", "plugin.params", opts.to_dict(args.plugin_params))
-            cfg.add(config.Scope.applicationOverride, "mechanic", "preserve.install", convert.to_bool(args.preserve_install))
-            cfg.add(config.Scope.applicationOverride, "mechanic", "skip.rest.api.check", convert.to_bool(args.skip_rest_api_check))
+            configure_builder_params(args, cfg)
+            cfg.add(config.Scope.applicationOverride, "builder", "runtime.jdk", args.runtime_jdk)
+            cfg.add(config.Scope.applicationOverride, "builder", "source.revision", args.revision)
+            cfg.add(config.Scope.applicationOverride, "builder", "car.plugins", opts.csv_to_list(args.elasticsearch_plugins))
+            cfg.add(config.Scope.applicationOverride, "builder", "plugin.params", opts.to_dict(args.plugin_params))
+            cfg.add(config.Scope.applicationOverride, "builder", "preserve.install", convert.to_bool(args.preserve_install))
+            cfg.add(config.Scope.applicationOverride, "builder", "skip.rest.api.check", convert.to_bool(args.skip_rest_api_check))
 
             configure_reporting_params(args, cfg)
 

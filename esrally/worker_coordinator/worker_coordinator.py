@@ -340,7 +340,7 @@ def load_local_config(coordinator_config):
         # only copy the relevant bits
         "track", "worker_coordinator", "client",
         # due to distribution version...
-        "mechanic",
+        "builder",
         "telemetry"
     ])
     # set root path (normally done by the main entry point)
@@ -610,7 +610,7 @@ class WorkerCoordinator:
 
         es_clients = self.create_es_clients()
 
-        skip_rest_api_check = self.config.opts("mechanic", "skip.rest.api.check")
+        skip_rest_api_check = self.config.opts("builder", "skip.rest.api.check")
         uses_static_responses = self.config.opts("client", "options").uses_static_responses
         if skip_rest_api_check:
             self.logger.info("Skipping REST API check as requested explicitly.")

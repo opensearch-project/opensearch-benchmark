@@ -22,7 +22,7 @@ import subprocess
 import psutil
 
 from esrally import time, exceptions, telemetry
-from esrally.mechanic import cluster, java_resolver
+from esrally.builder import cluster, java_resolver
 from esrally.utils import io, opts, process
 
 
@@ -139,7 +139,7 @@ class ProcessLauncher:
         node_telemetry_dir = os.path.join(node_configuration.node_root_path, "telemetry")
 
         java_major_version, java_home = java_resolver.java_home(node_configuration.car_runtime_jdks,
-                                                                self.cfg.opts("mechanic", "runtime.jdk"),
+                                                                self.cfg.opts("builder", "runtime.jdk"),
                                                                 node_configuration.car_provides_bundled_jdk)
 
         self.logger.info("Starting node [%s].", node_name)

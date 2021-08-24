@@ -19,7 +19,7 @@ import unittest.mock as mock
 from unittest import TestCase
 
 from esrally import exceptions
-from esrally.mechanic import java_resolver
+from esrally.builder import java_resolver
 
 
 class JavaResolverTests(TestCase):

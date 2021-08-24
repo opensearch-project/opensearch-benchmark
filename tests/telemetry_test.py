@@ -28,7 +28,7 @@ import elasticsearch
 import pytest
 
 from esrally import config, metrics, exceptions, telemetry
-from esrally.mechanic import cluster
+from esrally.builder import cluster
 from esrally.metrics import MetaInfoScope
 from esrally.utils import console
 

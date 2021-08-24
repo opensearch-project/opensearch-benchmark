@@ -242,8 +242,8 @@ class Config:
             (Scope.application, "benchmarks", "track.default.repository"): "default",
             (Scope.application, "provisioning", "node.name.prefix"): "rally-node",
             (Scope.application, "provisioning", "node.http.port"): 39200,
-            (Scope.application, "mechanic", "team.repository.dir"): "teams",
-            (Scope.application, "mechanic", "team.default.repository"): "default",
+            (Scope.application, "builder", "team.repository.dir"): "teams",
+            (Scope.application, "builder", "team.default.repository"): "default",
 
         }
 

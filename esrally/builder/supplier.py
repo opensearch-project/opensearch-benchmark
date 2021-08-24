@@ -36,16 +36,16 @@ def create(cfg, sources, distribution, car, plugins=None):
     if plugins is None:
         plugins = []
     caching_enabled = cfg.opts("source", "cache", mandatory=False, default_value=True)
-    revisions = _extract_revisions(cfg.opts("mechanic", "source.revision", mandatory=sources))
-    distribution_version = cfg.opts("mechanic", "distribution.version", mandatory=False)
+    revisions = _extract_revisions(cfg.opts("builder", "source.revision", mandatory=sources))
+    distribution_version = cfg.opts("builder", "distribution.version", mandatory=False)
     supply_requirements = _supply_requirements(sources, distribution, plugins, revisions, distribution_version)
     build_needed = any([build for _, _, build in supply_requirements.values()])
     es_supplier_type, es_version, _ = supply_requirements["elasticsearch"]
     src_config = cfg.all_opts("source")
     suppliers = []
 
-    target_os = cfg.opts("mechanic", "target.os", mandatory=False)
-    target_arch = cfg.opts("mechanic", "target.arch", mandatory=False)
+    target_os = cfg.opts("builder", "target.os", mandatory=False)
+    target_arch = cfg.opts("builder", "target.arch", mandatory=False)
     template_renderer = TemplateRenderer(version=es_version, os_name=target_os, arch=target_arch)
 
     if build_needed:
@@ -102,7 +102,7 @@ def create(cfg, sources, distribution, car, plugins=None):
         repo = None
     else:
         es_src_dir = None
-        repo = DistributionRepository(name=cfg.opts("mechanic", "distribution.repository"),
+        repo = DistributionRepository(name=cfg.opts("builder", "distribution.repository"),
                                       distribution_config=dist_cfg,
                                       template_renderer=template_renderer)
         suppliers.append(ElasticsearchDistributionSupplier(repo, es_version, distributions_root))
@@ -645,7 +645,7 @@ class Builder:
     """
     A builder is responsible for creating an installable binary from the source files.
 
-    It is not intended to be used directly but should be triggered by its mechanic.
+    It is not intended to be used directly but should be triggered by its builder.
     """
 
     def __init__(self, src_dir, build_jdk=None, log_dir=None):

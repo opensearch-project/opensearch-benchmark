@@ -117,17 +117,17 @@ def load_plugins(repo, plugin_names, plugin_params=None):
 
 
 def team_path(cfg):
-    root_path = cfg.opts("mechanic", "team.path", mandatory=False)
+    root_path = cfg.opts("builder", "team.path", mandatory=False)
     if root_path:
         return root_path
     else:
-        distribution_version = cfg.opts("mechanic", "distribution.version", mandatory=False)
-        repo_name = cfg.opts("mechanic", "repository.name")
-        repo_revision = cfg.opts("mechanic", "repository.revision")
+        distribution_version = cfg.opts("builder", "distribution.version", mandatory=False)
+        repo_name = cfg.opts("builder", "repository.name")
+        repo_revision = cfg.opts("builder", "repository.revision")
         offline = cfg.opts("system", "offline.mode")
         remote_url = cfg.opts("teams", "%s.url" % repo_name, mandatory=False)
         root = cfg.opts("node", "root.dir")
-        team_repositories = cfg.opts("mechanic", "team.repository.dir")
+        team_repositories = cfg.opts("builder", "team.repository.dir")
         teams_dir = os.path.join(root, team_repositories)
 
         current_team_repo = repo.RallyRepository(remote_url, teams_dir, repo_name, "teams", offline)
@@ -135,7 +135,7 @@ def team_path(cfg):
             current_team_repo.checkout(repo_revision)
         else:
             current_team_repo.update(distribution_version)
-            cfg.add(config.Scope.applicationOverride, "mechanic", "repository.revision", current_team_repo.revision)
+            cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", current_team_repo.revision)
         return current_team_repo.repo_dir
 
 
