@@ -84,7 +84,7 @@ elasticsearch.src.subdir = elasticsearch
 [benchmarks]
 local.dataset.cache = ${HOME}/.rally/benchmarks/data
 
-[publishing]
+[results_publishing]
 datastore.type = elasticsearch
 datastore.host = 127.0.0.1
 datastore.port = 19200
