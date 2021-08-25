@@ -73,41 +73,41 @@ def test_cluster():
     cluster.stop()
 
 
-# @it.random_rally_config
-# def test_eventdata_frozen(cfg, test_cluster):
-#     challenges = ["frozen-data-generation", "frozen-querying"]
-#     track_params = "number_of_replicas:0"
-#     execute_eventdata(cfg, test_cluster, challenges, track_params)
+@it.random_rally_config
+def test_eventdata_frozen(cfg, test_cluster):
+    challenges = ["frozen-data-generation", "frozen-querying"]
+    track_params = "number_of_replicas:0"
+    execute_eventdata(cfg, test_cluster, challenges, track_params)
 
 
-# @it.random_rally_config
-# def test_eventdata_indexing_and_querying(cfg, test_cluster):
-#     challenges = ["elasticlogs-1bn-load",
-#                   "elasticlogs-continuous-index-and-query",
-#                   "combined-indexing-and-querying",
-#                   "elasticlogs-querying"]
-#     track_params = "bulk_indexing_clients:1,number_of_replicas:0,rate_limit_max:2,rate_limit_duration_secs:5," \
-#                    "p1_bulk_indexing_clients:1,p2_bulk_indexing_clients:1,p1_duration_secs:5,p2_duration_secs:5"
-#     execute_eventdata(cfg, test_cluster, challenges, track_params)
+@it.random_rally_config
+def test_eventdata_indexing_and_querying(cfg, test_cluster):
+    challenges = ["elasticlogs-1bn-load",
+                  "elasticlogs-continuous-index-and-query",
+                  "combined-indexing-and-querying",
+                  "elasticlogs-querying"]
+    track_params = "bulk_indexing_clients:1,number_of_replicas:0,rate_limit_max:2,rate_limit_duration_secs:5," \
+                   "p1_bulk_indexing_clients:1,p2_bulk_indexing_clients:1,p1_duration_secs:5,p2_duration_secs:5"
+    execute_eventdata(cfg, test_cluster, challenges, track_params)
 
 
-# @it.random_rally_config
-# def test_eventdata_update(cfg, test_cluster):
-#     challenges = ["bulk-update"]
-#     track_params = "bulk_indexing_clients:1,number_of_replicas:0"
-#     execute_eventdata(cfg, test_cluster, challenges, track_params)
+@it.random_rally_config
+def test_eventdata_update(cfg, test_cluster):
+    challenges = ["bulk-update"]
+    track_params = "bulk_indexing_clients:1,number_of_replicas:0"
+    execute_eventdata(cfg, test_cluster, challenges, track_params)
 
 
-# @it.random_rally_config
-# def test_eventdata_daily_volume(cfg, test_cluster):
-#     challenges = ["index-logs-fixed-daily-volume", "index-and-query-logs-fixed-daily-volume"]
-#     track_params = "bulk_indexing_clients:1,number_of_replicas:0,daily_logging_volume:1MB"
-#     execute_eventdata(cfg, test_cluster, challenges, track_params)
+@it.random_rally_config
+def test_eventdata_daily_volume(cfg, test_cluster):
+    challenges = ["index-logs-fixed-daily-volume", "index-and-query-logs-fixed-daily-volume"]
+    track_params = "bulk_indexing_clients:1,number_of_replicas:0,daily_logging_volume:1MB"
+    execute_eventdata(cfg, test_cluster, challenges, track_params)
 
 
-# def execute_eventdata(cfg, test_cluster, challenges, track_params):
-#     for challenge in challenges:
-#         cmd = f"--test-mode --pipeline=benchmark-only --target-host=127.0.0.1:{test_cluster.http_port} " \
-#               f"--track-repository=eventdata --track=eventdata --track-params=\"{track_params}\" " \
-#               f"--challenge={challenge}"
-#         assert it.test_execution(cfg, cmd) == 0
+def execute_eventdata(cfg, test_cluster, challenges, track_params):
+    for challenge in challenges:
+        cmd = f"--test-mode --pipeline=benchmark-only --target-host=127.0.0.1:{test_cluster.http_port} " \
+              f"--track-repository=eventdata --track=eventdata --track-params=\"{track_params}\" " \
+              f"--challenge={challenge}"
+        assert it.test_execution(cfg, cmd) == 0
