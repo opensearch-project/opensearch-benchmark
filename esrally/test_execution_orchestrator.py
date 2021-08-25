@@ -23,7 +23,8 @@ import sys
 import tabulate
 import thespian.actors
 
-from esrally import actor, config, doc_link, worker_coordinator, exceptions, builder, metrics, results_publisher, track, version, PROGRAM_NAME
+from esrally import actor, config, doc_link, worker_coordinator, exceptions, builder, metrics, results_publisher, \
+    track, version, PROGRAM_NAME
 from esrally.utils import console, opts, versions
 
 

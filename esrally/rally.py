@@ -27,8 +27,9 @@ import uuid
 import thespian.actors
 
 from esrally import PROGRAM_NAME, BANNER, FORUM_LINK, SKULL, check_python_version, doc_link, telemetry
-from esrally import version, actor, config, paths, test_execution_orchestrator, results_publisher, metrics, track, chart_generator, exceptions, \
-    log
+from esrally import version, actor, config, paths, \
+    test_execution_orchestrator, results_publisher, metrics, \
+    track, chart_generator, exceptions,log
 from esrally.builder import team, builder
 from esrally.tracker import tracker
 from esrally.utils import io, convert, process, console, net, opts, versions
