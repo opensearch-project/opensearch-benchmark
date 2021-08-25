@@ -194,7 +194,8 @@ class Documents:
         :param base_url: The URL from which to load data if they are not available locally. Optional.
         :param includes_action_and_meta_data: True, if the source file already includes the action and meta-data line. False, if it only
         contains documents.
-        :param number_of_documents: The number of documents in the benchmark document. Needed for proper progress results_publishing. Only needed if
+        :param number_of_documents: The number of documents in the benchmark
+         document. Needed for proper progress results_publishing. Only needed if
          a document_archive is given.
         :param compressed_size_in_bytes: The compressed size in bytes of the benchmark document. Needed for verification of the download and
          user results_publishing. Only useful if a document_archive is given (optional but recommended to be set).

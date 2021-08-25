@@ -597,7 +597,9 @@ class WorkerCoordinator:
         self.track = t
         self.challenge = select_challenge(self.config, self.track)
         self.quiet = self.config.opts("system", "quiet.mode", mandatory=False, default_value=False)
-        downsample_factor = int(self.config.opts("results_publishing", "metrics.request.downsample.factor", mandatory=False, default_value=1))
+        downsample_factor = int(self.config.opts(
+            "results_publishing", "metrics.request.downsample.factor",
+             mandatory=False, default_value=1))
         self.metrics_store = metrics.metrics_store(cfg=self.config,
                                                    track=self.track.name,
                                                    challenge=self.challenge.name,
