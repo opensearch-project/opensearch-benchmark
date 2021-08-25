@@ -27,7 +27,7 @@ import uuid
 import thespian.actors
 
 from esrally import PROGRAM_NAME, BANNER, FORUM_LINK, SKULL, check_python_version, doc_link, telemetry
-from esrally import version, actor, config, paths, racecontrol, reporter, metrics, track, chart_generator, exceptions, \
+from esrally import version, actor, config, paths, test_execution_orchestrator, reporter, metrics, track, chart_generator, exceptions, \
     log
 from esrally.builder import team, builder
 from esrally.tracker import tracker
@@ -345,7 +345,9 @@ def create_arg_parser():
         "--installation-id",
         required=True,
         help="The id of the installation to start",
-        # the default will be dynamically derived by racecontrol based on the presence / absence of other command line options
+        # the default will be dynamically derived by
+        # test_execution_orchestrator based on the
+        # presence / absence of other command line options
         default="")
     start_parser.add_argument(
         "--race-id",
@@ -373,7 +375,9 @@ def create_arg_parser():
         "--installation-id",
         required=True,
         help="The id of the installation to stop",
-        # the default will be dynamically derived by racecontrol based on the presence / absence of other command line options
+        # the default will be dynamically derived by
+        # test_execution_orchestrator based on the
+        # presence / absence of other command line options
         default="")
     stop_parser.add_argument(
         "--preserve-install",
@@ -407,7 +411,9 @@ def create_arg_parser():
     race_parser.add_argument(
         "--pipeline",
         help="Select the pipeline to run.",
-        # the default will be dynamically derived by racecontrol based on the presence / absence of other command line options
+        # the default will be dynamically derived by
+        # test_execution_orchestrator based on the
+        # presence / absence of other command line options
         default="")
     race_parser.add_argument(
         "--revision",
@@ -590,7 +596,7 @@ def dispatch_list(cfg):
     elif what == "tracks":
         track.list_tracks(cfg)
     elif what == "pipelines":
-        racecontrol.list_pipelines()
+        test_execution_orchestrator.list_pipelines()
     elif what == "races":
         metrics.list_races(cfg)
     elif what == "cars":
@@ -636,7 +642,7 @@ def race(cfg, kill_running_processes=False):
                   f"Otherwise, you need to manually kill them."
             raise exceptions.RallyError(msg)
 
-    with_actor_system(racecontrol.run, cfg)
+    with_actor_system(test_execution_orchestrator.run, cfg)
 
 
 def with_actor_system(runnable, cfg):

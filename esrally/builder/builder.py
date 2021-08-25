@@ -309,7 +309,7 @@ class BuilderActor(actor.RallyActor):
     def __init__(self):
         super().__init__()
         self.cfg = None
-        self.race_control = None
+        self.test_execution_orchestrator = None
         self.cluster_launcher = None
         self.cluster = None
         self.car = None
@@ -325,7 +325,7 @@ class BuilderActor(actor.RallyActor):
             return
         failmsg = "Child actor exited with [%s] while in status [%s]." % (msg, self.status)
         self.logger.error(failmsg)
-        self.send(self.race_control, actor.BenchmarkFailure(failmsg))
+        self.send(self.test_execution_orchestrator, actor.BenchmarkFailure(failmsg))
 
     def receiveMsg_PoisonMessage(self, msg, sender):
         self.logger.info("BuilderActor#receiveMessage poison(msg = [%s] sender = [%s])", str(msg.poisonMessage), str(sender))
@@ -335,12 +335,12 @@ class BuilderActor(actor.RallyActor):
         else:
             failmsg = msg.details
         self.logger.error(failmsg)
-        self.send(self.race_control, actor.BenchmarkFailure(failmsg))
+        self.send(self.test_execution_orchestrator, actor.BenchmarkFailure(failmsg))
 
     @actor.no_retry("builder")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StartEngine(self, msg, sender):
-        self.logger.info("Received signal from race control to start engine.")
-        self.race_control = sender
+        self.logger.info("Received signal from test execution orchestrator to start engine.")
+        self.test_execution_orchestrator = sender
         self.cfg = msg.cfg
         self.car, _ = load_team(self.cfg, msg.external)
         # TODO: This is implicitly set by #load_team() - can we gather this elsewhere?
@@ -395,7 +395,7 @@ class BuilderActor(actor.RallyActor):
             raise exceptions.RallyAssertionError("Unknown wakeup reason [{}]".format(msg.payload))
 
     def receiveMsg_BenchmarkFailure(self, msg, sender):
-        self.send(self.race_control, msg)
+        self.send(self.test_execution_orchestrator, msg)
 
     @actor.no_retry("builder")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StopEngine(self, msg, sender):
@@ -411,15 +411,15 @@ class BuilderActor(actor.RallyActor):
         self.transition_when_all_children_responded(sender, msg, "cluster_stopping", "cluster_stopped", self.on_all_nodes_stopped)
 
     def on_all_nodes_started(self):
-        self.send(self.race_control, EngineStarted(self.team_revision))
+        self.send(self.test_execution_orchestrator, EngineStarted(self.team_revision))
 
     def reset_relative_time(self):
         for m in self.children:
             self.send(m, ResetRelativeTime(0))
 
     def on_all_nodes_stopped(self):
-        self.send(self.race_control, EngineStopped())
-        # clear all state as the builder might get reused later
+        self.send(self.test_execution_orchestrator, EngineStopped())
+        # clear all state as the mechanic might get reused later
         for m in self.children:
             self.send(m, thespian.actors.ActorExitRequest())
         self.children = []
