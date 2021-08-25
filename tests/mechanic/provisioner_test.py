@@ -103,7 +103,7 @@ class BareProvisionerTests(TestCase):
     class MockRallyTeamXPackPlugin:
         """
         Mock XPackPlugin settings as found in rally-team repo:
-        https://github.com/IanHoang/rally-teams/blob/6/plugins/x_pack/security.ini
+        https://github.com/elastic/rally-teams/blob/6/plugins/x_pack/security.ini
         """
         def __init__(self):
             self.name = "x-pack"

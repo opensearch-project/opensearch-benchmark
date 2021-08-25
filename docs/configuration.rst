@@ -112,7 +112,7 @@ This section defines how :doc:`tracks </track>` are retrieved. All keys are read
 teams
 ~~~~~
 
-This section defines how :doc:`teams </car>` are retrieved. All keys are read by Rally using the convention ``<<team-repository-name>>.url``, e.g. ``custom-team-repo.url`` which can be selected the command-line via ``--team-repository="custom-team-repo"``. By default, Rally chooses the track repository specified via ``default.url`` which points to https://github.com/IanHoang/rally-teams.
+This section defines how :doc:`teams </car>` are retrieved. All keys are read by Rally using the convention ``<<team-repository-name>>.url``, e.g. ``custom-team-repo.url`` which can be selected the command-line via ``--team-repository="custom-team-repo"``. By default, Rally chooses the track repository specified via ``default.url`` which points to https://github.com/elastic/rally-teams.
 
 defaults
 ~~~~~~~~

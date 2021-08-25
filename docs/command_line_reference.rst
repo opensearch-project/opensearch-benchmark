@@ -355,7 +355,7 @@ You can use ``--exclude-tasks`` to specify a comma-separated list of tasks that 
 ``team-repository``
 ~~~~~~~~~~~~~~~~~~~
 
-Selects the team repository that Rally should use to resolve cars. By default the ``default`` team repository is used, which is available in the Github project `rally-teams <https://github.com/IanHoang/rally-teams>`__. See the documentation about :doc:`cars </car>` on how to add your own team repositories.
+Selects the team repository that Rally should use to resolve cars. By default the ``default`` team repository is used, which is available in the Github project `rally-teams <https://github.com/elastic/rally-teams>`__. See the documentation about :doc:`cars </car>` on how to add your own team repositories.
 
 ``team-revision``
 ~~~~~~~~~~~~~~~~~
@@ -412,7 +412,7 @@ Allows to override config variables of Elasticsearch. It accepts a list of comma
 
    esrally race --track=geonames --car="4gheap" --car-params="data_paths:'/opt/elasticsearch'"
 
-The variables that are exposed depend on the `car's configuration <https://github.com/IanHoang/rally-teams/tree/master/cars>`__. In addition, Rally implements special handling for the variable ``data_paths`` (by default the value for this variable is determined by Rally).
+The variables that are exposed depend on the `car's configuration <https://github.com/elastic/rally-teams/tree/master/cars>`__. In addition, Rally implements special handling for the variable ``data_paths`` (by default the value for this variable is determined by Rally).
 
 
 ``elasticsearch-plugins``

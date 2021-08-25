@@ -239,12 +239,12 @@ def create_arg_parser():
         help="Define the repository from where the Elasticsearch distribution should be downloaded (default: release).",
         default="release")
     download_parser.add_argument(
-        "--provision_config",
+        "--provision-config",
         help=f"Define the provision_config to use. \
             List possible provision_configs with `{PROGRAM_NAME} list provision_configs` (default: defaults).",
         default="defaults")  # optimized for local usage
     download_parser.add_argument(
-        "--provision_config-params",
+        "--provision-config-params",
         help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the provision_config.",
         default=""
     )
@@ -298,12 +298,12 @@ def create_arg_parser():
              "Check https://www.elastic.co/downloads/elasticsearch for released versions.",
         default="")
     install_parser.add_argument(
-        "--provision_config",
+        "--provision-config",
         help=f"Define the provision_config to use. \
             List possible provision_configs with `{PROGRAM_NAME} list provision_configs` (default: defaults).",
         default="defaults")  # optimized for local usage
     install_parser.add_argument(
-        "--provision_config-params",
+        "--provision-config-params",
         help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the provision_config.",
         default=""
     )
@@ -432,12 +432,12 @@ def create_arg_parser():
         "--challenge",
         help=f"Define the challenge to use. List possible challenges for tracks with `{PROGRAM_NAME} list tracks`.")
     race_parser.add_argument(
-        "--provision_config",
+        "--provision-config",
         help=f"Define the provision_config to use. \
             List possible provision_configs with `{PROGRAM_NAME} list provision_configs` (default: defaults).",
         default="defaults")  # optimized for local usage
     race_parser.add_argument(
-        "--provision_config-params",
+        "--provision-config-params",
         help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the provision_config.",
         default=""
     )

@@ -57,7 +57,7 @@ Using cars
 
 If you have Rally configure and start Elasticsearch then you also need the out-of-the-box configurations available. Run the following command on a machine with Internet access::
 
-    git clone https://github.com/IanHoang/rally-teams.git ~/.rally/benchmarks/teams/default
+    git clone https://github.com/elastic/rally-teams.git ~/.rally/benchmarks/teams/default
     tar -C ~ -czf rally-teams.tar.gz .rally/benchmarks/teams/default
 
 Copy that file to the target machine(s) and run on the target machine::
