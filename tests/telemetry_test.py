@@ -40,13 +40,13 @@ def create_config():
     # concrete path does not matter
     cfg.add(config.Scope.application, "node", "rally.root", "/some/root/path")
 
-    cfg.add(config.Scope.application, "reporting", "datastore.host", "localhost")
-    cfg.add(config.Scope.application, "reporting", "datastore.port", "0")
-    cfg.add(config.Scope.application, "reporting", "datastore.secure", False)
-    cfg.add(config.Scope.application, "reporting", "datastore.user", "")
-    cfg.add(config.Scope.application, "reporting", "datastore.password", "")
+    cfg.add(config.Scope.application, "results_publishing", "datastore.host", "localhost")
+    cfg.add(config.Scope.application, "results_publishing", "datastore.port", "0")
+    cfg.add(config.Scope.application, "results_publishing", "datastore.secure", False)
+    cfg.add(config.Scope.application, "results_publishing", "datastore.user", "")
+    cfg.add(config.Scope.application, "results_publishing", "datastore.password", "")
     # disable version probing to avoid any network calls in tests
-    cfg.add(config.Scope.application, "reporting", "datastore.probe.cluster_version", False)
+    cfg.add(config.Scope.application, "results_publishing", "datastore.probe.cluster_version", False)
     # only internal devices are active
     cfg.add(config.Scope.application, "telemetry", "devices", [])
     return cfg

@@ -32,9 +32,9 @@ INDEX_SETTINGS_PARAMETERS = {
 
 def filter_ephemeral_index_settings(settings):
     """
-    Some of the 'settings' reported by Elasticsearch for an index are
+    Some of the 'settings' published by Elasticsearch for an index are
     ephemeral values, not useful for re-creating the index.
-    :param settings: Index settings reported by index.get()
+    :param settings: Index settings published by index.get()
     :return: settings with ephemeral keys removed
     """
     filtered = dict(settings)

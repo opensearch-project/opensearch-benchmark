@@ -23,7 +23,9 @@ import sys
 import tabulate
 import thespian.actors
 
-from esrally import actor, config, doc_link, worker_coordinator, exceptions, builder, metrics, reporter, track, version, PROGRAM_NAME
+from esrally import actor, config, doc_link, \
+    worker_coordinator, exceptions, builder, metrics, \
+        results_publisher, track, version, PROGRAM_NAME
 from esrally.utils import console, opts, versions
 
 
@@ -38,7 +40,7 @@ class Pipeline:
     * Prepare the benchmark candidate: It can build Elasticsearch from sources, download a ZIP from somewhere etc.
     * Launch the benchmark candidate: This can be done directly, with tools like Ansible or it can assume the candidate is already launched
     * Run the benchmark
-    * Report results
+    * Publish results
     """
 
     def __init__(self, name, description, target, stable=True):
@@ -231,9 +233,9 @@ class BenchmarkCoordinator:
             self.race.add_results(final_results)
             self.race_store.store_race(self.race)
             metrics.results_store(self.cfg).store_results(self.race)
-            reporter.summarize(final_results, self.cfg)
+            results_publisher.summarize(final_results, self.cfg)
         else:
-            self.logger.info("Suppressing output of summary report. Cancelled = [%r], Error = [%r].", self.cancelled, self.error)
+            self.logger.info("Suppressing output of summary results. Cancelled = [%r], Error = [%r].", self.cancelled, self.error)
         self.metrics_store.close()
 
 
@@ -301,17 +303,17 @@ def docker(cfg):
 
 
 Pipeline("from-sources",
-         "Builds and provisions Elasticsearch, runs a benchmark and reports results.", from_sources)
+         "Builds and provisions Elasticsearch, runs a benchmark and publishes results.", from_sources)
 
 Pipeline("from-distribution",
-         "Downloads an Elasticsearch distribution, provisions it, runs a benchmark and reports results.", from_distribution)
+         "Downloads an Elasticsearch distribution, provisions it, runs a benchmark and publishes results.", from_distribution)
 
 Pipeline("benchmark-only",
-         "Assumes an already running Elasticsearch instance, runs a benchmark and reports results", benchmark_only)
+         "Assumes an already running Elasticsearch instance, runs a benchmark and publishes results", benchmark_only)
 
 # Very experimental Docker pipeline. Should only be used with great care and is also not supported on all platforms.
 Pipeline("docker",
-         "Runs a benchmark against the official Elasticsearch Docker container and reports results", docker, stable=False)
+         "Runs a benchmark against the official Elasticsearch Docker container and publishes results", docker, stable=False)
 
 
 def available_pipelines():

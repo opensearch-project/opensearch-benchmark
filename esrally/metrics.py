@@ -178,14 +178,14 @@ class EsClientFactory:
 
     def __init__(self, cfg):
         self._config = cfg
-        host = self._config.opts("reporting", "datastore.host")
-        port = self._config.opts("reporting", "datastore.port")
-        secure = convert.to_bool(self._config.opts("reporting", "datastore.secure"))
-        user = self._config.opts("reporting", "datastore.user")
-        password = self._config.opts("reporting", "datastore.password")
-        verify = self._config.opts("reporting", "datastore.ssl.verification_mode", default_value="full", mandatory=False) != "none"
-        ca_path = self._config.opts("reporting", "datastore.ssl.certificate_authorities", default_value=None, mandatory=False)
-        self.probe_version = self._config.opts("reporting", "datastore.probe.cluster_version", default_value=True, mandatory=False)
+        host = self._config.opts("results_publishing", "datastore.host")
+        port = self._config.opts("results_publishing", "datastore.port")
+        secure = convert.to_bool(self._config.opts("results_publishing", "datastore.secure"))
+        user = self._config.opts("results_publishing", "datastore.user")
+        password = self._config.opts("results_publishing", "datastore.password")
+        verify = self._config.opts("results_publishing", "datastore.ssl.verification_mode", default_value="full", mandatory=False) != "none"
+        ca_path = self._config.opts("results_publishing", "datastore.ssl.certificate_authorities", default_value=None, mandatory=False)
+        self.probe_version = self._config.opts("results_publishing", "datastore.probe.cluster_version", default_value=True, mandatory=False)
 
         # Instead of duplicating code, we're just adapting the metrics store specific properties to match the regular client options.
         client_options = {
@@ -277,7 +277,7 @@ def metrics_store(cfg, read_only=True, track=None, challenge=None, car=None, met
 
 
 def metrics_store_class(cfg):
-    if cfg.opts("reporting", "datastore.type") == "elasticsearch":
+    if cfg.opts("results_publishing", "datastore.type") == "elasticsearch":
         return EsMetricsStore
     else:
         return InMemoryMetricsStore
@@ -1117,7 +1117,7 @@ def race_store(cfg):
     :return: A race store implementation.
     """
     logger = logging.getLogger(__name__)
-    if cfg.opts("reporting", "datastore.type") == "elasticsearch":
+    if cfg.opts("results_publishing", "datastore.type") == "elasticsearch":
         logger.info("Creating ES race store")
         return CompositeRaceStore(EsRaceStore(cfg), FileRaceStore(cfg))
     else:
@@ -1132,7 +1132,7 @@ def results_store(cfg):
     :return: A race store implementation.
     """
     logger = logging.getLogger(__name__)
-    if cfg.opts("reporting", "datastore.type") == "elasticsearch":
+    if cfg.opts("results_publishing", "datastore.type") == "elasticsearch":
         logger.info("Creating ES results store")
         return EsResultsStore(cfg)
     else:
@@ -1484,7 +1484,7 @@ class EsRaceStore(RaceStore):
 
 class EsResultsStore:
     """
-    Stores the results of a race in a format that is better suited for reporting with Kibana.
+    Stores the results of a race in a format that is better suited for results_publishing with Kibana.
     """
     INDEX_PREFIX = "rally-results-"
     RESULTS_DOC_TYPE = "_doc"
@@ -1561,7 +1561,7 @@ class GlobalStatsCalculator:
                 op_type = task.operation.type
                 error_rate = self.error_rate(t, op_type)
                 duration = self.duration(t)
-                if task.operation.include_in_reporting or error_rate > 0:
+                if task.operation.include_in_results_publishing or error_rate > 0:
                     self.logger.debug("Gathering request metrics for [%s].", t)
                     result.add_op_metrics(
                         t,

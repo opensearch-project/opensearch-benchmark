@@ -103,7 +103,7 @@ class WorkerCoordinatorTests(TestCase):
                      WorkerCoordinatorTests.Holder(all_hosts={"default": ["localhost:9200"]}))
         self.cfg.add(config.Scope.application, "client", "options", WorkerCoordinatorTests.Holder(all_client_options={"default": {}}))
         self.cfg.add(config.Scope.application, "worker_coordinator", "load_worker_coordinator_hosts", ["localhost"])
-        self.cfg.add(config.Scope.application, "reporting", "datastore.type", "in-memory")
+        self.cfg.add(config.Scope.application, "results_publishing", "datastore.type", "in-memory")
 
         default_challenge = track.Challenge("default", default=True, schedule=[
             track.Task(name="index", operation=track.Operation("index", operation_type=track.OperationType.Bulk), clients=4)

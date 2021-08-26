@@ -4,7 +4,7 @@ set -e
 source .elastic-version
 
 # Start metrics store
-docker-compose -f ./metricstore-docker-compose.yml up -d 
+docker-compose -f ./metricstore-docker-compose.yml up -d
 
 # Start Elasticsearch
 docker-compose up -d
@@ -84,7 +84,7 @@ elasticsearch.src.subdir = elasticsearch
 [benchmarks]
 local.dataset.cache = ${HOME}/.rally/benchmarks/data
 
-[reporting]
+[results_publishing]
 datastore.type = elasticsearch
 datastore.host = 127.0.0.1
 datastore.port = 19200

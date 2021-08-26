@@ -284,11 +284,11 @@ class UnitAwareScheduler(Scheduler):
             if actual_unit != expected_unit:
                 # *temporary* workaround to convert mismatching units to ops/s to stay backwards-compatible.
                 #
-                # This ensures that we throttle based on ops/s but report based on the original unit (as before).
+                # This ensures that we throttle based on ops/s but publish results based on the original unit (as before).
                 if expected_unit == "ops/s":
                     weight = 1
                     if self.first_request:
-                        logging.getLogger(__name__).warning("Task [%s] throttles based on [%s] but reports [%s]. "
+                        logging.getLogger(__name__).warning("Task [%s] throttles based on [%s] but results [%s]. "
                                                             "Please specify the target throughput in [%s] instead.",
                                                             self.task, expected_unit, actual_unit, actual_unit)
                 else:

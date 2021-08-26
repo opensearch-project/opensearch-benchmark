@@ -17,7 +17,7 @@
 
 from unittest import TestCase
 
-from esrally import reporter
+from esrally import results_publisher
 
 
 class FormatterTests(TestCase):
@@ -34,19 +34,19 @@ class FormatterTests(TestCase):
         self.numbers_align = "right"
 
     def test_formats_as_markdown(self):
-        formatted = reporter.format_as_markdown(self.empty_header, self.empty_data, self.numbers_align)
+        formatted = results_publisher.format_as_markdown(self.empty_header, self.empty_data, self.numbers_align)
         # 1 header line, 1 separation line + 0 data lines
         self.assertEqual(1 + 1 + 0, len(formatted.splitlines()))
 
-        formatted = reporter.format_as_markdown(self.metrics_header, self.metrics_data, self.numbers_align)
+        formatted = results_publisher.format_as_markdown(self.metrics_header, self.metrics_data, self.numbers_align)
         # 1 header line, 1 separation line + 3 data lines
         self.assertEqual(1 + 1 + 3, len(formatted.splitlines()))
 
     def test_formats_as_csv(self):
-        formatted = reporter.format_as_csv(self.empty_header, self.empty_data)
+        formatted = results_publisher.format_as_csv(self.empty_header, self.empty_data)
         # 1 header line, no separation line + 0 data lines
         self.assertEqual(1 + 0, len(formatted.splitlines()))
 
-        formatted = reporter.format_as_csv(self.metrics_header, self.metrics_data)
+        formatted = results_publisher.format_as_csv(self.metrics_header, self.metrics_data)
         # 1 header line, no separation line + 3 data lines
         self.assertEqual(1 + 3, len(formatted.splitlines()))

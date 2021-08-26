@@ -173,7 +173,7 @@ class Runner:
         :return: A pair of (int, String). The first component indicates the "weight" of this call. it is typically 1 but for bulk operations
                  it should be the actual bulk size. The second component is the "unit" of weight which should be "ops" (short for
                  "operations") by default. If applicable, the unit should always be in plural form. It is used in metrics records
-                 for throughput and reports. A value will then be shown as e.g. "111 ops/s".
+                 for throughput and results. A value will then be shown as e.g. "111 ops/s".
         """
         raise NotImplementedError("abstract operation")
 
@@ -2071,7 +2071,7 @@ class WaitForTransform(Runner):
             documents_processed_delta = documents_processed - self._last_documents_processed
             processing_time_delta = processing_time - self._last_processing_time
 
-            # only report if we have enough data or transform has completed
+            # only publish if we have enough data or transform has completed
             if self._completed or (documents_processed_delta > 5000 and processing_time_delta > 500):
                 stats = {
                     "transform-id": transform_id,
