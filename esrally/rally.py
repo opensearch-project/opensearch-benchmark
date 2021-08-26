@@ -198,21 +198,21 @@ def create_arg_parser():
         required=True,
         help=f"Race ID of the contender (see {PROGRAM_NAME} list races).")
     compare_parser.add_argument(
-        "--publish-format",
+        "--results-format",
         help="Define the output format for the command line results (default: markdown).",
         choices=["markdown", "csv"],
         default="markdown")
     compare_parser.add_argument(
-        "--publish-numbers-align",
+        "--results-numbers-align",
         help="Define the output column number alignment for the command line results (default: right).",
         choices=["right", "center", "left", "decimal"],
         default="right")
     compare_parser.add_argument(
-        "--publish-file",
+        "--results-file",
         help="Write the command line results also to the provided file.",
         default="")
     compare_parser.add_argument(
-        "--show-in-publish",
+        "--show-in-results",
         help="Whether to include the comparison in the results file.",
         default=True)
 
@@ -504,22 +504,22 @@ def create_arg_parser():
              "Example: intention:baseline-ticket-12345",
         default="")
     race_parser.add_argument(
-        "--publish-format",
+        "--results-format",
         help="Define the output format for the command line results (default: markdown).",
         choices=["markdown", "csv"],
         default="markdown")
     race_parser.add_argument(
-        "--publish-numbers-align",
+        "--results-numbers-align",
         help="Define the output column number alignment for the command line results (default: right).",
         choices=["right", "center", "left", "decimal"],
         default="right")
     race_parser.add_argument(
-        "--show-in-publish",
+        "--show-in-results",
         help="Define which values are shown in the summary publish (default: available).",
         choices=["available", "all-percentiles", "all"],
         default="available")
     race_parser.add_argument(
-        "--publish-file",
+        "--results-file",
         help="Write the command line results also to the provided file.",
         default="")
     race_parser.add_argument(
@@ -778,10 +778,10 @@ def configure_connection_params(arg_parser, args, cfg):
 
 
 def configure_publishing_params(args, cfg):
-    cfg.add(config.Scope.applicationOverride, "publishing", "format", args.publish_format)
-    cfg.add(config.Scope.applicationOverride, "publishing", "values", args.show_in_publish)
-    cfg.add(config.Scope.applicationOverride, "publishing", "output.path", args.publish_file)
-    cfg.add(config.Scope.applicationOverride, "publishing", "numbers.align", args.publish_numbers_align)
+    cfg.add(config.Scope.applicationOverride, "publishing", "format", args.results_format)
+    cfg.add(config.Scope.applicationOverride, "publishing", "values", args.show_in_results)
+    cfg.add(config.Scope.applicationOverride, "publishing", "output.path", args.results_file)
+    cfg.add(config.Scope.applicationOverride, "publishing", "numbers.align", args.results_numbers_align)
 
 
 def dispatch_sub_command(arg_parser, args, cfg):
