@@ -279,7 +279,7 @@ class ConfigMigrationTests(TestCase):
                 "metrics.stats.disk.device": "/dev/hdd1"
             },
             "results_publishing": {
-                "publish.base.dir": "/tests/rally/results_publishing",
+                "results.base.dir": "/tests/rally/results_publishing",
                 "output.html.results.filename": "index.html"
             },
             "runtime": {

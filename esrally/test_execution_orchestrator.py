@@ -235,7 +235,7 @@ class BenchmarkCoordinator:
             metrics.results_store(self.cfg).store_results(self.race)
             results_publisher.summarize(final_results, self.cfg)
         else:
-            self.logger.info("Suppressing output of summary publish. Cancelled = [%r], Error = [%r].", self.cancelled, self.error)
+            self.logger.info("Suppressing output of summary results. Cancelled = [%r], Error = [%r].", self.cancelled, self.error)
         self.metrics_store.close()
 
 
