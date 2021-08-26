@@ -1,3 +1,10 @@
+# * SPDX-License-Identifier: Apache-2.0
+# *
+# * The OpenSearch Contributors require contributions made to
+# * this file be licensed under the Apache-2.0 license or a
+# * compatible open source license.
+#  * Modifications Copyright OpenSearch Contributors. See
+# * GitHub history for details.
 # Licensed to Elasticsearch B.V. under one or more contributor
 # license agreements. See the NOTICE file distributed with
 # this work for additional information regarding copyright
@@ -797,7 +804,7 @@ class TemplateSource(TestCase):
         template_file_name = "track.json"
         tmpl_src = loader.TemplateSource(base_path, template_file_name)
         # pylint: disable=trailing-whitespace
-        expected_response = textwrap.dedent("""                                
+        expected_response = textwrap.dedent("""
             {% import "rally.helpers" as rally with context %}
             {
               "version": 2,
