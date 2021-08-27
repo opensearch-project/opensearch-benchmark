@@ -606,7 +606,6 @@ class DockerProvisionerTests(TestCase):
 
         docker_cfg = docker._render_template_from_file(docker.docker_vars(mounts={}))
 
-        self.assertEqual.__self__.maxDiff = None
         self.assertEqual(
 """version: '2.2'
 services:
@@ -659,7 +658,6 @@ services:
 
         docker_cfg = docker._render_template_from_file(docker.docker_vars(mounts={}))
 
-        self.assertEqual.__self__.maxDiff = None
         self.assertEqual(
 """version: '2.2'
 services:
