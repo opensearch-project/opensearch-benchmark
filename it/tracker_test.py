@@ -35,11 +35,11 @@ def test_cluster():
     # test with a recent distribution
     dist = it.DISTRIBUTIONS[-1]
     port = 19200
-    race_id = str(uuid.uuid4())
+    test_execution_id = str(uuid.uuid4())
 
     it.wait_until_port_is_free(port_number=port)
     cluster.install(distribution_version=dist, node_name="rally-node", car="4gheap", http_port=port)
-    cluster.start(race_id=race_id)
+    cluster.start(test_execution_id=test_execution_id)
     yield cluster
     cluster.stop()
 
@@ -49,7 +49,7 @@ def test_create_track(cfg, tmp_path, test_cluster):
     # prepare some data
     cmd = f"--test-mode --pipeline=benchmark-only --target-hosts=127.0.0.1:{test_cluster.http_port} " \
           f" --track=geonames --challenge=append-no-conflicts-index-only --quiet"
-    assert it.race(cfg, cmd) == 0
+    assert it.execute_test(cfg, cmd) == 0
 
     # create the track
     track_name = f"test-track-{uuid.uuid4()}"
@@ -71,4 +71,4 @@ def test_create_track(cfg, tmp_path, test_cluster):
 
     # run a benchmark with the created track
     cmd = f"--test-mode --pipeline=benchmark-only --target-hosts=127.0.0.1:{test_cluster.http_port} --track-path={track_path}"
-    assert it.race(cfg, cmd) == 0
+    assert it.execute_test(cfg, cmd) == 0

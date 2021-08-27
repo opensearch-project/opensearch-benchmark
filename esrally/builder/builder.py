@@ -84,7 +84,7 @@ def install(cfg):
 
 def start(cfg):
     root_path = paths.install_root(cfg)
-    race_id = cfg.opts("system", "race.id")
+    test_execution_id = cfg.opts("system", "test_execution.id")
     # avoid double-launching - we expect that the node file is absent
     with contextlib.suppress(FileNotFoundError):
         _load_node_file(root_path)
@@ -101,7 +101,7 @@ def start(cfg):
     else:
         raise exceptions.SystemSetupError("Unknown build type [{}]".format(node_config.build_type))
     nodes = node_launcher.start([node_config])
-    _store_node_file(root_path, (nodes, race_id))
+    _store_node_file(root_path, (nodes, test_execution_id))
 
 
 def stop(cfg):
@@ -114,35 +114,35 @@ def stop(cfg):
     else:
         raise exceptions.SystemSetupError("Unknown build type [{}]".format(node_config.build_type))
 
-    nodes, race_id = _load_node_file(root_path)
+    nodes, test_execution_id = _load_node_file(root_path)
 
     cls = metrics.metrics_store_class(cfg)
     metrics_store = cls(cfg)
 
-    race_store = metrics.race_store(cfg)
+    test_execution_store = metrics.test_execution_store(cfg)
     try:
-        current_race = race_store.find_by_race_id(race_id)
+        current_test_execution = test_execution_store.find_by_test_execution_id(test_execution_id)
         metrics_store.open(
-            race_id=current_race.race_id,
-            race_timestamp=current_race.race_timestamp,
-            track_name=current_race.track_name,
-            challenge_name=current_race.challenge_name
+            test_ex_id=current_test_execution.test_execution_id,
+            test_ex_timestamp=current_test_execution.test_execution_timestamp,
+            track_name=current_test_execution.track_name,
+            challenge_name=current_test_execution.challenge_name
         )
     except exceptions.NotFound:
-        logging.getLogger(__name__).info("Could not find race [%s] and will thus not persist system metrics.", race_id)
-        # Don't persist system metrics if we can't retrieve the race as we cannot derive the required meta-data.
-        current_race = None
+        logging.getLogger(__name__).info("Could not find test_execution [%s] and will thus not persist system metrics.", test_execution_id)
+        # Don't persist system metrics if we can't retrieve the test_execution as we cannot derive the required meta-data.
+        current_test_execution = None
         metrics_store = None
 
     node_launcher.stop(nodes, metrics_store)
     _delete_node_file(root_path)
 
-    if current_race:
+    if current_test_execution:
         metrics_store.flush(refresh=True)
         for node in nodes:
             results = metrics.calculate_system_results(metrics_store, node.node_name)
-            current_race.add_results(results)
-            metrics.results_store(cfg).store_results(current_race)
+            current_test_execution.add_results(results)
+            metrics.results_store(cfg).store_results(current_test_execution)
 
         metrics_store.close()
 
@@ -366,7 +366,7 @@ class BuilderActor(actor.RallyActor):
             self.on_all_nodes_started()
             self.status = "cluster_started"
         else:
-            console.info("Preparing for race ...", flush=True)
+            console.info("Preparing for test execution ...", flush=True)
             self.logger.info("Cluster consisting of %s will be provisioned by Rally.", hosts)
             msg.hosts = hosts
             # Initialize the children array to have the right size to
@@ -541,8 +541,8 @@ class NodeBuilderActor(actor.RallyActor):
             cfg = config.auto_load_local_config(msg.cfg, additional_sections=[
                 # only copy the relevant bits
                 "track", "builder", "client", "telemetry",
-                # allow metrics store to extract race meta-data
-                "race",
+                # allow metrics store to extract test_execution meta-data
+                "test_execution",
                 "source"
             ])
             # set root path (normally done by the main entry point)
@@ -617,7 +617,7 @@ def load_team(cfg, external):
 
 def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_ids, sources=False, distribution=False,
            external=False, docker=False):
-    race_root_path = paths.race_root(cfg)
+    test_execution_root_path = paths.test_execution_root(cfg)
     node_ids = cfg.opts("provisioning", "node.ids", mandatory=False)
     node_name_prefix = cfg.opts("provisioning", "node.name.prefix")
     car, plugins = load_team(cfg, external)
@@ -630,7 +630,7 @@ def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_i
             node_name = "%s-%s" % (node_name_prefix, node_id)
             p.append(
                 provisioner.local(cfg, car, plugins, node_ip, node_http_port, all_node_ips,
-                                  all_node_names, race_root_path, node_name))
+                                  all_node_names, test_execution_root_path, node_name))
         l = launcher.ProcessLauncher(cfg)
     elif external:
         raise exceptions.RallyAssertionError("Externally provisioned clusters should not need to be managed by Rally's builder")
@@ -642,7 +642,7 @@ def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_i
         p = []
         for node_id in node_ids:
             node_name = "%s-%s" % (node_name_prefix, node_id)
-            p.append(provisioner.docker(cfg, car, node_ip, node_http_port, race_root_path, node_name))
+            p.append(provisioner.docker(cfg, car, node_ip, node_http_port, test_execution_root_path, node_name))
         l = launcher.DockerLauncher(cfg)
     else:
         # It is a programmer error (and not a user error) if this function is called with wrong parameters
@@ -689,9 +689,9 @@ class Builder:
         self.launcher.stop(self.nodes, self.metrics_store)
         self.flush_metrics(refresh=True)
         try:
-            current_race = self._current_race()
+            current_test_execution = self._current_test_execution()
             for node in self.nodes:
-                self._add_results(current_race, node)
+                self._add_results(current_test_execution, node)
         except exceptions.NotFound as e:
             self.logger.warning("Cannot store system metrics: %s.", str(e))
 
@@ -703,11 +703,11 @@ class Builder:
                                 data_paths=node_config.data_paths)
         self.node_configs = []
 
-    def _current_race(self):
-        race_id = self.cfg.opts("system", "race.id")
-        return metrics.race_store(self.cfg).find_by_race_id(race_id)
+    def _current_test_execution(self):
+        test_execution_id = self.cfg.opts("system", "test_execution.id")
+        return metrics.test_execution_store(self.cfg).find_by_test_execution_id(test_execution_id)
 
-    def _add_results(self, current_race, node):
+    def _add_results(self, current_test_execution, node):
         results = metrics.calculate_system_results(self.metrics_store, node.node_name)
-        current_race.add_results(results)
-        metrics.results_store(self.cfg).store_results(current_race)
+        current_test_execution.add_results(results)
+        metrics.results_store(self.cfg).store_results(current_test_execution)

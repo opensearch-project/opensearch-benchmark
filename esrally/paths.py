@@ -33,19 +33,19 @@ def rally_root():
     return os.path.dirname(os.path.realpath(__file__))
 
 
-def races_root(cfg):
-    return os.path.join(cfg.opts("node", "root.dir"), "races")
+def test_excecutions_root(cfg):
+    return os.path.join(cfg.opts("node", "root.dir"), "test_executions")
 
 
-def race_root(cfg, race_id=None):
-    if not race_id:
-        race_id = cfg.opts("system", "race.id")
-    return os.path.join(races_root(cfg), race_id)
+def test_execution_root(cfg, test_execution_id=None):
+    if not test_execution_id:
+        test_execution_id = cfg.opts("system", "test_execution.id")
+    return os.path.join(test_excecutions_root(cfg), test_execution_id)
 
 
 def install_root(cfg=None):
     install_id = cfg.opts("system", "install.id")
-    return os.path.join(races_root(cfg), install_id)
+    return os.path.join(test_excecutions_root(cfg), install_id)
 
 
 # There is a weird bug manifesting in jenkins that is somehow saying the following line has an invalid docstring

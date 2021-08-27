@@ -118,7 +118,7 @@ class BenchmarkActor(actor.RallyActor):
     @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_EngineStarted(self, msg, sender):
         self.logger.info("Builder has started engine successfully.")
-        self.coordinator.race.team_revision = msg.team_revision
+        self.coordinator.test_execution.team_revision = msg.team_revision
         self.main_worker_coordinator = self.createActor(
             worker_coordinator.WorkerCoordinatorActor,
             targetActorRequirements={"coordinator": True}
@@ -143,7 +143,7 @@ class BenchmarkActor(actor.RallyActor):
     def receiveMsg_BenchmarkCancelled(self, msg, sender):
         self.coordinator.cancelled = True
         # even notify the start sender if it is the originator. The reason is that we call #ask() which waits for a reply.
-        # We also need to ask in order to avoid races between this notification and the following ActorExitRequest.
+        # We also need to ask in order to avoid test_executions between this notification and the following ActorExitRequest.
         self.send(self.start_sender, msg)
 
     @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
@@ -170,9 +170,9 @@ class BenchmarkCoordinator:
     def __init__(self, cfg):
         self.logger = logging.getLogger(__name__)
         self.cfg = cfg
-        self.race = None
+        self.test_execution = None
         self.metrics_store = None
-        self.race_store = None
+        self.test_execution_store = None
         self.cancelled = False
         self.error = False
         self.track_revision = None
@@ -202,28 +202,33 @@ class BenchmarkCoordinator:
                     self.current_track.name, challenge_name, PROGRAM_NAME))
         if self.current_challenge.user_info:
             console.info(self.current_challenge.user_info)
-        self.race = metrics.create_race(self.cfg, self.current_track, self.current_challenge, self.track_revision)
+        self.test_execution = metrics.create_test_execution(self.cfg, self.current_track, self.current_challenge, self.track_revision)
 
         self.metrics_store = metrics.metrics_store(
             self.cfg,
-            track=self.race.track_name,
-            challenge=self.race.challenge_name,
+            track=self.test_execution.track_name,
+            challenge=self.test_execution.challenge_name,
             read_only=False
         )
-        self.race_store = metrics.race_store(self.cfg)
+        self.test_execution_store = metrics.test_execution_store(self.cfg)
 
     def on_preparation_complete(self, distribution_flavor, distribution_version, revision):
-        self.race.distribution_flavor = distribution_flavor
-        self.race.distribution_version = distribution_version
-        self.race.revision = revision
-        # store race initially (without any results) so other components can retrieve full metadata
-        self.race_store.store_race(self.race)
-        if self.race.challenge.auto_generated:
+        self.test_execution.distribution_flavor = distribution_flavor
+        self.test_execution.distribution_version = distribution_version
+        self.test_execution.revision = revision
+        # store test_execution initially (without any results) so other components can retrieve full metadata
+        self.test_execution_store.store_test_execution(self.test_execution)
+        if self.test_execution.challenge.auto_generated:
             console.info("Racing on track [{}] and car {} with version [{}].\n"
-                         .format(self.race.track_name, self.race.car, self.race.distribution_version))
+                         .format(self.test_execution.track_name, self.test_execution.car, self.test_execution.distribution_version))
         else:
             console.info("Racing on track [{}], challenge [{}] and car {} with version [{}].\n"
-                         .format(self.race.track_name, self.race.challenge_name, self.race.car, self.race.distribution_version))
+                         .format(
+                             self.test_execution.track_name,
+                             self.test_execution.challenge_name,
+                             self.test_execution.car,
+                             self.test_execution.distribution_version
+                             ))
 
     def on_task_finished(self, new_metrics):
         self.logger.info("Task has finished.")
@@ -236,17 +241,17 @@ class BenchmarkCoordinator:
         self.metrics_store.bulk_add(new_metrics)
         self.metrics_store.flush()
         if not self.cancelled and not self.error:
-            final_results = metrics.calculate_results(self.metrics_store, self.race)
-            self.race.add_results(final_results)
-            self.race_store.store_race(self.race)
-            metrics.results_store(self.cfg).store_results(self.race)
+            final_results = metrics.calculate_results(self.metrics_store, self.test_execution)
+            self.test_execution.add_results(final_results)
+            self.test_execution_store.store_test_execution(self.test_execution)
+            metrics.results_store(self.cfg).store_results(self.test_execution)
             results_publisher.summarize(final_results, self.cfg)
         else:
             self.logger.info("Suppressing output of summary results. Cancelled = [%r], Error = [%r].", self.cancelled, self.error)
         self.metrics_store.close()
 
 
-def race(cfg, sources=False, distribution=False, external=False, docker=False):
+def execute_test(cfg, sources=False, distribution=False, external=False, docker=False):
     logger = logging.getLogger(__name__)
     # at this point an actor system has to run and we should only join
     actor_system = actor.bootstrap_actor_system(try_join=True)
@@ -265,7 +270,7 @@ def race(cfg, sources=False, distribution=False, external=False, docker=False):
             raise exceptions.RallyError("Got an unexpected result during benchmarking: [%s]." % str(result))
     except KeyboardInterrupt:
         logger.info("User has cancelled the benchmark (detected by test execution orchestrator).")
-        # notify the coordinator so it can properly handle this state. Do it blocking so we don't have a race between this message
+        # notify the coordinator so it can properly handle this state. Do it blocking so we don't have a test execution between this message
         # and the actor exit request.
         actor_system.ask(benchmark_actor, actor.BenchmarkCancelled())
     finally:
@@ -288,25 +293,25 @@ def set_default_hosts(cfg, host="127.0.0.1", port=9200):
 def from_sources(cfg):
     port = cfg.opts("provisioning", "node.http.port")
     set_default_hosts(cfg, port=port)
-    return race(cfg, sources=True)
+    return execute_test(cfg, sources=True)
 
 
 def from_distribution(cfg):
     port = cfg.opts("provisioning", "node.http.port")
     set_default_hosts(cfg, port=port)
-    return race(cfg, distribution=True)
+    return execute_test(cfg, distribution=True)
 
 
 def benchmark_only(cfg):
     set_default_hosts(cfg)
     # We'll use a special car name for external benchmarks.
     cfg.add(config.Scope.benchmark, "builder", "car.names", ["external"])
-    return race(cfg, external=True)
+    return execute_test(cfg, external=True)
 
 
 def docker(cfg):
     set_default_hosts(cfg)
-    return race(cfg, docker=True)
+    return execute_test(cfg, docker=True)
 
 
 Pipeline("from-sources",
@@ -334,9 +339,9 @@ def list_pipelines():
 
 def run(cfg):
     logger = logging.getLogger(__name__)
-    name = cfg.opts("race", "pipeline")
-    race_id = cfg.opts("system", "race.id")
-    logger.info("Race id [%s]", race_id)
+    name = cfg.opts("test_execution", "pipeline")
+    test_execution_id = cfg.opts("system", "test_execution.id")
+    logger.info("Test Execution id [%s]", test_execution_id)
     if len(name) == 0:
         # assume from-distribution pipeline if distribution.version has been specified and --pipeline cli arg not set
         if cfg.exists("builder", "distribution.version"):
@@ -344,7 +349,7 @@ def run(cfg):
         else:
             name = "from-sources"
         logger.info("User specified no pipeline. Automatically derived pipeline [%s].", name)
-        cfg.add(config.Scope.applicationOverride, "race", "pipeline", name)
+        cfg.add(config.Scope.applicationOverride, "test_execution", "pipeline", name)
     else:
         logger.info("User specified pipeline [%s].", name)
 
@@ -371,4 +376,4 @@ def run(cfg):
         logger.info("User has cancelled the benchmark.")
     except BaseException:
         tb = sys.exc_info()[2]
-        raise exceptions.RallyError("This race ended with a fatal crash.").with_traceback(tb)
+        raise exceptions.RallyError("This test_execution ended with a fatal crash.").with_traceback(tb)

@@ -112,10 +112,10 @@ class BuilderTests(TestCase):
 
     # We stub irrelevant methods for the test
     class TestBuilder(builder.Builder):
-        def _current_race(self):
-            return "race 17"
+        def _current_test_execution(self):
+            return "test_execution 17"
 
-        def _add_results(self, current_race, node):
+        def _add_results(self, current_test_execution, node):
             pass
 
     @mock.patch("esrally.builder.provisioner.cleanup")
@@ -124,7 +124,7 @@ class BuilderTests(TestCase):
         provisioners = [mock.Mock(), mock.Mock()]
         launcher = BuilderTests.TestLauncher()
         cfg = config.Config()
-        cfg.add(config.Scope.application, "system", "race.id", "17")
+        cfg.add(config.Scope.application, "system", "test_execution.id", "17")
         cfg.add(config.Scope.application, "builder", "preserve.install", False)
         metrics_store = mock.Mock()
         m = BuilderTests.TestBuilder(cfg, metrics_store, supplier, provisioners, launcher)

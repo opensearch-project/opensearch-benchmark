@@ -83,18 +83,18 @@ def esrally_command_line_for(cfg, command_line):
 
 def esrally(cfg, command_line):
     """
-    This method should be used for rally invocations of the all commands besides race.
-    These commands may have different CLI options than race.
+    This method should be used for rally invocations of the all commands besides test_execution.
+    These commands may have different CLI options than test_execution.
     """
     return os.system(esrally_command_line_for(cfg, command_line))
 
 
-def race(cfg, command_line):
+def execute_test(cfg, command_line):
     """
-    This method should be used for rally invocations of the race command.
-    It sets up some defaults for how the integration tests expect to run races.
+    This method should be used for rally invocations of the test_execution command.
+    It sets up some defaults for how the integration tests expect to run test_executions.
     """
-    return esrally(cfg, f"race {command_line} --kill-running-processes --on-error='abort' --enable-assertions")
+    return esrally(cfg, f"execute_test {command_line} --kill-running-processes --on-error='abort' --enable-assertions")
 
 
 def shell_cmd(command_line):
@@ -176,8 +176,8 @@ class TestCluster:
         except BaseException as e:
             raise AssertionError("Failed to install Elasticsearch {}.".format(distribution_version), e)
 
-    def start(self, race_id):
-        cmd = "start --runtime-jdk=\"bundled\" --installation-id={} --race-id={}".format(self.installation_id, race_id)
+    def start(self, test_execution_id):
+        cmd = "start --runtime-jdk=\"bundled\" --installation-id={} --test-execution-id={}".format(self.installation_id, test_execution_id)
         if esrally(self.cfg, cmd) != 0:
             raise AssertionError("Failed to start Elasticsearch test cluster.")
         es = client.EsClientFactory(hosts=[{"host": "127.0.0.1", "port": self.http_port}], client_options={}).create()
@@ -203,7 +203,7 @@ class EsMetricsStore:
                              node_name="metrics-store",
                              car="defaults",
                              http_port=10200)
-        self.cluster.start(race_id="metrics-store")
+        self.cluster.start(test_execution_id="metrics-store")
 
     def stop(self):
         self.cluster.stop()

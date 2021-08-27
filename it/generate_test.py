@@ -30,7 +30,7 @@ import it
 @it.rally_in_mem
 def test_track_info_with_challenge(cfg, tmp_path):
     cwd = os.path.dirname(__file__)
-    chart_spec_path = os.path.join(cwd, "resources", "sample-race-config.json")
+    chart_spec_path = os.path.join(cwd, "resources", "sample-test-execution-config.json")
     output_path = os.path.join(tmp_path, "nightly-charts.ndjson")
     assert it.esrally(cfg, f"generate charts "
                            f"--chart-spec-path={chart_spec_path} "

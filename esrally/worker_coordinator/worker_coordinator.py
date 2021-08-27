@@ -562,7 +562,7 @@ class WorkerCoordinator:
     def prepare_telemetry(self, es, enable):
         enabled_devices = self.config.opts("telemetry", "devices")
         telemetry_params = self.config.opts("telemetry", "params")
-        log_root = paths.race_root(self.config)
+        log_root = paths.test_execution_root(self.config)
 
         es_default = es["default"]
 
@@ -696,7 +696,9 @@ class WorkerCoordinator:
             # we can go on to the next step
             self.currently_completed = 0
             self.complete_current_task_sent = False
-            # make a copy and reset early to avoid any race conditions from clients that reach a join point already while we are sending...
+            # make a copy and reset early to avoid any test
+            # execution conditions from clients that reach a
+            # join point already while we are sending...
             workers_curr_step = self.workers_completed_current_step
             self.workers_completed_current_step = {}
             self.update_progress_message(task_finished=True)

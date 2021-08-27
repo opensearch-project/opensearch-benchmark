@@ -154,8 +154,8 @@ class TerminatedProcess:
 
 def get_metrics_store(cfg):
     ms = InMemoryMetricsStore(cfg)
-    ms.open(race_id=str(uuid.uuid4()),
-            race_timestamp=datetime.now(),
+    ms.open(test_ex_id=str(uuid.uuid4()),
+            test_ex_timestamp=datetime.now(),
             track_name="test",
             challenge_name="test",
             car_name="test")
@@ -290,7 +290,7 @@ class ProcessLauncherTests(TestCase):
         self.assertEqual(os.environ["ES_JAVA_OPTS"], env["ES_JAVA_OPTS"])
 
     @mock.patch("esrally.time.sleep")
-    def test_pidfile_wait_race(self, sleep):
+    def test_pidfile_wait_test_execution(self, sleep):
         mo = mock_open()
         with self.assertRaises(exceptions.LaunchError):
             mo.side_effect = FileNotFoundError
