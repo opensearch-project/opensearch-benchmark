@@ -35,7 +35,7 @@ def test_tar_distributions(cfg):
     for dist in it.DISTRIBUTIONS:
         for track in it.TRACKS:
             it.wait_until_port_is_free(port_number=port)
-            assert it.test_execution(cfg, f"--distribution-version=\"{dist}\" --track=\"{track}\" "
+            assert it.execute_test(cfg, f"--distribution-version=\"{dist}\" --track=\"{track}\" "
                                 f"--test-mode --car=4gheap --target-hosts=127.0.0.1:{port}") == 0
 
 
@@ -45,7 +45,7 @@ def test_docker_distribution(cfg):
     # only test the most recent Docker distribution
     dist = it.DISTRIBUTIONS[-1]
     it.wait_until_port_is_free(port_number=port)
-    assert it.test_execution(cfg, f"--pipeline=\"docker\" --distribution-version=\"{dist}\" "
+    assert it.execute_test(cfg, f"--pipeline=\"docker\" --distribution-version=\"{dist}\" "
                         f"--track=\"geonames\" --challenge=\"append-no-conflicts-index-only\" --test-mode "
                         f"--car=4gheap --target-hosts=127.0.0.1:{port}") == 0
 
@@ -54,7 +54,7 @@ def test_docker_distribution(cfg):
 def test_does_not_benchmark_unsupported_distribution(cfg):
     port = 19200
     it.wait_until_port_is_free(port_number=port)
-    assert it.test_execution(cfg, f"--distribution-version=\"1.7.6\" --track=\"{it.TRACKS[0]}\" "
+    assert it.execute_test(cfg, f"--distribution-version=\"1.7.6\" --track=\"{it.TRACKS[0]}\" "
                         f"--target-hosts=127.0.0.1:{port} --test-mode --car=4gheap") != 0
 
 
@@ -110,4 +110,4 @@ def execute_eventdata(cfg, test_cluster, challenges, track_params):
         cmd = f"--test-mode --pipeline=benchmark-only --target-host=127.0.0.1:{test_cluster.http_port} " \
               f"--track-repository=eventdata --track=eventdata --track-params=\"{track_params}\" " \
               f"--challenge={challenge}"
-        assert it.test_execution(cfg, cmd) == 0
+        assert it.execute_test(cfg, cmd) == 0

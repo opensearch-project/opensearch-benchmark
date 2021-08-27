@@ -28,9 +28,9 @@ import it
 def test_sources(cfg):
     port = 19200
     it.wait_until_port_is_free(port_number=port)
-    assert it.test_execution(cfg, f"--revision=latest --track=geonames --test-mode  --target-hosts=127.0.0.1:{port} "
+    assert it.execute_test(cfg, f"--revision=latest --track=geonames --test-mode  --target-hosts=127.0.0.1:{port} "
                         f"--challenge=append-no-conflicts --car=4gheap --elasticsearch-plugins=analysis-icu") == 0
 
     it.wait_until_port_is_free(port_number=port)
-    assert it.test_execution(cfg, f"--pipeline=from-sources --track=geonames --test-mode --target-hosts=127.0.0.1:{port} "
+    assert it.execute_test(cfg, f"--pipeline=from-sources --track=geonames --test-mode --target-hosts=127.0.0.1:{port} "
                         f"--challenge=append-no-conflicts-index-only --car=\"4gheap,ea\"") == 0

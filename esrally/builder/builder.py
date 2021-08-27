@@ -366,7 +366,7 @@ class BuilderActor(actor.RallyActor):
             self.on_all_nodes_started()
             self.status = "cluster_started"
         else:
-            console.info("Preparing for test_execution ...", flush=True)
+            console.info("Preparing for test execution ...", flush=True)
             self.logger.info("Cluster consisting of %s will be provisioned by Rally.", hosts)
             msg.hosts = hosts
             # Initialize the children array to have the right size to

@@ -89,12 +89,12 @@ def esrally(cfg, command_line):
     return os.system(esrally_command_line_for(cfg, command_line))
 
 
-def test_execution(cfg, command_line):
+def execute_test(cfg, command_line):
     """
     This method should be used for rally invocations of the test_execution command.
     It sets up some defaults for how the integration tests expect to run test_executions.
     """
-    return esrally(cfg, f"test_execution {command_line} --kill-running-processes --on-error='abort' --enable-assertions")
+    return esrally(cfg, f"execute_test {command_line} --kill-running-processes --on-error='abort' --enable-assertions")
 
 
 def shell_cmd(command_line):
