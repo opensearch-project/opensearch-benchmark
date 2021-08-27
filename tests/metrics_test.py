@@ -1311,7 +1311,8 @@ class EsResultsStoreTests(TestCase):
                         meta_data={"track-type": "saturation-degree", "saturation": "oversaturation"})
 
         test_execution = metrics.TestExecution(rally_version="0.4.4", rally_revision=None, environment_name="unittest",
-                            test_execution_id=EsResultsStoreTests.TEST_EXECUTION_ID, test_execution_timestamp=EsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
+                            test_execution_id=EsResultsStoreTests.TEST_EXECUTION_ID,
+                            test_execution_timestamp=EsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params=None,
                             challenge=t.default_challenge, car="4gheap", car_params=None, plugin_params=None,
                             track_revision="abc1", team_revision="123ab", distribution_version=None,
@@ -1674,7 +1675,8 @@ class FileTestExecutionStoreTests(TestCase):
 
         test_execution = metrics.TestExecution(
             rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
-                            test_execution_id=FileTestExecutionStoreTests.TEST_EXECUTION_ID, test_execution_timestamp=FileTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
+                            test_execution_id=FileTestExecutionStoreTests.TEST_EXECUTION_ID,
+                            test_execution_timestamp=FileTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params={"clients": 12},
                             challenge=t.default_challenge, car="4gheap", car_params=None, plugin_params=None,
                             track_revision="abc1", team_revision="abc12333", distribution_version="5.0.0",
@@ -1700,7 +1702,8 @@ class FileTestExecutionStoreTests(TestCase):
 
         self.test_execution_store.store_test_execution(test_execution)
 
-        retrieved_test_execution = self.test_execution_store.find_by_test_execution_id(test_execution_id=FileTestExecutionStoreTests.TEST_EXECUTION_ID)
+        retrieved_test_execution = self.test_execution_store.find_by_test_execution_id(
+            test_execution_id=FileTestExecutionStoreTests.TEST_EXECUTION_ID)
         self.assertEqual(test_execution.test_execution_id, retrieved_test_execution.test_execution_id)
         self.assertEqual(test_execution.test_execution_timestamp, retrieved_test_execution.test_execution_timestamp)
         self.assertEqual(1, len(self.test_execution_store.list()))

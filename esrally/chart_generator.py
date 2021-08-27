@@ -1600,7 +1600,11 @@ def generate_index_ops(chart_type, test_execution_configs, environment, logger):
     charts = []
 
     if idx_test_execution_configs:
-        title = chart_type.format_title(environment, test_execution_configs[0].track, flavor=test_execution_configs[0].flavor, suffix="indexing-throughput")
+        title = chart_type.format_title(
+            environment,
+            test_execution_configs[0].track,
+            flavor=test_execution_configs[0].flavor,
+            suffix="indexing-throughput")
         charts = [chart_type.index(environment, idx_test_execution_configs, title)]
     return charts
 

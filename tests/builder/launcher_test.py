@@ -31,7 +31,6 @@ from datetime import datetime
 from unittest import TestCase, mock
 from unittest.mock import mock_open
 
-import logging
 import elasticsearch
 import psutil
 
