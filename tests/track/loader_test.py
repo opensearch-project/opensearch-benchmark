@@ -1815,7 +1815,8 @@ class TrackSpecificationReaderTests(TestCase):
         }))
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Must define 'test_procedure', 'test_procedures' or 'schedule' but none specified.",
+        self.assertEqual("Track 'unittest' is invalid. You must define 'test_procedure', 'test_procedures' or "
+                         "'schedule' but none specified.",
                          ctx.exception.args[0])
 
     @mock.patch("esrally.track.loader.register_all_params_in_track")
