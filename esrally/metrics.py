@@ -362,7 +362,8 @@ class MetricsStore:
         self._stop_watch = self._clock.stop_watch()
         self.logger = logging.getLogger(__name__)
 
-    def open(self, test_ex_id=None, test_ex_timestamp=None, track_name=None, test_procedure_name=None, car_name=None, ctx=None, create=False):
+    def open(self, test_ex_id=None, test_ex_timestamp=None, track_name=None, test_procedure_name=None, car_name=None, ctx=None,\
+         create=False):
         """
         Opens a metrics store for a specific test_execution, track, test_procedure and car.
 
@@ -778,7 +779,8 @@ class EsMetricsStore(MetricsStore):
         self._index_template_provider = index_template_provider_class(cfg)
         self._docs = None
 
-    def open(self, test_ex_id=None, test_ex_timestamp=None, track_name=None, test_procedure_name=None, car_name=None, ctx=None, create=False):
+    def open(self, test_ex_id=None, test_ex_timestamp=None, track_name=None, test_procedure_name=None, car_name=None, ctx=None, \
+        create=False):
         self._docs = []
         MetricsStore.open(self, test_ex_id, test_ex_timestamp, track_name, test_procedure_name, car_name, ctx, create)
         self._index = self.index_name()

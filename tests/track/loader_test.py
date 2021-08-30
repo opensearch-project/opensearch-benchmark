@@ -1780,8 +1780,8 @@ class TrackSpecificationReaderTests(TestCase):
         }))
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Operation 'index-append' in test_procedure 'default-test_procedure' defines '3' warmup "
-                         "iterations and a time period of '60' seconds. Please do not mix time periods and iterations.",
+        self.assertEqual("Track 'unittest' is invalid. Operation 'index-append' in test_procedure 'default-test_procedure' "
+                         "defines '3' warmup iterations and a time period of '60' seconds. Please do not mix time periods and iterations.",
                          ctx.exception.args[0])
 
     @mock.patch("esrally.track.loader.register_all_params_in_track")
@@ -1815,7 +1815,7 @@ class TrackSpecificationReaderTests(TestCase):
         }))
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. You must define 'test_procedure', 'test_procedures' or 'schedule' but none is specified.",
+        self.assertEqual("Track 'unittest' is invalid. Must define 'test_procedure', 'test_procedures' or 'schedule' but none specified.",
                          ctx.exception.args[0])
 
     @mock.patch("esrally.track.loader.register_all_params_in_track")
@@ -1842,7 +1842,8 @@ class TrackSpecificationReaderTests(TestCase):
                     ]
                 }
             ],
-            # We define both. Note that test_procedures without any properties would not pass JSON schema validation but we don't test this here.
+            # We define both. Note that test_procedures without any properties
+            # would not pass JSON schema validation but we don't test this here.
             "test_procedure": {},
             "test_procedures": []
         }
@@ -1851,7 +1852,8 @@ class TrackSpecificationReaderTests(TestCase):
         }))
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Multiple out of 'test_procedure', 'test_procedures' or 'schedule' are defined but only "
+        self.assertEqual("Track 'unittest' is invalid. Multiple out of 'test_procedure', 'test_procedures' or 'schedule' "
+                         "are defined but only "
                          "one of them is allowed.", ctx.exception.args[0])
 
     @mock.patch("esrally.track.loader.register_all_params_in_track")
@@ -1906,8 +1908,10 @@ class TrackSpecificationReaderTests(TestCase):
         }))
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Operation 'index-append' in test_procedure 'default-test_procedure' defines a warmup time "
-                         "period of '20' seconds and '1000' iterations. Please do not mix time periods and iterations.",
+        self.assertEqual("Track 'unittest' is invalid. Operation 'index-append' in test_procedure 'default-test_procedure' "
+                         "defines a warmup time "
+                         "period of '20' seconds and '1000' iterations. "
+                         "Please do not mix time periods and iterations.",
                          ctx.exception.args[0])
 
     def test_parse_duplicate_implicit_task_names(self):
@@ -1937,7 +1941,8 @@ class TrackSpecificationReaderTests(TestCase):
         reader = loader.TrackSpecificationReader()
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. TestProcedure 'default-test_procedure' contains multiple tasks with the name 'search'. Please"
+        self.assertEqual("Track 'unittest' is invalid. TestProcedure 'default-test_procedure' contains multiple tasks"
+                         " with the name 'search'. Please"
                          " use the task's name property to assign a unique name for each task.",
                          ctx.exception.args[0])
 
@@ -2956,7 +2961,8 @@ class TrackSpecificationReaderTests(TestCase):
         reader = loader.TrackSpecificationReader()
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Both 'default-test_procedure' and 'another-test_procedure' are defined as default test_procedures. "
+        self.assertEqual("Track 'unittest' is invalid. Both 'default-test_procedure' and 'another-test_procedure' "
+                         "are defined as default test_procedures. "
                          "Please define only one of them as default.", ctx.exception.args[0])
 
     def test_at_least_one_default_test_procedure(self):
@@ -2992,7 +2998,8 @@ class TrackSpecificationReaderTests(TestCase):
         reader = loader.TrackSpecificationReader()
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. No default test_procedure specified. Please edit the track and add \"default\": true "
+        self.assertEqual("Track 'unittest' is invalid. No default test_procedure specified. "
+                         "Please edit the track and add \"default\": true "
                          "to one of the test_procedures test_procedure, another-test_procedure.", ctx.exception.args[0])
 
     def test_exactly_one_default_test_procedure(self):
@@ -3436,7 +3443,8 @@ class TrackSpecificationReaderTests(TestCase):
 
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. 'parallel' element for test_procedure 'default-test_procedure' is marked with 'completed-by' "
+        self.assertEqual("Track 'unittest' is invalid. 'parallel' element for "
+                         "test_procedure 'default-test_procedure' is marked with 'completed-by' "
                          "with task name 'non-existing-task' but no task with this name exists.", ctx.exception.args[0])
 
     def test_parallel_tasks_with_completed_by_set_multiple_tasks_match(self):
@@ -3474,7 +3482,8 @@ class TrackSpecificationReaderTests(TestCase):
 
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. 'parallel' element for test_procedure 'default-test_procedure' contains multiple tasks with "
+        self.assertEqual("Track 'unittest' is invalid. 'parallel' element for test_procedure "
+                         "'default-test_procedure' contains multiple tasks with "
                          "the name 'index-1' which are marked with 'completed-by' but only task is allowed to match.",
                          ctx.exception.args[0])
 

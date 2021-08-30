@@ -1379,7 +1379,8 @@ class TrackSpecificationReader:
             test_procedures.append(test_procedure)
 
         if test_procedures and default_test_procedure is None:
-            self._error("No default test_procedure specified. Please edit the track and add \"default\": true to one of the test_procedures %s."
+            self._error(
+                "No default test_procedure specified. Please edit the track and add \"default\": true to one of the test_procedures %s."
                         % ", ".join([c.name for c in test_procedures]))
         return test_procedures
 
@@ -1404,7 +1405,9 @@ class TrackSpecificationReader:
                 "schedule": schedule
             }], True
         else:
-            raise AssertionError("Unexpected: schedule=[{}], test_procedure=[{}], test_procedures=[{}]".format(schedule, test_procedure, test_procedures))
+            raise AssertionError(
+                "Unexpected: schedule=[{}], test_procedure=[{}], test_procedures=[{}]".format(
+                    schedule, test_procedure, test_procedures))
 
     def parse_parallel(self, ops_spec, ops, test_procedure_name):
         # use same default values as #parseTask() in case the 'parallel' element did not specify anything
@@ -1426,7 +1429,8 @@ class TrackSpecificationReader:
                 if task.completes_parent and not completion_task:
                     completion_task = task
                 elif task.completes_parent:
-                    self._error("'parallel' element for test_procedure '%s' contains multiple tasks with the name '%s' which are marked with "
+                    self._error(
+                        "'parallel' element for test_procedure '%s' contains multiple tasks with the name '%s' which are marked with "
                                 "'completed-by' but only task is allowed to match." % (test_procedure_name, completed_by))
             if not completion_task:
                 self._error("'parallel' element for test_procedure '%s' is marked with 'completed-by' with task name '%s' but no task with "
@@ -1463,10 +1467,12 @@ class TrackSpecificationReader:
                           # this is to provide scheduler-specific parameters for custom schedulers.
                           params=task_spec)
         if task.warmup_iterations is not None and task.time_period is not None:
-            self._error("Operation '%s' in test_procedure '%s' defines '%d' warmup iterations and a time period of '%d' seconds. Please do not "
+            self._error(
+                "Operation '%s' in test_procedure '%s' defines '%d' warmup iterations and a time period of '%d' seconds. Please do not "
                         "mix time periods and iterations." % (op.name, test_procedure_name, task.warmup_iterations, task.time_period))
         elif task.warmup_time_period is not None and task.iterations is not None:
-            self._error("Operation '%s' in test_procedure '%s' defines a warmup time period of '%d' seconds and '%d' iterations. Please do not "
+            self._error(
+                "Operation '%s' in test_procedure '%s' defines a warmup time period of '%d' seconds and '%d' iterations. Please do not "
                         "mix time periods and iterations." % (op.name, test_procedure_name, task.warmup_time_period, task.iterations))
 
         return task

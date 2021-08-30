@@ -116,7 +116,10 @@ class WorkerCoordinatorTests(TestCase):
             track.Task(name="index", operation=track.Operation("index", operation_type=track.OperationType.Bulk), clients=4)
         ])
         another_test_procedure = track.TestProcedure("other", default=False)
-        self.track = track.Track(name="unittest", description="unittest track", test_procedures=[another_test_procedure, default_test_procedure])
+        self.track = track.Track(
+            name="unittest",
+            description="unittest track",
+            test_procedures=[another_test_procedure, default_test_procedure])
 
     def tearDown(self):
         WorkerCoordinatorTests.StaticClientFactory.close()

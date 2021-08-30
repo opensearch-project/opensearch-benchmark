@@ -400,7 +400,8 @@ class Track:
         :param name: A short, descriptive name for this track. As per convention, this name should be in lower-case without spaces.
         :param description: A description for this track (should be less than 80 characters).
         :param meta_data: An optional dict of meta-data elements to attach to each metrics record. Default: {}.
-        :param test_procedures: A list of one or more test_procedures to use. Precondition: If the list is non-empty it contains exactly one element
+        :param test_procedures: A list of one or more test_procedures to use.
+        Precondition: If the list is non-empty it contains exactly one element
         with its ``default`` property set to ``True``.
         :param indices: A list of indices for this track. May be None.
         :param data_streams: A list of data streams for this track. May be None.
