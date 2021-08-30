@@ -157,7 +157,7 @@ def get_metrics_store(cfg):
     ms.open(test_ex_id=str(uuid.uuid4()),
             test_ex_timestamp=datetime.now(),
             track_name="test",
-            challenge_name="test",
+            test_procedure_name="test",
             car_name="test")
     return ms
 

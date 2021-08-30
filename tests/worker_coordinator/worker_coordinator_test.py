@@ -99,7 +99,7 @@ class WorkerCoordinatorTests(TestCase):
         self.cfg.add(config.Scope.application, "system", "test_execution.id", "6ebc6e53-ee20-4b0c-99b4-09697987e9f4")
         self.cfg.add(config.Scope.application, "system", "available.cores", 8)
         self.cfg.add(config.Scope.application, "node", "root.dir", "/tmp")
-        self.cfg.add(config.Scope.application, "track", "challenge.name", "default")
+        self.cfg.add(config.Scope.application, "track", "test_procedure.name", "default")
         self.cfg.add(config.Scope.application, "track", "params", {})
         self.cfg.add(config.Scope.application, "track", "test.mode.enabled", True)
         self.cfg.add(config.Scope.application, "telemetry", "devices", [])
@@ -112,11 +112,11 @@ class WorkerCoordinatorTests(TestCase):
         self.cfg.add(config.Scope.application, "worker_coordinator", "load_worker_coordinator_hosts", ["localhost"])
         self.cfg.add(config.Scope.application, "results_publishing", "datastore.type", "in-memory")
 
-        default_challenge = track.Challenge("default", default=True, schedule=[
+        default_test_procedure = track.TestProcedure("default", default=True, schedule=[
             track.Task(name="index", operation=track.Operation("index", operation_type=track.OperationType.Bulk), clients=4)
         ])
-        another_challenge = track.Challenge("other", default=False)
-        self.track = track.Track(name="unittest", description="unittest track", challenges=[another_challenge, default_challenge])
+        another_test_procedure = track.TestProcedure("other", default=False)
+        self.track = track.Track(name="unittest", description="unittest track", test_procedures=[another_test_procedure, default_test_procedure])
 
     def tearDown(self):
         WorkerCoordinatorTests.StaticClientFactory.close()
@@ -290,7 +290,7 @@ class SamplePostprocessorTests(TestCase):
         post_process = worker_coordinator.SamplePostprocessor(metrics_store,
                                                   downsample_factor=1,
                                                   track_meta_data={},
-                                                  challenge_meta_data={})
+                                                  test_procedure_meta_data={})
 
         task = track.Task("index", track.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
         samples = [
@@ -317,7 +317,7 @@ class SamplePostprocessorTests(TestCase):
         post_process = worker_coordinator.SamplePostprocessor(metrics_store,
                                                   downsample_factor=2,
                                                   track_meta_data={},
-                                                  challenge_meta_data={})
+                                                  test_procedure_meta_data={})
 
         task = track.Task("index", track.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
 
@@ -345,7 +345,7 @@ class SamplePostprocessorTests(TestCase):
         post_process = worker_coordinator.SamplePostprocessor(metrics_store,
                                                   downsample_factor=1,
                                                   track_meta_data={},
-                                                  challenge_meta_data={})
+                                                  test_procedure_meta_data={})
 
         task = track.Task("index", track.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
         samples = [
@@ -1156,7 +1156,7 @@ class AsyncExecutorTests(TestCase):
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_track = track.Track(name="unittest", description="unittest track",
                                  indices=None,
-                                 challenges=None)
+                                 test_procedures=None)
 
         task = track.Task("time-based", track.Operation("time-based", track.OperationType.Bulk.to_hyphenated_string(),
                                                         params={
@@ -1219,7 +1219,7 @@ class AsyncExecutorTests(TestCase):
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_track = track.Track(name="unittest", description="unittest track",
                                  indices=None,
-                                 challenges=None)
+                                 test_procedures=None)
 
         task = track.Task("time-based", track.Operation("time-based", operation_type="unit-test-recovery", params={
             "indices-to-restore": "*",
@@ -1278,7 +1278,7 @@ class AsyncExecutorTests(TestCase):
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_track = track.Track(name="unittest", description="unittest track",
                                  indices=None,
-                                 challenges=None)
+                                 test_procedures=None)
 
         task = track.Task("override-throughput", track.Operation("override-throughput",
                                                                  operation_type="override-throughput", params={
@@ -1340,7 +1340,7 @@ class AsyncExecutorTests(TestCase):
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_track = track.Track(name="unittest", description="unittest track",
                                  indices=None,
-                                 challenges=None)
+                                 test_procedures=None)
 
         # in one second (0.5 warmup + 0.5 measurement) we should get 1000 [ops/s] / 4 [clients] = 250 samples
         for target_throughput, bounds in {10: [2, 4], 100: [24, 26], 1000: [235, 255]}.items():
@@ -1398,7 +1398,7 @@ class AsyncExecutorTests(TestCase):
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_track = track.Track(name="unittest", description="unittest track",
                                  indices=None,
-                                 challenges=None)
+                                 test_procedures=None)
 
         # in one second (0.5 warmup + 0.5 measurement) we should get 1000 [ops/s] / 4 [clients] = 250 samples
         for target_throughput in [10, 100, 1000]:

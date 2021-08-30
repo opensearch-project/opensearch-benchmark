@@ -14,7 +14,7 @@
                 "charts": [
                   "indexing"
                 ],
-                "challenge": "append-no-conflicts-index-only",
+                "test_procedure": "append-no-conflicts-index-only",
                 "track-params": {
                   "number_of_replicas": 1
                 },

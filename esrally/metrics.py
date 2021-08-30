@@ -254,7 +254,7 @@ class MetaInfoScope(Enum):
 
 
 def calculate_results(store, test_execution):
-    calc = GlobalStatsCalculator(store, test_execution.track, test_execution.challenge)
+    calc = GlobalStatsCalculator(store, test_execution.track, test_execution.test_procedure)
     return calc()
 
 
@@ -263,7 +263,7 @@ def calculate_system_results(store, node_name):
     return calc()
 
 
-def metrics_store(cfg, read_only=True, track=None, challenge=None, car=None, meta_info=None):
+def metrics_store(cfg, read_only=True, track=None, test_procedure=None, car=None, meta_info=None):
     """
     Creates a proper metrics store based on the current configuration.
 
@@ -279,7 +279,7 @@ def metrics_store(cfg, read_only=True, track=None, challenge=None, car=None, met
     test_execution_timestamp = cfg.opts("system", "time.start")
     selected_car = cfg.opts("builder", "car.names") if car is None else car
 
-    store.open(test_execution_id, test_execution_timestamp, track, challenge, selected_car, create=not read_only)
+    store.open(test_execution_id, test_execution_timestamp, track, test_procedure, selected_car, create=not read_only)
     return store
 
 
@@ -344,7 +344,7 @@ class MetricsStore:
         self._test_execution_timestamp = None
         self._track = None
         self._track_params = cfg.opts("track", "params", default_value={}, mandatory=False)
-        self._challenge = None
+        self._test_procedure = None
         self._car = None
         self._car_name = None
         self._environment_name = cfg.opts("system", "env.name")
@@ -362,14 +362,14 @@ class MetricsStore:
         self._stop_watch = self._clock.stop_watch()
         self.logger = logging.getLogger(__name__)
 
-    def open(self, test_ex_id=None, test_ex_timestamp=None, track_name=None, challenge_name=None, car_name=None, ctx=None, create=False):
+    def open(self, test_ex_id=None, test_ex_timestamp=None, track_name=None, test_procedure_name=None, car_name=None, ctx=None, create=False):
         """
-        Opens a metrics store for a specific test_execution, track, challenge and car.
+        Opens a metrics store for a specific test_execution, track, test_procedure and car.
 
         :param test_ex_id: The test execution id. This attribute is sufficient to uniquely identify a test_execution.
         :param test_ex_timestamp: The test execution timestamp as a datetime.
         :param track_name: Track name.
-        :param challenge_name: Challenge name.
+        :param test_procedure_name: TestProcedure name.
         :param car_name: Car name.
         :param ctx: An metrics store open context retrieved from another metrics store with ``#open_context``.
         :param create: True if an index should be created (if necessary). This is typically True, when attempting to write metrics and
@@ -379,21 +379,21 @@ class MetricsStore:
             self._test_execution_id = ctx["test-execution-id"]
             self._test_execution_timestamp = ctx["test-execution-timestamp"]
             self._track = ctx["track"]
-            self._challenge = ctx["challenge"]
+            self._test_procedure = ctx["test_procedure"]
             self._car = ctx["car"]
         else:
             self._test_execution_id = test_ex_id
             self._test_execution_timestamp = time.to_iso8601(test_ex_timestamp)
             self._track = track_name
-            self._challenge = challenge_name
+            self._test_procedure = test_procedure_name
             self._car = car_name
         assert self._test_execution_id is not None, "Attempting to open metrics store without a test execution id"
         assert self._test_execution_timestamp is not None, "Attempting to open metrics store without a test execution timestamp"
 
         self._car_name = "+".join(self._car) if isinstance(self._car, list) else self._car
 
-        self.logger.info("Opening metrics store for test execution timestamp=[%s], track=[%s], challenge=[%s], car=[%s]",
-                         self._test_execution_timestamp, self._track, self._challenge, self._car)
+        self.logger.info("Opening metrics store for test execution timestamp=[%s], track=[%s], test_procedure=[%s], car=[%s]",
+                         self._test_execution_timestamp, self._track, self._test_procedure, self._car)
 
         user_tags = extract_user_tags_from_config(self._config)
         for k, v in user_tags.items():
@@ -461,7 +461,7 @@ class MetricsStore:
             "test-execution-id": self._test_execution_id,
             "test-execution-timestamp": self._test_execution_timestamp,
             "track": self._track,
-            "challenge": self._challenge,
+            "test_procedure": self._test_procedure,
             "car": self._car
         }
 
@@ -533,7 +533,7 @@ class MetricsStore:
             "test-execution-timestamp": self._test_execution_timestamp,
             "environment": self._environment_name,
             "track": self._track,
-            "challenge": self._challenge,
+            "test_procedure": self._test_procedure,
             "car": self._car_name,
             "name": name,
             "value": value,
@@ -590,7 +590,7 @@ class MetricsStore:
             "test-execution-timestamp": self._test_execution_timestamp,
             "environment": self._environment_name,
             "track": self._track,
-            "challenge": self._challenge,
+            "test_procedure": self._test_procedure,
             "car": self._car_name,
 
         })
@@ -778,9 +778,9 @@ class EsMetricsStore(MetricsStore):
         self._index_template_provider = index_template_provider_class(cfg)
         self._docs = None
 
-    def open(self, test_ex_id=None, test_ex_timestamp=None, track_name=None, challenge_name=None, car_name=None, ctx=None, create=False):
+    def open(self, test_ex_id=None, test_ex_timestamp=None, track_name=None, test_procedure_name=None, car_name=None, ctx=None, create=False):
         self._docs = []
-        MetricsStore.open(self, test_ex_id, test_ex_timestamp, track_name, challenge_name, car_name, ctx, create)
+        MetricsStore.open(self, test_ex_id, test_ex_timestamp, track_name, test_procedure_name, car_name, ctx, create)
         self._index = self.index_name()
         # reduce a bit of noise in the metrics cluster log
         if create:
@@ -816,8 +816,8 @@ class EsMetricsStore(MetricsStore):
             self._client.bulk_index(index=self._index, doc_type=EsMetricsStore.METRICS_DOC_TYPE, items=self._docs)
             sw.stop()
             self.logger.info("Successfully added %d metrics documents for test execution timestamp=[%s], track=[%s], "
-                             "challenge=[%s], car=[%s] in [%f] seconds.", len(self._docs), self._test_execution_timestamp,
-                             self._track, self._challenge, self._car, sw.total_time())
+                             "test_procedure=[%s], car=[%s] in [%f] seconds.", len(self._docs), self._test_execution_timestamp,
+                             self._track, self._test_procedure, self._car, sw.total_time())
         self._docs = []
         # ensure we can search immediately after flushing
         if refresh:
@@ -1162,7 +1162,7 @@ def list_test_executions(cfg):
             time.to_iso8601(test_execution.test_execution_timestamp),
             test_execution.track,
             format_dict(test_execution.track_params),
-            test_execution.challenge_name,
+            test_execution.test_procedure_name,
             test_execution.car_name,
             format_dict(test_execution.user_tags),
             test_execution.track_revision,
@@ -1177,7 +1177,7 @@ def list_test_executions(cfg):
                 "TestExecution Timestamp",
                 "Track",
                 "Track Parameters",
-                "Challenge",
+                "TestProcedure",
                 "Car",
                 "User Tags",
                 "Track Revision",
@@ -1188,7 +1188,7 @@ def list_test_executions(cfg):
         console.println("No recent test_executions found.")
 
 
-def create_test_execution(cfg, track, challenge, track_revision=None):
+def create_test_execution(cfg, track, test_procedure, track_revision=None):
     car = cfg.opts("builder", "car.names")
     environment = cfg.opts("system", "env.name")
     test_execution_id = cfg.opts("system", "test_execution.id")
@@ -1204,13 +1204,13 @@ def create_test_execution(cfg, track, challenge, track_revision=None):
     return TestExecution(rally_version, rally_revision,
     environment, test_execution_id, test_execution_timestamp,
     pipeline, user_tags, track,
-    track_params, challenge, car, car_params,
+    track_params, test_procedure, car, car_params,
     plugin_params, track_revision)
 
 
 class TestExecution:
     def __init__(self, rally_version, rally_revision, environment_name, test_execution_id, test_execution_timestamp, pipeline, user_tags,
-                 track, track_params, challenge, car, car_params, plugin_params, track_revision=None, team_revision=None,
+                 track, track_params, test_procedure, car, car_params, plugin_params, track_revision=None, team_revision=None,
                  distribution_version=None, distribution_flavor=None, revision=None, results=None, meta_data=None):
         if results is None:
             results = {}
@@ -1219,8 +1219,8 @@ class TestExecution:
             meta_data = {}
             if track:
                 meta_data.update(track.meta_data)
-            if challenge:
-                meta_data.update(challenge.meta_data)
+            if test_procedure:
+                meta_data.update(test_procedure.meta_data)
         self.rally_version = rally_version
         self.rally_revision = rally_revision
         self.environment_name = environment_name
@@ -1230,7 +1230,7 @@ class TestExecution:
         self.user_tags = user_tags
         self.track = track
         self.track_params = track_params
-        self.challenge = challenge
+        self.test_procedure = test_procedure
         self.car = car
         self.car_params = car_params
         self.plugin_params = plugin_params
@@ -1247,8 +1247,8 @@ class TestExecution:
         return str(self.track)
 
     @property
-    def challenge_name(self):
-        return str(self.challenge) if self.challenge else None
+    def test_procedure_name(self):
+        return str(self.test_procedure) if self.test_procedure else None
 
     @property
     def car_name(self):
@@ -1282,8 +1282,8 @@ class TestExecution:
             d["results"] = self.results.as_dict()
         if self.track_revision:
             d["track-revision"] = self.track_revision
-        if not self.challenge.auto_generated:
-            d["challenge"] = self.challenge_name
+        if not self.test_procedure.auto_generated:
+            d["test_procedure"] = self.test_procedure_name
         if self.track_params:
             d["track-params"] = self.track_params
         if self.car_params:
@@ -1306,7 +1306,7 @@ class TestExecution:
             "distribution-flavor": self.distribution_flavor,
             "user-tags": self.user_tags,
             "track": self.track_name,
-            "challenge": self.challenge_name,
+            "test_procedure": self.test_procedure_name,
             "car": self.car_name,
             # allow to logically delete records, e.g. for UI purposes when we only want to show the latest result
             "active": True
@@ -1342,7 +1342,7 @@ class TestExecution:
         cluster = d.get("cluster", {})
         return TestExecution(d["rally-version"], d.get("rally-revision"), d["environment"], d["test-execution-id"],
                     time.from_is8601(d["test-execution-timestamp"]), d["pipeline"], user_tags, d["track"], d.get("track-params"),
-                    d.get("challenge"), d["car"], d.get("car-params"), d.get("plugin-params"),
+                    d.get("test_procedure"), d["car"], d.get("car-params"), d.get("plugin-params"),
                     track_revision=d.get("track-revision"), team_revision=cluster.get("team-revision"),
                     distribution_version=cluster.get("distribution-version"),
                     distribution_flavor=cluster.get("distribution-flavor"),
@@ -1583,16 +1583,16 @@ def percentiles_for_sample_size(sample_size):
 
 
 class GlobalStatsCalculator:
-    def __init__(self, store, track, challenge):
+    def __init__(self, store, track, test_procedure):
         self.store = store
         self.logger = logging.getLogger(__name__)
         self.track = track
-        self.challenge = challenge
+        self.test_procedure = test_procedure
 
     def __call__(self):
         result = GlobalStats()
 
-        for tasks in self.challenge.schedule:
+        for tasks in self.test_procedure.schedule:
             for task in tasks:
                 t = task.name
                 op_type = task.operation.type
@@ -1611,7 +1611,7 @@ class GlobalStatsCalculator:
                         duration,
                         self.merge(
                             self.track.meta_data,
-                            self.challenge.meta_data,
+                            self.test_procedure.meta_data,
                             task.operation.meta_data,
                             task.meta_data)
                     )

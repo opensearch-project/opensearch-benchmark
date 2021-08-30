@@ -52,7 +52,7 @@ def index_label(test_execution_config):
     if test_execution_config.label:
         return test_execution_config.label
 
-    label = "%s-%s" % (test_execution_config.challenge, test_execution_config.car)
+    label = "%s-%s" % (test_execution_config.test_procedure, test_execution_config.car)
     if test_execution_config.plugins:
         label += "-%s" % test_execution_config.plugins.replace(":", "-").replace(",", "+")
     if test_execution_config.node_count > 1:
@@ -85,7 +85,7 @@ class BarCharts:
             return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{test_ex_config.name}\""
         else:
             return f"environment:\"{environment}\" AND active:true AND track:\"{test_ex_config.track}\""\
-                   f" AND challenge:\"{test_ex_config.challenge}\" AND car:\"{test_ex_config.car}\""\
+                   f" AND test_procedure:\"{test_ex_config.test_procedure}\" AND car:\"{test_ex_config.car}\""\
                    f" AND node-count:{test_ex_config.node_count}"
 
     @staticmethod
@@ -821,7 +821,7 @@ class TimeSeriesCharts:
             return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{test_ex_config.name}\"{nightly_extra_filter}"
         else:
             return f"environment:\"{environment}\" AND active:true AND track:\"{test_ex_config.track}\""\
-                   f" AND challenge:\"{test_ex_config.challenge}\" AND car:\"{test_ex_config.car}\""\
+                   f" AND test_procedure:\"{test_ex_config.test_procedure}\" AND car:\"{test_ex_config.car}\""\
                    f" AND node-count:{test_ex_config.node_count}"
 
     @staticmethod
@@ -1749,7 +1749,7 @@ def generate_dashboard(chart_type, environment, track, charts, flavor=None):
 
 
 class TestExecutionConfig:
-    def __init__(self, track, cfg=None, flavor=None, es_license=None, challenge=None, car=None, node_count=None, charts=None):
+    def __init__(self, track, cfg=None, flavor=None, es_license=None, test_procedure=None, car=None, node_count=None, charts=None):
         self.track = track
         if cfg:
             self.configuration = cfg
@@ -1758,7 +1758,7 @@ class TestExecutionConfig:
         else:
             self.configuration = {
                 "charts": charts,
-                "challenge": challenge,
+                "test_procedure": test_procedure,
                 "car": car,
                 "node-count": node_count
             }
@@ -1788,8 +1788,8 @@ class TestExecutionConfig:
         return self.configuration.get("node-count", 1)
 
     @property
-    def challenge(self):
-        return self.configuration["challenge"]
+    def test_procedure(self):
+        return self.configuration["test_procedure"]
 
     @property
     def car(self):
@@ -1802,7 +1802,7 @@ class TestExecutionConfig:
     @property
     def bulk_tasks(self):
         task_names = []
-        for task in self.track.find_challenge_or_default(self.challenge).schedule:
+        for task in self.track.find_test_procedure_or_default(self.test_procedure).schedule:
             for sub_task in task:
                 # We are looking for type bulk operations to add to indexing throughput chart.
                 # For the observability track, the index operation is of type raw-bulk, instead of type bulk.
@@ -1810,14 +1810,14 @@ class TestExecutionConfig:
                 if track.OperationType.Bulk.to_hyphenated_string() in sub_task.operation.type:
                     if track.OperationType.Bulk.to_hyphenated_string() != sub_task.operation.type:
                         console.info(f"Found [{sub_task.name}] of type [{sub_task.operation.type}] in "\
-                                     f"[{self.challenge}], adding it to indexing dashboard.\n", flush=True)
+                                     f"[{self.test_procedure}], adding it to indexing dashboard.\n", flush=True)
                     task_names.append(sub_task.name)
         return task_names
 
     @property
     def throttled_tasks(self):
         task_names = []
-        for task in self.track.find_challenge_or_default(self.challenge).schedule:
+        for task in self.track.find_test_procedure_or_default(self.test_procedure).schedule:
             for sub_task in task:
                 # We are assuming here that each task with a target throughput or target interval is interesting for latency charts.
                 # We should refactor the chart generator to make this classification logic more flexible so the user can specify

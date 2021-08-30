@@ -38,7 +38,7 @@ import elasticsearch.exceptions
 
 from esrally import config, metrics, track, exceptions, paths
 from esrally.metrics import GlobalStatsCalculator
-from esrally.track import Task, Operation, Challenge, Track
+from esrally.track import Task, Operation, TestProcedure, Track
 
 
 class MockClientFactory:
@@ -331,7 +331,7 @@ class EsMetricsTests(TestCase):
             "track-params": {
                 "shard-count": 3
             },
-            "challenge": "append",
+            "test_procedure": "append",
             "car": "defaults",
             "name": "indexing_throughput",
             "value": throughput,
@@ -363,7 +363,7 @@ class EsMetricsTests(TestCase):
             "track-params": {
                 "shard-count": 3
             },
-            "challenge": "append",
+            "test_procedure": "append",
             "car": "defaults",
             "name": "indexing_throughput",
             "value": throughput,
@@ -404,7 +404,7 @@ class EsMetricsTests(TestCase):
             "track-params": {
                 "shard-count": 3
             },
-            "challenge": "append",
+            "test_procedure": "append",
             "car": "defaults",
             "name": "indexing_throughput",
             "value": throughput,
@@ -444,7 +444,7 @@ class EsMetricsTests(TestCase):
             "track-params": {
                 "shard-count": 3
             },
-            "challenge": "append",
+            "test_procedure": "append",
             "car": "defaults",
             "name": "custom_metric",
             "total": 1234567,
@@ -492,7 +492,7 @@ class EsMetricsTests(TestCase):
             "track-params": {
                 "shard-count": 3
             },
-            "challenge": "append",
+            "test_procedure": "append",
             "car": "defaults",
             "name": "custom_metric",
             "total": 1234567,
@@ -1021,7 +1021,7 @@ class EsTestExecutionStoreTests(TestCase):
                             "test-execution-timestamp": "20160131T000000Z",
                             "pipeline": "from-sources",
                             "track": "unittest",
-                            "challenge": "index",
+                            "test_procedure": "index",
                             "track-revision": "abc1",
                             "car": "defaults",
                             "results": {
@@ -1058,13 +1058,13 @@ class EsTestExecutionStoreTests(TestCase):
 
         t = track.Track(name="unittest",
                         indices=[track.Index(name="tests", types=["_doc"])],
-                        challenges=[track.Challenge(name="index", default=True, schedule=schedule)])
+                        test_procedures=[track.TestProcedure(name="index", default=True, schedule=schedule)])
 
         test_execution = metrics.TestExecution(rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
                             test_execution_id=EsTestExecutionStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=EsTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params={"shard-count": 3},
-                            challenge=t.default_challenge, car="defaults", car_params={"heap_size": "512mb"}, plugin_params=None,
+                            test_procedure=t.default_test_procedure, car="defaults", car_params={"heap_size": "512mb"}, plugin_params=None,
                             track_revision="abc1", team_revision="abc12333", distribution_version="5.0.0",
                             distribution_flavor="default", revision="aaaeeef",
                             results=EsTestExecutionStoreTests.DictHolder(
@@ -1102,7 +1102,7 @@ class EsTestExecutionStoreTests(TestCase):
             "track-params": {
                 "shard-count": 3
             },
-            "challenge": "index",
+            "test_procedure": "index",
             "track-revision": "abc1",
             "car": "defaults",
             "car-params": {
@@ -1159,7 +1159,7 @@ class EsResultsStoreTests(TestCase):
 
         t = track.Track(name="unittest-track",
                         indices=[track.Index(name="tests", types=["_doc"])],
-                        challenges=[track.Challenge(
+                        test_procedures=[track.TestProcedure(
                             name="index", default=True, meta_data={"saturation": "70% saturated"}, schedule=schedule)],
                         meta_data={"track-type": "saturation-degree", "saturation": "oversaturation"})
 
@@ -1167,7 +1167,7 @@ class EsResultsStoreTests(TestCase):
                             test_execution_id=EsResultsStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=EsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params=None,
-                            challenge=t.default_challenge, car="4gheap", car_params=None, plugin_params={"some-param": True},
+                            test_procedure=t.default_test_procedure, car="4gheap", car_params=None, plugin_params={"some-param": True},
                             track_revision="abc1", team_revision="123ab", distribution_version="5.0.0",
                             distribution_flavor="oss", results=metrics.GlobalStats(
                                 {
@@ -1212,7 +1212,7 @@ class EsResultsStoreTests(TestCase):
                 "track": "unittest-track",
                 "team-revision": "123ab",
                 "track-revision": "abc1",
-                "challenge": "index",
+                "test_procedure": "index",
                 "car": "4gheap",
                 "plugin-params": {
                     "some-param": True
@@ -1242,7 +1242,7 @@ class EsResultsStoreTests(TestCase):
                 "track": "unittest-track",
                 "team-revision": "123ab",
                 "track-revision": "abc1",
-                "challenge": "index",
+                "test_procedure": "index",
                 "car": "4gheap",
                 "plugin-params": {
                     "some-param": True
@@ -1278,7 +1278,7 @@ class EsResultsStoreTests(TestCase):
                 "track": "unittest-track",
                 "team-revision": "123ab",
                 "track-revision": "abc1",
-                "challenge": "index",
+                "test_procedure": "index",
                 "car": "4gheap",
                 "plugin-params": {
                     "some-param": True
@@ -1306,7 +1306,7 @@ class EsResultsStoreTests(TestCase):
 
         t = track.Track(name="unittest-track",
                         indices=[track.Index(name="tests", types=["_doc"])],
-                        challenges=[track.Challenge(
+                        test_procedures=[track.TestProcedure(
                             name="index", default=True, meta_data={"saturation": "70% saturated"}, schedule=schedule)],
                         meta_data={"track-type": "saturation-degree", "saturation": "oversaturation"})
 
@@ -1314,7 +1314,7 @@ class EsResultsStoreTests(TestCase):
                             test_execution_id=EsResultsStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=EsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params=None,
-                            challenge=t.default_challenge, car="4gheap", car_params=None, plugin_params=None,
+                            test_procedure=t.default_test_procedure, car="4gheap", car_params=None, plugin_params=None,
                             track_revision="abc1", team_revision="123ab", distribution_version=None,
                             distribution_flavor=None, results=metrics.GlobalStats(
                 {
@@ -1358,7 +1358,7 @@ class EsResultsStoreTests(TestCase):
                 "track": "unittest-track",
                 "team-revision": "123ab",
                 "track-revision": "abc1",
-                "challenge": "index",
+                "test_procedure": "index",
                 "car": "4gheap",
                 "active": True,
                 "name": "old_gc_time",
@@ -1384,7 +1384,7 @@ class EsResultsStoreTests(TestCase):
                 "track": "unittest-track",
                 "team-revision": "123ab",
                 "track-revision": "abc1",
-                "challenge": "index",
+                "test_procedure": "index",
                 "car": "4gheap",
                 "active": True,
                 "name": "throughput",
@@ -1416,7 +1416,7 @@ class EsResultsStoreTests(TestCase):
                 "track": "unittest-track",
                 "team-revision": "123ab",
                 "track-revision": "abc1",
-                "challenge": "index",
+                "test_procedure": "index",
                 "car": "4gheap",
                 "active": True,
                 "name": "young_gc_time",
@@ -1671,14 +1671,14 @@ class FileTestExecutionStoreTests(TestCase):
 
         t = track.Track(name="unittest",
                         indices=[track.Index(name="tests", types=["_doc"])],
-                        challenges=[track.Challenge(name="index", default=True, schedule=schedule)])
+                        test_procedures=[track.TestProcedure(name="index", default=True, schedule=schedule)])
 
         test_execution = metrics.TestExecution(
             rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
                             test_execution_id=FileTestExecutionStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=FileTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params={"clients": 12},
-                            challenge=t.default_challenge, car="4gheap", car_params=None, plugin_params=None,
+                            test_procedure=t.default_test_procedure, car="4gheap", car_params=None, plugin_params=None,
                             track_revision="abc1", team_revision="abc12333", distribution_version="5.0.0",
                             distribution_flavor="default", revision="aaaeeef",
                             results=FileTestExecutionStoreTests.DictHolder(
@@ -1725,10 +1725,10 @@ class StatsCalculatorTests(TestCase):
 
         index1 = track.Task(name="index #1", operation=track.Operation(name="index", operation_type=track.OperationType.Bulk, params=None))
         index2 = track.Task(name="index #2", operation=track.Operation(name="index", operation_type=track.OperationType.Bulk, params=None))
-        challenge = track.Challenge(name="unittest", schedule=[index1, index2], default=True)
-        t = track.Track("unittest", "unittest-track", challenges=[challenge])
+        test_procedure = track.TestProcedure(name="unittest", schedule=[index1, index2], default=True)
+        t = track.Track("unittest", "unittest-track", test_procedures=[test_procedure])
 
-        store = metrics.metrics_store(cfg, read_only=False, track=t, challenge=challenge)
+        store = metrics.metrics_store(cfg, read_only=False, track=t, test_procedure=test_procedure)
 
         store.put_value_cluster_level("throughput", 500, unit="docs/s", task="index #1", operation_type=track.OperationType.Bulk)
         store.put_value_cluster_level("throughput", 1000, unit="docs/s", task="index #1", operation_type=track.OperationType.Bulk)
@@ -1768,7 +1768,7 @@ class StatsCalculatorTests(TestCase):
             "unit": "ms"
         }, level=metrics.MetaInfoScope.cluster)
 
-        stats = metrics.calculate_results(store, metrics.create_test_execution(cfg, t, challenge))
+        stats = metrics.calculate_results(store, metrics.create_test_execution(cfg, t, test_procedure))
 
         del store
 
@@ -1809,10 +1809,10 @@ class StatsCalculatorTests(TestCase):
         cfg.add(config.Scope.application, "track", "params", {})
 
         index = track.Task(name="index #1", operation=track.Operation(name="index", operation_type=track.OperationType.Bulk, params=None))
-        challenge = track.Challenge(name="unittest", schedule=[index], default=True)
-        t = track.Track("unittest", "unittest-track", challenges=[challenge])
+        test_procedure = track.TestProcedure(name="unittest", schedule=[index], default=True)
+        t = track.Track("unittest", "unittest-track", test_procedures=[test_procedure])
 
-        store = metrics.metrics_store(cfg, read_only=False, track=t, challenge=challenge)
+        store = metrics.metrics_store(cfg, read_only=False, track=t, test_procedure=test_procedure)
         store.add_meta_info(metrics.MetaInfoScope.node, "rally-node-0", "node_name", "rally-node-0")
 
         store.put_value_node_level("rally-node-0", "final_index_size_bytes", 2048, unit="bytes")
@@ -1857,7 +1857,7 @@ class GlobalStatsCalculatorTests(TestCase):
     def test_add_administrative_task_with_error_rate_in_results(self):
         op = Operation(name='delete-index', operation_type='DeleteIndex', params={'include-in-results_publishing': False})
         task = Task('delete-index', operation=op, schedule='deterministic')
-        challenge = Challenge(name='append-fast-with-conflicts', schedule=[task], meta_data={})
+        test_procedure = TestProcedure(name='append-fast-with-conflicts', schedule=[task], meta_data={})
 
         self.metrics_store.open(InMemoryMetricsStoreTests.TEST_EXECUTION_ID, InMemoryMetricsStoreTests.TEST_EXECUTION_TIMESTAMP,
                                 "test", "append-fast-with-conflicts", "defaults", create=True)
@@ -1865,7 +1865,7 @@ class GlobalStatsCalculatorTests(TestCase):
                                         "relative-time-ms": 283.382,
                                         "test-execution-id": "fb26018b-428d-4528-b36b-cf8c54a303ec",
                                         "test-execution-timestamp": "20200728T003905Z", "environment": "local",
-                                        "track": "geonames", "challenge": "append-fast-with-conflicts",
+                                        "track": "geonames", "test_procedure": "append-fast-with-conflicts",
                                         "car": "defaults", "name": "service_time", "value": 72.67997100007051,
                                         "unit": "ms", "sample-type": "normal",
                                         "meta": {"source_revision": "7f634e9f44834fbc12724506cc1da681b0c3b1e3",
@@ -1874,7 +1874,7 @@ class GlobalStatsCalculatorTests(TestCase):
                                         "operation-type": "DeleteIndex"})
 
         result = GlobalStatsCalculator(store=self.metrics_store, track=Track(name='geonames', meta_data={}),
-                                       challenge=challenge)()
+                                       test_procedure=test_procedure)()
         assert "delete-index" in [op_metric.get('task') for op_metric in result.op_metrics]
 
 

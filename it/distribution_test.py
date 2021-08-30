@@ -46,7 +46,7 @@ def test_docker_distribution(cfg):
     dist = it.DISTRIBUTIONS[-1]
     it.wait_until_port_is_free(port_number=port)
     assert it.execute_test(cfg, f"--pipeline=\"docker\" --distribution-version=\"{dist}\" "
-                        f"--track=\"geonames\" --challenge=\"append-no-conflicts-index-only\" --test-mode "
+                        f"--track=\"geonames\" --test-procedure=\"append-no-conflicts-index-only\" --test-mode "
                         f"--car=4gheap --target-hosts=127.0.0.1:{port}") == 0
 
 
@@ -75,39 +75,39 @@ def test_cluster():
 
 @it.random_rally_config
 def test_eventdata_frozen(cfg, test_cluster):
-    challenges = ["frozen-data-generation", "frozen-querying"]
+    test_procedures = ["frozen-data-generation", "frozen-querying"]
     track_params = "number_of_replicas:0"
-    execute_eventdata(cfg, test_cluster, challenges, track_params)
+    execute_eventdata(cfg, test_cluster, test_procedures, track_params)
 
 
 @it.random_rally_config
 def test_eventdata_indexing_and_querying(cfg, test_cluster):
-    challenges = ["elasticlogs-1bn-load",
+    test_procedures = ["elasticlogs-1bn-load",
                   "elasticlogs-continuous-index-and-query",
                   "combined-indexing-and-querying",
                   "elasticlogs-querying"]
     track_params = "bulk_indexing_clients:1,number_of_replicas:0,rate_limit_max:2,rate_limit_duration_secs:5," \
                    "p1_bulk_indexing_clients:1,p2_bulk_indexing_clients:1,p1_duration_secs:5,p2_duration_secs:5"
-    execute_eventdata(cfg, test_cluster, challenges, track_params)
+    execute_eventdata(cfg, test_cluster, test_procedures, track_params)
 
 
 @it.random_rally_config
 def test_eventdata_update(cfg, test_cluster):
-    challenges = ["bulk-update"]
+    test_procedures = ["bulk-update"]
     track_params = "bulk_indexing_clients:1,number_of_replicas:0"
-    execute_eventdata(cfg, test_cluster, challenges, track_params)
+    execute_eventdata(cfg, test_cluster, test_procedures, track_params)
 
 
 @it.random_rally_config
 def test_eventdata_daily_volume(cfg, test_cluster):
-    challenges = ["index-logs-fixed-daily-volume", "index-and-query-logs-fixed-daily-volume"]
+    test_procedures = ["index-logs-fixed-daily-volume", "index-and-query-logs-fixed-daily-volume"]
     track_params = "bulk_indexing_clients:1,number_of_replicas:0,daily_logging_volume:1MB"
-    execute_eventdata(cfg, test_cluster, challenges, track_params)
+    execute_eventdata(cfg, test_cluster, test_procedures, track_params)
 
 
-def execute_eventdata(cfg, test_cluster, challenges, track_params):
-    for challenge in challenges:
+def execute_eventdata(cfg, test_cluster, test_procedures, track_params):
+    for test_procedure in test_procedures:
         cmd = f"--test-mode --pipeline=benchmark-only --target-host=127.0.0.1:{test_cluster.http_port} " \
               f"--track-repository=eventdata --track=eventdata --track-params=\"{track_params}\" " \
-              f"--challenge={challenge}"
+              f"--test-procedure={test_procedure}"
         assert it.execute_test(cfg, cmd) == 0

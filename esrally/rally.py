@@ -138,16 +138,16 @@ def create_arg_parser():
         default=""
     )
     info_parser.add_argument(
-        "--challenge",
-        help=f"Define the challenge to use. List possible challenges for tracks with `{PROGRAM_NAME} list tracks`."
+        "--test-procedure",
+        help=f"Define the test_procedure to use. List possible test_procedures for tracks with `{PROGRAM_NAME} list tracks`."
     )
     info_task_filter_group = info_parser.add_mutually_exclusive_group()
     info_task_filter_group.add_argument(
         "--include-tasks",
-        help="Defines a comma-separated list of tasks to run. By default all tasks of a challenge are run.")
+        help="Defines a comma-separated list of tasks to run. By default all tasks of a test_procedure are run.")
     info_task_filter_group.add_argument(
         "--exclude-tasks",
-        help="Defines a comma-separated list of tasks not to run. By default all tasks of a challenge are run.")
+        help="Defines a comma-separated list of tasks not to run. By default all tasks of a test_procedure are run.")
 
     create_track_parser = subparsers.add_parser("create-track", help="Create a Rally track from existing data")
     create_track_parser.add_argument(
@@ -179,7 +179,7 @@ def create_arg_parser():
         metavar="artifact",
         help="The artifact to create. Possible values are: charts",
         choices=["charts"])
-    # We allow to either have a chart-spec-path *or* define a chart-spec on the fly with track, challenge and car. Convincing
+    # We allow to either have a chart-spec-path *or* define a chart-spec on the fly with track, test_procedure and car. Convincing
     # argparse to validate that everything is correct *might* be doable but it is simpler to just do this manually.
     generate_parser.add_argument(
         "--chart-spec-path",
@@ -441,8 +441,8 @@ def create_arg_parser():
         default=""
     )
     test_execution_parser.add_argument(
-        "--challenge",
-        help=f"Define the challenge to use. List possible challenges for tracks with `{PROGRAM_NAME} list tracks`.")
+        "--test-procedure",
+        help=f"Define the test_procedure to use. List possible test_procedures for tracks with `{PROGRAM_NAME} list tracks`.")
     test_execution_parser.add_argument(
         "--car",
         help=f"Define the car to use. List possible cars with `{PROGRAM_NAME} list cars` (default: defaults).",
@@ -502,10 +502,10 @@ def create_arg_parser():
     task_filter_group = test_execution_parser.add_mutually_exclusive_group()
     task_filter_group.add_argument(
         "--include-tasks",
-        help="Defines a comma-separated list of tasks to run. By default all tasks of a challenge are run.")
+        help="Defines a comma-separated list of tasks to run. By default all tasks of a test_procedure are run.")
     task_filter_group.add_argument(
         "--exclude-tasks",
-        help="Defines a comma-separated list of tasks not to run. By default all tasks of a challenge are run.")
+        help="Defines a comma-separated list of tasks not to run. By default all tasks of a test_procedure are run.")
     test_execution_parser.add_argument(
         "--user-tag",
         help="Define a user-specific key-value pair (separated by ':'). It is added to each metric record as meta info. "
@@ -751,7 +751,7 @@ def configure_track_params(arg_parser, args, cfg, command_requires_track=True):
 
     if command_requires_track:
         cfg.add(config.Scope.applicationOverride, "track", "params", opts.to_dict(args.track_params))
-        cfg.add(config.Scope.applicationOverride, "track", "challenge.name", args.challenge)
+        cfg.add(config.Scope.applicationOverride, "track", "test_procedure.name", args.test_procedure)
         cfg.add(config.Scope.applicationOverride, "track", "include.tasks", opts.csv_to_list(args.include_tasks))
         cfg.add(config.Scope.applicationOverride, "track", "exclude.tasks", opts.csv_to_list(args.exclude_tasks))
 

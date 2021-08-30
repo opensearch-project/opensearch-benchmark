@@ -29,52 +29,52 @@ from esrally.track import track
 
 
 class TrackTests(TestCase):
-    def test_finds_default_challenge(self):
-        default_challenge = track.Challenge("default", description="default challenge", default=True)
-        another_challenge = track.Challenge("other", description="non-default challenge", default=False)
+    def test_finds_default_test_procedure(self):
+        default_test_procedure = track.TestProcedure("default", description="default test_procedure", default=True)
+        another_test_procedure = track.TestProcedure("other", description="non-default test_procedure", default=False)
 
-        self.assertEqual(default_challenge,
+        self.assertEqual(default_test_procedure,
                          track.Track(name="unittest",
                                      description="unittest track",
-                                     challenges=[another_challenge, default_challenge])
-                         .default_challenge)
+                                     test_procedures=[another_test_procedure, default_test_procedure])
+                         .default_test_procedure)
 
-    def test_default_challenge_none_if_no_challenges(self):
+    def test_default_test_procedure_none_if_no_test_procedures(self):
         self.assertIsNone(track.Track(name="unittest",
                                       description="unittest track",
-                                      challenges=[])
-                          .default_challenge)
+                                      test_procedures=[])
+                          .default_test_procedure)
 
-    def test_finds_challenge_by_name(self):
-        default_challenge = track.Challenge("default", description="default challenge", default=True)
-        another_challenge = track.Challenge("other", description="non-default challenge", default=False)
+    def test_finds_test_procedure_by_name(self):
+        default_test_procedure = track.TestProcedure("default", description="default test_procedure", default=True)
+        another_test_procedure = track.TestProcedure("other", description="non-default test_procedure", default=False)
 
-        self.assertEqual(another_challenge,
+        self.assertEqual(another_test_procedure,
                          track.Track(name="unittest",
                                      description="unittest track",
-                                     challenges=[another_challenge, default_challenge])
-                         .find_challenge_or_default("other"))
+                                     test_procedures=[another_test_procedure, default_test_procedure])
+                         .find_test_procedure_or_default("other"))
 
-    def test_uses_default_challenge_if_no_name_given(self):
-        default_challenge = track.Challenge("default", description="default challenge", default=True)
-        another_challenge = track.Challenge("other", description="non-default challenge", default=False)
+    def test_uses_default_test_procedure_if_no_name_given(self):
+        default_test_procedure = track.TestProcedure("default", description="default test_procedure", default=True)
+        another_test_procedure = track.TestProcedure("other", description="non-default test_procedure", default=False)
 
-        self.assertEqual(default_challenge,
+        self.assertEqual(default_test_procedure,
                          track.Track(name="unittest",
                                      description="unittest track",
-                                     challenges=[another_challenge, default_challenge])
-                         .find_challenge_or_default(""))
+                                     test_procedures=[another_test_procedure, default_test_procedure])
+                         .find_test_procedure_or_default(""))
 
-    def test_does_not_find_unknown_challenge(self):
-        default_challenge = track.Challenge("default", description="default challenge", default=True)
-        another_challenge = track.Challenge("other", description="non-default challenge", default=False)
+    def test_does_not_find_unknown_test_procedure(self):
+        default_test_procedure = track.TestProcedure("default", description="default test_procedure", default=True)
+        another_test_procedure = track.TestProcedure("other", description="non-default test_procedure", default=False)
 
         with self.assertRaises(exceptions.InvalidName) as ctx:
             track.Track(name="unittest",
                         description="unittest track",
-                        challenges=[another_challenge, default_challenge]).find_challenge_or_default("unknown-name")
+                        test_procedures=[another_test_procedure, default_test_procedure]).find_test_procedure_or_default("unknown-name")
 
-        self.assertEqual("Unknown challenge [unknown-name] for track [unittest]", ctx.exception.args[0])
+        self.assertEqual("Unknown test_procedure [unknown-name] for track [unittest]", ctx.exception.args[0])
 
 
 class IndexTests(TestCase):
