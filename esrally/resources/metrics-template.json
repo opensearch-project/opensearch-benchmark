@@ -49,7 +49,7 @@
         "track": {
           "type": "keyword"
         },
-        "challenge": {
+        "test_procedure": {
           "type": "keyword"
         },
         "car": {

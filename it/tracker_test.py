@@ -48,7 +48,7 @@ def test_cluster():
 def test_create_track(cfg, tmp_path, test_cluster):
     # prepare some data
     cmd = f"--test-mode --pipeline=benchmark-only --target-hosts=127.0.0.1:{test_cluster.http_port} " \
-          f" --track=geonames --challenge=append-no-conflicts-index-only --quiet"
+          f" --track=geonames --test-procedure=append-no-conflicts-index-only --quiet"
     assert it.execute_test(cfg, cmd) == 0
 
     # create the track

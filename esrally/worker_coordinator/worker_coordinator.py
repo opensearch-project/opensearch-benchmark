@@ -524,7 +524,7 @@ class WorkerCoordinator:
         self.config = config
         self.es_client_factory = es_client_factory_class
         self.track = None
-        self.challenge = None
+        self.test_procedure = None
         self.metrics_store = None
         self.load_worker_coordinator_hosts = []
         self.workers = []
@@ -602,20 +602,20 @@ class WorkerCoordinator:
 
     def prepare_benchmark(self, t):
         self.track = t
-        self.challenge = select_challenge(self.config, self.track)
+        self.test_procedure = select_test_procedure(self.config, self.track)
         self.quiet = self.config.opts("system", "quiet.mode", mandatory=False, default_value=False)
         downsample_factor = int(self.config.opts(
             "results_publishing", "metrics.request.downsample.factor",
             mandatory=False, default_value=1))
         self.metrics_store = metrics.metrics_store(cfg=self.config,
                                                    track=self.track.name,
-                                                   challenge=self.challenge.name,
+                                                   test_procedure=self.test_procedure.name,
                                                    read_only=False)
 
         self.sample_post_processor = SamplePostprocessor(self.metrics_store,
                                                          downsample_factor,
                                                          self.track.meta_data,
-                                                         self.challenge.meta_data)
+                                                         self.test_procedure.meta_data)
 
         es_clients = self.create_es_clients()
 
@@ -655,7 +655,7 @@ class WorkerCoordinator:
         self.telemetry.on_benchmark_start()
         self.logger.info("Cluster-level telemetry devices are now attached.")
 
-        allocator = Allocator(self.challenge.schedule)
+        allocator = Allocator(self.test_procedure.schedule)
         self.allocations = allocator.allocations
         self.number_of_steps = len(allocator.join_points) - 1
         self.tasks_per_join_point = allocator.tasks_per_joinpoint
@@ -828,11 +828,11 @@ class WorkerCoordinator:
 
 
 class SamplePostprocessor:
-    def __init__(self, metrics_store, downsample_factor, track_meta_data, challenge_meta_data):
+    def __init__(self, metrics_store, downsample_factor, track_meta_data, test_procedure_meta_data):
         self.logger = logging.getLogger(__name__)
         self.metrics_store = metrics_store
         self.track_meta_data = track_meta_data
-        self.challenge_meta_data = challenge_meta_data
+        self.test_procedure_meta_data = test_procedure_meta_data
         self.throughput_calculator = ThroughputCalculator()
         self.downsample_factor = downsample_factor
 
@@ -847,7 +847,7 @@ class SamplePostprocessor:
                 final_sample_count += 1
                 meta_data = self.merge(
                     self.track_meta_data,
-                    self.challenge_meta_data,
+                    self.test_procedure_meta_data,
                     sample.operation_meta_data,
                     sample.task.meta_data,
                     sample.request_meta_data)
@@ -887,7 +887,7 @@ class SamplePostprocessor:
         for task, samples in aggregates.items():
             meta_data = self.merge(
                 self.track_meta_data,
-                self.challenge_meta_data,
+                self.test_procedure_meta_data,
                 task.operation.meta_data,
                 task.meta_data
             )
@@ -1252,14 +1252,14 @@ class Sample:
                f"[{self.total_ops} {self.total_ops_unit}]"
 
 
-def select_challenge(config, t):
-    challenge_name = config.opts("track", "challenge.name")
-    selected_challenge = t.find_challenge_or_default(challenge_name)
+def select_test_procedure(config, t):
+    test_procedure_name = config.opts("track", "test_procedure.name")
+    selected_test_procedure = t.find_test_procedure_or_default(test_procedure_name)
 
-    if not selected_challenge:
-        raise exceptions.SystemSetupError("Unknown challenge [%s] for track [%s]. You can list the available tracks and their "
-                                          "challenges with %s list tracks." % (challenge_name, t.name, PROGRAM_NAME))
-    return selected_challenge
+    if not selected_test_procedure:
+        raise exceptions.SystemSetupError("Unknown test_procedure [%s] for track [%s]. You can list the available tracks and their "
+                                          "test_procedures with %s list tracks." % (test_procedure_name, t.name, PROGRAM_NAME))
+    return selected_test_procedure
 
 
 class ThroughputCalculator:

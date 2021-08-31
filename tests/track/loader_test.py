@@ -632,9 +632,9 @@ class TrackPreparationTests(TestCase):
                     "operation-type": "node-stats"
                 },
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
+                    "name": "default-test_procedure",
                     "schedule": [
                         {
                             "parallel": {
@@ -661,7 +661,7 @@ class TrackPreparationTests(TestCase):
                 }
             ]
         }
-        reader = loader.TrackSpecificationReader(selected_challenge="default-challenge")
+        reader = loader.TrackSpecificationReader(selected_test_procedure="default-test_procedure")
         full_track = reader("unittest", track_specification, "/mappings")
         used_corpora = sorted(loader.used_corpora(full_track), key=lambda c: c.name)
         self.assertEqual(2, len(used_corpora))
@@ -789,8 +789,8 @@ class TemplateSource(TestCase):
           "operations": [
             {{ rally.collect(parts="operations/*.json") }}
           ],
-          "challenges": [
-            {{ rally.collect(parts="challenges/*.json") }}
+          "test_procedures": [
+            {{ rally.collect(parts="test_procedures/*.json") }}
           ]
         }
         """)
@@ -833,8 +833,8 @@ class TemplateSource(TestCase):
               "operations": [
                 {"replaced ~/.rally/benchmarks/tracks/default/geonames/operations/*.json": "true"}
               ],
-              "challenges": [
-                {"replaced ~/.rally/benchmarks/tracks/default/geonames/challenges/*.json": "true"}
+              "test_procedures": [
+                {"replaced ~/.rally/benchmarks/tracks/default/geonames/test_procedures/*.json": "true"}
               ]
             }
             """)
@@ -1076,10 +1076,10 @@ class TrackPostProcessingTests(TestCase):
                 "operation-type": "search"
             }
         ],
-        "challenges": [
+        "test_procedures": [
             {
-                "name": "default-challenge",
-                "description": "Default challenge",
+                "name": "default-test_procedure",
+                "description": "Default test_procedure",
                 "schedule": [
                     {
                         "clients": {{ bulk_indexing_clients | default(8) }},
@@ -1153,10 +1153,10 @@ class TrackPostProcessingTests(TestCase):
                     "operation-type": "search"
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
-                    "description": "Default challenge",
+                    "name": "default-test_procedure",
+                    "description": "Default test_procedure",
                     "schedule": [
                         {
                             "clients": 8,
@@ -1227,10 +1227,10 @@ class TrackPostProcessingTests(TestCase):
                     "operation-type": "search"
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
-                    "description": "Default challenge",
+                    "name": "default-test_procedure",
+                    "description": "Default test_procedure",
                     "schedule": [
                         {
                             "clients": 8,
@@ -1307,11 +1307,11 @@ class TrackPathTests(TestCase):
         cfg = config.Config()
         cfg.add(config.Scope.application, "benchmarks", "local.dataset.cache", "/data")
 
-        default_challenge = track.Challenge("default", default=True, schedule=[
+        default_test_procedure = track.TestProcedure("default", default=True, schedule=[
             track.Task(name="index", operation=track.Operation("index", operation_type=track.OperationType.Bulk), clients=4)
         ])
-        another_challenge = track.Challenge("other", default=False)
-        t = track.Track(name="u", challenges=[another_challenge, default_challenge],
+        another_test_procedure = track.TestProcedure("other", default=False)
+        t = track.Track(name="u", test_procedures=[another_test_procedure, default_test_procedure],
                         corpora=[
                             track.DocumentCorpus("unittest", documents=[
                                 track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
@@ -1378,9 +1378,9 @@ class TrackFilterTests(TestCase):
                     }
                 },
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
+                    "name": "default-test_procedure",
                     "schedule": [
                         {
                             "operation": "create-index"
@@ -1448,7 +1448,7 @@ class TrackFilterTests(TestCase):
         }
         reader = loader.TrackSpecificationReader()
         full_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(7, len(full_track.challenges[0].schedule))
+        self.assertEqual(7, len(full_track.test_procedures[0].schedule))
 
         filtered = self.filter(full_track, include_tasks=["index-3",
                                                           "type:search",
@@ -1456,7 +1456,7 @@ class TrackFilterTests(TestCase):
                                                           "type:custom-operation-type",
                                                           "tag:include-me"])
 
-        schedule = filtered.challenges[0].schedule
+        schedule = filtered.test_procedures[0].schedule
         self.assertEqual(5, len(schedule))
         self.assertEqual(["index-3", "match-all-parallel"], [t.name for t in schedule[0].tasks])
         self.assertEqual("match-all-serial", schedule[1].name)
@@ -1495,9 +1495,9 @@ class TrackFilterTests(TestCase):
                     }
                 },
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
+                    "name": "default-test_procedure",
                     "schedule": [
                         {
                             "operation": "create-index"
@@ -1540,11 +1540,11 @@ class TrackFilterTests(TestCase):
         }
         reader = loader.TrackSpecificationReader()
         full_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(5, len(full_track.challenges[0].schedule))
+        self.assertEqual(5, len(full_track.test_procedures[0].schedule))
 
         filtered = self.filter(full_track, exclude_tasks=["index-3", "type:search", "create-index"])
 
-        schedule = filtered.challenges[0].schedule
+        schedule = filtered.test_procedures[0].schedule
         self.assertEqual(3, len(schedule))
         self.assertEqual(["index-1", "index-2"], [t.name for t in schedule[0].tasks])
         self.assertEqual("node-stats", schedule[1].name)
@@ -1581,9 +1581,9 @@ class TrackFilterTests(TestCase):
                     }
                 },
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
+                    "name": "default-test_procedure",
                     "schedule": [
                         {
                             "operation": "create-index"
@@ -1608,12 +1608,12 @@ class TrackFilterTests(TestCase):
 
         reader = loader.TrackSpecificationReader()
         full_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(5, len(full_track.challenges[0].schedule))
+        self.assertEqual(5, len(full_track.test_procedures[0].schedule))
 
-        expected_schedule = full_track.challenges[0].schedule.copy()
+        expected_schedule = full_track.test_procedures[0].schedule.copy()
         filtered = self.filter(full_track, exclude_tasks=["nothing"])
 
-        schedule = filtered.challenges[0].schedule
+        schedule = filtered.test_procedures[0].schedule
         self.assertEqual(expected_schedule, schedule)
 
     def test_unmatched_include_runs_nothing(self):
@@ -1647,9 +1647,9 @@ class TrackFilterTests(TestCase):
                     }
                 },
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
+                    "name": "default-test_procedure",
                     "schedule": [
                         {
                             "operation": "create-index"
@@ -1674,12 +1674,12 @@ class TrackFilterTests(TestCase):
 
         reader = loader.TrackSpecificationReader()
         full_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(5, len(full_track.challenges[0].schedule))
+        self.assertEqual(5, len(full_track.test_procedures[0].schedule))
 
         expected_schedule = []
         filtered = self.filter(full_track, include_tasks=["nothing"])
 
-        schedule = filtered.challenges[0].schedule
+        schedule = filtered.test_procedures[0].schedule
         self.assertEqual(expected_schedule, schedule)
 
 
@@ -1688,7 +1688,7 @@ class TrackSpecificationReaderTests(TestCase):
     def test_description_is_optional(self):
         track_specification = {
             # no description here
-            "challenges": []
+            "test_procedures": []
         }
         reader = loader.TrackSpecificationReader()
 
@@ -1703,7 +1703,7 @@ class TrackSpecificationReaderTests(TestCase):
             "data-streams": [],
             "corpora": [],
             "operations": [],
-            "challenges": []
+            "test_procedures": []
         }
         reader = loader.TrackSpecificationReader()
         resulting_track = reader("unittest", track_specification, "/mappings")
@@ -1721,7 +1721,7 @@ class TrackSpecificationReaderTests(TestCase):
                     "documents": [{"source-file": "documents-main.json.bz2"}]
                 }
             ],
-            "challenges": []
+            "test_procedures": []
         }
         reader = loader.TrackSpecificationReader()
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
@@ -1759,9 +1759,9 @@ class TrackSpecificationReaderTests(TestCase):
                     "bulk-size": 5000,
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
+                    "name": "default-test_procedure",
                     "schedule": [
                         {
                             "clients": 8,
@@ -1780,12 +1780,12 @@ class TrackSpecificationReaderTests(TestCase):
         }))
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Operation 'index-append' in challenge 'default-challenge' defines '3' warmup "
-                         "iterations and a time period of '60' seconds. Please do not mix time periods and iterations.",
+        self.assertEqual("Track 'unittest' is invalid. Operation 'index-append' in test_procedure 'default-test_procedure' "
+                         "defines '3' warmup iterations and a time period of '60' seconds. Please do not mix time periods and iterations.",
                          ctx.exception.args[0])
 
     @mock.patch("esrally.track.loader.register_all_params_in_track")
-    def test_parse_missing_challenge_or_challenges(self, mocked_params_checker):
+    def test_parse_missing_test_procedure_or_test_procedures(self, mocked_params_checker):
         track_specification = {
             "description": "description for unit test",
             "indices": [
@@ -1808,18 +1808,19 @@ class TrackSpecificationReaderTests(TestCase):
                     ]
                 }
             ],
-            # no challenge or challenges element
+            # no test_procedure or test_procedures element
         }
         reader = loader.TrackSpecificationReader(source=io.DictStringFileSourceFactory({
             "/mappings/index.json": ['{"mappings": {"docs": "empty-for-test"}}'],
         }))
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. You must define 'challenge', 'challenges' or 'schedule' but none is specified.",
+        self.assertEqual("Track 'unittest' is invalid. You must define 'test_procedure', 'test_procedures' or "
+                         "'schedule' but none is specified.",
                          ctx.exception.args[0])
 
     @mock.patch("esrally.track.loader.register_all_params_in_track")
-    def test_parse_challenge_and_challenges_are_defined(self, mocked_params_checker):
+    def test_parse_test_procedure_and_test_procedures_are_defined(self, mocked_params_checker):
         track_specification = {
             "description": "description for unit test",
             "indices": [
@@ -1842,16 +1843,18 @@ class TrackSpecificationReaderTests(TestCase):
                     ]
                 }
             ],
-            # We define both. Note that challenges without any properties would not pass JSON schema validation but we don't test this here.
-            "challenge": {},
-            "challenges": []
+            # We define both. Note that test_procedures without any properties
+            # would not pass JSON schema validation but we don't test this here.
+            "test_procedure": {},
+            "test_procedures": []
         }
         reader = loader.TrackSpecificationReader(source=io.DictStringFileSourceFactory({
             "/mappings/index.json": ['{"mappings": {"docs": "empty-for-test"}}'],
         }))
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Multiple out of 'challenge', 'challenges' or 'schedule' are defined but only "
+        self.assertEqual("Track 'unittest' is invalid. Multiple out of 'test_procedure', 'test_procedures' or 'schedule' "
+                         "are defined but only "
                          "one of them is allowed.", ctx.exception.args[0])
 
     @mock.patch("esrally.track.loader.register_all_params_in_track")
@@ -1885,9 +1888,9 @@ class TrackSpecificationReaderTests(TestCase):
                     "bulk-size": 5000,
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
+                    "name": "default-test_procedure",
                     "schedule": [
                         {
                             "clients": 8,
@@ -1906,8 +1909,10 @@ class TrackSpecificationReaderTests(TestCase):
         }))
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Operation 'index-append' in challenge 'default-challenge' defines a warmup time "
-                         "period of '20' seconds and '1000' iterations. Please do not mix time periods and iterations.",
+        self.assertEqual("Track 'unittest' is invalid. Operation 'index-append' in test_procedure 'default-test_procedure' "
+                         "defines a warmup time "
+                         "period of '20' seconds and '1000' iterations. "
+                         "Please do not mix time periods and iterations.",
                          ctx.exception.args[0])
 
     def test_parse_duplicate_implicit_task_names(self):
@@ -1920,8 +1925,8 @@ class TrackSpecificationReaderTests(TestCase):
                     "index": "_all"
                 }
             ],
-            "challenge": {
-                "name": "default-challenge",
+            "test_procedure": {
+                "name": "default-test_procedure",
                 "schedule": [
                     {
                         "operation": "search",
@@ -1937,7 +1942,8 @@ class TrackSpecificationReaderTests(TestCase):
         reader = loader.TrackSpecificationReader()
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Challenge 'default-challenge' contains multiple tasks with the name 'search'. Please"
+        self.assertEqual("Track 'unittest' is invalid. TestProcedure 'default-test_procedure' contains multiple tasks"
+                         " with the name 'search'. Please"
                          " use the task's name property to assign a unique name for each task.",
                          ctx.exception.args[0])
 
@@ -1951,8 +1957,8 @@ class TrackSpecificationReaderTests(TestCase):
                     "index": "_all"
                 }
             ],
-            "challenge": {
-                "name": "default-challenge",
+            "test_procedure": {
+                "name": "default-test_procedure",
                 "schedule": [
                     {
                         "name": "duplicate-task-name",
@@ -1970,7 +1976,7 @@ class TrackSpecificationReaderTests(TestCase):
         reader = loader.TrackSpecificationReader()
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Challenge 'default-challenge' contains multiple tasks with the name "
+        self.assertEqual("Track 'unittest' is invalid. TestProcedure 'default-test_procedure' contains multiple tasks with the name "
                          "'duplicate-task-name'. Please use the task's name property to assign a unique name for each task.",
                          ctx.exception.args[0])
 
@@ -2037,8 +2043,8 @@ class TrackSpecificationReaderTests(TestCase):
                     "index": "_all"
                 }
             ],
-            "challenge": {
-                "name": "default-challenge",
+            "test_procedure": {
+                "name": "default-test_procedure",
                 "schedule": [
                     {
                         "name": "search-one-client",
@@ -2053,12 +2059,12 @@ class TrackSpecificationReaderTests(TestCase):
                 ]
             }
         }
-        reader = loader.TrackSpecificationReader(selected_challenge="default-challenge")
+        reader = loader.TrackSpecificationReader(selected_test_procedure="default-test_procedure")
         resulting_track = reader("unittest", track_specification, "/mappings")
         self.assertEqual("unittest", resulting_track.name)
-        challenge = resulting_track.challenges[0]
-        self.assertTrue(challenge.selected)
-        schedule = challenge.schedule
+        test_procedure = resulting_track.test_procedures[0]
+        self.assertTrue(test_procedure.selected)
+        schedule = test_procedure.schedule
         self.assertEqual(2, len(schedule))
         self.assertEqual("search-one-client", schedule[0].name)
         self.assertEqual("search", schedule[0].operation.name)
@@ -2125,10 +2131,10 @@ class TrackSpecificationReaderTests(TestCase):
                     "index": "index-historical"
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
-                    "description": "Default challenge",
+                    "name": "default-test_procedure",
+                    "description": "Default test_procedure",
                     "meta": {
                         "mixed": True,
                         "max-clients": 8
@@ -2229,13 +2235,13 @@ class TrackSpecificationReaderTests(TestCase):
             "role": "secondary"
         }, docs_secondary.meta_data)
 
-        # challenges
-        self.assertEqual(1, len(resulting_track.challenges))
-        self.assertEqual("default-challenge", resulting_track.challenges[0].name)
-        self.assertEqual("Default challenge", resulting_track.challenges[0].description)
-        self.assertEqual({"mixed": True, "max-clients": 8}, resulting_track.challenges[0].meta_data)
-        self.assertEqual({"append": True}, resulting_track.challenges[0].schedule[0].operation.meta_data)
-        self.assertEqual({"operation-index": 0}, resulting_track.challenges[0].schedule[0].meta_data)
+        # test_procedures
+        self.assertEqual(1, len(resulting_track.test_procedures))
+        self.assertEqual("default-test_procedure", resulting_track.test_procedures[0].name)
+        self.assertEqual("Default test_procedure", resulting_track.test_procedures[0].description)
+        self.assertEqual({"mixed": True, "max-clients": 8}, resulting_track.test_procedures[0].meta_data)
+        self.assertEqual({"append": True}, resulting_track.test_procedures[0].schedule[0].operation.meta_data)
+        self.assertEqual({"operation-index": 0}, resulting_track.test_procedures[0].schedule[0].meta_data)
 
     def test_parse_data_streams_valid_track_specification(self):
         track_specification = {
@@ -2289,10 +2295,10 @@ class TrackSpecificationReaderTests(TestCase):
                     "data-stream": "data-stream-historical"
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
-                    "description": "Default challenge",
+                    "name": "default-test_procedure",
+                    "description": "Default test_procedure",
                     "meta": {
                         "mixed": True,
                         "max-clients": 8
@@ -2367,13 +2373,13 @@ class TrackSpecificationReaderTests(TestCase):
         self.assertIsNone(docs_tertiary.target_type)
         self.assertEqual("data-stream-historical", docs_tertiary.target_data_stream)
 
-        # challenges
-        self.assertEqual(1, len(resulting_track.challenges))
-        self.assertEqual("default-challenge", resulting_track.challenges[0].name)
-        self.assertEqual("Default challenge", resulting_track.challenges[0].description)
-        self.assertEqual({"mixed": True, "max-clients": 8}, resulting_track.challenges[0].meta_data)
-        self.assertEqual({"append": True}, resulting_track.challenges[0].schedule[0].operation.meta_data)
-        self.assertEqual({"operation-index": 0}, resulting_track.challenges[0].schedule[0].meta_data)
+        # test_procedures
+        self.assertEqual(1, len(resulting_track.test_procedures))
+        self.assertEqual("default-test_procedure", resulting_track.test_procedures[0].name)
+        self.assertEqual("Default test_procedure", resulting_track.test_procedures[0].description)
+        self.assertEqual({"mixed": True, "max-clients": 8}, resulting_track.test_procedures[0].meta_data)
+        self.assertEqual({"append": True}, resulting_track.test_procedures[0].schedule[0].operation.meta_data)
+        self.assertEqual({"operation-index": 0}, resulting_track.test_procedures[0].schedule[0].meta_data)
 
     @mock.patch("esrally.track.loader.register_all_params_in_track")
     def test_parse_valid_without_types(self, mocked_param_checker):
@@ -2452,8 +2458,8 @@ class TrackSpecificationReaderTests(TestCase):
         self.assertIsNone(docs_primary.target_type)
         self.assertIsNone(docs_primary.target_data_stream)
 
-        # challenges
-        self.assertEqual(1, len(resulting_track.challenges))
+        # test_procedures
+        self.assertEqual(1, len(resulting_track.test_procedures))
 
     @mock.patch("esrally.track.loader.register_all_params_in_track")
     def test_parse_invalid_data_streams_with_indices(self, mocked_param_checker):
@@ -2697,8 +2703,8 @@ class TrackSpecificationReaderTests(TestCase):
         self.assertIsNone(docs_primary.target_type)
         self.assertIsNone(docs_primary.target_index)
 
-        # challenges
-        self.assertEqual(1, len(resulting_track.challenges))
+        # test_procedures
+        self.assertEqual(1, len(resulting_track.test_procedures))
 
     def test_parse_valid_track_specification_with_index_template(self):
         track_specification = {
@@ -2711,7 +2717,7 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ],
             "operations": [],
-            "challenges": []
+            "test_procedures": []
         }
         complete_track_params = loader.CompleteTrackParams()
         reader = loader.TrackSpecificationReader(
@@ -2745,7 +2751,7 @@ class TrackSpecificationReaderTests(TestCase):
                     "number_of_shards": 1
                 }
             }, resulting_track.templates[0].content)
-        self.assertEqual(0, len(resulting_track.challenges))
+        self.assertEqual(0, len(resulting_track.test_procedures))
 
     def test_parse_valid_track_specification_with_composable_template(self):
         track_specification = {
@@ -2768,7 +2774,7 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ],
             "operations": [],
-            "challenges": []
+            "test_procedures": []
         }
         complete_track_params = loader.CompleteTrackParams()
         reader = loader.TrackSpecificationReader(
@@ -2859,7 +2865,7 @@ class TrackSpecificationReaderTests(TestCase):
                     }
                 }
             }, resulting_track.component_templates[1].content)
-        self.assertEqual(0, len(resulting_track.challenges))
+        self.assertEqual(0, len(resulting_track.test_procedures))
 
     def test_parse_invalid_track_specification_with_composable_template(self):
         track_specification = {
@@ -2870,7 +2876,7 @@ class TrackSpecificationReaderTests(TestCase):
                 }
             ],
             "operations": [],
-            "challenges": []
+            "test_procedures": []
         }
         complete_track_params = loader.CompleteTrackParams()
         reader = loader.TrackSpecificationReader(
@@ -2881,7 +2887,7 @@ class TrackSpecificationReaderTests(TestCase):
         self.assertEqual("Track 'unittest' is invalid. Mandatory element 'template' is missing.",
                          ctx.exception.args[0])
 
-    def test_unique_challenge_names(self):
+    def test_unique_test_procedure_names(self):
         track_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
@@ -2891,10 +2897,10 @@ class TrackSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "test-challenge",
-                    "description": "Some challenge",
+                    "name": "test-test_procedure",
+                    "description": "Some test_procedure",
                     "default": True,
                     "schedule": [
                         {
@@ -2903,8 +2909,8 @@ class TrackSpecificationReaderTests(TestCase):
                     ]
                 },
                 {
-                    "name": "test-challenge",
-                    "description": "Another challenge with the same name",
+                    "name": "test-test_procedure",
+                    "description": "Another test_procedure with the same name",
                     "schedule": [
                         {
                             "operation": "index-append"
@@ -2917,9 +2923,9 @@ class TrackSpecificationReaderTests(TestCase):
         reader = loader.TrackSpecificationReader()
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Duplicate challenge with name 'test-challenge'.", ctx.exception.args[0])
+        self.assertEqual("Track 'unittest' is invalid. Duplicate test_procedure with name 'test-test_procedure'.", ctx.exception.args[0])
 
-    def test_not_more_than_one_default_challenge_possible(self):
+    def test_not_more_than_one_default_test_procedure_possible(self):
         track_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
@@ -2929,10 +2935,10 @@ class TrackSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
-                    "description": "Default challenge",
+                    "name": "default-test_procedure",
+                    "description": "Default test_procedure",
                     "default": True,
                     "schedule": [
                         {
@@ -2941,7 +2947,7 @@ class TrackSpecificationReaderTests(TestCase):
                     ]
                 },
                 {
-                    "name": "another-challenge",
+                    "name": "another-test_procedure",
                     "description": "See if we can sneek it in as another default",
                     "default": True,
                     "schedule": [
@@ -2956,10 +2962,11 @@ class TrackSpecificationReaderTests(TestCase):
         reader = loader.TrackSpecificationReader()
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. Both 'default-challenge' and 'another-challenge' are defined as default challenges. "
+        self.assertEqual("Track 'unittest' is invalid. Both 'default-test_procedure' and 'another-test_procedure' "
+                         "are defined as default test_procedures. "
                          "Please define only one of them as default.", ctx.exception.args[0])
 
-    def test_at_least_one_default_challenge(self):
+    def test_at_least_one_default_test_procedure(self):
         track_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
@@ -2969,9 +2976,9 @@ class TrackSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "challenge",
+                    "name": "test_procedure",
                     "schedule": [
                         {
                             "operation": "index-append"
@@ -2979,7 +2986,7 @@ class TrackSpecificationReaderTests(TestCase):
                     ]
                 },
                 {
-                    "name": "another-challenge",
+                    "name": "another-test_procedure",
                     "schedule": [
                         {
                             "operation": "index-append"
@@ -2992,10 +2999,11 @@ class TrackSpecificationReaderTests(TestCase):
         reader = loader.TrackSpecificationReader()
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. No default challenge specified. Please edit the track and add \"default\": true "
-                         "to one of the challenges challenge, another-challenge.", ctx.exception.args[0])
+        self.assertEqual("Track 'unittest' is invalid. No default test_procedure specified. "
+                         "Please edit the track and add \"default\": true "
+                         "to one of the test_procedures test_procedure, another-test_procedure.", ctx.exception.args[0])
 
-    def test_exactly_one_default_challenge(self):
+    def test_exactly_one_default_test_procedure(self):
         track_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
@@ -3005,9 +3013,9 @@ class TrackSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "challenge",
+                    "name": "test_procedure",
                     "default": True,
                     "schedule": [
                         {
@@ -3016,7 +3024,7 @@ class TrackSpecificationReaderTests(TestCase):
                     ]
                 },
                 {
-                    "name": "another-challenge",
+                    "name": "another-test_procedure",
                     "schedule": [
                         {
                             "operation": "index-append"
@@ -3026,15 +3034,15 @@ class TrackSpecificationReaderTests(TestCase):
 
             ]
         }
-        reader = loader.TrackSpecificationReader(selected_challenge="another-challenge")
+        reader = loader.TrackSpecificationReader(selected_test_procedure="another-test_procedure")
         resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(2, len(resulting_track.challenges))
-        self.assertEqual("challenge", resulting_track.challenges[0].name)
-        self.assertTrue(resulting_track.challenges[0].default)
-        self.assertFalse(resulting_track.challenges[1].default)
-        self.assertTrue(resulting_track.challenges[1].selected)
+        self.assertEqual(2, len(resulting_track.test_procedures))
+        self.assertEqual("test_procedure", resulting_track.test_procedures[0].name)
+        self.assertTrue(resulting_track.test_procedures[0].default)
+        self.assertFalse(resulting_track.test_procedures[1].default)
+        self.assertTrue(resulting_track.test_procedures[1].selected)
 
-    def test_selects_sole_challenge_implicitly_as_default(self):
+    def test_selects_sole_test_procedure_implicitly_as_default(self):
         track_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
@@ -3044,8 +3052,8 @@ class TrackSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "challenge": {
-                "name": "challenge",
+            "test_procedure": {
+                "name": "test_procedure",
                 "schedule": [
                     {
                         "operation": "index-append"
@@ -3055,12 +3063,12 @@ class TrackSpecificationReaderTests(TestCase):
         }
         reader = loader.TrackSpecificationReader()
         resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(1, len(resulting_track.challenges))
-        self.assertEqual("challenge", resulting_track.challenges[0].name)
-        self.assertTrue(resulting_track.challenges[0].default)
-        self.assertTrue(resulting_track.challenges[0].selected)
+        self.assertEqual(1, len(resulting_track.test_procedures))
+        self.assertEqual("test_procedure", resulting_track.test_procedures[0].name)
+        self.assertTrue(resulting_track.test_procedures[0].default)
+        self.assertTrue(resulting_track.test_procedures[0].selected)
 
-    def test_auto_generates_challenge_from_schedule(self):
+    def test_auto_generates_test_procedure_from_schedule(self):
         track_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
@@ -3078,17 +3086,17 @@ class TrackSpecificationReaderTests(TestCase):
         }
         reader = loader.TrackSpecificationReader()
         resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(1, len(resulting_track.challenges))
-        self.assertTrue(resulting_track.challenges[0].auto_generated)
-        self.assertTrue(resulting_track.challenges[0].default)
-        self.assertTrue(resulting_track.challenges[0].selected)
+        self.assertEqual(1, len(resulting_track.test_procedures))
+        self.assertTrue(resulting_track.test_procedures[0].auto_generated)
+        self.assertTrue(resulting_track.test_procedures[0].default)
+        self.assertTrue(resulting_track.test_procedures[0].selected)
 
     def test_inline_operations(self):
         track_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
-            "challenge": {
-                "name": "challenge",
+            "test_procedure": {
+                "name": "test_procedure",
                 "schedule": [
                     # an operation with parameters still needs to define a type
                     {
@@ -3107,10 +3115,10 @@ class TrackSpecificationReaderTests(TestCase):
         reader = loader.TrackSpecificationReader()
         resulting_track = reader("unittest", track_specification, "/mappings")
 
-        challenge = resulting_track.challenges[0]
-        self.assertEqual(2, len(challenge.schedule))
-        self.assertEqual(track.OperationType.Bulk.to_hyphenated_string(), challenge.schedule[0].operation.type)
-        self.assertEqual(track.OperationType.ForceMerge.to_hyphenated_string(), challenge.schedule[1].operation.type)
+        test_procedure = resulting_track.test_procedures[0]
+        self.assertEqual(2, len(test_procedure.schedule))
+        self.assertEqual(track.OperationType.Bulk.to_hyphenated_string(), test_procedure.schedule[0].operation.type)
+        self.assertEqual(track.OperationType.ForceMerge.to_hyphenated_string(), test_procedure.schedule[1].operation.type)
 
     def test_supports_target_throughput(self):
         track_specification = {
@@ -3122,8 +3130,8 @@ class TrackSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "challenge": {
-                "name": "default-challenge",
+            "test_procedure": {
+                "name": "default-test_procedure",
                 "schedule": [
                     {
                         "operation": "index-append",
@@ -3134,7 +3142,7 @@ class TrackSpecificationReaderTests(TestCase):
         }
         reader = loader.TrackSpecificationReader()
         resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(10, resulting_track.challenges[0].schedule[0].params["target-throughput"])
+        self.assertEqual(10, resulting_track.test_procedures[0].schedule[0].params["target-throughput"])
 
     def test_supports_target_interval(self):
         track_specification = {
@@ -3146,9 +3154,9 @@ class TrackSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
+                    "name": "default-test_procedure",
                     "schedule": [
                         {
                             "operation": "index-append",
@@ -3160,7 +3168,7 @@ class TrackSpecificationReaderTests(TestCase):
         }
         reader = loader.TrackSpecificationReader()
         resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(5, resulting_track.challenges[0].schedule[0].params["target-interval"])
+        self.assertEqual(5, resulting_track.test_procedures[0].schedule[0].params["target-interval"])
 
     def test_parallel_tasks_with_default_values(self):
         track_specification = {
@@ -3180,9 +3188,9 @@ class TrackSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 },
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
+                    "name": "default-test_procedure",
                     "schedule": [
                         {
                             "parallel": {
@@ -3213,7 +3221,7 @@ class TrackSpecificationReaderTests(TestCase):
         }
         reader = loader.TrackSpecificationReader()
         resulting_track = reader("unittest", track_specification, "/mappings")
-        parallel_element = resulting_track.challenges[0].schedule[0]
+        parallel_element = resulting_track.test_procedures[0].schedule[0]
         parallel_tasks = parallel_element.tasks
 
         self.assertEqual(22, parallel_element.clients)
@@ -3247,9 +3255,9 @@ class TrackSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
+                    "name": "default-test_procedure",
                     "schedule": [
                         {
                             "parallel": {
@@ -3282,7 +3290,7 @@ class TrackSpecificationReaderTests(TestCase):
         }
         reader = loader.TrackSpecificationReader()
         resulting_track = reader("unittest", track_specification, "/mappings")
-        parallel_element = resulting_track.challenges[0].schedule[0]
+        parallel_element = resulting_track.test_procedures[0].schedule[0]
         parallel_tasks = parallel_element.tasks
 
         # we will only have two clients *in total*
@@ -3305,9 +3313,9 @@ class TrackSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
+                    "name": "default-test_procedure",
                     "schedule": [
                         {
                             "parallel": {
@@ -3330,7 +3338,7 @@ class TrackSpecificationReaderTests(TestCase):
         }
         reader = loader.TrackSpecificationReader()
         resulting_track = reader("unittest", track_specification, "/mappings")
-        parallel_element = resulting_track.challenges[0].schedule[0]
+        parallel_element = resulting_track.test_procedures[0].schedule[0]
         parallel_tasks = parallel_element.tasks
 
         # we will only have two clients *in total*
@@ -3357,9 +3365,9 @@ class TrackSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
+                    "name": "default-test_procedure",
                     "schedule": [
                         {
                             "parallel": {
@@ -3384,7 +3392,7 @@ class TrackSpecificationReaderTests(TestCase):
         }
         reader = loader.TrackSpecificationReader()
         resulting_track = reader("unittest", track_specification, "/mappings")
-        parallel_element = resulting_track.challenges[0].schedule[0]
+        parallel_element = resulting_track.test_procedures[0].schedule[0]
         parallel_tasks = parallel_element.tasks
 
         # we will only have two clients *in total*
@@ -3411,9 +3419,9 @@ class TrackSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
+                    "name": "default-test_procedure",
                     "schedule": [
                         {
                             "parallel": {
@@ -3436,7 +3444,8 @@ class TrackSpecificationReaderTests(TestCase):
 
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. 'parallel' element for challenge 'default-challenge' is marked with 'completed-by' "
+        self.assertEqual("Track 'unittest' is invalid. 'parallel' element for "
+                         "test_procedure 'default-test_procedure' is marked with 'completed-by' "
                          "with task name 'non-existing-task' but no task with this name exists.", ctx.exception.args[0])
 
     def test_parallel_tasks_with_completed_by_set_multiple_tasks_match(self):
@@ -3449,9 +3458,9 @@ class TrackSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "default-challenge",
+                    "name": "default-test_procedure",
                     "schedule": [
                         {
                             "parallel": {
@@ -3474,11 +3483,12 @@ class TrackSpecificationReaderTests(TestCase):
 
         with self.assertRaises(loader.TrackSyntaxError) as ctx:
             reader("unittest", track_specification, "/mappings")
-        self.assertEqual("Track 'unittest' is invalid. 'parallel' element for challenge 'default-challenge' contains multiple tasks with "
+        self.assertEqual("Track 'unittest' is invalid. 'parallel' element for test_procedure "
+                         "'default-test_procedure' contains multiple tasks with "
                          "the name 'index-1' which are marked with 'completed-by' but only task is allowed to match.",
                          ctx.exception.args[0])
 
-    def test_propagate_parameters_to_challenge_level(self):
+    def test_propagate_parameters_to_test_procedure_level(self):
         track_specification = {
             "description": "description for unit test",
             "parameters": {
@@ -3492,12 +3502,12 @@ class TrackSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "challenges": [
+            "test_procedures": [
                 {
-                    "name": "challenge",
+                    "name": "test_procedure",
                     "default": True,
                     "parameters": {
-                        "level": "challenge",
+                        "level": "test_procedure",
                         "another-value": 17
                     },
                     "schedule": [
@@ -3507,7 +3517,7 @@ class TrackSpecificationReaderTests(TestCase):
                     ]
                 },
                 {
-                    "name": "another-challenge",
+                    "name": "another-test_procedure",
                     "schedule": [
                         {
                             "operation": "index-append"
@@ -3517,23 +3527,23 @@ class TrackSpecificationReaderTests(TestCase):
 
             ]
         }
-        reader = loader.TrackSpecificationReader(selected_challenge="another-challenge")
+        reader = loader.TrackSpecificationReader(selected_test_procedure="another-test_procedure")
         resulting_track = reader("unittest", track_specification, "/mappings")
-        self.assertEqual(2, len(resulting_track.challenges))
-        self.assertEqual("challenge", resulting_track.challenges[0].name)
-        self.assertTrue(resulting_track.challenges[0].default)
+        self.assertEqual(2, len(resulting_track.test_procedures))
+        self.assertEqual("test_procedure", resulting_track.test_procedures[0].name)
+        self.assertTrue(resulting_track.test_procedures[0].default)
         self.assertDictEqual({
-            "level": "challenge",
+            "level": "test_procedure",
             "value": 7,
             "another-value": 17
-        }, resulting_track.challenges[0].parameters)
+        }, resulting_track.test_procedures[0].parameters)
 
-        self.assertFalse(resulting_track.challenges[1].default)
-        self.assertTrue(resulting_track.challenges[1].selected)
+        self.assertFalse(resulting_track.test_procedures[1].default)
+        self.assertTrue(resulting_track.test_procedures[1].selected)
         self.assertDictEqual({
             "level": "track",
             "value": 7
-        }, resulting_track.challenges[1].parameters)
+        }, resulting_track.test_procedures[1].parameters)
 
 
 class MyMockTrackProcessor(loader.TrackProcessor):

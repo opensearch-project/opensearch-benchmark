@@ -391,7 +391,7 @@ class Track:
     A track defines the data set that is used. It corresponds loosely to a use case (e.g. logging, event processing, analytics, ...)
     """
 
-    def __init__(self, name, description=None, meta_data=None, challenges=None, indices=None, data_streams=None,
+    def __init__(self, name, description=None, meta_data=None, test_procedures=None, indices=None, data_streams=None,
                  templates=None, composable_templates=None, component_templates=None, corpora=None, has_plugins=False):
         """
 
@@ -400,7 +400,8 @@ class Track:
         :param name: A short, descriptive name for this track. As per convention, this name should be in lower-case without spaces.
         :param description: A description for this track (should be less than 80 characters).
         :param meta_data: An optional dict of meta-data elements to attach to each metrics record. Default: {}.
-        :param challenges: A list of one or more challenges to use. Precondition: If the list is non-empty it contains exactly one element
+        :param test_procedures: A list of one or more test_procedures to use.
+        Precondition: If the list is non-empty it contains exactly one element
         with its ``default`` property set to ``True``.
         :param indices: A list of indices for this track. May be None.
         :param data_streams: A list of data streams for this track. May be None.
@@ -411,7 +412,7 @@ class Track:
         self.name = name
         self.meta_data = meta_data if meta_data else {}
         self.description = description if description is not None else ""
-        self.challenges = challenges if challenges else []
+        self.test_procedures = test_procedures if test_procedures else []
         self.indices = indices if indices else []
         self.data_streams = data_streams if data_streams else []
         self.corpora = corpora if corpora else []
@@ -421,40 +422,40 @@ class Track:
         self.has_plugins = has_plugins
 
     @property
-    def default_challenge(self):
-        for challenge in self.challenges:
-            if challenge.default:
-                return challenge
-        # This should only happen if we don't have any challenges
+    def default_test_procedure(self):
+        for test_procedure in self.test_procedures:
+            if test_procedure.default:
+                return test_procedure
+        # This should only happen if we don't have any test_procedures
         return None
 
     @property
-    def selected_challenge(self):
-        for challenge in self.challenges:
-            if challenge.selected:
-                return challenge
+    def selected_test_procedure(self):
+        for test_procedure in self.test_procedures:
+            if test_procedure.selected:
+                return test_procedure
         return None
 
     @property
-    def selected_challenge_or_default(self):
-        selected = self.selected_challenge
-        return selected if selected else self.default_challenge
+    def selected_test_procedure_or_default(self):
+        selected = self.selected_test_procedure
+        return selected if selected else self.default_test_procedure
 
-    def find_challenge_or_default(self, name):
+    def find_test_procedure_or_default(self, name):
         """
-        :param name: The name of the challenge to find.
-        :return: The challenge with the given name. The default challenge, if the name is "" or ``None``.
+        :param name: The name of the test_procedure to find.
+        :return: The test_procedure with the given name. The default test_procedure, if the name is "" or ``None``.
         """
         if name in [None, ""]:
-            return self.default_challenge
+            return self.default_test_procedure
         else:
-            return self.find_challenge(name)
+            return self.find_test_procedure(name)
 
-    def find_challenge(self, name):
-        for challenge in self.challenges:
-            if challenge.name == name:
-                return challenge
-        raise exceptions.InvalidName("Unknown challenge [%s] for track [%s]" % (name, self.name))
+    def find_test_procedure(self, name):
+        for test_procedure in self.test_procedures:
+            if test_procedure.name == name:
+                return test_procedure
+        raise exceptions.InvalidName("Unknown test_procedure [%s] for track [%s]" % (name, self.name))
 
     @property
     def number_of_documents(self):
@@ -498,23 +499,24 @@ class Track:
         return ", ".join(r)
 
     def __hash__(self):
-        return hash(self.name) ^ hash(self.meta_data) ^ hash(self.description) ^ hash(self.challenges) ^ \
+        return hash(self.name) ^ hash(self.meta_data) ^ hash(self.description) ^ hash(self.test_procedures) ^ \
                hash(self.indices) ^ hash(self.templates) ^ hash(self.composable_templates) ^ hash(self.component_templates) \
                ^ hash(self.corpora)
 
     def __eq__(self, othr):
         return (isinstance(othr, type(self)) and
-                (self.name, self.meta_data, self.description, self.challenges, self.indices, self.data_streams,
+                (self.name, self.meta_data, self.description, self.test_procedures, self.indices, self.data_streams,
                  self.templates, self.composable_templates, self.component_templates, self.corpora) ==
-                (othr.name, othr.meta_data, othr.description, othr.challenges, othr.indices, othr.data_streams,
+                (othr.name, othr.meta_data, othr.description, othr.test_procedures, othr.indices, othr.data_streams,
                  othr.templates, othr.composable_templates, othr.component_templates, othr.corpora))
 
 
-class Challenge:
+class TestProcedure:
     """
-    A challenge defines the concrete operations that will be done.
+    A test procedure defines the concrete operations that will be done.
     """
-
+    #Pytest throws a collection warning if the following line is removed
+    __test__ = False
     def __init__(self,
                  name,
                  description=None,

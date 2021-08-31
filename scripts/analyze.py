@@ -229,7 +229,7 @@ def parse_args():
     parser.add_argument(
         "--label",
         help="defines which attribute to use for labelling data series (default: test-execution-timestamp).",
-        # choices=["environment", "test-execution-timestamp", "user-tags", "challenge", "car"],
+        # choices=["environment", "test-execution-timestamp", "user-tags", "test_procedure", "car"],
         default="test-execution-timestamp")
 
     parser.add_argument("path",

@@ -177,7 +177,7 @@ class BenchmarkCoordinator:
         self.error = False
         self.track_revision = None
         self.current_track = None
-        self.current_challenge = None
+        self.current_test_procedure = None
 
     def setup(self, sources=False):
         # to load the track we need to know the correct cluster distribution version. Usually, this value should be set
@@ -194,20 +194,20 @@ class BenchmarkCoordinator:
 
         self.current_track = track.load_track(self.cfg)
         self.track_revision = self.cfg.opts("track", "repository.revision", mandatory=False)
-        challenge_name = self.cfg.opts("track", "challenge.name")
-        self.current_challenge = self.current_track.find_challenge_or_default(challenge_name)
-        if self.current_challenge is None:
+        test_procedure_name = self.cfg.opts("track", "test_procedure.name")
+        self.current_test_procedure = self.current_track.find_test_procedure_or_default(test_procedure_name)
+        if self.current_test_procedure is None:
             raise exceptions.SystemSetupError(
-                "Track [{}] does not provide challenge [{}]. List the available tracks with {} list tracks.".format(
-                    self.current_track.name, challenge_name, PROGRAM_NAME))
-        if self.current_challenge.user_info:
-            console.info(self.current_challenge.user_info)
-        self.test_execution = metrics.create_test_execution(self.cfg, self.current_track, self.current_challenge, self.track_revision)
+                "Track [{}] does not provide test_procedure [{}]. List the available tracks with {} list tracks.".format(
+                    self.current_track.name, test_procedure_name, PROGRAM_NAME))
+        if self.current_test_procedure.user_info:
+            console.info(self.current_test_procedure.user_info)
+        self.test_execution = metrics.create_test_execution(self.cfg, self.current_track, self.current_test_procedure, self.track_revision)
 
         self.metrics_store = metrics.metrics_store(
             self.cfg,
             track=self.test_execution.track_name,
-            challenge=self.test_execution.challenge_name,
+            test_procedure=self.test_execution.test_procedure_name,
             read_only=False
         )
         self.test_execution_store = metrics.test_execution_store(self.cfg)
@@ -218,14 +218,14 @@ class BenchmarkCoordinator:
         self.test_execution.revision = revision
         # store test_execution initially (without any results) so other components can retrieve full metadata
         self.test_execution_store.store_test_execution(self.test_execution)
-        if self.test_execution.challenge.auto_generated:
+        if self.test_execution.test_procedure.auto_generated:
             console.info("Racing on track [{}] and car {} with version [{}].\n"
                          .format(self.test_execution.track_name, self.test_execution.car, self.test_execution.distribution_version))
         else:
-            console.info("Racing on track [{}], challenge [{}] and car {} with version [{}].\n"
+            console.info("Racing on track [{}], test_procedure [{}] and car {} with version [{}].\n"
                          .format(
                              self.test_execution.track_name,
-                             self.test_execution.challenge_name,
+                             self.test_execution.test_procedure_name,
                              self.test_execution.car,
                              self.test_execution.distribution_version
                              ))
