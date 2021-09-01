@@ -43,7 +43,7 @@ from esrally.utils import console
 def create_config():
     cfg = config.Config()
     cfg.add(config.Scope.application, "system", "env.name", "unittest")
-    cfg.add(config.Scope.application, "track", "params", {})
+    cfg.add(config.Scope.application, "workload", "params", {})
     # concrete path does not matter
     cfg.add(config.Scope.application, "node", "rally.root", "/some/root/path")
 

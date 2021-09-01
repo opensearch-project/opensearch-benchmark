@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "title": "track",
-  "description": "Specification of tracks for Rally",
+  "title": "workload",
+  "description": "Specification of workloads for Rally",
   "type": "object",
   "definitions": {
     "schedule": {
@@ -214,16 +214,16 @@
   "properties": {
     "description": {
       "type": "string",
-      "description": "A description of this track suitable for command line usage. It should be less than 80 characters."
+      "description": "A description of this workload suitable for command line usage. It should be less than 80 characters."
     },
     "version": {
       "type": "integer",
       "minimum": 1,
-      "description": "The version of the track specification format that is being used (optional)."
+      "description": "The version of the workload specification format that is being used (optional)."
     },
     "meta": {
       "type": "object",
-      "description": "Meta-information which will be added to each metrics-record of this track."
+      "description": "Meta-information which will be added to each metrics-record of this workload."
     },
     "component-templates": {
       "type": "array",

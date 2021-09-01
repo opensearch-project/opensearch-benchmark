@@ -40,7 +40,7 @@ class Scope(Enum):
     applicationOverride = 2
     # A sole benchmark
     benchmark = 3
-    # Single benchmark track setup (e.g. default, multinode, ...)
+    # Single benchmark workload setup (e.g. default, multinode, ...)
     test_procedure = 4
     # property for every invocation, i.e. for backtesting
     invocation = 5
@@ -115,7 +115,7 @@ def auto_load_local_config(base_config, additional_sections=None, config_file_cl
     # we override our some configuration with the one from the coordinator because it may contain more entries and we should be
     # consistent across all nodes here.
     cfg.add_all(base_config, "results_publishing")
-    cfg.add_all(base_config, "tracks")
+    cfg.add_all(base_config, "workloads")
     cfg.add_all(base_config, "provision_configs")
     cfg.add_all(base_config, "distributions")
     cfg.add_all(base_config, "defaults")
@@ -245,8 +245,8 @@ class Config:
         # them either
         self._opts = {
             (Scope.application, "source", "distribution.dir"): "distributions",
-            (Scope.application, "benchmarks", "track.repository.dir"): "tracks",
-            (Scope.application, "benchmarks", "track.default.repository"): "default",
+            (Scope.application, "benchmarks", "workload.repository.dir"): "workloads",
+            (Scope.application, "benchmarks", "workload.default.repository"): "default",
             (Scope.application, "provisioning", "node.name.prefix"): "rally-node",
             (Scope.application, "provisioning", "node.http.port"): 39200,
             (Scope.application, "builder", "provision_config.repository.dir"): "provision_configs",

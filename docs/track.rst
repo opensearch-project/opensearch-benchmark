@@ -1,4 +1,4 @@
-Track Reference
+Workload Reference
 ---------------
 
 Definition
@@ -11,7 +11,7 @@ A track is a specification of one or more benchmarking scenarios with a specific
 * Source URL of the benchmark data.
 * A list of steps to run, which we'll call "challenge", for example indexing data with a specific number of documents per bulk request or running searches for a defined number of iterations.
 
-Track File Format and Storage
+Workload File Format and Storage
 =============================
 
 A track is specified in a JSON file.
@@ -22,15 +22,15 @@ Ad-hoc use
 For ad-hoc use you can store a track definition anywhere on the file system and reference it with ``--track-path``, e.g.::
 
    # provide a directory - Rally searches for a track.json file in this directory
-   # Track name is "app-logs"
+   # Workload name is "app-logs"
    esrally race --track-path=~/Projects/tracks/app-logs
    # provide a file name - Rally uses this file directly
-   # Track name is "syslog"
+   # Workload name is "syslog"
    esrally race --track-path=~/Projects/tracks/syslog.json
 
 Rally will also search for additional files like mappings or data files in the provided directory. If you use advanced features like :ref:`custom runners <adding_tracks_custom_runners>` or :ref:`parameter sources <adding_tracks_custom_param_sources>` we recommend that you create a separate directory per track.
 
-Custom Track Repositories
+Custom Workload Repositories
 .........................
 
 Alternatively, you can store Rally tracks also in a dedicated git repository which we call a "track repository". Rally provides a default track repository that is hosted on `Github <https://github.com/elastic/rally-tracks>`_. You can also add your own track repositories although this requires a bit of additional work. First of all, track repositories need to be managed by git. The reason is that Rally can benchmark multiple versions of Elasticsearch and we use git branches in the track repository to determine the best match for each track (based on the command line parameter ``--distribution-version``). The versioning scheme is as follows:
@@ -140,7 +140,7 @@ In the ``challenges`` section you describe more than one set of operations, in t
 
 Creating a track does not require all of the above sections to be used. Tracks that are used against existing data may only rely on querying ``operations`` and can omit the ``indices``, ``templates``, and ``corpora`` sections. An example of this can be found in the :ref:`task with a single track example<track_single_task>`.
 
-Track elements
+Workload elements
 ==============
 
 The track elements that are described here are defined in `Rally's JSON schema for tracks <https://github.com/elastic/rally/blob/master/esrally/resources/track-schema.json>`_. Rally uses this track schema to validate your tracks when it is loading them.
@@ -151,7 +151,7 @@ Each track defines the following info attributes:
 * ``description`` (optional): A human-readable description of the track. Although it is optional, we recommend providing it.
 
 =========================== =================
-Track Specification Version Rally version
+Workload Specification Version Rally version
 =========================== =================
                           1  >=0.7.3, <0.10.0
                           2           >=0.9.0

@@ -32,7 +32,7 @@ from esrally.utils import io, git, console, versions
 
 class RallyRepository:
     """
-    Manages Rally resources (e.g. provision_configs or tracks).
+    Manages Rally resources (e.g. provision_configs or workloads).
     """
 
     default = "default-provision-config"

@@ -127,7 +127,7 @@ def stop(cfg):
         metrics_store.open(
             test_ex_id=current_test_execution.test_execution_id,
             test_ex_timestamp=current_test_execution.test_execution_timestamp,
-            track_name=current_test_execution.track_name,
+            workload_name=current_test_execution.workload_name,
             test_procedure_name=current_test_execution.test_procedure_name
         )
     except exceptions.NotFound:
@@ -542,7 +542,7 @@ class NodeBuilderActor(actor.RallyActor):
             # Load node-specific configuration
             cfg = config.auto_load_local_config(msg.cfg, additional_sections=[
                 # only copy the relevant bits
-                "track", "builder", "client", "telemetry",
+                "workload", "builder", "client", "telemetry",
                 # allow metrics store to extract test_execution meta-data
                 "test_execution",
                 "source"

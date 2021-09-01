@@ -62,16 +62,16 @@ def extract_mappings_and_corpora(client, output_path, indices_to_extract):
     return indices, corpora
 
 
-def create_track(cfg):
+def create_workload(cfg):
     logger = logging.getLogger(__name__)
 
-    track_name = cfg.opts("track", "track.name")
+    workload_name = cfg.opts("workload", "workload.name")
     indices = cfg.opts("generator", "indices")
     root_path = cfg.opts("generator", "output.path")
     target_hosts = cfg.opts("client", "hosts")
     client_options = cfg.opts("client", "options")
 
-    logger.info("Creating track [%s] matching indices [%s]", track_name, indices)
+    logger.info("Creating workload [%s] matching indices [%s]", workload_name, indices)
 
     client = EsClientFactory(hosts=target_hosts.all_hosts[opts.TargetHosts.DEFAULT],
                              client_options=client_options.all_client_options[opts.TargetHosts.DEFAULT]).create()
@@ -79,22 +79,22 @@ def create_track(cfg):
     info = client.info()
     console.info(f"Connected to Elasticsearch cluster [{info['name']}] version [{info['version']['number']}].\n", logger=logger)
 
-    output_path = os.path.abspath(os.path.join(io.normalize_path(root_path), track_name))
+    output_path = os.path.abspath(os.path.join(io.normalize_path(root_path), workload_name))
     io.ensure_dir(output_path)
 
     indices, corpora = extract_mappings_and_corpora(client, output_path, indices)
     if len(indices) == 0:
-        raise RuntimeError("Failed to extract any indices for track!")
+        raise RuntimeError("Failed to extract any indices for workload!")
 
     template_vars = {
-        "track_name": track_name,
+        "workload_name": workload_name,
         "indices": indices,
         "corpora": corpora
     }
 
-    track_path = os.path.join(output_path, "track.json")
+    workload_path = os.path.join(output_path, "workload.json")
     templates_path = os.path.join(cfg.opts("node", "rally.root"), "resources")
-    process_template(templates_path, "track.json.j2", template_vars, track_path)
+    process_template(templates_path, "workload.json.j2", template_vars, workload_path)
 
     console.println("")
-    console.info(f"Track {track_name} has been created. Run it with: {PROGRAM_NAME} --track-path={output_path}")
+    console.info(f"Workload {workload_name} has been created. Run it with: {PROGRAM_NAME} --workload-path={output_path}")

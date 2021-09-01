@@ -133,8 +133,8 @@ Rally downloads all necessary data automatically for you:
 
 * Elasticsearch distributions from elastic.co if you specify ``--distribution-version=SOME_VERSION_NUMBER``
 * Elasticsearch source code from Github if you specify a revision number e.g. ``--revision=952097b``
-* Track meta-data from Github
-* Track data from an S3 bucket
+* Workload meta-data from Github
+* Workload data from an S3 bucket
 
 Hence, it needs to connect via http(s) to the outside world. If you are behind a corporate proxy you need to configure Rally and git. As many other Unix programs, Rally relies that the HTTP proxy URL is available in the environment variable ``http_proxy`` (note that this is in lower-case). Hence, you should add this line to your shell profile, e.g. ``~/.bash_profile``::
 

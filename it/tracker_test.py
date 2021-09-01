@@ -45,20 +45,20 @@ def test_cluster():
 
 
 @it.rally_in_mem
-def test_create_track(cfg, tmp_path, test_cluster):
+def test_create_workload(cfg, tmp_path, test_cluster):
     # prepare some data
     cmd = f"--test-mode --pipeline=benchmark-only --target-hosts=127.0.0.1:{test_cluster.http_port} " \
-          f" --track=geonames --test-procedure=append-no-conflicts-index-only --quiet"
+          f" --workload=geonames --test-procedure=append-no-conflicts-index-only --quiet"
     assert it.execute_test(cfg, cmd) == 0
 
-    # create the track
-    track_name = f"test-track-{uuid.uuid4()}"
-    track_path = tmp_path / track_name
+    # create the workload
+    workload_name = f"test-workload-{uuid.uuid4()}"
+    workload_path = tmp_path / workload_name
 
-    assert it.esrally(cfg, f"create-track --target-hosts=127.0.0.1:{test_cluster.http_port} --indices=geonames "
-                           f"--track={track_name} --output-path={tmp_path}") == 0
+    assert it.esrally(cfg, f"create-workload --target-hosts=127.0.0.1:{test_cluster.http_port} --indices=geonames "
+                           f"--workload={workload_name} --output-path={tmp_path}") == 0
 
-    expected_files = ["track.json",
+    expected_files = ["workload.json",
                       "geonames.json",
                       "geonames-documents-1k.json",
                       "geonames-documents.json",
@@ -66,9 +66,9 @@ def test_create_track(cfg, tmp_path, test_cluster):
                       "geonames-documents.json.bz2"]
 
     for f in expected_files:
-        full_path = track_path / f
+        full_path = workload_path / f
         assert full_path.exists(), f"Expected file to exist at path [{full_path}]"
 
-    # run a benchmark with the created track
-    cmd = f"--test-mode --pipeline=benchmark-only --target-hosts=127.0.0.1:{test_cluster.http_port} --track-path={track_path}"
+    # run a benchmark with the created workload
+    cmd = f"--test-mode --pipeline=benchmark-only --target-hosts=127.0.0.1:{test_cluster.http_port} --workload-path={workload_path}"
     assert it.execute_test(cfg, cmd) == 0

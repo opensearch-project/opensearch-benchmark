@@ -25,7 +25,7 @@ After we've run both races, we want to know about the performance impact. With R
                     /____/
     Recent races:
 
-    Race ID                               Race Timestamp    Track    Track Parameters    Challenge            Car       User Tags
+    Race ID                               Race Timestamp    Workload    Workload Parameters    Challenge            Car       User Tags
     ------------------------------------  ----------------  -------  ------------------  ------------------   --------  ------------------------------
     beb154e4-0a05-4f45-ad9f-e34f9a9e51f7  20160518T122341Z  pmc                          append-no-conflicts  defaults  intention:reduce_alloc_1234
     0bfd4542-3821-4c79-81a2-0858636068ce  20160518T112057Z  pmc                          append-no-conflicts  defaults  intention:baseline_github_1234

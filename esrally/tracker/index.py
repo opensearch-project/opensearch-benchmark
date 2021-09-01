@@ -101,7 +101,7 @@ def extract(client, outdir, index_pattern):
     :param client: Elasticsearch client
     :param outdir: destination directory
     :param index_pattern: name of index
-    :return: Dict of template variables representing the index for use in track
+    :return: Dict of template variables representing the index for use in workload
     """
     results = []
 

@@ -386,28 +386,28 @@ class DocumentCorpus:
                 (othr.name, othr.documents, othr.meta_data))
 
 
-class Track:
+class Workload:
     """
-    A track defines the data set that is used. It corresponds loosely to a use case (e.g. logging, event processing, analytics, ...)
+    A workload defines the data set that is used. It corresponds loosely to a use case (e.g. logging, event processing, analytics, ...)
     """
 
     def __init__(self, name, description=None, meta_data=None, test_procedures=None, indices=None, data_streams=None,
                  templates=None, composable_templates=None, component_templates=None, corpora=None, has_plugins=False):
         """
 
-        Creates a new track.
+        Creates a new workload.
 
-        :param name: A short, descriptive name for this track. As per convention, this name should be in lower-case without spaces.
-        :param description: A description for this track (should be less than 80 characters).
+        :param name: A short, descriptive name for this workload. As per convention, this name should be in lower-case without spaces.
+        :param description: A description for this workload (should be less than 80 characters).
         :param meta_data: An optional dict of meta-data elements to attach to each metrics record. Default: {}.
         :param test_procedures: A list of one or more test_procedures to use.
         Precondition: If the list is non-empty it contains exactly one element
         with its ``default`` property set to ``True``.
-        :param indices: A list of indices for this track. May be None.
-        :param data_streams: A list of data streams for this track. May be None.
-        :param templates: A list of index templates for this track. May be None.
-        :param corpora: A list of document corpus definitions for this track. May be None.
-        :param has_plugins: True iff the track also defines plugins (e.g. custom runners or parameter sources).
+        :param indices: A list of indices for this workload. May be None.
+        :param data_streams: A list of data streams for this workload. May be None.
+        :param templates: A list of index templates for this workload. May be None.
+        :param corpora: A list of document corpus definitions for this workload. May be None.
+        :param has_plugins: True iff the workload also defines plugins (e.g. custom runners or parameter sources).
         """
         self.name = name
         self.meta_data = meta_data if meta_data else {}
@@ -455,7 +455,7 @@ class Track:
         for test_procedure in self.test_procedures:
             if test_procedure.name == name:
                 return test_procedure
-        raise exceptions.InvalidName("Unknown test_procedure [%s] for track [%s]" % (name, self.name))
+        raise exceptions.InvalidName("Unknown test_procedure [%s] for workload [%s]" % (name, self.name))
 
     @property
     def number_of_documents(self):

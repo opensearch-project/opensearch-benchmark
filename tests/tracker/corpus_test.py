@@ -74,21 +74,21 @@ def test_extract(client, mo):
     client.scroll.return_value = {}
 
     index = "test"
-    outdir = "/abs/outpath/to/tracks/"
+    outdir = "/abs/outpath/to/workloads/"
 
     with mock.patch("os.stat") as osstat:
         osstat.side_effect = set_corp_size
         res = corpus.extract(client, outdir, index)
     assert mo.call_count == 4
-    mo.assert_has_calls([call("/abs/outpath/to/tracks/test-documents.json", "wb"),
-                         call("/abs/outpath/to/tracks/test-documents.json.bz2", "wb"),
-                         call("/abs/outpath/to/tracks/test-documents-1k.json", "wb"),
-                         call("/abs/outpath/to/tracks/test-documents-1k.json.bz2", "wb")
+    mo.assert_has_calls([call("/abs/outpath/to/workloads/test-documents.json", "wb"),
+                         call("/abs/outpath/to/workloads/test-documents.json.bz2", "wb"),
+                         call("/abs/outpath/to/workloads/test-documents-1k.json", "wb"),
+                         call("/abs/outpath/to/workloads/test-documents-1k.json.bz2", "wb")
                          ], any_order=True)
 
     assert res == {
         "filename": "test-documents.json.bz2",
-        "path": "/abs/outpath/to/tracks/test-documents.json.bz2",
+        "path": "/abs/outpath/to/workloads/test-documents.json.bz2",
         "compressed_bytes": 500,
         "index_name": "test",
         "doc_count": 1001,

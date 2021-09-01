@@ -254,7 +254,7 @@ class MetaInfoScope(Enum):
 
 
 def calculate_results(store, test_execution):
-    calc = GlobalStatsCalculator(store, test_execution.track, test_execution.test_procedure)
+    calc = GlobalStatsCalculator(store, test_execution.workload, test_execution.test_procedure)
     return calc()
 
 
@@ -263,7 +263,7 @@ def calculate_system_results(store, node_name):
     return calc()
 
 
-def metrics_store(cfg, read_only=True, track=None, test_procedure=None, provision_config_instance=None, meta_info=None):
+def metrics_store(cfg, read_only=True, workload=None, test_procedure=None, provision_config_instance=None, meta_info=None):
     """
     Creates a proper metrics store based on the current configuration.
 
@@ -280,7 +280,7 @@ def metrics_store(cfg, read_only=True, track=None, test_procedure=None, provisio
     selected_provision_config_instance = cfg.opts("builder", "provision_config_instance.names") \
         if provision_config_instance is None else provision_config_instance
 
-    store.open(test_execution_id, test_execution_timestamp, track, test_procedure, selected_provision_config_instance, create=not read_only)
+    store.open(test_execution_id, test_execution_timestamp, workload, test_procedure, selected_provision_config_instance, create=not read_only)
     return store
 
 
@@ -343,8 +343,8 @@ class MetricsStore:
         self._config = cfg
         self._test_execution_id = None
         self._test_execution_timestamp = None
-        self._track = None
-        self._track_params = cfg.opts("track", "params", default_value={}, mandatory=False)
+        self._workload = None
+        self._workload_params = cfg.opts("workload", "params", default_value={}, mandatory=False)
         self._test_procedure = None
         self._provision_config_instance = None
         self._provision_config_instance_name = None
@@ -363,15 +363,15 @@ class MetricsStore:
         self._stop_watch = self._clock.stop_watch()
         self.logger = logging.getLogger(__name__)
 
-    def open(self, test_ex_id=None, test_ex_timestamp=None, track_name=None,\
+    def open(self, test_ex_id=None, test_ex_timestamp=None, workload_name=None,\
          test_procedure_name=None, provision_config_instance_name=None, ctx=None,\
          create=False):
         """
-        Opens a metrics store for a specific test_execution, track, test_procedure and provision_config_instance.
+        Opens a metrics store for a specific test_execution, workload, test_procedure and provision_config_instance.
 
         :param test_ex_id: The test execution id. This attribute is sufficient to uniquely identify a test_execution.
         :param test_ex_timestamp: The test execution timestamp as a datetime.
-        :param track_name: Track name.
+        :param workload_name: Workload name.
         :param test_procedure_name: TestProcedure name.
         :param provision_config_instance_name: ProvisionConfigInstance name.
         :param ctx: An metrics store open context retrieved from another metrics store with ``#open_context``.
@@ -381,13 +381,13 @@ class MetricsStore:
         if ctx:
             self._test_execution_id = ctx["test-execution-id"]
             self._test_execution_timestamp = ctx["test-execution-timestamp"]
-            self._track = ctx["track"]
+            self._workload = ctx["workload"]
             self._test_procedure = ctx["test_procedure"]
             self._provision_config_instance = ctx["provision-config-instance"]
         else:
             self._test_execution_id = test_ex_id
             self._test_execution_timestamp = time.to_iso8601(test_ex_timestamp)
-            self._track = track_name
+            self._workload = workload_name
             self._test_procedure = test_procedure_name
             self._provision_config_instance = provision_config_instance_name
         assert self._test_execution_id is not None, "Attempting to open metrics store without a test execution id"
@@ -397,9 +397,9 @@ class MetricsStore:
             if isinstance(self._provision_config_instance, list) \
                 else self._provision_config_instance
 
-        self.logger.info("Opening metrics store for test execution timestamp=[%s], track=[%s],"
+        self.logger.info("Opening metrics store for test execution timestamp=[%s], workload=[%s],"
         "test_procedure=[%s], provision_config_instance=[%s]",
-                         self._test_execution_timestamp, self._track, self._test_procedure, self._provision_config_instance)
+                         self._test_execution_timestamp, self._workload, self._test_procedure, self._provision_config_instance)
 
         user_tags = extract_user_tags_from_config(self._config)
         for k, v in user_tags.items():
@@ -466,7 +466,7 @@ class MetricsStore:
         return {
             "test-execution-id": self._test_execution_id,
             "test-execution-timestamp": self._test_execution_timestamp,
-            "track": self._track,
+            "workload": self._workload,
             "test_procedure": self._test_procedure,
             "provision-config-instance": self._provision_config_instance
         }
@@ -538,7 +538,7 @@ class MetricsStore:
             "test-execution-id": self._test_execution_id,
             "test-execution-timestamp": self._test_execution_timestamp,
             "environment": self._environment_name,
-            "track": self._track,
+            "workload": self._workload,
             "test_procedure": self._test_procedure,
             "provision-config-instance": self._provision_config_instance_name,
             "name": name,
@@ -553,13 +553,13 @@ class MetricsStore:
             doc["operation"] = operation
         if operation_type:
             doc["operation-type"] = operation_type
-        if self._track_params:
-            doc["track-params"] = self._track_params
+        if self._workload_params:
+            doc["workload-params"] = self._workload_params
         self._add(doc)
 
     def put_doc(self, doc, level=None, node_name=None, meta_data=None, absolute_time=None, relative_time=None):
         """
-        Adds a new document to the metrics store. It will merge additional properties into the doc such as timestamps or track info.
+        Adds a new document to the metrics store. It will merge additional properties into the doc such as timestamps or workload info.
 
         :param doc: The raw document as a ``dict``. Ownership is transferred to the metrics store (i.e. don't reuse that object).
         :param level: Whether these are cluster or node-level metrics. May be ``None`` if not applicable.
@@ -595,15 +595,15 @@ class MetricsStore:
             "test-execution-id": self._test_execution_id,
             "test-execution-timestamp": self._test_execution_timestamp,
             "environment": self._environment_name,
-            "track": self._track,
+            "workload": self._workload,
             "test_procedure": self._test_procedure,
             "provision-config-instance": self._provision_config_instance_name,
 
         })
         if meta:
             doc["meta"] = meta
-        if self._track_params:
-            doc["track-params"] = self._track_params
+        if self._workload_params:
+            doc["workload-params"] = self._workload_params
 
         self._add(doc)
 
@@ -784,11 +784,11 @@ class EsMetricsStore(MetricsStore):
         self._index_template_provider = index_template_provider_class(cfg)
         self._docs = None
 
-    def open(self, test_ex_id=None, test_ex_timestamp=None, track_name=None, \
+    def open(self, test_ex_id=None, test_ex_timestamp=None, workload_name=None, \
         test_procedure_name=None, provision_config_instance_name=None, ctx=None, \
         create=False):
         self._docs = []
-        MetricsStore.open(self, test_ex_id, test_ex_timestamp, track_name, test_procedure_name, provision_config_instance_name, ctx, create)
+        MetricsStore.open(self, test_ex_id, test_ex_timestamp, workload_name, test_procedure_name, provision_config_instance_name, ctx, create)
         self._index = self.index_name()
         # reduce a bit of noise in the metrics cluster log
         if create:
@@ -823,10 +823,10 @@ class EsMetricsStore(MetricsStore):
             sw.start()
             self._client.bulk_index(index=self._index, doc_type=EsMetricsStore.METRICS_DOC_TYPE, items=self._docs)
             sw.stop()
-            self.logger.info("Successfully added %d metrics documents for test execution timestamp=[%s], track=[%s], "
+            self.logger.info("Successfully added %d metrics documents for test execution timestamp=[%s], workload=[%s], "
                              "test_procedure=[%s], provision_config_instance=[%s] in [%f] seconds.",
                              len(self._docs), self._test_execution_timestamp,
-                             self._track, self._test_procedure, self._provision_config_instance, sw.total_time())
+                             self._workload, self._test_procedure, self._provision_config_instance, sw.total_time())
         self._docs = []
         # ensure we can search immediately after flushing
         if refresh:
@@ -1169,12 +1169,12 @@ def list_test_executions(cfg):
         test_executions.append([
             test_execution.test_execution_id,
             time.to_iso8601(test_execution.test_execution_timestamp),
-            test_execution.track,
-            format_dict(test_execution.track_params),
+            test_execution.workload,
+            format_dict(test_execution.workload_params),
             test_execution.test_procedure_name,
             test_execution.provision_config_instance_name,
             format_dict(test_execution.user_tags),
-            test_execution.track_revision,
+            test_execution.workload_revision,
             test_execution.provision_config_revision])
 
     if len(test_executions) > 0:
@@ -1184,12 +1184,12 @@ def list_test_executions(cfg):
             headers=[
                 "TestExecution ID",
                 "TestExecution Timestamp",
-                "Track",
-                "Track Parameters",
+                "Workload",
+                "Workload Parameters",
                 "TestProcedure",
                 "ProvisionConfigInstance",
                 "User Tags",
-                "Track Revision",
+                "workload Revision",
                 "Provision Config Revision"
                 ]))
     else:
@@ -1197,14 +1197,14 @@ def list_test_executions(cfg):
         console.println("No recent test_executions found.")
 
 
-def create_test_execution(cfg, track, test_procedure, track_revision=None):
+def create_test_execution(cfg, workload, test_procedure, workload_revision=None):
     provision_config_instance = cfg.opts("builder", "provision_config_instance.names")
     environment = cfg.opts("system", "env.name")
     test_execution_id = cfg.opts("system", "test_execution.id")
     test_execution_timestamp = cfg.opts("system", "time.start")
     user_tags = extract_user_tags_from_config(cfg)
     pipeline = cfg.opts("test_execution", "pipeline")
-    track_params = cfg.opts("track", "params")
+    workload_params = cfg.opts("workload", "params")
     provision_config_instance_params = cfg.opts("builder", "provision_config_instance.params")
     plugin_params = cfg.opts("builder", "plugin.params")
     rally_version = version.version()
@@ -1212,16 +1212,16 @@ def create_test_execution(cfg, track, test_procedure, track_revision=None):
 
     return TestExecution(rally_version, rally_revision,
     environment, test_execution_id, test_execution_timestamp,
-    pipeline, user_tags, track,
-    track_params, test_procedure, provision_config_instance, provision_config_instance_params,
-    plugin_params, track_revision)
+    pipeline, user_tags, workload,
+    workload_params, test_procedure, provision_config_instance, provision_config_instance_params,
+    plugin_params, workload_revision)
 
 
 class TestExecution:
     def __init__(self, rally_version, rally_revision, environment_name, test_execution_id, test_execution_timestamp, pipeline, user_tags,
-                 track, track_params, test_procedure, provision_config_instance,
+                 workload, workload_params, test_procedure, provision_config_instance,
                  provision_config_instance_params, plugin_params,
-                 track_revision=None, provision_config_revision=None,
+                 workload_revision=None, provision_config_revision=None,
                  distribution_version=None, distribution_flavor=None,
                  revision=None, results=None, meta_data=None):
         if results is None:
@@ -1229,8 +1229,8 @@ class TestExecution:
         # this happens when the test execution is created initially
         if meta_data is None:
             meta_data = {}
-            if track:
-                meta_data.update(track.meta_data)
+            if workload:
+                meta_data.update(workload.meta_data)
             if test_procedure:
                 meta_data.update(test_procedure.meta_data)
         self.rally_version = rally_version
@@ -1240,13 +1240,13 @@ class TestExecution:
         self.test_execution_timestamp = test_execution_timestamp
         self.pipeline = pipeline
         self.user_tags = user_tags
-        self.track = track
-        self.track_params = track_params
+        self.workload = workload
+        self.workload_params = workload_params
         self.test_procedure = test_procedure
         self.provision_config_instance = provision_config_instance
         self.provision_config_instance_params = provision_config_instance_params
         self.plugin_params = plugin_params
-        self.track_revision = track_revision
+        self.workload_revision = workload_revision
         self.provision_config_revision = provision_config_revision
         self.distribution_version = distribution_version
         self.distribution_flavor = distribution_flavor
@@ -1255,8 +1255,8 @@ class TestExecution:
         self.meta_data = meta_data
 
     @property
-    def track_name(self):
-        return str(self.track)
+    def workload_name(self):
+        return str(self.workload)
 
     @property
     def test_procedure_name(self):
@@ -1283,7 +1283,7 @@ class TestExecution:
             "test-execution-timestamp": time.to_iso8601(self.test_execution_timestamp),
             "pipeline": self.pipeline,
             "user-tags": self.user_tags,
-            "track": self.track_name,
+            "workload": self.workload_name,
             "provision-config-instance": self.provision_config_instance,
             "cluster": {
                 "revision": self.revision,
@@ -1294,12 +1294,12 @@ class TestExecution:
         }
         if self.results:
             d["results"] = self.results.as_dict()
-        if self.track_revision:
-            d["track-revision"] = self.track_revision
+        if self.workload_revision:
+            d["workload-revision"] = self.workload_revision
         if not self.test_procedure.auto_generated:
             d["test_procedure"] = self.test_procedure_name
-        if self.track_params:
-            d["track-params"] = self.track_params
+        if self.workload_params:
+            d["workload-params"] = self.workload_params
         if self.provision_config_instance_params:
             d["provision-config-instance-params"] = self.provision_config_instance_params
         if self.plugin_params:
@@ -1319,7 +1319,7 @@ class TestExecution:
             "distribution-version": self.distribution_version,
             "distribution-flavor": self.distribution_flavor,
             "user-tags": self.user_tags,
-            "track": self.track_name,
+            "workload": self.workload_name,
             "test_procedure": self.test_procedure_name,
             "provision-config-instance": self.provision_config_instance_name,
             # allow to logically delete records, e.g. for UI purposes when we only want to show the latest result
@@ -1329,10 +1329,10 @@ class TestExecution:
             result_template["distribution-major-version"] = versions.major_version(self.distribution_version)
         if self.provision_config_revision:
             result_template["provision-config-revision"] = self.provision_config_revision
-        if self.track_revision:
-            result_template["track-revision"] = self.track_revision
-        if self.track_params:
-            result_template["track-params"] = self.track_params
+        if self.workload_revision:
+            result_template["workload-revision"] = self.workload_revision
+        if self.workload_params:
+            result_template["workload-params"] = self.workload_params
         if self.provision_config_instance_params:
             result_template["provision-config-instance-params"] = self.provision_config_instance_params
         if self.plugin_params:
@@ -1356,10 +1356,10 @@ class TestExecution:
         cluster = d.get("cluster", {})
         return TestExecution(d["rally-version"], d.get("rally-revision"), d["environment"], d["test-execution-id"],
                     time.from_is8601(d["test-execution-timestamp"]),
-                    d["pipeline"], user_tags, d["track"], d.get("track-params"),
+                    d["pipeline"], user_tags, d["workload"], d.get("workload-params"),
                     d.get("test_procedure"), d["provision-config-instance"],
                     d.get("provision-config-instance-params"), d.get("plugin-params"),
-                    track_revision=d.get("track-revision"),
+                    workload_revision=d.get("workload-revision"),
                     provision_config_revision=cluster.get("provision-config-revision"),
                     distribution_version=cluster.get("distribution-version"),
                     distribution_flavor=cluster.get("distribution-flavor"),
@@ -1600,10 +1600,10 @@ def percentiles_for_sample_size(sample_size):
 
 
 class GlobalStatsCalculator:
-    def __init__(self, store, track, test_procedure):
+    def __init__(self, store, workload, test_procedure):
         self.store = store
         self.logger = logging.getLogger(__name__)
-        self.track = track
+        self.workload = workload
         self.test_procedure = test_procedure
 
     def __call__(self):
@@ -1627,7 +1627,7 @@ class GlobalStatsCalculator:
                         error_rate,
                         duration,
                         self.merge(
-                            self.track.meta_data,
+                            self.workload.meta_data,
                             self.test_procedure.meta_data,
                             task.operation.meta_data,
                             task.meta_data)

@@ -30,13 +30,13 @@ from esrally import version
 
 
 def test_docker_geonames():
-    test_command = "execute_test --pipeline=benchmark-only --test-mode --track=geonames " \
+    test_command = "execute_test --pipeline=benchmark-only --test-mode --workload=geonames " \
                    "--test-procedure=append-no-conflicts-index-only --target-hosts=es01:9200"
     run_docker_compose_test(test_command)
 
 
-def test_docker_list_tracks():
-    test_command = "list tracks"
+def test_docker_list_workloads():
+    test_command = "list workloads"
     run_docker_compose_test(test_command)
 
 
@@ -46,7 +46,7 @@ def test_docker_help():
 
 
 def test_docker_override_cmd():
-    test_command = "esrally execute_test --pipeline=benchmark-only --test-mode --track=geonames " \
+    test_command = "esrally execute_test --pipeline=benchmark-only --test-mode --workload=geonames " \
                    "--test-procedure=append-no-conflicts-index-only --target-hosts=es01:9200"
     run_docker_compose_test(test_command)
 

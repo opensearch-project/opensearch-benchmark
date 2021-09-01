@@ -1,7 +1,7 @@
 {% raw %}{% import "rally.helpers" as rally with context %}{% endraw %}
 {
   "version": 2,
-  "description": "Tracker-generated track for {{track_name}}",
+  "description": "Tracker-generated workload for {{workload_name}}",
   "indices": [{% set comma = joiner() %}{% for index in indices %}{{comma()}}
     {
       "name": "{{index.name}}",

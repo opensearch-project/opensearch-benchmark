@@ -29,9 +29,9 @@ import it
 def test_tar_distributions(cfg):
     port = 19200
     for dist in it.DISTRIBUTIONS:
-        for track in it.TRACKS:
+        for workload in it.workloadS:
             it.wait_until_port_is_free(port_number=port)
-            assert it.execute_test(cfg, f"--distribution-version=\"{dist}\" --track=\"{track}\" "
+            assert it.execute_test(cfg, f"--distribution-version=\"{dist}\" --workload=\"{workload}\" "
                                 f"--test-mode --provision-config-instance=4gheap --target-hosts=127.0.0.1:{port}") == 0
 
 
@@ -42,7 +42,7 @@ def test_docker_distribution(cfg):
     dist = it.DISTRIBUTIONS[-1]
     it.wait_until_port_is_free(port_number=port)
     assert it.execute_test(cfg, f"--pipeline=\"docker\" --distribution-version=\"{dist}\" "
-                        f"--track=\"geonames\" --test-procedure=\"append-no-conflicts-index-only\" --test-mode "
+                        f"--workload=\"geonames\" --test-procedure=\"append-no-conflicts-index-only\" --test-mode "
                         f"--provision-config-instance=4gheap --target-hosts=127.0.0.1:{port}") == 0
 
 
@@ -50,5 +50,5 @@ def test_docker_distribution(cfg):
 def test_does_not_benchmark_unsupported_distribution(cfg):
     port = 19200
     it.wait_until_port_is_free(port_number=port)
-    assert it.execute_test(cfg, f"--distribution-version=\"1.7.6\" --track=\"{it.TRACKS[0]}\" "
+    assert it.execute_test(cfg, f"--distribution-version=\"1.7.6\" --workload=\"{it.workloadS[0]}\" "
                         f"--target-hosts=127.0.0.1:{port} --test-mode --provision-config-instance=4gheap") != 0

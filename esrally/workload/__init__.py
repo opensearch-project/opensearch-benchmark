@@ -23,9 +23,9 @@
 # under the License.
 
 from .loader import (
-    list_tracks, track_info, load_track, load_track_plugins, track_repo, operation_parameters, set_absolute_data_path,
-    TrackProcessorRegistry
+    list_workloads, workload_info, load_workload, load_workload_plugins, workload_repo, operation_parameters, set_absolute_data_path,
+    WorkloadProcessorRegistry
 )
 
-# expose the complete track API
-from .track import *
+# expose the complete workload API
+from .workload import *
