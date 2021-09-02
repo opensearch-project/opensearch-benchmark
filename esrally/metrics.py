@@ -1351,6 +1351,9 @@ class TestExecution:
 
     @classmethod
     def from_dict(cls, d):
+        print("======= TESTING DICTIONARY ======")
+        print("TEST EXECUTION ID: ", d["test-execution-id"])
+        print("WORKLOAD: ", d["workload"])
         user_tags = d.get("user-tags", {})
         # TODO: cluster is optional for BWC. This can be removed after some grace period.
         cluster = d.get("cluster", {})
@@ -1387,7 +1390,7 @@ class TestExecutionStore:
 # Does not inherit from TestExecutionStore as it is only a delegator with the same API.
 class CompositeTestExecutionStore:
     """
-    Internal helper class to store test executionss as file and to Elasticsearch in case users
+    Internal helper class to store test executions as file and to Elasticsearch in case users
     want Elasticsearch as a test executions store.
 
     It provides the same API as TestExecutionStore. It delegates writes to all stores
