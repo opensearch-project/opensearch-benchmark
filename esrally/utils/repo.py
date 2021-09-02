@@ -64,7 +64,7 @@ class RallyRepository:
 
     def validateRepository(self, repo_revision, distribution_version, cfg):
         if self.url == RallyRepository.default:
-            self.useOpensearchBenchmarkProvisionConfigs()
+            self.useOpensearchBenchmarkProvisionConfigs(distribution_version)
         elif repo_revision:
             self.checkout(repo_revision)
         else:
@@ -78,7 +78,7 @@ class RallyRepository:
             if self.remote:
                 branch = versions.best_match(git.branches(self.repo_dir, remote=self.remote), distribution_version)
                 if branch:
-                    # Allow uncommitted changes iff we do not have to change the branch
+                    # Allow uncommitted changes if we do not have to change the branch
                     self.logger.info(
                         "Checking out [%s] in [%s] for distribution version [%s].", branch, self.repo_dir, distribution_version)
                     git.checkout(self.repo_dir, branch=branch)
@@ -132,7 +132,35 @@ class RallyRepository:
         self.logger.info("Checking out revision [%s] in [%s].", revision, self.repo_dir)
         git.checkout(self.repo_dir, revision)
 
-    def useOpensearchBenchmarkProvisionConfigs(self):
+    def useOpensearchBenchmarkProvisionConfigs(self, distribution_version):
         self.logger.info("Using default-provision-config directory within repository")
         root_dir = os.getcwd().split("/esrally")[0]
-        self.repo_dir = os.path.join(root_dir, "opensearch-benchmark-provisionconfigs")
+        provisionconfigs_path = os.path.join(root_dir, "opensearch-benchmark-provisionconfigs")
+
+        branch_version = self.selectBranchVersion(distribution_version, provisionconfigs_path)
+
+        # Include selected branch
+        self.repo_dir = os.path.join(root_dir, f"opensearch-benchmark-provisionconfigs/{branch_version}")
+
+    def selectBranchVersion(self, distribution_version, provisionconfigs_path):
+        # Branches have been moved into opensearch-benchmark-provisionconfigs
+        branches = sorted(os.listdir(provisionconfigs_path))
+        removable_branches = [".DS_Store", "master"]
+        branches = [b for b in branches if b not in removable_branches]
+        self.logger.info("Provision Config Branches: [%s]", branches)
+        distribution_version = distribution_version[0:3]
+
+        # Return a branch that is less than or equal to the distribution version
+        prev_branch = ""
+        for branch in branches:
+            if float(distribution_version) == float(branch):
+                return branch
+            elif float(distribution_version) > float(branch):
+                prev_branch = branch
+            else:
+                break
+
+        if prev_branch == "":
+            raise Exception("Distribution Version is less than available provision config versions")
+
+        return prev_branch
