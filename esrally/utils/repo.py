@@ -166,7 +166,6 @@ class RallyRepository:
                     break
 
             if prev_branch == "":
-                raise Exception("Distribution Version is less than available provision config versions")
+                raise Exception("Distribution Version is less than available provision config versions.")
 
             return prev_branch
-

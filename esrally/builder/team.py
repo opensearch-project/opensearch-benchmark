@@ -137,12 +137,8 @@ def team_path(cfg):
         team_repositories = cfg.opts("builder", "team.repository.dir")
         teams_dir = os.path.join(root, team_repositories)
 
-        current_team_repo = repo.RallyRepository(remote_url, teams_dir, repo_name, "teams", offline)
-        # if repo_revision:
-        #     current_team_repo.checkout(repo_revision)
-        # else:
-        #     current_team_repo.update(distribution_version)
-        #     cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", current_team_repo.revision)
+        current_team_repo = repo.RallyRepository(remote_url, teams_dir, repo_name, "provision_configs", offline)
+
         current_team_repo.validateRepository(repo_revision, distribution_version, cfg)
         return current_team_repo.repo_dir
 
