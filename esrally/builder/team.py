@@ -29,7 +29,7 @@ from enum import Enum
 
 import tabulate
 
-from esrally import exceptions, PROGRAM_NAME, config
+from esrally import exceptions, PROGRAM_NAME
 from esrally.utils import console, repo, io, modules
 
 TEAM_FORMAT_VERSION = 1
@@ -138,11 +138,12 @@ def team_path(cfg):
         teams_dir = os.path.join(root, team_repositories)
 
         current_team_repo = repo.RallyRepository(remote_url, teams_dir, repo_name, "teams", offline)
-        if repo_revision:
-            current_team_repo.checkout(repo_revision)
-        else:
-            current_team_repo.update(distribution_version)
-            cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", current_team_repo.revision)
+        # if repo_revision:
+        #     current_team_repo.checkout(repo_revision)
+        # else:
+        #     current_team_repo.update(distribution_version)
+        #     cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", current_team_repo.revision)
+        current_team_repo.validate(repo_revision, distribution_version,cfg)
         return current_team_repo.repo_dir
 
 
