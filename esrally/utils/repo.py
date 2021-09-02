@@ -148,19 +148,25 @@ class RallyRepository:
         removable_branches = [".DS_Store", "master"]
         branches = [b for b in branches if b not in removable_branches]
         self.logger.info("Provision Config Branches: [%s]", branches)
-        distribution_version = distribution_version[0:3]
 
-        # Return a branch that is less than or equal to the distribution version
-        prev_branch = ""
-        for branch in branches:
-            if float(distribution_version) == float(branch):
-                return branch
-            elif float(distribution_version) > float(branch):
-                prev_branch = branch
-            else:
-                break
+        # Distribution version may not be provided in command line
+        if distribution_version is None:
+            return "master"
+        else:
+            distribution_version = distribution_version[0:3]
 
-        if prev_branch == "":
-            raise Exception("Distribution Version is less than available provision config versions")
+            # Return a branch that is less than or equal to the distribution version
+            prev_branch = ""
+            for branch in branches:
+                if float(distribution_version) == float(branch):
+                    return branch
+                elif float(distribution_version) > float(branch):
+                    prev_branch = branch
+                else:
+                    break
 
-        return prev_branch
+            if prev_branch == "":
+                raise Exception("Distribution Version is less than available provision config versions")
+
+            return prev_branch
+

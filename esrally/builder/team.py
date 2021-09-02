@@ -143,7 +143,7 @@ def team_path(cfg):
         # else:
         #     current_team_repo.update(distribution_version)
         #     cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", current_team_repo.revision)
-        current_team_repo.validateRepository(repo_revision, distribution_version,cfg)
+        current_team_repo.validateRepository(repo_revision, distribution_version, cfg)
         return current_team_repo.repo_dir
 
 
