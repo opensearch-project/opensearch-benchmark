@@ -95,7 +95,7 @@ datastore.password = notinuse
 [tracks]
 default.url = https://github.com/opensearch-project/opensearch-benchmark-workloads
 
-[teams]
+[provision_configs]
 default.url = default-provision-config
 
 [defaults]

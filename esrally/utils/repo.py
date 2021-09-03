@@ -78,7 +78,7 @@ class RallyRepository:
             if self.remote:
                 branch = versions.best_match(git.branches(self.repo_dir, remote=self.remote), distribution_version)
                 if branch:
-                    # Allow uncommitted changes if we do not have to change the branch
+                    # Allow uncommitted changes iff we do not have to change the branch
                     self.logger.info(
                         "Checking out [%s] in [%s] for distribution version [%s].", branch, self.repo_dir, distribution_version)
                     git.checkout(self.repo_dir, branch=branch)
@@ -144,28 +144,20 @@ class RallyRepository:
 
     def selectBranchVersion(self, distribution_version, provisionconfigs_path):
         # Branches have been moved into opensearch-benchmark-provisionconfigs
-        branches = sorted(os.listdir(provisionconfigs_path))
-        removable_branches = [".DS_Store", "master"]
-        branches = [b for b in branches if b not in removable_branches]
+        directories = [directory for directory in os.listdir(provisionconfigs_path) if os.path.isdir(os.path.join(provisionconfigs_path, directory))]
+
+        branches = sorted(directories, reverse=True)
+        branches = [float(branch) for branch in branches if branch != "master"]
         self.logger.info("Provision Config Branches: [%s]", branches)
 
-        # Distribution version may not be provided in command line
-        if distribution_version is None:
-            return "master"
-        else:
-            distribution_version = distribution_version[0:3]
-
+        if distribution_version is not None:
+            distribution_version = float(distribution_version[0:3])
             # Return a branch that is less than or equal to the distribution version
-            prev_branch = ""
             for branch in branches:
-                if float(distribution_version) == float(branch):
+                if distribution_version >= branch:
                     return branch
-                elif float(distribution_version) > float(branch):
-                    prev_branch = branch
-                else:
-                    break
 
-            if prev_branch == "":
-                raise Exception("Distribution Version is less than available provision config versions.")
+            raise Exception("Distribution version is less than available ES versions for provision-configs.")
 
-            return prev_branch
+        # Distribution version is Nonetype if not specified in command line
+        return "master"
