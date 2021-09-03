@@ -34,14 +34,14 @@ from collections import defaultdict
 import thespian.actors
 
 from esrally import actor, client, paths, config, metrics, exceptions, PROGRAM_NAME
-from esrally.builder import supplier, provisioner, launcher, team
+from esrally.builder import supplier, provisioner, launcher, provision_config
 from esrally.utils import net, console
 
 METRIC_FLUSH_INTERVAL_SECONDS = 30
 
 
 def download(cfg):
-    car, plugins = load_team(cfg, external=False)
+    car, plugins = load_provision_config(cfg, external=False)
 
     s = supplier.create(cfg, sources=False, distribution=True, car=car, plugins=plugins)
     binaries = s()
@@ -50,7 +50,7 @@ def download(cfg):
 
 def install(cfg):
     root_path = paths.install_root(cfg)
-    car, plugins = load_team(cfg, external=False)
+    car, plugins = load_provision_config(cfg, external=False)
 
     # A non-empty distribution-version is provided
     distribution = bool(cfg.opts("builder", "distribution.version", mandatory=False))
@@ -200,8 +200,8 @@ class StartEngine:
 
 
 class EngineStarted:
-    def __init__(self, team_revision):
-        self.team_revision = team_revision
+    def __init__(self, provision_config_revision):
+        self.provision_config_revision = provision_config_revision
 
 
 class StopEngine:
@@ -320,7 +320,7 @@ class BuilderActor(actor.RallyActor):
         self.cluster_launcher = None
         self.cluster = None
         self.car = None
-        self.team_revision = None
+        self.provision_config_revision = None
         self.externally_provisioned = False
 
     def receiveUnrecognizedMessage(self, msg, sender):
@@ -349,9 +349,9 @@ class BuilderActor(actor.RallyActor):
         self.logger.info("Received signal from test execution orchestrator to start engine.")
         self.test_execution_orchestrator = sender
         self.cfg = msg.cfg
-        self.car, _ = load_team(self.cfg, msg.external)
-        # TODO: This is implicitly set by #load_team() - can we gather this elsewhere?
-        self.team_revision = self.cfg.opts("builder", "repository.revision")
+        self.car, _ = load_provision_config(self.cfg, msg.external)
+        # TODO: This is implicitly set by #load_provision_config() - can we gather this elsewhere?
+        self.provision_config_revision = self.cfg.opts("builder", "repository.revision")
 
         # In our startup procedure we first create all builders. Only if this succeeds we'll continue.
         hosts = self.cfg.opts("client", "hosts").default
@@ -418,7 +418,7 @@ class BuilderActor(actor.RallyActor):
         self.transition_when_all_children_responded(sender, msg, "cluster_stopping", "cluster_stopped", self.on_all_nodes_stopped)
 
     def on_all_nodes_started(self):
-        self.send(self.test_execution_orchestrator, EngineStarted(self.team_revision))
+        self.send(self.test_execution_orchestrator, EngineStarted(self.provision_config_revision))
 
     def reset_relative_time(self):
         for m in self.children:
@@ -601,15 +601,15 @@ class NodeBuilderActor(actor.RallyActor):
 # Internal API (only used by the actor and for tests)
 #####################################################
 
-def load_team(cfg, external):
+def load_provision_config(cfg, external):
     # externally provisioned clusters do not support cars / plugins
     if external:
         car = None
         plugins = []
     else:
-        team_path = team.team_path(cfg)
-        car = team.load_car(team_path, cfg.opts("builder", "car.names"), cfg.opts("builder", "car.params"))
-        plugins = team.load_plugins(team_path,
+        provision_config_path = provision_config.provision_config_path(cfg)
+        car = provision_config.load_car(provision_config_path, cfg.opts("builder", "car.names"), cfg.opts("builder", "car.params"))
+        plugins = provision_config.load_plugins(provision_config_path,
                                     cfg.opts("builder", "car.plugins", mandatory=False),
                                     cfg.opts("builder", "plugin.params", mandatory=False))
     return car, plugins
@@ -620,7 +620,7 @@ def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_i
     test_execution_root_path = paths.test_execution_root(cfg)
     node_ids = cfg.opts("provisioning", "node.ids", mandatory=False)
     node_name_prefix = cfg.opts("provisioning", "node.name.prefix")
-    car, plugins = load_team(cfg, external)
+    car, plugins = load_provision_config(cfg, external)
 
     if sources or distribution:
         s = supplier.create(cfg, sources, distribution, car, plugins)

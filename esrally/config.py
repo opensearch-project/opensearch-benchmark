@@ -116,7 +116,7 @@ def auto_load_local_config(base_config, additional_sections=None, config_file_cl
     # consistent across all nodes here.
     cfg.add_all(base_config, "results_publishing")
     cfg.add_all(base_config, "tracks")
-    cfg.add_all(base_config, "teams")
+    cfg.add_all(base_config, "provision_configs")
     cfg.add_all(base_config, "distributions")
     cfg.add_all(base_config, "defaults")
     # needed e.g. for "time.start"
@@ -249,8 +249,8 @@ class Config:
             (Scope.application, "benchmarks", "track.default.repository"): "default",
             (Scope.application, "provisioning", "node.name.prefix"): "rally-node",
             (Scope.application, "provisioning", "node.http.port"): 39200,
-            (Scope.application, "builder", "team.repository.dir"): "teams",
-            (Scope.application, "builder", "team.default.repository"): "default",
+            (Scope.application, "builder", "provision_config.repository.dir"): "provision_configs",
+            (Scope.application, "builder", "provision_config.default.repository"): "default",
 
         }
 

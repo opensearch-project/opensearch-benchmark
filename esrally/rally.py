@@ -37,7 +37,7 @@ from esrally import PROGRAM_NAME, BANNER, FORUM_LINK, SKULL, check_python_versio
 from esrally import version, actor, config, paths, \
     test_execution_orchestrator, results_publisher, \
         metrics, track, chart_generator, exceptions, log
-from esrally.builder import team, builder
+from esrally.builder import provision_config, builder
 from esrally.tracker import tracker
 from esrally.utils import io, convert, process, console, net, opts, versions
 
@@ -226,15 +226,15 @@ def create_arg_parser():
 
     download_parser = subparsers.add_parser("download", help="Downloads an artifact")
     download_parser.add_argument(
-        "--team-repository",
-        help="Define the repository from where Rally will load teams and cars (default: default).",
+        "--provision-config-repository",
+        help="Define the repository from where Rally will load provision_configs and cars (default: default).",
         default="default")
     download_parser.add_argument(
-        "--team-revision",
-        help="Define a specific revision in the team repository that Rally should use.",
+        "--provision-config-revision",
+        help="Define a specific revision in the provision_config repository that Rally should use.",
         default=None)
     download_parser.add_argument(
-        "--team-path",
+        "--provision-config-path",
         help="Define the path to the car and plugin configurations to use.")
     download_parser.add_argument(
         "--distribution-version",
@@ -279,15 +279,15 @@ def create_arg_parser():
         choices=["tar", "docker"],
         default="tar")
     install_parser.add_argument(
-        "--team-repository",
-        help="Define the repository from where Rally will load teams and cars (default: default).",
+        "--provision-config-repository",
+        help="Define the repository from where Rally will load provision_configs and cars (default: default).",
         default="default")
     install_parser.add_argument(
-        "--team-revision",
-        help="Define a specific revision in the team repository that Rally should use.",
+        "--provision-config-revision",
+        help="Define a specific revision in the provision_config repository that Rally should use.",
         default=None)
     install_parser.add_argument(
-        "--team-path",
+        "--provision-config-path",
         help="Define the path to the car and plugin configurations to use.")
     install_parser.add_argument(
         "--runtime-jdk",
@@ -401,15 +401,15 @@ def create_arg_parser():
                  "Check https://www.elastic.co/downloads/elasticsearch for released versions.",
             default="")
         p.add_argument(
-            "--team-path",
+            "--provision-config-path",
             help="Define the path to the car and plugin configurations to use.")
         p.add_argument(
-            "--team-repository",
-            help="Define the repository from where Rally will load teams and cars (default: default).",
+            "--provision-config-repository",
+            help="Define the repository from where Rally will load provision_configs and cars (default: default).",
             default="default")
         p.add_argument(
-            "--team-revision",
-            help="Define a specific revision in the team repository that Rally should use.",
+            "--provision-config-revision",
+            help="Define a specific revision in the provision_config repository that Rally should use.",
             default=None)
 
     test_execution_parser.add_argument(
@@ -608,9 +608,9 @@ def dispatch_list(cfg):
     elif what == "test_executions":
         metrics.list_test_executions(cfg)
     elif what == "cars":
-        team.list_cars(cfg)
+        provision_config.list_cars(cfg)
     elif what == "elasticsearch-plugins":
-        team.list_plugins(cfg)
+        provision_config.list_plugins(cfg)
     else:
         raise exceptions.SystemSetupError("Cannot list unknown configuration option [%s]" % what)
 
@@ -757,13 +757,13 @@ def configure_track_params(arg_parser, args, cfg, command_requires_track=True):
 
 
 def configure_builder_params(args, cfg, command_requires_car=True):
-    if args.team_path:
-        cfg.add(config.Scope.applicationOverride, "builder", "team.path", os.path.abspath(io.normalize_path(args.team_path)))
+    if args.provision_config_path:
+        cfg.add(config.Scope.applicationOverride, "builder", "provision_config.path", os.path.abspath(io.normalize_path(args.provision_config_path)))
         cfg.add(config.Scope.applicationOverride, "builder", "repository.name", None)
         cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", None)
     else:
-        cfg.add(config.Scope.applicationOverride, "builder", "repository.name", args.team_repository)
-        cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", args.team_revision)
+        cfg.add(config.Scope.applicationOverride, "builder", "repository.name", args.provision_config_repository)
+        cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", args.provision_config_revision)
 
     if command_requires_car:
         if args.distribution_version:

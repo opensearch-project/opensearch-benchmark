@@ -187,7 +187,7 @@ class AutoLoadConfigTests(TestCase):
         base_cfg.add(config.Scope.application, "benchmarks", "local.dataset.cache", "/base-config/data-set-cache")
         base_cfg.add(config.Scope.application, "results_publishing", "datastore.type", "elasticsearch")
         base_cfg.add(config.Scope.application, "tracks", "metrics.url", "http://github.com/org/metrics")
-        base_cfg.add(config.Scope.application, "teams", "private.url", "http://github.com/org/teams")
+        base_cfg.add(config.Scope.application, "provision_configs", "private.url", "http://github.com/org/provision_configs")
         base_cfg.add(config.Scope.application, "distributions", "release.cache", False)
         base_cfg.add(config.Scope.application, "defaults", "preserve_benchmark_candidate", True)
 
@@ -198,7 +198,7 @@ class AutoLoadConfigTests(TestCase):
         # copied sections from base config
         self.assert_equals_base_config(base_cfg, cfg, "results_publishing", "datastore.type")
         self.assert_equals_base_config(base_cfg, cfg, "tracks", "metrics.url")
-        self.assert_equals_base_config(base_cfg, cfg, "teams", "private.url")
+        self.assert_equals_base_config(base_cfg, cfg, "provision_configs", "private.url")
         self.assert_equals_base_config(base_cfg, cfg, "distributions", "release.cache")
         self.assert_equals_base_config(base_cfg, cfg, "defaults", "preserve_benchmark_candidate")
 

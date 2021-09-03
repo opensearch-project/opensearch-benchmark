@@ -29,7 +29,7 @@ import unittest.mock as mock
 from unittest import TestCase
 
 from esrally import exceptions
-from esrally.builder import provisioner, team
+from esrally.builder import provisioner, provision_config
 
 HOME_DIR = os.path.expanduser("~")
 
@@ -46,10 +46,10 @@ class BareProvisionerTests(TestCase):
             apply_config_calls.append((source_root_path, target_root_path, config_vars))
 
         installer = provisioner.ElasticsearchInstaller(car=
-        team.Car(
+        provision_config.Car(
             names="unit-test-car",
             root_path=None,
-            config_paths=[HOME_DIR + "/.rally/benchmarks/teams/default/my-car"],
+            config_paths=[HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-car"],
             variables={"heap": "4g", "runtime.jdk": "8", "runtime.jdk.bundled": "true"}),
             java_home="/usr/local/javas/java8",
             node_name="rally-node-0",
@@ -71,7 +71,7 @@ class BareProvisionerTests(TestCase):
         self.assertEqual(1, len(apply_config_calls))
         source_root_path, target_root_path, config_vars = apply_config_calls[0]
 
-        self.assertEqual(HOME_DIR + "/.rally/benchmarks/teams/default/my-car", source_root_path)
+        self.assertEqual(HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-car", source_root_path)
         self.assertEqual("/opt/elasticsearch-5.0.0", target_root_path)
         self.assertEqual({
             "cluster_settings": {
@@ -107,10 +107,10 @@ class BareProvisionerTests(TestCase):
                 "kwargs": kwargs
             }
 
-    class MockRallyTeamXPackPlugin:
+    class MockRallyProvisionConfigXPackPlugin:
         """
-        Mock XPackPlugin settings as found in rally-team repo:
-        https://github.com/elastic/rally-teams/blob/6/plugins/x_pack/security.ini
+        Mock XPackPlugin settings as found in rally-provision_config repo:
+        https://github.com/elastic/rally-provision_configs/blob/6/plugins/x_pack/security.ini
         """
         def __init__(self):
             self.name = "x-pack"
@@ -152,10 +152,10 @@ class BareProvisionerTests(TestCase):
             apply_config_calls.append((source_root_path, target_root_path, config_vars))
 
         installer = provisioner.ElasticsearchInstaller(car=
-        team.Car(
+        provision_config.Car(
             names="unit-test-car",
             root_path=None,
-            config_paths=[HOME_DIR + "/.rally/benchmarks/teams/default/my-car"],
+            config_paths=[HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-car"],
             variables={"heap": "4g", "runtime.jdk": "8", "runtime.jdk.bundled": "true"}),
             java_home="/usr/local/javas/java8",
             node_name="rally-node-0",
@@ -167,7 +167,7 @@ class BareProvisionerTests(TestCase):
 
         p = provisioner.BareProvisioner(es_installer=installer,
                                         plugin_installers=[
-                                            provisioner.PluginInstaller(BareProvisionerTests.MockRallyTeamXPackPlugin(),
+                                            provisioner.PluginInstaller(BareProvisionerTests.MockRallyProvisionConfigXPackPlugin(),
                                                                         java_home="/usr/local/javas/java8",
                                                                         hook_handler_class=BareProvisionerTests.NoopHookHandler)
                                         ],
@@ -182,7 +182,7 @@ class BareProvisionerTests(TestCase):
         self.assertEqual(1, len(apply_config_calls))
         source_root_path, target_root_path, config_vars = apply_config_calls[0]
 
-        self.assertEqual(HOME_DIR + "/.rally/benchmarks/teams/default/my-car", source_root_path)
+        self.assertEqual(HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-car", source_root_path)
         self.assertEqual("/opt/elasticsearch-5.0.0", target_root_path)
 
         self.maxDiff = None
@@ -230,10 +230,10 @@ class BareProvisionerTests(TestCase):
             apply_config_calls.append((source_root_path, target_root_path, config_vars))
 
         installer = provisioner.ElasticsearchInstaller(car=
-        team.Car(
+        provision_config.Car(
             names="unit-test-car",
             root_path=None,
-            config_paths=[HOME_DIR + "/.rally/benchmarks/teams/default/my-car"],
+            config_paths=[HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-car"],
             variables={"heap": "4g", "runtime.jdk": "8", "runtime.jdk.bundled": "true"}),
             java_home="/usr/local/javas/java8",
             node_name="rally-node-0",
@@ -245,7 +245,7 @@ class BareProvisionerTests(TestCase):
 
         p = provisioner.BareProvisioner(es_installer=installer,
                                         plugin_installers=[
-                                            provisioner.PluginInstaller(BareProvisionerTests.MockRallyTeamXPackPlugin(),
+                                            provisioner.PluginInstaller(BareProvisionerTests.MockRallyProvisionConfigXPackPlugin(),
                                                                         java_home="/usr/local/javas/java8",
                                                                         hook_handler_class=BareProvisionerTests.NoopHookHandler)
                                         ],
@@ -260,7 +260,7 @@ class BareProvisionerTests(TestCase):
         self.assertEqual(1, len(apply_config_calls))
         source_root_path, target_root_path, config_vars = apply_config_calls[0]
 
-        self.assertEqual(HOME_DIR + "/.rally/benchmarks/teams/default/my-car", source_root_path)
+        self.assertEqual(HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-car", source_root_path)
         self.assertEqual("/opt/elasticsearch-6.3.0", target_root_path)
 
         self.maxDiff = None
@@ -311,7 +311,7 @@ class ElasticsearchInstallerTests(TestCase):
     @mock.patch("esrally.utils.io.ensure_dir")
     @mock.patch("shutil.rmtree")
     def test_prepare_default_data_paths(self, mock_rm, mock_ensure_dir, mock_decompress):
-        installer = provisioner.ElasticsearchInstaller(car=team.Car(names="defaults",
+        installer = provisioner.ElasticsearchInstaller(car=provision_config.Car(names="defaults",
                                                                     root_path=None,
                                                                     config_paths="/tmp"),
                                                        java_home="/usr/local/javas/java8",
@@ -348,7 +348,7 @@ class ElasticsearchInstallerTests(TestCase):
     @mock.patch("esrally.utils.io.ensure_dir")
     @mock.patch("shutil.rmtree")
     def test_prepare_user_provided_data_path(self, mock_rm, mock_ensure_dir, mock_decompress):
-        installer = provisioner.ElasticsearchInstaller(car=team.Car(names="defaults",
+        installer = provisioner.ElasticsearchInstaller(car=provision_config.Car(names="defaults",
                                                                     root_path=None,
                                                                     config_paths="/tmp",
                                                                     variables={"data_paths": "/tmp/some/data-path-dir"}),
@@ -382,7 +382,7 @@ class ElasticsearchInstallerTests(TestCase):
         self.assertEqual(installer.data_paths, ["/tmp/some/data-path-dir"])
 
     def test_invokes_hook_with_java_home(self):
-        installer = provisioner.ElasticsearchInstaller(car=team.Car(names="defaults",
+        installer = provisioner.ElasticsearchInstaller(car=provision_config.Car(names="defaults",
                                                                     root_path="/tmp",
                                                                     config_paths="/tmp/templates",
                                                                     variables={"data_paths": "/tmp/some/data-path-dir"}),
@@ -396,14 +396,14 @@ class ElasticsearchInstallerTests(TestCase):
                                                        hook_handler_class=NoopHookHandler)
 
         self.assertEqual(0, len(installer.hook_handler.hook_calls))
-        installer.invoke_install_hook(team.BootstrapPhase.post_install, {"foo": "bar"})
+        installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, {"foo": "bar"})
         self.assertEqual(1, len(installer.hook_handler.hook_calls))
         self.assertEqual({"foo": "bar"}, installer.hook_handler.hook_calls["post_install"]["variables"])
         self.assertEqual({"env": {"JAVA_HOME": "/usr/local/javas/java8"}},
                          installer.hook_handler.hook_calls["post_install"]["kwargs"])
 
     def test_invokes_hook_no_java_home(self):
-        installer = provisioner.ElasticsearchInstaller(car=team.Car(names="defaults",
+        installer = provisioner.ElasticsearchInstaller(car=provision_config.Car(names="defaults",
                                                                     root_path="/tmp",
                                                                     config_paths="/tmp/templates",
                                                                     variables={"data_paths": "/tmp/some/data-path-dir"}),
@@ -417,7 +417,7 @@ class ElasticsearchInstallerTests(TestCase):
                                                        hook_handler_class=NoopHookHandler)
 
         self.assertEqual(0, len(installer.hook_handler.hook_calls))
-        installer.invoke_install_hook(team.BootstrapPhase.post_install, {"foo": "bar"})
+        installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, {"foo": "bar"})
         self.assertEqual(1, len(installer.hook_handler.hook_calls))
         self.assertEqual({"foo": "bar"}, installer.hook_handler.hook_calls["post_install"]["variables"])
         self.assertEqual({"env": {}}, installer.hook_handler.hook_calls["post_install"]["kwargs"])
@@ -428,7 +428,7 @@ class PluginInstallerTests(TestCase):
     def test_install_plugin_successfully(self, installer_subprocess):
         installer_subprocess.return_value = 0
 
-        plugin = team.PluginDescriptor(name="unit-test-plugin", config="default", variables={"active": True})
+        plugin = provision_config.PluginDescriptor(name="unit-test-plugin", config="default", variables={"active": True})
         installer = provisioner.PluginInstaller(plugin,
                                                 java_home="/usr/local/javas/java8",
                                                 hook_handler_class=NoopHookHandler)
@@ -443,7 +443,7 @@ class PluginInstallerTests(TestCase):
     def test_install_plugin_with_bundled_jdk(self, installer_subprocess):
         installer_subprocess.return_value = 0
 
-        plugin = team.PluginDescriptor(name="unit-test-plugin", config="default", variables={"active": True})
+        plugin = provision_config.PluginDescriptor(name="unit-test-plugin", config="default", variables={"active": True})
         installer = provisioner.PluginInstaller(plugin,
                                                 # bundled JDK
                                                 java_home=None,
@@ -460,7 +460,7 @@ class PluginInstallerTests(TestCase):
         # unknown plugin
         installer_subprocess.return_value = 64
 
-        plugin = team.PluginDescriptor(name="unknown")
+        plugin = provision_config.PluginDescriptor(name="unknown")
         installer = provisioner.PluginInstaller(plugin,
                                                 java_home="/usr/local/javas/java8",
                                                 hook_handler_class=NoopHookHandler)
@@ -478,7 +478,7 @@ class PluginInstallerTests(TestCase):
         # I/O error
         installer_subprocess.return_value = 74
 
-        plugin = team.PluginDescriptor(name="simple")
+        plugin = provision_config.PluginDescriptor(name="simple")
         installer = provisioner.PluginInstaller(plugin,
                                                 java_home="/usr/local/javas/java8",
                                                 hook_handler_class=NoopHookHandler)
@@ -496,7 +496,7 @@ class PluginInstallerTests(TestCase):
         # some other error
         installer_subprocess.return_value = 12987
 
-        plugin = team.PluginDescriptor(name="simple")
+        plugin = provision_config.PluginDescriptor(name="simple")
         installer = provisioner.PluginInstaller(plugin,
                                                 java_home="/usr/local/javas/java8",
                                                 hook_handler_class=NoopHookHandler)
@@ -511,7 +511,7 @@ class PluginInstallerTests(TestCase):
             env={"JAVA_HOME": "/usr/local/javas/java8"})
 
     def test_pass_plugin_properties(self):
-        plugin = team.PluginDescriptor(name="unit-test-plugin",
+        plugin = provision_config.PluginDescriptor(name="unit-test-plugin",
                                        config="default",
                                        config_paths=["/etc/plugin"],
                                        variables={"active": True})
@@ -524,7 +524,7 @@ class PluginInstallerTests(TestCase):
         self.assertEqual(["/etc/plugin"], installer.config_source_paths)
 
     def test_invokes_hook_with_java_home(self):
-        plugin = team.PluginDescriptor(name="unit-test-plugin",
+        plugin = provision_config.PluginDescriptor(name="unit-test-plugin",
                                        config="default",
                                        config_paths=["/etc/plugin"],
                                        variables={"active": True})
@@ -533,14 +533,14 @@ class PluginInstallerTests(TestCase):
                                                 hook_handler_class=NoopHookHandler)
 
         self.assertEqual(0, len(installer.hook_handler.hook_calls))
-        installer.invoke_install_hook(team.BootstrapPhase.post_install, {"foo": "bar"})
+        installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, {"foo": "bar"})
         self.assertEqual(1, len(installer.hook_handler.hook_calls))
         self.assertEqual({"foo": "bar"}, installer.hook_handler.hook_calls["post_install"]["variables"])
         self.assertEqual({"env": {"JAVA_HOME": "/usr/local/javas/java8"}},
                          installer.hook_handler.hook_calls["post_install"]["kwargs"])
 
     def test_invokes_hook_no_java_home(self):
-        plugin = team.PluginDescriptor(name="unit-test-plugin",
+        plugin = provision_config.PluginDescriptor(name="unit-test-plugin",
                                        config="default",
                                        config_paths=["/etc/plugin"],
                                        variables={"active": True})
@@ -549,7 +549,7 @@ class PluginInstallerTests(TestCase):
                                                 hook_handler_class=NoopHookHandler)
 
         self.assertEqual(0, len(installer.hook_handler.hook_calls))
-        installer.invoke_install_hook(team.BootstrapPhase.post_install, {"foo": "bar"})
+        installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, {"foo": "bar"})
         self.assertEqual(1, len(installer.hook_handler.hook_calls))
         self.assertEqual({"foo": "bar"}, installer.hook_handler.hook_calls["post_install"]["variables"])
         self.assertEqual({"env": {}}, installer.hook_handler.hook_calls["post_install"]["kwargs"])
@@ -566,7 +566,7 @@ class DockerProvisionerTests(TestCase):
 
         rally_root = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "esrally"))
 
-        c = team.Car("unit-test-car", None, "/tmp", variables={
+        c = provision_config.Car("unit-test-car", None, "/tmp", variables={
             "docker_image": "docker.elastic.co/elasticsearch/elasticsearch-oss"
         })
 
@@ -642,7 +642,7 @@ services:
 
         rally_root = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "esrally"))
 
-        c = team.Car("unit-test-car", None, "/tmp", variables={
+        c = provision_config.Car("unit-test-car", None, "/tmp", variables={
             "docker_image": "docker.elastic.co/elasticsearch/elasticsearch",
             "docker_mem_limit": "256m",
             "docker_cpu_count": 2

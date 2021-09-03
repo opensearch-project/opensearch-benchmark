@@ -1065,7 +1065,7 @@ class EsTestExecutionStoreTests(TestCase):
                             test_execution_timestamp=EsTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params={"shard-count": 3},
                             test_procedure=t.default_test_procedure, car="defaults", car_params={"heap_size": "512mb"}, plugin_params=None,
-                            track_revision="abc1", team_revision="abc12333", distribution_version="5.0.0",
+                            track_revision="abc1", provision_config_revision="abc12333", distribution_version="5.0.0",
                             distribution_flavor="default", revision="aaaeeef",
                             results=EsTestExecutionStoreTests.DictHolder(
                                 {
@@ -1112,7 +1112,7 @@ class EsTestExecutionStoreTests(TestCase):
                 "revision": "aaaeeef",
                 "distribution-version": "5.0.0",
                 "distribution-flavor": "default",
-                "team-revision": "abc12333",
+                "provision-config-revision": "abc12333",
             },
             "results": {
                 "young_gc_time": 100,
@@ -1168,7 +1168,7 @@ class EsResultsStoreTests(TestCase):
                             test_execution_timestamp=EsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params=None,
                             test_procedure=t.default_test_procedure, car="4gheap", car_params=None, plugin_params={"some-param": True},
-                            track_revision="abc1", team_revision="123ab", distribution_version="5.0.0",
+                            track_revision="abc1", provision_config_revision="123ab", distribution_version="5.0.0",
                             distribution_flavor="oss", results=metrics.GlobalStats(
                                 {
                                     "young_gc_time": 100,
@@ -1210,7 +1210,7 @@ class EsResultsStoreTests(TestCase):
                     "os": "Linux"
                 },
                 "track": "unittest-track",
-                "team-revision": "123ab",
+                "provision-config-revision": "123ab",
                 "track-revision": "abc1",
                 "test_procedure": "index",
                 "car": "4gheap",
@@ -1240,7 +1240,7 @@ class EsResultsStoreTests(TestCase):
                     "os": "Linux"
                 },
                 "track": "unittest-track",
-                "team-revision": "123ab",
+                "provision-config-revision": "123ab",
                 "track-revision": "abc1",
                 "test_procedure": "index",
                 "car": "4gheap",
@@ -1276,7 +1276,7 @@ class EsResultsStoreTests(TestCase):
                     "os": "Linux"
                 },
                 "track": "unittest-track",
-                "team-revision": "123ab",
+                "provision-config-revision": "123ab",
                 "track-revision": "abc1",
                 "test_procedure": "index",
                 "car": "4gheap",
@@ -1315,7 +1315,7 @@ class EsResultsStoreTests(TestCase):
                             test_execution_timestamp=EsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params=None,
                             test_procedure=t.default_test_procedure, car="4gheap", car_params=None, plugin_params=None,
-                            track_revision="abc1", team_revision="123ab", distribution_version=None,
+                            track_revision="abc1", provision_config_revision="123ab", distribution_version=None,
                             distribution_flavor=None, results=metrics.GlobalStats(
                 {
                     "young_gc_time": 100,
@@ -1356,7 +1356,7 @@ class EsResultsStoreTests(TestCase):
                     "os": "Linux"
                 },
                 "track": "unittest-track",
-                "team-revision": "123ab",
+                "provision-config-revision": "123ab",
                 "track-revision": "abc1",
                 "test_procedure": "index",
                 "car": "4gheap",
@@ -1382,7 +1382,7 @@ class EsResultsStoreTests(TestCase):
                     "os": "Linux"
                 },
                 "track": "unittest-track",
-                "team-revision": "123ab",
+                "provision-config-revision": "123ab",
                 "track-revision": "abc1",
                 "test_procedure": "index",
                 "car": "4gheap",
@@ -1414,7 +1414,7 @@ class EsResultsStoreTests(TestCase):
                     "os": "Linux"
                 },
                 "track": "unittest-track",
-                "team-revision": "123ab",
+                "provision-config-revision": "123ab",
                 "track-revision": "abc1",
                 "test_procedure": "index",
                 "car": "4gheap",
@@ -1679,7 +1679,7 @@ class FileTestExecutionStoreTests(TestCase):
                             test_execution_timestamp=FileTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params={"clients": 12},
                             test_procedure=t.default_test_procedure, car="4gheap", car_params=None, plugin_params=None,
-                            track_revision="abc1", team_revision="abc12333", distribution_version="5.0.0",
+                            track_revision="abc1", provision_config_revision="abc12333", distribution_version="5.0.0",
                             distribution_flavor="default", revision="aaaeeef",
                             results=FileTestExecutionStoreTests.DictHolder(
                                 {
