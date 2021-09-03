@@ -39,7 +39,7 @@ class RallyRepositoryTests(TestCase):
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             repo.RallyRepository(
-                remote_url=None,
+                default_directory=None,
                 root_dir="/rally-resources",
                 repo_name="unit-test",
                 resource_name="unittest-resources",
@@ -55,7 +55,7 @@ class RallyRepositoryTests(TestCase):
         exists.return_value = False
 
         r = repo.RallyRepository(
-            remote_url=None,
+            default_directory=None,
             root_dir="/rally-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
@@ -68,7 +68,7 @@ class RallyRepositoryTests(TestCase):
         is_working_copy.return_value = True
 
         r = repo.RallyRepository(
-                remote_url=None,
+                default_directory=None,
                 root_dir="/rally-resources",
                 repo_name="unit-test",
                 resource_name="unittest-resources",
@@ -82,7 +82,7 @@ class RallyRepositoryTests(TestCase):
         is_working_copy.return_value = False
 
         r = repo.RallyRepository(
-            remote_url="git@gitrepos.example.org/rally-resources",
+            default_directory="git@gitrepos.example.org/rally-resources",
             root_dir="/rally-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
@@ -98,7 +98,7 @@ class RallyRepositoryTests(TestCase):
         is_working_copy.return_value = True
 
         repo.RallyRepository(
-            remote_url="git@gitrepos.example.org/rally-resources",
+            default_directory="git@gitrepos.example.org/rally-resources",
             root_dir="/rally-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
@@ -112,7 +112,7 @@ class RallyRepositoryTests(TestCase):
         is_working_copy.return_value = True
 
         r = repo.RallyRepository(
-            remote_url="git@gitrepos.example.org/rally-resources",
+            default_directory="git@gitrepos.example.org/rally-resources",
             root_dir="/rally-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
@@ -130,7 +130,7 @@ class RallyRepositoryTests(TestCase):
         is_working_copy.return_value = True
 
         r = repo.RallyRepository(
-            remote_url="git@gitrepos.example.org/rally-resources",
+            default_directory="git@gitrepos.example.org/rally-resources",
             root_dir="/rally-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
@@ -152,7 +152,7 @@ class RallyRepositoryTests(TestCase):
         head_revision.return_value = "123a"
 
         r = repo.RallyRepository(
-            remote_url="git@gitrepos.example.org/rally-resources",
+            default_directory="git@gitrepos.example.org/rally-resources",
             root_dir="/rally-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
@@ -178,7 +178,7 @@ class RallyRepositoryTests(TestCase):
         head_revision.return_value = "123a"
 
         r = repo.RallyRepository(
-            remote_url=None,
+            default_directory=None,
             root_dir="/rally-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
@@ -206,7 +206,7 @@ class RallyRepositoryTests(TestCase):
         head_revision.return_value = "123a"
 
         r = repo.RallyRepository(
-            remote_url=None,
+            default_directory=None,
             root_dir="/rally-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
@@ -231,7 +231,7 @@ class RallyRepositoryTests(TestCase):
         is_working_copy.return_value = True
 
         r = repo.RallyRepository(
-            remote_url="git@gitrepos.example.org/rally-resources",
+            default_directory="git@gitrepos.example.org/rally-resources",
             root_dir="/rally-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
@@ -274,7 +274,7 @@ class RallyRepositoryTests(TestCase):
         head_revision.retun_value = "123a"
 
         r = repo.RallyRepository(
-            remote_url="git@gitrepos.example.org/rally-resources",
+            default_directory="git@gitrepos.example.org/rally-resources",
             root_dir="/rally-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
@@ -306,7 +306,7 @@ class RallyRepositoryTests(TestCase):
         is_working_copy.return_value = True
 
         r = repo.RallyRepository(
-            remote_url=None,
+            default_directory=None,
             root_dir="/rally-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
@@ -328,7 +328,7 @@ class RallyRepositoryTests(TestCase):
         is_working_copy.return_value = True
 
         r = repo.RallyRepository(
-            remote_url=None,
+            default_directory=None,
             root_dir="/rally-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",

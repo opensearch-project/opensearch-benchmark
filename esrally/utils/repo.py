@@ -37,10 +37,10 @@ class RallyRepository:
 
     default = "default-provision-config"
 
-    def __init__(self, remote_url, root_dir, repo_name, resource_name, offline, fetch=True):
+    def __init__(self, default_directory, root_dir, repo_name, resource_name, offline, fetch=True):
         # If no URL is found, we consider this a local only repo (but still require that it is a git repo)
-        self.url = remote_url
-        self.remote = self.url is not None and self.url != RallyRepository.default and self.url.strip() != ""
+        self.directory = default_directory
+        self.remote = self.directory is not None and self.directory != RallyRepository.default and self.directory.strip() != ""
         self.repo_dir = os.path.join(root_dir, repo_name)
         self.resource_name = resource_name
         self.offline = offline
@@ -50,7 +50,7 @@ class RallyRepository:
         if self.remote and not self.offline and fetch:
             # a normal git repo with a remote
             if not git.is_working_copy(self.repo_dir):
-                git.clone(src=self.repo_dir, remote=self.url)
+                git.clone(src=self.repo_dir, remote=self.directory)
             else:
                 try:
                     git.fetch(src=self.repo_dir)
@@ -63,7 +63,7 @@ class RallyRepository:
                                                       .format(src=self.repo_dir))
 
     def setRepository(self, repo_revision, distribution_version, cfg):
-        if self.url == RallyRepository.default:
+        if self.directory == RallyRepository.default:
             self.useOpensearchBenchmarkProvisionConfigs(distribution_version)
         elif repo_revision:
             self.checkout(repo_revision)
@@ -144,7 +144,7 @@ class RallyRepository:
 
     def selectBranchVersion(self, distribution_version, provisionconfigs_path):
         # Branches have been moved into opensearch-benchmark-provisionconfigs
-        directories = [directory for directory in os.listdir(provisionconfigs_path) if os.path.isdir(os.path.join(provisionconfigs_path, directory))]
+        directories = [d for d in os.listdir(provisionconfigs_path) if os.path.isdir(os.path.join(provisionconfigs_path, d))]
 
         branches = sorted(directories, reverse=True)
         branches = [float(branch) for branch in branches if branch != "master"]

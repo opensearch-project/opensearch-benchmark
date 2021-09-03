@@ -132,12 +132,14 @@ def provision_config_path(cfg):
         repo_name = cfg.opts("builder", "repository.name")
         repo_revision = cfg.opts("builder", "repository.revision")
         offline = cfg.opts("system", "offline.mode")
-        remote_url = cfg.opts("provision_configs", "%s.url" % repo_name, mandatory=False)
+        default_directory = cfg.opts("provision_configs", "%s.dir" % repo_name, mandatory=False)
         root = cfg.opts("node", "root.dir")
         provision_config_repositories = cfg.opts("builder", "provision_config.repository.dir")
         provision_configs_dir = os.path.join(root, provision_config_repositories)
 
-        current_provision_config_repo = repo.RallyRepository(remote_url, provision_configs_dir, repo_name, "provision_configs", offline)
+        current_provision_config_repo = repo.RallyRepository(
+            default_directory, provision_configs_dir,
+            repo_name, "provision_configs", offline)
 
         current_provision_config_repo.setRepository(repo_revision, distribution_version, cfg)
         return current_provision_config_repo.repo_dir
