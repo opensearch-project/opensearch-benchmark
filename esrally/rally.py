@@ -758,7 +758,10 @@ def configure_track_params(arg_parser, args, cfg, command_requires_track=True):
 
 def configure_builder_params(args, cfg, command_requires_car=True):
     if args.provision_config_path:
-        cfg.add(config.Scope.applicationOverride, "builder", "provision_config.path", os.path.abspath(io.normalize_path(args.provision_config_path)))
+        cfg.add(
+            config.Scope.applicationOverride, "builder",
+            "provision_config.path", os.path.abspath(
+                io.normalize_path(args.provision_config_path)))
         cfg.add(config.Scope.applicationOverride, "builder", "repository.name", None)
         cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", None)
     else:

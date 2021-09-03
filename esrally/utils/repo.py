@@ -62,7 +62,7 @@ class RallyRepository:
                     raise exceptions.SystemSetupError("[{src}] must be a git repository.\n\nPlease run:\ngit -C {src} init"
                                                       .format(src=self.repo_dir))
 
-    def validateRepository(self, repo_revision, distribution_version, cfg):
+    def setRepository(self, repo_revision, distribution_version, cfg):
         if self.url == RallyRepository.default:
             self.useOpensearchBenchmarkProvisionConfigs(distribution_version)
         elif repo_revision:

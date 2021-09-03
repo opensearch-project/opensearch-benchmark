@@ -139,7 +139,7 @@ def provision_config_path(cfg):
 
         current_provision_config_repo = repo.RallyRepository(remote_url, provision_configs_dir, repo_name, "provision_configs", offline)
 
-        current_provision_config_repo.validateRepository(repo_revision, distribution_version, cfg)
+        current_provision_config_repo.setRepository(repo_revision, distribution_version, cfg)
         return current_provision_config_repo.repo_dir
 
 

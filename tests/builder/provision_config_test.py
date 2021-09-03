@@ -88,7 +88,10 @@ class CarLoaderTests(TestCase):
         }, car.variables)
 
     def test_load_car_with_install_hook(self):
-        car = provision_config.load_car(self.provision_config_dir, ["default", "with_hook"], car_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
+        car = provision_config.load_car(
+            self.provision_config_dir,
+            ["default", "with_hook"],
+            car_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
         self.assertEqual("default+with_hook", car.name)
         self.assertEqual([
             os.path.join(current_dir, "data", "cars", "v1", "vanilla", "templates"),
