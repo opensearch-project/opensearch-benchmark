@@ -426,7 +426,7 @@ class BuilderActor(actor.RallyActor):
 
     def on_all_nodes_stopped(self):
         self.send(self.test_execution_orchestrator, EngineStopped())
-        # clear all state as the mechanic might get reused later
+        # clear all state as the builder might get reused later
         for m in self.children:
             self.send(m, thespian.actors.ActorExitRequest())
         self.children = []

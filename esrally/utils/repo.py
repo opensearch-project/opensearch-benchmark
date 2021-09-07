@@ -69,7 +69,7 @@ class RallyRepository:
             self.checkout(repo_revision)
         else:
             self.update(distribution_version)
-            cfg.add(config.Scope.applicationOverride, "mechanic", "repository.revision", self.revision)
+            cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", self.revision)
 
         return cfg
 
