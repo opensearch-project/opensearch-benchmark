@@ -142,19 +142,16 @@ class RallyRepository:
         # Include selected branch
         self.repo_dir = os.path.join(root_dir, f"opensearch-benchmark-provisionconfigs/{branch_version}")
 
-    def selectBranchVersion(self, distribution_version, provisionconfigs_path):
+    def selectBranchVersion(self, distribution_version, pc_path):
         # Branches have been moved into opensearch-benchmark-provisionconfigs
-        directories = [d for d in os.listdir(provisionconfigs_path) if os.path.isdir(os.path.join(provisionconfigs_path, d))]
+        branches = [b for b in os.listdir(pc_path) if os.path.isdir(os.path.join(pc_path, b)) and b != "master"]
+        branches.sort(key=lambda b: list(map(int, b.split('.'))), reverse=True)
 
-        branches = sorted(directories, reverse=True)
-        branches = [float(branch) for branch in branches if branch != "master"]
-        self.logger.info("Provision Config Branches: [%s]", branches)
-
+        convert = lambda s: list(map(int, s.split('.')))
         if distribution_version is not None:
-            distribution_version = float(distribution_version[0:3])
             # Return a branch that is less than or equal to the distribution version
             for branch in branches:
-                if distribution_version >= branch:
+                if convert(distribution_version) >= convert(branch):
                     return branch
 
             raise Exception("Distribution version is less than available ES versions for provision-configs.")
