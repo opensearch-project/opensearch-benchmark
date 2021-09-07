@@ -32,11 +32,11 @@ import tabulate
 from esrally import exceptions, PROGRAM_NAME
 from esrally.utils import console, repo, io, modules
 
-PROVISON_CONFIG_FORMAT_VERSION = 1
+PROVISION_CONFIG_FORMAT_VERSION = 1
 
 
 def _path_for(provision_config_root_path, provision_config_member_type):
-    root_path = os.path.join(provision_config_root_path, provision_config_member_type, "v{}".format(PROVISON_CONFIG_FORMAT_VERSION))
+    root_path = os.path.join(provision_config_root_path, provision_config_member_type, "v{}".format(PROVISION_CONFIG_FORMAT_VERSION))
     if not os.path.exists(root_path):
         raise exceptions.SystemSetupError("Path {} for {} does not exist.".format(root_path, provision_config_member_type))
     return root_path
