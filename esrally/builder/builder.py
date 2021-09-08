@@ -41,16 +41,16 @@ METRIC_FLUSH_INTERVAL_SECONDS = 30
 
 
 def download(cfg):
-    car, plugins = load_provision_config(cfg, external=False)
+    provision_config_instance, plugins = load_provision_config(cfg, external=False)
 
-    s = supplier.create(cfg, sources=False, distribution=True, car=car, plugins=plugins)
+    s = supplier.create(cfg, sources=False, distribution=True, provision_config_instance=provision_config_instance, plugins=plugins)
     binaries = s()
     console.println(json.dumps(binaries, indent=2), force=True)
 
 
 def install(cfg):
     root_path = paths.install_root(cfg)
-    car, plugins = load_provision_config(cfg, external=False)
+    provision_config_instance, plugins = load_provision_config(cfg, external=False)
 
     # A non-empty distribution-version is provided
     distribution = bool(cfg.opts("builder", "distribution.version", mandatory=False))
@@ -63,8 +63,8 @@ def install(cfg):
     seed_hosts = cfg.opts("builder", "seed.hosts")
 
     if build_type == "tar":
-        binary_supplier = supplier.create(cfg, sources, distribution, car, plugins)
-        p = provisioner.local(cfg=cfg, car=car, plugins=plugins, ip=ip, http_port=http_port,
+        binary_supplier = supplier.create(cfg, sources, distribution, provision_config_instance, plugins)
+        p = provisioner.local(cfg=cfg, provision_config_instance=provision_config_instance, plugins=plugins, ip=ip, http_port=http_port,
                               all_node_ips=seed_hosts, all_node_names=master_nodes, target_root=root_path,
                               node_name=node_name)
         node_config = p.prepare(binary=binary_supplier())
@@ -72,7 +72,7 @@ def install(cfg):
         if len(plugins) > 0:
             raise exceptions.SystemSetupError("You cannot specify any plugins for Docker clusters. Please remove "
                                               "\"--elasticsearch-plugins\" and try again.")
-        p = provisioner.docker(cfg=cfg, car=car, ip=ip, http_port=http_port, target_root=root_path, node_name=node_name)
+        p = provisioner.docker(cfg=cfg, provision_config_instance=provision_config_instance, ip=ip, http_port=http_port, target_root=root_path, node_name=node_name)
         # there is no binary for Docker that can be downloaded / built upfront
         node_config = p.prepare(binary=None)
     else:
@@ -319,7 +319,7 @@ class BuilderActor(actor.RallyActor):
         self.test_execution_orchestrator = None
         self.cluster_launcher = None
         self.cluster = None
-        self.car = None
+        self.provision_config_instance = None
         self.provision_config_revision = None
         self.externally_provisioned = False
 
@@ -349,7 +349,7 @@ class BuilderActor(actor.RallyActor):
         self.logger.info("Received signal from test execution orchestrator to start engine.")
         self.test_execution_orchestrator = sender
         self.cfg = msg.cfg
-        self.car, _ = load_provision_config(self.cfg, msg.external)
+        self.provision_config_instance, _ = load_provision_config(self.cfg, msg.external)
         # TODO: This is implicitly set by #load_provision_config() - can we gather this elsewhere?
         self.provision_config_revision = self.cfg.opts("builder", "repository.revision")
 
@@ -602,17 +602,17 @@ class NodeBuilderActor(actor.RallyActor):
 #####################################################
 
 def load_provision_config(cfg, external):
-    # externally provisioned clusters do not support cars / plugins
+    # externally provisioned clusters do not support provision_config_instances / plugins
     if external:
-        car = None
+        provision_config_instance = None
         plugins = []
     else:
         provision_config_path = provision_config.provision_config_path(cfg)
-        car = provision_config.load_car(provision_config_path, cfg.opts("builder", "car.names"), cfg.opts("builder", "car.params"))
+        provision_config_instance = provision_config.load_provision_config_instance(provision_config_path, cfg.opts("builder", "provision_config_instance.names"), cfg.opts("builder", "provision_config_instance.params"))
         plugins = provision_config.load_plugins(provision_config_path,
-                                    cfg.opts("builder", "car.plugins", mandatory=False),
+                                    cfg.opts("builder", "provision_config_instance.plugins", mandatory=False),
                                     cfg.opts("builder", "plugin.params", mandatory=False))
-    return car, plugins
+    return provision_config_instance, plugins
 
 
 def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_ids, sources=False, distribution=False,
@@ -620,16 +620,16 @@ def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_i
     test_execution_root_path = paths.test_execution_root(cfg)
     node_ids = cfg.opts("provisioning", "node.ids", mandatory=False)
     node_name_prefix = cfg.opts("provisioning", "node.name.prefix")
-    car, plugins = load_provision_config(cfg, external)
+    provision_config_instance, plugins = load_provision_config(cfg, external)
 
     if sources or distribution:
-        s = supplier.create(cfg, sources, distribution, car, plugins)
+        s = supplier.create(cfg, sources, distribution, provision_config_instance, plugins)
         p = []
         all_node_names = ["%s-%s" % (node_name_prefix, n) for n in all_node_ids]
         for node_id in node_ids:
             node_name = "%s-%s" % (node_name_prefix, node_id)
             p.append(
-                provisioner.local(cfg, car, plugins, node_ip, node_http_port, all_node_ips,
+                provisioner.local(cfg, provision_config_instance, plugins, node_ip, node_http_port, all_node_ips,
                                   all_node_names, test_execution_root_path, node_name))
         l = launcher.ProcessLauncher(cfg)
     elif external:
@@ -642,7 +642,7 @@ def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_i
         p = []
         for node_id in node_ids:
             node_name = "%s-%s" % (node_name_prefix, node_id)
-            p.append(provisioner.docker(cfg, car, node_ip, node_http_port, test_execution_root_path, node_name))
+            p.append(provisioner.docker(cfg, provision_config_instance, node_ip, node_http_port, test_execution_root_path, node_name))
         l = launcher.DockerLauncher(cfg)
     else:
         # It is a programmer error (and not a user error) if this function is called with wrong parameters

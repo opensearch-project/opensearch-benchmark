@@ -52,7 +52,7 @@ def index_label(test_execution_config):
     if test_execution_config.label:
         return test_execution_config.label
 
-    label = "%s-%s" % (test_execution_config.test_procedure, test_execution_config.car)
+    label = "%s-%s" % (test_execution_config.test_procedure, test_execution_config.provision_config_instance)
     if test_execution_config.plugins:
         label += "-%s" % test_execution_config.plugins.replace(":", "-").replace(",", "+")
     if test_execution_config.node_count > 1:
@@ -85,7 +85,7 @@ class BarCharts:
             return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{test_ex_config.name}\""
         else:
             return f"environment:\"{environment}\" AND active:true AND track:\"{test_ex_config.track}\""\
-                   f" AND test_procedure:\"{test_ex_config.test_procedure}\" AND car:\"{test_ex_config.car}\""\
+                   f" AND test_procedure:\"{test_ex_config.test_procedure}\" AND provision_config_instance:\"{test_ex_config.provision_config_instance}\""\
                    f" AND node-count:{test_ex_config.node_count}"
 
     @staticmethod
@@ -821,7 +821,7 @@ class TimeSeriesCharts:
             return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{test_ex_config.name}\"{nightly_extra_filter}"
         else:
             return f"environment:\"{environment}\" AND active:true AND track:\"{test_ex_config.track}\""\
-                   f" AND test_procedure:\"{test_ex_config.test_procedure}\" AND car:\"{test_ex_config.car}\""\
+                   f" AND test_procedure:\"{test_ex_config.test_procedure}\" AND provision_config_instance:\"{test_ex_config.provision_config_instance}\""\
                    f" AND node-count:{test_ex_config.node_count}"
 
     @staticmethod
@@ -1749,7 +1749,7 @@ def generate_dashboard(chart_type, environment, track, charts, flavor=None):
 
 
 class TestExecutionConfig:
-    def __init__(self, track, cfg=None, flavor=None, es_license=None, test_procedure=None, car=None, node_count=None, charts=None):
+    def __init__(self, track, cfg=None, flavor=None, es_license=None, test_procedure=None, provision_config_instance=None, node_count=None, charts=None):
         self.track = track
         if cfg:
             self.configuration = cfg
@@ -1759,7 +1759,7 @@ class TestExecutionConfig:
             self.configuration = {
                 "charts": charts,
                 "test_procedure": test_procedure,
-                "car": car,
+                "provision_config_instance": provision_config_instance,
                 "node-count": node_count
             }
 
@@ -1792,8 +1792,8 @@ class TestExecutionConfig:
         return self.configuration["test_procedure"]
 
     @property
-    def car(self):
-        return self.configuration["car"]
+    def provision_config_instance(self):
+        return self.configuration["provision_config_instance"]
 
     @property
     def plugins(self):

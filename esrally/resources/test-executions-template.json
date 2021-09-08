@@ -54,7 +54,7 @@
         "test_procedure": {
           "type": "keyword"
         },
-        "car": {
+        "provision_config_instance": {
           "type": "keyword"
         },
         "node-count": {

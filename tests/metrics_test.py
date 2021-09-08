@@ -332,7 +332,7 @@ class EsMetricsTests(TestCase):
                 "shard-count": 3
             },
             "test_procedure": "append",
-            "car": "defaults",
+            "provision_config_instance": "defaults",
             "name": "indexing_throughput",
             "value": throughput,
             "unit": "docs/s",
@@ -364,7 +364,7 @@ class EsMetricsTests(TestCase):
                 "shard-count": 3
             },
             "test_procedure": "append",
-            "car": "defaults",
+            "provision_config_instance": "defaults",
             "name": "indexing_throughput",
             "value": throughput,
             "unit": "docs/s",
@@ -405,7 +405,7 @@ class EsMetricsTests(TestCase):
                 "shard-count": 3
             },
             "test_procedure": "append",
-            "car": "defaults",
+            "provision_config_instance": "defaults",
             "name": "indexing_throughput",
             "value": throughput,
             "unit": "docs/s",
@@ -445,7 +445,7 @@ class EsMetricsTests(TestCase):
                 "shard-count": 3
             },
             "test_procedure": "append",
-            "car": "defaults",
+            "provision_config_instance": "defaults",
             "name": "custom_metric",
             "total": 1234567,
             "per-shard": [17, 18, 1289, 273, 222],
@@ -493,7 +493,7 @@ class EsMetricsTests(TestCase):
                 "shard-count": 3
             },
             "test_procedure": "append",
-            "car": "defaults",
+            "provision_config_instance": "defaults",
             "name": "custom_metric",
             "total": 1234567,
             "per-shard": [17, 18, 1289, 273, 222],
@@ -1023,7 +1023,7 @@ class EsTestExecutionStoreTests(TestCase):
                             "track": "unittest",
                             "test_procedure": "index",
                             "track-revision": "abc1",
-                            "car": "defaults",
+                            "provision_config_instance": "defaults",
                             "results": {
                                 "young_gc_time": 100,
                                 "old_gc_time": 5,
@@ -1064,7 +1064,7 @@ class EsTestExecutionStoreTests(TestCase):
                             test_execution_id=EsTestExecutionStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=EsTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params={"shard-count": 3},
-                            test_procedure=t.default_test_procedure, car="defaults", car_params={"heap_size": "512mb"}, plugin_params=None,
+                            test_procedure=t.default_test_procedure, provision_config_instance="defaults", provision_config_instance_params={"heap_size": "512mb"}, plugin_params=None,
                             track_revision="abc1", provision_config_revision="abc12333", distribution_version="5.0.0",
                             distribution_flavor="default", revision="aaaeeef",
                             results=EsTestExecutionStoreTests.DictHolder(
@@ -1104,8 +1104,8 @@ class EsTestExecutionStoreTests(TestCase):
             },
             "test_procedure": "index",
             "track-revision": "abc1",
-            "car": "defaults",
-            "car-params": {
+            "provision_config_instance": "defaults",
+            "provision_config_instance-params": {
                 "heap_size": "512mb"
             },
             "cluster": {
@@ -1167,7 +1167,7 @@ class EsResultsStoreTests(TestCase):
                             test_execution_id=EsResultsStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=EsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params=None,
-                            test_procedure=t.default_test_procedure, car="4gheap", car_params=None, plugin_params={"some-param": True},
+                            test_procedure=t.default_test_procedure, provision_config_instance="4gheap", provision_config_instance_params=None, plugin_params={"some-param": True},
                             track_revision="abc1", provision_config_revision="123ab", distribution_version="5.0.0",
                             distribution_flavor="oss", results=metrics.GlobalStats(
                                 {
@@ -1213,7 +1213,7 @@ class EsResultsStoreTests(TestCase):
                 "provision-config-revision": "123ab",
                 "track-revision": "abc1",
                 "test_procedure": "index",
-                "car": "4gheap",
+                "provision_config_instance": "4gheap",
                 "plugin-params": {
                     "some-param": True
                 },
@@ -1243,7 +1243,7 @@ class EsResultsStoreTests(TestCase):
                 "provision-config-revision": "123ab",
                 "track-revision": "abc1",
                 "test_procedure": "index",
-                "car": "4gheap",
+                "provision_config_instance": "4gheap",
                 "plugin-params": {
                     "some-param": True
                 },
@@ -1279,7 +1279,7 @@ class EsResultsStoreTests(TestCase):
                 "provision-config-revision": "123ab",
                 "track-revision": "abc1",
                 "test_procedure": "index",
-                "car": "4gheap",
+                "provision_config_instance": "4gheap",
                 "plugin-params": {
                     "some-param": True
                 },
@@ -1314,7 +1314,7 @@ class EsResultsStoreTests(TestCase):
                             test_execution_id=EsResultsStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=EsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params=None,
-                            test_procedure=t.default_test_procedure, car="4gheap", car_params=None, plugin_params=None,
+                            test_procedure=t.default_test_procedure, provision_config_instance="4gheap", provision_config_instance_params=None, plugin_params=None,
                             track_revision="abc1", provision_config_revision="123ab", distribution_version=None,
                             distribution_flavor=None, results=metrics.GlobalStats(
                 {
@@ -1359,7 +1359,7 @@ class EsResultsStoreTests(TestCase):
                 "provision-config-revision": "123ab",
                 "track-revision": "abc1",
                 "test_procedure": "index",
-                "car": "4gheap",
+                "provision_config_instance": "4gheap",
                 "active": True,
                 "name": "old_gc_time",
                 "value": {
@@ -1385,7 +1385,7 @@ class EsResultsStoreTests(TestCase):
                 "provision-config-revision": "123ab",
                 "track-revision": "abc1",
                 "test_procedure": "index",
-                "car": "4gheap",
+                "provision_config_instance": "4gheap",
                 "active": True,
                 "name": "throughput",
                 "task": "index #1",
@@ -1417,7 +1417,7 @@ class EsResultsStoreTests(TestCase):
                 "provision-config-revision": "123ab",
                 "track-revision": "abc1",
                 "test_procedure": "index",
-                "car": "4gheap",
+                "provision_config_instance": "4gheap",
                 "active": True,
                 "name": "young_gc_time",
                 "value": {
@@ -1678,7 +1678,7 @@ class FileTestExecutionStoreTests(TestCase):
                             test_execution_id=FileTestExecutionStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=FileTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params={"clients": 12},
-                            test_procedure=t.default_test_procedure, car="4gheap", car_params=None, plugin_params=None,
+                            test_procedure=t.default_test_procedure, provision_config_instance="4gheap", provision_config_instance_params=None, plugin_params=None,
                             track_revision="abc1", provision_config_revision="abc12333", distribution_version="5.0.0",
                             distribution_flavor="default", revision="aaaeeef",
                             results=FileTestExecutionStoreTests.DictHolder(
@@ -1716,8 +1716,8 @@ class StatsCalculatorTests(TestCase):
         cfg.add(config.Scope.application, "system", "time.start", datetime.datetime.now())
         cfg.add(config.Scope.application, "system", "test_execution.id", "6ebc6e53-ee20-4b0c-99b4-09697987e9f4")
         cfg.add(config.Scope.application, "results_publishing", "datastore.type", "in-memory")
-        cfg.add(config.Scope.application, "builder", "car.names", ["unittest_car"])
-        cfg.add(config.Scope.application, "builder", "car.params", {})
+        cfg.add(config.Scope.application, "builder", "provision_config_instance.names", ["unittest_provision_config_instance"])
+        cfg.add(config.Scope.application, "builder", "provision_config_instance.params", {})
         cfg.add(config.Scope.application, "builder", "plugin.params", {})
         cfg.add(config.Scope.application, "test_execution", "user.tag", "")
         cfg.add(config.Scope.application, "test_execution", "pipeline", "from-sources")
@@ -1801,8 +1801,8 @@ class StatsCalculatorTests(TestCase):
         cfg.add(config.Scope.application, "system", "time.start", datetime.datetime.now())
         cfg.add(config.Scope.application, "system", "test_execution.id", "6ebc6e53-ee20-4b0c-99b4-09697987e9f4")
         cfg.add(config.Scope.application, "results_publishing", "datastore.type", "in-memory")
-        cfg.add(config.Scope.application, "builder", "car.names", ["unittest_car"])
-        cfg.add(config.Scope.application, "builder", "car.params", {})
+        cfg.add(config.Scope.application, "builder", "provision_config_instance.names", ["unittest_provision_config_instance"])
+        cfg.add(config.Scope.application, "builder", "provision_config_instance.params", {})
         cfg.add(config.Scope.application, "builder", "plugin.params", {})
         cfg.add(config.Scope.application, "test_execution", "user.tag", "")
         cfg.add(config.Scope.application, "test_execution", "pipeline", "from-sources")
@@ -1866,7 +1866,7 @@ class GlobalStatsCalculatorTests(TestCase):
                                         "test-execution-id": "fb26018b-428d-4528-b36b-cf8c54a303ec",
                                         "test-execution-timestamp": "20200728T003905Z", "environment": "local",
                                         "track": "geonames", "test_procedure": "append-fast-with-conflicts",
-                                        "car": "defaults", "name": "service_time", "value": 72.67997100007051,
+                                        "provision_config_instance": "defaults", "name": "service_time", "value": 72.67997100007051,
                                         "unit": "ms", "sample-type": "normal",
                                         "meta": {"source_revision": "7f634e9f44834fbc12724506cc1da681b0c3b1e3",
                                                  "distribution_version": "7.6.0", "distribution_flavor": "oss",

@@ -104,7 +104,7 @@ class WorkerCoordinatorTests(TestCase):
         self.cfg.add(config.Scope.application, "track", "test.mode.enabled", True)
         self.cfg.add(config.Scope.application, "telemetry", "devices", [])
         self.cfg.add(config.Scope.application, "telemetry", "params", {})
-        self.cfg.add(config.Scope.application, "builder", "car.names", ["default"])
+        self.cfg.add(config.Scope.application, "builder", "provision_config_instance.names", ["default"])
         self.cfg.add(config.Scope.application, "builder", "skip.rest.api.check", True)
         self.cfg.add(config.Scope.application, "client", "hosts",
                      WorkerCoordinatorTests.Holder(all_hosts={"default": ["localhost:9200"]}))

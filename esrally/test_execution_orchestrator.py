@@ -219,14 +219,14 @@ class BenchmarkCoordinator:
         # store test_execution initially (without any results) so other components can retrieve full metadata
         self.test_execution_store.store_test_execution(self.test_execution)
         if self.test_execution.test_procedure.auto_generated:
-            console.info("Racing on track [{}] and car {} with version [{}].\n"
-                         .format(self.test_execution.track_name, self.test_execution.car, self.test_execution.distribution_version))
+            console.info("Racing on track [{}] and provision_config_instance {} with version [{}].\n"
+                         .format(self.test_execution.track_name, self.test_execution.provision_config_instance, self.test_execution.distribution_version))
         else:
-            console.info("Racing on track [{}], test_procedure [{}] and car {} with version [{}].\n"
+            console.info("Racing on track [{}], test_procedure [{}] and provision_config_instance {} with version [{}].\n"
                          .format(
                              self.test_execution.track_name,
                              self.test_execution.test_procedure_name,
-                             self.test_execution.car,
+                             self.test_execution.provision_config_instance,
                              self.test_execution.distribution_version
                              ))
 
@@ -304,8 +304,8 @@ def from_distribution(cfg):
 
 def benchmark_only(cfg):
     set_default_hosts(cfg)
-    # We'll use a special car name for external benchmarks.
-    cfg.add(config.Scope.benchmark, "builder", "car.names", ["external"])
+    # We'll use a special provision_config_instance name for external benchmarks.
+    cfg.add(config.Scope.benchmark, "builder", "provision_config_instance.names", ["external"])
     return execute_test(cfg, external=True)
 
 

@@ -28,7 +28,7 @@ from esrally import exceptions
 from esrally.utils import jvm
 
 
-def java_home(car_runtime_jdks, specified_runtime_jdk=None, provides_bundled_jdk=False):
+def java_home(provision_config_instance_runtime_jdks, specified_runtime_jdk=None, provides_bundled_jdk=False):
     def determine_runtime_jdks():
         if specified_runtime_jdk:
             return [specified_runtime_jdk]
@@ -38,10 +38,10 @@ def java_home(car_runtime_jdks, specified_runtime_jdk=None, provides_bundled_jdk
     logger = logging.getLogger(__name__)
 
     try:
-        allowed_runtime_jdks = [int(v) for v in car_runtime_jdks.split(",")]
+        allowed_runtime_jdks = [int(v) for v in provision_config_instance_runtime_jdks.split(",")]
     except ValueError:
         raise exceptions.SystemSetupError(
-            "Car config key \"runtime.jdk\" is invalid: \"{}\" (must be int)".format(car_runtime_jdks))
+            "ProvisionConfigInstance config key \"runtime.jdk\" is invalid: \"{}\" (must be int)".format(provision_config_instance_runtime_jdks))
 
     runtime_jdk_versions = determine_runtime_jdks()
     if runtime_jdk_versions[0] == "bundled":
