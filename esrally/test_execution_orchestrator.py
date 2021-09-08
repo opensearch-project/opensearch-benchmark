@@ -118,7 +118,7 @@ class BenchmarkActor(actor.RallyActor):
     @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_EngineStarted(self, msg, sender):
         self.logger.info("Builder has started engine successfully.")
-        self.coordinator.test_execution.team_revision = msg.team_revision
+        self.coordinator.test_execution.provision_config_revision = msg.provision_config_revision
         self.main_worker_coordinator = self.createActor(
             worker_coordinator.WorkerCoordinatorActor,
             targetActorRequirements={"coordinator": True}

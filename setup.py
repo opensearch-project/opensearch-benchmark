@@ -108,7 +108,7 @@ tests_require = [
 # These packages are only required when developing Rally
 develop_require = [
     "tox==3.14.0",
-    "coverage==4.5.4",
+    "coverage==5.5",
     "sphinx==2.2.0",
     "sphinx_rtd_theme==0.5.1",
     "twine==1.15.0",

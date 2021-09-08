@@ -703,7 +703,7 @@ class DistributionRepository:
 
     @property
     def download_url(self):
-        # team repo
+        # provision_config repo
         if self.runtime_jdk_bundled:
             default_key = "jdk.bundled.{}_url".format(self.name)
         else:
@@ -718,7 +718,7 @@ class DistributionRepository:
         return url[url.rfind("/") + 1:]
 
     def plugin_download_url(self, plugin_name):
-        # team repo
+        # provision_config repo
         default_key = "plugin_{}_{}_url".format(plugin_name, self.name)
         # rally.ini
         override_key = "plugin.{}.{}.url".format(plugin_name, self.name)

@@ -1168,7 +1168,7 @@ def list_test_executions(cfg):
             test_execution.car_name,
             format_dict(test_execution.user_tags),
             test_execution.track_revision,
-            test_execution.team_revision])
+            test_execution.provision_config_revision])
 
     if len(test_executions) > 0:
         console.println("\nRecent test_executions:\n")
@@ -1183,7 +1183,7 @@ def list_test_executions(cfg):
                 "Car",
                 "User Tags",
                 "Track Revision",
-                "Team Revision"
+                "Provision Config Revision"
                 ]))
     else:
         console.println("")
@@ -1212,7 +1212,7 @@ def create_test_execution(cfg, track, test_procedure, track_revision=None):
 
 class TestExecution:
     def __init__(self, rally_version, rally_revision, environment_name, test_execution_id, test_execution_timestamp, pipeline, user_tags,
-                 track, track_params, test_procedure, car, car_params, plugin_params, track_revision=None, team_revision=None,
+                 track, track_params, test_procedure, car, car_params, plugin_params, track_revision=None, provision_config_revision=None,
                  distribution_version=None, distribution_flavor=None, revision=None, results=None, meta_data=None):
         if results is None:
             results = {}
@@ -1237,7 +1237,7 @@ class TestExecution:
         self.car_params = car_params
         self.plugin_params = plugin_params
         self.track_revision = track_revision
-        self.team_revision = team_revision
+        self.provision_config_revision = provision_config_revision
         self.distribution_version = distribution_version
         self.distribution_flavor = distribution_flavor
         self.revision = revision
@@ -1277,7 +1277,7 @@ class TestExecution:
                 "revision": self.revision,
                 "distribution-version": self.distribution_version,
                 "distribution-flavor": self.distribution_flavor,
-                "team-revision": self.team_revision,
+                "provision-config-revision": self.provision_config_revision,
             }
         }
         if self.results:
@@ -1315,8 +1315,8 @@ class TestExecution:
         }
         if self.distribution_version:
             result_template["distribution-major-version"] = versions.major_version(self.distribution_version)
-        if self.team_revision:
-            result_template["team-revision"] = self.team_revision
+        if self.provision_config_revision:
+            result_template["provision-config-revision"] = self.provision_config_revision
         if self.track_revision:
             result_template["track-revision"] = self.track_revision
         if self.track_params:
@@ -1345,7 +1345,7 @@ class TestExecution:
         return TestExecution(d["rally-version"], d.get("rally-revision"), d["environment"], d["test-execution-id"],
                     time.from_is8601(d["test-execution-timestamp"]), d["pipeline"], user_tags, d["track"], d.get("track-params"),
                     d.get("test_procedure"), d["car"], d.get("car-params"), d.get("plugin-params"),
-                    track_revision=d.get("track-revision"), team_revision=cluster.get("team-revision"),
+                    track_revision=d.get("track-revision"), provision_config_revision=cluster.get("provision-config-revision"),
                     distribution_version=cluster.get("distribution-version"),
                     distribution_flavor=cluster.get("distribution-flavor"),
                     revision=cluster.get("revision"), results=d.get("results"), meta_data=d.get("meta", {}))

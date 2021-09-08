@@ -29,21 +29,21 @@ from enum import Enum
 
 import tabulate
 
-from esrally import exceptions, PROGRAM_NAME, config
+from esrally import exceptions, PROGRAM_NAME
 from esrally.utils import console, repo, io, modules
 
-TEAM_FORMAT_VERSION = 1
+PROVISION_CONFIG_FORMAT_VERSION = 1
 
 
-def _path_for(team_root_path, team_member_type):
-    root_path = os.path.join(team_root_path, team_member_type, "v{}".format(TEAM_FORMAT_VERSION))
+def _path_for(provision_config_root_path, provision_config_member_type):
+    root_path = os.path.join(provision_config_root_path, provision_config_member_type, "v{}".format(PROVISION_CONFIG_FORMAT_VERSION))
     if not os.path.exists(root_path):
-        raise exceptions.SystemSetupError("Path {} for {} does not exist.".format(root_path, team_member_type))
+        raise exceptions.SystemSetupError("Path {} for {} does not exist.".format(root_path, provision_config_member_type))
     return root_path
 
 
 def list_cars(cfg):
-    loader = CarLoader(team_path(cfg))
+    loader = CarLoader(provision_config_path(cfg))
     cars = []
     for name in loader.car_names():
         cars.append(loader.load_car(name))
@@ -93,7 +93,7 @@ def load_car(repo, name, car_params=None):
 
 
 def list_plugins(cfg):
-    plugins = PluginLoader(team_path(cfg)).plugins()
+    plugins = PluginLoader(provision_config_path(cfg)).plugins()
     if plugins:
         console.println("Available Elasticsearch plugins:\n")
         console.println(tabulate.tabulate([[p.name, p.config] for p in plugins], headers=["Name", "Configuration"]))
@@ -123,8 +123,8 @@ def load_plugins(repo, plugin_names, plugin_params=None):
     return plugins
 
 
-def team_path(cfg):
-    root_path = cfg.opts("builder", "team.path", mandatory=False)
+def provision_config_path(cfg):
+    root_path = cfg.opts("builder", "provision_config.path", mandatory=False)
     if root_path:
         return root_path
     else:
@@ -132,23 +132,22 @@ def team_path(cfg):
         repo_name = cfg.opts("builder", "repository.name")
         repo_revision = cfg.opts("builder", "repository.revision")
         offline = cfg.opts("system", "offline.mode")
-        remote_url = cfg.opts("teams", "%s.url" % repo_name, mandatory=False)
+        default_directory = cfg.opts("provision_configs", "%s.dir" % repo_name, mandatory=False)
         root = cfg.opts("node", "root.dir")
-        team_repositories = cfg.opts("builder", "team.repository.dir")
-        teams_dir = os.path.join(root, team_repositories)
+        provision_config_repositories = cfg.opts("builder", "provision_config.repository.dir")
+        provision_configs_dir = os.path.join(root, provision_config_repositories)
 
-        current_team_repo = repo.RallyRepository(remote_url, teams_dir, repo_name, "teams", offline)
-        if repo_revision:
-            current_team_repo.checkout(repo_revision)
-        else:
-            current_team_repo.update(distribution_version)
-            cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", current_team_repo.revision)
-        return current_team_repo.repo_dir
+        current_provision_config_repo = repo.RallyRepository(
+            default_directory, provision_configs_dir,
+            repo_name, "provision_configs", offline)
+
+        current_provision_config_repo.setRepository(repo_revision, distribution_version, cfg)
+        return current_provision_config_repo.repo_dir
 
 
 class CarLoader:
-    def __init__(self, team_root_path):
-        self.cars_dir = _path_for(team_root_path, "cars")
+    def __init__(self, provision_config_root_path):
+        self.cars_dir = _path_for(provision_config_root_path, "cars")
         self.logger = logging.getLogger(__name__)
 
     def car_names(self):
@@ -283,8 +282,8 @@ class Car:
 
 
 class PluginLoader:
-    def __init__(self, team_root_path):
-        self.plugins_root_path = _path_for(team_root_path, "plugins")
+    def __init__(self, provision_config_root_path):
+        self.plugins_root_path = _path_for(provision_config_root_path, "plugins")
         self.logger = logging.getLogger(__name__)
 
     def plugins(self, variables=None):

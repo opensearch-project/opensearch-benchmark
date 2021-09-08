@@ -26,7 +26,7 @@ import os
 from unittest import TestCase
 
 from esrally import exceptions
-from esrally.builder import team
+from esrally.builder import provision_config
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -34,12 +34,12 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 class CarLoaderTests(TestCase):
     def __init__(self, args):
         super().__init__(args)
-        self.team_dir = None
+        self.provision_config_dir = None
         self.loader = None
 
     def setUp(self):
-        self.team_dir = os.path.join(current_dir, "data")
-        self.loader = team.CarLoader(self.team_dir)
+        self.provision_config_dir = os.path.join(current_dir, "data")
+        self.loader = provision_config.CarLoader(self.provision_config_dir)
 
     def test_lists_car_names(self):
         # contrary to the name this assertion compares contents but does not care about order.
@@ -49,7 +49,7 @@ class CarLoaderTests(TestCase):
         )
 
     def test_load_known_car(self):
-        car = team.load_car(self.team_dir, ["default"], car_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
+        car = provision_config.load_car(self.provision_config_dir, ["default"], car_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
         self.assertEqual("default", car.name)
         self.assertEqual([os.path.join(current_dir, "data", "cars", "v1", "vanilla", "templates")], car.config_paths)
         self.assertIsNone(car.root_path)
@@ -61,7 +61,7 @@ class CarLoaderTests(TestCase):
         self.assertIsNone(car.root_path)
 
     def test_load_car_with_mixin_single_config_base(self):
-        car = team.load_car(self.team_dir, ["32gheap", "ea"])
+        car = provision_config.load_car(self.provision_config_dir, ["32gheap", "ea"])
         self.assertEqual("32gheap+ea", car.name)
         self.assertEqual([os.path.join(current_dir, "data", "cars", "v1", "vanilla", "templates")], car.config_paths)
         self.assertIsNone(car.root_path)
@@ -73,7 +73,7 @@ class CarLoaderTests(TestCase):
         self.assertIsNone(car.root_path)
 
     def test_load_car_with_mixin_multiple_config_bases(self):
-        car = team.load_car(self.team_dir, ["32gheap", "ea", "verbose"])
+        car = provision_config.load_car(self.provision_config_dir, ["32gheap", "ea", "verbose"])
         self.assertEqual("32gheap+ea+verbose", car.name)
         self.assertEqual([
             os.path.join(current_dir, "data", "cars", "v1", "vanilla", "templates"),
@@ -88,7 +88,10 @@ class CarLoaderTests(TestCase):
         }, car.variables)
 
     def test_load_car_with_install_hook(self):
-        car = team.load_car(self.team_dir, ["default", "with_hook"], car_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
+        car = provision_config.load_car(
+            self.provision_config_dir,
+            ["default", "with_hook"],
+            car_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
         self.assertEqual("default+with_hook", car.name)
         self.assertEqual([
             os.path.join(current_dir, "data", "cars", "v1", "vanilla", "templates"),
@@ -102,7 +105,7 @@ class CarLoaderTests(TestCase):
         }, car.variables)
 
     def test_load_car_with_multiple_bases_referring_same_install_hook(self):
-        car = team.load_car(self.team_dir, ["with_hook", "another_with_hook"])
+        car = provision_config.load_car(self.provision_config_dir, ["with_hook", "another_with_hook"])
         self.assertEqual("with_hook+another_with_hook", car.name)
         self.assertEqual([
             os.path.join(current_dir, "data", "cars", "v1", "vanilla", "templates"),
@@ -118,22 +121,22 @@ class CarLoaderTests(TestCase):
 
     def test_raises_error_on_unknown_car(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            team.load_car(self.team_dir, ["don_t-know-you"])
+            provision_config.load_car(self.provision_config_dir, ["don_t-know-you"])
         self.assertRegex(ctx.exception.args[0], r"Unknown car \[don_t-know-you\]. List the available cars with [^\s]+ list cars.")
 
     def test_raises_error_on_empty_config_base(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            team.load_car(self.team_dir, ["empty_cfg_base"])
+            provision_config.load_car(self.provision_config_dir, ["empty_cfg_base"])
         self.assertEqual("At least one config base is required for car ['empty_cfg_base']", ctx.exception.args[0])
 
     def test_raises_error_on_missing_config_base(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            team.load_car(self.team_dir, ["missing_cfg_base"])
+            provision_config.load_car(self.provision_config_dir, ["missing_cfg_base"])
         self.assertEqual("At least one config base is required for car ['missing_cfg_base']", ctx.exception.args[0])
 
     def test_raises_error_if_more_than_one_different_install_hook(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            team.load_car(self.team_dir, ["multi_hook"])
+            provision_config.load_car(self.provision_config_dir, ["multi_hook"])
         self.assertEqual("Invalid car: ['multi_hook']. Multiple bootstrap hooks are forbidden.", ctx.exception.args[0])
 
 
@@ -143,20 +146,20 @@ class PluginLoaderTests(TestCase):
         self.loader = None
 
     def setUp(self):
-        self.loader = team.PluginLoader(os.path.join(current_dir, "data"))
+        self.loader = provision_config.PluginLoader(os.path.join(current_dir, "data"))
 
     def test_lists_plugins(self):
         self.assertCountEqual(
             [
-                team.PluginDescriptor(name="complex-plugin", config="config-a"),
-                team.PluginDescriptor(name="complex-plugin", config="config-b"),
-                team.PluginDescriptor(name="my-analysis-plugin", core_plugin=True),
-                team.PluginDescriptor(name="my-ingest-plugin", core_plugin=True),
-                team.PluginDescriptor(name="my-core-plugin-with-config", core_plugin=True)
+                provision_config.PluginDescriptor(name="complex-plugin", config="config-a"),
+                provision_config.PluginDescriptor(name="complex-plugin", config="config-b"),
+                provision_config.PluginDescriptor(name="my-analysis-plugin", core_plugin=True),
+                provision_config.PluginDescriptor(name="my-ingest-plugin", core_plugin=True),
+                provision_config.PluginDescriptor(name="my-core-plugin-with-config", core_plugin=True)
             ], self.loader.plugins())
 
     def test_loads_core_plugin(self):
-        self.assertEqual(team.PluginDescriptor(name="my-analysis-plugin", core_plugin=True, variables={"dbg": True}),
+        self.assertEqual(provision_config.PluginDescriptor(name="my-analysis-plugin", core_plugin=True, variables={"dbg": True}),
                          self.loader.load_plugin("my-analysis-plugin", config_names=None, plugin_params={"dbg": True}))
 
     def test_loads_core_plugin_with_config(self):
@@ -182,7 +185,7 @@ class PluginLoaderTests(TestCase):
                                                 r"--distribution-version=VERSION.")
 
     def test_loads_community_plugin_without_configuration(self):
-        self.assertEqual(team.PluginDescriptor("my-community-plugin"), self.loader.load_plugin("my-community-plugin", None))
+        self.assertEqual(provision_config.PluginDescriptor("my-community-plugin"), self.loader.load_plugin("my-community-plugin", None))
 
     def test_cannot_load_community_plugin_with_missing_config(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
@@ -240,9 +243,9 @@ class BootstrapHookHandlerTests(TestCase):
             handler.register(self.phase, self.post_install_hook)
 
     def test_loads_module(self):
-        plugin = team.PluginDescriptor("unittest-plugin")
+        plugin = provision_config.PluginDescriptor("unittest-plugin")
         hook = BootstrapHookHandlerTests.UnitTestHook()
-        handler = team.BootstrapHookHandler(plugin, loader_class=BootstrapHookHandlerTests.UnitTestComponentLoader)
+        handler = provision_config.BootstrapHookHandler(plugin, loader_class=BootstrapHookHandlerTests.UnitTestComponentLoader)
 
         handler.loader.registration_function = hook
         handler.load()
@@ -253,9 +256,9 @@ class BootstrapHookHandlerTests(TestCase):
         self.assertEqual(hook.call_counter, 2 * 4)
 
     def test_cannot_register_for_unknown_phase(self):
-        plugin = team.PluginDescriptor("unittest-plugin")
+        plugin = provision_config.PluginDescriptor("unittest-plugin")
         hook = BootstrapHookHandlerTests.UnitTestHook(phase="this_is_an_unknown_install_phase")
-        handler = team.BootstrapHookHandler(plugin, loader_class=BootstrapHookHandlerTests.UnitTestComponentLoader)
+        handler = provision_config.BootstrapHookHandler(plugin, loader_class=BootstrapHookHandlerTests.UnitTestComponentLoader)
 
         handler.loader.registration_function = hook
         with self.assertRaises(exceptions.SystemSetupError) as ctx:

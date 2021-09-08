@@ -26,41 +26,52 @@ import logging
 import os
 import sys
 
-from esrally import exceptions
+from esrally import exceptions, config
 from esrally.utils import io, git, console, versions
 
 
 class RallyRepository:
     """
-    Manages Rally resources (e.g. teams or tracks).
+    Manages Rally resources (e.g. provision_configs or tracks).
     """
 
-    def __init__(self, remote_url, root_dir, repo_name, resource_name, offline, fetch=True):
+    default = "default-provision-config"
+
+    def __init__(self, default_directory, root_dir, repo_name, resource_name, offline, fetch=True):
         # If no URL is found, we consider this a local only repo (but still require that it is a git repo)
-        self.url = remote_url
-        self.remote = self.url is not None and self.url.strip() != ""
+        self.directory = default_directory
+        self.remote = self.directory is not None and self.directory != RallyRepository.default and self.directory.strip() != ""
         self.repo_dir = os.path.join(root_dir, repo_name)
         self.resource_name = resource_name
         self.offline = offline
         self.logger = logging.getLogger(__name__)
         self.revision = None
+
         if self.remote and not self.offline and fetch:
             # a normal git repo with a remote
             if not git.is_working_copy(self.repo_dir):
-                git.clone(src=self.repo_dir, remote=self.url)
+                git.clone(src=self.repo_dir, remote=self.directory)
             else:
                 try:
                     git.fetch(src=self.repo_dir)
                 except exceptions.SupplyError:
                     console.warn("Could not update %s. Continuing with your locally available state." % self.resource_name)
         else:
-            if not git.is_working_copy(self.repo_dir):
+            if not git.is_working_copy(self.repo_dir) and repo_name != "default":
                 if io.exists(self.repo_dir):
                     raise exceptions.SystemSetupError("[{src}] must be a git repository.\n\nPlease run:\ngit -C {src} init"
                                                       .format(src=self.repo_dir))
-                else:
-                    raise exceptions.SystemSetupError("Expected a git repository at [{src}] but the directory does not exist."
-                                                      .format(src=self.repo_dir))
+
+    def setRepository(self, repo_revision, distribution_version, cfg):
+        if self.directory == RallyRepository.default:
+            self.useOpensearchBenchmarkProvisionConfigs(distribution_version)
+        elif repo_revision:
+            self.checkout(repo_revision)
+        else:
+            self.update(distribution_version)
+            cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", self.revision)
+
+        return cfg
 
     def update(self, distribution_version):
         try:
@@ -120,3 +131,30 @@ class RallyRepository:
     def checkout(self, revision):
         self.logger.info("Checking out revision [%s] in [%s].", revision, self.repo_dir)
         git.checkout(self.repo_dir, revision)
+
+    def useOpensearchBenchmarkProvisionConfigs(self, distribution_version):
+        self.logger.info("Using default-provision-config directory within repository")
+        root_dir = os.getcwd().split("/esrally")[0]
+        provisionconfigs_path = os.path.join(root_dir, "opensearch-benchmark-provisionconfigs")
+
+        branch_version = self.selectBranchVersion(distribution_version, provisionconfigs_path)
+
+        # Include selected branch
+        self.repo_dir = os.path.join(root_dir, f"opensearch-benchmark-provisionconfigs/{branch_version}")
+
+    def selectBranchVersion(self, distribution_version, pc_path):
+        # Branches have been moved into opensearch-benchmark-provisionconfigs
+        branches = [b for b in os.listdir(pc_path) if os.path.isdir(os.path.join(pc_path, b)) and b != "master"]
+        branches.sort(key=lambda b: list(map(int, b.split('.'))), reverse=True)
+
+        convert = lambda s: list(map(int, s.split('.')))
+        if distribution_version is not None:
+            # Return a branch that is less than or equal to the distribution version
+            for branch in branches:
+                if convert(distribution_version) >= convert(branch):
+                    return branch
+
+            raise Exception("Distribution version is less than available ES versions for provision-configs.")
+
+        # Distribution version is Nonetype if not specified in command line
+        return "master"

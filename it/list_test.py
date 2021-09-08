@@ -33,6 +33,7 @@ def test_list_test_executions(cfg):
 @it.rally_in_mem
 def test_list_cars(cfg):
     assert it.esrally(cfg, "list cars") == 0
+    assert it.esrally(cfg, "list cars --provision-config-repository=default") == 0
 
 
 @it.rally_in_mem

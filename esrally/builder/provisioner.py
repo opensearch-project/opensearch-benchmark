@@ -32,7 +32,7 @@ import uuid
 import jinja2
 
 from esrally import exceptions
-from esrally.builder import team, java_resolver
+from esrally.builder import provision_config, java_resolver
 from esrally.utils import console, convert, io, process, versions
 
 
@@ -196,9 +196,9 @@ class BareProvisioner:
                 self.apply_config(plugin_config_path, target_root_path, provisioner_vars)
 
         # Never let install hooks modify our original provisioner variables and just provide a copy!
-        self.es_installer.invoke_install_hook(team.BootstrapPhase.post_install, provisioner_vars.copy())
+        self.es_installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, provisioner_vars.copy())
         for installer in self.plugin_installers:
-            installer.invoke_install_hook(team.BootstrapPhase.post_install, provisioner_vars.copy())
+            installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, provisioner_vars.copy())
 
         return NodeConfiguration("tar", self.es_installer.car.mandatory_var("runtime.jdk"),
                                  convert.to_bool(self.es_installer.car.mandatory_var("runtime.jdk.bundled")),
@@ -241,7 +241,7 @@ class BareProvisioner:
 
 class ElasticsearchInstaller:
     def __init__(self, car, java_home, node_name, node_root_dir, all_node_ips, all_node_names, ip, http_port,
-                 hook_handler_class=team.BootstrapHookHandler):
+                 hook_handler_class=provision_config.BootstrapHookHandler):
         self.car = car
         self.java_home = java_home
         self.node_name = node_name
@@ -329,7 +329,7 @@ class ElasticsearchInstaller:
 
 
 class PluginInstaller:
-    def __init__(self, plugin, java_home, hook_handler_class=team.BootstrapHookHandler):
+    def __init__(self, plugin, java_home, hook_handler_class=provision_config.BootstrapHookHandler):
         self.plugin = plugin
         self.java_home = java_home
         self.hook_handler = hook_handler_class(self.plugin)

@@ -1,0 +1,6 @@
+xpack.license.self_generated.type: {{license_type|default('trial')}}
+
+xpack.ml.enabled: {{xpack_ml_enabled|default('false')}}
+xpack.monitoring.enabled: {{xpack_monitoring_enabled|default('false')}}
+xpack.security.enabled: {{xpack_security_enabled|default('false')}}
+xpack.watcher.enabled: {{xpack_watcher_enabled|default('false')}}
