@@ -41,7 +41,7 @@ class TestMergeDicts:
     def test_can_merge_randomized_empty_and_non_empty_dict(self, seed):
         random.seed(seed)
 
-        dct = {"params": {"provision_config_instance-params": {"data_paths": "/mnt/local_ssd"}}}
+        dct = {"params": {"provision-config-instance-params": {"data_paths": "/mnt/local_ssd"}}}
         d1: Mapping[Any, Any] = random.choice([{}, dct])
         d2: Mapping[Any, Any] = dct if not d1 else {}
 
@@ -51,7 +51,7 @@ class TestMergeDicts:
         d1 = {
             "params": {
                 "provision_config_instance": "4gheap",
-                "provision_config_instance-params": {
+                "provision-config-instance-params": {
                     "additional_cluster_settings": {
                         "indices.queries.cache.size": "5%",
                         "transport.tcp.compress": True
@@ -61,11 +61,11 @@ class TestMergeDicts:
             }
         }
 
-        d2 = {"params": {"provision_config_instance-params": {"data_paths": "/mnt/local_ssd"}}}
+        d2 = {"params": {"provision-config-instance-params": {"data_paths": "/mnt/local_ssd"}}}
 
         assert dict(collections.merge_dicts(d1, d2)) == {
             "params": {
-                "provision_config_instance-params": {
+                "provision-config-instance-params": {
                     "additional_cluster_settings": {
                         "indices.queries.cache.size": "5%",
                         "transport.tcp.compress": True

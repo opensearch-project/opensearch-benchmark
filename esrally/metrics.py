@@ -1289,7 +1289,7 @@ class TestExecution:
         if self.track_params:
             d["track-params"] = self.track_params
         if self.provision_config_instance_params:
-            d["provision_config_instance-params"] = self.provision_config_instance_params
+            d["provision-config-instance-params"] = self.provision_config_instance_params
         if self.plugin_params:
             d["plugin-params"] = self.plugin_params
         return d
@@ -1322,7 +1322,7 @@ class TestExecution:
         if self.track_params:
             result_template["track-params"] = self.track_params
         if self.provision_config_instance_params:
-            result_template["provision_config_instance-params"] = self.provision_config_instance_params
+            result_template["provision-config-instance-params"] = self.provision_config_instance_params
         if self.plugin_params:
             result_template["plugin-params"] = self.plugin_params
         if self.meta_data:
@@ -1344,7 +1344,7 @@ class TestExecution:
         cluster = d.get("cluster", {})
         return TestExecution(d["rally-version"], d.get("rally-revision"), d["environment"], d["test-execution-id"],
                     time.from_is8601(d["test-execution-timestamp"]), d["pipeline"], user_tags, d["track"], d.get("track-params"),
-                    d.get("test_procedure"), d["provision_config_instance"], d.get("provision_config_instance-params"), d.get("plugin-params"),
+                    d.get("test_procedure"), d["provision_config_instance"], d.get("provision-config-instance-params"), d.get("plugin-params"),
                     track_revision=d.get("track-revision"), provision_config_revision=cluster.get("provision-config-revision"),
                     distribution_version=cluster.get("distribution-version"),
                     distribution_flavor=cluster.get("distribution-flavor"),

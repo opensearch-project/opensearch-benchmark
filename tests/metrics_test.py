@@ -1105,7 +1105,7 @@ class EsTestExecutionStoreTests(TestCase):
             "test_procedure": "index",
             "track-revision": "abc1",
             "provision_config_instance": "defaults",
-            "provision_config_instance-params": {
+            "provision-config-instance-params": {
                 "heap_size": "512mb"
             },
             "cluster": {

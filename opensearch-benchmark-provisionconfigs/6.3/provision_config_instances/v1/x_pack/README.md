@@ -15,9 +15,9 @@ The configurations have been implemented so that you can either only one of them
 ### x-pack-security
 
 The `x-pack-security` provision_config_instance will enable basic authentication and TLS for the HTTP and the transport layer.
-You can additionally specify the user name, password and role, via the `provision_config_instance-params` cli arg, using the following properties:
+You can additionally specify the user name, password and role, via the `provision-config-instance-params` cli arg, using the following properties:
 
-| provision_config_instance-params | default |
+| provision-config-instance-params | default |
 | --------- | ------- |
 | xpack_security_user_name | rally |
 | xpack_security_user_password | rally-password |
@@ -39,7 +39,7 @@ Please refer to [Elasticsearch Monitoring Settings](https://www.elastic.co/guide
 
 When using `http` as `monitoring_type` you should also configure the following properties:
 
-| provision_config_instance-params | description | default |
+| provision-config-instance-params | description | default |
 | --------- | ------------ | ------- |
 | monitoring_scheme | The scheme of the monitoring cluster | http |
 | monitoring_host | The host of the monitoring cluster | - |
@@ -51,7 +51,7 @@ When using `http` as `monitoring_type` you should also configure the following p
 
 The following optional properties may be specified, see [ML settings](https://www.elastic.co/guide/en/elasticsearch/reference/current/ml-settings.html) for more details:
 
-| provision_config_instance-params |
+| provision-config-instance-params |
 | ---------- |
 | ml_max_open_jobs |
 | ml_max_machine_memory_percent |
@@ -64,6 +64,6 @@ The following optional properties may be specified, see [ML settings](https://ww
 The focus here is on providing a usable configuration for benchmarks. This configuration is **NOT** suitable for production use because:
 
 * All clusters configured by Rally will use the same (self-signed) root certificate that will basically never expire
-* If you don't specify the provision_config_instance-params `x-pack_security_user_password` and `xpack_security_user_role`, Rally will add a "rally" user with super-user privileges with a hard-coded password.
+* If you don't specify the provision-config-instance-params `x-pack_security_user_password` and `xpack_security_user_role`, Rally will add a "rally" user with super-user privileges with a hard-coded password.
 
 Both of these measures mean that the cluster is not any more secure than without using x-pack. But once again: The idea is to be able to measure the performance characteristics not to secure the cluster that is benchmarked.

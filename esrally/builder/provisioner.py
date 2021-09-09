@@ -75,8 +75,8 @@ class NodeConfiguration:
     def as_dict(self):
         return {
             "build-type": self.build_type,
-            "provision_config_instance-runtime-jdks": self.provision_config_instance_runtime_jdks,
-            "provision_config_instance-provides-bundled-jdk": self.provision_config_instance_provides_bundled_jdk,
+            "provision-config-instance-runtime-jdks": self.provision_config_instance_runtime_jdks,
+            "provision-config-instance-provides-bundled-jdk": self.provision_config_instance_provides_bundled_jdk,
             "ip": self.ip,
             "node-name": self.node_name,
             "node-root-path": self.node_root_path,
@@ -86,7 +86,7 @@ class NodeConfiguration:
 
     @staticmethod
     def from_dict(d):
-        return NodeConfiguration(d["build-type"], d["provision_config_instance-runtime-jdks"], d["provision_config_instance-provides-bundled-jdk"], d["ip"],
+        return NodeConfiguration(d["build-type"], d["provision-config-instance-runtime-jdks"], d["provision-config-instance-provides-bundled-jdk"], d["ip"],
                                  d["node-name"], d["node-root-path"], d["binary-path"], d["data-paths"])
 
 

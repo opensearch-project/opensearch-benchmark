@@ -47,9 +47,9 @@ class BareProvisionerTests(TestCase):
 
         installer = provisioner.ElasticsearchInstaller(provision_config_instance=
         provision_config.ProvisionConfigInstance(
-            names="unit-test-provision_config_instance",
+            names="unit-test-provision-config-instance",
             root_path=None,
-            config_paths=[HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-provision_config_instance"],
+            config_paths=[HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-provision-config-instance"],
             variables={"heap": "4g", "runtime.jdk": "8", "runtime.jdk.bundled": "true"}),
             java_home="/usr/local/javas/java8",
             node_name="rally-node-0",
@@ -71,7 +71,7 @@ class BareProvisionerTests(TestCase):
         self.assertEqual(1, len(apply_config_calls))
         source_root_path, target_root_path, config_vars = apply_config_calls[0]
 
-        self.assertEqual(HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-provision_config_instance", source_root_path)
+        self.assertEqual(HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-provision-config-instance", source_root_path)
         self.assertEqual("/opt/elasticsearch-5.0.0", target_root_path)
         self.assertEqual({
             "cluster_settings": {
@@ -153,9 +153,9 @@ class BareProvisionerTests(TestCase):
 
         installer = provisioner.ElasticsearchInstaller(provision_config_instance=
         provision_config.ProvisionConfigInstance(
-            names="unit-test-provision_config_instance",
+            names="unit-test-provision-config-instance",
             root_path=None,
-            config_paths=[HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-provision_config_instance"],
+            config_paths=[HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-provision-config-instance"],
             variables={"heap": "4g", "runtime.jdk": "8", "runtime.jdk.bundled": "true"}),
             java_home="/usr/local/javas/java8",
             node_name="rally-node-0",
@@ -182,7 +182,7 @@ class BareProvisionerTests(TestCase):
         self.assertEqual(1, len(apply_config_calls))
         source_root_path, target_root_path, config_vars = apply_config_calls[0]
 
-        self.assertEqual(HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-provision_config_instance", source_root_path)
+        self.assertEqual(HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-provision-config-instance", source_root_path)
         self.assertEqual("/opt/elasticsearch-5.0.0", target_root_path)
 
         self.maxDiff = None
@@ -231,9 +231,9 @@ class BareProvisionerTests(TestCase):
 
         installer = provisioner.ElasticsearchInstaller(provision_config_instance=
         provision_config.ProvisionConfigInstance(
-            names="unit-test-provision_config_instance",
+            names="unit-test-provision-config-instance",
             root_path=None,
-            config_paths=[HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-provision_config_instance"],
+            config_paths=[HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-provision-config-instance"],
             variables={"heap": "4g", "runtime.jdk": "8", "runtime.jdk.bundled": "true"}),
             java_home="/usr/local/javas/java8",
             node_name="rally-node-0",
@@ -260,7 +260,7 @@ class BareProvisionerTests(TestCase):
         self.assertEqual(1, len(apply_config_calls))
         source_root_path, target_root_path, config_vars = apply_config_calls[0]
 
-        self.assertEqual(HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-provision_config_instance", source_root_path)
+        self.assertEqual(HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-provision-config-instance", source_root_path)
         self.assertEqual("/opt/elasticsearch-6.3.0", target_root_path)
 
         self.maxDiff = None
@@ -566,7 +566,7 @@ class DockerProvisionerTests(TestCase):
 
         rally_root = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "esrally"))
 
-        c = provision_config.ProvisionConfigInstance("unit-test-provision_config_instance", None, "/tmp", variables={
+        c = provision_config.ProvisionConfigInstance("unit-test-provision-config-instance", None, "/tmp", variables={
             "docker_image": "docker.elastic.co/elasticsearch/elasticsearch-oss"
         })
 
@@ -642,7 +642,7 @@ services:
 
         rally_root = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "esrally"))
 
-        c = provision_config.ProvisionConfigInstance("unit-test-provision_config_instance", None, "/tmp", variables={
+        c = provision_config.ProvisionConfigInstance("unit-test-provision-config-instance", None, "/tmp", variables={
             "docker_image": "docker.elastic.co/elasticsearch/elasticsearch",
             "docker_mem_limit": "256m",
             "docker_cpu_count": 2
