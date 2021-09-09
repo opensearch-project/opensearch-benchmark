@@ -93,7 +93,7 @@ datastore.user = elastic
 datastore.password = notinuse
 
 [tracks]
-default.url = https://github.com/IanHoang/workloads-challenge
+default.url = https://github.com/opensearch-project/opensearch-benchmark-workloads
 
 [provision_configs]
 default.dir = default-provision-config
