@@ -45,7 +45,9 @@ def local(cfg, provision_config_instance, plugins, ip, http_port, all_node_ips, 
     runtime_jdk = provision_config_instance.mandatory_var("runtime.jdk")
     _, java_home = java_resolver.java_home(runtime_jdk, cfg.opts("builder", "runtime.jdk"), runtime_jdk_bundled)
 
-    es_installer = ElasticsearchInstaller(provision_config_instance, java_home, node_name, node_root_dir, all_node_ips, all_node_names, ip, http_port)
+    es_installer = ElasticsearchInstaller(
+        provision_config_instance, java_home, node_name,
+        node_root_dir, all_node_ips, all_node_names, ip, http_port)
     plugin_installers = [PluginInstaller(plugin, java_home) for plugin in plugins]
 
     return BareProvisioner(es_installer, plugin_installers, distribution_version=distribution_version)
@@ -61,7 +63,9 @@ def docker(cfg, provision_config_instance, ip, http_port, target_root, node_name
 
 
 class NodeConfiguration:
-    def __init__(self, build_type, provision_config_instance_runtime_jdks, provision_config_instance_provides_bundled_jdk, ip, node_name, node_root_path,
+    def __init__(self, build_type, provision_config_instance_runtime_jdks, \
+        provision_config_instance_provides_bundled_jdk, ip, node_name, \
+            node_root_path,
                  binary_path, data_paths):
         self.build_type = build_type
         self.provision_config_instance_runtime_jdks = provision_config_instance_runtime_jdks
@@ -86,7 +90,9 @@ class NodeConfiguration:
 
     @staticmethod
     def from_dict(d):
-        return NodeConfiguration(d["build-type"], d["provision-config-instance-runtime-jdks"], d["provision-config-instance-provides-bundled-jdk"], d["ip"],
+        return NodeConfiguration(
+            d["build-type"], d["provision-config-instance-runtime-jdks"],
+            d["provision-config-instance-provides-bundled-jdk"], d["ip"],
                                  d["node-name"], d["node-root-path"], d["binary-path"], d["data-paths"])
 
 

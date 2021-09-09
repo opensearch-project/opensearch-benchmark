@@ -277,7 +277,8 @@ def metrics_store(cfg, read_only=True, track=None, test_procedure=None, provisio
 
     test_execution_id = cfg.opts("system", "test_execution.id")
     test_execution_timestamp = cfg.opts("system", "time.start")
-    selected_provision_config_instance = cfg.opts("builder", "provision_config_instance.names") if provision_config_instance is None else provision_config_instance
+    selected_provision_config_instance = cfg.opts("builder", "provision_config_instance.names") \
+        if provision_config_instance is None else provision_config_instance
 
     store.open(test_execution_id, test_execution_timestamp, track, test_procedure, selected_provision_config_instance, create=not read_only)
     return store
@@ -362,7 +363,8 @@ class MetricsStore:
         self._stop_watch = self._clock.stop_watch()
         self.logger = logging.getLogger(__name__)
 
-    def open(self, test_ex_id=None, test_ex_timestamp=None, track_name=None, test_procedure_name=None, provision_config_instance_name=None, ctx=None,\
+    def open(self, test_ex_id=None, test_ex_timestamp=None, track_name=None,\
+         test_procedure_name=None, provision_config_instance_name=None, ctx=None,\
          create=False):
         """
         Opens a metrics store for a specific test_execution, track, test_procedure and provision_config_instance.
@@ -391,9 +393,12 @@ class MetricsStore:
         assert self._test_execution_id is not None, "Attempting to open metrics store without a test execution id"
         assert self._test_execution_timestamp is not None, "Attempting to open metrics store without a test execution timestamp"
 
-        self._provision_config_instance_name = "+".join(self._provision_config_instance) if isinstance(self._provision_config_instance, list) else self._provision_config_instance
+        self._provision_config_instance_name = "+".join(self._provision_config_instance) \
+            if isinstance(self._provision_config_instance, list) \
+                else self._provision_config_instance
 
-        self.logger.info("Opening metrics store for test execution timestamp=[%s], track=[%s], test_procedure=[%s], provision_config_instance=[%s]",
+        self.logger.info("Opening metrics store for test execution timestamp=[%s], track=[%s],"
+        "test_procedure=[%s], provision_config_instance=[%s]",
                          self._test_execution_timestamp, self._track, self._test_procedure, self._provision_config_instance)
 
         user_tags = extract_user_tags_from_config(self._config)
@@ -779,7 +784,8 @@ class EsMetricsStore(MetricsStore):
         self._index_template_provider = index_template_provider_class(cfg)
         self._docs = None
 
-    def open(self, test_ex_id=None, test_ex_timestamp=None, track_name=None, test_procedure_name=None, provision_config_instance_name=None, ctx=None, \
+    def open(self, test_ex_id=None, test_ex_timestamp=None, track_name=None, \
+        test_procedure_name=None, provision_config_instance_name=None, ctx=None, \
         create=False):
         self._docs = []
         MetricsStore.open(self, test_ex_id, test_ex_timestamp, track_name, test_procedure_name, provision_config_instance_name, ctx, create)
@@ -818,7 +824,8 @@ class EsMetricsStore(MetricsStore):
             self._client.bulk_index(index=self._index, doc_type=EsMetricsStore.METRICS_DOC_TYPE, items=self._docs)
             sw.stop()
             self.logger.info("Successfully added %d metrics documents for test execution timestamp=[%s], track=[%s], "
-                             "test_procedure=[%s], provision_config_instance=[%s] in [%f] seconds.", len(self._docs), self._test_execution_timestamp,
+                             "test_procedure=[%s], provision_config_instance=[%s] in [%f] seconds.",
+                             len(self._docs), self._test_execution_timestamp,
                              self._track, self._test_procedure, self._provision_config_instance, sw.total_time())
         self._docs = []
         # ensure we can search immediately after flushing
@@ -1212,8 +1219,11 @@ def create_test_execution(cfg, track, test_procedure, track_revision=None):
 
 class TestExecution:
     def __init__(self, rally_version, rally_revision, environment_name, test_execution_id, test_execution_timestamp, pipeline, user_tags,
-                 track, track_params, test_procedure, provision_config_instance, provision_config_instance_params, plugin_params, track_revision=None, provision_config_revision=None,
-                 distribution_version=None, distribution_flavor=None, revision=None, results=None, meta_data=None):
+                 track, track_params, test_procedure, provision_config_instance,
+                 provision_config_instance_params, plugin_params,
+                 track_revision=None, provision_config_revision=None,
+                 distribution_version=None, distribution_flavor=None,
+                 revision=None, results=None, meta_data=None):
         if results is None:
             results = {}
         # this happens when the test execution is created initially
@@ -1254,7 +1264,9 @@ class TestExecution:
 
     @property
     def provision_config_instance_name(self):
-        return "+".join(self.provision_config_instance) if isinstance(self.provision_config_instance, list) else self.provision_config_instance
+        return "+".join(self.provision_config_instance) \
+            if isinstance(self.provision_config_instance, list) \
+                else self.provision_config_instance
 
     def add_results(self, results):
         self.results = results
@@ -1343,9 +1355,12 @@ class TestExecution:
         # TODO: cluster is optional for BWC. This can be removed after some grace period.
         cluster = d.get("cluster", {})
         return TestExecution(d["rally-version"], d.get("rally-revision"), d["environment"], d["test-execution-id"],
-                    time.from_is8601(d["test-execution-timestamp"]), d["pipeline"], user_tags, d["track"], d.get("track-params"),
-                    d.get("test_procedure"), d["provision-config-instance"], d.get("provision-config-instance-params"), d.get("plugin-params"),
-                    track_revision=d.get("track-revision"), provision_config_revision=cluster.get("provision-config-revision"),
+                    time.from_is8601(d["test-execution-timestamp"]),
+                    d["pipeline"], user_tags, d["track"], d.get("track-params"),
+                    d.get("test_procedure"), d["provision-config-instance"],
+                    d.get("provision-config-instance-params"), d.get("plugin-params"),
+                    track_revision=d.get("track-revision"),
+                    provision_config_revision=cluster.get("provision-config-revision"),
                     distribution_version=cluster.get("distribution-version"),
                     distribution_flavor=cluster.get("distribution-flavor"),
                     revision=cluster.get("revision"), results=d.get("results"), meta_data=d.get("meta", {}))

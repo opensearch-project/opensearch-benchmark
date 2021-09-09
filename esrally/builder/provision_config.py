@@ -51,7 +51,9 @@ def list_provision_config_instances(cfg):
     # idiomatic way according to https://docs.python.org/3/howto/sorting.html#sort-stability-and-complex-sorts
     provision_config_instances = sorted(sorted(provision_config_instances, key=lambda c: c.name), key=lambda c: c.type)
     console.println("Available provision_config_instances:\n")
-    console.println(tabulate.tabulate([[c.name, c.type, c.description] for c in provision_config_instances], headers=["Name", "Type", "Description"]))
+    console.println(tabulate.tabulate(
+        [[c.name, c.type, c.description] for c in provision_config_instances],
+        headers=["Name", "Type", "Description"]))
 
 
 def load_provision_config_instance(repo, name, provision_config_instance_params=None):
@@ -78,7 +80,8 @@ def load_provision_config_instance(repo, name, provision_config_instance_params=
                     root_path = p
                 # multiple provision_config_instances are based on the same hook
                 elif root_path != p:
-                    raise exceptions.SystemSetupError("Invalid provision_config_instance: {}. Multiple bootstrap hooks are forbidden.".format(name))
+                    raise exceptions.SystemSetupError(
+                        "Invalid provision_config_instance: {}. Multiple bootstrap hooks are forbidden.".format(name))
         all_config_base_vars.update(descriptor.config_base_variables)
         all_provision_config_instance_vars.update(descriptor.variables)
 
@@ -158,7 +161,9 @@ class ProvisionConfigInstanceLoader:
         def __is_provision_config_instance(path):
             _, extension = io.splitext(path)
             return extension == ".ini"
-        return map(__provision_config_instance_name, filter(__is_provision_config_instance, os.listdir(self.provision_config_instances_dir)))
+        return map(__provision_config_instance_name, filter(
+            __is_provision_config_instance,
+            os.listdir(self.provision_config_instances_dir)))
 
     def _provision_config_instance_file(self, name):
         return os.path.join(self.provision_config_instances_dir, "{}.ini".format(name))
@@ -166,7 +171,9 @@ class ProvisionConfigInstanceLoader:
     def load_provision_config_instance(self, name, provision_config_instance_params=None):
         provision_config_instance_config_file = self._provision_config_instance_file(name)
         if not io.exists(provision_config_instance_config_file):
-            raise exceptions.SystemSetupError("Unknown provision_config_instance [{}]. List the available provision_config_instances with {} list provision_config_instances.".format(name, PROGRAM_NAME))
+            raise exceptions.SystemSetupError(
+                "Unknown provision_config_instance [{}]. List the available "
+                "provision_config_instances with {} list provision_config_instances.".format(name, PROGRAM_NAME))
         config = self._config_loader(provision_config_instance_config_file)
         root_paths = []
         config_paths = []
@@ -192,7 +199,9 @@ class ProvisionConfigInstanceLoader:
         if provision_config_instance_params:
             variables.update(provision_config_instance_params)
 
-        return ProvisionConfigInstanceDescriptor(name, description, provision_config_instance_type, root_paths, config_paths, config_base_vars, variables)
+        return ProvisionConfigInstanceDescriptor(
+            name, description, provision_config_instance_type,
+            root_paths, config_paths, config_base_vars, variables)
 
     def _config_loader(self, file_name):
         config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
@@ -460,7 +469,8 @@ class BootstrapHookHandler:
         """
         Creates a new BootstrapHookHandler.
 
-        :param component: The component that should be loaded. In practice, this is a PluginDescriptor or a ProvisionConfigInstance instance.
+        :param component: The component that should be loaded.
+        In practice, this is a PluginDescriptor or a ProvisionConfigInstance instance.
         :param loader_class: The implementation that loads the provided component's code.
         """
         self.component = component

@@ -1064,7 +1064,10 @@ class EsTestExecutionStoreTests(TestCase):
                             test_execution_id=EsTestExecutionStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=EsTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params={"shard-count": 3},
-                            test_procedure=t.default_test_procedure, provision_config_instance="defaults", provision_config_instance_params={"heap_size": "512mb"}, plugin_params=None,
+                            test_procedure=t.default_test_procedure,
+                            provision_config_instance="defaults",
+                            provision_config_instance_params={"heap_size": "512mb"},
+                            plugin_params=None,
                             track_revision="abc1", provision_config_revision="abc12333", distribution_version="5.0.0",
                             distribution_flavor="default", revision="aaaeeef",
                             results=EsTestExecutionStoreTests.DictHolder(
@@ -1167,7 +1170,10 @@ class EsResultsStoreTests(TestCase):
                             test_execution_id=EsResultsStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=EsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params=None,
-                            test_procedure=t.default_test_procedure, provision_config_instance="4gheap", provision_config_instance_params=None, plugin_params={"some-param": True},
+                            test_procedure=t.default_test_procedure,
+                            provision_config_instance="4gheap",
+                            provision_config_instance_params=None,
+                            plugin_params={"some-param": True},
                             track_revision="abc1", provision_config_revision="123ab", distribution_version="5.0.0",
                             distribution_flavor="oss", results=metrics.GlobalStats(
                                 {
@@ -1314,8 +1320,13 @@ class EsResultsStoreTests(TestCase):
                             test_execution_id=EsResultsStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=EsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params=None,
-                            test_procedure=t.default_test_procedure, provision_config_instance="4gheap", provision_config_instance_params=None, plugin_params=None,
-                            track_revision="abc1", provision_config_revision="123ab", distribution_version=None,
+                            test_procedure=t.default_test_procedure,
+                            provision_config_instance="4gheap",
+                            provision_config_instance_params=None,
+                            plugin_params=None,
+                            track_revision="abc1",
+                            provision_config_revision="123ab",
+                            distribution_version=None,
                             distribution_flavor=None, results=metrics.GlobalStats(
                 {
                     "young_gc_time": 100,
@@ -1678,8 +1689,13 @@ class FileTestExecutionStoreTests(TestCase):
                             test_execution_id=FileTestExecutionStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=FileTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, track=t, track_params={"clients": 12},
-                            test_procedure=t.default_test_procedure, provision_config_instance="4gheap", provision_config_instance_params=None, plugin_params=None,
-                            track_revision="abc1", provision_config_revision="abc12333", distribution_version="5.0.0",
+                            test_procedure=t.default_test_procedure,
+                            provision_config_instance="4gheap",
+                            provision_config_instance_params=None,
+                            plugin_params=None,
+                            track_revision="abc1",
+                            provision_config_revision="abc12333",
+                            distribution_version="5.0.0",
                             distribution_flavor="default", revision="aaaeeef",
                             results=FileTestExecutionStoreTests.DictHolder(
                                 {

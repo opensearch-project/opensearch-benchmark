@@ -41,7 +41,8 @@ def java_home(provision_config_instance_runtime_jdks, specified_runtime_jdk=None
         allowed_runtime_jdks = [int(v) for v in provision_config_instance_runtime_jdks.split(",")]
     except ValueError:
         raise exceptions.SystemSetupError(
-            "ProvisionConfigInstance config key \"runtime.jdk\" is invalid: \"{}\" (must be int)".format(provision_config_instance_runtime_jdks))
+            "ProvisionConfigInstance config key \"runtime.jdk\" is invalid: \"{}\" (must be int)".format(
+                provision_config_instance_runtime_jdks))
 
     runtime_jdk_versions = determine_runtime_jdks()
     if runtime_jdk_versions[0] == "bundled":

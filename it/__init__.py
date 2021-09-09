@@ -165,7 +165,8 @@ class TestCluster:
         try:
             output = process.run_subprocess_with_output(
                 "esrally install --configuration-name={cfg} --quiet --distribution-version={dist} --build-type=tar "
-                "--http-port={http_port} --node={node_name} --master-nodes={node_name} --provision-config-instance={provision_config_instance} "
+                "--http-port={http_port} --node={node_name} --master-nodes="
+                "{node_name} --provision-config-instance={provision_config_instance} "
                 "--seed-hosts=\"127.0.0.1:{transport_port}\"".format(cfg=self.cfg,
                                                                      dist=distribution_version,
                                                                      http_port=http_port,

@@ -220,7 +220,9 @@ class BenchmarkCoordinator:
         self.test_execution_store.store_test_execution(self.test_execution)
         if self.test_execution.test_procedure.auto_generated:
             console.info("Racing on track [{}] and provision_config_instance {} with version [{}].\n"
-                         .format(self.test_execution.track_name, self.test_execution.provision_config_instance, self.test_execution.distribution_version))
+                         .format(self.test_execution.track_name,
+                         self.test_execution.provision_config_instance,
+                         self.test_execution.distribution_version))
         else:
             console.info("Racing on track [{}], test_procedure [{}] and provision_config_instance {} with version [{}].\n"
                          .format(

@@ -179,8 +179,10 @@ def create_arg_parser():
         metavar="artifact",
         help="The artifact to create. Possible values are: charts",
         choices=["charts"])
-    # We allow to either have a chart-spec-path *or* define a chart-spec on the fly with track, test_procedure and provision_config_instance. Convincing
-    # argparse to validate that everything is correct *might* be doable but it is simpler to just do this manually.
+    # We allow to either have a chart-spec-path *or* define a chart-spec on the fly
+    # with track, test_procedure and provision_config_instance. Convincing
+    # argparse to validate that everything is correct *might* be doable but it is
+    # simpler to just do this manually.
     generate_parser.add_argument(
         "--chart-spec-path",
         required=True,
@@ -248,7 +250,9 @@ def create_arg_parser():
         default="release")
     download_parser.add_argument(
         "--provision-config-instance",
-        help=f"Define the provision_config_instance to use. List possible provision_config_instances with `{PROGRAM_NAME} list provision_config_instances` (default: defaults).",
+        help=f"Define the provision_config_instance to use. List possible "
+        f"provision_config_instances with `{PROGRAM_NAME} list "
+        f"provision_config_instances` (default: defaults).",
         default="defaults")  # optimized for local usage
     download_parser.add_argument(
         "--provision-config-instance-params",
@@ -306,7 +310,9 @@ def create_arg_parser():
         default="")
     install_parser.add_argument(
         "--provision-config-instance",
-        help=f"Define the provision_config_instance to use. List possible provision_config_instances with `{PROGRAM_NAME} list provision_config_instances` (default: defaults).",
+        help=f"Define the provision_config_instance to use. List possible "
+        f"provision_config_instances with `{PROGRAM_NAME} list "
+        f"provision_config_instances` (default: defaults).",
         default="defaults")  # optimized for local usage
     install_parser.add_argument(
         "--provision-config-instance-params",
@@ -445,7 +451,9 @@ def create_arg_parser():
         help=f"Define the test_procedure to use. List possible test_procedures for tracks with `{PROGRAM_NAME} list tracks`.")
     test_execution_parser.add_argument(
         "--provision-config-instance",
-        help=f"Define the provision_config_instance to use. List possible provision_config_instances with `{PROGRAM_NAME} list provision_config_instances` (default: defaults).",
+        help=f"Define the provision_config_instance to use. List possible "
+        f"provision_config_instances with `{PROGRAM_NAME} list "
+        f"provision_config_instances` (default: defaults).",
         default="defaults")  # optimized for local usage
     test_execution_parser.add_argument(
         "--provision-config-instance-params",
@@ -772,8 +780,12 @@ def configure_builder_params(args, cfg, command_requires_provision_config_instan
         if args.distribution_version:
             cfg.add(config.Scope.applicationOverride, "builder", "distribution.version", args.distribution_version)
         cfg.add(config.Scope.applicationOverride, "builder", "distribution.repository", args.distribution_repository)
-        cfg.add(config.Scope.applicationOverride, "builder", "provision_config_instance.names", opts.csv_to_list(args.provision_config_instance))
-        cfg.add(config.Scope.applicationOverride, "builder", "provision_config_instance.params", opts.to_dict(args.provision_config_instance_params))
+        cfg.add(config.Scope.applicationOverride, "builder",
+        "provision_config_instance.names", opts.csv_to_list(
+            args.provision_config_instance))
+        cfg.add(config.Scope.applicationOverride, "builder",
+        "provision_config_instance.params", opts.to_dict(
+            args.provision_config_instance_params))
 
 
 def configure_connection_params(arg_parser, args, cfg):
@@ -826,7 +838,9 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "builder", "node.name", args.node_name)
             cfg.add(config.Scope.applicationOverride, "builder", "master.nodes", opts.csv_to_list(args.master_nodes))
             cfg.add(config.Scope.applicationOverride, "builder", "seed.hosts", opts.csv_to_list(args.seed_hosts))
-            cfg.add(config.Scope.applicationOverride, "builder", "provision_config_instance.plugins", opts.csv_to_list(args.elasticsearch_plugins))
+            cfg.add(config.Scope.applicationOverride, "builder",
+            "provision_config_instance.plugins", opts.csv_to_list(
+                args.elasticsearch_plugins))
             cfg.add(config.Scope.applicationOverride, "builder", "plugin.params", opts.to_dict(args.plugin_params))
             configure_builder_params(args, cfg)
             builder.install(cfg)
@@ -867,7 +881,9 @@ def dispatch_sub_command(arg_parser, args, cfg):
             configure_builder_params(args, cfg)
             cfg.add(config.Scope.applicationOverride, "builder", "runtime.jdk", args.runtime_jdk)
             cfg.add(config.Scope.applicationOverride, "builder", "source.revision", args.revision)
-            cfg.add(config.Scope.applicationOverride, "builder", "provision_config_instance.plugins", opts.csv_to_list(args.elasticsearch_plugins))
+            cfg.add(config.Scope.applicationOverride, "builder",
+            "provision_config_instance.plugins", opts.csv_to_list(
+                args.elasticsearch_plugins))
             cfg.add(config.Scope.applicationOverride, "builder", "plugin.params", opts.to_dict(args.plugin_params))
             cfg.add(config.Scope.applicationOverride, "builder", "preserve.install", convert.to_bool(args.preserve_install))
             cfg.add(config.Scope.applicationOverride, "builder", "skip.rest.api.check", convert.to_bool(args.skip_rest_api_check))

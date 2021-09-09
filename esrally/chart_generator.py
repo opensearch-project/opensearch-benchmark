@@ -85,7 +85,8 @@ class BarCharts:
             return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{test_ex_config.name}\""
         else:
             return f"environment:\"{environment}\" AND active:true AND track:\"{test_ex_config.track}\""\
-                   f" AND test_procedure:\"{test_ex_config.test_procedure}\" AND provision_config_instance:\"{test_ex_config.provision_config_instance}\""\
+                   f" AND test_procedure:\"{test_ex_config.test_procedure}\""\
+                   f" AND provision_config_instance:\"{test_ex_config.provision_config_instance}\""\
                    f" AND node-count:{test_ex_config.node_count}"
 
     @staticmethod
@@ -821,7 +822,8 @@ class TimeSeriesCharts:
             return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{test_ex_config.name}\"{nightly_extra_filter}"
         else:
             return f"environment:\"{environment}\" AND active:true AND track:\"{test_ex_config.track}\""\
-                   f" AND test_procedure:\"{test_ex_config.test_procedure}\" AND provision_config_instance:\"{test_ex_config.provision_config_instance}\""\
+                   f" AND test_procedure:\"{test_ex_config.test_procedure}\""\
+                   f" AND provision_config_instance:\"{test_ex_config.provision_config_instance}\""\
                    f" AND node-count:{test_ex_config.node_count}"
 
     @staticmethod
@@ -1749,7 +1751,9 @@ def generate_dashboard(chart_type, environment, track, charts, flavor=None):
 
 
 class TestExecutionConfig:
-    def __init__(self, track, cfg=None, flavor=None, es_license=None, test_procedure=None, provision_config_instance=None, node_count=None, charts=None):
+    def __init__(self, track, cfg=None, flavor=None, es_license=None, \
+        test_procedure=None, provision_config_instance=None, node_count=None,\
+             charts=None):
         self.track = track
         if cfg:
             self.configuration = cfg

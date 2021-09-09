@@ -49,9 +49,13 @@ class ProvisionConfigInstanceLoaderTests(TestCase):
         )
 
     def test_load_known_provision_config_instance(self):
-        provision_config_instance = provision_config.load_provision_config_instance(self.provision_config_dir, ["default"], provision_config_instance_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
+        provision_config_instance = provision_config.load_provision_config_instance(
+            self.provision_config_dir, ["default"],
+            provision_config_instance_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
         self.assertEqual("default", provision_config_instance.name)
-        self.assertEqual([os.path.join(current_dir, "data", "provision_config_instances", "v1", "vanilla", "templates")], provision_config_instance.config_paths)
+        self.assertEqual(
+            [os.path.join(current_dir, "data", "provision_config_instances", "v1", "vanilla", "templates")],
+            provision_config_instance.config_paths)
         self.assertIsNone(provision_config_instance.root_path)
         self.assertDictEqual({
             "heap_size": "1g",
@@ -63,7 +67,9 @@ class ProvisionConfigInstanceLoaderTests(TestCase):
     def test_load_provision_config_instance_with_mixin_single_config_base(self):
         provision_config_instance = provision_config.load_provision_config_instance(self.provision_config_dir, ["32gheap", "ea"])
         self.assertEqual("32gheap+ea", provision_config_instance.name)
-        self.assertEqual([os.path.join(current_dir, "data", "provision_config_instances", "v1", "vanilla", "templates")], provision_config_instance.config_paths)
+        self.assertEqual(
+            [os.path.join(current_dir, "data", "provision_config_instances", "v1", "vanilla", "templates")],
+            provision_config_instance.config_paths)
         self.assertIsNone(provision_config_instance.root_path)
         self.assertEqual({
             "heap_size": "32g",
@@ -97,7 +103,9 @@ class ProvisionConfigInstanceLoaderTests(TestCase):
             os.path.join(current_dir, "data", "provision_config_instances", "v1", "vanilla", "templates"),
             os.path.join(current_dir, "data", "provision_config_instances", "v1", "with_hook", "templates"),
         ], provision_config_instance.config_paths)
-        self.assertEqual(os.path.join(current_dir, "data", "provision_config_instances", "v1", "with_hook"), provision_config_instance.root_path)
+        self.assertEqual(
+            os.path.join(current_dir, "data", "provision_config_instances", "v1", "with_hook"),
+            provision_config_instance.root_path)
         self.assertDictEqual({
             "heap_size": "1g",
             "clean_command": "./gradlew clean",
@@ -105,14 +113,17 @@ class ProvisionConfigInstanceLoaderTests(TestCase):
         }, provision_config_instance.variables)
 
     def test_load_provision_config_instance_with_multiple_bases_referring_same_install_hook(self):
-        provision_config_instance = provision_config.load_provision_config_instance(self.provision_config_dir, ["with_hook", "another_with_hook"])
+        provision_config_instance = provision_config.load_provision_config_instance(
+            self.provision_config_dir, ["with_hook", "another_with_hook"])
         self.assertEqual("with_hook+another_with_hook", provision_config_instance.name)
         self.assertEqual([
             os.path.join(current_dir, "data", "provision_config_instances", "v1", "vanilla", "templates"),
             os.path.join(current_dir, "data", "provision_config_instances", "v1", "with_hook", "templates"),
             os.path.join(current_dir, "data", "provision_config_instances", "v1", "verbose_logging", "templates")
         ], provision_config_instance.config_paths)
-        self.assertEqual(os.path.join(current_dir, "data", "provision_config_instances", "v1", "with_hook"), provision_config_instance.root_path)
+        self.assertEqual(
+            os.path.join(current_dir, "data", "provision_config_instances", "v1", "with_hook"),
+            provision_config_instance.root_path)
         self.assertDictEqual({
             "heap_size": "16g",
             "clean_command": "./gradlew clean",
@@ -122,7 +133,10 @@ class ProvisionConfigInstanceLoaderTests(TestCase):
     def test_raises_error_on_unknown_provision_config_instance(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             provision_config.load_provision_config_instance(self.provision_config_dir, ["don_t-know-you"])
-        self.assertRegex(ctx.exception.args[0], r"Unknown provision_config_instance \[don_t-know-you\]. List the available provision_config_instances with [^\s]+ list provision_config_instances.")
+        self.assertRegex(
+            ctx.exception.args[0],
+            r"Unknown provision_config_instance \[don_t-know-you\]. "
+            r"List the available provision_config_instances with [^\s]+ list provision_config_instances.")
 
     def test_raises_error_on_empty_config_base(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
@@ -137,7 +151,9 @@ class ProvisionConfigInstanceLoaderTests(TestCase):
     def test_raises_error_if_more_than_one_different_install_hook(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             provision_config.load_provision_config_instance(self.provision_config_dir, ["multi_hook"])
-        self.assertEqual("Invalid provision_config_instance: ['multi_hook']. Multiple bootstrap hooks are forbidden.", ctx.exception.args[0])
+        self.assertEqual(
+            "Invalid provision_config_instance: ['multi_hook']. Multiple bootstrap hooks are forbidden.",
+            ctx.exception.args[0])
 
 
 class PluginLoaderTests(TestCase):

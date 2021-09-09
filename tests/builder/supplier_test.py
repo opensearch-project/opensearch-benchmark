@@ -698,12 +698,16 @@ class CreateSupplierTests(TestCase):
         cfg.add(config.Scope.application, "source", "elasticsearch.src.subdir", "elasticsearch")
         cfg.add(config.Scope.application, "source", "plugin.community-plugin.src.dir", "/home/user/Projects/community-plugin")
 
-        provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={"build.jdk": "10"})
+        provision_config_instance = provision_config.ProvisionConfigInstance(
+            "default", root_path=None, config_paths=[],
+            variables={"build.jdk": "10"})
         core_plugin = provision_config.PluginDescriptor("analysis-icu", core_plugin=True)
         external_plugin = provision_config.PluginDescriptor("community-plugin", core_plugin=False)
 
         # --revision="community-plugin:effab" --distribution-version="6.0.0"
-        composite_supplier = supplier.create(cfg, sources=False, distribution=True, provision_config_instance=provision_config_instance, plugins=[
+        composite_supplier = supplier.create(
+            cfg, sources=False, distribution=True,
+            provision_config_instance=provision_config_instance, plugins=[
             core_plugin,
             external_plugin
         ])
@@ -739,7 +743,9 @@ class CreateSupplierTests(TestCase):
         external_plugin = provision_config.PluginDescriptor("community-plugin", core_plugin=False)
 
         # --revision="elasticsearch:abc,community-plugin:effab"
-        composite_supplier = supplier.create(cfg, sources=True, distribution=False, provision_config_instance=provision_config_instance, plugins=[
+        composite_supplier = supplier.create(
+            cfg, sources=True, distribution=False,
+            provision_config_instance=provision_config_instance, plugins=[
             core_plugin,
             external_plugin
         ])

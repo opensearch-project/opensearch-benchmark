@@ -72,7 +72,9 @@ def install(cfg):
         if len(plugins) > 0:
             raise exceptions.SystemSetupError("You cannot specify any plugins for Docker clusters. Please remove "
                                               "\"--elasticsearch-plugins\" and try again.")
-        p = provisioner.docker(cfg=cfg, provision_config_instance=provision_config_instance, ip=ip, http_port=http_port, target_root=root_path, node_name=node_name)
+        p = provisioner.docker(
+            cfg=cfg, provision_config_instance=provision_config_instance,
+            ip=ip, http_port=http_port, target_root=root_path, node_name=node_name)
         # there is no binary for Docker that can be downloaded / built upfront
         node_config = p.prepare(binary=None)
     else:
@@ -608,7 +610,10 @@ def load_provision_config(cfg, external):
         plugins = []
     else:
         provision_config_path = provision_config.provision_config_path(cfg)
-        provision_config_instance = provision_config.load_provision_config_instance(provision_config_path, cfg.opts("builder", "provision_config_instance.names"), cfg.opts("builder", "provision_config_instance.params"))
+        provision_config_instance = provision_config.load_provision_config_instance(
+            provision_config_path,
+            cfg.opts("builder", "provision_config_instance.names"),
+            cfg.opts("builder", "provision_config_instance.params"))
         plugins = provision_config.load_plugins(provision_config_path,
                                     cfg.opts("builder", "provision_config_instance.plugins", mandatory=False),
                                     cfg.opts("builder", "plugin.params", mandatory=False))
