@@ -1759,7 +1759,7 @@ class TestExecutionConfig:
             self.configuration = {
                 "charts": charts,
                 "test_procedure": test_procedure,
-                "provision_config_instance": provision_config_instance,
+                "provision-config-instance": provision_config_instance,
                 "node-count": node_count
             }
 
@@ -1793,7 +1793,7 @@ class TestExecutionConfig:
 
     @property
     def provision_config_instance(self):
-        return self.configuration["provision_config_instance"]
+        return self.configuration["provision-config-instance"]
 
     @property
     def plugins(self):

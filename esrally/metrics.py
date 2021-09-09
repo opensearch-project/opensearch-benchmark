@@ -381,7 +381,7 @@ class MetricsStore:
             self._test_execution_timestamp = ctx["test-execution-timestamp"]
             self._track = ctx["track"]
             self._test_procedure = ctx["test_procedure"]
-            self._provision_config_instance = ctx["provision_config_instance"]
+            self._provision_config_instance = ctx["provision-config-instance"]
         else:
             self._test_execution_id = test_ex_id
             self._test_execution_timestamp = time.to_iso8601(test_ex_timestamp)
@@ -463,7 +463,7 @@ class MetricsStore:
             "test-execution-timestamp": self._test_execution_timestamp,
             "track": self._track,
             "test_procedure": self._test_procedure,
-            "provision_config_instance": self._provision_config_instance
+            "provision-config-instance": self._provision_config_instance
         }
 
     def put_value_cluster_level(self, name, value, unit=None, task=None, operation=None, operation_type=None, sample_type=SampleType.Normal,
@@ -535,7 +535,7 @@ class MetricsStore:
             "environment": self._environment_name,
             "track": self._track,
             "test_procedure": self._test_procedure,
-            "provision_config_instance": self._provision_config_instance_name,
+            "provision-config-instance": self._provision_config_instance_name,
             "name": name,
             "value": value,
             "unit": unit,
@@ -592,7 +592,7 @@ class MetricsStore:
             "environment": self._environment_name,
             "track": self._track,
             "test_procedure": self._test_procedure,
-            "provision_config_instance": self._provision_config_instance_name,
+            "provision-config-instance": self._provision_config_instance_name,
 
         })
         if meta:
@@ -1272,7 +1272,7 @@ class TestExecution:
             "pipeline": self.pipeline,
             "user-tags": self.user_tags,
             "track": self.track_name,
-            "provision_config_instance": self.provision_config_instance,
+            "provision-config-instance": self.provision_config_instance,
             "cluster": {
                 "revision": self.revision,
                 "distribution-version": self.distribution_version,
@@ -1309,7 +1309,7 @@ class TestExecution:
             "user-tags": self.user_tags,
             "track": self.track_name,
             "test_procedure": self.test_procedure_name,
-            "provision_config_instance": self.provision_config_instance_name,
+            "provision-config-instance": self.provision_config_instance_name,
             # allow to logically delete records, e.g. for UI purposes when we only want to show the latest result
             "active": True
         }
@@ -1344,7 +1344,7 @@ class TestExecution:
         cluster = d.get("cluster", {})
         return TestExecution(d["rally-version"], d.get("rally-revision"), d["environment"], d["test-execution-id"],
                     time.from_is8601(d["test-execution-timestamp"]), d["pipeline"], user_tags, d["track"], d.get("track-params"),
-                    d.get("test_procedure"), d["provision_config_instance"], d.get("provision-config-instance-params"), d.get("plugin-params"),
+                    d.get("test_procedure"), d["provision-config-instance"], d.get("provision-config-instance-params"), d.get("plugin-params"),
                     track_revision=d.get("track-revision"), provision_config_revision=cluster.get("provision-config-revision"),
                     distribution_version=cluster.get("distribution-version"),
                     distribution_flavor=cluster.get("distribution-flavor"),

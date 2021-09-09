@@ -172,7 +172,7 @@ class ProvisionConfigInstanceLoader:
         config_paths = []
         config_base_vars = {}
         description = self._value(config, ["meta", "description"], default="")
-        provision_config_instance_type = self._value(config, ["meta", "type"], default="provision_config_instance")
+        provision_config_instance_type = self._value(config, ["meta", "type"], default="provision-config-instance")
         config_bases = self._value(config, ["config", "base"], default="").split(",")
         for base in config_bases:
             if base:

@@ -50,7 +50,7 @@ class TestMergeDicts:
     def test_can_merge_nested_dicts(self):
         d1 = {
             "params": {
-                "provision_config_instance": "4gheap",
+                "provision-config-instance": "4gheap",
                 "provision-config-instance-params": {
                     "additional_cluster_settings": {
                         "indices.queries.cache.size": "5%",
@@ -71,7 +71,7 @@ class TestMergeDicts:
                         "transport.tcp.compress": True
                     },
                     "data_paths": "/mnt/local_ssd"},
-                "provision_config_instance": "4gheap",
+                "provision-config-instance": "4gheap",
                 "unique-param": "foobar"
             }
         }

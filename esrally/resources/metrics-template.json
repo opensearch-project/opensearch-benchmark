@@ -52,7 +52,7 @@
         "test_procedure": {
           "type": "keyword"
         },
-        "provision_config_instance": {
+        "provision-config-instance": {
           "type": "keyword"
         },
         "name": {
