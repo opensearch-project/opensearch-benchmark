@@ -1351,9 +1351,6 @@ class TestExecution:
 
     @classmethod
     def from_dict(cls, d):
-        print("======= TESTING DICTIONARY ======")
-        print("TEST EXECUTION ID: ", d["test-execution-id"])
-        print("WORKLOAD: ", d["workload"])
         user_tags = d.get("user-tags", {})
         # TODO: cluster is optional for BWC. This can be removed after some grace period.
         cluster = d.get("cluster", {})
