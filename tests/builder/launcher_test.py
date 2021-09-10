@@ -158,7 +158,7 @@ def get_metrics_store(cfg):
             test_ex_timestamp=datetime.now(),
             track_name="test",
             test_procedure_name="test",
-            car_name="test")
+            provision_config_instance_name="test")
     return ms
 
 
@@ -186,9 +186,14 @@ class ProcessLauncherTests(TestCase):
 
         node_configs = []
         for node in range(2):
-            node_configs.append(NodeConfiguration(build_type="tar", car_runtime_jdks="12,11", car_provides_bundled_jdk=True,
-                                                  ip="127.0.0.1", node_name="testnode-{}".format(node),
-                                                  node_root_path="/tmp", binary_path="/tmp", data_paths="/tmp"))
+            node_configs.append(NodeConfiguration(build_type="tar",
+            provision_config_instance_runtime_jdks="12,11",
+            provision_config_instance_provides_bundled_jdk=True,
+                                                  ip="127.0.0.1",
+                                                  node_name="testnode-{}".format(node),
+                                                  node_root_path="/tmp",
+                                                  binary_path="/tmp",
+                                                  data_paths="/tmp"))
 
         nodes = proc_launcher.start(node_configs)
         self.assertEqual(len(nodes), 2)
@@ -367,8 +372,11 @@ class DockerLauncherTests(TestCase):
         cfg = config.Config()
         docker = launcher.DockerLauncher(cfg)
 
-        node_config = NodeConfiguration(build_type="docker", car_runtime_jdks="12,11", car_provides_bundled_jdk=True,
-                                        ip="127.0.0.1", node_name="testnode", node_root_path="/tmp", binary_path="/bin",
+        node_config = NodeConfiguration(build_type="docker",
+        provision_config_instance_runtime_jdks="12,11",
+        provision_config_instance_provides_bundled_jdk=True,
+                                        ip="127.0.0.1", node_name="testnode",
+                                        node_root_path="/tmp", binary_path="/bin",
                                         data_paths="/tmp")
 
         nodes = docker.start([node_config])
@@ -399,8 +407,11 @@ class DockerLauncherTests(TestCase):
         stop_watch = IterationBasedStopWatch(max_iterations=2)
         docker = launcher.DockerLauncher(cfg, clock=TestClock(stop_watch=stop_watch))
 
-        node_config = NodeConfiguration(build_type="docker", car_runtime_jdks="12,11", car_provides_bundled_jdk=True,
-                                        ip="127.0.0.1", node_name="testnode", node_root_path="/tmp", binary_path="/bin",
+        node_config = NodeConfiguration(
+            build_type="docker", provision_config_instance_runtime_jdks="12,11",
+            provision_config_instance_provides_bundled_jdk=True,
+                                        ip="127.0.0.1", node_name="testnode",
+                                        node_root_path="/tmp", binary_path="/bin",
                                         data_paths="/tmp")
 
         with self.assertRaisesRegex(exceptions.LaunchError, "No healthy running container after 600 seconds!"):

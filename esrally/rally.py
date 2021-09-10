@@ -114,8 +114,8 @@ def create_arg_parser():
         "configuration",
         metavar="configuration",
         help="The configuration for which Rally should show the available options. "
-             "Possible values are: telemetry, tracks, pipelines, test_executions, cars, elasticsearch-plugins",
-        choices=["telemetry", "tracks", "pipelines", "test_executions", "cars", "elasticsearch-plugins"])
+             "Possible values are: telemetry, tracks, pipelines, test_executions, provision_config_instances, elasticsearch-plugins",
+        choices=["telemetry", "tracks", "pipelines", "test_executions", "provision_config_instances", "elasticsearch-plugins"])
     list_parser.add_argument(
         "--limit",
         help="Limit the number of search results for recent test_executions (default: 10).",
@@ -179,8 +179,10 @@ def create_arg_parser():
         metavar="artifact",
         help="The artifact to create. Possible values are: charts",
         choices=["charts"])
-    # We allow to either have a chart-spec-path *or* define a chart-spec on the fly with track, test_procedure and car. Convincing
-    # argparse to validate that everything is correct *might* be doable but it is simpler to just do this manually.
+    # We allow to either have a chart-spec-path *or* define a chart-spec on the fly
+    # with track, test_procedure and provision_config_instance. Convincing
+    # argparse to validate that everything is correct *might* be doable but it is
+    # simpler to just do this manually.
     generate_parser.add_argument(
         "--chart-spec-path",
         required=True,
@@ -227,7 +229,7 @@ def create_arg_parser():
     download_parser = subparsers.add_parser("download", help="Downloads an artifact")
     download_parser.add_argument(
         "--provision-config-repository",
-        help="Define the repository from where Rally will load provision_configs and cars (default: default).",
+        help="Define the repository from where Rally will load provision_configs and provision_config_instances (default: default).",
         default="default")
     download_parser.add_argument(
         "--provision-config-revision",
@@ -235,7 +237,7 @@ def create_arg_parser():
         default=None)
     download_parser.add_argument(
         "--provision-config-path",
-        help="Define the path to the car and plugin configurations to use.")
+        help="Define the path to the provision_config_instance and plugin configurations to use.")
     download_parser.add_argument(
         "--distribution-version",
         type=supported_es_version,
@@ -247,12 +249,14 @@ def create_arg_parser():
         help="Define the repository from where the Elasticsearch distribution should be downloaded (default: release).",
         default="release")
     download_parser.add_argument(
-        "--car",
-        help=f"Define the car to use. List possible cars with `{PROGRAM_NAME} list cars` (default: defaults).",
+        "--provision-config-instance",
+        help=f"Define the provision_config_instance to use. List possible "
+        f"provision_config_instances with `{PROGRAM_NAME} list "
+        f"provision_config_instances` (default: defaults).",
         default="defaults")  # optimized for local usage
     download_parser.add_argument(
-        "--car-params",
-        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the car.",
+        "--provision-config-instance-params",
+        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the provision_config_instance.",
         default=""
     )
     download_parser.add_argument(
@@ -280,7 +284,7 @@ def create_arg_parser():
         default="tar")
     install_parser.add_argument(
         "--provision-config-repository",
-        help="Define the repository from where Rally will load provision_configs and cars (default: default).",
+        help="Define the repository from where Rally will load provision_configs and provision_config_instances (default: default).",
         default="default")
     install_parser.add_argument(
         "--provision-config-revision",
@@ -288,7 +292,7 @@ def create_arg_parser():
         default=None)
     install_parser.add_argument(
         "--provision-config-path",
-        help="Define the path to the car and plugin configurations to use.")
+        help="Define the path to the provision_config_instance and plugin configurations to use.")
     install_parser.add_argument(
         "--runtime-jdk",
         type=runtime_jdk,
@@ -305,12 +309,14 @@ def create_arg_parser():
              "Check https://www.elastic.co/downloads/elasticsearch for released versions.",
         default="")
     install_parser.add_argument(
-        "--car",
-        help=f"Define the car to use. List possible cars with `{PROGRAM_NAME} list cars` (default: defaults).",
+        "--provision-config-instance",
+        help=f"Define the provision_config_instance to use. List possible "
+        f"provision_config_instances with `{PROGRAM_NAME} list "
+        f"provision_config_instances` (default: defaults).",
         default="defaults")  # optimized for local usage
     install_parser.add_argument(
-        "--car-params",
-        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the car.",
+        "--provision-config-instance-params",
+        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the provision_config_instance.",
         default=""
     )
     install_parser.add_argument(
@@ -402,10 +408,10 @@ def create_arg_parser():
             default="")
         p.add_argument(
             "--provision-config-path",
-            help="Define the path to the car and plugin configurations to use.")
+            help="Define the path to the provision_config_instance and plugin configurations to use.")
         p.add_argument(
             "--provision-config-repository",
-            help="Define the repository from where Rally will load provision_configs and cars (default: default).",
+            help="Define the repository from where Rally will load provision_configs and provision_config_instances (default: default).",
             default="default")
         p.add_argument(
             "--provision-config-revision",
@@ -444,12 +450,14 @@ def create_arg_parser():
         "--test-procedure",
         help=f"Define the test_procedure to use. List possible test_procedures for tracks with `{PROGRAM_NAME} list tracks`.")
     test_execution_parser.add_argument(
-        "--car",
-        help=f"Define the car to use. List possible cars with `{PROGRAM_NAME} list cars` (default: defaults).",
+        "--provision-config-instance",
+        help=f"Define the provision_config_instance to use. List possible "
+        f"provision_config_instances with `{PROGRAM_NAME} list "
+        f"provision_config_instances` (default: defaults).",
         default="defaults")  # optimized for local usage
     test_execution_parser.add_argument(
-        "--car-params",
-        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the car.",
+        "--provision-config-instance-params",
+        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the provision_config_instance.",
         default=""
     )
     test_execution_parser.add_argument(
@@ -607,8 +615,8 @@ def dispatch_list(cfg):
         test_execution_orchestrator.list_pipelines()
     elif what == "test_executions":
         metrics.list_test_executions(cfg)
-    elif what == "cars":
-        provision_config.list_cars(cfg)
+    elif what == "provision_config_instances":
+        provision_config.list_provision_config_instances(cfg)
     elif what == "elasticsearch-plugins":
         provision_config.list_plugins(cfg)
     else:
@@ -756,7 +764,7 @@ def configure_track_params(arg_parser, args, cfg, command_requires_track=True):
         cfg.add(config.Scope.applicationOverride, "track", "exclude.tasks", opts.csv_to_list(args.exclude_tasks))
 
 
-def configure_builder_params(args, cfg, command_requires_car=True):
+def configure_builder_params(args, cfg, command_requires_provision_config_instance=True):
     if args.provision_config_path:
         cfg.add(
             config.Scope.applicationOverride, "builder",
@@ -768,12 +776,16 @@ def configure_builder_params(args, cfg, command_requires_car=True):
         cfg.add(config.Scope.applicationOverride, "builder", "repository.name", args.provision_config_repository)
         cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", args.provision_config_revision)
 
-    if command_requires_car:
+    if command_requires_provision_config_instance:
         if args.distribution_version:
             cfg.add(config.Scope.applicationOverride, "builder", "distribution.version", args.distribution_version)
         cfg.add(config.Scope.applicationOverride, "builder", "distribution.repository", args.distribution_repository)
-        cfg.add(config.Scope.applicationOverride, "builder", "car.names", opts.csv_to_list(args.car))
-        cfg.add(config.Scope.applicationOverride, "builder", "car.params", opts.to_dict(args.car_params))
+        cfg.add(config.Scope.applicationOverride, "builder",
+        "provision_config_instance.names", opts.csv_to_list(
+            args.provision_config_instance))
+        cfg.add(config.Scope.applicationOverride, "builder",
+        "provision_config_instance.params", opts.to_dict(
+            args.provision_config_instance_params))
 
 
 def configure_connection_params(arg_parser, args, cfg):
@@ -808,7 +820,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
         elif sub_command == "list":
             cfg.add(config.Scope.applicationOverride, "system", "list.config.option", args.configuration)
             cfg.add(config.Scope.applicationOverride, "system", "list.test_executions.max_results", args.limit)
-            configure_builder_params(args, cfg, command_requires_car=False)
+            configure_builder_params(args, cfg, command_requires_provision_config_instance=False)
             configure_track_params(arg_parser, args, cfg, command_requires_track=False)
             dispatch_list(cfg)
         elif sub_command == "download":
@@ -826,7 +838,9 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "builder", "node.name", args.node_name)
             cfg.add(config.Scope.applicationOverride, "builder", "master.nodes", opts.csv_to_list(args.master_nodes))
             cfg.add(config.Scope.applicationOverride, "builder", "seed.hosts", opts.csv_to_list(args.seed_hosts))
-            cfg.add(config.Scope.applicationOverride, "builder", "car.plugins", opts.csv_to_list(args.elasticsearch_plugins))
+            cfg.add(config.Scope.applicationOverride, "builder",
+            "provision_config_instance.plugins", opts.csv_to_list(
+                args.elasticsearch_plugins))
             cfg.add(config.Scope.applicationOverride, "builder", "plugin.params", opts.to_dict(args.plugin_params))
             configure_builder_params(args, cfg)
             builder.install(cfg)
@@ -867,7 +881,9 @@ def dispatch_sub_command(arg_parser, args, cfg):
             configure_builder_params(args, cfg)
             cfg.add(config.Scope.applicationOverride, "builder", "runtime.jdk", args.runtime_jdk)
             cfg.add(config.Scope.applicationOverride, "builder", "source.revision", args.revision)
-            cfg.add(config.Scope.applicationOverride, "builder", "car.plugins", opts.csv_to_list(args.elasticsearch_plugins))
+            cfg.add(config.Scope.applicationOverride, "builder",
+            "provision_config_instance.plugins", opts.csv_to_list(
+                args.elasticsearch_plugins))
             cfg.add(config.Scope.applicationOverride, "builder", "plugin.params", opts.to_dict(args.plugin_params))
             cfg.add(config.Scope.applicationOverride, "builder", "preserve.install", convert.to_bool(args.preserve_install))
             cfg.add(config.Scope.applicationOverride, "builder", "skip.rest.api.check", convert.to_bool(args.skip_rest_api_check))

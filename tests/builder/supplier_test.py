@@ -452,7 +452,7 @@ class PruneTests(TestCase):
 
 class ElasticsearchSourceSupplierTests(TestCase):
     def test_no_build(self):
-        car = provision_config.Car("default", root_path=None, config_paths=[], variables={
+        provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
             "clean_command": "./gradlew clean",
             "system.build_command": "./gradlew assemble"
         })
@@ -460,14 +460,14 @@ class ElasticsearchSourceSupplierTests(TestCase):
         es = supplier.ElasticsearchSourceSupplier(revision="abc",
                                                   es_src_dir="/src",
                                                   remote_url="",
-                                                  car=car,
+                                                  provision_config_instance=provision_config_instance,
                                                   builder=None,
                                                   template_renderer=renderer)
         es.prepare()
         # nothing has happened (intentionally) because there is no builder
 
     def test_build(self):
-        car = provision_config.Car("default", root_path=None, config_paths=[], variables={
+        provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
             "clean_command": "./gradlew clean",
             "system.build_command": "./gradlew assemble"
         })
@@ -476,15 +476,15 @@ class ElasticsearchSourceSupplierTests(TestCase):
         es = supplier.ElasticsearchSourceSupplier(revision="abc",
                                                   es_src_dir="/src",
                                                   remote_url="",
-                                                  car=car,
+                                                  provision_config_instance=provision_config_instance,
                                                   builder=builder,
                                                   template_renderer=renderer)
         es.prepare()
 
         builder.build.assert_called_once_with(["./gradlew clean", "./gradlew assemble"])
 
-    def test_raises_error_on_missing_car_variable(self):
-        car = provision_config.Car("default", root_path=None, config_paths=[], variables={
+    def test_raises_error_on_missing_provision_config_instance_variable(self):
+        provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
             "clean_command": "./gradlew clean",
             # system.build_command is not defined
         })
@@ -493,18 +493,18 @@ class ElasticsearchSourceSupplierTests(TestCase):
         es = supplier.ElasticsearchSourceSupplier(revision="abc",
                                                   es_src_dir="/src",
                                                   remote_url="",
-                                                  car=car,
+                                                  provision_config_instance=provision_config_instance,
                                                   builder=builder,
                                                   template_renderer=renderer)
         with self.assertRaisesRegex(exceptions.SystemSetupError,
-                                    "Car \"default\" requires config key \"system.build_command\""):
+                                    "ProvisionConfigInstance \"default\" requires config key \"system.build_command\""):
             es.prepare()
 
         self.assertEqual(0, builder.build.call_count)
 
     @mock.patch("glob.glob", lambda p: ["elasticsearch.tar.gz"])
     def test_add_elasticsearch_binary(self):
-        car = provision_config.Car("default", root_path=None, config_paths=[], variables={
+        provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
             "clean_command": "./gradlew clean",
             "system.build_command": "./gradlew assemble",
             "system.artifact_path_pattern": "distribution/archives/tar/build/distributions/*.tar.gz"
@@ -513,7 +513,7 @@ class ElasticsearchSourceSupplierTests(TestCase):
         es = supplier.ElasticsearchSourceSupplier(revision="abc",
                                                   es_src_dir="/src",
                                                   remote_url="",
-                                                  car=car,
+                                                  provision_config_instance=provision_config_instance,
                                                   builder=None,
                                                   template_renderer=renderer)
         binaries = {}
@@ -676,9 +676,9 @@ class CreateSupplierTests(TestCase):
         cfg.add(config.Scope.application, "distributions", "release.cache", True)
         cfg.add(config.Scope.application, "node", "root.dir", "/opt/rally")
 
-        car = provision_config.Car("default", root_path=None, config_paths=[])
+        provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[])
 
-        composite_supplier = supplier.create(cfg, sources=False, distribution=True, car=car)
+        composite_supplier = supplier.create(cfg, sources=False, distribution=True, provision_config_instance=provision_config_instance)
 
         self.assertEqual(1, len(composite_supplier.suppliers))
         self.assertIsInstance(composite_supplier.suppliers[0], supplier.ElasticsearchDistributionSupplier)
@@ -698,12 +698,16 @@ class CreateSupplierTests(TestCase):
         cfg.add(config.Scope.application, "source", "elasticsearch.src.subdir", "elasticsearch")
         cfg.add(config.Scope.application, "source", "plugin.community-plugin.src.dir", "/home/user/Projects/community-plugin")
 
-        car = provision_config.Car("default", root_path=None, config_paths=[], variables={"build.jdk": "10"})
+        provision_config_instance = provision_config.ProvisionConfigInstance(
+            "default", root_path=None, config_paths=[],
+            variables={"build.jdk": "10"})
         core_plugin = provision_config.PluginDescriptor("analysis-icu", core_plugin=True)
         external_plugin = provision_config.PluginDescriptor("community-plugin", core_plugin=False)
 
         # --revision="community-plugin:effab" --distribution-version="6.0.0"
-        composite_supplier = supplier.create(cfg, sources=False, distribution=True, car=car, plugins=[
+        composite_supplier = supplier.create(
+            cfg, sources=False, distribution=True,
+            provision_config_instance=provision_config_instance, plugins=[
             core_plugin,
             external_plugin
         ])
@@ -730,7 +734,7 @@ class CreateSupplierTests(TestCase):
         cfg.add(config.Scope.application, "source", "remote.repo.url", "https://github.com/elastic/elasticsearch.git")
         cfg.add(config.Scope.application, "source", "plugin.community-plugin.src.subdir", "elasticsearch-extra/community-plugin")
 
-        car = provision_config.Car("default", root_path=None, config_paths=[], variables={
+        provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
             "clean_command": "./gradlew clean",
             "build_command": "./gradlew assemble",
             "build.jdk": "11"
@@ -739,7 +743,9 @@ class CreateSupplierTests(TestCase):
         external_plugin = provision_config.PluginDescriptor("community-plugin", core_plugin=False)
 
         # --revision="elasticsearch:abc,community-plugin:effab"
-        composite_supplier = supplier.create(cfg, sources=True, distribution=False, car=car, plugins=[
+        composite_supplier = supplier.create(
+            cfg, sources=True, distribution=False,
+            provision_config_instance=provision_config_instance, plugins=[
             core_plugin,
             external_plugin
         ])

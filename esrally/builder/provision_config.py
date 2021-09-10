@@ -42,19 +42,21 @@ def _path_for(provision_config_root_path, provision_config_member_type):
     return root_path
 
 
-def list_cars(cfg):
-    loader = CarLoader(provision_config_path(cfg))
-    cars = []
-    for name in loader.car_names():
-        cars.append(loader.load_car(name))
+def list_provision_config_instances(cfg):
+    loader = ProvisionConfigInstanceLoader(provision_config_path(cfg))
+    provision_config_instances = []
+    for name in loader.provision_config_instance_names():
+        provision_config_instances.append(loader.load_provision_config_instance(name))
     # first by type, then by name (we need to run the sort in reverse for that)
     # idiomatic way according to https://docs.python.org/3/howto/sorting.html#sort-stability-and-complex-sorts
-    cars = sorted(sorted(cars, key=lambda c: c.name), key=lambda c: c.type)
-    console.println("Available cars:\n")
-    console.println(tabulate.tabulate([[c.name, c.type, c.description] for c in cars], headers=["Name", "Type", "Description"]))
+    provision_config_instances = sorted(sorted(provision_config_instances, key=lambda c: c.name), key=lambda c: c.type)
+    console.println("Available provision_config_instances:\n")
+    console.println(tabulate.tabulate(
+        [[c.name, c.type, c.description] for c in provision_config_instances],
+        headers=["Name", "Type", "Description"]))
 
 
-def load_car(repo, name, car_params=None):
+def load_provision_config_instance(repo, name, provision_config_instance_params=None):
     class Component:
         def __init__(self, root_path, entry_point):
             self.root_path = root_path
@@ -64,32 +66,33 @@ def load_car(repo, name, car_params=None):
     # preserve order as we append to existing config files later during provisioning.
     all_config_paths = []
     all_config_base_vars = {}
-    all_car_vars = {}
+    all_provision_config_instance_vars = {}
 
     for n in name:
-        descriptor = CarLoader(repo).load_car(n, car_params)
+        descriptor = ProvisionConfigInstanceLoader(repo).load_provision_config_instance(n, provision_config_instance_params)
         for p in descriptor.config_paths:
             if p not in all_config_paths:
                 all_config_paths.append(p)
         for p in descriptor.root_paths:
             # probe whether we have a root path
-            if BootstrapHookHandler(Component(root_path=p, entry_point=Car.entry_point)).can_load():
+            if BootstrapHookHandler(Component(root_path=p, entry_point=ProvisionConfigInstance.entry_point)).can_load():
                 if not root_path:
                     root_path = p
-                # multiple cars are based on the same hook
+                # multiple provision_config_instances are based on the same hook
                 elif root_path != p:
-                    raise exceptions.SystemSetupError("Invalid car: {}. Multiple bootstrap hooks are forbidden.".format(name))
+                    raise exceptions.SystemSetupError(
+                        "Invalid provision_config_instance: {}. Multiple bootstrap hooks are forbidden.".format(name))
         all_config_base_vars.update(descriptor.config_base_variables)
-        all_car_vars.update(descriptor.variables)
+        all_provision_config_instance_vars.update(descriptor.variables)
 
     if len(all_config_paths) == 0:
-        raise exceptions.SystemSetupError("At least one config base is required for car {}".format(name))
+        raise exceptions.SystemSetupError("At least one config base is required for provision_config_instance {}".format(name))
     variables = {}
-    # car variables *always* take precedence over config base variables
+    # provision_config_instance variables *always* take precedence over config base variables
     variables.update(all_config_base_vars)
-    variables.update(all_car_vars)
+    variables.update(all_provision_config_instance_vars)
 
-    return Car(name, root_path, all_config_paths, variables)
+    return ProvisionConfigInstance(name, root_path, all_config_paths, variables)
 
 
 def list_plugins(cfg):
@@ -145,38 +148,42 @@ def provision_config_path(cfg):
         return current_provision_config_repo.repo_dir
 
 
-class CarLoader:
+class ProvisionConfigInstanceLoader:
     def __init__(self, provision_config_root_path):
-        self.cars_dir = _path_for(provision_config_root_path, "cars")
+        self.provision_config_instances_dir = _path_for(provision_config_root_path, "provision_config_instances")
         self.logger = logging.getLogger(__name__)
 
-    def car_names(self):
-        def __car_name(path):
+    def provision_config_instance_names(self):
+        def __provision_config_instance_name(path):
             p, _ = io.splitext(path)
             return io.basename(p)
 
-        def __is_car(path):
+        def __is_provision_config_instance(path):
             _, extension = io.splitext(path)
             return extension == ".ini"
-        return map(__car_name, filter(__is_car, os.listdir(self.cars_dir)))
+        return map(__provision_config_instance_name, filter(
+            __is_provision_config_instance,
+            os.listdir(self.provision_config_instances_dir)))
 
-    def _car_file(self, name):
-        return os.path.join(self.cars_dir, "{}.ini".format(name))
+    def _provision_config_instance_file(self, name):
+        return os.path.join(self.provision_config_instances_dir, "{}.ini".format(name))
 
-    def load_car(self, name, car_params=None):
-        car_config_file = self._car_file(name)
-        if not io.exists(car_config_file):
-            raise exceptions.SystemSetupError("Unknown car [{}]. List the available cars with {} list cars.".format(name, PROGRAM_NAME))
-        config = self._config_loader(car_config_file)
+    def load_provision_config_instance(self, name, provision_config_instance_params=None):
+        provision_config_instance_config_file = self._provision_config_instance_file(name)
+        if not io.exists(provision_config_instance_config_file):
+            raise exceptions.SystemSetupError(
+                "Unknown provision_config_instance [{}]. List the available "
+                "provision_config_instances with {} list provision_config_instances.".format(name, PROGRAM_NAME))
+        config = self._config_loader(provision_config_instance_config_file)
         root_paths = []
         config_paths = []
         config_base_vars = {}
         description = self._value(config, ["meta", "description"], default="")
-        car_type = self._value(config, ["meta", "type"], default="car")
+        provision_config_instance_type = self._value(config, ["meta", "type"], default="provision-config-instance")
         config_bases = self._value(config, ["config", "base"], default="").split(",")
         for base in config_bases:
             if base:
-                root_path = os.path.join(self.cars_dir, base)
+                root_path = os.path.join(self.provision_config_instances_dir, base)
                 root_paths.append(root_path)
                 config_paths.append(os.path.join(root_path, "templates"))
                 config_file = os.path.join(root_path, "config.ini")
@@ -184,15 +191,17 @@ class CarLoader:
                     base_config = self._config_loader(config_file)
                     self._copy_section(base_config, "variables", config_base_vars)
 
-        # it's possible that some cars don't have a config base, e.g. mixins which only override variables
+        # it's possible that some provision_config_instances don't have a config base, e.g. mixins which only override variables
         if len(config_paths) == 0:
-            self.logger.info("Car [%s] does not define any config paths. Assuming that it is used as a mixin.", name)
+            self.logger.info("ProvisionConfigInstance [%s] does not define any config paths. Assuming that it is used as a mixin.", name)
         variables = self._copy_section(config, "variables", {})
-        # add all car params here to override any defaults
-        if car_params:
-            variables.update(car_params)
+        # add all provision_config_instance params here to override any defaults
+        if provision_config_instance_params:
+            variables.update(provision_config_instance_params)
 
-        return CarDescriptor(name, description, car_type, root_paths, config_paths, config_base_vars, variables)
+        return ProvisionConfigInstanceDescriptor(
+            name, description, provision_config_instance_type,
+            root_paths, config_paths, config_base_vars, variables)
 
     def _config_loader(self, file_name):
         config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
@@ -218,7 +227,7 @@ class CarLoader:
         return target
 
 
-class CarDescriptor:
+class ProvisionConfigInstanceDescriptor:
     def __init__(self, name, description, type, root_paths, config_paths, config_base_variables, variables):
         self.name = name
         self.description = description
@@ -235,15 +244,15 @@ class CarDescriptor:
         return isinstance(other, type(self)) and self.name == other.name
 
 
-class Car:
-    # name of the initial Python file to load for cars.
+class ProvisionConfigInstance:
+    # name of the initial Python file to load for provision_config_instances.
     entry_point = "config"
 
     def __init__(self, names, root_path, config_paths, variables=None):
         """
         Creates new settings for a benchmark candidate.
 
-        :param names: Descriptive name(s) for this car.
+        :param names: Descriptive name(s) for this provision_config_instance.
         :param root_path: The root path from which bootstrap hooks should be loaded if any. May be ``None``.
         :param config_paths: A non-empty list of paths where the raw config can be found.
         :param variables: A dict containing variable definitions that need to be replaced.
@@ -262,7 +271,7 @@ class Car:
         try:
             return self.variables[name]
         except KeyError:
-            raise exceptions.SystemSetupError("Car \"{}\" requires config key \"{}\"".format(self.name, name))
+            raise exceptions.SystemSetupError("ProvisionConfigInstance \"{}\" requires config key \"{}\"".format(self.name, name))
 
     @property
     def name(self):
@@ -460,7 +469,8 @@ class BootstrapHookHandler:
         """
         Creates a new BootstrapHookHandler.
 
-        :param component: The component that should be loaded. In practice, this is a PluginDescriptor or a Car instance.
+        :param component: The component that should be loaded.
+        In practice, this is a PluginDescriptor or a ProvisionConfigInstance instance.
         :param loader_class: The implementation that loads the provided component's code.
         """
         self.component = component

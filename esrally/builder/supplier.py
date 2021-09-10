@@ -38,7 +38,7 @@ from esrally.utils import git, io, process, net, jvm, convert, sysstats
 REVISION_PATTERN = r"(\w.*?):(.*)"
 
 
-def create(cfg, sources, distribution, car, plugins=None):
+def create(cfg, sources, distribution, provision_config_instance, plugins=None):
     logger = logging.getLogger(__name__)
     if plugins is None:
         plugins = []
@@ -56,11 +56,11 @@ def create(cfg, sources, distribution, car, plugins=None):
     template_renderer = TemplateRenderer(version=es_version, os_name=target_os, arch=target_arch)
 
     if build_needed:
-        raw_build_jdk = car.mandatory_var("build.jdk")
+        raw_build_jdk = provision_config_instance.mandatory_var("build.jdk")
         try:
             build_jdk = int(raw_build_jdk)
         except ValueError:
-            raise exceptions.SystemSetupError(f"Car config key [build.jdk] is invalid: [{raw_build_jdk}] (must be int)")
+            raise exceptions.SystemSetupError(f"ProvisionConfigInstance config key [build.jdk] is invalid: [{raw_build_jdk}] (must be int)")
 
         es_src_dir = os.path.join(_src_dir(cfg), _config_value(src_config, "elasticsearch.src.subdir"))
         builder = Builder(es_src_dir, build_jdk, paths.logs())
@@ -69,8 +69,8 @@ def create(cfg, sources, distribution, car, plugins=None):
 
     distributions_root = os.path.join(cfg.opts("node", "root.dir"), cfg.opts("source", "distribution.dir"))
     dist_cfg = {}
-    # car / plugin defines defaults...
-    dist_cfg.update(car.variables)
+    # provision_config_instance / plugin defines defaults...
+    dist_cfg.update(provision_config_instance.variables)
     for plugin in plugins:
         for k, v in plugin.variables.items():
             dist_cfg["plugin_{}_{}".format(plugin.name, k)] = v
@@ -95,7 +95,7 @@ def create(cfg, sources, distribution, car, plugins=None):
         source_supplier = ElasticsearchSourceSupplier(es_version,
                                                       es_src_dir,
                                                       remote_url=cfg.opts("source", "remote.repo.url"),
-                                                      car=car,
+                                                      provision_config_instance=provision_config_instance,
                                                       builder=builder,
                                                       template_renderer=template_renderer)
 
@@ -365,11 +365,11 @@ class CachedSourceSupplier:
 
 
 class ElasticsearchSourceSupplier:
-    def __init__(self, revision, es_src_dir, remote_url, car, builder, template_renderer):
+    def __init__(self, revision, es_src_dir, remote_url, provision_config_instance, builder, template_renderer):
         self.revision = revision
         self.src_dir = es_src_dir
         self.remote_url = remote_url
-        self.car = car
+        self.provision_config_instance = provision_config_instance
         self.builder = builder
         self.template_renderer = template_renderer
 
@@ -379,8 +379,8 @@ class ElasticsearchSourceSupplier:
     def prepare(self):
         if self.builder:
             self.builder.build([
-                self.template_renderer.render(self.car.mandatory_var("clean_command")),
-                self.template_renderer.render(self.car.mandatory_var("system.build_command"))
+                self.template_renderer.render(self.provision_config_instance.mandatory_var("clean_command")),
+                self.template_renderer.render(self.provision_config_instance.mandatory_var("system.build_command"))
             ])
 
     def add(self, binaries):
@@ -389,7 +389,7 @@ class ElasticsearchSourceSupplier:
     def resolve_binary(self):
         try:
             path = os.path.join(self.src_dir,
-                                self.template_renderer.render(self.car.mandatory_var("system.artifact_path_pattern")))
+                                self.template_renderer.render(self.provision_config_instance.mandatory_var("system.artifact_path_pattern")))
             return glob.glob(path)[0]
         except IndexError:
             raise SystemSetupError("Couldn't find a tar.gz distribution. Please run Rally with the pipeline 'from-sources'.")
