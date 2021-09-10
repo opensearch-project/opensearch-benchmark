@@ -165,7 +165,7 @@
 * [#1038](https://github.com/elastic/rally/pull/1038): Check for trailing comma tuple
 * [#1029](https://github.com/elastic/rally/pull/1029): Add integration test for proxy
 * [#1028](https://github.com/elastic/rally/pull/1028): Fetch artifact revision lazily on build
-* [#1026](https://github.com/elastic/rally/pull/1026): [WIP] Migrate first test_docker_dev_image
+* [#1026](https://github.com/elastic/rally/pull/1026): [WIP] Migrate first test_docker_dev_image 
 * [#1025](https://github.com/elastic/rally/pull/1025): Upgrade to Thespian 3.10.1
 * [#1024](https://github.com/elastic/rally/pull/1024): Allow runners to determine throughput
 * [#1023](https://github.com/elastic/rally/pull/1023): Migrate configure test to new IT infrastructure
@@ -1017,7 +1017,7 @@
 #### Breaking changes in 0.4.0
 
 The track format has changed a bit due a more flexible approach in how benchmarks are executed:
-
+ 
 * Operations are defined in the `operations` section, execution details like number of warmup iterations, warmup time etc. are defined as part of the `schedule`.
 * Each query needs to be defined as a separate operation and referenced in the `schedule`
 * You can (and in fact should) specify a `warmup-time-period` (defined in sections) for bulk index operations. The warmup time period is specified in seconds.
@@ -1044,12 +1044,12 @@ This influences the command line interface in a couple of ways:
 * Rally must now be invoked with only one challenge and only one car (previously it was possible to specify multiple track setups)
 
 We have also [moved tracks](https://github.com/elastic/rally/issues/69) to a [dedicated repository](https://github.com/elastic/rally-tracks). This allows you to support tracks for multiple versions of Elasticsearch but also requires that all users have `git` installed.
-
+ 
 [All changes](https://github.com/elastic/rally/issues?q=milestone0X0P+00.3.0+is0X0P+0closed)
 
 #### Simplified configuration in 0.3
 
-We have spent a lot of time to simplify first time setup of Rally. For starters, you are not required to setup your own metrics store if you don't need it.
+We have spent a lot of time to simplify first time setup of Rally. For starters, you are not required to setup your own metrics store if you don't need it. 
 However, you are then just able to run individual benchmarks but you cannot compare results or visualize anything in Kibana. If you don't need this, it is recommended that you
 remove the configuration directory and run `esrally configure`. Rally will notify you on its first start of this change and guide you through the process.
 
@@ -1082,8 +1082,8 @@ Major changes:
 Major changes:
 
 * Added a [JIT profiler](https://github.com/elastic/rally/issues/43). This allows to check warmup times but also in-depth inspection which
-optimizations were performed by the JIT compiler. If the HotSpot disassembler library is available, the logs will also contain the
-disassembled JIT compiler output which can be used for low-level analysis. We recommend to use
+optimizations were performed by the JIT compiler. If the HotSpot disassembler library is available, the logs will also contain the 
+disassembled JIT compiler output which can be used for low-level analysis. We recommend to use 
 [JITWatch](https://github.com/AdoptOpenJDK/jitwatch) for analysis.
 * Added [pipeline support](https://github.com/elastic/rally/issues/61). Pipelines allow to define more flexibly which steps Rally executes
 during a benchmark. One of the use-cases for this is to run a benchmark based on a released build of Elasticsearch rather than building it
@@ -1095,10 +1095,10 @@ ourselves.
 
 Major changes:
 
-* Migrated the metrics data store from file-based to a dedicated Elasticsearch instance. Graphical reports can be created with
-  Kibana (optional but recommended). It is necessary to setup an Elasticsearch cluster to store metrics data (a single node
+* Migrated the metrics data store from file-based to a dedicated Elasticsearch instance. Graphical reports can be created with 
+  Kibana (optional but recommended). It is necessary to setup an Elasticsearch cluster to store metrics data (a single node 
   is sufficient). The cluster will be configured automatically by Rally. For details please see the [README](README.rst).
-
-  Related issues: #8, #21, #46,
-
+  
+  Related issues: #8, #21, #46, 
+  
 [All changes](https://github.com/elastic/rally/issues?q=milestone0X0P+00.0.3+is0X0P+0closed)
