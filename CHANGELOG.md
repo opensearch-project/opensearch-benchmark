@@ -190,7 +190,7 @@
 * [#1008](https://github.com/elastic/rally/pull/1008): Allow to specify a runtime-jdk during installation
 * [#1007](https://github.com/elastic/rally/pull/1007): Wait until indices are green in generated track
 * [#996](https://github.com/elastic/rally/pull/996): Ensure artifact cache directory exists
-* [#987](https://github.com/elastic/rally/pull/987): Validate if provision_config_instance allows for using the bundled JDK
+* [#987](https://github.com/elastic/rally/pull/987): Validate if car allows for using the bundled JDK
 
 #### Doc Changes
 
@@ -633,7 +633,7 @@
 
 * [#493](https://github.com/elastic/rally/pull/493): Sample more node stats
 * [#490](https://github.com/elastic/rally/pull/490): Record "took" for bulk indexing
-* [#489](https://github.com/elastic/rally/pull/489): Get distribution download URL from provision_config_instance config
+* [#489](https://github.com/elastic/rally/pull/489): Get distribution download URL from car config
 * [#488](https://github.com/elastic/rally/pull/488): Add support for multiple clusters in custom runners
 * [#487](https://github.com/elastic/rally/pull/487): Add new Makefile target to run it tests inside Docker
 * [#485](https://github.com/elastic/rally/pull/485): Allow to benchmark Elasticsearch with and without x-pack
@@ -722,7 +722,7 @@
 * [#413](https://github.com/elastic/rally/issues/413): Cannot report to ES cluster with self-signed certificate or in-house certificate authority
 * [#411](https://github.com/elastic/rally/issues/411): Store Rally version in results meta-data
 * [#410](https://github.com/elastic/rally/issues/410): Allow parameter sources to indicate progress
-* [#409](https://github.com/elastic/rally/issues/409): Allow to override provision_config_instance variables
+* [#409](https://github.com/elastic/rally/issues/409): Allow to override car variables
 * [#407](https://github.com/elastic/rally/issues/407): Upgrade to thespian 3.9.2
 * [#405](https://github.com/elastic/rally/pull/405): Improve internal message handling
 * [#404](https://github.com/elastic/rally/issues/404): Add a raw request runner
@@ -732,7 +732,7 @@
 #### Doc Changes
 
 * [#415](https://github.com/elastic/rally/pull/415): Fix typo
-* [#400](https://github.com/elastic/rally/pull/400): Fixing minor spelling error in provision_config_instance docs
+* [#400](https://github.com/elastic/rally/pull/400): Fixing minor spelling error in car docs
 * [#386](https://github.com/elastic/rally/issues/386): Dead GitHub Link on Rally Docs
 
 ### 0.9.1
@@ -849,7 +849,7 @@
 * [#321](https://github.com/elastic/rally/issues/321): Don't log body when creating a new index
 * [#319](https://github.com/elastic/rally/issues/319): Upgrade to thespian 3.8.0
 * [#315](https://github.com/elastic/rally/issues/315): Simplify multi-node configuration
-* [#313](https://github.com/elastic/rally/issues/313): Allow provision_config_instance mixins
+* [#313](https://github.com/elastic/rally/issues/313): Allow car mixins
 * [#265](https://github.com/elastic/rally/issues/265): Have Rally detect and use more Java versions
 
 #### Bug Fixes
@@ -890,7 +890,7 @@
 
 * [#299](https://github.com/elastic/rally/pull/299): Leave the host parsing on elasticsearch-py
 * [#227](https://github.com/elastic/rally/issues/227): Enhance flexibility of user tagging
-* [#196](https://github.com/elastic/rally/issues/196) (Breaking): Externalize provision_config_instance configuration
+* [#196](https://github.com/elastic/rally/issues/196) (Breaking): Externalize car configuration
 
 #### Bug Fixes
 
@@ -1035,13 +1035,13 @@ Hint: This is just relevant for you, if you have defined your own tracks. We alr
 We have [separated the previously known "track setup" into two parts](https://github.com/elastic/rally/issues/101):
 
 * Challenges: Which describe what happens during a benchmark (whether to index or search and with which parameters)
-* ProvisionConfigInstances: Which describe the benchmark candidate settings (e.g. heap size, logging configuration etc.)
+* Cars: Which describe the benchmark candidate settings (e.g. heap size, logging configuration etc.)
 
 This influences the command line interface in a couple of ways:
 
-* To list all known provision_config_instances, we have added a new command `esrally list provision_config_instances`. To select a challenge, use now `--challenge` instead of `--track-setup` and also specify a provision_config_instance now with `--provision-config-instance`.
+* To list all known cars, we have added a new command `esrally list cars`. To select a challenge, use now `--challenge` instead of `--track-setup` and also specify a car now with `--car`.
 * Tournaments created by older versions of Rally are incompatible
-* Rally must now be invoked with only one challenge and only one provision_config_instance (previously it was possible to specify multiple track setups)
+* Rally must now be invoked with only one challenge and only one car (previously it was possible to specify multiple track setups)
 
 We have also [moved tracks](https://github.com/elastic/rally/issues/69) to a [dedicated repository](https://github.com/elastic/rally-tracks). This allows you to support tracks for multiple versions of Elasticsearch but also requires that all users have `git` installed.
 
