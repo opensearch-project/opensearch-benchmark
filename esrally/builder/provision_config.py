@@ -140,7 +140,7 @@ def provision_config_path(cfg):
         provision_config_repositories = cfg.opts("builder", "provision_config.repository.dir")
         provision_configs_dir = os.path.join(root, provision_config_repositories)
 
-        current_provision_config_repo = repo.RallyRepository(
+        current_provision_config_repo = repo.BenchmarkRepository(
             default_directory, provision_configs_dir,
             repo_name, "provision_configs", offline)
 
