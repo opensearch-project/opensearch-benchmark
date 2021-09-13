@@ -959,7 +959,8 @@ def bulk_data_based(num_clients, start_client_index, end_client_index, corpora, 
     :param recency: A number between [0.0, 1.0] indicating whether to bias generation of conflicting ids towards more recent ones.
                     May be None.
     :param pipeline: Name of the ingest pipeline to use. May be None.
-    :param original_params: A dict of original parameters that were passed from the workload. They will be merged into the returned parameters.
+    :param original_params: A dict of original parameters that were passed
+    from the workload. They will be merged into the returned parameters.
     :param create_reader: A function to create the index reader. By default a file based index reader will be created.
                       This parameter is
                       intended for testing only.

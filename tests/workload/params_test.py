@@ -1888,7 +1888,8 @@ class CreateComposableTemplateParamSourceTests(TestCase):
               "composed_of": ["ct1", "ct2"]
             })
 
-        source = params.CreateComposableTemplateParamSource(workload=workload.Workload(name="unit-test", composable_templates=[tpl]), params={
+        source = params.CreateComposableTemplateParamSource(workload=workload.Workload(
+            name="unit-test", composable_templates=[tpl]), params={
             "settings": {
                 "index.number_of_replicas": 1
             }
