@@ -152,8 +152,10 @@ class Drive:
 
 class CompleteCurrentTask:
     """
-    Tells a load generator to prematurely complete its current task. This is used to model task dependencies for parallel tasks (i.e. if a
-    specific task that is marked accordingly in the workload finishes, it will also signal termination of all other tasks in the same parallel
+    Tells a load generator to prematurely complete its current task.
+    This is used to model task dependencies for parallel tasks (i.e. if a
+    specific task that is marked accordingly in the workload finishes,
+    it will also signal termination of all other tasks in the same parallel
     element).
     """
 

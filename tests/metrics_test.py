@@ -1739,8 +1739,14 @@ class StatsCalculatorTests(TestCase):
         cfg.add(config.Scope.application, "test_execution", "pipeline", "from-sources")
         cfg.add(config.Scope.application, "workload", "params", {})
 
-        index1 = workload.Task(name="index #1", operation=workload.Operation(name="index", operation_type=workload.OperationType.Bulk, params=None))
-        index2 = workload.Task(name="index #2", operation=workload.Operation(name="index", operation_type=workload.OperationType.Bulk, params=None))
+        index1 = workload.Task(name="index #1", operation=workload.Operation(
+            name="index",
+            operation_type=workload.OperationType.Bulk,
+            params=None))
+        index2 = workload.Task(name="index #2", operation=workload.Operation(
+            name="index",
+            operation_type=workload.OperationType.Bulk,
+            params=None))
         test_procedure = workload.TestProcedure(name="unittest", schedule=[index1, index2], default=True)
         t = workload.Workload("unittest", "unittest-workload", test_procedures=[test_procedure])
 
@@ -1824,7 +1830,10 @@ class StatsCalculatorTests(TestCase):
         cfg.add(config.Scope.application, "test_execution", "pipeline", "from-sources")
         cfg.add(config.Scope.application, "workload", "params", {})
 
-        index = workload.Task(name="index #1", operation=workload.Operation(name="index", operation_type=workload.OperationType.Bulk, params=None))
+        index = workload.Task(name="index #1", operation=workload.Operation(
+            name="index",
+            operation_type=workload.OperationType.Bulk,
+            params=None))
         test_procedure = workload.TestProcedure(name="unittest", schedule=[index], default=True)
         t = workload.Workload("unittest", "unittest-workload", test_procedures=[test_procedure])
 

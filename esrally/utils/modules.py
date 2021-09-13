@@ -36,7 +36,8 @@ class ComponentLoader:
     Loads a dynamically defined component. A component in this terminology is any piece of code that is not part of the Rally core code base
     but extends it. Examples include custom runners or parameter sources for workloads or install hooks for Elasticsearch plugins.
 
-    A component has always a well-defined entry point. This is the "main" Python file (e.g. ``workload.py`` for workloads or ``plugin.py`` for
+    A component has always a well-defined entry point. This is the
+    "main" Python file (e.g. ``workload.py`` for workloads or ``plugin.py`` for
     install hooks. A component may also consist of multiple Python modules.
 
     """

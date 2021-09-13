@@ -202,7 +202,10 @@ class BenchmarkCoordinator:
                     self.current_workload.name, test_procedure_name, PROGRAM_NAME))
         if self.current_test_procedure.user_info:
             console.info(self.current_test_procedure.user_info)
-        self.test_execution = metrics.create_test_execution(self.cfg, self.current_workload, self.current_test_procedure, self.workload_revision)
+        self.test_execution = metrics.create_test_execution(
+            self.cfg, self.current_workload,
+            self.current_test_procedure,
+            self.workload_revision)
 
         self.metrics_store = metrics.metrics_store(
             self.cfg,

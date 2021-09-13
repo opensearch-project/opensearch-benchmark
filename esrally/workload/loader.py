@@ -245,7 +245,8 @@ def load_workload_plugins(cfg,
 
 def set_absolute_data_path(cfg, t):
     """
-    Sets an absolute data path on all document files in this workload. Internally we store only relative paths in the workload as long as possible
+    Sets an absolute data path on all document files in this workload.
+    Internally we store only relative paths in the workload as long as possible
     as the data root directory may be different on each host. In the end we need to have an absolute path though when we want to read the
     file on the target host.
 
@@ -971,7 +972,9 @@ class WorkloadFileReader:
         # involving lines numbers and it also does not bloat Rally's log file so much.
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
         try:
-            rendered = render_template_from_file(workload_spec_file, self.workload_params, complete_workload_params=self.complete_workload_params)
+            rendered = render_template_from_file(
+                workload_spec_file, self.workload_params,
+                complete_workload_params=self.complete_workload_params)
             with open(tmp.name, "wt", encoding="utf-8") as f:
                 f.write(rendered)
             self.logger.info("Final rendered workload for '%s' has been written to '%s'.", workload_spec_file, tmp.name)
@@ -1003,21 +1006,27 @@ class WorkloadFileReader:
         try:
             workload_version = int(raw_version)
         except ValueError:
-            raise exceptions.InvalidSyntax("version identifier for workload %s must be numeric but was [%s]" % (workload_name, str(raw_version)))
+            raise exceptions.InvalidSyntax("version identifier for workload %s must be numeric but was [%s]" % (
+                workload_name, str(raw_version)))
         if WorkloadFileReader.MINIMUM_SUPPORTED_TRACK_VERSION > workload_version:
             raise exceptions.RallyError("Workload {} is on version {} but needs to be updated at least to version {} to work with the "
                                         "current version of Rally.".format(workload_name, workload_version,
                                                                            WorkloadFileReader.MINIMUM_SUPPORTED_TRACK_VERSION))
         if WorkloadFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION < workload_version:
-            raise exceptions.RallyError("Workload {} requires a newer version of Rally. Please upgrade Rally (supported workload version: {}, "
-                                        "required workload version: {}).".format(workload_name, WorkloadFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION,
+            raise exceptions.RallyError("Workload {} requires a newer version of Rally. "
+                        "Please upgrade Rally (supported workload version: {}, "
+                                        "required workload version: {}).".format(
+                                            workload_name,
+                                            WorkloadFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION,
                                                                               workload_version))
         try:
             jsonschema.validate(workload_spec, self.workload_schema)
         except jsonschema.exceptions.ValidationError as ve:
             raise WorkloadSyntaxError(
                 "Workload '{}' is invalid.\n\nError details: {}\nInstance: {}\nPath: {}\nSchema path: {}".format(
-                    workload_name, ve.message, json.dumps(ve.instance, indent=4, sort_keys=True), ve.absolute_path, ve.absolute_schema_path))
+                    workload_name, ve.message, json.dumps(
+                        ve.instance, indent=4, sort_keys=True),
+                        ve.absolute_path, ve.absolute_schema_path))
 
         current_workload = self.read_workload(workload_name, workload_spec, mapping_dir)
 
@@ -1128,7 +1137,9 @@ class WorkloadSpecificationReader:
                                        indices, data_streams)
         test_procedures = self._create_test_procedures(workload_specification)
         # at this point, *all* workload params must have been referenced in the templates
-        return workload.Workload(name=self.name, meta_data=meta_data, description=description, test_procedures=test_procedures, indices=indices,
+        return workload.Workload(name=self.name, meta_data=meta_data,
+        description=description, test_procedures=test_procedures,
+        indices=indices,
                            data_streams=data_streams, templates=templates, composable_templates=composable_templates,
                            component_templates=component_templates, corpora=corpora)
 
@@ -1516,6 +1527,8 @@ class WorkloadSpecificationReader:
             self.logger.info("Using user-provided operation type [%s] for operation [%s].", op_type_name, op_name)
 
         try:
-            return workload.Operation(name=op_name, meta_data=meta_data, operation_type=op_type_name, params=params, param_source=param_source)
+            return workload.Operation(name=op_name, meta_data=meta_data,
+            operation_type=op_type_name, params=params,
+            param_source=param_source)
         except exceptions.InvalidSyntax as e:
             raise WorkloadSyntaxError("Invalid operation [%s]: %s" % (op_name, str(e)))

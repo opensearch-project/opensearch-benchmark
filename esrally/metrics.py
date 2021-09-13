@@ -280,7 +280,10 @@ def metrics_store(cfg, read_only=True, workload=None, test_procedure=None, provi
     selected_provision_config_instance = cfg.opts("builder", "provision_config_instance.names") \
         if provision_config_instance is None else provision_config_instance
 
-    store.open(test_execution_id, test_execution_timestamp, workload, test_procedure, selected_provision_config_instance, create=not read_only)
+    store.open(
+        test_execution_id, test_execution_timestamp,
+        workload, test_procedure, selected_provision_config_instance,
+        create=not read_only)
     return store
 
 
@@ -788,7 +791,10 @@ class EsMetricsStore(MetricsStore):
         test_procedure_name=None, provision_config_instance_name=None, ctx=None, \
         create=False):
         self._docs = []
-        MetricsStore.open(self, test_ex_id, test_ex_timestamp, workload_name, test_procedure_name, provision_config_instance_name, ctx, create)
+        MetricsStore.open(
+            self, test_ex_id, test_ex_timestamp,
+            workload_name, test_procedure_name,
+            provision_config_instance_name, ctx, create)
         self._index = self.index_name()
         # reduce a bit of noise in the metrics cluster log
         if create:
