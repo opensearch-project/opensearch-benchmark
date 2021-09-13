@@ -705,7 +705,7 @@ force-merge    max_num_segments        max-num-segments
 Migrating to Rally 0.9.0
 ------------------------
 
-Track Syntax
+Workload Syntax
 ^^^^^^^^^^^^
 
 With Rally 0.9.0, we have changed the track file format. While the previous format is still supported with deprecation warnings, we recommend that you adapt your tracks as we will remove the deprecated syntax with the next minor release.

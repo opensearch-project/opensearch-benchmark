@@ -27,7 +27,7 @@ import random
 from unittest import TestCase
 
 from esrally import exceptions
-from esrally.track import params, track
+from esrally.workload import params, workload
 from esrally.utils import io
 
 
@@ -696,11 +696,11 @@ class InvocationGeneratorTests(TestCase):
 
     @staticmethod
     def corpus(name, docs):
-        return track.DocumentCorpus(name, documents=docs)
+        return workload.DocumentCorpus(name, documents=docs)
 
     @staticmethod
     def docs(num_docs):
-        return track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK, number_of_documents=num_docs)
+        return workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK, number_of_documents=num_docs)
 
     @staticmethod
     def number_of_bulks(corpora, first_partition_index, last_partition_index, total_partitions, bulk_size):
@@ -717,65 +717,65 @@ class InvocationGeneratorTests(TestCase):
 # pylint: disable=too-many-public-methods
 class BulkIndexParamSourceTests(TestCase):
     def test_create_without_params(self):
-        corpus = track.DocumentCorpus(name="default", documents=[
-            track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        corpus = workload.DocumentCorpus(name="default", documents=[
+            workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                             number_of_documents=10,
                             target_index="test-idx",
                             target_type="test-type"
                             )])
 
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.BulkIndexParamSource(track=track.Track(name="unit-test", corpora=[corpus]), params={})
+            params.BulkIndexParamSource(workload=workload.Workload(name="unit-test", corpora=[corpus]), params={})
 
         self.assertEqual("Mandatory parameter 'bulk-size' is missing", ctx.exception.args[0])
 
     def test_create_without_corpora_definition(self):
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.BulkIndexParamSource(track=track.Track(name="unit-test"), params={})
+            params.BulkIndexParamSource(workload=workload.Workload(name="unit-test"), params={})
 
-        self.assertEqual("There is no document corpus definition for track unit-test. "
+        self.assertEqual("There is no document corpus definition for workload unit-test. "
                          "You must add at least one before making bulk requests to Elasticsearch.", ctx.exception.args[0])
 
     def test_create_with_non_numeric_bulk_size(self):
-        corpus = track.DocumentCorpus(name="default", documents=[
-            track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        corpus = workload.DocumentCorpus(name="default", documents=[
+            workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                             number_of_documents=10,
                             target_index="test-idx",
                             target_type="test-type"
                             )])
 
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.BulkIndexParamSource(track=track.Track(name="unit-test", corpora=[corpus]), params={
+            params.BulkIndexParamSource(workload=workload.Workload(name="unit-test", corpora=[corpus]), params={
                 "bulk-size": "Three"
             })
 
         self.assertEqual("'bulk-size' must be numeric", ctx.exception.args[0])
 
     def test_create_with_negative_bulk_size(self):
-        corpus = track.DocumentCorpus(name="default", documents=[
-            track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        corpus = workload.DocumentCorpus(name="default", documents=[
+            workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                             number_of_documents=10,
                             target_index="test-idx",
                             target_type="test-type"
                             )])
 
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.BulkIndexParamSource(track=track.Track(name="unit-test", corpora=[corpus]), params={
+            params.BulkIndexParamSource(workload=workload.Workload(name="unit-test", corpora=[corpus]), params={
                 "bulk-size": -5
             })
 
         self.assertEqual("'bulk-size' must be positive but was -5", ctx.exception.args[0])
 
     def test_create_with_fraction_smaller_batch_size(self):
-        corpus = track.DocumentCorpus(name="default", documents=[
-            track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        corpus = workload.DocumentCorpus(name="default", documents=[
+            workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                             number_of_documents=10,
                             target_index="test-idx",
                             target_type="test-type"
                             )])
 
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.BulkIndexParamSource(track=track.Track(name="unit-test", corpora=[corpus]), params={
+            params.BulkIndexParamSource(workload=workload.Workload(name="unit-test", corpora=[corpus]), params={
                 "bulk-size": 5,
                 "batch-size": 3
             })
@@ -783,15 +783,15 @@ class BulkIndexParamSourceTests(TestCase):
         self.assertEqual("'batch-size' must be greater than or equal to 'bulk-size'", ctx.exception.args[0])
 
     def test_create_with_fraction_larger_batch_size(self):
-        corpus = track.DocumentCorpus(name="default", documents=[
-            track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        corpus = workload.DocumentCorpus(name="default", documents=[
+            workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                             number_of_documents=10,
                             target_index="test-idx",
                             target_type="test-type"
                             )])
 
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.BulkIndexParamSource(track=track.Track(name="unit-test", corpora=[corpus]), params={
+            params.BulkIndexParamSource(workload=workload.Workload(name="unit-test", corpora=[corpus]), params={
                 "bulk-size": 5,
                 "batch-size": 8
             })
@@ -799,8 +799,8 @@ class BulkIndexParamSourceTests(TestCase):
         self.assertEqual("'batch-size' must be a multiple of 'bulk-size'", ctx.exception.args[0])
 
     def test_create_with_metadata_in_source_file_but_conflicts(self):
-        corpus = track.DocumentCorpus(name="default", documents=[
-            track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        corpus = workload.DocumentCorpus(name="default", documents=[
+            workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                             document_archive="docs.json.bz2",
                             document_file="docs.json",
                             number_of_documents=10,
@@ -808,7 +808,7 @@ class BulkIndexParamSourceTests(TestCase):
         ])
 
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.BulkIndexParamSource(track=track.Track(name="unit-test", corpora=[corpus]), params={
+            params.BulkIndexParamSource(workload=workload.Workload(name="unit-test", corpora=[corpus]), params={
                 "conflicts": "random"
             })
 
@@ -817,7 +817,7 @@ class BulkIndexParamSourceTests(TestCase):
 
     def test_create_with_unknown_id_conflicts(self):
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.BulkIndexParamSource(track=track.Track(name="unit-test"), params={
+            params.BulkIndexParamSource(workload=workload.Workload(name="unit-test"), params={
                 "conflicts": "crazy"
             })
 
@@ -825,7 +825,7 @@ class BulkIndexParamSourceTests(TestCase):
 
     def test_create_with_unknown_on_conflict_setting(self):
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.BulkIndexParamSource(track=track.Track(name="unit-test"), params={
+            params.BulkIndexParamSource(workload=workload.Workload(name="unit-test"), params={
                 "conflicts": "sequential",
                 "on-conflict": "delete"
             })
@@ -834,7 +834,7 @@ class BulkIndexParamSourceTests(TestCase):
 
     def test_create_with_conflicts_and_data_streams(self):
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.BulkIndexParamSource(track=track.Track(name="unit-test"), params={
+            params.BulkIndexParamSource(workload=workload.Workload(name="unit-test"), params={
                 "data-streams": ["test-data-stream-1", "test-data-stream-2"],
                 "conflicts": "sequential"
             })
@@ -842,15 +842,15 @@ class BulkIndexParamSourceTests(TestCase):
         self.assertEqual("'conflicts' cannot be used with 'data-streams'", ctx.exception.args[0])
 
     def test_create_with_ingest_percentage_too_low(self):
-        corpus = track.DocumentCorpus(name="default", documents=[
-            track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        corpus = workload.DocumentCorpus(name="default", documents=[
+            workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                             number_of_documents=10,
                             target_index="test-idx",
                             target_type="test-type"
                             )])
 
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.BulkIndexParamSource(track=track.Track(name="unit-test", corpora=[corpus]), params={
+            params.BulkIndexParamSource(workload=workload.Workload(name="unit-test", corpora=[corpus]), params={
                 "bulk-size": 5000,
                 "ingest-percentage": 0.0
             })
@@ -858,15 +858,15 @@ class BulkIndexParamSourceTests(TestCase):
         self.assertEqual("'ingest-percentage' must be in the range (0.0, 100.0] but was 0.0", ctx.exception.args[0])
 
     def test_create_with_ingest_percentage_too_high(self):
-        corpus = track.DocumentCorpus(name="default", documents=[
-            track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        corpus = workload.DocumentCorpus(name="default", documents=[
+            workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                             number_of_documents=10,
                             target_index="test-idx",
                             target_type="test-type"
                             )])
 
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.BulkIndexParamSource(track=track.Track(name="unit-test", corpora=[corpus]), params={
+            params.BulkIndexParamSource(workload=workload.Workload(name="unit-test", corpora=[corpus]), params={
                 "bulk-size": 5000,
                 "ingest-percentage": 100.1
             })
@@ -874,15 +874,15 @@ class BulkIndexParamSourceTests(TestCase):
         self.assertEqual("'ingest-percentage' must be in the range (0.0, 100.0] but was 100.1", ctx.exception.args[0])
 
     def test_create_with_ingest_percentage_not_numeric(self):
-        corpus = track.DocumentCorpus(name="default", documents=[
-            track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        corpus = workload.DocumentCorpus(name="default", documents=[
+            workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                             number_of_documents=10,
                             target_index="test-idx",
                             target_type="test-type"
                             )])
 
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.BulkIndexParamSource(track=track.Track(name="unit-test", corpora=[corpus]), params={
+            params.BulkIndexParamSource(workload=workload.Workload(name="unit-test", corpora=[corpus]), params={
                 "bulk-size": 5000,
                 "ingest-percentage": "100 percent"
             })
@@ -890,14 +890,14 @@ class BulkIndexParamSourceTests(TestCase):
         self.assertEqual("'ingest-percentage' must be numeric", ctx.exception.args[0])
 
     def test_create_valid_param_source(self):
-        corpus = track.DocumentCorpus(name="default", documents=[
-            track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        corpus = workload.DocumentCorpus(name="default", documents=[
+            workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                             number_of_documents=10,
                             target_index="test-idx",
                             target_type="test-type"
                             )])
 
-        self.assertIsNotNone(params.BulkIndexParamSource(track.Track(name="unit-test", corpora=[corpus]), params={
+        self.assertIsNotNone(params.BulkIndexParamSource(workload.Workload(name="unit-test", corpora=[corpus]), params={
             "conflicts": "random",
             "bulk-size": 5000,
             "batch-size": 20000,
@@ -907,15 +907,15 @@ class BulkIndexParamSourceTests(TestCase):
 
     def test_passes_all_corpora_by_default(self):
         corpora = [
-            track.DocumentCorpus(name="default", documents=[
-                track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            workload.DocumentCorpus(name="default", documents=[
+                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                 number_of_documents=10,
                                 target_index="test-idx",
                                 target_type="test-type"
                                 )
             ]),
-            track.DocumentCorpus(name="special", documents=[
-                track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            workload.DocumentCorpus(name="special", documents=[
+                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                 number_of_documents=100,
                                 target_index="test-idx2",
                                 target_type="type"
@@ -924,7 +924,7 @@ class BulkIndexParamSourceTests(TestCase):
         ]
 
         source = params.BulkIndexParamSource(
-            track=track.Track(name="unit-test", corpora=corpora),
+            workload=workload.Workload(name="unit-test", corpora=corpora),
             params={
                 "conflicts": "random",
                 "bulk-size": 5000,
@@ -937,15 +937,15 @@ class BulkIndexParamSourceTests(TestCase):
 
     def test_filters_corpora(self):
         corpora = [
-            track.DocumentCorpus(name="default", documents=[
-                track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            workload.DocumentCorpus(name="default", documents=[
+                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                 number_of_documents=10,
                                 target_index="test-idx",
                                 target_type="test-type"
                                 )
             ]),
-            track.DocumentCorpus(name="special", documents=[
-                track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            workload.DocumentCorpus(name="special", documents=[
+                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                 number_of_documents=100,
                                 target_index="test-idx2",
                                 target_type="type"
@@ -954,7 +954,7 @@ class BulkIndexParamSourceTests(TestCase):
         ]
 
         source = params.BulkIndexParamSource(
-            track=track.Track(name="unit-test", corpora=corpora),
+            workload=workload.Workload(name="unit-test", corpora=corpora),
             params={
                 "corpora": ["special"],
                 "conflicts": "random",
@@ -968,21 +968,21 @@ class BulkIndexParamSourceTests(TestCase):
 
     def test_filters_corpora_by_data_stream(self):
         corpora = [
-            track.DocumentCorpus(name="default", documents=[
-                track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            workload.DocumentCorpus(name="default", documents=[
+                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                 number_of_documents=10,
                                 target_data_stream="test-data-stream-1"
                                 )
             ]),
-            track.DocumentCorpus(name="special", documents=[
-                track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            workload.DocumentCorpus(name="special", documents=[
+                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                 number_of_documents=100,
                                 target_index="test-idx2",
                                 target_type="type"
                                 )
             ]),
-            track.DocumentCorpus(name="special-2", documents=[
-                track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            workload.DocumentCorpus(name="special-2", documents=[
+                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                 number_of_documents=10,
                                 target_data_stream="test-data-stream-2"
                                 )
@@ -990,7 +990,7 @@ class BulkIndexParamSourceTests(TestCase):
         ]
 
         source = params.BulkIndexParamSource(
-            track=track.Track(name="unit-test", corpora=corpora),
+            workload=workload.Workload(name="unit-test", corpora=corpora),
             params={
                 "data-streams": ["test-data-stream-1", "test-data-stream-2"],
                 "bulk-size": 5000,
@@ -1002,8 +1002,8 @@ class BulkIndexParamSourceTests(TestCase):
         self.assertEqual(partition.corpora, [corpora[0], corpora[2]])
 
     def test_raises_exception_if_no_corpus_matches(self):
-        corpus = track.DocumentCorpus(name="default", documents=[
-            track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        corpus = workload.DocumentCorpus(name="default", documents=[
+            workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                             number_of_documents=10,
                             target_index="test-idx",
                             target_type="test-type"
@@ -1011,7 +1011,7 @@ class BulkIndexParamSourceTests(TestCase):
 
         with self.assertRaises(exceptions.RallyAssertionError) as ctx:
             params.BulkIndexParamSource(
-                track=track.Track(name="unit-test", corpora=[corpus]),
+                workload=workload.Workload(name="unit-test", corpora=[corpus]),
                 params={
                     "corpora": "does_not_exist",
                     "conflicts": "random",
@@ -1024,15 +1024,15 @@ class BulkIndexParamSourceTests(TestCase):
 
     def test_ingests_all_documents_by_default(self):
         corpora = [
-            track.DocumentCorpus(name="default", documents=[
-                track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            workload.DocumentCorpus(name="default", documents=[
+                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                 number_of_documents=300000,
                                 target_index="test-idx",
                                 target_type="test-type"
                                 )
             ]),
-            track.DocumentCorpus(name="special", documents=[
-                track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            workload.DocumentCorpus(name="special", documents=[
+                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                 number_of_documents=700000,
                                 target_index="test-idx2",
                                 target_type="type"
@@ -1041,7 +1041,7 @@ class BulkIndexParamSourceTests(TestCase):
         ]
 
         source = params.BulkIndexParamSource(
-            track=track.Track(name="unit-test", corpora=corpora),
+            workload=workload.Workload(name="unit-test", corpora=corpora),
             params={
                 "bulk-size": 10000
             })
@@ -1074,15 +1074,15 @@ class BulkIndexParamSourceTests(TestCase):
                     return
 
         corpora = [
-            track.DocumentCorpus(name="default", documents=[
-                track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            workload.DocumentCorpus(name="default", documents=[
+                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                 number_of_documents=300000,
                                 target_index="test-idx",
                                 target_type="test-type"
                                 )
             ]),
-            track.DocumentCorpus(name="special", documents=[
-                track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            workload.DocumentCorpus(name="special", documents=[
+                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                 number_of_documents=700000,
                                 target_index="test-idx2",
                                 target_type="type"
@@ -1091,7 +1091,7 @@ class BulkIndexParamSourceTests(TestCase):
         ]
 
         source = params.BulkIndexParamSource(
-            track=track.Track(name="unit-test", corpora=corpora),
+            workload=workload.Workload(name="unit-test", corpora=corpora),
             params={
                 "bulk-size": 10000,
                 "ingest-percentage": 2.5,
@@ -1105,14 +1105,14 @@ class BulkIndexParamSourceTests(TestCase):
         self.assertEqual(3, len(list(schedule(partition))))
 
     def test_create_with_conflict_probability_zero(self):
-        corpus = track.DocumentCorpus(name="default", documents=[
-            track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        corpus = workload.DocumentCorpus(name="default", documents=[
+            workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                             number_of_documents=10,
                             target_index="test-idx",
                             target_type="test-type"
                             )])
 
-        params.BulkIndexParamSource(track=track.Track(name="unit-test", corpora=[corpus]), params={
+        params.BulkIndexParamSource(workload=workload.Workload(name="unit-test", corpora=[corpus]), params={
             "bulk-size": 5000,
             "conflicts": "sequential",
             "conflict-probability": 0
@@ -1120,7 +1120,7 @@ class BulkIndexParamSourceTests(TestCase):
 
     def test_create_with_conflict_probability_too_low(self):
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.BulkIndexParamSource(track=track.Track(name="unit-test"), params={
+            params.BulkIndexParamSource(workload=workload.Workload(name="unit-test"), params={
                 "bulk-size": 5000,
                 "conflicts": "sequential",
                 "conflict-probability": -0.1
@@ -1130,7 +1130,7 @@ class BulkIndexParamSourceTests(TestCase):
 
     def test_create_with_conflict_probability_too_high(self):
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.BulkIndexParamSource(track=track.Track(name="unit-test"), params={
+            params.BulkIndexParamSource(workload=workload.Workload(name="unit-test"), params={
                 "bulk-size": 5000,
                 "conflicts": "sequential",
                 "conflict-probability": 100.1
@@ -1140,7 +1140,7 @@ class BulkIndexParamSourceTests(TestCase):
 
     def test_create_with_conflict_probability_not_numeric(self):
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.BulkIndexParamSource(track=track.Track(name="unit-test"), params={
+            params.BulkIndexParamSource(workload=workload.Workload(name="unit-test"), params={
                 "bulk-size": 5000,
                 "conflicts": "sequential",
                 "conflict-probability": "100 percent"
@@ -1159,8 +1159,8 @@ class BulkDataGeneratorTests(TestCase):
         return inner_create_test_reader
 
     def test_generate_two_bulks(self):
-        corpus = track.DocumentCorpus(name="default", documents=[
-            track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        corpus = workload.DocumentCorpus(name="default", documents=[
+            workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                             number_of_documents=10,
                             target_index="test-idx",
                             target_type="test-type"
@@ -1202,21 +1202,21 @@ class BulkDataGeneratorTests(TestCase):
 
     def test_generate_bulks_from_multiple_corpora(self):
         corpora = [
-            track.DocumentCorpus(name="default", documents=[
-                        track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            workload.DocumentCorpus(name="default", documents=[
+                        workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                         number_of_documents=5,
                                         target_index="logs-2018-01",
                                         target_type="docs"
                                         ),
-                        track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+                        workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                         number_of_documents=5,
                                         target_index="logs-2018-02",
                                         target_type="docs"
                                         ),
 
                     ]),
-            track.DocumentCorpus(name="special", documents=[
-                track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+            workload.DocumentCorpus(name="special", documents=[
+                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                 number_of_documents=5,
                                 target_index="logs-2017-01",
                                 target_type="docs"
@@ -1270,8 +1270,8 @@ class BulkDataGeneratorTests(TestCase):
         }, all_bulks[2])
 
     def test_internal_params_take_precedence(self):
-        corpus = track.DocumentCorpus(name="default", documents=[
-            track.Documents(source_format=track.Documents.SOURCE_FORMAT_BULK,
+        corpus = workload.DocumentCorpus(name="default", documents=[
+            workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                             number_of_documents=3,
                             target_index="test-idx",
                             target_type="test-type"
@@ -1309,7 +1309,7 @@ class ParamsRegistrationTests(TestCase):
         }
 
     @staticmethod
-    def param_source_function(track, params, **kwargs):
+    def param_source_function(workload, params, **kwargs):
         return {
             "key": params["parameter"]
         }
@@ -1331,8 +1331,8 @@ class ParamsRegistrationTests(TestCase):
             }
 
     class ParamSourceClass:
-        def __init__(self, track=None, params=None, **kwargs):
-            self._track = track
+        def __init__(self, workload=None, params=None, **kwargs):
+            self._workload = workload
             self._params = params
 
         def partition(self, partition_index, total_partitions):
@@ -1353,7 +1353,7 @@ class ParamsRegistrationTests(TestCase):
         source_name = "legacy-params-test-function-param-source"
 
         params.register_param_source_for_name(source_name, ParamsRegistrationTests.param_source_legacy_function)
-        source = params.param_source_for_name(source_name, track.Track(name="unit-test"), {"parameter": 42})
+        source = params.param_source_for_name(source_name, workload.Workload(name="unit-test"), {"parameter": 42})
         self.assertEqual({"key": 42}, source.params())
 
         params._unregister_param_source_for_name(source_name)
@@ -1362,7 +1362,7 @@ class ParamsRegistrationTests(TestCase):
         source_name = "params-test-function-param-source"
 
         params.register_param_source_for_name(source_name, ParamsRegistrationTests.param_source_function)
-        source = params.param_source_for_name(source_name, track.Track(name="unit-test"), {"parameter": 42})
+        source = params.param_source_for_name(source_name, workload.Workload(name="unit-test"), {"parameter": 42})
         self.assertEqual({"key": 42}, source.params())
 
         params._unregister_param_source_for_name(source_name)
@@ -1371,7 +1371,7 @@ class ParamsRegistrationTests(TestCase):
         source_name = "legacy-params-test-class-param-source"
 
         params.register_param_source_for_name(source_name, ParamsRegistrationTests.ParamSourceLegacyClass)
-        source = params.param_source_for_name(source_name, track.Track(name="unit-test"), {"parameter": 42})
+        source = params.param_source_for_name(source_name, workload.Workload(name="unit-test"), {"parameter": 42})
         self.assertEqual({"class-key": 42}, source.params())
 
         params._unregister_param_source_for_name(source_name)
@@ -1380,7 +1380,7 @@ class ParamsRegistrationTests(TestCase):
         source_name = "params-test-class-param-source"
 
         params.register_param_source_for_name(source_name, ParamsRegistrationTests.ParamSourceClass)
-        source = params.param_source_for_name(source_name, track.Track(name="unit-test"), {"parameter": 42})
+        source = params.param_source_for_name(source_name, workload.Workload(name="unit-test"), {"parameter": 42})
         self.assertEqual({"class-key": 42}, source.params())
 
         params._unregister_param_source_for_name(source_name)
@@ -1396,26 +1396,26 @@ class ParamsRegistrationTests(TestCase):
 class SleepParamSourceTests(TestCase):
     def test_missing_duration_parameter(self):
         with self.assertRaisesRegex(exceptions.InvalidSyntax, "parameter 'duration' is mandatory for sleep operation"):
-            params.SleepParamSource(track.Track(name="unit-test"), params={})
+            params.SleepParamSource(workload.Workload(name="unit-test"), params={})
 
     def test_duration_parameter_wrong_type(self):
         with self.assertRaisesRegex(exceptions.InvalidSyntax,
                                     "parameter 'duration' for sleep operation must be a number"):
-            params.SleepParamSource(track.Track(name="unit-test"), params={"duration": "this is a string"})
+            params.SleepParamSource(workload.Workload(name="unit-test"), params={"duration": "this is a string"})
 
     def test_duration_parameter_negative_number(self):
         with self.assertRaisesRegex(exceptions.InvalidSyntax,
                                     "parameter 'duration' must be non-negative but was -1.0"):
-            params.SleepParamSource(track.Track(name="unit-test"), params={"duration": -1.0})
+            params.SleepParamSource(workload.Workload(name="unit-test"), params={"duration": -1.0})
 
     def test_param_source_passes_all_parameters(self):
-        p = params.SleepParamSource(track.Track(name="unit-test"), params={"duration": 3.4, "additional": True})
+        p = params.SleepParamSource(workload.Workload(name="unit-test"), params={"duration": 3.4, "additional": True})
         self.assertDictEqual({"duration": 3.4, "additional": True}, p.params())
 
 
 class CreateIndexParamSourceTests(TestCase):
     def test_create_index_inline_with_body(self):
-        source = params.CreateIndexParamSource(track.Track(name="unit-test"), params={
+        source = params.CreateIndexParamSource(workload.Workload(name="unit-test"), params={
             "index": "test",
             "body": {
                 "settings": {
@@ -1441,7 +1441,7 @@ class CreateIndexParamSourceTests(TestCase):
         self.assertEqual({}, p["request-params"])
 
     def test_create_index_inline_without_body(self):
-        source = params.CreateIndexParamSource(track.Track(name="unit-test"), params={
+        source = params.CreateIndexParamSource(workload.Workload(name="unit-test"), params={
             "index": "test",
             "request-params": {
                 "wait_for_active_shards": True
@@ -1457,9 +1457,9 @@ class CreateIndexParamSourceTests(TestCase):
             "wait_for_active_shards": True
         }, p["request-params"])
 
-    def test_create_index_from_track_with_settings(self):
-        index1 = track.Index(name="index1", types=["type1"])
-        index2 = track.Index(name="index2", types=["type1"], body={
+    def test_create_index_from_workload_with_settings(self):
+        index1 = workload.Index(name="index1", types=["type1"])
+        index2 = workload.Index(name="index2", types=["type1"], body={
             "settings": {
                 "index.number_of_replicas": 0,
                 "index.number_of_shards": 3
@@ -1475,7 +1475,7 @@ class CreateIndexParamSourceTests(TestCase):
             }
         })
 
-        source = params.CreateIndexParamSource(track.Track(name="unit-test", indices=[index1, index2]), params={
+        source = params.CreateIndexParamSource(workload.Workload(name="unit-test", indices=[index1, index2]), params={
             "settings": {
                 "index.number_of_replicas": 1
             }
@@ -1514,9 +1514,9 @@ class CreateIndexParamSourceTests(TestCase):
             }
         }, body)
 
-    def test_create_index_from_track_without_settings(self):
-        index1 = track.Index(name="index1", types=["type1"])
-        index2 = track.Index(name="index2", types=["type1"], body={
+    def test_create_index_from_workload_without_settings(self):
+        index1 = workload.Index(name="index1", types=["type1"])
+        index2 = workload.Index(name="index2", types=["type1"], body={
             "settings": {
                 "index.number_of_replicas": 0,
                 "index.number_of_shards": 3
@@ -1532,7 +1532,7 @@ class CreateIndexParamSourceTests(TestCase):
             }
         })
 
-        source = params.CreateIndexParamSource(track.Track(name="unit-test", indices=[index1, index2]), params={})
+        source = params.CreateIndexParamSource(workload.Workload(name="unit-test", indices=[index1, index2]), params={})
 
         p = source.params()
         self.assertEqual(2, len(p["indices"]))
@@ -1562,11 +1562,11 @@ class CreateIndexParamSourceTests(TestCase):
         }, body)
 
     def test_filter_index(self):
-        index1 = track.Index(name="index1", types=["type1"])
-        index2 = track.Index(name="index2", types=["type1"])
-        index3 = track.Index(name="index3", types=["type1"])
+        index1 = workload.Index(name="index1", types=["type1"])
+        index2 = workload.Index(name="index2", types=["type1"])
+        index3 = workload.Index(name="index3", types=["type1"])
 
-        source = params.CreateIndexParamSource(track.Track(name="unit-test", indices=[index1, index2, index3]), params={
+        source = params.CreateIndexParamSource(workload.Workload(name="unit-test", indices=[index1, index2, index3]), params={
             "index": "index2"
         })
 
@@ -1579,7 +1579,7 @@ class CreateIndexParamSourceTests(TestCase):
 
 class CreateDataStreamParamSourceTests(TestCase):
     def test_create_data_stream(self):
-        source = params.CreateDataStreamParamSource(track.Track(name="unit-test"), params={
+        source = params.CreateDataStreamParamSource(workload.Workload(name="unit-test"), params={
             "data-stream": "test-data-stream"
         })
         p = source.params()
@@ -1589,7 +1589,7 @@ class CreateDataStreamParamSourceTests(TestCase):
         self.assertEqual({}, p["request-params"])
 
     def test_create_data_stream_inline_without_body(self):
-        source = params.CreateDataStreamParamSource(track.Track(name="unit-test"), params={
+        source = params.CreateDataStreamParamSource(workload.Workload(name="unit-test"), params={
             "data-stream": "test-data-stream",
             "request-params": {
                 "wait_for_active_shards": True
@@ -1606,9 +1606,9 @@ class CreateDataStreamParamSourceTests(TestCase):
 
     def test_filter_data_stream(self):
         source = params.CreateDataStreamParamSource(
-            track.Track(name="unit-test", data_streams=[track.DataStream(name="data-stream-1"),
-                                                        track.DataStream(name="data-stream-2"),
-                                                        track.DataStream(name="data-stream-3")]),
+            workload.Workload(name="unit-test", data_streams=[workload.DataStream(name="data-stream-1"),
+                                                        workload.DataStream(name="data-stream-2"),
+                                                        workload.DataStream(name="data-stream-3")]),
             params={"data-stream": "data-stream-2"})
 
         p = source.params()
@@ -1619,11 +1619,11 @@ class CreateDataStreamParamSourceTests(TestCase):
 
 
 class DeleteIndexParamSourceTests(TestCase):
-    def test_delete_index_from_track(self):
-        source = params.DeleteIndexParamSource(track.Track(name="unit-test", indices=[
-            track.Index(name="index1"),
-            track.Index(name="index2"),
-            track.Index(name="index3")
+    def test_delete_index_from_workload(self):
+        source = params.DeleteIndexParamSource(workload.Workload(name="unit-test", indices=[
+            workload.Index(name="index1"),
+            workload.Index(name="index2"),
+            workload.Index(name="index3")
         ]), params={})
 
         p = source.params()
@@ -1632,11 +1632,11 @@ class DeleteIndexParamSourceTests(TestCase):
         self.assertDictEqual({}, p["request-params"])
         self.assertTrue(p["only-if-exists"])
 
-    def test_filter_index_from_track(self):
-        source = params.DeleteIndexParamSource(track.Track(name="unit-test", indices=[
-            track.Index(name="index1"),
-            track.Index(name="index2"),
-            track.Index(name="index3")
+    def test_filter_index_from_workload(self):
+        source = params.DeleteIndexParamSource(workload.Workload(name="unit-test", indices=[
+            workload.Index(name="index1"),
+            workload.Index(name="index2"),
+            workload.Index(name="index3")
         ]), params={"index": "index2", "only-if-exists": False, "request-params": {"allow_no_indices": True}})
 
         p = source.params()
@@ -1646,7 +1646,7 @@ class DeleteIndexParamSourceTests(TestCase):
         self.assertFalse(p["only-if-exists"])
 
     def test_delete_index_by_name(self):
-        source = params.DeleteIndexParamSource(track.Track(name="unit-test"), params={"index": "index2"})
+        source = params.DeleteIndexParamSource(workload.Workload(name="unit-test"), params={"index": "index2"})
 
         p = source.params()
 
@@ -1654,16 +1654,16 @@ class DeleteIndexParamSourceTests(TestCase):
 
     def test_delete_no_index(self):
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.DeleteIndexParamSource(track.Track(name="unit-test"), params={})
+            params.DeleteIndexParamSource(workload.Workload(name="unit-test"), params={})
         self.assertEqual("delete-index operation targets no index", ctx.exception.args[0])
 
 
 class DeleteDataStreamParamSourceTests(TestCase):
-    def test_delete_data_stream_from_track(self):
-        source = params.DeleteDataStreamParamSource(track.Track(name="unit-test", data_streams=[
-            track.DataStream(name="data-stream-1"),
-            track.DataStream(name="data-stream-2"),
-            track.DataStream(name="data-stream-3")
+    def test_delete_data_stream_from_workload(self):
+        source = params.DeleteDataStreamParamSource(workload.Workload(name="unit-test", data_streams=[
+            workload.DataStream(name="data-stream-1"),
+            workload.DataStream(name="data-stream-2"),
+            workload.DataStream(name="data-stream-3")
         ]), params={})
 
         p = source.params()
@@ -1672,11 +1672,11 @@ class DeleteDataStreamParamSourceTests(TestCase):
         self.assertDictEqual({}, p["request-params"])
         self.assertTrue(p["only-if-exists"])
 
-    def test_filter_data_stream_from_track(self):
-        source = params.DeleteDataStreamParamSource(track.Track(name="unit-test", data_streams=[
-            track.DataStream(name="data-stream-1"),
-            track.DataStream(name="data-stream-2"),
-            track.DataStream(name="data-stream-3")
+    def test_filter_data_stream_from_workload(self):
+        source = params.DeleteDataStreamParamSource(workload.Workload(name="unit-test", data_streams=[
+            workload.DataStream(name="data-stream-1"),
+            workload.DataStream(name="data-stream-2"),
+            workload.DataStream(name="data-stream-3")
         ]), params={"data-stream": "data-stream-2", "only-if-exists": False,
                     "request-params": {"allow_no_indices": True}})
 
@@ -1687,7 +1687,7 @@ class DeleteDataStreamParamSourceTests(TestCase):
         self.assertFalse(p["only-if-exists"])
 
     def test_delete_data_stream_by_name(self):
-        source = params.DeleteDataStreamParamSource(track.Track(name="unit-test"),
+        source = params.DeleteDataStreamParamSource(workload.Workload(name="unit-test"),
                                                     params={"data-stream": "data-stream-2"})
 
         p = source.params()
@@ -1696,13 +1696,13 @@ class DeleteDataStreamParamSourceTests(TestCase):
 
     def test_delete_no_data_stream(self):
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.DeleteDataStreamParamSource(track.Track(name="unit-test"), params={})
+            params.DeleteDataStreamParamSource(workload.Workload(name="unit-test"), params={})
         self.assertEqual("delete-data-stream operation targets no data stream", ctx.exception.args[0])
 
 
 class CreateIndexTemplateParamSourceTests(TestCase):
     def test_create_index_template_inline(self):
-        source = params.CreateIndexTemplateParamSource(track=track.Track(name="unit-test"), params={
+        source = params.CreateIndexTemplateParamSource(workload=workload.Workload(name="unit-test"), params={
             "template": "test",
             "body": {
                 "index_patterns": ["*"],
@@ -1739,8 +1739,8 @@ class CreateIndexTemplateParamSourceTests(TestCase):
             }
         }, body)
 
-    def test_create_index_template_from_track(self):
-        tpl = track.IndexTemplate(name="default", pattern="*", content={
+    def test_create_index_template_from_workload(self):
+        tpl = workload.IndexTemplate(name="default", pattern="*", content={
             "index_patterns": ["*"],
             "settings": {
                 "index.number_of_shards": 3
@@ -1754,7 +1754,7 @@ class CreateIndexTemplateParamSourceTests(TestCase):
             }
         })
 
-        source = params.CreateIndexTemplateParamSource(track=track.Track(name="unit-test", templates=[tpl]), params={
+        source = params.CreateIndexTemplateParamSource(workload=workload.Workload(name="unit-test", templates=[tpl]), params={
             "settings": {
                 "index.number_of_replicas": 1
             }
@@ -1784,7 +1784,7 @@ class CreateIndexTemplateParamSourceTests(TestCase):
 
 class DeleteIndexTemplateParamSourceTests(TestCase):
     def test_delete_index_template_by_name(self):
-        source = params.DeleteIndexTemplateParamSource(track.Track(name="unit-test"), params={"template": "default"})
+        source = params.DeleteIndexTemplateParamSource(workload.Workload(name="unit-test"), params={"template": "default"})
 
         p = source.params()
 
@@ -1794,7 +1794,7 @@ class DeleteIndexTemplateParamSourceTests(TestCase):
         self.assertDictEqual({}, p["request-params"])
 
     def test_delete_index_template_by_name_and_matching_indices(self):
-        source = params.DeleteIndexTemplateParamSource(track.Track(name="unit-test"),
+        source = params.DeleteIndexTemplateParamSource(workload.Workload(name="unit-test"),
                                                        params={
                                                            "template": "default",
                                                            "delete-matching-indices": True,
@@ -1810,7 +1810,7 @@ class DeleteIndexTemplateParamSourceTests(TestCase):
 
     def test_delete_index_template_by_name_and_matching_indices_missing_index_pattern(self):
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.DeleteIndexTemplateParamSource(track.Track(name="unit-test"),
+            params.DeleteIndexTemplateParamSource(workload.Workload(name="unit-test"),
                                                   params={
                                                       "template": "default",
                                                       "delete-matching-indices": True
@@ -1818,19 +1818,19 @@ class DeleteIndexTemplateParamSourceTests(TestCase):
         self.assertEqual("The property 'index-pattern' is required for delete-index-template if 'delete-matching-indices' is true.",
                          ctx.exception.args[0])
 
-    def test_delete_index_template_from_track(self):
-        tpl1 = track.IndexTemplate(name="metrics", pattern="metrics-*", delete_matching_indices=True, content={
+    def test_delete_index_template_from_workload(self):
+        tpl1 = workload.IndexTemplate(name="metrics", pattern="metrics-*", delete_matching_indices=True, content={
             "index_patterns": ["metrics-*"],
             "settings": {},
             "mappings": {}
         })
-        tpl2 = track.IndexTemplate(name="logs", pattern="logs-*", delete_matching_indices=False, content={
+        tpl2 = workload.IndexTemplate(name="logs", pattern="logs-*", delete_matching_indices=False, content={
             "index_patterns": ["logs-*"],
             "settings": {},
             "mappings": {}
         })
 
-        source = params.DeleteIndexTemplateParamSource(track.Track(name="unit-test", templates=[tpl1, tpl2]), params={
+        source = params.DeleteIndexTemplateParamSource(workload.Workload(name="unit-test", templates=[tpl1, tpl2]), params={
             "request-params": {
                 "master_timeout": 20
             },
@@ -1848,7 +1848,7 @@ class DeleteIndexTemplateParamSourceTests(TestCase):
 
 class CreateComposableTemplateParamSourceTests(TestCase):
     def test_create_index_template_inline(self):
-        source = params.CreateComposableTemplateParamSource(track=track.Track(name="unit-test"), params={
+        source = params.CreateComposableTemplateParamSource(workload=workload.Workload(name="unit-test"), params={
             "template": "test",
             "body": {
               "index_patterns": ["my*"],
@@ -1877,8 +1877,8 @@ class CreateComposableTemplateParamSourceTests(TestCase):
               "composed_of": ["ct1", "ct2"]
             }, body)
 
-    def test_create_composable_index_template_from_track(self):
-        tpl = track.IndexTemplate(name="default", pattern="*", content={
+    def test_create_composable_index_template_from_workload(self):
+        tpl = workload.IndexTemplate(name="default", pattern="*", content={
               "index_patterns": ["my*"],
               "template": {
                 "settings" : {
@@ -1888,7 +1888,8 @@ class CreateComposableTemplateParamSourceTests(TestCase):
               "composed_of": ["ct1", "ct2"]
             })
 
-        source = params.CreateComposableTemplateParamSource(track=track.Track(name="unit-test", composable_templates=[tpl]), params={
+        source = params.CreateComposableTemplateParamSource(workload=workload.Workload(
+            name="unit-test", composable_templates=[tpl]), params={
             "settings": {
                 "index.number_of_replicas": 1
             }
@@ -1943,7 +1944,7 @@ class CreateComposableTemplateParamSourceTests(TestCase):
     def test_no_templates_specified(self):
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
             params.CreateComposableTemplateParamSource(
-                track=track.Track(name="unit-test"), params={
+                workload=workload.Workload(name="unit-test"), params={
                     "settings": {
                         "index.number_of_shards": 1,
                         "index.number_of_replicas": 1
@@ -1951,12 +1952,12 @@ class CreateComposableTemplateParamSourceTests(TestCase):
                     "operation-type": "create-composable-template"
                 })
         self.assertEqual("Please set the properties 'template' and 'body' for the create-composable-template operation "
-                         "or declare composable and/or component templates in the track", ctx.exception.args[0])
+                         "or declare composable and/or component templates in the workload", ctx.exception.args[0])
 
 
 class CreateComponentTemplateParamSourceTests(TestCase):
-    def test_create_component_index_template_from_track(self):
-        tpl = track.ComponentTemplate(name="default", content={
+    def test_create_component_index_template_from_workload(self):
+        tpl = workload.ComponentTemplate(name="default", content={
           "template": {
             "mappings": {
               "properties": {
@@ -1969,7 +1970,7 @@ class CreateComponentTemplateParamSourceTests(TestCase):
         })
 
         source = params.CreateComponentTemplateParamSource(
-            track=track.Track(name="unit-test", component_templates=[tpl]), params={
+            workload=workload.Workload(name="unit-test", component_templates=[tpl]), params={
                 "settings": {
                     "index.number_of_shards": 1,
                     "index.number_of_replicas": 1
@@ -2001,7 +2002,7 @@ class CreateComponentTemplateParamSourceTests(TestCase):
 
 class DeleteComponentTemplateParamSource(TestCase):
     def test_delete_index_template_by_name(self):
-        source = params.DeleteComponentTemplateParamSource(track.Track(name="unit-test"), params={"template": "default"})
+        source = params.DeleteComponentTemplateParamSource(workload.Workload(name="unit-test"), params={"template": "default"})
         p = source.params()
         self.assertEqual(1, len(p["templates"]))
         self.assertEqual("default", p["templates"][0])
@@ -2010,13 +2011,13 @@ class DeleteComponentTemplateParamSource(TestCase):
 
     def test_delete_index_template_no_name(self):
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.DeleteComponentTemplateParamSource(track.Track(name="unit-test"),
+            params.DeleteComponentTemplateParamSource(workload.Workload(name="unit-test"),
                                                   params={"operation-type": "delete-component-template"})
         self.assertEqual("Please set the property 'template' for the delete-component-template operation.",
                          ctx.exception.args[0])
 
-    def test_delete_index_template_from_track(self):
-        tpl1 = track.ComponentTemplate(name="logs", content={
+    def test_delete_index_template_from_workload(self):
+        tpl1 = workload.ComponentTemplate(name="logs", content={
           "template": {
             "mappings": {
               "properties": {
@@ -2027,7 +2028,7 @@ class DeleteComponentTemplateParamSource(TestCase):
             }
           }
         })
-        tpl2 = track.ComponentTemplate(name="metrics", content={
+        tpl2 = workload.ComponentTemplate(name="metrics", content={
           "template": {
             "settings": {
               "index.number_of_shards": 1,
@@ -2035,7 +2036,7 @@ class DeleteComponentTemplateParamSource(TestCase):
             }
           }
         })
-        source = params.DeleteComponentTemplateParamSource(track.Track(name="unit-test", templates=[tpl1, tpl2]), params={
+        source = params.DeleteComponentTemplateParamSource(workload.Workload(name="unit-test", templates=[tpl1, tpl2]), params={
             "request-params": {
                 "master_timeout": 20
             },
@@ -2053,9 +2054,9 @@ class DeleteComponentTemplateParamSource(TestCase):
 
 class SearchParamSourceTests(TestCase):
     def test_passes_cache(self):
-        index1 = track.Index(name="index1", types=["type1"])
+        index1 = workload.Index(name="index1", types=["type1"])
 
-        source = params.SearchParamSource(track=track.Track(name="unit-test", indices=[index1]), params={
+        source = params.SearchParamSource(workload=workload.Workload(name="unit-test", indices=[index1]), params={
             "body": {
                 "query": {
                     "match_all": {}
@@ -2086,9 +2087,9 @@ class SearchParamSourceTests(TestCase):
         }, p["body"])
 
     def test_uses_data_stream(self):
-        ds1 = track.DataStream(name="data-stream-1")
+        ds1 = workload.DataStream(name="data-stream-1")
 
-        source = params.SearchParamSource(track=track.Track(name="unit-test", data_streams=[ds1]), params={
+        source = params.SearchParamSource(workload=workload.Workload(name="unit-test", data_streams=[ds1]), params={
             "body": {
                 "query": {
                     "match_all": {}
@@ -2125,7 +2126,7 @@ class SearchParamSourceTests(TestCase):
 
     def test_create_without_index(self):
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            params.SearchParamSource(track=track.Track(name="unit-test"), params={
+            params.SearchParamSource(workload=workload.Workload(name="unit-test"), params={
                 "type": "type1",
                 "body": {
                     "query": {
@@ -2137,9 +2138,9 @@ class SearchParamSourceTests(TestCase):
         self.assertEqual("'index' or 'data-stream' is mandatory and is missing for operation 'test_operation'", ctx.exception.args[0])
 
     def test_passes_request_parameters(self):
-        index1 = track.Index(name="index1", types=["type1"])
+        index1 = workload.Index(name="index1", types=["type1"])
 
-        source = params.SearchParamSource(track=track.Track(name="unit-test", indices=[index1]), params={
+        source = params.SearchParamSource(workload=workload.Workload(name="unit-test", indices=[index1]), params={
             "request-params": {
                 "_source_include": "some_field"
             },
@@ -2170,9 +2171,9 @@ class SearchParamSourceTests(TestCase):
         }, p["body"])
 
     def test_user_specified_overrides_defaults(self):
-        index1 = track.Index(name="index1", types=["type1"])
+        index1 = workload.Index(name="index1", types=["type1"])
 
-        source = params.SearchParamSource(track=track.Track(name="unit-test", indices=[index1]), params={
+        source = params.SearchParamSource(workload=workload.Workload(name="unit-test", indices=[index1]), params={
             "index": "_all",
             "type": "type1",
             "cache": False,
@@ -2205,9 +2206,9 @@ class SearchParamSourceTests(TestCase):
         }, p["body"])
 
     def test_user_specified_data_stream_overrides_defaults(self):
-        ds1 = track.DataStream(name="data-stream-1")
+        ds1 = workload.DataStream(name="data-stream-1")
 
-        source = params.SearchParamSource(track=track.Track(name="unit-test", data_streams=[ds1]), params={
+        source = params.SearchParamSource(workload=workload.Workload(name="unit-test", data_streams=[ds1]), params={
             "data-stream": "data-stream-2",
             "cache": False,
             "response-compression-enabled": False,
@@ -2239,9 +2240,9 @@ class SearchParamSourceTests(TestCase):
 
     def test_invalid_data_stream_with_type(self):
         with self.assertRaises(exceptions.InvalidSyntax) as ctx:
-            ds1 = track.DataStream(name="data-stream-1")
+            ds1 = workload.DataStream(name="data-stream-1")
 
-            params.SearchParamSource(track=track.Track(name="unit-test", data_streams=[ds1]), params={
+            params.SearchParamSource(workload=workload.Workload(name="unit-test", data_streams=[ds1]), params={
                 "data-stream": "data-stream-2",
                 "type": "_doc",
                 "cache": False,
@@ -2257,10 +2258,10 @@ class SearchParamSourceTests(TestCase):
                          ctx.exception.args[0])
 
     def test_assertions_without_detailed_results_are_invalid(self):
-        index1 = track.Index(name="index1", types=["type1"])
+        index1 = workload.Index(name="index1", types=["type1"])
         with self.assertRaisesRegex(exceptions.InvalidSyntax,
                                     r"The property \[detailed-results\] must be \[true\] if assertions are defined"):
-            params.SearchParamSource(track=track.Track(name="unit-test", indices=[index1]), params={
+            params.SearchParamSource(workload=workload.Workload(name="unit-test", indices=[index1]), params={
                 "index": "_all",
                 # unset!
                 #"detailed-results": True,
@@ -2278,11 +2279,11 @@ class SearchParamSourceTests(TestCase):
 
 
 class ForceMergeParamSourceTests(TestCase):
-    def test_force_merge_index_from_track(self):
-        source = params.ForceMergeParamSource(track.Track(name="unit-test", indices=[
-            track.Index(name="index1"),
-            track.Index(name="index2"),
-            track.Index(name="index3")
+    def test_force_merge_index_from_workload(self):
+        source = params.ForceMergeParamSource(workload.Workload(name="unit-test", indices=[
+            workload.Index(name="index1"),
+            workload.Index(name="index2"),
+            workload.Index(name="index3")
         ]), params={})
 
         p = source.params()
@@ -2290,11 +2291,11 @@ class ForceMergeParamSourceTests(TestCase):
         self.assertEqual("index1,index2,index3", p["index"])
         self.assertEqual("blocking", p["mode"])
 
-    def test_force_merge_data_stream_from_track(self):
-        source = params.ForceMergeParamSource(track.Track(name="unit-test", data_streams=[
-            track.DataStream(name="data-stream-1"),
-            track.DataStream(name="data-stream-2"),
-            track.DataStream(name="data-stream-3")
+    def test_force_merge_data_stream_from_workload(self):
+        source = params.ForceMergeParamSource(workload.Workload(name="unit-test", data_streams=[
+            workload.DataStream(name="data-stream-1"),
+            workload.DataStream(name="data-stream-2"),
+            workload.DataStream(name="data-stream-3")
         ]), params={})
 
         p = source.params()
@@ -2303,7 +2304,7 @@ class ForceMergeParamSourceTests(TestCase):
         self.assertEqual("blocking", p["mode"])
 
     def test_force_merge_index_by_name(self):
-        source = params.ForceMergeParamSource(track.Track(name="unit-test"), params={"index": "index2"})
+        source = params.ForceMergeParamSource(workload.Workload(name="unit-test"), params={"index": "index2"})
 
         p = source.params()
 
@@ -2311,7 +2312,7 @@ class ForceMergeParamSourceTests(TestCase):
         self.assertEqual("blocking", p["mode"])
 
     def test_force_merge_by_data_stream_name(self):
-        source = params.ForceMergeParamSource(track.Track(name="unit-test"), params={"data-stream": "data-stream-2"})
+        source = params.ForceMergeParamSource(workload.Workload(name="unit-test"), params={"data-stream": "data-stream-2"})
 
         p = source.params()
 
@@ -2319,7 +2320,7 @@ class ForceMergeParamSourceTests(TestCase):
         self.assertEqual("blocking", p["mode"])
 
     def test_default_force_merge_index(self):
-        source = params.ForceMergeParamSource(track.Track(name="unit-test"), params={})
+        source = params.ForceMergeParamSource(workload.Workload(name="unit-test"), params={})
 
         p = source.params()
 
@@ -2327,7 +2328,7 @@ class ForceMergeParamSourceTests(TestCase):
         self.assertEqual("blocking", p["mode"])
 
     def test_force_merge_all_params(self):
-        source = params.ForceMergeParamSource(track.Track(name="unit-test"), params={"index": "index2",
+        source = params.ForceMergeParamSource(workload.Workload(name="unit-test"), params={"index": "index2",
                                                                                      "request-timeout": 30,
                                                                                      "max-num-segments": 1,
                                                                                      "polling-period": 20,

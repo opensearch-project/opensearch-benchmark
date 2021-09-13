@@ -1,6 +1,6 @@
 [
   {
-    "track": "geonames",
+    "workload": "geonames",
     "flavors": [
       {
         "name": "default",
@@ -15,7 +15,7 @@
                   "indexing"
                 ],
                 "test_procedure": "append-no-conflicts-index-only",
-                "track-params": {
+                "workload-params": {
                   "number_of_replicas": 1
                 },
                 "provision-config-instance": "4gheap",

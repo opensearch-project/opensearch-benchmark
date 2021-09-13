@@ -27,27 +27,27 @@ from esrally.utils import process
 
 
 @it.rally_in_mem
-def test_track_info_with_test_procedure(cfg):
-    assert it.esrally(cfg, "info --track=geonames --test-procedure=append-no-conflicts") == 0
+def test_workload_info_with_test_procedure(cfg):
+    assert it.esrally(cfg, "info --workload=geonames --test-procedure=append-no-conflicts") == 0
 
 
 @it.rally_in_mem
-def test_track_info_with_track_repo(cfg):
-    assert it.esrally(cfg, "info --track-repository=default --track=geonames") == 0
+def test_workload_info_with_workload_repo(cfg):
+    assert it.esrally(cfg, "info --workload-repository=default --workload=geonames") == 0
 
 
 @it.rally_in_mem
-def test_track_info_with_task_filter(cfg):
-    assert it.esrally(cfg, "info --track=geonames --test-procedure=append-no-conflicts --include-tasks=\"type:search\"") == 0
+def test_workload_info_with_task_filter(cfg):
+    assert it.esrally(cfg, "info --workload=geonames --test-procedure=append-no-conflicts --include-tasks=\"type:search\"") == 0
 
 
 @it.rally_in_mem
-def test_track_info_fails_with_wrong_track_params(cfg):
-    # simulate a typo in track parameter
-    cmd = it.esrally_command_line_for(cfg, "info --track=geonames --track-params='conflict_probability:5,number-of-replicas:1'")
+def test_workload_info_fails_with_wrong_workload_params(cfg):
+    # simulate a typo in workload parameter
+    cmd = it.esrally_command_line_for(cfg, "info --workload=geonames --workload-params='conflict_probability:5,number-of-replicas:1'")
     output = process.run_subprocess_with_output(cmd)
-    expected = "Some of your track parameter(s) \"number-of-replicas\" are not used by this track; " \
-               "perhaps you intend to use \"number_of_replicas\" instead.\n\nAll track parameters you " \
-               "provided are:\n- conflict_probability\n- number-of-replicas\n\nAll parameters exposed by this track"
+    expected = "Some of your workload parameter(s) \"number-of-replicas\" are not used by this workload; " \
+               "perhaps you intend to use \"number_of_replicas\" instead.\n\nAll workload parameters you " \
+               "provided are:\n- conflict_probability\n- number-of-replicas\n\nAll parameters exposed by this workload"
 
     assert expected in "\n".join(output)

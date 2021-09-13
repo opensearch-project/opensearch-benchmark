@@ -156,7 +156,7 @@ def get_metrics_store(cfg):
     ms = InMemoryMetricsStore(cfg)
     ms.open(test_ex_id=str(uuid.uuid4()),
             test_ex_timestamp=datetime.now(),
-            track_name="test",
+            workload_name="test",
             test_procedure_name="test",
             provision_config_instance_name="test")
     return ms

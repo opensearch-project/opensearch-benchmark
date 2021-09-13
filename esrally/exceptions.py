@@ -90,9 +90,9 @@ class InvalidName(RallyError):
     pass
 
 
-class TrackConfigError(RallyError):
+class WorkloadConfigError(RallyError):
     """
-    Thrown when something is wrong with the track config e.g. user supplied a track-param
+    Thrown when something is wrong with the workload config e.g. user supplied a workload-param
     that can't be set
     """
 

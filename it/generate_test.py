@@ -28,7 +28,7 @@ import it
 
 
 @it.rally_in_mem
-def test_track_info_with_test_procedure(cfg, tmp_path):
+def test_workload_info_with_test_procedure(cfg, tmp_path):
     cwd = os.path.dirname(__file__)
     chart_spec_path = os.path.join(cwd, "resources", "sample-test-execution-config.json")
     output_path = os.path.join(tmp_path, "nightly-charts.ndjson")

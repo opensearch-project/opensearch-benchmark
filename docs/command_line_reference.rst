@@ -166,10 +166,10 @@ Can be either a directory that contains a ``track.json`` file or a ``.json`` fil
 Examples::
 
    # provide a directory - Rally searches for a track.json file in this directory
-   # Track name is "app-logs"
+   # Workload name is "app-logs"
    esrally race --track-path=~/Projects/tracks/app-logs
    # provide a file name - Rally uses this file directly
-   # Track name is "syslog"
+   # Workload name is "syslog"
    esrally race --track-path=~/Projects/tracks/syslog.json
 
 
@@ -181,7 +181,7 @@ Selects the track repository that Rally should use to resolve tracks. By default
 ``track-revision``
 ~~~~~~~~~~~~~~~~~~
 
-Selects a specific revision in the track repository. By default, Rally will choose the most appropriate branch on its own but in some cases it is necessary to specify a certain commit. This is mostly needed when testing whether a change in performance has occurred due to a change in the workload. 
+Selects a specific revision in the track repository. By default, Rally will choose the most appropriate branch on its own but in some cases it is necessary to specify a certain commit. This is mostly needed when testing whether a change in performance has occurred due to a change in the workload.
 
 ``track``
 ~~~~~~~~~
@@ -237,7 +237,7 @@ Example JSON file::
 
 All track parameters are recorded for each metrics record in the metrics store. Also, when you run ``esrally list races``, it will show all track parameters::
 
-    Race Timestamp    Track    Track Parameters          Challenge            Car       User Tag
+    Race Timestamp    Workload    Workload Parameters          Challenge            Car       User Tag
     ----------------  -------  ------------------------- -------------------  --------  ---------
     20160518T122341Z  pmc      bulk_size=8000            append-no-conflicts  defaults
     20160518T112341Z  pmc      bulk_size=2000,clients=16 append-no-conflicts  defaults
@@ -851,7 +851,7 @@ You can also specify multiple tags. They need to be separated by a comma.
 
 When you run ``esrally list races``, this will show up again::
 
-    Race Timestamp    Track    Track Parameters   Challenge            Car       User Tag
+    Race Timestamp    Workload    Workload Parameters   Challenge            Car       User Tag
     ----------------  -------  ------------------ -------------------  --------  ------------------------------------
     20160518T122341Z  pmc                         append-no-conflicts  defaults  intention:github-issue-1234-baseline
     20160518T112341Z  pmc                         append-no-conflicts  defaults  disk:SSD,data_node_count:4

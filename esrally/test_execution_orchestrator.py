@@ -32,7 +32,7 @@ import thespian.actors
 
 from esrally import actor, config, doc_link, \
     worker_coordinator, exceptions, builder, metrics, \
-        results_publisher, track, version, PROGRAM_NAME
+        results_publisher, workload, version, PROGRAM_NAME
 from esrally.utils import console, opts, versions
 
 
@@ -124,7 +124,7 @@ class BenchmarkActor(actor.RallyActor):
             targetActorRequirements={"coordinator": True}
             )
         self.logger.info("Telling worker_coordinator to prepare for benchmarking.")
-        self.send(self.main_worker_coordinator, worker_coordinator.PrepareBenchmark(self.cfg, self.coordinator.current_track))
+        self.send(self.main_worker_coordinator, worker_coordinator.PrepareBenchmark(self.cfg, self.coordinator.current_workload))
 
     @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_PreparationComplete(self, msg, sender):
@@ -175,12 +175,12 @@ class BenchmarkCoordinator:
         self.test_execution_store = None
         self.cancelled = False
         self.error = False
-        self.track_revision = None
-        self.current_track = None
+        self.workload_revision = None
+        self.current_workload = None
         self.current_test_procedure = None
 
     def setup(self, sources=False):
-        # to load the track we need to know the correct cluster distribution version. Usually, this value should be set
+        # to load the workload we need to know the correct cluster distribution version. Usually, this value should be set
         # but there are rare cases (external pipeline and user did not specify the distribution version) where we need
         # to derive it ourselves. For source builds we always assume "master"
         if not sources and not self.cfg.exists("builder", "distribution.version"):
@@ -192,21 +192,24 @@ class BenchmarkCoordinator:
             if specified_version < min_es_version:
                 raise exceptions.SystemSetupError(f"Cluster version must be at least [{min_es_version}] but was [{distribution_version}]")
 
-        self.current_track = track.load_track(self.cfg)
-        self.track_revision = self.cfg.opts("track", "repository.revision", mandatory=False)
-        test_procedure_name = self.cfg.opts("track", "test_procedure.name")
-        self.current_test_procedure = self.current_track.find_test_procedure_or_default(test_procedure_name)
+        self.current_workload = workload.load_workload(self.cfg)
+        self.workload_revision = self.cfg.opts("workload", "repository.revision", mandatory=False)
+        test_procedure_name = self.cfg.opts("workload", "test_procedure.name")
+        self.current_test_procedure = self.current_workload.find_test_procedure_or_default(test_procedure_name)
         if self.current_test_procedure is None:
             raise exceptions.SystemSetupError(
-                "Track [{}] does not provide test_procedure [{}]. List the available tracks with {} list tracks.".format(
-                    self.current_track.name, test_procedure_name, PROGRAM_NAME))
+                "Workload [{}] does not provide test_procedure [{}]. List the available workloads with {} list workloads.".format(
+                    self.current_workload.name, test_procedure_name, PROGRAM_NAME))
         if self.current_test_procedure.user_info:
             console.info(self.current_test_procedure.user_info)
-        self.test_execution = metrics.create_test_execution(self.cfg, self.current_track, self.current_test_procedure, self.track_revision)
+        self.test_execution = metrics.create_test_execution(
+            self.cfg, self.current_workload,
+            self.current_test_procedure,
+            self.workload_revision)
 
         self.metrics_store = metrics.metrics_store(
             self.cfg,
-            track=self.test_execution.track_name,
+            workload=self.test_execution.workload_name,
             test_procedure=self.test_execution.test_procedure_name,
             read_only=False
         )
@@ -219,14 +222,14 @@ class BenchmarkCoordinator:
         # store test_execution initially (without any results) so other components can retrieve full metadata
         self.test_execution_store.store_test_execution(self.test_execution)
         if self.test_execution.test_procedure.auto_generated:
-            console.info("Racing on track [{}] and provision_config_instance {} with version [{}].\n"
-                         .format(self.test_execution.track_name,
+            console.info("Racing on workload [{}] and provision_config_instance {} with version [{}].\n"
+                         .format(self.test_execution.workload_name,
                          self.test_execution.provision_config_instance,
                          self.test_execution.distribution_version))
         else:
-            console.info("Racing on track [{}], test_procedure [{}] and provision_config_instance {} with version [{}].\n"
+            console.info("Racing on workload [{}], test_procedure [{}] and provision_config_instance {} with version [{}].\n"
                          .format(
-                             self.test_execution.track_name,
+                             self.test_execution.workload_name,
                              self.test_execution.test_procedure_name,
                              self.test_execution.provision_config_instance,
                              self.test_execution.distribution_version

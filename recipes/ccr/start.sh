@@ -92,7 +92,7 @@ datastore.secure = False
 datastore.user = elastic
 datastore.password = notinuse
 
-[tracks]
+[workloads]
 default.url = https://github.com/opensearch-project/opensearch-benchmark-workloads
 
 [provision_configs]
@@ -106,4 +106,4 @@ release.cache = true
 EOF
 
 # Start Rally
-esrally --configuration-name=metricstore --target-hosts=./ccr-target-hosts.json --pipeline=benchmark-only --on-error=abort --track=geonames --test-procedure=append-no-conflicts-index-only --track-params="ingest_percentage:20,number_of_shards:3" --telemetry="ccr-stats" --telemetry-params="ccr-stats-sample-interval:1"
+esrally --configuration-name=metricstore --target-hosts=./ccr-target-hosts.json --pipeline=benchmark-only --on-error=abort --workload=geonames --test-procedure=append-no-conflicts-index-only --workload-params="ingest_percentage:20,number_of_shards:3" --telemetry="ccr-stats" --telemetry-params="ccr-stats-sample-interval:1"

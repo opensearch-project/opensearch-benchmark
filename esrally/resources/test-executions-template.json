@@ -48,7 +48,7 @@
         "pipeline": {
           "type": "keyword"
         },
-        "track": {
+        "workload": {
           "type": "keyword"
         },
         "test_procedure": {
