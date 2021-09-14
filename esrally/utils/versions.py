@@ -162,7 +162,7 @@ def best_match(available_alternatives, distribution_version):
      1. exact matches of major.minor
      2. nearest prior minor within the same major
      3. major version
-     4. as a last resort, `master`.
+     4. as a last resort, `main`.
 
     See test_find_best_match() for examples.
 
@@ -179,12 +179,12 @@ def best_match(available_alternatives, distribution_version):
             if version_type == "with_minor" and (latest_minor := latest_bounded_minor(available_alternatives, versions)):
                 if latest_minor:
                     return f"{versions.major}.{latest_minor}"
-        # not found in the available alternatives, it could still be a master version
+        # not found in the available alternatives, it could still be a main version
         major, _, _, _ = components(distribution_version)
         if major > _latest_major(available_alternatives):
-            return "master"
+            return "main"
     elif not distribution_version:
-        return "master"
+        return "main"
     return None
 
 
