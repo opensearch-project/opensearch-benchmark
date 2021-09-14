@@ -144,7 +144,7 @@ class RallyRepository:
 
     def selectBranchVersion(self, distribution_version, pc_path):
         # Branches have been moved into opensearch-benchmark-provisionconfigs
-        branches = [b for b in os.listdir(pc_path) if os.path.isdir(os.path.join(pc_path, b)) and b != "master"]
+        branches = [b for b in os.listdir(pc_path) if os.path.isdir(os.path.join(pc_path, b)) and b != "main"]
         branches.sort(key=lambda b: list(map(int, b.split('.'))), reverse=True)
 
         convert = lambda s: list(map(int, s.split('.')))
@@ -157,4 +157,4 @@ class RallyRepository:
             raise Exception("Distribution version is less than available ES versions for provision-configs.")
 
         # Distribution version is Nonetype if not specified in command line
-        return "master"
+        return "main"

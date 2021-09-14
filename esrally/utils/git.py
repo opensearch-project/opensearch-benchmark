@@ -67,20 +67,20 @@ def fetch(src, remote="origin"):
 
 
 @probed
-def checkout(src_dir, branch="master"):
+def checkout(src_dir, branch="main"):
     if process.run_subprocess_with_logging("git -C {0} checkout {1}".format(io.escape_path(src_dir), branch)):
         raise exceptions.SupplyError("Could not checkout [%s]. Do you have uncommitted changes?" % branch)
 
 
 @probed
-def rebase(src_dir, remote="origin", branch="master"):
+def rebase(src_dir, remote="origin", branch="main"):
     checkout(src_dir, branch)
     if process.run_subprocess_with_logging("git -C {0} rebase {1}/{2}".format(io.escape_path(src_dir), remote, branch)):
         raise exceptions.SupplyError("Could not rebase on branch [%s]" % branch)
 
 
 @probed
-def pull(src_dir, remote="origin", branch="master"):
+def pull(src_dir, remote="origin", branch="main"):
     fetch(src_dir, remote)
     rebase(src_dir, remote, branch)
 
