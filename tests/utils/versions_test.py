@@ -111,13 +111,13 @@ class TestsVersions:
 
     def test_find_best_match(self):
         assert versions.best_match(["1.7", "2", "5.0.0-alpha1", "5", "main"], "6.0.0-alpha1") == "main",\
-            "Assume master for versions newer than latest alternative available"
+            "Assume main for versions newer than latest alternative available"
 
         assert versions.best_match(["1.7", "2", "5.0.0-alpha1", "5", "main"], "5.1.0-SNAPSHOT") == "5",\
             "Best match for specific version"
 
         assert versions.best_match(["1.7", "2", "5.0.0-alpha1", "5", "main"], None) == "main",\
-            "Assume master on unknown version"
+            "Assume main on unknown version"
 
         assert versions.best_match(["1.7", "2", "5.0.0-alpha1", "5", "main"], "0.4") is None,\
             "Reject versions that are too old"

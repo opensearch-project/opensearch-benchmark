@@ -145,7 +145,7 @@ class GitTests(TestCase):
         git.pull_ts("/src", "20160101T110000Z")
 
         run_subprocess_with_output.assert_called_with(
-            "git -C /src rev-list -n 1 --before=\"20160101T110000Z\" --date=iso8601 origin/master")
+            "git -C /src rev-list -n 1 --before=\"20160101T110000Z\" --date=iso8601 origin/main")
         run_subprocess.has_calls([
             mock.call("git -C /src fetch --prune --tags --quiet origin"),
             mock.call("git -C /src checkout 3694a07")
@@ -175,10 +175,10 @@ class GitTests(TestCase):
     def test_list_remote_branches(self, run_subprocess_with_logging, run_subprocess):
         run_subprocess_with_logging.return_value = 0
         run_subprocess.return_value = ["  origin/HEAD",
-                                       "  origin/master",
+                                       "  origin/main",
                                        "  origin/5.0.0-alpha1",
                                        "  origin/5"]
-        self.assertEqual(["master", "5.0.0-alpha1", "5"], git.branches("/src", remote=True))
+        self.assertEqual(["main", "5.0.0-alpha1", "5"], git.branches("/src", remote=True))
         run_subprocess.assert_called_with("git -C /src for-each-ref refs/remotes/ --format='%(refname:short)'")
 
     @mock.patch("esrally.utils.process.run_subprocess_with_output")
@@ -186,10 +186,10 @@ class GitTests(TestCase):
     def test_list_local_branches(self, run_subprocess_with_logging, run_subprocess):
         run_subprocess_with_logging.return_value = 0
         run_subprocess.return_value = ["  HEAD",
-                                       "  master",
+                                       "  main",
                                        "  5.0.0-alpha1",
                                        "  5"]
-        self.assertEqual(["master", "5.0.0-alpha1", "5"], git.branches("/src", remote=False))
+        self.assertEqual(["main", "5.0.0-alpha1", "5"], git.branches("/src", remote=False))
         run_subprocess.assert_called_with("git -C /src for-each-ref refs/heads/ --format='%(refname:short)'")
 
     @mock.patch("esrally.utils.process.run_subprocess_with_output")

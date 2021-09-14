@@ -90,7 +90,7 @@ def pull_ts(src_dir, ts):
     fetch(src_dir)
     clean_src = io.escape_path(src_dir)
     revision = process.run_subprocess_with_output(
-        "git -C {0} rev-list -n 1 --before=\"{1}\" --date=iso8601 origin/master".format(clean_src, ts))[0].strip()
+        "git -C {0} rev-list -n 1 --before=\"{1}\" --date=iso8601 origin/main".format(clean_src, ts))[0].strip()
     if process.run_subprocess_with_logging("git -C {0} checkout {1}".format(clean_src, revision)):
         raise exceptions.SupplyError("Could not checkout source tree for timestamped revision [%s]" % ts)
 
