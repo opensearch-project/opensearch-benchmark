@@ -311,7 +311,7 @@ def data_dir(cfg, workload_name, corpus_name):
 
 
 class GitWorkloadRepository:
-    def __init__(self, cfg, fetch, update, repo_class=repo.RallyRepository):
+    def __init__(self, cfg, fetch, update, repo_class=repo.BenchmarkRepository):
         # current workload name (if any)
         self.workload_name = cfg.opts("workload", "workload.name", mandatory=False)
         distribution_version = cfg.opts("builder", "distribution.version", mandatory=False)

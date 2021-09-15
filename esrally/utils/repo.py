@@ -30,7 +30,7 @@ from esrally import exceptions, config
 from esrally.utils import io, git, console, versions
 
 
-class RallyRepository:
+class BenchmarkRepository:
     """
     Manages Rally resources (e.g. provision_configs or workloads).
     """
@@ -40,7 +40,7 @@ class RallyRepository:
     def __init__(self, default_directory, root_dir, repo_name, resource_name, offline, fetch=True):
         # If no URL is found, we consider this a local only repo (but still require that it is a git repo)
         self.directory = default_directory
-        self.remote = self.directory is not None and self.directory != RallyRepository.default and self.directory.strip() != ""
+        self.remote = self.directory is not None and self.directory != BenchmarkRepository.default and self.directory.strip() != ""
         self.repo_dir = os.path.join(root_dir, repo_name)
         self.resource_name = resource_name
         self.offline = offline
@@ -63,7 +63,7 @@ class RallyRepository:
                                                       .format(src=self.repo_dir))
 
     def setRepository(self, repo_revision, distribution_version, cfg):
-        if self.directory == RallyRepository.default:
+        if self.directory == BenchmarkRepository.default:
             self.useOpensearchBenchmarkProvisionConfigs(distribution_version)
         elif repo_revision:
             self.checkout(repo_revision)

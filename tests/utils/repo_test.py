@@ -30,7 +30,7 @@ from esrally import exceptions
 from esrally.utils import repo
 
 
-class RallyRepositoryTests(TestCase):
+class BenchmarkRepositoryTests(TestCase):
     @mock.patch("esrally.utils.io.exists", autospec=True)
     @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
     def test_fails_in_offline_mode_if_not_a_git_repo(self, is_working_copy, exists):
@@ -38,7 +38,7 @@ class RallyRepositoryTests(TestCase):
         exists.return_value = True
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            repo.RallyRepository(
+            repo.BenchmarkRepository(
                 default_directory=None,
                 root_dir="/rally-resources",
                 repo_name="unit-test",
@@ -54,7 +54,7 @@ class RallyRepositoryTests(TestCase):
         is_working_copy.return_value = False
         exists.return_value = False
 
-        r = repo.RallyRepository(
+        r = repo.BenchmarkRepository(
             default_directory=None,
             root_dir="/rally-resources",
             repo_name="unit-test",
@@ -67,7 +67,7 @@ class RallyRepositoryTests(TestCase):
     def test_does_nothing_if_working_copy_present(self, is_working_copy):
         is_working_copy.return_value = True
 
-        r = repo.RallyRepository(
+        r = repo.BenchmarkRepository(
                 default_directory=None,
                 root_dir="/rally-resources",
                 repo_name="unit-test",
@@ -81,7 +81,7 @@ class RallyRepositoryTests(TestCase):
     def test_clones_initially(self, clone, is_working_copy):
         is_working_copy.return_value = False
 
-        r = repo.RallyRepository(
+        r = repo.BenchmarkRepository(
             default_directory="git@gitrepos.example.org/rally-resources",
             root_dir="/rally-resources",
             repo_name="unit-test",
@@ -97,7 +97,7 @@ class RallyRepositoryTests(TestCase):
     def test_fetches_if_already_cloned(self, fetch, is_working_copy):
         is_working_copy.return_value = True
 
-        repo.RallyRepository(
+        repo.BenchmarkRepository(
             default_directory="git@gitrepos.example.org/rally-resources",
             root_dir="/rally-resources",
             repo_name="unit-test",
@@ -111,7 +111,7 @@ class RallyRepositoryTests(TestCase):
     def test_does_not_fetch_if_suppressed(self, fetch, is_working_copy):
         is_working_copy.return_value = True
 
-        r = repo.RallyRepository(
+        r = repo.BenchmarkRepository(
             default_directory="git@gitrepos.example.org/rally-resources",
             root_dir="/rally-resources",
             repo_name="unit-test",
@@ -129,7 +129,7 @@ class RallyRepositoryTests(TestCase):
         fetch.side_effect = exceptions.SupplyError("Testing error")
         is_working_copy.return_value = True
 
-        r = repo.RallyRepository(
+        r = repo.BenchmarkRepository(
             default_directory="git@gitrepos.example.org/rally-resources",
             root_dir="/rally-resources",
             repo_name="unit-test",
@@ -151,7 +151,7 @@ class RallyRepositoryTests(TestCase):
         is_working_copy.return_value = True
         head_revision.return_value = "123a"
 
-        r = repo.RallyRepository(
+        r = repo.BenchmarkRepository(
             default_directory="git@gitrepos.example.org/rally-resources",
             root_dir="/rally-resources",
             repo_name="unit-test",
@@ -177,7 +177,7 @@ class RallyRepositoryTests(TestCase):
         is_working_copy.return_value = True
         head_revision.return_value = "123a"
 
-        r = repo.RallyRepository(
+        r = repo.BenchmarkRepository(
             default_directory=None,
             root_dir="/rally-resources",
             repo_name="unit-test",
@@ -205,7 +205,7 @@ class RallyRepositoryTests(TestCase):
         is_working_copy.return_value = True
         head_revision.return_value = "123a"
 
-        r = repo.RallyRepository(
+        r = repo.BenchmarkRepository(
             default_directory=None,
             root_dir="/rally-resources",
             repo_name="unit-test",
@@ -230,7 +230,7 @@ class RallyRepositoryTests(TestCase):
         tags.return_value = []
         is_working_copy.return_value = True
 
-        r = repo.RallyRepository(
+        r = repo.BenchmarkRepository(
             default_directory="git@gitrepos.example.org/rally-resources",
             root_dir="/rally-resources",
             repo_name="unit-test",
@@ -273,7 +273,7 @@ class RallyRepositoryTests(TestCase):
         is_working_copy.return_value = True
         head_revision.retun_value = "123a"
 
-        r = repo.RallyRepository(
+        r = repo.BenchmarkRepository(
             default_directory="git@gitrepos.example.org/rally-resources",
             root_dir="/rally-resources",
             repo_name="unit-test",
@@ -305,7 +305,7 @@ class RallyRepositoryTests(TestCase):
         tags.return_value = []
         is_working_copy.return_value = True
 
-        r = repo.RallyRepository(
+        r = repo.BenchmarkRepository(
             default_directory=None,
             root_dir="/rally-resources",
             repo_name="unit-test",
@@ -327,7 +327,7 @@ class RallyRepositoryTests(TestCase):
     def test_checkout_revision(self, checkout, fetch, is_working_copy):
         is_working_copy.return_value = True
 
-        r = repo.RallyRepository(
+        r = repo.BenchmarkRepository(
             default_directory=None,
             root_dir="/rally-resources",
             repo_name="unit-test",

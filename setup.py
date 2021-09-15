@@ -162,8 +162,8 @@ setup(name="esrally",
       },
       entry_points={
           "console_scripts": [
-              "esrally=esrally.rally:main",
-              "esrallyd=esrally.rallyd:main"
+              "esrally=esrally.benchmark:main",
+              "esrallyd=esrally.benchmarkd:main"
           ],
       },
       classifiers=[
