@@ -197,7 +197,7 @@ class PluginLoaderTests(TestCase):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             self.loader.load_plugin("my-analysis-plugin", ["missing-config"])
         self.assertRegex(ctx.exception.args[0], r"Plugin \[my-analysis-plugin\] does not provide configuration \[missing-config\]. List the"
-                                                r" available plugins and configurations with [^\s]+ list elasticsearch-plugins "
+                                                r" available plugins and configurations with [^\s]+ list opensearch-plugins "
                                                 r"--distribution-version=VERSION.")
 
     def test_loads_community_plugin_without_configuration(self):
@@ -207,7 +207,7 @@ class PluginLoaderTests(TestCase):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             self.loader.load_plugin("my-community-plugin", "some-configuration")
         self.assertRegex(ctx.exception.args[0], r"Unknown plugin \[my-community-plugin\]. List the available plugins with [^\s]+ list "
-                                                r"elasticsearch-plugins --distribution-version=VERSION.")
+                                                r"opensearch-plugins --distribution-version=VERSION.")
 
     def test_loads_configured_plugin(self):
         plugin = self.loader.load_plugin("complex-plugin", ["config-a", "config-b"], plugin_params={"dbg": True})

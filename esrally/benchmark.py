@@ -114,8 +114,8 @@ def create_arg_parser():
         "configuration",
         metavar="configuration",
         help="The configuration for which Rally should show the available options. "
-             "Possible values are: telemetry, workloads, pipelines, test_executions, provision_config_instances, elasticsearch-plugins",
-        choices=["telemetry", "workloads", "pipelines", "test_executions", "provision_config_instances", "elasticsearch-plugins"])
+             "Possible values are: telemetry, workloads, pipelines, test_executions, provision_config_instances, opensearch-plugins",
+        choices=["telemetry", "workloads", "pipelines", "test_executions", "provision_config_instances", "opensearch-plugins"])
     list_parser.add_argument(
         "--limit",
         help="Limit the number of search results for recent test_executions (default: 10).",
@@ -320,7 +320,7 @@ def create_arg_parser():
         default=""
     )
     install_parser.add_argument(
-        "--elasticsearch-plugins",
+        "--opensearch-plugins",
         help="Define the Elasticsearch plugins to install. (default: install no plugins).",
         default="")
     install_parser.add_argument(
@@ -466,7 +466,7 @@ def create_arg_parser():
         help="The major version of the runtime JDK to use.",
         default=None)
     test_execution_parser.add_argument(
-        "--elasticsearch-plugins",
+        "--opensearch-plugins",
         help="Define the Elasticsearch plugins to install. (default: install no plugins).",
         default="")
     test_execution_parser.add_argument(
@@ -617,7 +617,7 @@ def dispatch_list(cfg):
         metrics.list_test_executions(cfg)
     elif what == "provision_config_instances":
         provision_config.list_provision_config_instances(cfg)
-    elif what == "elasticsearch-plugins":
+    elif what == "opensearch-plugins":
         provision_config.list_plugins(cfg)
     else:
         raise exceptions.SystemSetupError("Cannot list unknown configuration option [%s]" % what)
@@ -840,7 +840,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "builder", "seed.hosts", opts.csv_to_list(args.seed_hosts))
             cfg.add(config.Scope.applicationOverride, "builder",
             "provision_config_instance.plugins", opts.csv_to_list(
-                args.elasticsearch_plugins))
+                args.opensearch_plugins))
             cfg.add(config.Scope.applicationOverride, "builder", "plugin.params", opts.to_dict(args.plugin_params))
             configure_builder_params(args, cfg)
             builder.install(cfg)
@@ -883,7 +883,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "builder", "source.revision", args.revision)
             cfg.add(config.Scope.applicationOverride, "builder",
             "provision_config_instance.plugins", opts.csv_to_list(
-                args.elasticsearch_plugins))
+                args.opensearch_plugins))
             cfg.add(config.Scope.applicationOverride, "builder", "plugin.params", opts.to_dict(args.plugin_params))
             cfg.add(config.Scope.applicationOverride, "builder", "preserve.install", convert.to_bool(args.preserve_install))
             cfg.add(config.Scope.applicationOverride, "builder", "skip.rest.api.check", convert.to_bool(args.skip_rest_api_check))
