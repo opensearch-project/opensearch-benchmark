@@ -40,12 +40,12 @@ class RevisionExtractorTests(TestCase):
                              supplier._extract_revisions("@2015-01-01-01:00:00"))
 
     def test_multiple_revisions(self):
-        self.assertDictEqual({"elasticsearch": "67c2f42", "x-pack": "@2015-01-01-01:00:00", "some-plugin": "current"},
-                             supplier._extract_revisions("elasticsearch:67c2f42,x-pack:@2015-01-01-01:00:00,some-plugin:current"))
+        self.assertDictEqual({"elasticsearch": "67c2f42", "some-plugin": "current"},
+                             supplier._extract_revisions("elasticsearch:67c2f42,some-plugin:current"))
 
     def test_invalid_revisions(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            supplier._extract_revisions("elasticsearch 67c2f42,x-pack:current")
+            supplier._extract_revisions("elasticsearch 67c2f42,some-plugin:current")
         self.assertEqual("Revision [elasticsearch 67c2f42] does not match expected format [name:revision].", ctx.exception.args[0])
 
 

@@ -135,7 +135,7 @@ class EsClient:
             except elasticsearch.exceptions.AuthorizationException:
                 node = self._client.transport.hosts[0]
                 msg = "The configured user does not have enough privileges to run the operation [%s] against your Elasticsearch metrics " \
-                      "store running on host [%s] at port [%s]. Please adjust your x-pack configuration or specify a user with enough " \
+                      "store running on host [%s] at port [%s]. Please specify a user with enough " \
                       "privileges in the configuration in [%s]." % \
                       (target.__name__, node["host"], node["port"], config.ConfigFile().location)
                 self.logger.exception(msg)

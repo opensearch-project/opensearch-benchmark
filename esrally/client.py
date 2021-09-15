@@ -293,7 +293,7 @@ def wait_for_rest_layer(es, max_attempts=40):
                 logger.debug("Got connection error on attempt [%s]. Sleeping...", attempt)
                 time.sleep(3)
         except elasticsearch.TransportError as e:
-            # cluster block, x-pack not initialized yet, our wait condition is not reached
+            # cluster block, our wait condition is not reached
             if e.status_code in (503, 401, 408):
                 logger.debug("Got status code [%s] on attempt [%s]. Sleeping...", e.status_code, attempt)
                 time.sleep(3)
