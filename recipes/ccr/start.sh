@@ -20,8 +20,6 @@ done
 
 echo
 echo "Accepting trial license on clusters"
-curl -sS -o /dev/null -XPOST localhost:39201/_xpack/license/start_trial?acknowledge=true
-curl -sS -o /dev/null -XPOST localhost:39202/_xpack/license/start_trial?acknowledge=true
 
 # Configure leader remote on the following cluster
 echo "Configure remotes on follower"
