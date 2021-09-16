@@ -594,14 +594,6 @@ class OperationType(Enum):
     CreateIndexTemplate = 1007
     DeleteIndexTemplate = 1008
     ShrinkIndex = 1009
-    CreateMlDatafeed = 1010
-    DeleteMlDatafeed = 1011
-    StartMlDatafeed = 1012
-    StopMlDatafeed = 1013
-    CreateMlJob = 1014
-    DeleteMlJob = 1015
-    OpenMlJob = 1016
-    CloseMlJob = 1017
     Sleep = 1018
     DeleteSnapshotRepository = 1019
     CreateSnapshotRepository = 1020
@@ -675,22 +667,6 @@ class OperationType(Enum):
             return OperationType.DeleteComponentTemplate
         elif v == "shrink-index":
             return OperationType.ShrinkIndex
-        elif v == "create-ml-datafeed":
-            return OperationType.CreateMlDatafeed
-        elif v == "delete-ml-datafeed":
-            return OperationType.DeleteMlDatafeed
-        elif v == "start-ml-datafeed":
-            return OperationType.StartMlDatafeed
-        elif v == "stop-ml-datafeed":
-            return OperationType.StopMlDatafeed
-        elif v == "create-ml-job":
-            return OperationType.CreateMlJob
-        elif v == "delete-ml-job":
-            return OperationType.DeleteMlJob
-        elif v == "open-ml-job":
-            return OperationType.OpenMlJob
-        elif v == "close-ml-job":
-            return OperationType.CloseMlJob
         elif v == "sleep":
             return OperationType.Sleep
         elif v == "delete-snapshot-repository":

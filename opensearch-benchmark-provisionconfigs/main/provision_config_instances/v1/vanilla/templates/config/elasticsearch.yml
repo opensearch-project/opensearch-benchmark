@@ -118,9 +118,3 @@ indexing_pressure.memory.limit: {{indexing_pressure_memory_limit}}
 {{key}}: {{value | tojson}}
 {%- endfor %}
 {%- endif %}
-
-xpack.license.self_generated.type: {{license_type|default('trial')}}
-
-xpack.ml.enabled: {{xpack_ml_enabled|default('false')}}
-xpack.security.enabled: {{xpack_security_enabled|default('false')}}
-xpack.watcher.enabled: {{xpack_watcher_enabled|default('false')}}

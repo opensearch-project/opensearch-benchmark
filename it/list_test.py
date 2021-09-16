@@ -37,8 +37,8 @@ def test_list_provision_config_instances(cfg):
 
 
 @it.rally_in_mem
-def test_list_elasticsearch_plugins(cfg):
-    assert it.esrally(cfg, "list elasticsearch-plugins") == 0
+def test_list_opensearch_plugins(cfg):
+    assert it.esrally(cfg, "list opensearch-plugins") == 0
 
 
 @it.rally_in_mem

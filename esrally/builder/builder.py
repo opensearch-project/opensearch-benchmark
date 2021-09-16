@@ -71,7 +71,7 @@ def install(cfg):
     elif build_type == "docker":
         if len(plugins) > 0:
             raise exceptions.SystemSetupError("You cannot specify any plugins for Docker clusters. Please remove "
-                                              "\"--elasticsearch-plugins\" and try again.")
+                                              "\"--opensearch-plugins\" and try again.")
         p = provisioner.docker(
             cfg=cfg, provision_config_instance=provision_config_instance,
             ip=ip, http_port=http_port, target_root=root_path, node_name=node_name)
@@ -642,7 +642,7 @@ def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_i
     elif docker:
         if len(plugins) > 0:
             raise exceptions.SystemSetupError("You cannot specify any plugins for Docker clusters. Please remove "
-                                              "\"--elasticsearch-plugins\" and try again.")
+                                              "\"--opensearch-plugins\" and try again.")
         s = lambda: None
         p = []
         for node_id in node_ids:

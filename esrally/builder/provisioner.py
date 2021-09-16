@@ -302,7 +302,6 @@ class ElasticsearchInstaller:
             # this is the node's IP address as specified by the user when invoking Rally
             "node_ip": self.node_ip,
             # this is the IP address that the node will be bound to. Rally will bind to the node's IP address (but not to 0.0.0.0). The
-            # reason is that we use the node's IP address as subject alternative name in x-pack.
             "network_host": network_host,
             "http_port": str(self.http_port),
             "transport_port": str(self.http_port + 100),
@@ -388,7 +387,7 @@ class PluginInstaller:
 
     @property
     def sub_plugin_name(self):
-        # if a plugin consists of multiple plugins (e.g. x-pack) we're interested in that name
+        # if a plugin consists of multiple plugins we're interested in that name
         return self.variables.get("plugin_name", self.plugin_name)
 
 

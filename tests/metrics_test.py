@@ -218,8 +218,8 @@ class EsClientTests(TestCase):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             client.guarded(raise_authorization_error)
         self.assertEqual("The configured user does not have enough privileges to run the operation [raise_authorization_error] against "
-                         "your Elasticsearch metrics store running on host [127.0.0.1] at port [9243]. Please adjust your x-pack "
-                         "configuration or specify a user with enough privileges in the configuration in [%s/rally.ini]."
+                         "your Elasticsearch metrics store running on host [127.0.0.1] at port [9243]. Please "
+                         "specify a user with enough privileges in the configuration in [%s/rally.ini]."
                          % paths.rally_confdir(), ctx.exception.args[0])
 
     def test_raises_rally_error_on_unknown_problems(self):

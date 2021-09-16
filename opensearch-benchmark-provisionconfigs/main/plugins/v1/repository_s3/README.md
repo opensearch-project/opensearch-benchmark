@@ -3,7 +3,7 @@ For more details on secure settings for the repository-s3 plugin please refer to
 
 ### Parameters
 
-This plugin allows to set the following parameters with Rally using `--plugin-params` in combination with `--elasticsearch-plugins="repository-s3"`:
+This plugin allows to set the following parameters with Rally using `--plugin-params` in combination with `--opensearch-plugins="repository-s3"`:
 
 * `s3_client_name`: A string specifying the clientname to associate the above credentials with (mandatory).
 * `s3_access_key`: A string specifying the AWS access key (mandatory).
@@ -12,7 +12,7 @@ This plugin allows to set the following parameters with Rally using `--plugin-pa
 
 Example:
 
-`--elasticsearch-plugins="repository-s3" --plugin-params="s3_client_name:mys3client,s3_access_key:XXXXX,s3_secret_key:YYYYY,s3_session_token:ZZZZZ"`
+`--opensearch-plugins="repository-s3" --plugin-params="s3_client_name:mys3client,s3_access_key:XXXXX,s3_secret_key:YYYYY,s3_session_token:ZZZZZ"`
 
 Alternatively, the above settings can also be stored in a JSON file that can be specified via `--plugin-params`.
 
@@ -25,6 +25,6 @@ Example:
   "s3_secret_key": "YYYYY",
   "s3_session_token": "ZZZZZ"
 }
-```   
+```
 
-Save it as `params.json` and provide it to Rally with `--elasticsearch-plugins="repository-s3" --plugin-params="/path/to/params.json"`.
+Save it as `params.json` and provide it to Rally with `--opensearch-plugins="repository-s3" --plugin-params="/path/to/params.json"`.
