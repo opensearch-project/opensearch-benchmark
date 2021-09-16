@@ -321,7 +321,7 @@ def create_arg_parser():
     )
     install_parser.add_argument(
         "--opensearch-plugins",
-        help="Define the Elasticsearch plugins to install. (default: install no plugins).",
+        help="Define the OpenSearch plugins to install. (default: install no plugins).",
         default="")
     install_parser.add_argument(
         "--plugin-params",
@@ -467,7 +467,7 @@ def create_arg_parser():
         default=None)
     test_execution_parser.add_argument(
         "--opensearch-plugins",
-        help="Define the Elasticsearch plugins to install. (default: install no plugins).",
+        help="Define the OpenSearch plugins to install. (default: install no plugins).",
         default="")
     test_execution_parser.add_argument(
         "--plugin-params",
