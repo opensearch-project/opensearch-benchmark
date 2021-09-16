@@ -30,7 +30,7 @@ import tempfile
 import unittest.mock as mock
 from unittest import TestCase
 
-from esrally.utils import io
+from osbenchmark.utils import io
 
 
 def mock_debian(args, fallback=None):
@@ -95,7 +95,7 @@ class TestDecompression:
             archive_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", f"test.txt.{ext}")
             decompressed_path = os.path.join(tmp_dir, "test.txt")
 
-            logger = logging.getLogger("esrally.utils.io")
+            logger = logging.getLogger("osbenchmark.utils.io")
             with mock.patch.object(logger, "warning") as mocked_console_warn:
                 io.decompress(archive_path, target_directory=tmp_dir)
 
@@ -118,7 +118,7 @@ class TestDecompression:
         expected_err = "Failed to decompress [%s] with [%s]. Error [%s]. Falling back to standard library."
         mocked_run.side_effect = subprocess.CalledProcessError(cmd=decompress_cmd, returncode=1, stderr=stderr_msg)
 
-        logger = logging.getLogger("esrally.utils.io")
+        logger = logging.getLogger("osbenchmark.utils.io")
         with mock.patch.object(logger, "warning") as mocked_warn_logger:
             result = io._do_decompress_manually_external(tmp_dir, archive_path, base_path_without_extension, [decompressor_bin])
 

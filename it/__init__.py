@@ -32,8 +32,8 @@ import time
 
 import pytest
 
-from esrally import client, config, version
-from esrally.utils import process
+from osbenchmark import client, config, version
+from osbenchmark.utils import process
 
 CONFIG_NAMES = ["in-memory-it", "es-it"]
 DISTRIBUTIONS = ["6.8.0", "7.6.0"]
@@ -77,16 +77,16 @@ def rally_es(t):
     return wrapper
 
 
-def esrally_command_line_for(cfg, command_line):
-    return f"esrally {command_line} --configuration-name='{cfg}'"
+def osbenchmark_command_line_for(cfg, command_line):
+    return f"osbenchmark {command_line} --configuration-name='{cfg}'"
 
 
-def esrally(cfg, command_line):
+def osbenchmark(cfg, command_line):
     """
     This method should be used for rally invocations of the all commands besides test_execution.
     These commands may have different CLI options than test_execution.
     """
-    return os.system(esrally_command_line_for(cfg, command_line))
+    return os.system(osbenchmark_command_line_for(cfg, command_line))
 
 
 def execute_test(cfg, command_line):
@@ -94,7 +94,7 @@ def execute_test(cfg, command_line):
     This method should be used for rally invocations of the test_execution command.
     It sets up some defaults for how the integration tests expect to run test_executions.
     """
-    return esrally(cfg, f"execute_test {command_line} --kill-running-processes --on-error='abort' --enable-assertions")
+    return osbenchmark(cfg, f"execute_test {command_line} --kill-running-processes --on-error='abort' --enable-assertions")
 
 
 def shell_cmd(command_line):
@@ -164,7 +164,7 @@ class TestCluster:
         transport_port = http_port + 100
         try:
             output = process.run_subprocess_with_output(
-                "esrally install --configuration-name={cfg} --quiet --distribution-version={dist} --build-type=tar "
+                "osbenchmark install --configuration-name={cfg} --quiet --distribution-version={dist} --build-type=tar "
                 "--http-port={http_port} --node={node_name} --master-nodes="
                 "{node_name} --provision-config-instance={provision_config_instance} "
                 "--seed-hosts=\"127.0.0.1:{transport_port}\"".format(cfg=self.cfg,
@@ -173,20 +173,22 @@ class TestCluster:
                                                                      node_name=node_name,
                                                                      provision_config_instance=provision_config_instance,
                                                                      transport_port=transport_port))
+            print("output: ", output)
             self.installation_id = json.loads("".join(output))["installation-id"]
+            print("INSTALLATION ID: ", self.installation_id)
         except BaseException as e:
             raise AssertionError("Failed to install Elasticsearch {}.".format(distribution_version), e)
 
     def start(self, test_execution_id):
         cmd = "start --runtime-jdk=\"bundled\" --installation-id={} --test-execution-id={}".format(self.installation_id, test_execution_id)
-        if esrally(self.cfg, cmd) != 0:
+        if osbenchmark(self.cfg, cmd) != 0:
             raise AssertionError("Failed to start Elasticsearch test cluster.")
         es = client.EsClientFactory(hosts=[{"host": "127.0.0.1", "port": self.http_port}], client_options={}).create()
         client.wait_for_rest_layer(es)
 
     def stop(self):
         if self.installation_id:
-            if esrally(self.cfg, "stop --installation-id={}".format(self.installation_id)) != 0:
+            if osbenchmark(self.cfg, "stop --installation-id={}".format(self.installation_id)) != 0:
                 raise AssertionError("Failed to stop Elasticsearch test cluster.")
 
     def __str__(self):
@@ -204,7 +206,9 @@ class EsMetricsStore:
                              node_name="metrics-store",
                              provision_config_instance="defaults",
                              http_port=10200)
+        print("CLUSTER INSTALLED")
         self.cluster.start(test_execution_id="metrics-store")
+        print("CLUSTER STARTED")
 
     def stop(self):
         self.cluster.stop()
@@ -242,6 +246,11 @@ def build_docker_image():
 
     command = f"docker build -t elastic/rally:{rally_version} --build-arg RALLY_VERSION --build-arg RALLY_LICENSE " \
               f"-f {ROOT_DIR}/docker/Dockerfiles/Dockerfile-dev {ROOT_DIR}"
+
+    print("DOCKER BUILD COMMAND: ", command)
+
+    rc = process.run_subprocess_with_logging(command, env=env_variables)
+    print(rc)
 
     if process.run_subprocess_with_logging(command, env=env_variables) != 0:
         raise AssertionError("It was not possible to build the docker image from Dockerfile-dev")

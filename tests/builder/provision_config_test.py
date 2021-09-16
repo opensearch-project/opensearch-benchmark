@@ -25,8 +25,8 @@
 import os
 from unittest import TestCase
 
-from esrally import exceptions
-from esrally.builder import provision_config
+from osbenchmark import exceptions
+from osbenchmark.builder import provision_config
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 

@@ -34,10 +34,10 @@ from unittest.mock import call
 import elasticsearch
 import pytest
 
-from esrally import config, metrics, exceptions, telemetry
-from esrally.builder import cluster
-from esrally.metrics import MetaInfoScope
-from esrally.utils import console
+from osbenchmark import config, metrics, exceptions, telemetry
+from osbenchmark.builder import cluster
+from osbenchmark.metrics import MetaInfoScope
+from osbenchmark.utils import console
 
 
 def create_config():
@@ -91,8 +91,8 @@ class TelemetryTests(TestCase):
 
 
 class StartupTimeTests(TestCase):
-    @mock.patch("esrally.time.StopWatch")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.time.StopWatch")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
     def test_store_calculated_metrics(self, metrics_store_put_value, stop_watch):
         stop_watch.total_time.return_value = 2
         metrics_store = metrics.EsMetricsStore(create_config())
@@ -255,7 +255,7 @@ class GcTests(TestCase):
 
 
 class HeapdumpTests(TestCase):
-    @mock.patch("esrally.utils.process.run_subprocess_with_logging")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     def test_generates_heap_dump(self, run_subprocess_with_logging):
         run_subprocess_with_logging.return_value = 0
         heapdump = telemetry.Heapdump("/var/log")
@@ -332,7 +332,7 @@ class CcrStatsRecorderTests(TestCase):
                                     r"cluster \[remote\]"):
             telemetry.CcrStatsRecorder(cluster_name="remote", client=client, metrics_store=metrics_store, sample_interval=1).record()
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_default_ccr_stats(self, metrics_store_put_doc):
         java_signed_maxlong = CcrStatsRecorderTests.java_signed_maxlong
 
@@ -429,7 +429,7 @@ class CcrStatsRecorderTests(TestCase):
             meta_data=shard_metadata
         )
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_default_ccr_stats_many_shards(self, metrics_store_put_doc):
         java_signed_maxlong = CcrStatsRecorderTests.java_signed_maxlong
 
@@ -542,7 +542,7 @@ class CcrStatsRecorderTests(TestCase):
             any_order=True
         )
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_filtered_ccr_stats(self, metrics_store_put_doc):
         java_signed_maxlong = CcrStatsRecorderTests.java_signed_maxlong
 
@@ -677,7 +677,7 @@ class CcrStatsRecorderTests(TestCase):
 
 
 class RecoveryStatsTests(TestCase):
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_no_metrics_if_no_pending_recoveries(self, metrics_store_put_doc):
         response = {}
         cfg = create_config()
@@ -692,7 +692,7 @@ class RecoveryStatsTests(TestCase):
 
         self.assertEqual(0, metrics_store_put_doc.call_count)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_single_shard_stats(self, metrics_store_put_doc):
         response = {
             "index1": {
@@ -786,7 +786,7 @@ class RecoveryStatsTests(TestCase):
             }, level=MetaInfoScope.cluster, meta_data=shard_metadata)
         ],  any_order=True)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_multi_index_multi_shard_stats(self, metrics_store_put_doc):
         response = {
             "index1": {
@@ -1260,7 +1260,7 @@ class TestSearchableSnapshotsStats:
                                   }
     }
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_no_metrics_if_empty_searchable_snapshots_stats(self, metrics_store_put_doc):
         response = {}
         cfg = create_config()
@@ -1277,7 +1277,7 @@ class TestSearchableSnapshotsStats:
 
         assert metrics_store_put_doc.call_count == 0
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_no_metrics_if_no_searchable_snapshots_stats(self, metrics_store_put_doc):
         cfg = create_config()
         metrics_store = metrics.EsMetricsStore(cfg)
@@ -1295,7 +1295,7 @@ class TestSearchableSnapshotsStats:
             sample_interval=1,
             indices=["logs*"])
 
-        logger = logging.getLogger("esrally.telemetry")
+        logger = logging.getLogger("osbenchmark.telemetry")
         with mock.patch.object(logger, "info") as mocked_info:
             recorder.record()
             mocked_info.assert_called_once_with(
@@ -1305,7 +1305,7 @@ class TestSearchableSnapshotsStats:
         assert metrics_store_put_doc.call_count == 0
 
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_total_stats(self, metrics_store_put_doc):
         response = {
             "total": copy.deepcopy(TestSearchableSnapshotsStats.response_fragment_total)
@@ -1335,7 +1335,7 @@ class TestSearchableSnapshotsStats:
         metrics_store_put_doc.assert_has_calls(expected_calls, any_order=True)
 
     @pytest.mark.parametrize("seed", range(40))
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_index_stats(self, metrics_store_put_doc, seed):
         random.seed(seed)
         response = {
@@ -1389,8 +1389,8 @@ class NodeStatsTests(TestCase):
           _nodes/stats Elasticsearch endpoint trigger additional refreshes and WILL SKEW results.
     """
 
-    @mock.patch("esrally.telemetry.NodeStatsRecorder", mock.Mock())
-    @mock.patch("esrally.telemetry.SamplerThread", mock.Mock())
+    @mock.patch("osbenchmark.telemetry.NodeStatsRecorder", mock.Mock())
+    @mock.patch("osbenchmark.telemetry.SamplerThread", mock.Mock())
     def test_prints_warning_using_node_stats(self):
         clients = {"default": Client(info={"version": {"number": "7.1.0"}})}
         cfg = create_config()
@@ -1407,8 +1407,8 @@ class NodeStatsTests(TestCase):
             logger=t.logger
         )
 
-    @mock.patch("esrally.telemetry.NodeStatsRecorder", mock.Mock())
-    @mock.patch("esrally.telemetry.SamplerThread", mock.Mock())
+    @mock.patch("osbenchmark.telemetry.NodeStatsRecorder", mock.Mock())
+    @mock.patch("osbenchmark.telemetry.SamplerThread", mock.Mock())
     def test_no_warning_using_node_stats_after_version(self):
         clients = {"default": Client(info={"version": {"number": "7.2.0"}})}
         cfg = create_config()
@@ -1734,7 +1734,7 @@ class NodeStatsRecorderTests(TestCase):
         )
         self.assertDictEqual(NodeStatsRecorderTests.indices_stats_response_flattened, flattened_fields)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_default_nodes_stats(self, metrics_store_put_doc):
         client = Client(nodes=SubClient(stats=NodeStatsRecorderTests.node_stats_response))
         cfg = create_config()
@@ -1756,7 +1756,7 @@ class NodeStatsRecorderTests(TestCase):
                                                       node_name="rally0",
                                                       meta_data=metrics_store_meta_data)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_all_nodes_stats(self, metrics_store_put_doc):
         node_stats_response = {
             "cluster_name": "elasticsearch",
@@ -2067,7 +2067,7 @@ class NodeStatsRecorderTests(TestCase):
             node_name="rally0",
             meta_data=metrics_store_meta_data)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_selected_indices_metrics_from_nodes_stats(self, metrics_store_put_doc):
         node_stats_response = {
             "cluster_name": "elasticsearch",
@@ -2444,7 +2444,7 @@ class TransformStatsRecorderTests(TestCase):
             "transforms": transforms
         }
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_cluster_level")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_cluster_level")
     def test_stores_default_stats(self, metrics_store_put_value):
         client = Client(transform=SubClient(transform_stats=TransformStatsRecorderTests.transform_stats_response))
         cfg = create_config()
@@ -2475,7 +2475,7 @@ class TransformStatsRecorderTests(TestCase):
 
 
 class ClusterEnvironmentInfoTests(TestCase):
-    @mock.patch("esrally.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
     def test_stores_cluster_level_metrics_on_attach(self, metrics_store_add_meta_info):
         nodes_info = {"nodes": collections.OrderedDict()}
         nodes_info["nodes"]["FCFjozkeTiOpN-SI88YEcg"] = {
@@ -2561,7 +2561,7 @@ class ClusterEnvironmentInfoTests(TestCase):
 
         metrics_store_add_meta_info.assert_has_calls(calls)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
     def test_resilient_if_error_response(self, metrics_store_add_meta_info):
         cfg = create_config()
         client = Client(nodes=SubClient(stats=raiseTransportError, info=raiseTransportError), info=raiseTransportError)
@@ -2574,12 +2574,12 @@ class ClusterEnvironmentInfoTests(TestCase):
 
 
 class NodeEnvironmentInfoTests(TestCase):
-    @mock.patch("esrally.metrics.EsMetricsStore.add_meta_info")
-    @mock.patch("esrally.utils.sysstats.os_name")
-    @mock.patch("esrally.utils.sysstats.os_version")
-    @mock.patch("esrally.utils.sysstats.logical_cpu_cores")
-    @mock.patch("esrally.utils.sysstats.physical_cpu_cores")
-    @mock.patch("esrally.utils.sysstats.cpu_model")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.utils.sysstats.os_name")
+    @mock.patch("osbenchmark.utils.sysstats.os_version")
+    @mock.patch("osbenchmark.utils.sysstats.logical_cpu_cores")
+    @mock.patch("osbenchmark.utils.sysstats.physical_cpu_cores")
+    @mock.patch("osbenchmark.utils.sysstats.cpu_model")
     def test_stores_node_level_metrics(self, cpu_model, physical_cpu_cores, logical_cpu_cores,
                                        os_version, os_name, metrics_store_add_meta_info):
         cpu_model.return_value = "Intel(R) Core(TM) i7-4870HQ CPU @ 2.50GHz"
@@ -2610,7 +2610,7 @@ class ExternalEnvironmentInfoTests(TestCase):
     def setUp(self):
         self.cfg = create_config()
 
-    @mock.patch("esrally.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
     def test_stores_all_node_metrics_on_attach(self, metrics_store_add_meta_info):
         nodes_stats = {
             "nodes": {
@@ -2680,7 +2680,7 @@ class ExternalEnvironmentInfoTests(TestCase):
         ]
         metrics_store_add_meta_info.assert_has_calls(calls)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
     def test_fallback_when_host_not_available(self, metrics_store_add_meta_info):
         nodes_stats = {
             "nodes": {
@@ -2731,7 +2731,7 @@ class ExternalEnvironmentInfoTests(TestCase):
         ]
         metrics_store_add_meta_info.assert_has_calls(calls)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
     def test_resilient_if_error_response(self, metrics_store_add_meta_info):
         client = Client(nodes=SubClient(stats=raiseTransportError, info=raiseTransportError), info=raiseTransportError)
         metrics_store = metrics.EsMetricsStore(self.cfg)
@@ -2744,8 +2744,8 @@ class ExternalEnvironmentInfoTests(TestCase):
 
 class DiskIoTests(TestCase):
 
-    @mock.patch("esrally.utils.sysstats.process_io_counters")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.utils.sysstats.process_io_counters")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
     def test_diskio_process_io_counters(self, metrics_store_node_count, process_io_counters):
         Diskio = namedtuple("Diskio", "read_bytes write_bytes")
         process_start = Diskio(10, 10)
@@ -2772,9 +2772,9 @@ class DiskIoTests(TestCase):
 
         ])
 
-    @mock.patch("esrally.utils.sysstats.disk_io_counters")
-    @mock.patch("esrally.utils.sysstats.process_io_counters")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.utils.sysstats.disk_io_counters")
+    @mock.patch("osbenchmark.utils.sysstats.process_io_counters")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
     def test_diskio_disk_io_counters(self, metrics_store_node_count, process_io_counters, disk_io_counters):
         Diskio = namedtuple("Diskio", "read_bytes write_bytes")
         process_start = Diskio(10, 10)
@@ -2803,9 +2803,9 @@ class DiskIoTests(TestCase):
             mock.call("rally0", "disk_io_read_bytes", 1, "byte")
         ])
 
-    @mock.patch("esrally.utils.sysstats.disk_io_counters")
-    @mock.patch("esrally.utils.sysstats.process_io_counters")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.utils.sysstats.disk_io_counters")
+    @mock.patch("osbenchmark.utils.sysstats.process_io_counters")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
     def test_diskio_writes_metrics_if_available(self, metrics_store_node_count, process_io_counters, disk_io_counters):
         Diskio = namedtuple("Diskio", "read_bytes write_bytes")
         process_start = Diskio(10, 10)
@@ -2834,9 +2834,9 @@ class DiskIoTests(TestCase):
 
 
 class JvmStatsSummaryTests(TestCase):
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_cluster_level")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_cluster_level")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
     def test_stores_only_diff_of_gc_times(self,
                                           metrics_store_node_level,
                                           metrics_store_cluster_level,
@@ -2957,8 +2957,8 @@ class JvmStatsSummaryTests(TestCase):
 
 
 class IndexStatsTests(TestCase):
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_cluster_level")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_cluster_level")
     def test_stores_available_index_stats(self, metrics_store_cluster_value, metrics_store_put_doc):
         client = Client(indices=SubClient({
             "_all": {
@@ -3204,7 +3204,7 @@ class IndexStatsTests(TestCase):
 
 
 class MlBucketProcessingTimeTests(TestCase):
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     @mock.patch("elasticsearch.Elasticsearch")
     def test_error_on_retrieval_does_not_store_metrics(self, es, metrics_store_put_doc):
         es.search.side_effect = elasticsearch.TransportError("unit test error")
@@ -3216,7 +3216,7 @@ class MlBucketProcessingTimeTests(TestCase):
 
         self.assertEqual(0, metrics_store_put_doc.call_count)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     @mock.patch("elasticsearch.Elasticsearch")
     def test_empty_result_does_not_store_metrics(self, es, metrics_store_put_doc):
         es.search.return_value = {
@@ -3234,7 +3234,7 @@ class MlBucketProcessingTimeTests(TestCase):
 
         self.assertEqual(0, metrics_store_put_doc.call_count)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     @mock.patch("elasticsearch.Elasticsearch")
     def test_result_is_stored(self, es, metrics_store_put_doc):
         es.search.return_value = {
@@ -3311,8 +3311,8 @@ class MlBucketProcessingTimeTests(TestCase):
 
 
 class IndexSizeTests(TestCase):
-    @mock.patch("esrally.utils.io.get_size")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.utils.io.get_size")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
     def test_stores_index_size_for_data_paths(self, metrics_store_node_value, get_size):
         get_size.side_effect = [2048, 16384]
 
@@ -3332,9 +3332,9 @@ class IndexSizeTests(TestCase):
             mock.call("rally-node-0", "final_index_size_bytes", 18432, "byte")
         ])
 
-    @mock.patch("esrally.utils.io.get_size")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_cluster_level")
-    @mock.patch("esrally.utils.process.run_subprocess_with_logging")
+    @mock.patch("osbenchmark.utils.io.get_size")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_cluster_level")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     def test_stores_nothing_if_no_data_path(self, run_subprocess, metrics_store_cluster_value, get_size):
         get_size.return_value = 2048
 

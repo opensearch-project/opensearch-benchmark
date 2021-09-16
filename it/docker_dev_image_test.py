@@ -25,8 +25,8 @@
 import os
 import it
 
-from esrally.utils import process
-from esrally import version
+from osbenchmark.utils import process
+from osbenchmark import version
 
 
 def test_docker_geonames():
@@ -46,7 +46,7 @@ def test_docker_help():
 
 
 def test_docker_override_cmd():
-    test_command = "esrally execute_test --pipeline=benchmark-only --test-mode --workload=geonames " \
+    test_command = "osbenchmark execute_test --pipeline=benchmark-only --test-mode --workload=geonames " \
                    "--test-procedure=append-no-conflicts-index-only --target-hosts=es01:9200"
     run_docker_compose_test(test_command)
 

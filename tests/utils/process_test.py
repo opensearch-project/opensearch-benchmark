@@ -28,7 +28,7 @@ from unittest import TestCase
 
 import psutil
 
-from esrally.utils import process
+from osbenchmark.utils import process
 
 
 class ProcessTests(TestCase):

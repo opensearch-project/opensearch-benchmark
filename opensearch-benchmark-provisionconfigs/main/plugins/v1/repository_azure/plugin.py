@@ -19,10 +19,10 @@ import logging
 import os
 import subprocess
 
-from esrally.utils import process
-from esrally import exceptions
+from osbenchmark.utils import process
+from osbenchmark import exceptions
 
-LOGGER_NAME = "esrally.provisioner.repository_azure"
+LOGGER_NAME = "osbenchmark.provisioner.repository_azure"
 
 
 def resolve_binary(install_root, binary_name):

@@ -33,9 +33,9 @@ from unittest import TestCase
 
 import elasticsearch
 
-from esrally import metrics, workload, exceptions, config
-from esrally.worker_coordinator import worker_coordinator, runner, scheduler
-from esrally.workload import params
+from osbenchmark import metrics, workload, exceptions, config
+from osbenchmark.worker_coordinator import worker_coordinator, runner, scheduler
+from osbenchmark.workload import params
 from tests import run_async, as_future
 
 
@@ -131,7 +131,7 @@ class WorkerCoordinatorTests(TestCase):
         }
         return mock.Mock(**attrs)
 
-    @mock.patch("esrally.utils.net.resolve")
+    @mock.patch("osbenchmark.utils.net.resolve")
     def test_start_benchmark_and_prepare_workload(self, resolve):
         # override load worker_coordinator host
         self.cfg.add(config.Scope.applicationOverride, "worker_coordinator", "load_worker_coordinator_hosts", ["10.5.5.1", "10.5.5.2"])
@@ -288,7 +288,7 @@ class SamplePostprocessorTests(TestCase):
                          relative_time=relative_time,
                          meta_data={})
 
-    @mock.patch("esrally.metrics.MetricsStore")
+    @mock.patch("osbenchmark.metrics.MetricsStore")
     def test_all_samples(self, metrics_store):
         post_process = worker_coordinator.SamplePostprocessor(metrics_store,
                                                   downsample_factor=1,
@@ -315,7 +315,7 @@ class SamplePostprocessorTests(TestCase):
         ]
         metrics_store.put_value_cluster_level.assert_has_calls(calls)
 
-    @mock.patch("esrally.metrics.MetricsStore")
+    @mock.patch("osbenchmark.metrics.MetricsStore")
     def test_downsamples(self, metrics_store):
         post_process = worker_coordinator.SamplePostprocessor(metrics_store,
                                                   downsample_factor=2,
@@ -343,7 +343,7 @@ class SamplePostprocessorTests(TestCase):
         ]
         metrics_store.put_value_cluster_level.assert_has_calls(calls)
 
-    @mock.patch("esrally.metrics.MetricsStore")
+    @mock.patch("osbenchmark.metrics.MetricsStore")
     def test_dependent_samples(self, metrics_store):
         post_process = worker_coordinator.SamplePostprocessor(metrics_store,
                                                   downsample_factor=1,

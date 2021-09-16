@@ -26,9 +26,9 @@
 import random
 from unittest import TestCase
 
-from esrally import exceptions
-from esrally.workload import params, workload
-from esrally.utils import io
+from osbenchmark import exceptions
+from osbenchmark.workload import params, workload
+from osbenchmark.utils import io
 
 
 class StaticBulkReader:

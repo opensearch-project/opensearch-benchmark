@@ -25,7 +25,7 @@
 import json
 from unittest import TestCase
 
-from esrally.async_connection import ResponseMatcher
+from osbenchmark.async_connection import ResponseMatcher
 
 
 class ResponseMatcherTests(TestCase):

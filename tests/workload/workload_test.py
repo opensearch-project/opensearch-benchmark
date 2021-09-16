@@ -24,8 +24,8 @@
 
 from unittest import TestCase
 
-from esrally import exceptions
-from esrally.workload import workload
+from osbenchmark import exceptions
+from osbenchmark.workload import workload
 
 
 class WorkloadTests(TestCase):

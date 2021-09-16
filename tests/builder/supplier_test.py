@@ -28,8 +28,8 @@ import datetime
 import unittest.mock as mock
 from unittest import TestCase
 
-from esrally import exceptions, config
-from esrally.builder import supplier, provision_config
+from osbenchmark import exceptions, config
+from osbenchmark.builder import supplier, provision_config
 
 
 class RevisionExtractorTests(TestCase):
@@ -50,10 +50,10 @@ class RevisionExtractorTests(TestCase):
 
 
 class SourceRepositoryTests(TestCase):
-    @mock.patch("esrally.utils.git.head_revision", autospec=True)
-    @mock.patch("esrally.utils.git.pull", autospec=True)
-    @mock.patch("esrally.utils.git.clone", autospec=True)
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.head_revision", autospec=True)
+    @mock.patch("osbenchmark.utils.git.pull", autospec=True)
+    @mock.patch("osbenchmark.utils.git.clone", autospec=True)
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
     def test_intial_checkout_latest(self, mock_is_working_copy, mock_clone, mock_pull, mock_head_revision):
         # before cloning, it is not a working copy, afterwards it is
         mock_is_working_copy.side_effect = [False, True]
@@ -67,10 +67,10 @@ class SourceRepositoryTests(TestCase):
         mock_pull.assert_called_with("/src")
         mock_head_revision.assert_called_with("/src")
 
-    @mock.patch("esrally.utils.git.head_revision", autospec=True)
-    @mock.patch("esrally.utils.git.pull")
-    @mock.patch("esrally.utils.git.clone")
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.head_revision", autospec=True)
+    @mock.patch("osbenchmark.utils.git.pull")
+    @mock.patch("osbenchmark.utils.git.clone")
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
     def test_checkout_current(self, mock_is_working_copy, mock_clone, mock_pull, mock_head_revision):
         mock_is_working_copy.return_value = True
         mock_head_revision.return_value = "HEAD"
@@ -84,11 +84,11 @@ class SourceRepositoryTests(TestCase):
         mock_head_revision.assert_called_with("/src")\
 
 
-    @mock.patch("esrally.utils.git.head_revision", autospec=True)
-    @mock.patch("esrally.utils.git.checkout")
-    @mock.patch("esrally.utils.git.pull")
-    @mock.patch("esrally.utils.git.clone")
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.head_revision", autospec=True)
+    @mock.patch("osbenchmark.utils.git.checkout")
+    @mock.patch("osbenchmark.utils.git.pull")
+    @mock.patch("osbenchmark.utils.git.clone")
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
     def test_checkout_revision_for_local_only_repo(self, mock_is_working_copy, mock_clone, mock_pull, mock_checkout, mock_head_revision):
         mock_is_working_copy.return_value = True
         mock_head_revision.return_value = "HEAD"
@@ -103,9 +103,9 @@ class SourceRepositoryTests(TestCase):
         mock_checkout.assert_called_with("/src", "67c2f42")
         mock_head_revision.assert_called_with("/src")
 
-    @mock.patch("esrally.utils.git.head_revision", autospec=True)
-    @mock.patch("esrally.utils.git.pull_ts", autospec=True)
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.head_revision", autospec=True)
+    @mock.patch("osbenchmark.utils.git.pull_ts", autospec=True)
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
     def test_checkout_ts(self, mock_is_working_copy, mock_pull_ts, mock_head_revision):
         mock_is_working_copy.return_value = True
         mock_head_revision.return_value = "HEAD"
@@ -117,9 +117,9 @@ class SourceRepositoryTests(TestCase):
         mock_pull_ts.assert_called_with("/src", "2015-01-01-01:00:00")
         mock_head_revision.assert_called_with("/src")
 
-    @mock.patch("esrally.utils.git.head_revision", autospec=True)
-    @mock.patch("esrally.utils.git.pull_revision", autospec=True)
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.head_revision", autospec=True)
+    @mock.patch("osbenchmark.utils.git.pull_revision", autospec=True)
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
     def test_checkout_revision(self, mock_is_working_copy, mock_pull_revision, mock_head_revision):
         mock_is_working_copy.return_value = True
         mock_head_revision.return_value = "HEAD"
@@ -141,8 +141,8 @@ class SourceRepositoryTests(TestCase):
 
 
 class BuilderTests(TestCase):
-    @mock.patch("esrally.utils.process.run_subprocess")
-    @mock.patch("esrally.utils.jvm.resolve_path")
+    @mock.patch("osbenchmark.utils.process.run_subprocess")
+    @mock.patch("osbenchmark.utils.jvm.resolve_path")
     def test_build_on_jdk_8(self, jvm_resolve_path, mock_run_subprocess):
         jvm_resolve_path.return_value = (8, "/opt/jdk8")
         mock_run_subprocess.return_value = False
@@ -159,8 +159,8 @@ class BuilderTests(TestCase):
 
         mock_run_subprocess.assert_has_calls(calls)
 
-    @mock.patch("esrally.utils.process.run_subprocess")
-    @mock.patch("esrally.utils.jvm.resolve_path")
+    @mock.patch("osbenchmark.utils.process.run_subprocess")
+    @mock.patch("osbenchmark.utils.jvm.resolve_path")
     def test_build_on_jdk_10(self, jvm_resolve_path, mock_run_subprocess):
         jvm_resolve_path.return_value = (10, "/opt/jdk10")
         mock_run_subprocess.return_value = False
@@ -184,8 +184,8 @@ class TemplateRendererTests(TestCase):
         self.assertEqual("This is version 1.2.3 on Windows with a arm7 CPU.",
                          renderer.render("This is version {{VERSION}} on {{OSNAME}} with a {{ARCH}} CPU."))
 
-    @mock.patch("esrally.utils.sysstats.os_name", return_value="Linux")
-    @mock.patch("esrally.utils.sysstats.cpu_arch", return_value="X86_64")
+    @mock.patch("osbenchmark.utils.sysstats.os_name", return_value="Linux")
+    @mock.patch("osbenchmark.utils.sysstats.cpu_arch", return_value="X86_64")
     def test_uses_derived_values(self, os_name, cpu_arch):
         renderer = supplier.TemplateRenderer(version="1.2.3")
         self.assertEqual("This is version 1.2.3 on linux with a x86_64 CPU.",
@@ -193,9 +193,9 @@ class TemplateRendererTests(TestCase):
 
 
 class CachedElasticsearchSourceSupplierTests(TestCase):
-    @mock.patch("esrally.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("shutil.copy")
-    @mock.patch("esrally.builder.supplier.ElasticsearchSourceSupplier")
+    @mock.patch("osbenchmark.builder.supplier.ElasticsearchSourceSupplier")
     def test_does_not_cache_when_no_revision(self, es, copy, ensure_dir):
         def add_es_artifact(binaries):
             binaries["elasticsearch"] = "/path/to/artifact.tar.gz"
@@ -231,7 +231,7 @@ class CachedElasticsearchSourceSupplierTests(TestCase):
         self.assertEqual("/path/to/artifact.tar.gz", binaries["elasticsearch"])
 
     @mock.patch("os.path.exists")
-    @mock.patch("esrally.builder.supplier.ElasticsearchSourceSupplier")
+    @mock.patch("osbenchmark.builder.supplier.ElasticsearchSourceSupplier")
     def test_uses_already_cached_artifact(self, es, path_exists):
         # assume that the artifact is already cached
         path_exists.return_value = True
@@ -263,10 +263,10 @@ class CachedElasticsearchSourceSupplierTests(TestCase):
         self.assertIn("elasticsearch", binaries)
         self.assertEqual("/tmp/elasticsearch-abc123-linux-x86_64.tar.gz", binaries["elasticsearch"])
 
-    @mock.patch("esrally.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("os.path.exists")
     @mock.patch("shutil.copy")
-    @mock.patch("esrally.builder.supplier.ElasticsearchSourceSupplier")
+    @mock.patch("osbenchmark.builder.supplier.ElasticsearchSourceSupplier")
     def test_caches_artifact(self, es, copy, path_exists, ensure_dir):
         def add_es_artifact(binaries):
             binaries["elasticsearch"] = "/path/to/artifact.tar.gz"
@@ -315,10 +315,10 @@ class CachedElasticsearchSourceSupplierTests(TestCase):
         self.assertEqual(1, es.add.call_count, "internal supplier is not called again")
         self.assertTrue(cached_supplier.cached)
 
-    @mock.patch("esrally.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("os.path.exists")
     @mock.patch("shutil.copy")
-    @mock.patch("esrally.builder.supplier.ElasticsearchSourceSupplier")
+    @mock.patch("osbenchmark.builder.supplier.ElasticsearchSourceSupplier")
     def test_does_not_cache_on_copy_error(self, es, copy, path_exists, ensure_dir):
         def add_es_artifact(binaries):
             binaries["elasticsearch"] = "/path/to/artifact.tar.gz"
@@ -683,7 +683,7 @@ class CreateSupplierTests(TestCase):
         self.assertEqual(1, len(composite_supplier.suppliers))
         self.assertIsInstance(composite_supplier.suppliers[0], supplier.ElasticsearchDistributionSupplier)
 
-    @mock.patch("esrally.utils.jvm.resolve_path", lambda v: (v, "/opt/java/java{}".format(v)))
+    @mock.patch("osbenchmark.utils.jvm.resolve_path", lambda v: (v, "/opt/java/java{}".format(v)))
     def test_create_suppliers_for_es_distribution_plugin_source_build(self):
         cfg = config.Config()
         cfg.add(config.Scope.application, "builder", "distribution.version", "6.0.0")
@@ -720,7 +720,7 @@ class CreateSupplierTests(TestCase):
         self.assertEqual(external_plugin, composite_supplier.suppliers[2].source_supplier.plugin)
         self.assertIsNotNone(composite_supplier.suppliers[2].source_supplier.builder)
 
-    @mock.patch("esrally.utils.jvm.resolve_path", lambda v: (v, "/opt/java/java{}".format(v)))
+    @mock.patch("osbenchmark.utils.jvm.resolve_path", lambda v: (v, "/opt/java/java{}".format(v)))
     def test_create_suppliers_for_es_and_plugin_source_build(self):
         cfg = config.Config()
         cfg.add(config.Scope.application, "builder", "source.revision", "elasticsearch:abc,community-plugin:current")
@@ -760,8 +760,8 @@ class CreateSupplierTests(TestCase):
 
 
 class DistributionRepositoryTests(TestCase):
-    @mock.patch("esrally.utils.sysstats.os_name", return_value="Linux")
-    @mock.patch("esrally.utils.sysstats.cpu_arch", return_value="X86_64")
+    @mock.patch("osbenchmark.utils.sysstats.os_name", return_value="Linux")
+    @mock.patch("osbenchmark.utils.sysstats.cpu_arch", return_value="X86_64")
     def test_release_repo_config_with_default_url(self, os_name, cpu_arch):
         renderer = supplier.TemplateRenderer(version="7.3.2")
         repo = supplier.DistributionRepository(name="release", distribution_config={

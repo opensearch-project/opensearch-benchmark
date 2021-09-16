@@ -31,8 +31,8 @@ from unittest import TestCase
 
 import elasticsearch
 
-from esrally import client, exceptions
-from esrally.worker_coordinator import runner
+from osbenchmark import client, exceptions
+from osbenchmark.worker_coordinator import runner
 from tests import run_async, as_future
 
 

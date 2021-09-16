@@ -16,7 +16,7 @@ COPY setup.cfg /rally/
 COPY version.txt /rally/
 COPY README.rst /rally/
 COPY MANIFEST.in /rally/
-COPY esrally/ /rally/esrally/
+COPY osbenchmark/ /rally/esrally/
 
 RUN python3 -m venv /rally/venv
 ENV PATH="/rally/venv/bin:$PATH"

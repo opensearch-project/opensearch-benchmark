@@ -25,12 +25,12 @@
 import unittest.mock as mock
 from unittest import TestCase
 
-from esrally import exceptions
-from esrally.builder import java_resolver
+from osbenchmark import exceptions
+from osbenchmark.builder import java_resolver
 
 
 class JavaResolverTests(TestCase):
-    @mock.patch("esrally.utils.jvm.resolve_path")
+    @mock.patch("osbenchmark.utils.jvm.resolve_path")
     def test_resolves_java_home_for_default_runtime_jdk(self, resolve_jvm_path):
         resolve_jvm_path.return_value = (12, "/opt/jdk12")
         major, java_home = java_resolver.java_home("12,11,10,9,8",
@@ -40,7 +40,7 @@ class JavaResolverTests(TestCase):
         self.assertEqual(major, 12)
         self.assertEqual(java_home, "/opt/jdk12")
 
-    @mock.patch("esrally.utils.jvm.resolve_path")
+    @mock.patch("osbenchmark.utils.jvm.resolve_path")
     def test_resolves_java_home_for_specific_runtime_jdk(self, resolve_jvm_path):
         resolve_jvm_path.return_value = (8, "/opt/jdk8")
         major, java_home = java_resolver.java_home("12,11,10,9,8",

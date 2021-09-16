@@ -26,9 +26,9 @@
 import random
 from unittest import TestCase
 
-from esrally import exceptions
-from esrally.worker_coordinator import scheduler
-from esrally.workload import workload
+from osbenchmark import exceptions
+from osbenchmark.worker_coordinator import scheduler
+from osbenchmark.workload import workload
 
 
 class SchedulerTestCase(TestCase):

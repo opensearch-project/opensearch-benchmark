@@ -28,7 +28,7 @@ import unittest.mock as mock
 
 import pytest
 
-from esrally import config, exceptions, test_execution_orchestrator
+from osbenchmark import config, exceptions, test_execution_orchestrator
 
 
 @pytest.fixture

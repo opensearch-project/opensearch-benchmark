@@ -28,16 +28,16 @@ import tempfile
 import unittest.mock as mock
 from unittest import TestCase
 
-from esrally import exceptions
-from esrally.builder import provisioner, provision_config
+from osbenchmark import exceptions
+from osbenchmark.builder import provisioner, provision_config
 
 HOME_DIR = os.path.expanduser("~")
 
 
 class BareProvisionerTests(TestCase):
     @mock.patch("glob.glob", lambda p: ["/opt/elasticsearch-5.0.0"])
-    @mock.patch("esrally.utils.io.decompress")
-    @mock.patch("esrally.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.io.decompress")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("shutil.rmtree")
     def test_prepare_without_plugins(self, mock_rm, mock_ensure_dir, mock_decompress):
         apply_config_calls = []
@@ -124,8 +124,8 @@ class NoopHookHandler:
 
 class ElasticsearchInstallerTests(TestCase):
     @mock.patch("glob.glob", lambda p: ["/install/elasticsearch-5.0.0-SNAPSHOT"])
-    @mock.patch("esrally.utils.io.decompress")
-    @mock.patch("esrally.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.io.decompress")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("shutil.rmtree")
     def test_prepare_default_data_paths(self, mock_rm, mock_ensure_dir, mock_decompress):
         installer = provisioner.ElasticsearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
@@ -161,8 +161,8 @@ class ElasticsearchInstallerTests(TestCase):
         self.assertEqual(installer.data_paths, ["/install/elasticsearch-5.0.0-SNAPSHOT/data"])
 
     @mock.patch("glob.glob", lambda p: ["/install/elasticsearch-5.0.0-SNAPSHOT"])
-    @mock.patch("esrally.utils.io.decompress")
-    @mock.patch("esrally.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.io.decompress")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("shutil.rmtree")
     def test_prepare_user_provided_data_path(self, mock_rm, mock_ensure_dir, mock_decompress):
         installer = provisioner.ElasticsearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
@@ -241,7 +241,7 @@ class ElasticsearchInstallerTests(TestCase):
 
 
 class PluginInstallerTests(TestCase):
-    @mock.patch("esrally.utils.process.run_subprocess_with_logging")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     def test_install_plugin_successfully(self, installer_subprocess):
         installer_subprocess.return_value = 0
 
@@ -256,7 +256,7 @@ class PluginInstallerTests(TestCase):
             '/opt/elasticsearch/bin/elasticsearch-plugin install --batch "unit-test-plugin"',
             env={"JAVA_HOME": "/usr/local/javas/java8"})
 
-    @mock.patch("esrally.utils.process.run_subprocess_with_logging")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     def test_install_plugin_with_bundled_jdk(self, installer_subprocess):
         installer_subprocess.return_value = 0
 
@@ -272,7 +272,7 @@ class PluginInstallerTests(TestCase):
             '/opt/elasticsearch/bin/elasticsearch-plugin install --batch "unit-test-plugin"',
             env={})
 
-    @mock.patch("esrally.utils.process.run_subprocess_with_logging")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     def test_install_unknown_plugin(self, installer_subprocess):
         # unknown plugin
         installer_subprocess.return_value = 64
@@ -290,7 +290,7 @@ class PluginInstallerTests(TestCase):
             '/opt/elasticsearch/bin/elasticsearch-plugin install --batch "unknown"',
             env={"JAVA_HOME": "/usr/local/javas/java8"})
 
-    @mock.patch("esrally.utils.process.run_subprocess_with_logging")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     def test_install_plugin_with_io_error(self, installer_subprocess):
         # I/O error
         installer_subprocess.return_value = 74
@@ -308,7 +308,7 @@ class PluginInstallerTests(TestCase):
             '/opt/elasticsearch/bin/elasticsearch-plugin install --batch "simple"',
             env={"JAVA_HOME": "/usr/local/javas/java8"})
 
-    @mock.patch("esrally.utils.process.run_subprocess_with_logging")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     def test_install_plugin_with_unknown_error(self, installer_subprocess):
         # some other error
         installer_subprocess.return_value = 12987
@@ -381,7 +381,7 @@ class DockerProvisionerTests(TestCase):
         heap_dump_dir = os.path.join(node_root_dir, "heapdump")
         data_dir = os.path.join(node_root_dir, "data", "9dbc682e-d32a-4669-8fbe-56fb77120dd4")
 
-        rally_root = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "esrally"))
+        rally_root = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "osbenchmark"))
 
         c = provision_config.ProvisionConfigInstance("unit-test-provision-config-instance", None, "/tmp", variables={
             "docker_image": "docker.elastic.co/elasticsearch/elasticsearch-oss"
@@ -457,7 +457,7 @@ services:
         heap_dump_dir = os.path.join(node_root_dir, "heapdump")
         data_dir = os.path.join(node_root_dir, "data", "86f42ae0-5840-4b5b-918d-41e7907cb644")
 
-        rally_root = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "esrally"))
+        rally_root = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "osbenchmark"))
 
         c = provision_config.ProvisionConfigInstance("unit-test-provision-config-instance", None, "/tmp", variables={
             "docker_image": "docker.elastic.co/elasticsearch/elasticsearch",

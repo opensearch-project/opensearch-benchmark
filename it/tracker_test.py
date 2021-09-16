@@ -55,7 +55,7 @@ def test_create_workload(cfg, tmp_path, test_cluster):
     workload_name = f"test-workload-{uuid.uuid4()}"
     workload_path = tmp_path / workload_name
 
-    assert it.esrally(cfg, f"create-workload --target-hosts=127.0.0.1:{test_cluster.http_port} --indices=geonames "
+    assert it.osbenchmark(cfg, f"create-workload --target-hosts=127.0.0.1:{test_cluster.http_port} --indices=geonames "
                            f"--workload={workload_name} --output-path={tmp_path}") == 0
 
     expected_files = ["workload.json",

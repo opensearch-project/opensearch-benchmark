@@ -25,7 +25,7 @@
 import os
 from unittest import TestCase
 
-from esrally.utils import opts
+from osbenchmark.utils import opts
 
 
 class ConfigHelperFunctionTests(TestCase):

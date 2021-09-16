@@ -29,7 +29,7 @@ from unittest import TestCase
 
 import pytest
 
-from esrally.utils import console
+from osbenchmark.utils import console
 
 
 class ConsoleFunctionTests(TestCase):

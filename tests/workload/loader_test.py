@@ -30,9 +30,9 @@ import unittest.mock as mock
 import urllib.error
 from unittest import TestCase
 
-from esrally import exceptions, config
-from esrally.workload import loader, workload
-from esrally.utils import io
+from osbenchmark import exceptions, config
+from osbenchmark.workload import loader, workload
+from osbenchmark.utils import io
 
 
 def strip_ws(s):
@@ -146,7 +146,7 @@ class GitRepositoryTests(TestCase):
 
 
 class WorkloadPreparationTests(TestCase):
-    @mock.patch("esrally.utils.io.prepare_file_offset_table")
+    @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
     @mock.patch("os.path.getsize")
     @mock.patch("os.path.isfile")
     def test_does_nothing_if_document_file_available(self, is_file, get_size, prepare_file_offset_table):
@@ -168,7 +168,7 @@ class WorkloadPreparationTests(TestCase):
 
         prepare_file_offset_table.assert_called_with("/tmp/docs.json")
 
-    @mock.patch("esrally.utils.io.prepare_file_offset_table")
+    @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
     @mock.patch("os.path.getsize")
     @mock.patch("os.path.isfile")
     def test_decompresses_if_archive_available(self, is_file, get_size, prepare_file_offset_table):
@@ -190,7 +190,7 @@ class WorkloadPreparationTests(TestCase):
 
         prepare_file_offset_table.assert_called_with("/tmp/docs.json")
 
-    @mock.patch("esrally.utils.io.decompress")
+    @mock.patch("osbenchmark.utils.io.decompress")
     @mock.patch("os.path.getsize")
     @mock.patch("os.path.isfile")
     def test_raise_error_on_wrong_uncompressed_file_size(self, is_file, get_size, decompress):
@@ -218,7 +218,7 @@ class WorkloadPreparationTests(TestCase):
 
         decompress.assert_called_with("/tmp/docs.json.bz2", "/tmp")
 
-    @mock.patch("esrally.utils.io.decompress")
+    @mock.patch("osbenchmark.utils.io.decompress")
     @mock.patch("os.path.getsize")
     @mock.patch("os.path.isfile")
     def test_raise_error_if_compressed_does_not_contain_expected_document_file(self, is_file, get_size, decompress):
@@ -247,10 +247,10 @@ class WorkloadPreparationTests(TestCase):
 
         decompress.assert_called_with("/tmp/docs.json.bz2", "/tmp")
 
-    @mock.patch("esrally.utils.io.prepare_file_offset_table")
-    @mock.patch("esrally.utils.io.decompress")
-    @mock.patch("esrally.utils.net.download")
-    @mock.patch("esrally.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
+    @mock.patch("osbenchmark.utils.io.decompress")
+    @mock.patch("osbenchmark.utils.net.download")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("os.path.getsize")
     @mock.patch("os.path.isfile")
     def test_download_document_archive_if_no_file_available(self, is_file, get_size, ensure_dir, download, decompress,
@@ -289,10 +289,10 @@ class WorkloadPreparationTests(TestCase):
                                     "/tmp/docs.json.bz2", 200, progress_indicator=mock.ANY)
         prepare_file_offset_table.assert_called_with("/tmp/docs.json")
 
-    @mock.patch("esrally.utils.io.prepare_file_offset_table")
-    @mock.patch("esrally.utils.io.decompress")
-    @mock.patch("esrally.utils.net.download")
-    @mock.patch("esrally.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
+    @mock.patch("osbenchmark.utils.io.decompress")
+    @mock.patch("osbenchmark.utils.net.download")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("os.path.getsize")
     @mock.patch("os.path.isfile")
     def test_download_document_with_trailing_baseurl_slash(self, is_file, get_size, ensure_dir, download, decompress,
@@ -326,9 +326,9 @@ class WorkloadPreparationTests(TestCase):
                                     "/tmp/docs.json", 2000, progress_indicator=mock.ANY)
         prepare_file_offset_table.assert_called_with("/tmp/docs.json")
 
-    @mock.patch("esrally.utils.io.prepare_file_offset_table")
-    @mock.patch("esrally.utils.net.download")
-    @mock.patch("esrally.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
+    @mock.patch("osbenchmark.utils.net.download")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("os.path.getsize")
     @mock.patch("os.path.isfile")
     def test_download_document_file_if_no_file_available(self, is_file, get_size, ensure_dir, download, prepare_file_offset_table):
@@ -360,8 +360,8 @@ class WorkloadPreparationTests(TestCase):
                                     "/tmp/docs.json", 2000, progress_indicator=mock.ANY)
         prepare_file_offset_table.assert_called_with("/tmp/docs.json")
 
-    @mock.patch("esrally.utils.net.download")
-    @mock.patch("esrally.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.net.download")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("os.path.isfile")
     def test_raise_download_error_if_offline(self, is_file, ensure_dir, download):
         # uncompressed file does not exist
@@ -384,8 +384,8 @@ class WorkloadPreparationTests(TestCase):
         self.assertEqual(0, ensure_dir.call_count)
         self.assertEqual(0, download.call_count)
 
-    @mock.patch("esrally.utils.net.download")
-    @mock.patch("esrally.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.net.download")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("os.path.isfile")
     def test_raise_download_error_if_no_url_provided_and_file_missing(self, is_file, ensure_dir, download):
         # uncompressed file does not exist
@@ -409,8 +409,8 @@ class WorkloadPreparationTests(TestCase):
         self.assertEqual(0, ensure_dir.call_count)
         self.assertEqual(0, download.call_count)
 
-    @mock.patch("esrally.utils.net.download")
-    @mock.patch("esrally.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.net.download")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("os.path.getsize")
     @mock.patch("os.path.isfile")
     def test_raise_download_error_if_no_url_provided_and_wrong_file_size(self, is_file, get_size, ensure_dir, download):
@@ -436,8 +436,8 @@ class WorkloadPreparationTests(TestCase):
         self.assertEqual(0, ensure_dir.call_count)
         self.assertEqual(0, download.call_count)
 
-    @mock.patch("esrally.utils.net.download")
-    @mock.patch("esrally.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.net.download")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("os.path.isfile")
     def test_raise_download_error_no_test_mode_file(self, is_file, ensure_dir, download):
         # uncompressed file does not exist
@@ -465,8 +465,8 @@ class WorkloadPreparationTests(TestCase):
         download.assert_called_with("http://benchmarks.elasticsearch.org/corpora/unit-test/docs-1k.json",
                                     "/tmp/docs-1k.json", None, progress_indicator=mock.ANY)
 
-    @mock.patch("esrally.utils.net.download")
-    @mock.patch("esrally.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.net.download")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("os.path.isfile")
     def test_raise_download_error_on_connection_problems(self, is_file, ensure_dir, download):
         # uncompressed file does not exist
@@ -494,8 +494,8 @@ class WorkloadPreparationTests(TestCase):
         download.assert_called_with("http://benchmarks.elasticsearch.org/corpora/unit-test/docs.json",
                                     "/tmp/docs.json", 2000, progress_indicator=mock.ANY)
 
-    @mock.patch("esrally.utils.io.prepare_file_offset_table")
-    @mock.patch("esrally.utils.io.decompress")
+    @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
+    @mock.patch("osbenchmark.utils.io.decompress")
     @mock.patch("os.path.getsize")
     @mock.patch("os.path.isfile")
     def test_prepare_bundled_document_set_if_document_file_available(self, is_file, get_size, decompress, prepare_file_offset_table):
@@ -518,8 +518,8 @@ class WorkloadPreparationTests(TestCase):
 
         prepare_file_offset_table.assert_called_with("./docs.json")
 
-    @mock.patch("esrally.utils.io.prepare_file_offset_table")
-    @mock.patch("esrally.utils.io.decompress")
+    @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
+    @mock.patch("osbenchmark.utils.io.decompress")
     @mock.patch("os.path.getsize")
     @mock.patch("os.path.isfile")
     def test_prepare_bundled_document_set_does_nothing_if_no_document_files(self, is_file, get_size, decompress, prepare_file_offset_table):
@@ -673,8 +673,8 @@ class WorkloadPreparationTests(TestCase):
         self.assertEqual("http_logs_unparsed", used_corpora[1].name)
         self.assertEqual({"documents-201998.unparsed.json.bz2"}, {d.document_archive for d in used_corpora[1].documents})
 
-    @mock.patch("esrally.utils.io.prepare_file_offset_table")
-    @mock.patch("esrally.utils.io.decompress")
+    @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
+    @mock.patch("osbenchmark.utils.io.decompress")
     @mock.patch("os.path.getsize")
     @mock.patch("os.path.isfile")
     def test_prepare_bundled_document_set_decompresses_compressed_docs(self, is_file, get_size, decompress, prepare_file_offset_table):
@@ -728,8 +728,8 @@ class WorkloadPreparationTests(TestCase):
         self.assertEqual("[./docs.json.bz2] is present but does not have the expected size of [200] bytes.",
                          ctx.exception.args[0])
 
-    @mock.patch("esrally.utils.io.prepare_file_offset_table")
-    @mock.patch("esrally.utils.io.decompress")
+    @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
+    @mock.patch("osbenchmark.utils.io.decompress")
     @mock.patch("os.path.getsize")
     @mock.patch("os.path.isfile")
     def test_prepare_bundled_document_set_uncompressed_docs_wrong_size(self, is_file, get_size, decompress, prepare_file_offset_table):
@@ -757,7 +757,7 @@ class WorkloadPreparationTests(TestCase):
 
 
 class TemplateSource(TestCase):
-    @mock.patch("esrally.utils.io.dirname")
+    @mock.patch("osbenchmark.utils.io.dirname")
     @mock.patch.object(loader.TemplateSource, "read_glob_files")
     def test_entrypoint_of_replace_includes(self, patched_read_glob, patched_dirname):
         workload = textwrap.dedent("""
@@ -1728,7 +1728,7 @@ class WorkloadSpecificationReaderTests(TestCase):
             reader("unittest", workload_specification, "/mappings")
         self.assertEqual("Workload 'unittest' is invalid. Mandatory element 'document-count' is missing.", ctx.exception.args[0])
 
-    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_with_mixed_warmup_iterations_and_measurement(self, mocked_params_checker):
         workload_specification = {
             "description": "description for unit test",
@@ -1784,7 +1784,7 @@ class WorkloadSpecificationReaderTests(TestCase):
                          "defines '3' warmup iterations and a time period of '60' seconds. Please do not mix time periods and iterations.",
                          ctx.exception.args[0])
 
-    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_missing_test_procedure_or_test_procedures(self, mocked_params_checker):
         workload_specification = {
             "description": "description for unit test",
@@ -1819,7 +1819,7 @@ class WorkloadSpecificationReaderTests(TestCase):
                          "'schedule' but none is specified.",
                          ctx.exception.args[0])
 
-    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_test_procedure_and_test_procedures_are_defined(self, mocked_params_checker):
         workload_specification = {
             "description": "description for unit test",
@@ -1857,7 +1857,7 @@ class WorkloadSpecificationReaderTests(TestCase):
                          "are defined but only "
                          "one of them is allowed.", ctx.exception.args[0])
 
-    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_with_mixed_warmup_time_period_and_iterations(self, mocked_params_checker):
         workload_specification = {
             "description": "description for unit test",
@@ -1980,7 +1980,7 @@ class WorkloadSpecificationReaderTests(TestCase):
                          "'duplicate-task-name'. Please use the task's name property to assign a unique name for each task.",
                          ctx.exception.args[0])
 
-    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_load_invalid_index_body(self, mocked_params_checker):
         workload_specification = {
             "description": "description for unit test",
@@ -2381,7 +2381,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         self.assertEqual({"append": True}, resulting_workload.test_procedures[0].schedule[0].operation.meta_data)
         self.assertEqual({"operation-index": 0}, resulting_workload.test_procedures[0].schedule[0].meta_data)
 
-    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_valid_without_types(self, mocked_param_checker):
         workload_specification = {
             "description": "description for unit test",
@@ -2461,7 +2461,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         # test_procedures
         self.assertEqual(1, len(resulting_workload.test_procedures))
 
-    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_invalid_data_streams_with_indices(self, mocked_param_checker):
         workload_specification = {
             "description": "description for unit test",
@@ -2507,7 +2507,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         with self.assertRaises(loader.WorkloadSyntaxError):
             reader("unittest", workload_specification, "/mapping")
 
-    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_invalid_data_streams_with_target_index(self, mocked_param_checker):
         workload_specification = {
             "description": "description for unit test",
@@ -2548,7 +2548,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         with self.assertRaises(loader.WorkloadSyntaxError):
             reader("unittest", workload_specification, "/mapping")
 
-    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_invalid_data_streams_with_target_type(self, mocked_param_checker):
         workload_specification = {
             "description": "description for unit test",
@@ -2589,7 +2589,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         with self.assertRaises(loader.WorkloadSyntaxError):
             reader("unittest", workload_specification, "/mapping")
 
-    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_invalid_no_data_stream_target(self, mocked_param_checker):
         workload_specification = {
             "description": "description for unit test",
@@ -2632,7 +2632,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         with self.assertRaises(loader.WorkloadSyntaxError):
             reader("unittest", workload_specification, "/mapping")
 
-    @mock.patch("esrally.workload.loader.register_all_params_in_workload")
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_valid_without_indices(self, mocked_param_checker):
         workload_specification = {
             "description": "description for unit test",

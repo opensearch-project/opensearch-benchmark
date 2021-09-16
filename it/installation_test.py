@@ -50,7 +50,7 @@ def test_installs_inside_venv():
         "cd /rally &&"
         "python3 -m pip install --upgrade pip &&"
         "python3 -m pip install -e . &&"
-        "esrally list workloads"
+        "osbenchmark list workloads"
     )
 
     assert it.command_in_docker(commands, python_version=MIN_PY_VER) == 0
@@ -64,7 +64,7 @@ def test_local_installation():
         "export PATH=$PATH:~/.local/bin &&"
         "python3 -m pip install --user --upgrade pip &&"
         "python3 -m pip install --user -e . &&"
-        "esrally list workloads"
+        "osbenchmark list workloads"
     )
 
     assert it.command_in_docker(commands, python_version=MIN_PY_VER) == 0

@@ -26,13 +26,13 @@ import random
 import unittest.mock as mock
 from unittest import TestCase
 
-from esrally import exceptions
-from esrally.utils import repo
+from osbenchmark import exceptions
+from osbenchmark.utils import repo
 
 
 class BenchmarkRepositoryTests(TestCase):
-    @mock.patch("esrally.utils.io.exists", autospec=True)
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.io.exists", autospec=True)
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
     def test_fails_in_offline_mode_if_not_a_git_repo(self, is_working_copy, exists):
         is_working_copy.return_value = False
         exists.return_value = True
@@ -48,8 +48,8 @@ class BenchmarkRepositoryTests(TestCase):
         self.assertEqual("[/rally-resources/unit-test] must be a git repository.\n\n"
                          "Please run:\ngit -C /rally-resources/unit-test init", ctx.exception.args[0])
 
-    @mock.patch("esrally.utils.io.exists", autospec=True)
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.io.exists", autospec=True)
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
     def test_does_nothing_in_offline_mode_if_not_existing(self, is_working_copy, exists):
         is_working_copy.return_value = False
         exists.return_value = False
@@ -63,7 +63,7 @@ class BenchmarkRepositoryTests(TestCase):
 
         self.assertFalse(r.remote)
 
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
     def test_does_nothing_if_working_copy_present(self, is_working_copy):
         is_working_copy.return_value = True
 
@@ -76,8 +76,8 @@ class BenchmarkRepositoryTests(TestCase):
 
         self.assertFalse(r.remote)
 
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
-    @mock.patch("esrally.utils.git.clone", autospec=True)
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.clone", autospec=True)
     def test_clones_initially(self, clone, is_working_copy):
         is_working_copy.return_value = False
 
@@ -92,8 +92,8 @@ class BenchmarkRepositoryTests(TestCase):
 
         clone.assert_called_with(src="/rally-resources/unit-test", remote="git@gitrepos.example.org/rally-resources")
 
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
-    @mock.patch("esrally.utils.git.fetch", autospec=True)
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.fetch", autospec=True)
     def test_fetches_if_already_cloned(self, fetch, is_working_copy):
         is_working_copy.return_value = True
 
@@ -106,8 +106,8 @@ class BenchmarkRepositoryTests(TestCase):
 
         fetch.assert_called_with(src="/rally-resources/unit-test")
 
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
-    @mock.patch("esrally.utils.git.fetch")
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.fetch")
     def test_does_not_fetch_if_suppressed(self, fetch, is_working_copy):
         is_working_copy.return_value = True
 
@@ -123,8 +123,8 @@ class BenchmarkRepositoryTests(TestCase):
 
         self.assertEqual(0, fetch.call_count)
 
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
-    @mock.patch("esrally.utils.git.fetch")
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.fetch")
     def test_ignores_fetch_errors(self, fetch, is_working_copy):
         fetch.side_effect = exceptions.SupplyError("Testing error")
         is_working_copy.return_value = True
@@ -140,12 +140,12 @@ class BenchmarkRepositoryTests(TestCase):
 
         fetch.assert_called_with(src="/rally-resources/unit-test")
 
-    @mock.patch("esrally.utils.git.head_revision")
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
-    @mock.patch("esrally.utils.git.fetch", autospec=True)
-    @mock.patch("esrally.utils.git.branches", autospec=True)
-    @mock.patch("esrally.utils.git.checkout", autospec=True)
-    @mock.patch("esrally.utils.git.rebase", autospec=True)
+    @mock.patch("osbenchmark.utils.git.head_revision")
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.fetch", autospec=True)
+    @mock.patch("osbenchmark.utils.git.branches", autospec=True)
+    @mock.patch("osbenchmark.utils.git.checkout", autospec=True)
+    @mock.patch("osbenchmark.utils.git.rebase", autospec=True)
     def test_updates_from_remote(self, rebase, checkout, branches, fetch, is_working_copy, head_revision):
         branches.return_value = ["1", "2", "5", "main"]
         is_working_copy.return_value = True
@@ -164,13 +164,13 @@ class BenchmarkRepositoryTests(TestCase):
         rebase.assert_called_with("/rally-resources/unit-test", branch="1")
         checkout.assert_called_with("/rally-resources/unit-test", branch="1")
 
-    @mock.patch("esrally.utils.git.head_revision")
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
-    @mock.patch("esrally.utils.git.fetch", autospec=True)
-    @mock.patch("esrally.utils.git.branches", autospec=True)
-    @mock.patch("esrally.utils.git.checkout", autospec=True)
-    @mock.patch("esrally.utils.git.rebase")
-    @mock.patch("esrally.utils.git.current_branch")
+    @mock.patch("osbenchmark.utils.git.head_revision")
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.fetch", autospec=True)
+    @mock.patch("osbenchmark.utils.git.branches", autospec=True)
+    @mock.patch("osbenchmark.utils.git.checkout", autospec=True)
+    @mock.patch("osbenchmark.utils.git.rebase")
+    @mock.patch("osbenchmark.utils.git.current_branch")
     def test_updates_locally(self, curr_branch, rebase, checkout, branches, fetch, is_working_copy, head_revision):
         curr_branch.return_value = "5"
         branches.return_value = ["1", "2", "5", "main"]
@@ -190,14 +190,14 @@ class BenchmarkRepositoryTests(TestCase):
         self.assertEqual(0, rebase.call_count)
         checkout.assert_called_with("/rally-resources/unit-test", branch="main")
 
-    @mock.patch("esrally.utils.git.head_revision")
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
-    @mock.patch("esrally.utils.git.fetch", autospec=True)
-    @mock.patch("esrally.utils.git.tags", autospec=True)
-    @mock.patch("esrally.utils.git.branches", autospec=True)
-    @mock.patch("esrally.utils.git.checkout", autospec=True)
-    @mock.patch("esrally.utils.git.rebase")
-    @mock.patch("esrally.utils.git.current_branch")
+    @mock.patch("osbenchmark.utils.git.head_revision")
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.fetch", autospec=True)
+    @mock.patch("osbenchmark.utils.git.tags", autospec=True)
+    @mock.patch("osbenchmark.utils.git.branches", autospec=True)
+    @mock.patch("osbenchmark.utils.git.checkout", autospec=True)
+    @mock.patch("osbenchmark.utils.git.rebase")
+    @mock.patch("osbenchmark.utils.git.current_branch")
     def test_fallback_to_tags(self, curr_branch, rebase, checkout, branches, tags, fetch, is_working_copy, head_revision):
         curr_branch.return_value = "main"
         branches.return_value = ["5", "main"]
@@ -219,12 +219,12 @@ class BenchmarkRepositoryTests(TestCase):
         tags.assert_called_with("/rally-resources/unit-test")
         checkout.assert_called_with("/rally-resources/unit-test", branch="v1.7")
 
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
-    @mock.patch("esrally.utils.git.fetch", autospec=True)
-    @mock.patch("esrally.utils.git.tags", autospec=True)
-    @mock.patch("esrally.utils.git.branches", autospec=True)
-    @mock.patch("esrally.utils.git.checkout")
-    @mock.patch("esrally.utils.git.rebase")
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.fetch", autospec=True)
+    @mock.patch("osbenchmark.utils.git.tags", autospec=True)
+    @mock.patch("osbenchmark.utils.git.branches", autospec=True)
+    @mock.patch("osbenchmark.utils.git.checkout")
+    @mock.patch("osbenchmark.utils.git.rebase")
     def test_does_not_update_unknown_branch_remotely(self, rebase, checkout, branches, tags, fetch, is_working_copy):
         branches.return_value = ["1", "2", "5", "main"]
         tags.return_value = []
@@ -256,14 +256,14 @@ class BenchmarkRepositoryTests(TestCase):
         self.assertEqual(0, checkout.call_count)
         self.assertEqual(0, rebase.call_count)
 
-    @mock.patch("esrally.utils.git.head_revision")
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
-    @mock.patch("esrally.utils.git.fetch", autospec=True)
-    @mock.patch("esrally.utils.git.tags", autospec=True)
-    @mock.patch("esrally.utils.git.branches", autospec=True)
-    @mock.patch("esrally.utils.git.checkout", autospec=True)
-    @mock.patch("esrally.utils.git.rebase")
-    @mock.patch("esrally.utils.git.current_branch")
+    @mock.patch("osbenchmark.utils.git.head_revision")
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.fetch", autospec=True)
+    @mock.patch("osbenchmark.utils.git.tags", autospec=True)
+    @mock.patch("osbenchmark.utils.git.branches", autospec=True)
+    @mock.patch("osbenchmark.utils.git.checkout", autospec=True)
+    @mock.patch("osbenchmark.utils.git.rebase")
+    @mock.patch("osbenchmark.utils.git.current_branch")
     def test_does_not_update_unknown_branch_remotely_local_fallback(self, curr_branch, rebase, checkout, branches, tags,
                                                                     fetch, is_working_copy, head_revision):
         curr_branch.return_value = "main"
@@ -294,12 +294,12 @@ class BenchmarkRepositoryTests(TestCase):
         checkout.assert_called_with("/rally-resources/unit-test", branch="1")
         self.assertEqual(0, rebase.call_count)
 
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
-    @mock.patch("esrally.utils.git.fetch", autospec=True)
-    @mock.patch("esrally.utils.git.tags", autospec=True)
-    @mock.patch("esrally.utils.git.branches", autospec=True)
-    @mock.patch("esrally.utils.git.checkout")
-    @mock.patch("esrally.utils.git.rebase")
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.fetch", autospec=True)
+    @mock.patch("osbenchmark.utils.git.tags", autospec=True)
+    @mock.patch("osbenchmark.utils.git.branches", autospec=True)
+    @mock.patch("osbenchmark.utils.git.checkout")
+    @mock.patch("osbenchmark.utils.git.rebase")
     def test_does_not_update_unknown_branch_locally(self, rebase, checkout, branches, tags, fetch, is_working_copy):
         branches.return_value = ["1", "2", "5", "main"]
         tags.return_value = []
@@ -321,9 +321,9 @@ class BenchmarkRepositoryTests(TestCase):
         self.assertEqual(0, checkout.call_count)
         self.assertEqual(0, rebase.call_count)
 
-    @mock.patch("esrally.utils.git.is_working_copy", autospec=True)
-    @mock.patch("esrally.utils.git.fetch", autospec=True)
-    @mock.patch("esrally.utils.git.checkout", autospec=True)
+    @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
+    @mock.patch("osbenchmark.utils.git.fetch", autospec=True)
+    @mock.patch("osbenchmark.utils.git.checkout", autospec=True)
     def test_checkout_revision(self, checkout, fetch, is_working_copy):
         is_working_copy.return_value = True
 

@@ -25,7 +25,7 @@
 import configparser
 from unittest import TestCase
 
-from esrally import config, exceptions
+from osbenchmark import config, exceptions
 
 
 class MockInput:
