@@ -143,14 +143,14 @@ def check_prerequisites():
 
 class ConfigFile:
     def __init__(self, config_name):
-        self.user_home = os.getenv("RALLY_HOME", os.path.expanduser("~"))
-        self.rally_home = os.path.join(self.user_home, ".benchmark")
+        self.user_home = os.getenv("BENCHMARK_HOME", os.path.expanduser("~"))
+        self.benchmark_home = os.path.join(self.user_home, ".benchmark")
         if config_name is not None:
             self.config_file_name = f"benchmark-{config_name}.ini"
         else:
             self.config_file_name = "benchmark.ini"
         self.source_path = os.path.join(os.path.dirname(__file__), "resources", self.config_file_name)
-        self.target_path = os.path.join(self.rally_home, self.config_file_name)
+        self.target_path = os.path.join(self.benchmark_home, self.config_file_name)
 
 
 class TestCluster:

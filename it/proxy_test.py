@@ -54,7 +54,7 @@ def http_proxy():
 @pytest.fixture(scope="function")
 def fresh_log_file():
     cfg = it.ConfigFile(config_name=None)
-    log_file = os.path.join(cfg.rally_home, "logs", "rally.log")
+    log_file = os.path.join(cfg.benchmark_home, "logs", "rally.log")
 
     if os.path.exists(log_file):
         bak = os.path.join(tempfile.mkdtemp(), "rally.log")
