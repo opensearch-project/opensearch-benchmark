@@ -144,7 +144,7 @@ def check_prerequisites():
 class ConfigFile:
     def __init__(self, config_name):
         self.user_home = os.getenv("RALLY_HOME", os.path.expanduser("~"))
-        self.rally_home = os.path.join(self.user_home, ".rally")
+        self.rally_home = os.path.join(self.user_home, ".benchmark")
         if config_name is not None:
             self.config_file_name = f"benchmark-{config_name}.ini"
         else:

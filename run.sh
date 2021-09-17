@@ -113,7 +113,7 @@ fi
 popd >/dev/null 2>&1
 
 # write the actor system's log file to a well-known location (but let the user override it with the same env variable)
-export THESPLOG_FILE="${THESPLOG_FILE:-${HOME}/.rally/logs/actor-system-internal.log}"
+export THESPLOG_FILE="${THESPLOG_FILE:-${HOME}/.benchmark/logs/actor-system-internal.log}"
 # this value is in bytes, the default is 50kB. We increase it to 200kiB.
 export THESPLOG_FILE_MAXSIZE=${THESPLOG_FILE_MAXSIZE:-204800}
 # adjust the default log level from WARNING

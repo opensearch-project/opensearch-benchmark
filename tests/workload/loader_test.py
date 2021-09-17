@@ -800,7 +800,7 @@ class TemplateSource(TestCase):
 
         patched_read_glob.side_effect = dummy_read_glob
 
-        base_path = "~/.rally/benchmarks/workloads/default/geonames"
+        base_path = "~/.benchmark/benchmarks/workloads/default/geonames"
         template_file_name = "workload.json"
         tmpl_src = loader.TemplateSource(base_path, template_file_name)
         # pylint: disable=trailing-whitespace
@@ -831,10 +831,10 @@ class TemplateSource(TestCase):
                 }
               ],
               "operations": [
-                {"replaced ~/.rally/benchmarks/workloads/default/geonames/operations/*.json": "true"}
+                {"replaced ~/.benchmark/benchmarks/workloads/default/geonames/operations/*.json": "true"}
               ],
               "test_procedures": [
-                {"replaced ~/.rally/benchmarks/workloads/default/geonames/test_procedures/*.json": "true"}
+                {"replaced ~/.benchmark/benchmarks/workloads/default/geonames/test_procedures/*.json": "true"}
               ]
             }
             """)

@@ -25,7 +25,7 @@
 # Simple helper script to create graphs based on multiple
 # test_execution.json files (it's a summary of the results of
 # a single test_execution which is
-# stored in ~/.rally/benchmarks/test_executions/TEST_EXECUTION_TS/).
+# stored in ~/.benchmark/benchmarks/test_executions/TEST_EXECUTION_TS/).
 # There is no specific integration into Rally and it is also not
 # installed with Rally.
 #

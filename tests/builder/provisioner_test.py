@@ -49,11 +49,11 @@ class BareProvisionerTests(TestCase):
         provision_config.ProvisionConfigInstance(
             names="unit-test-provision-config-instance",
             root_path=None,
-            config_paths=[HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-provision-config-instance"],
+            config_paths=[HOME_DIR + "/.benchmark/benchmarks/provision_configs/default/my-provision-config-instance"],
             variables={"heap": "4g", "runtime.jdk": "8", "runtime.jdk.bundled": "true"}),
             java_home="/usr/local/javas/java8",
             node_name="rally-node-0",
-            node_root_dir=HOME_DIR + "/.rally/benchmarks/test_executions/unittest",
+            node_root_dir=HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest",
             all_node_ips=["10.17.22.22", "10.17.22.23"],
             all_node_names=["rally-node-0", "rally-node-1"],
             ip="10.17.22.23",
@@ -71,7 +71,7 @@ class BareProvisionerTests(TestCase):
         self.assertEqual(1, len(apply_config_calls))
         source_root_path, target_root_path, config_vars = apply_config_calls[0]
 
-        self.assertEqual(HOME_DIR + "/.rally/benchmarks/provision_configs/default/my-provision-config-instance", source_root_path)
+        self.assertEqual(HOME_DIR + "/.benchmark/benchmarks/provision_configs/default/my-provision-config-instance", source_root_path)
         self.assertEqual("/opt/elasticsearch-5.0.0", target_root_path)
         self.assertEqual({
             "cluster_settings": {
@@ -82,8 +82,8 @@ class BareProvisionerTests(TestCase):
             "cluster_name": "rally-benchmark",
             "node_name": "rally-node-0",
             "data_paths": ["/opt/elasticsearch-5.0.0/data"],
-            "log_path": HOME_DIR + "/.rally/benchmarks/test_executions/unittest/logs/server",
-            "heap_dump_path": HOME_DIR + "/.rally/benchmarks/test_executions/unittest/heapdump",
+            "log_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/logs/server",
+            "heap_dump_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/heapdump",
             "node_ip": "10.17.22.23",
             "network_host": "10.17.22.23",
             "http_port": "9200",
@@ -137,7 +137,7 @@ class ElasticsearchInstallerTests(TestCase):
                                                        all_node_names=["rally-node-0", "rally-node-1"],
                                                        ip="10.17.22.23",
                                                        http_port=9200,
-                                                       node_root_dir=HOME_DIR + "/.rally/benchmarks/test_executions/unittest")
+                                                       node_root_dir=HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest")
 
         installer.install("/data/builds/distributions")
         self.assertEqual(installer.es_home_path, "/install/elasticsearch-5.0.0-SNAPSHOT")
@@ -146,8 +146,8 @@ class ElasticsearchInstallerTests(TestCase):
             "cluster_name": "rally-benchmark",
             "node_name": "rally-node-0",
             "data_paths": ["/install/elasticsearch-5.0.0-SNAPSHOT/data"],
-            "log_path": HOME_DIR + "/.rally/benchmarks/test_executions/unittest/logs/server",
-            "heap_dump_path": HOME_DIR + "/.rally/benchmarks/test_executions/unittest/heapdump",
+            "log_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/logs/server",
+            "heap_dump_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/heapdump",
             "node_ip": "10.17.22.23",
             "network_host": "10.17.22.23",
             "http_port": "9200",
@@ -175,7 +175,7 @@ class ElasticsearchInstallerTests(TestCase):
                                                        all_node_names=["rally-node-0", "rally-node-1"],
                                                        ip="10.17.22.23",
                                                        http_port=9200,
-                                                       node_root_dir="~/.rally/benchmarks/test_executions/unittest")
+                                                       node_root_dir="~/.benchmark/benchmarks/test_executions/unittest")
 
         installer.install("/data/builds/distributions")
         self.assertEqual(installer.es_home_path, "/install/elasticsearch-5.0.0-SNAPSHOT")
@@ -184,8 +184,8 @@ class ElasticsearchInstallerTests(TestCase):
             "cluster_name": "rally-benchmark",
             "node_name": "rally-node-0",
             "data_paths": ["/tmp/some/data-path-dir"],
-            "log_path": "~/.rally/benchmarks/test_executions/unittest/logs/server",
-            "heap_dump_path": "~/.rally/benchmarks/test_executions/unittest/heapdump",
+            "log_path": "~/.benchmark/benchmarks/test_executions/unittest/logs/server",
+            "heap_dump_path": "~/.benchmark/benchmarks/test_executions/unittest/heapdump",
             "node_ip": "10.17.22.23",
             "network_host": "10.17.22.23",
             "http_port": "9200",
@@ -209,7 +209,7 @@ class ElasticsearchInstallerTests(TestCase):
                                                        all_node_names=["rally-node-0", "rally-node-1"],
                                                        ip="10.17.22.23",
                                                        http_port=9200,
-                                                       node_root_dir="~/.rally/benchmarks/test_executions/unittest",
+                                                       node_root_dir="~/.benchmark/benchmarks/test_executions/unittest",
                                                        hook_handler_class=NoopHookHandler)
 
         self.assertEqual(0, len(installer.hook_handler.hook_calls))
@@ -230,7 +230,7 @@ class ElasticsearchInstallerTests(TestCase):
                                                        all_node_names=["rally-node-0", "rally-node-1"],
                                                        ip="10.17.22.23",
                                                        http_port=9200,
-                                                       node_root_dir="~/.rally/benchmarks/test_executions/unittest",
+                                                       node_root_dir="~/.benchmark/benchmarks/test_executions/unittest",
                                                        hook_handler_class=NoopHookHandler)
 
         self.assertEqual(0, len(installer.hook_handler.hook_calls))
