@@ -339,9 +339,9 @@ class EsMetricsTests(TestCase):
             "meta": {}
         }
         self.metrics_store.close()
-        self.es_mock.exists.assert_called_with(index="rally-metrics-2016-01")
-        self.es_mock.create_index.assert_called_with(index="rally-metrics-2016-01")
-        self.es_mock.bulk_index.assert_called_with(index="rally-metrics-2016-01", doc_type="_doc", items=[expected_doc])
+        self.es_mock.exists.assert_called_with(index="benchmark-metrics-2016-01")
+        self.es_mock.create_index.assert_called_with(index="benchmark-metrics-2016-01")
+        self.es_mock.bulk_index.assert_called_with(index="benchmark-metrics-2016-01", doc_type="_doc", items=[expected_doc])
 
     def test_put_value_with_explicit_timestamps(self):
         throughput = 5000
@@ -371,9 +371,9 @@ class EsMetricsTests(TestCase):
             "meta": {}
         }
         self.metrics_store.close()
-        self.es_mock.exists.assert_called_with(index="rally-metrics-2016-01")
-        self.es_mock.create_index.assert_called_with(index="rally-metrics-2016-01")
-        self.es_mock.bulk_index.assert_called_with(index="rally-metrics-2016-01", doc_type="_doc", items=[expected_doc])
+        self.es_mock.exists.assert_called_with(index="benchmark-metrics-2016-01")
+        self.es_mock.create_index.assert_called_with(index="benchmark-metrics-2016-01")
+        self.es_mock.bulk_index.assert_called_with(index="benchmark-metrics-2016-01", doc_type="_doc", items=[expected_doc])
 
     def test_put_value_with_meta_info(self):
         throughput = 5000
@@ -418,9 +418,9 @@ class EsMetricsTests(TestCase):
             }
         }
         self.metrics_store.close()
-        self.es_mock.exists.assert_called_with(index="rally-metrics-2016-01")
-        self.es_mock.create_index.assert_called_with(index="rally-metrics-2016-01")
-        self.es_mock.bulk_index.assert_called_with(index="rally-metrics-2016-01", doc_type="_doc", items=[expected_doc])
+        self.es_mock.exists.assert_called_with(index="benchmark-metrics-2016-01")
+        self.es_mock.create_index.assert_called_with(index="benchmark-metrics-2016-01")
+        self.es_mock.bulk_index.assert_called_with(index="benchmark-metrics-2016-01", doc_type="_doc", items=[expected_doc])
 
     def test_put_doc_no_meta_data(self):
         self.metrics_store.open(
@@ -452,9 +452,9 @@ class EsMetricsTests(TestCase):
             "unit": "byte"
         }
         self.metrics_store.close()
-        self.es_mock.exists.assert_called_with(index="rally-metrics-2016-01")
-        self.es_mock.create_index.assert_called_with(index="rally-metrics-2016-01")
-        self.es_mock.bulk_index.assert_called_with(index="rally-metrics-2016-01", doc_type="_doc", items=[expected_doc])
+        self.es_mock.exists.assert_called_with(index="benchmark-metrics-2016-01")
+        self.es_mock.create_index.assert_called_with(index="benchmark-metrics-2016-01")
+        self.es_mock.bulk_index.assert_called_with(index="benchmark-metrics-2016-01", doc_type="_doc", items=[expected_doc])
 
     def test_put_doc_with_metadata(self):
         # add a user-defined tag
@@ -508,9 +508,9 @@ class EsMetricsTests(TestCase):
             }
         }
         self.metrics_store.close()
-        self.es_mock.exists.assert_called_with(index="rally-metrics-2016-01")
-        self.es_mock.create_index.assert_called_with(index="rally-metrics-2016-01")
-        self.es_mock.bulk_index.assert_called_with(index="rally-metrics-2016-01", doc_type="_doc", items=[expected_doc])
+        self.es_mock.exists.assert_called_with(index="benchmark-metrics-2016-01")
+        self.es_mock.create_index.assert_called_with(index="benchmark-metrics-2016-01")
+        self.es_mock.bulk_index.assert_called_with(index="benchmark-metrics-2016-01", doc_type="_doc", items=[expected_doc])
 
     def test_get_one(self):
         duration = StaticClock.NOW * 1000
@@ -571,7 +571,7 @@ class EsMetricsTests(TestCase):
         actual_duration = self.metrics_store.get_one("service_time", task="task1", mapper=lambda doc: doc["relative-time-ms"],
                                                          sort_key="relative-time-ms", sort_reverse=True)
 
-        self.es_mock.search.assert_called_with(index="rally-metrics-2016-01", body=expected_query)
+        self.es_mock.search.assert_called_with(index="benchmark-metrics-2016-01", body=expected_query)
 
         self.assertEqual(duration, actual_duration)
 
@@ -621,7 +621,7 @@ class EsMetricsTests(TestCase):
         actual_duration = self.metrics_store.get_one("latency", task="task2", mapper=lambda doc: doc["value"],
                                                          sort_key="value", sort_reverse=False)
 
-        self.es_mock.search.assert_called_with(index="rally-metrics-2016-01", body=expected_query)
+        self.es_mock.search.assert_called_with(index="benchmark-metrics-2016-01", body=expected_query)
 
         self.assertEqual(duration, actual_duration)
 
@@ -669,7 +669,7 @@ class EsMetricsTests(TestCase):
 
         actual_throughput = self.metrics_store.get_one("indexing_throughput")
 
-        self.es_mock.search.assert_called_with(index="rally-metrics-2016-01", body=expected_query)
+        self.es_mock.search.assert_called_with(index="benchmark-metrics-2016-01", body=expected_query)
 
         self.assertEqual(throughput, actual_throughput)
 
@@ -711,7 +711,7 @@ class EsMetricsTests(TestCase):
                         },
                         {
                             "term": {
-                                "meta.node_name": "rally-node-3"
+                                "meta.node_name": "benchmark-node-3"
                             }
                         }
                     ]
@@ -720,9 +720,9 @@ class EsMetricsTests(TestCase):
             "size": 1
         }
 
-        actual_index_size = self.metrics_store.get_one("final_index_size_bytes", node_name="rally-node-3")
+        actual_index_size = self.metrics_store.get_one("final_index_size_bytes", node_name="benchmark-node-3")
 
-        self.es_mock.search.assert_called_with(index="rally-metrics-2016-01", body=expected_query)
+        self.es_mock.search.assert_called_with(index="benchmark-metrics-2016-01", body=expected_query)
 
         self.assertEqual(index_size, actual_index_size)
 
@@ -783,7 +783,7 @@ class EsMetricsTests(TestCase):
 
         actual_mean_throughput = self.metrics_store.get_mean("indexing_throughput", operation_type="bulk")
 
-        self.es_mock.search.assert_called_with(index="rally-metrics-2016-01", body=expected_query)
+        self.es_mock.search.assert_called_with(index="benchmark-metrics-2016-01", body=expected_query)
 
         self.assertEqual(mean_throughput, actual_mean_throughput)
 
@@ -843,7 +843,7 @@ class EsMetricsTests(TestCase):
 
         actual_median_throughput = self.metrics_store.get_median("indexing_throughput", operation_type="bulk")
 
-        self.es_mock.search.assert_called_with(index="rally-metrics-2016-01", body=expected_query)
+        self.es_mock.search.assert_called_with(index="benchmark-metrics-2016-01", body=expected_query)
 
         self.assertEqual(median_throughput, actual_median_throughput)
 
@@ -978,7 +978,7 @@ class EsMetricsTests(TestCase):
         }
 
         actual_error_rate = self.metrics_store.get_error_rate("scroll_query")
-        self.es_mock.search.assert_called_with(index="rally-metrics-2016-01", body=expected_query)
+        self.es_mock.search.assert_called_with(index="benchmark-metrics-2016-01", body=expected_query)
         return actual_error_rate
 
 
@@ -1015,7 +1015,7 @@ class EsTestExecutionStoreTests(TestCase):
                 "hits": [
                     {
                         "_source": {
-                            "rally-version": "0.4.4",
+                            "benchmark-version": "0.4.4",
                             "environment": "unittest",
                             "test-execution-id": EsTestExecutionStoreTests.TEST_EXECUTION_ID,
                             "test-execution-timestamp": "20160131T000000Z",
@@ -1092,8 +1092,8 @@ class EsTestExecutionStoreTests(TestCase):
         self.test_execution_store.store_test_execution(test_execution)
 
         expected_doc = {
-            "rally-version": "0.4.4",
-            "rally-revision": "123abc",
+            "benchmark-version": "0.4.4",
+            "benchmark-revision": "123abc",
             "environment": "unittest",
             "test-execution-id": EsTestExecutionStoreTests.TEST_EXECUTION_ID,
             "test-execution-timestamp": "20160131T000000Z",
@@ -1134,7 +1134,7 @@ class EsTestExecutionStoreTests(TestCase):
                 ]
             }
         }
-        self.es_mock.index.assert_called_with(index="rally-test-executions-2016-01",
+        self.es_mock.index.assert_called_with(index="benchmark-test-executions-2016-01",
                                               doc_type="_doc",
                                               id=EsTestExecutionStoreTests.TEST_EXECUTION_ID,
                                               item=expected_doc)
@@ -1204,8 +1204,8 @@ class EsResultsStoreTests(TestCase):
 
         expected_docs = [
             {
-                "rally-version": "0.4.4",
-                "rally-revision": "123abc",
+                "benchmark-version": "0.4.4",
+                "benchmark-revision": "123abc",
                 "environment": "unittest",
                 "test-execution-id": EsResultsStoreTests.TEST_EXECUTION_ID,
                 "test-execution-timestamp": "20160131T000000Z",
@@ -1234,8 +1234,8 @@ class EsResultsStoreTests(TestCase):
                 }
             },
             {
-                "rally-version": "0.4.4",
-                "rally-revision": "123abc",
+                "benchmark-version": "0.4.4",
+                "benchmark-revision": "123abc",
                 "environment": "unittest",
                 "test-execution-id": EsResultsStoreTests.TEST_EXECUTION_ID,
                 "test-execution-timestamp": "20160131T000000Z",
@@ -1270,8 +1270,8 @@ class EsResultsStoreTests(TestCase):
                 }
             },
             {
-                "rally-version": "0.4.4",
-                "rally-revision": "123abc",
+                "benchmark-version": "0.4.4",
+                "benchmark-revision": "123abc",
                 "environment": "unittest",
                 "test-execution-id": EsResultsStoreTests.TEST_EXECUTION_ID,
                 "test-execution-timestamp": "20160131T000000Z",
@@ -1301,7 +1301,7 @@ class EsResultsStoreTests(TestCase):
             }
         ]
         self.es_mock.bulk_index.assert_called_with(
-            index="rally-results-2016-01",
+            index="benchmark-results-2016-01",
             doc_type="_doc",
             items=expected_docs)
 
@@ -1356,8 +1356,8 @@ class EsResultsStoreTests(TestCase):
 
         expected_docs = [
             {
-                "rally-version": "0.4.4",
-                "rally-revision": None,
+                "benchmark-version": "0.4.4",
+                "benchmark-revision": None,
                 "environment": "unittest",
                 "test-execution-id": EsResultsStoreTests.TEST_EXECUTION_ID,
                 "test-execution-timestamp": "20160131T000000Z",
@@ -1382,8 +1382,8 @@ class EsResultsStoreTests(TestCase):
                 }
             },
             {
-                "rally-version": "0.4.4",
-                "rally-revision": None,
+                "benchmark-version": "0.4.4",
+                "benchmark-revision": None,
                 "environment": "unittest",
                 "test-execution-id": EsResultsStoreTests.TEST_EXECUTION_ID,
                 "test-execution-timestamp": "20160131T000000Z",
@@ -1414,8 +1414,8 @@ class EsResultsStoreTests(TestCase):
                 }
             },
             {
-                "rally-version": "0.4.4",
-                "rally-revision": None,
+                "benchmark-version": "0.4.4",
+                "benchmark-revision": None,
                 "environment": "unittest",
                 "test-execution-id": EsResultsStoreTests.TEST_EXECUTION_ID,
                 "test-execution-timestamp": "20160131T000000Z",
@@ -1440,7 +1440,7 @@ class EsResultsStoreTests(TestCase):
                 }
             }
         ]
-        self.es_mock.bulk_index.assert_called_with(index="rally-results-2016-01", doc_type="_doc", items=expected_docs)
+        self.es_mock.bulk_index.assert_called_with(index="benchmark-results-2016-01", doc_type="_doc", items=expected_docs)
 
 
 class InMemoryMetricsStoreTests(TestCase):
@@ -1838,19 +1838,19 @@ class StatsCalculatorTests(TestCase):
         t = workload.Workload("unittest", "unittest-workload", test_procedures=[test_procedure])
 
         store = metrics.metrics_store(cfg, read_only=False, workload=t, test_procedure=test_procedure)
-        store.add_meta_info(metrics.MetaInfoScope.node, "rally-node-0", "node_name", "rally-node-0")
+        store.add_meta_info(metrics.MetaInfoScope.node, "benchmark-node-0", "node_name", "benchmark-node-0")
 
-        store.put_value_node_level("rally-node-0", "final_index_size_bytes", 2048, unit="bytes")
+        store.put_value_node_level("benchmark-node-0", "final_index_size_bytes", 2048, unit="bytes")
         # ensure this value will be filtered as it does not belong to our node
-        store.put_value_node_level("rally-node-1", "final_index_size_bytes", 4096, unit="bytes")
+        store.put_value_node_level("benchmark-node-1", "final_index_size_bytes", 4096, unit="bytes")
 
-        stats = metrics.calculate_system_results(store, "rally-node-0")
+        stats = metrics.calculate_system_results(store, "benchmark-node-0")
 
         del store
 
         self.assertEqual([
             {
-                "node": "rally-node-0",
+                "node": "benchmark-node-0",
                 "name": "index_size",
                 "value": 2048,
                 "unit": "bytes"
@@ -2206,32 +2206,32 @@ class SystemStatsTests(TestCase):
         d = {
             "node_metrics": [
                 {
-                    "node": "rally-node-0",
+                    "node": "benchmark-node-0",
                     "name": "startup_time",
                     "value": 3.4
                 },
                 {
-                    "node": "rally-node-1",
+                    "node": "benchmark-node-1",
                     "name": "startup_time",
                     "value": 4.2
                 },
                 {
-                    "node": "rally-node-0",
+                    "node": "benchmark-node-0",
                     "name": "index_size",
                     "value": 300 * 1024 * 1024
                 },
                 {
-                    "node": "rally-node-1",
+                    "node": "benchmark-node-1",
                     "name": "index_size",
                     "value": 302 * 1024 * 1024
                 },
                 {
-                    "node": "rally-node-0",
+                    "node": "benchmark-node-0",
                     "name": "bytes_written",
                     "value": 817 * 1024 * 1024
                 },
                 {
-                    "node": "rally-node-1",
+                    "node": "benchmark-node-1",
                     "name": "bytes_written",
                     "value": 833 * 1024 * 1024
                 },
@@ -2242,49 +2242,49 @@ class SystemStatsTests(TestCase):
         metric_list = s.as_flat_list()
 
         self.assertEqual({
-            "node": "rally-node-0",
+            "node": "benchmark-node-0",
             "name": "startup_time",
             "value": {
                 "single": 3.4
             }
-        }, select(metric_list, "startup_time", node="rally-node-0"))
+        }, select(metric_list, "startup_time", node="benchmark-node-0"))
 
         self.assertEqual({
-            "node": "rally-node-1",
+            "node": "benchmark-node-1",
             "name": "startup_time",
             "value": {
                 "single": 4.2
             }
-        }, select(metric_list, "startup_time", node="rally-node-1"))
+        }, select(metric_list, "startup_time", node="benchmark-node-1"))
 
         self.assertEqual({
-            "node": "rally-node-0",
+            "node": "benchmark-node-0",
             "name": "index_size",
             "value": {
                 "single": 300 * 1024 * 1024
             }
-        }, select(metric_list, "index_size", node="rally-node-0"))
+        }, select(metric_list, "index_size", node="benchmark-node-0"))
 
         self.assertEqual({
-            "node": "rally-node-1",
+            "node": "benchmark-node-1",
             "name": "index_size",
             "value": {
                 "single": 302 * 1024 * 1024
             }
-        }, select(metric_list, "index_size", node="rally-node-1"))
+        }, select(metric_list, "index_size", node="benchmark-node-1"))
 
         self.assertEqual({
-            "node": "rally-node-0",
+            "node": "benchmark-node-0",
             "name": "bytes_written",
             "value": {
                 "single": 817 * 1024 * 1024
             }
-        }, select(metric_list, "bytes_written", node="rally-node-0"))
+        }, select(metric_list, "bytes_written", node="benchmark-node-0"))
 
         self.assertEqual({
-            "node": "rally-node-1",
+            "node": "benchmark-node-1",
             "name": "bytes_written",
             "value": {
                 "single": 833 * 1024 * 1024
             }
-        }, select(metric_list, "bytes_written", node="rally-node-1"))
+        }, select(metric_list, "bytes_written", node="benchmark-node-1"))

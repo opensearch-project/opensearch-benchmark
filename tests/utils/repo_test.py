@@ -40,13 +40,13 @@ class BenchmarkRepositoryTests(TestCase):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             repo.BenchmarkRepository(
                 default_directory=None,
-                root_dir="/rally-resources",
+                root_dir="/benchmark-resources",
                 repo_name="unit-test",
                 resource_name="unittest-resources",
                 offline=True)
 
-        self.assertEqual("[/rally-resources/unit-test] must be a git repository.\n\n"
-                         "Please run:\ngit -C /rally-resources/unit-test init", ctx.exception.args[0])
+        self.assertEqual("[/benchmark-resources/unit-test] must be a git repository.\n\n"
+                         "Please run:\ngit -C /benchmark-resources/unit-test init", ctx.exception.args[0])
 
     @mock.patch("osbenchmark.utils.io.exists", autospec=True)
     @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
@@ -56,7 +56,7 @@ class BenchmarkRepositoryTests(TestCase):
 
         r = repo.BenchmarkRepository(
             default_directory=None,
-            root_dir="/rally-resources",
+            root_dir="/benchmark-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
             offline=True)
@@ -69,7 +69,7 @@ class BenchmarkRepositoryTests(TestCase):
 
         r = repo.BenchmarkRepository(
                 default_directory=None,
-                root_dir="/rally-resources",
+                root_dir="/benchmark-resources",
                 repo_name="unit-test",
                 resource_name="unittest-resources",
                 offline=True)
@@ -82,15 +82,15 @@ class BenchmarkRepositoryTests(TestCase):
         is_working_copy.return_value = False
 
         r = repo.BenchmarkRepository(
-            default_directory="git@gitrepos.example.org/rally-resources",
-            root_dir="/rally-resources",
+            default_directory="git@gitrepos.example.org/benchmark-resources",
+            root_dir="/benchmark-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
             offline=False)
 
         self.assertTrue(r.remote)
 
-        clone.assert_called_with(src="/rally-resources/unit-test", remote="git@gitrepos.example.org/rally-resources")
+        clone.assert_called_with(src="/benchmark-resources/unit-test", remote="git@gitrepos.example.org/benchmark-resources")
 
     @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
     @mock.patch("osbenchmark.utils.git.fetch", autospec=True)
@@ -98,13 +98,13 @@ class BenchmarkRepositoryTests(TestCase):
         is_working_copy.return_value = True
 
         repo.BenchmarkRepository(
-            default_directory="git@gitrepos.example.org/rally-resources",
-            root_dir="/rally-resources",
+            default_directory="git@gitrepos.example.org/benchmark-resources",
+            root_dir="/benchmark-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
             offline=False)
 
-        fetch.assert_called_with(src="/rally-resources/unit-test")
+        fetch.assert_called_with(src="/benchmark-resources/unit-test")
 
     @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
     @mock.patch("osbenchmark.utils.git.fetch")
@@ -112,8 +112,8 @@ class BenchmarkRepositoryTests(TestCase):
         is_working_copy.return_value = True
 
         r = repo.BenchmarkRepository(
-            default_directory="git@gitrepos.example.org/rally-resources",
-            root_dir="/rally-resources",
+            default_directory="git@gitrepos.example.org/benchmark-resources",
+            root_dir="/benchmark-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
             offline=False,
@@ -130,15 +130,15 @@ class BenchmarkRepositoryTests(TestCase):
         is_working_copy.return_value = True
 
         r = repo.BenchmarkRepository(
-            default_directory="git@gitrepos.example.org/rally-resources",
-            root_dir="/rally-resources",
+            default_directory="git@gitrepos.example.org/benchmark-resources",
+            root_dir="/benchmark-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
             offline=False)
         # no exception during the call - we reach this here
         self.assertTrue(r.remote)
 
-        fetch.assert_called_with(src="/rally-resources/unit-test")
+        fetch.assert_called_with(src="/benchmark-resources/unit-test")
 
     @mock.patch("osbenchmark.utils.git.head_revision")
     @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
@@ -152,17 +152,17 @@ class BenchmarkRepositoryTests(TestCase):
         head_revision.return_value = "123a"
 
         r = repo.BenchmarkRepository(
-            default_directory="git@gitrepos.example.org/rally-resources",
-            root_dir="/rally-resources",
+            default_directory="git@gitrepos.example.org/benchmark-resources",
+            root_dir="/benchmark-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
             offline=random.choice([True, False]))
 
         r.update(distribution_version="1.7.3")
 
-        branches.assert_called_with("/rally-resources/unit-test", remote=True)
-        rebase.assert_called_with("/rally-resources/unit-test", branch="1")
-        checkout.assert_called_with("/rally-resources/unit-test", branch="1")
+        branches.assert_called_with("/benchmark-resources/unit-test", remote=True)
+        rebase.assert_called_with("/benchmark-resources/unit-test", branch="1")
+        checkout.assert_called_with("/benchmark-resources/unit-test", branch="1")
 
     @mock.patch("osbenchmark.utils.git.head_revision")
     @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
@@ -179,16 +179,16 @@ class BenchmarkRepositoryTests(TestCase):
 
         r = repo.BenchmarkRepository(
             default_directory=None,
-            root_dir="/rally-resources",
+            root_dir="/benchmark-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
             offline=False)
 
         r.update(distribution_version="6.0.0")
 
-        branches.assert_called_with("/rally-resources/unit-test", remote=False)
+        branches.assert_called_with("/benchmark-resources/unit-test", remote=False)
         self.assertEqual(0, rebase.call_count)
-        checkout.assert_called_with("/rally-resources/unit-test", branch="main")
+        checkout.assert_called_with("/benchmark-resources/unit-test", branch="main")
 
     @mock.patch("osbenchmark.utils.git.head_revision")
     @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
@@ -207,17 +207,17 @@ class BenchmarkRepositoryTests(TestCase):
 
         r = repo.BenchmarkRepository(
             default_directory=None,
-            root_dir="/rally-resources",
+            root_dir="/benchmark-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
             offline=False)
 
         r.update(distribution_version="1.7.4")
 
-        branches.assert_called_with("/rally-resources/unit-test", remote=False)
+        branches.assert_called_with("/benchmark-resources/unit-test", remote=False)
         self.assertEqual(0, rebase.call_count)
-        tags.assert_called_with("/rally-resources/unit-test")
-        checkout.assert_called_with("/rally-resources/unit-test", branch="v1.7")
+        tags.assert_called_with("/benchmark-resources/unit-test")
+        checkout.assert_called_with("/benchmark-resources/unit-test", branch="v1.7")
 
     @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
     @mock.patch("osbenchmark.utils.git.fetch", autospec=True)
@@ -231,8 +231,8 @@ class BenchmarkRepositoryTests(TestCase):
         is_working_copy.return_value = True
 
         r = repo.BenchmarkRepository(
-            default_directory="git@gitrepos.example.org/rally-resources",
-            root_dir="/rally-resources",
+            default_directory="git@gitrepos.example.org/benchmark-resources",
+            root_dir="/benchmark-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
             offline=False)
@@ -246,13 +246,13 @@ class BenchmarkRepositoryTests(TestCase):
 
         calls = [
             # first try to find it remotely...
-            mock.call("/rally-resources/unit-test", remote=True),
+            mock.call("/benchmark-resources/unit-test", remote=True),
             # ... then fallback to local
-            mock.call("/rally-resources/unit-test", remote=False),
+            mock.call("/benchmark-resources/unit-test", remote=False),
         ]
 
         branches.assert_has_calls(calls)
-        tags.assert_called_with("/rally-resources/unit-test")
+        tags.assert_called_with("/benchmark-resources/unit-test")
         self.assertEqual(0, checkout.call_count)
         self.assertEqual(0, rebase.call_count)
 
@@ -274,8 +274,8 @@ class BenchmarkRepositoryTests(TestCase):
         head_revision.retun_value = "123a"
 
         r = repo.BenchmarkRepository(
-            default_directory="git@gitrepos.example.org/rally-resources",
-            root_dir="/rally-resources",
+            default_directory="git@gitrepos.example.org/benchmark-resources",
+            root_dir="/benchmark-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
             offline=False)
@@ -284,14 +284,14 @@ class BenchmarkRepositoryTests(TestCase):
 
         calls = [
             # first try to find it remotely...
-            mock.call("/rally-resources/unit-test", remote=True),
+            mock.call("/benchmark-resources/unit-test", remote=True),
             # ... then fallback to local
-            mock.call("/rally-resources/unit-test", remote=False),
+            mock.call("/benchmark-resources/unit-test", remote=False),
         ]
 
         branches.assert_has_calls(calls)
         self.assertEqual(0, tags.call_count)
-        checkout.assert_called_with("/rally-resources/unit-test", branch="1")
+        checkout.assert_called_with("/benchmark-resources/unit-test", branch="1")
         self.assertEqual(0, rebase.call_count)
 
     @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
@@ -307,7 +307,7 @@ class BenchmarkRepositoryTests(TestCase):
 
         r = repo.BenchmarkRepository(
             default_directory=None,
-            root_dir="/rally-resources",
+            root_dir="/benchmark-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
             offline=False)
@@ -317,7 +317,7 @@ class BenchmarkRepositoryTests(TestCase):
 
         self.assertEqual("Cannot find unittest-resources for distribution version 4.0.0", ctx.exception.args[0])
 
-        branches.assert_called_with("/rally-resources/unit-test", remote=False)
+        branches.assert_called_with("/benchmark-resources/unit-test", remote=False)
         self.assertEqual(0, checkout.call_count)
         self.assertEqual(0, rebase.call_count)
 
@@ -329,11 +329,11 @@ class BenchmarkRepositoryTests(TestCase):
 
         r = repo.BenchmarkRepository(
             default_directory=None,
-            root_dir="/rally-resources",
+            root_dir="/benchmark-resources",
             repo_name="unit-test",
             resource_name="unittest-resources",
             offline=False)
 
         r.checkout("abcdef123")
 
-        checkout.assert_called_with("/rally-resources/unit-test", "abcdef123")
+        checkout.assert_called_with("/benchmark-resources/unit-test", "abcdef123")

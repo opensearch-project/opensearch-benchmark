@@ -51,7 +51,7 @@ curl -sS -o /dev/null -H 'Content-Type: application/json' -X PUT localhost:39202
     }
 EOF
 
-# Create target-hosts file for Rally
+# Create target-hosts file for Benchmark
 cat >ccr-target-hosts.json <<'EOF'
 {
   "default": [
@@ -63,8 +63,8 @@ cat >ccr-target-hosts.json <<'EOF'
 }
 EOF
 
-# Create Rally metricstore ini file
-cat >~/.benchmark/rally-metricstore.ini <<EOF
+# Create Benchmark metricstore ini file
+cat >~/.benchmark/benchmark-metricstore.ini <<EOF
 [meta]
 config.version = 17
 

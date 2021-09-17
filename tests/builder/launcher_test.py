@@ -52,7 +52,7 @@ class MockClient:
     def __init__(self, client_options):
         self.client_options = client_options
         self.cluster = SubClient({
-            "cluster_name": "rally-benchmark-cluster",
+            "cluster_name": "benchmark-provisioned-cluster-cluster",
             "nodes": {
                 "FCFjozkeTiOpN-SI88YEcg": {
                     "name": "Nefarius",

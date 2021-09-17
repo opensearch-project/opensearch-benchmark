@@ -52,10 +52,10 @@ class BareProvisionerTests(TestCase):
             config_paths=[HOME_DIR + "/.benchmark/benchmarks/provision_configs/default/my-provision-config-instance"],
             variables={"heap": "4g", "runtime.jdk": "8", "runtime.jdk.bundled": "true"}),
             java_home="/usr/local/javas/java8",
-            node_name="rally-node-0",
+            node_name="benchmark-node-0",
             node_root_dir=HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest",
             all_node_ips=["10.17.22.22", "10.17.22.23"],
-            all_node_names=["rally-node-0", "rally-node-1"],
+            all_node_names=["benchmark-node-0", "benchmark-node-1"],
             ip="10.17.22.23",
             http_port=9200)
 
@@ -79,8 +79,8 @@ class BareProvisionerTests(TestCase):
             "heap": "4g",
             "runtime.jdk": "8",
             "runtime.jdk.bundled": "true",
-            "cluster_name": "rally-benchmark",
-            "node_name": "rally-node-0",
+            "cluster_name": "benchmark-provisioned-cluster",
+            "node_name": "benchmark-node-0",
             "data_paths": ["/opt/elasticsearch-5.0.0/data"],
             "log_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/logs/server",
             "heap_dump_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/heapdump",
@@ -89,7 +89,7 @@ class BareProvisionerTests(TestCase):
             "http_port": "9200",
             "transport_port": "9300",
             "all_node_ips": "[\"10.17.22.22\",\"10.17.22.23\"]",
-            "all_node_names": "[\"rally-node-0\",\"rally-node-1\"]",
+            "all_node_names": "[\"benchmark-node-0\",\"benchmark-node-1\"]",
             "minimum_master_nodes": 2,
             "install_root_path": "/opt/elasticsearch-5.0.0"
         }, config_vars)
@@ -132,9 +132,9 @@ class ElasticsearchInstallerTests(TestCase):
                                                                     root_path=None,
                                                                     config_paths="/tmp"),
                                                        java_home="/usr/local/javas/java8",
-                                                       node_name="rally-node-0",
+                                                       node_name="benchmark-node-0",
                                                        all_node_ips=["10.17.22.22", "10.17.22.23"],
-                                                       all_node_names=["rally-node-0", "rally-node-1"],
+                                                       all_node_names=["benchmark-node-0", "benchmark-node-1"],
                                                        ip="10.17.22.23",
                                                        http_port=9200,
                                                        node_root_dir=HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest")
@@ -143,8 +143,8 @@ class ElasticsearchInstallerTests(TestCase):
         self.assertEqual(installer.es_home_path, "/install/elasticsearch-5.0.0-SNAPSHOT")
 
         self.assertEqual({
-            "cluster_name": "rally-benchmark",
-            "node_name": "rally-node-0",
+            "cluster_name": "benchmark-provisioned-cluster",
+            "node_name": "benchmark-node-0",
             "data_paths": ["/install/elasticsearch-5.0.0-SNAPSHOT/data"],
             "log_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/logs/server",
             "heap_dump_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/heapdump",
@@ -153,7 +153,7 @@ class ElasticsearchInstallerTests(TestCase):
             "http_port": "9200",
             "transport_port": "9300",
             "all_node_ips": "[\"10.17.22.22\",\"10.17.22.23\"]",
-            "all_node_names": "[\"rally-node-0\",\"rally-node-1\"]",
+            "all_node_names": "[\"benchmark-node-0\",\"benchmark-node-1\"]",
             "minimum_master_nodes": 2,
             "install_root_path": "/install/elasticsearch-5.0.0-SNAPSHOT"
         }, installer.variables)
@@ -170,9 +170,9 @@ class ElasticsearchInstallerTests(TestCase):
                                                                     config_paths="/tmp",
                                                                     variables={"data_paths": "/tmp/some/data-path-dir"}),
                                                        java_home="/usr/local/javas/java8",
-                                                       node_name="rally-node-0",
+                                                       node_name="benchmark-node-0",
                                                        all_node_ips=["10.17.22.22", "10.17.22.23"],
-                                                       all_node_names=["rally-node-0", "rally-node-1"],
+                                                       all_node_names=["benchmark-node-0", "benchmark-node-1"],
                                                        ip="10.17.22.23",
                                                        http_port=9200,
                                                        node_root_dir="~/.benchmark/benchmarks/test_executions/unittest")
@@ -181,8 +181,8 @@ class ElasticsearchInstallerTests(TestCase):
         self.assertEqual(installer.es_home_path, "/install/elasticsearch-5.0.0-SNAPSHOT")
 
         self.assertEqual({
-            "cluster_name": "rally-benchmark",
-            "node_name": "rally-node-0",
+            "cluster_name": "benchmark-provisioned-cluster",
+            "node_name": "benchmark-node-0",
             "data_paths": ["/tmp/some/data-path-dir"],
             "log_path": "~/.benchmark/benchmarks/test_executions/unittest/logs/server",
             "heap_dump_path": "~/.benchmark/benchmarks/test_executions/unittest/heapdump",
@@ -191,7 +191,7 @@ class ElasticsearchInstallerTests(TestCase):
             "http_port": "9200",
             "transport_port": "9300",
             "all_node_ips": "[\"10.17.22.22\",\"10.17.22.23\"]",
-            "all_node_names": "[\"rally-node-0\",\"rally-node-1\"]",
+            "all_node_names": "[\"benchmark-node-0\",\"benchmark-node-1\"]",
             "minimum_master_nodes": 2,
             "install_root_path": "/install/elasticsearch-5.0.0-SNAPSHOT"
         }, installer.variables)
@@ -204,9 +204,9 @@ class ElasticsearchInstallerTests(TestCase):
                                                                     config_paths="/tmp/templates",
                                                                     variables={"data_paths": "/tmp/some/data-path-dir"}),
                                                        java_home="/usr/local/javas/java8",
-                                                       node_name="rally-node-0",
+                                                       node_name="benchmark-node-0",
                                                        all_node_ips=["10.17.22.22", "10.17.22.23"],
-                                                       all_node_names=["rally-node-0", "rally-node-1"],
+                                                       all_node_names=["benchmark-node-0", "benchmark-node-1"],
                                                        ip="10.17.22.23",
                                                        http_port=9200,
                                                        node_root_dir="~/.benchmark/benchmarks/test_executions/unittest",
@@ -225,9 +225,9 @@ class ElasticsearchInstallerTests(TestCase):
                                                                     config_paths="/tmp/templates",
                                                                     variables={"data_paths": "/tmp/some/data-path-dir"}),
                                                        java_home=None,
-                                                       node_name="rally-node-0",
+                                                       node_name="benchmark-node-0",
                                                        all_node_ips=["10.17.22.22", "10.17.22.23"],
-                                                       all_node_names=["rally-node-0", "rally-node-1"],
+                                                       all_node_names=["benchmark-node-0", "benchmark-node-1"],
                                                        ip="10.17.22.23",
                                                        http_port=9200,
                                                        node_root_dir="~/.benchmark/benchmarks/test_executions/unittest",
@@ -388,7 +388,7 @@ class DockerProvisionerTests(TestCase):
         })
 
         docker = provisioner.DockerProvisioner(provision_config_instance=c,
-                                               node_name="rally-node-0",
+                                               node_name="benchmark-node-0",
                                                ip="10.17.22.33",
                                                http_port=39200,
                                                node_root_dir=node_root_dir,
@@ -396,8 +396,8 @@ class DockerProvisionerTests(TestCase):
                                                rally_root=rally_root)
 
         self.assertDictEqual({
-            "cluster_name": "rally-benchmark",
-            "node_name": "rally-node-0",
+            "cluster_name": "benchmark-provisioned-cluster",
+            "node_name": "benchmark-node-0",
             "install_root_path": "/usr/share/elasticsearch",
             "data_paths": ["/usr/share/elasticsearch/data"],
             "log_path": "/var/log/elasticsearch",
@@ -466,7 +466,7 @@ services:
         })
 
         docker = provisioner.DockerProvisioner(provision_config_instance=c,
-                                               node_name="rally-node-0",
+                                               node_name="benchmark-node-0",
                                                ip="10.17.22.33",
                                                http_port=39200,
                                                node_root_dir=node_root_dir,

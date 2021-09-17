@@ -1,5 +1,5 @@
 {
-  "index_patterns": ["rally-metrics-*"],
+  "index_patterns": ["benchmark-metrics-*"],
   "settings": {
     "index": {
       "refresh_interval": "5s",

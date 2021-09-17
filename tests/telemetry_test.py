@@ -3320,7 +3320,7 @@ class IndexSizeTests(TestCase):
         metrics_store = metrics.EsMetricsStore(cfg)
         device = telemetry.IndexSize(["/var/elasticsearch/data/1", "/var/elasticsearch/data/2"])
         t = telemetry.Telemetry(enabled_devices=[], devices=[device])
-        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="rally-node-0", telemetry=t)
+        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="benchmark-node-0", telemetry=t)
         t.attach_to_node(node)
         t.on_benchmark_start()
         t.on_benchmark_stop()
@@ -3329,7 +3329,7 @@ class IndexSizeTests(TestCase):
         t.store_system_metrics(node, metrics_store)
 
         metrics_store_node_value.assert_has_calls([
-            mock.call("rally-node-0", "final_index_size_bytes", 18432, "byte")
+            mock.call("benchmark-node-0", "final_index_size_bytes", 18432, "byte")
         ])
 
     @mock.patch("osbenchmark.utils.io.get_size")
@@ -3343,7 +3343,7 @@ class IndexSizeTests(TestCase):
         metrics_store = metrics.EsMetricsStore(cfg)
         device = telemetry.IndexSize(data_paths=[])
         t = telemetry.Telemetry(devices=[device])
-        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="rally-node-0", telemetry=t)
+        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="benchmark-node-0", telemetry=t)
         t.attach_to_node(node)
         t.on_benchmark_start()
         t.on_benchmark_stop()

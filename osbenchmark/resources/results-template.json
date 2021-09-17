@@ -1,5 +1,5 @@
 {
-  "index_patterns": ["rally-results-*"],
+  "index_patterns": ["benchmark-results-*"],
   "settings": {
     "index": {
       "refresh_interval": "5s",
@@ -39,10 +39,10 @@
         "active": {
           "type": "boolean"
         },
-        "rally-version": {
+        "benchmark-version": {
           "type": "keyword"
         },
-        "rally-revision": {
+        "benchmark-revision": {
           "type": "keyword"
         },
         "environment": {

@@ -341,7 +341,7 @@ def create_arg_parser():
     install_parser.add_argument(
         "--node-name",
         help="The name of this Elasticsearch node",
-        default="rally-node-0"
+        default="benchmark-node-0"
     )
     install_parser.add_argument(
         "--master-nodes",

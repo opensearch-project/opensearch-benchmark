@@ -93,7 +93,7 @@ class ConfigTests(TestCase):
         cfg = config.Config(config_file_class=InMemoryConfigStore)
         self.assertFalse(cfg.config_present())
         # standard properties are still available
-        self.assertEqual("rally-node", cfg.opts("provisioning", "node.name.prefix"))
+        self.assertEqual("benchmark-node", cfg.opts("provisioning", "node.name.prefix"))
 
     def test_load_existing_config(self):
         cfg = config.Config(config_file_class=InMemoryConfigStore)
@@ -112,7 +112,7 @@ class ConfigTests(TestCase):
         self.assertTrue(cfg.config_present())
         cfg.load_config()
         # standard properties are still available
-        self.assertEqual("rally-node", cfg.opts("provisioning", "node.name.prefix"))
+        self.assertEqual("benchmark-node", cfg.opts("provisioning", "node.name.prefix"))
         self.assertEqual("value", cfg.opts("tests", "sample.key"))
         # we can also override values
         cfg.add(config.Scope.applicationOverride, "tests", "sample.key", "override")

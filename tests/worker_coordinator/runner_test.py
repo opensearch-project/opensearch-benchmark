@@ -3751,7 +3751,7 @@ class ShrinkIndexTests(TestCase):
                     "index.number_of_shards": 0
                 }
             },
-            "shrink-node": "rally-node-0"
+            "shrink-node": "benchmark-node-0"
         }
 
         await r(es, params)
@@ -3759,7 +3759,7 @@ class ShrinkIndexTests(TestCase):
         es.indices.put_settings.assert_called_once_with(index="src",
                                                         body={
                                                             "settings": {
-                                                                "index.routing.allocation.require._name": "rally-node-0",
+                                                                "index.routing.allocation.require._name": "benchmark-node-0",
                                                                 "index.blocks.write": "true"
                                                             }
                                                         },
@@ -3889,7 +3889,7 @@ class ShrinkIndexTests(TestCase):
                     "index.number_of_shards": 0
                 }
             },
-            "shrink-node": "rally-node-0"
+            "shrink-node": "benchmark-node-0"
         }
 
         await r(es, params)
@@ -3898,7 +3898,7 @@ class ShrinkIndexTests(TestCase):
             mock.call(index="src1",
                       body={
                           "settings": {
-                              "index.routing.allocation.require._name": "rally-node-0",
+                              "index.routing.allocation.require._name": "benchmark-node-0",
                               "index.blocks.write": "true"
                           }
                       },
@@ -3906,7 +3906,7 @@ class ShrinkIndexTests(TestCase):
             mock.call(index="src2",
                       body={
                           "settings": {
-                              "index.routing.allocation.require._name": "rally-node-0",
+                              "index.routing.allocation.require._name": "benchmark-node-0",
                               "index.blocks.write": "true"
                           }
                       },
@@ -3914,7 +3914,7 @@ class ShrinkIndexTests(TestCase):
             mock.call(index="src-2020",
                       body={
                           "settings": {
-                              "index.routing.allocation.require._name": "rally-node-0",
+                              "index.routing.allocation.require._name": "benchmark-node-0",
                               "index.blocks.write": "true"
                           }
                       },

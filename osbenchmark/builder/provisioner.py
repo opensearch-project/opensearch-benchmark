@@ -294,7 +294,7 @@ class ElasticsearchInstaller:
         network_host = self.node_ip
 
         defaults = {
-            "cluster_name": "rally-benchmark",
+            "cluster_name": "benchmark-provisioned-cluster",
             "node_name": self.node_name,
             "data_paths": self.data_paths,
             "log_path": self.node_log_dir,
@@ -408,7 +408,7 @@ class DockerProvisioner:
         self.logger = logging.getLogger(__name__)
 
         provisioner_defaults = {
-            "cluster_name": "rally-benchmark",
+            "cluster_name": "benchmark-provisioned-cluster",
             "node_name": self.node_name,
             # we bind-mount the directories below on the host to these ones.
             "install_root_path": "/usr/share/elasticsearch",

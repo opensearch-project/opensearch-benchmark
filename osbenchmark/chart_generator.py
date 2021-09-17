@@ -246,7 +246,7 @@ class BarCharts:
         }
 
         search_source = {
-            "index": "rally-results-*",
+            "index": "benchmark-results-*",
             "query": {
                 "query_string": {
                     "query": BarCharts.filter_string(environment, test_execution_config),
@@ -425,7 +425,7 @@ class BarCharts:
         }
 
         search_source = {
-            "index": "rally-results-*",
+            "index": "benchmark-results-*",
             "query": {
                 "query_string": {
                     "query": BarCharts.filter_string(environment, test_execution_config),
@@ -588,7 +588,7 @@ class BarCharts:
         }
 
         search_source = {
-            "index": "rally-results-*",
+            "index": "benchmark-results-*",
             "query": {
                 "query_string": {
                     "query": "name:\"%s\" AND task:\"%s\" AND %s" % (
@@ -769,7 +769,7 @@ class BarCharts:
         }
 
         search_source = {
-            "index": "rally-results-*",
+            "index": "benchmark-results-*",
             "query": {
                 "query_string": {
                     "analyze_wildcard": True,
@@ -835,7 +835,7 @@ class TimeSeriesCharts:
                 "axis_formatter": "number",
                 "axis_position": "left",
                 "id": str(uuid.uuid4()),
-                "index_pattern": "rally-results-*",
+                "index_pattern": "benchmark-results-*",
                 "interval": "1d",
                 "series": [
                     {
@@ -887,7 +887,7 @@ class TimeSeriesCharts:
                     {
                         "fields": "message",
                         "template": "{{message}}",
-                        "index_pattern": "rally-annotations",
+                        "index_pattern": "benchmark-annotations",
                         "query_string": f"((NOT _exists_:workload) OR workload:\"{test_ex_config.workload}\") "\
                             f"AND ((NOT _exists_:chart) OR chart:gc) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
@@ -928,7 +928,7 @@ class TimeSeriesCharts:
                 "axis_formatter": "number",
                 "axis_position": "left",
                 "id": str(uuid.uuid4()),
-                "index_pattern": "rally-results-*",
+                "index_pattern": "benchmark-results-*",
                 "interval": "1d",
                 "series": [
                     {
@@ -980,7 +980,7 @@ class TimeSeriesCharts:
                     {
                         "fields": "message",
                         "template": "{{message}}",
-                        "index_pattern": "rally-annotations",
+                        "index_pattern": "benchmark-annotations",
                         "query_string": f"((NOT _exists_:workload) OR workload:\"{test_execution_config.workload}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:merge_times) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
@@ -1021,7 +1021,7 @@ class TimeSeriesCharts:
                 "axis_formatter": "number",
                 "axis_position": "left",
                 "id": str(uuid.uuid4()),
-                "index_pattern": "rally-results-*",
+                "index_pattern": "benchmark-results-*",
                 "interval": "1d",
                 "series": [
                     {
@@ -1067,7 +1067,7 @@ class TimeSeriesCharts:
                     {
                         "fields": "message",
                         "template": "{{message}}",
-                        "index_pattern": "rally-annotations",
+                        "index_pattern": "benchmark-annotations",
                         "query_string": f"((NOT _exists_:workload) OR workload:\"{test_execution_config.workload}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:merge_count) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
@@ -1108,7 +1108,7 @@ class TimeSeriesCharts:
                 "axis_formatter": "number",
                 "axis_position": "left",
                 "id": str(uuid.uuid4()),
-                "index_pattern": "rally-results-*",
+                "index_pattern": "benchmark-results-*",
                 "interval": "1d",
                 "series": [
                     {
@@ -1160,7 +1160,7 @@ class TimeSeriesCharts:
                     {
                         "fields": "message",
                         "template": "{{message}}",
-                        "index_pattern": "rally-annotations",
+                        "index_pattern": "benchmark-annotations",
                         "query_string": f"((NOT _exists_:workload) OR workload:\"{test_ex_config.workload}\") "\
                             f"AND ((NOT _exists_:chart) OR chart:io) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
@@ -1201,7 +1201,7 @@ class TimeSeriesCharts:
                 "axis_formatter": "number",
                 "axis_position": "left",
                 "id": str(uuid.uuid4()),
-                "index_pattern": "rally-results-*",
+                "index_pattern": "benchmark-results-*",
                 "interval": "1d",
                 "series": [
                     {
@@ -1275,7 +1275,7 @@ class TimeSeriesCharts:
                     {
                         "fields": "message",
                         "template": "{{message}}",
-                        "index_pattern": "rally-annotations",
+                        "index_pattern": "benchmark-annotations",
                         "query_string": f"((NOT _exists_:workload) OR workload:\"{test_ex_config.workload}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:segment_memory) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
@@ -1419,7 +1419,7 @@ class TimeSeriesCharts:
                     }
                 ],
                 "time_field": "test-execution-timestamp",
-                "index_pattern": "rally-results-*",
+                "index_pattern": "benchmark-results-*",
                 "interval": "1d",
                 "axis_position": "left",
                 "axis_formatter": "number",
@@ -1437,7 +1437,7 @@ class TimeSeriesCharts:
                     {
                         "fields": "message",
                         "template": "{{message}}",
-                        "index_pattern": "rally-annotations",
+                        "index_pattern": "benchmark-annotations",
                         "query_string": f"((NOT _exists_:workload) OR workload:\"{test_ex_config.workload}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:query) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
@@ -1492,7 +1492,7 @@ class TimeSeriesCharts:
                 "axis_formatter": "number",
                 "axis_position": "left",
                 "id": str(uuid.uuid4()),
-                "index_pattern": "rally-results-*",
+                "index_pattern": "benchmark-results-*",
                 "interval": "1d",
                 "series": [
                     {
@@ -1531,7 +1531,7 @@ class TimeSeriesCharts:
                     {
                         "fields": "message",
                         "template": "{{message}}",
-                        "index_pattern": "rally-annotations",
+                        "index_pattern": "benchmark-annotations",
                         "query_string": f"((NOT _exists_:workload) OR workload:\"{t}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:indexing) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",

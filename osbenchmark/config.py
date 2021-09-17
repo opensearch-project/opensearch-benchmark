@@ -247,7 +247,7 @@ class Config:
             (Scope.application, "source", "distribution.dir"): "distributions",
             (Scope.application, "benchmarks", "workload.repository.dir"): "workloads",
             (Scope.application, "benchmarks", "workload.default.repository"): "default",
-            (Scope.application, "provisioning", "node.name.prefix"): "rally-node",
+            (Scope.application, "provisioning", "node.name.prefix"): "benchmark-node",
             (Scope.application, "provisioning", "node.http.port"): 39200,
             (Scope.application, "builder", "provision_config.repository.dir"): "provision_configs",
             (Scope.application, "builder", "provision_config.default.repository"): "default",

@@ -105,7 +105,7 @@ class BuilderTests(TestCase):
 
         def start(self, node_configs):
             self.started = True
-            return [BuilderTests.Node("rally-node-{}".format(n)) for n in range(len(node_configs))]
+            return [BuilderTests.Node("benchmark-node-{}".format(n)) for n in range(len(node_configs))]
 
         def stop(self, nodes, metrics_store):
             self.started = False

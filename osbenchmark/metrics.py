@@ -799,7 +799,7 @@ class EsMetricsStore(MetricsStore):
         # reduce a bit of noise in the metrics cluster log
         if create:
             # always update the mapping to the latest version
-            self._client.put_template("rally-metrics", self._get_template())
+            self._client.put_template("benchmark-metrics", self._get_template())
             if not self._client.exists(index=self._index):
                 self._client.create_index(index=self._index)
             else:
@@ -815,7 +815,7 @@ class EsMetricsStore(MetricsStore):
 
     def index_name(self):
         ts = time.from_is8601(self._test_execution_timestamp)
-        return "rally-metrics-%04d-%02d" % (ts.year, ts.month)
+        return "benchmark-metrics-%04d-%02d" % (ts.year, ts.month)
 
     def _migrated_index_name(self, original_name):
         return "{}.new".format(original_name)
@@ -1282,8 +1282,8 @@ class TestExecution:
         :return: A dict representation suitable for persisting this test execution instance as JSON.
         """
         d = {
-            "rally-version": self.rally_version,
-            "rally-revision": self.rally_revision,
+            "benchmark-version": self.rally_version,
+            "benchmark-revision": self.rally_revision,
             "environment": self.environment_name,
             "test-execution-id": self.test_execution_id,
             "test-execution-timestamp": time.to_iso8601(self.test_execution_timestamp),
@@ -1317,8 +1317,8 @@ class TestExecution:
         :return: a list of dicts, suitable for persisting the results of this test execution in a format that is Kibana-friendly.
         """
         result_template = {
-            "rally-version": self.rally_version,
-            "rally-revision": self.rally_revision,
+            "benchmark-version": self.rally_version,
+            "benchmark-revision": self.rally_revision,
             "environment": self.environment_name,
             "test-execution-id": self.test_execution_id,
             "test-execution-timestamp": time.to_iso8601(self.test_execution_timestamp),
@@ -1360,7 +1360,7 @@ class TestExecution:
         user_tags = d.get("user-tags", {})
         # TODO: cluster is optional for BWC. This can be removed after some grace period.
         cluster = d.get("cluster", {})
-        return TestExecution(d["rally-version"], d.get("rally-revision"), d["environment"], d["test-execution-id"],
+        return TestExecution(d["benchmark-version"], d.get("benchmark-revision"), d["environment"], d["test-execution-id"],
                     time.from_is8601(d["test-execution-timestamp"]),
                     d["pipeline"], user_tags, d["workload"], d.get("workload-params"),
                     d.get("test_procedure"), d["provision-config-instance"],
@@ -1451,7 +1451,7 @@ class FileTestExecutionStore(TestExecutionStore):
 
 
 class EsTestExecutionStore(TestExecutionStore):
-    INDEX_PREFIX = "rally-test-executions-"
+    INDEX_PREFIX = "benchmark-test-executions-"
     TEST_EXECUTION_DOC_TYPE = "_doc"
 
     def __init__(self, cfg, client_factory_class=EsClientFactory, index_template_provider_class=IndexTemplateProvider):
@@ -1470,7 +1470,7 @@ class EsTestExecutionStore(TestExecutionStore):
     def store_test_execution(self, test_execution):
         doc = test_execution.as_dict()
         # always update the mapping to the latest version
-        self.client.put_template("rally-test-executions", self.index_template_provider.test_executions_template())
+        self.client.put_template("benchmark-test-executions", self.index_template_provider.test_executions_template())
         self.client.index(
             index=self.index_name(test_execution),
             doc_type=EsTestExecutionStore.TEST_EXECUTION_DOC_TYPE,
@@ -1546,7 +1546,7 @@ class EsResultsStore:
     Stores the results of a test_execution in a format that is
     better suited for reporting with Kibana.
     """
-    INDEX_PREFIX = "rally-results-"
+    INDEX_PREFIX = "benchmark-results-"
     RESULTS_DOC_TYPE = "_doc"
 
     def __init__(self, cfg, client_factory_class=EsClientFactory, index_template_provider_class=IndexTemplateProvider):
@@ -1563,7 +1563,7 @@ class EsResultsStore:
 
     def store_results(self, test_execution):
         # always update the mapping to the latest version
-        self.client.put_template("rally-results", self.index_template_provider.results_template())
+        self.client.put_template("benchmark-results", self.index_template_provider.results_template())
         self.client.bulk_index(index=self.index_name(test_execution),
                                doc_type=EsResultsStore.RESULTS_DOC_TYPE,
                                items=test_execution.to_result_dicts())

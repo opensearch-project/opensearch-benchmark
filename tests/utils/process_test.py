@@ -57,10 +57,10 @@ class ProcessTests(TestCase):
     @mock.patch("psutil.process_iter")
     def test_find_other_benchmark_processes(self, process_iter):
         benchmark_es_5_process = ProcessTests.Process(100, "java",
-                                                  ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Enode.name=rally-node0",
+                                                  ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Enode.name=benchmark-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         benchmark_es_1_process = ProcessTests.Process(101, "java",
-                                                  ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Des.node.name=rally-node0",
+                                                  ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Des.node.name=benchmark-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         metrics_store_process = ProcessTests.Process(102, "java", ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g",
                                                                    "-Des.path.home=~/rally/metrics/",
@@ -106,10 +106,10 @@ class ProcessTests(TestCase):
     @mock.patch("psutil.process_iter")
     def test_kills_only_benchmark_processes(self, process_iter):
         benchmark_es_5_process = ProcessTests.Process(100, "java",
-                                                  ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Enode.name=rally-node0",
+                                                  ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Enode.name=benchmark-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         benchmark_es_1_process = ProcessTests.Process(101, "java",
-                                                  ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Des.node.name=rally-node0",
+                                                  ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Des.node.name=benchmark-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         metrics_store_process = ProcessTests.Process(102, "java", ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g",
                                                                    "-Des.path.home=~/rally/metrics/",
