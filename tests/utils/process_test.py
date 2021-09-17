@@ -55,7 +55,7 @@ class ProcessTests(TestCase):
                 return "running"
 
     @mock.patch("psutil.process_iter")
-    def test_find_other_rally_processes(self, process_iter):
+    def test_find_other_benchmark_processes(self, process_iter):
         benchmark_es_5_process = ProcessTests.Process(100, "java",
                                                   ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Enode.name=rally-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
@@ -67,13 +67,13 @@ class ProcessTests(TestCase):
                                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         random_python = ProcessTests.Process(103, "python3", ["/some/django/app"])
         other_process = ProcessTests.Process(104, "init", ["/usr/sbin/init"])
-        rally_process_p = ProcessTests.Process(105, "python3", ["/usr/bin/python3", "~/.local/bin/esrally"])
-        rally_process_r = ProcessTests.Process(106, "rally", ["/usr/bin/python3", "~/.local/bin/esrally"])
-        rally_process_e = ProcessTests.Process(107, "esrally", ["/usr/bin/python3", "~/.local/bin/esrally"])
-        rally_process_mac = ProcessTests.Process(108, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/esrally"])
+        benchmark_process_p = ProcessTests.Process(105, "python3", ["/usr/bin/python3", "~/.local/bin/osbenchmark"])
+        benchmark_process_r = ProcessTests.Process(106, "benchmark", ["/usr/bin/python3", "~/.local/bin/osbenchmark"])
+        benchmark_process_e = ProcessTests.Process(107, "osbenchmark", ["/usr/bin/python3", "~/.local/bin/osbenchmark"])
+        benchmark_process_mac = ProcessTests.Process(108, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/osbenchmark"])
         # fake own process by determining our pid
-        own_rally_process = ProcessTests.Process(os.getpid(), "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/esrally"])
-        night_rally_process = ProcessTests.Process(110, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/night_rally"])
+        own_benchmark_process = ProcessTests.Process(os.getpid(), "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/osbenchmark"])
+        night_benchmark_process = ProcessTests.Process(110, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/night_rally"])
 
         process_iter.return_value = [
             benchmark_es_1_process,
@@ -81,19 +81,19 @@ class ProcessTests(TestCase):
             metrics_store_process,
             random_python,
             other_process,
-            rally_process_p,
-            rally_process_r,
-            rally_process_e,
-            rally_process_mac,
-            own_rally_process,
-            night_rally_process,
+            benchmark_process_p,
+            benchmark_process_r,
+            benchmark_process_e,
+            benchmark_process_mac,
+            own_benchmark_process,
+            night_benchmark_process,
         ]
 
-        self.assertEqual([rally_process_p, rally_process_r, rally_process_e, rally_process_mac],
-                         process.find_all_other_rally_processes())
+        self.assertEqual([benchmark_process_p, benchmark_process_r, benchmark_process_e, benchmark_process_mac],
+                         process.find_all_other_benchmark_processes())
 
     @mock.patch("psutil.process_iter")
-    def test_find_no_other_rally_process_running(self, process_iter):
+    def test_find_no_other_benchmark_process_running(self, process_iter):
         metrics_store_process = ProcessTests.Process(102, "java", ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g",
                                                                    "-Des.path.home=~/rally/metrics/",
                                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
@@ -101,10 +101,10 @@ class ProcessTests(TestCase):
 
         process_iter.return_value = [ metrics_store_process, random_python]
 
-        self.assertEqual(0, len(process.find_all_other_rally_processes()))
+        self.assertEqual(0, len(process.find_all_other_benchmark_processes()))
 
     @mock.patch("psutil.process_iter")
-    def test_kills_only_rally_processes(self, process_iter):
+    def test_kills_only_benchmark_processes(self, process_iter):
         benchmark_es_5_process = ProcessTests.Process(100, "java",
                                                   ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Enode.name=rally-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
@@ -116,13 +116,13 @@ class ProcessTests(TestCase):
                                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         random_python = ProcessTests.Process(103, "python3", ["/some/django/app"])
         other_process = ProcessTests.Process(104, "init", ["/usr/sbin/init"])
-        rally_process_p = ProcessTests.Process(105, "python3", ["/usr/bin/python3", "~/.local/bin/esrally"])
-        rally_process_r = ProcessTests.Process(106, "rally", ["/usr/bin/python3", "~/.local/bin/esrally"])
-        rally_process_e = ProcessTests.Process(107, "esrally", ["/usr/bin/python3", "~/.local/bin/esrally"])
-        rally_process_mac = ProcessTests.Process(108, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/esrally"])
+        benchmark_process_p = ProcessTests.Process(105, "python3", ["/usr/bin/python3", "~/.local/bin/osbenchmark"])
+        benchmark_process_r = ProcessTests.Process(106, "benchmark", ["/usr/bin/python3", "~/.local/bin/osbenchmark"])
+        benchmark_process_e = ProcessTests.Process(107, "osbenchmark", ["/usr/bin/python3", "~/.local/bin/osbenchmark"])
+        benchmark_process_mac = ProcessTests.Process(108, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/osbenchmark"])
         # fake own process by determining our pid
-        own_rally_process = ProcessTests.Process(os.getpid(), "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/esrally"])
-        night_rally_process = ProcessTests.Process(110, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/night_rally"])
+        own_benchmark_process = ProcessTests.Process(os.getpid(), "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/osbenchmark"])
+        night_benchmark_process = ProcessTests.Process(110, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/night_rally"])
 
         process_iter.return_value = [
             benchmark_es_1_process,
@@ -130,24 +130,24 @@ class ProcessTests(TestCase):
             metrics_store_process,
             random_python,
             other_process,
-            rally_process_p,
-            rally_process_r,
-            rally_process_e,
-            rally_process_mac,
-            own_rally_process,
-            night_rally_process,
+            benchmark_process_p,
+            benchmark_process_r,
+            benchmark_process_e,
+            benchmark_process_mac,
+            own_benchmark_process,
+            night_benchmark_process,
         ]
 
-        process.kill_running_rally_instances()
+        process.kill_running_benchmark_instances()
 
         self.assertFalse(benchmark_es_5_process.killed)
         self.assertFalse(benchmark_es_1_process.killed)
         self.assertFalse(metrics_store_process.killed)
         self.assertFalse(random_python.killed)
         self.assertFalse(other_process.killed)
-        self.assertTrue(rally_process_p.killed)
-        self.assertTrue(rally_process_r.killed)
-        self.assertTrue(rally_process_e.killed)
-        self.assertTrue(rally_process_mac.killed)
-        self.assertFalse(own_rally_process.killed)
-        self.assertFalse(night_rally_process.killed)
+        self.assertTrue(benchmark_process_p.killed)
+        self.assertTrue(benchmark_process_r.killed)
+        self.assertTrue(benchmark_process_e.killed)
+        self.assertTrue(benchmark_process_mac.killed)
+        self.assertFalse(own_benchmark_process.killed)
+        self.assertFalse(night_benchmark_process.killed)

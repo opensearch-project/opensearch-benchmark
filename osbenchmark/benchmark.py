@@ -643,14 +643,14 @@ def execute_test(cfg, kill_running_processes=False):
         # Kill any lingering Rally processes before attempting to continue - the actor system needs to be a singleton on this machine
         # noinspection PyBroadException
         try:
-            process.kill_running_rally_instances()
+            process.kill_running_benchmark_instances()
         except BaseException:
             logger.exception(
                 "Could not terminate potentially running Rally instances correctly. Attempting to go on anyway.")
     else:
-        other_rally_processes = process.find_all_other_rally_processes()
-        if other_rally_processes:
-            pids = [p.pid for p in other_rally_processes]
+        other_benchmark_processes = process.find_all_other_benchmark_processes()
+        if other_benchmark_processes:
+            pids = [p.pid for p in other_benchmark_processes]
 
             msg = f"There are other Rally processes running on this machine (PIDs: {pids}) but only one Rally " \
                   f"benchmark is allowed to run at the same time.\n\nYou can use --kill-running-processes flag " \

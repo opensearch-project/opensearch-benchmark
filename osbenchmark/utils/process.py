@@ -107,17 +107,17 @@ def run_subprocess_with_logging(command_line, header=None, level=logging.INFO, s
     return command_line_process.returncode
 
 
-def is_rally_process(p):
-    return p.name() == "esrally" or \
-           p.name() == "rally" or \
+def is_benchmark_process(p):
+    return p.name() == "osbenchmark" or \
+           p.name() == "benchmark" or \
            (p.name().lower().startswith("python")
-            and any("esrally" in e for e in p.cmdline())
-            and not any("esrallyd" in e for e in p.cmdline()))
+            and any("osbenchmark" in e for e in p.cmdline())
+            and not any("osbenchmarkd" in e for e in p.cmdline()))
 
 
-def find_all_other_rally_processes():
+def find_all_other_benchmark_processes():
     others = []
-    for_all_other_processes(is_rally_process, others.append)
+    for_all_other_processes(is_benchmark_process, others.append)
     return others
 
 
@@ -148,12 +148,12 @@ def for_all_other_processes(predicate, action):
             pass
 
 
-def kill_running_rally_instances():
-    def rally_process(p):
-        return p.name() == "esrally" or \
-               p.name() == "rally" or \
+def kill_running_benchmark_instances():
+    def benchmark_process(p):
+        return p.name() == "osbenchmark" or \
+               p.name() == "benchmark" or \
                (p.name().lower().startswith("python")
-                and any("esrally" in e for e in p.cmdline())
-                and not any("esrallyd" in e for e in p.cmdline()))
+                and any("osbenchmark" in e for e in p.cmdline())
+                and not any("osbenchmarkd" in e for e in p.cmdline()))
 
-    kill_all(rally_process)
+    kill_all(benchmark_process)
