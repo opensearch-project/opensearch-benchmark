@@ -10,13 +10,13 @@ RUN apt-get -y update && \
     apt-get -y upgrade && \
     rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /rally/esrally
+RUN mkdir -p /rally/osbenchmark
 COPY setup.py /rally/
 COPY setup.cfg /rally/
 COPY version.txt /rally/
 COPY README.rst /rally/
 COPY MANIFEST.in /rally/
-COPY osbenchmark/ /rally/esrally/
+COPY osbenchmark/ /rally/osbenchmark/
 
 RUN python3 -m venv /rally/venv
 ENV PATH="/rally/venv/bin:$PATH"

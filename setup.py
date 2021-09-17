@@ -105,7 +105,7 @@ tests_require = [
     "pytest-asyncio==0.14.0"
 ]
 
-# These packages are only required when developing Rally
+# These packages are only required when developing Benchmark
 develop_require = [
     "tox==3.14.0",
     "coverage==5.5",
@@ -125,7 +125,7 @@ first_supported_version = "{}.{}".format(supported_python_versions[0][0], suppor
 # next minor after the latest supported version
 first_unsupported_version = "{}.{}".format(supported_python_versions[-1][0], supported_python_versions[-1][1] + 1)
 
-# we call the tool rally, but it will be published as esrally on pypi
+# we call the tool benchmark, but it will be published as osbenchmark on pypi
 setup(name="esrally",
       maintainer="Daniel Mitterdorfer",
       maintainer_email="daniel.mitterdorfer@gmail.com",
@@ -139,7 +139,7 @@ setup(name="esrally",
           exclude=("tests*", "benchmarks*", "it*")
       ),
       include_package_data=True,
-      # supported Python versions. This will prohibit pip (> 9.0.0) from even installing Rally on an unsupported
+      # supported Python versions. This will prohibit pip (> 9.0.0) from even installing Benchmark on an unsupported
       # Python version.
       # See also https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
       #
