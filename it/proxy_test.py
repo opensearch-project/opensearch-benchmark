@@ -74,13 +74,13 @@ def assert_log_line_present(log_file, text):
         assert any(text in line for line in f), f"Could not find [{text}] in [{log_file}]."
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_run_with_direct_internet_connection(cfg, http_proxy, fresh_log_file):
     assert it.osbenchmark(cfg, "list workloads") == 0
     assert_log_line_present(fresh_log_file, "Connecting directly to the Internet")
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_anonymous_proxy_no_connection(cfg, http_proxy, fresh_log_file):
     env = dict(os.environ)
     env["http_proxy"] = http_proxy.anonymous_url
@@ -90,7 +90,7 @@ def test_anonymous_proxy_no_connection(cfg, http_proxy, fresh_log_file):
     assert_log_line_present(fresh_log_file, "No Internet connection detected")
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_authenticated_proxy_user_can_connect(cfg, http_proxy, fresh_log_file):
     env = dict(os.environ)
     env["http_proxy"] = http_proxy.authenticated_url

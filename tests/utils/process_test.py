@@ -56,10 +56,10 @@ class ProcessTests(TestCase):
 
     @mock.patch("psutil.process_iter")
     def test_find_other_rally_processes(self, process_iter):
-        rally_es_5_process = ProcessTests.Process(100, "java",
+        benchmark_es_5_process = ProcessTests.Process(100, "java",
                                                   ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Enode.name=rally-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
-        rally_es_1_process = ProcessTests.Process(101, "java",
+        benchmark_es_1_process = ProcessTests.Process(101, "java",
                                                   ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Des.node.name=rally-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         metrics_store_process = ProcessTests.Process(102, "java", ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g",
@@ -76,8 +76,8 @@ class ProcessTests(TestCase):
         night_rally_process = ProcessTests.Process(110, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/night_rally"])
 
         process_iter.return_value = [
-            rally_es_1_process,
-            rally_es_5_process,
+            benchmark_es_1_process,
+            benchmark_es_5_process,
             metrics_store_process,
             random_python,
             other_process,
@@ -105,10 +105,10 @@ class ProcessTests(TestCase):
 
     @mock.patch("psutil.process_iter")
     def test_kills_only_rally_processes(self, process_iter):
-        rally_es_5_process = ProcessTests.Process(100, "java",
+        benchmark_es_5_process = ProcessTests.Process(100, "java",
                                                   ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Enode.name=rally-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
-        rally_es_1_process = ProcessTests.Process(101, "java",
+        benchmark_es_1_process = ProcessTests.Process(101, "java",
                                                   ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Des.node.name=rally-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         metrics_store_process = ProcessTests.Process(102, "java", ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g",
@@ -125,8 +125,8 @@ class ProcessTests(TestCase):
         night_rally_process = ProcessTests.Process(110, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/night_rally"])
 
         process_iter.return_value = [
-            rally_es_1_process,
-            rally_es_5_process,
+            benchmark_es_1_process,
+            benchmark_es_5_process,
             metrics_store_process,
             random_python,
             other_process,
@@ -140,8 +140,8 @@ class ProcessTests(TestCase):
 
         process.kill_running_rally_instances()
 
-        self.assertFalse(rally_es_5_process.killed)
-        self.assertFalse(rally_es_1_process.killed)
+        self.assertFalse(benchmark_es_5_process.killed)
+        self.assertFalse(benchmark_es_1_process.killed)
         self.assertFalse(metrics_store_process.killed)
         self.assertFalse(random_python.killed)
         self.assertFalse(other_process.killed)

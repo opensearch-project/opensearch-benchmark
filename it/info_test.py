@@ -26,22 +26,22 @@ import it
 from osbenchmark.utils import process
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_workload_info_with_test_procedure(cfg):
     assert it.osbenchmark(cfg, "info --workload=geonames --test-procedure=append-no-conflicts") == 0
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_workload_info_with_workload_repo(cfg):
     assert it.osbenchmark(cfg, "info --workload-repository=default --workload=geonames") == 0
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_workload_info_with_task_filter(cfg):
     assert it.osbenchmark(cfg, "info --workload=geonames --test-procedure=append-no-conflicts --include-tasks=\"type:search\"") == 0
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_workload_info_fails_with_wrong_workload_params(cfg):
     # simulate a typo in workload parameter
     cmd = it.osbenchmark_command_line_for(cfg, "info --workload=geonames --workload-params='conflict_probability:5,number-of-replicas:1'")

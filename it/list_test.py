@@ -25,29 +25,29 @@
 import it
 
 
-@it.all_rally_configs
+@it.all_benchmark_configs
 def test_list_test_executions(cfg):
     assert it.osbenchmark(cfg, "list test_executions") == 0
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_list_provision_config_instances(cfg):
     assert it.osbenchmark(cfg, "list provision_config_instances") == 0
     assert it.osbenchmark(cfg, "list provision_config_instances --provision-config-repository=default") == 0
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_list_opensearch_plugins(cfg):
     assert it.osbenchmark(cfg, "list opensearch-plugins") == 0
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_list_workloads(cfg):
     assert it.osbenchmark(cfg, "list workloads") == 0
     assert it.osbenchmark(cfg, "list workloads --workload-repository=default "
                            "--workload-revision=4080dc9850d07e23b6fc7cfcdc7cf57b14e5168d") == 0
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_list_telemetry(cfg):
     assert it.osbenchmark(cfg, "list telemetry") == 0

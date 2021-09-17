@@ -44,7 +44,7 @@ def test_cluster():
     cluster.stop()
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_create_workload(cfg, tmp_path, test_cluster):
     # prepare some data
     cmd = f"--test-mode --pipeline=benchmark-only --target-hosts=127.0.0.1:{test_cluster.http_port} " \

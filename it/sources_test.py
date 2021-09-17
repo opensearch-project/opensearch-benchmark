@@ -24,7 +24,7 @@
 
 import it
 
-@it.random_rally_config
+@it.random_benchmark_config
 def test_sources(cfg):
     port = 19200
     it.wait_until_port_is_free(port_number=port)

@@ -41,7 +41,7 @@ WORKLOADS = ["geonames", "nyc_taxis", "http_logs", "nested"]
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 
-def all_rally_configs(t):
+def all_benchmark_configs(t):
     @functools.wraps(t)
     @pytest.mark.parametrize("cfg", CONFIG_NAMES)
     def wrapper(cfg, *args, **kwargs):
@@ -50,7 +50,7 @@ def all_rally_configs(t):
     return wrapper
 
 
-def random_rally_config(t):
+def random_benchmark_config(t):
     @functools.wraps(t)
     @pytest.mark.parametrize("cfg", [random.choice(CONFIG_NAMES)])
     def wrapper(cfg, *args, **kwargs):
@@ -59,7 +59,7 @@ def random_rally_config(t):
     return wrapper
 
 
-def rally_in_mem(t):
+def benchmark_in_mem(t):
     @functools.wraps(t)
     @pytest.mark.parametrize("cfg", ["in-memory-it"])
     def wrapper(cfg, *args, **kwargs):
@@ -68,7 +68,7 @@ def rally_in_mem(t):
     return wrapper
 
 
-def rally_es(t):
+def benchmark_es(t):
     @functools.wraps(t)
     @pytest.mark.parametrize("cfg", ["es-it"])
     def wrapper(cfg, *args, **kwargs):

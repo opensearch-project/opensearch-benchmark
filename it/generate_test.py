@@ -27,7 +27,7 @@ import os
 import it
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_workload_info_with_test_procedure(cfg, tmp_path):
     cwd = os.path.dirname(__file__)
     chart_spec_path = os.path.join(cwd, "resources", "sample-test-execution-config.json")
