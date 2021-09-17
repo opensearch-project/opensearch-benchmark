@@ -74,7 +74,7 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
     for plugin in plugins:
         for k, v in plugin.variables.items():
             dist_cfg["plugin_{}_{}".format(plugin.name, k)] = v
-    # ... but the user can override it in rally.ini
+    # ... but the user can override it in benchmark.ini
     dist_cfg.update(cfg.all_opts("distributions"))
 
     if caching_enabled:
@@ -708,7 +708,7 @@ class DistributionRepository:
             default_key = "jdk.bundled.{}_url".format(self.name)
         else:
             default_key = "jdk.unbundled.{}_url".format(self.name)
-        # rally.ini
+        # benchmark.ini
         override_key = "{}.url".format(self.name)
         return self._url_for(override_key, default_key)
 
@@ -720,7 +720,7 @@ class DistributionRepository:
     def plugin_download_url(self, plugin_name):
         # provision_config repo
         default_key = "plugin_{}_{}_url".format(plugin_name, self.name)
-        # rally.ini
+        # benchmark.ini
         override_key = "plugin.{}.{}.url".format(plugin_name, self.name)
         return self._url_for(override_key, default_key, mandatory=False)
 

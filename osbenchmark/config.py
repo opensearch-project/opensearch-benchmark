@@ -67,7 +67,7 @@ class ConfigFile:
         if template_path:
             source_path = template_path
         else:
-            source_path = io.normalize_path(os.path.join(os.path.dirname(__file__), "resources", "rally.ini"))
+            source_path = io.normalize_path(os.path.join(os.path.dirname(__file__), "resources", "benchmark.ini"))
         with open(self.location, "wt", encoding="utf-8") as target:
             with open(source_path, "rt", encoding="utf-8") as src:
                 contents = src.read()
@@ -93,7 +93,7 @@ class ConfigFile:
             config_name_suffix = "-{}".format(self.config_name)
         else:
             config_name_suffix = ""
-        return os.path.join(self.config_dir, "rally{}.ini".format(config_name_suffix))
+        return os.path.join(self.config_dir, "benchmark{}.ini".format(config_name_suffix))
 
 
 def auto_load_local_config(base_config, additional_sections=None, config_file_class=ConfigFile, **kwargs):

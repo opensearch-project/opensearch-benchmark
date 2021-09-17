@@ -146,9 +146,9 @@ class ConfigFile:
         self.user_home = os.getenv("RALLY_HOME", os.path.expanduser("~"))
         self.rally_home = os.path.join(self.user_home, ".rally")
         if config_name is not None:
-            self.config_file_name = f"rally-{config_name}.ini"
+            self.config_file_name = f"benchmark-{config_name}.ini"
         else:
-            self.config_file_name = "rally.ini"
+            self.config_file_name = "benchmark.ini"
         self.source_path = os.path.join(os.path.dirname(__file__), "resources", self.config_file_name)
         self.target_path = os.path.join(self.rally_home, self.config_file_name)
 
@@ -216,7 +216,7 @@ class EsMetricsStore:
 
 def install_integration_test_config():
     def copy_config(name):
-        source_path = os.path.join(os.path.dirname(__file__), "resources", f"rally-{name}.ini")
+        source_path = os.path.join(os.path.dirname(__file__), "resources", f"benchmark-{name}.ini")
         f = config.ConfigFile(name)
         f.store_default_config(template_path=source_path)
 
