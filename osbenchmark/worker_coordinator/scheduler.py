@@ -101,7 +101,7 @@ def scheduler_for(task: osbenchmark.workload.Task):
     try:
         scheduler_class = __SCHEDULERS[schedule]
     except KeyError:
-        raise exceptions.RallyError(f"No scheduler available for name [{schedule}]")
+        raise exceptions.BenchmarkError(f"No scheduler available for name [{schedule}]")
 
     # for backwards-compatibility - treat existing schedulers as top-level schedulers
     if is_legacy_scheduler(scheduler_class):
@@ -299,7 +299,7 @@ class UnitAwareScheduler(Scheduler):
                                                             "Please specify the target throughput in [%s] instead.",
                                                             self.task, expected_unit, actual_unit, actual_unit)
                 else:
-                    raise exceptions.RallyAssertionError(f"Target throughput for [{self.task}] is specified in "
+                    raise exceptions.BenchmarkAssertionError(f"Target throughput for [{self.task}] is specified in "
                                                          f"[{expected_unit}] but the task throughput is measured "
                                                          f"in [{actual_unit}].")
 

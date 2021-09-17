@@ -82,7 +82,7 @@ class UnitAwareSchedulerTests(TestCase):
                           })
 
         s = scheduler.UnitAwareScheduler(task=task, scheduler_class=scheduler.DeterministicScheduler)
-        with self.assertRaises(exceptions.RallyAssertionError) as ex:
+        with self.assertRaises(exceptions.BenchmarkAssertionError) as ex:
             s.after_request(now=None, weight=1000, unit="docs", request_meta_data=None)
         self.assertEqual("Target throughput for [bulk-index] is specified in [MB/s] but the task throughput "
                          "is measured in [docs/s].", ex.exception.args[0])

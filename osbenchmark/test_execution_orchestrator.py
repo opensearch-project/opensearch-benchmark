@@ -270,9 +270,9 @@ def execute_test(cfg, sources=False, distribution=False, external=False, docker=
             logger.info("User has cancelled the benchmark (detected by actor).")
         elif isinstance(result, actor.BenchmarkFailure):
             logger.error("A benchmark failure has occurred")
-            raise exceptions.RallyError(result.message, result.cause)
+            raise exceptions.BenchmarkError(result.message, result.cause)
         else:
-            raise exceptions.RallyError("Got an unexpected result during benchmarking: [%s]." % str(result))
+            raise exceptions.BenchmarkError("Got an unexpected result during benchmarking: [%s]." % str(result))
     except KeyboardInterrupt:
         logger.info("User has cancelled the benchmark (detected by test execution orchestrator).")
         # notify the coordinator so it can properly handle this state. Do it blocking so we don't have a test execution between this message
@@ -374,11 +374,11 @@ def run(cfg):
             "Unknown pipeline [%s]. List the available pipelines with %s list pipelines." % (name, PROGRAM_NAME))
     try:
         pipeline(cfg)
-    except exceptions.RallyError as e:
+    except exceptions.BenchmarkError as e:
         # just pass on our own errors. It should be treated differently on top-level
         raise e
     except KeyboardInterrupt:
         logger.info("User has cancelled the benchmark.")
     except BaseException:
         tb = sys.exc_info()[2]
-        raise exceptions.RallyError("This test_execution ended with a fatal crash.").with_traceback(tb)
+        raise exceptions.BenchmarkError("This test_execution ended with a fatal crash.").with_traceback(tb)

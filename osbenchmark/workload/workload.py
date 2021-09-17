@@ -358,9 +358,9 @@ class DocumentCorpus:
         :return: A document corpus instance with the same and meta-data but with documents from both corpora.
         """
         if self.name != other.name:
-            raise exceptions.RallyAssertionError(f"Corpora names differ: [{self.name}] and [{other.name}].")
+            raise exceptions.BenchmarkAssertionError(f"Corpora names differ: [{self.name}] and [{other.name}].")
         if self.meta_data != other.meta_data:
-            raise exceptions.RallyAssertionError(f"Corpora meta-data differ: [{self.meta_data}] and [{other.meta_data}].")
+            raise exceptions.BenchmarkAssertionError(f"Corpora meta-data differ: [{self.meta_data}] and [{other.meta_data}].")
         if self is other:
             return self
         else:

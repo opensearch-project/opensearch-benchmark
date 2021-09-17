@@ -126,7 +126,7 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
                 logger.info("Adding external plugin source supplier for [%s].", plugin.name)
                 plugin_supplier = ExternalPluginSourceSupplier(plugin, plugin_version, _src_dir(cfg, mandatory=False), src_config, builder)
             else:
-                raise exceptions.RallyError("Plugin %s can neither be treated as core nor as external plugin. Requirements: %s" %
+                raise exceptions.BenchmarkError("Plugin %s can neither be treated as core nor as external plugin. Requirements: %s" %
                                             (plugin.name, supply_requirements[plugin.name]))
 
             if caching_enabled:

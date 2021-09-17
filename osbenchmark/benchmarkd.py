@@ -33,7 +33,7 @@ from osbenchmark.utils import console
 
 def start(args):
     if actor.actor_system_already_running():
-        raise exceptions.RallyError("An actor system appears to be already running.")
+        raise exceptions.BenchmarkError("An actor system appears to be already running.")
     actor.bootstrap_actor_system(local_ip=args.node_ip, coordinator_ip=args.coordinator_ip)
     console.info("Successfully started actor system on node [%s] with coordinator node IP [%s]." % (args.node_ip, args.coordinator_ip))
 
@@ -119,7 +119,7 @@ def main():
         stop(raise_errors=False)
         start(args)
     else:
-        raise exceptions.RallyError("Unknown subcommand [%s]" % args.subcommand)
+        raise exceptions.BenchmarkError("Unknown subcommand [%s]" % args.subcommand)
 
 
 if __name__ == '__main__':

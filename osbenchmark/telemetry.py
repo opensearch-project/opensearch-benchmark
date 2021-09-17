@@ -418,7 +418,7 @@ class CcrStatsRecorder:
             msg = "A transport error occurred while collecting CCR stats from the endpoint [{}?filter_path={}] on " \
                   "cluster [{}]".format(ccr_stats_api_endpoint, filter_path, self.cluster_name)
             self.logger.exception(msg)
-            raise exceptions.RallyError(msg)
+            raise exceptions.BenchmarkError(msg)
 
         if filter_path in stats and "indices" in stats[filter_path]:
             for indices in stats[filter_path]["indices"]:
@@ -559,7 +559,7 @@ class RecoveryStatsRecorder:
         except elasticsearch.TransportError:
             msg = "A transport error occurred while collecting recovery stats on cluster [{}]".format(self.cluster_name)
             self.logger.exception(msg)
-            raise exceptions.RallyError(msg)
+            raise exceptions.BenchmarkError(msg)
 
         for idx, idx_stats in stats.items():
             for shard in idx_stats["shards"]:
@@ -873,7 +873,7 @@ class TransformStatsRecorder:
             msg = f"A transport error occurred while collecting transform stats on " \
                   f"cluster [{self.cluster_name}]"
             self.logger.exception(msg)
-            raise exceptions.RallyError(msg)
+            raise exceptions.BenchmarkError(msg)
 
         for transform in stats["transforms"]:
             try:
@@ -1080,7 +1080,7 @@ class SearchableSnapshotsStatsRecorder:
                 # allow collection, indices might be mounted later on
                 return
         except elasticsearch.TransportError:
-            raise exceptions.RallyError(
+            raise exceptions.BenchmarkError(
                 f"A transport error occurred while collecting searchable snapshots stats on cluster "
                 f"[{self.cluster_name}]") from None
 

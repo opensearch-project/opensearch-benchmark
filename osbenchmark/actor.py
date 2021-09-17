@@ -150,11 +150,11 @@ class RallyActor(thespian.actors.ActorTypeDispatcher):
                 self.received_responses = []
                 transition()
             elif response_count > expected_count:
-                raise exceptions.RallyAssertionError(
+                raise exceptions.BenchmarkAssertionError(
                     "Received [%d] responses but only [%d] were expected to transition from [%s] to [%s]. The responses are: %s" %
                     (response_count, expected_count, self.status, new_status, self.received_responses))
         else:
-            raise exceptions.RallyAssertionError("Received [%s] from [%s] but we are in status [%s] instead of [%s]." %
+            raise exceptions.BenchmarkAssertionError("Received [%s] from [%s] but we are in status [%s] instead of [%s]." %
                                                  (type(msg), sender, self.status, expected_status))
 
     def send_to_children_and_transition(self, sender, msg, expected_status, new_status):
@@ -173,7 +173,7 @@ class RallyActor(thespian.actors.ActorTypeDispatcher):
             for m in filter(None, self.children):
                 self.send(m, msg)
         else:
-            raise exceptions.RallyAssertionError("Received [%s] from [%s] but we are in status [%s] instead of [%s]." %
+            raise exceptions.BenchmarkAssertionError("Received [%s] from [%s] but we are in status [%s] instead of [%s]." %
                                                  (type(msg), sender, self.status, expected_status))
 
     def is_current_status_expected(self, expected_status):

@@ -401,7 +401,7 @@ class BuilderActor(actor.RallyActor):
         if msg.payload == BuilderActor.WAKEUP_RESET_RELATIVE_TIME:
             self.reset_relative_time()
         else:
-            raise exceptions.RallyAssertionError("Unknown wakeup reason [{}]".format(msg.payload))
+            raise exceptions.BenchmarkAssertionError("Unknown wakeup reason [{}]".format(msg.payload))
 
     def receiveMsg_BenchmarkFailure(self, msg, sender):
         self.send(self.test_execution_orchestrator, msg)
@@ -638,7 +638,7 @@ def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_i
                                   all_node_names, test_execution_root_path, node_name))
         l = launcher.ProcessLauncher(cfg)
     elif external:
-        raise exceptions.RallyAssertionError("Externally provisioned clusters should not need to be managed by Rally's builder")
+        raise exceptions.BenchmarkAssertionError("Externally provisioned clusters should not need to be managed by Rally's builder")
     elif docker:
         if len(plugins) > 0:
             raise exceptions.SystemSetupError("You cannot specify any plugins for Docker clusters. Please remove "

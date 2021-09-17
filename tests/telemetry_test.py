@@ -326,7 +326,7 @@ class CcrStatsRecorderTests(TestCase):
         client = Client(transport_client=TransportClient(response={}, force_error=True))
         cfg = create_config()
         metrics_store = metrics.EsMetricsStore(cfg)
-        with self.assertRaisesRegex(exceptions.RallyError,
+        with self.assertRaisesRegex(exceptions.BenchmarkError,
                                     r"A transport error occurred while collecting CCR stats from the endpoint "
                                     r"\[/_ccr/stats\?filter_path=follow_stats\] on "
                                     r"cluster \[remote\]"):

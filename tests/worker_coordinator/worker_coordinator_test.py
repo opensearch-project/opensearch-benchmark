@@ -1484,7 +1484,7 @@ class AsyncExecutorTests(TestCase):
                                                 complete=complete,
                                                 on_error="continue")
 
-        with self.assertRaisesRegex(exceptions.RallyError, r"Cannot run task \[no-op\]: expected unit test exception"):
+        with self.assertRaisesRegex(exceptions.BenchmarkError, r"Cannot run task \[no-op\]: expected unit test exception"):
             await execute_schedule()
 
         self.assertEqual(0, es.call_count)
@@ -1558,7 +1558,7 @@ class AsyncExecutorTests(TestCase):
                 # ES client uses pseudo-status "N/A" in this case...
                 runner = mock.Mock(side_effect=as_future(exception=elasticsearch.ConnectionError("N/A", "no route to host", None)))
 
-                with self.assertRaises(exceptions.RallyAssertionError) as ctx:
+                with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
                     await worker_coordinator.execute_single(self.context_managed(runner), es, params, on_error=on_error)
                 self.assertEqual(
                     "Request returned an error. Error type: transport, Description: no route to host",
@@ -1571,7 +1571,7 @@ class AsyncExecutorTests(TestCase):
         runner = mock.Mock(side_effect=
                            as_future(exception=elasticsearch.NotFoundError(404, "not found", "the requested document could not be found")))
 
-        with self.assertRaises(exceptions.RallyAssertionError) as ctx:
+        with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
             await worker_coordinator.execute_single(self.context_managed(runner), es, params, on_error="abort")
         self.assertEqual(
             "Request returned an error. Error type: transport, Description: not found (the requested document could not be found)",

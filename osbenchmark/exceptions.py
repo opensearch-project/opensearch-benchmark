@@ -23,9 +23,9 @@
 # under the License.
 
 
-class RallyError(Exception):
+class BenchmarkError(Exception):
     """
-    Base class for all Rally exceptions
+    Base class for all Benchmark exceptions
     """
 
     def __init__(self, message, cause=None):
@@ -40,62 +40,62 @@ class RallyError(Exception):
         return self.message
 
 
-class LaunchError(RallyError):
+class LaunchError(BenchmarkError):
     """
     Thrown whenever there was a problem launching the benchmark candidate
     """
 
 
-class SystemSetupError(RallyError):
+class SystemSetupError(BenchmarkError):
     """
     Thrown when a user did something wrong, e.g. the metrics store is not started or required software is not installed
     """
 
 
-class RallyAssertionError(RallyError):
+class BenchmarkAssertionError(BenchmarkError):
     """
     Thrown when a (precondition) check has been violated.
     """
 
 
-class RallyTaskAssertionError(RallyAssertionError):
+class BenchmarkTaskAssertionError(BenchmarkAssertionError):
     """
     Thrown when an assertion on a task has been violated.
     """
 
 
-class ConfigError(RallyError):
+class ConfigError(BenchmarkError):
     pass
 
 
-class DataError(RallyError):
+class DataError(BenchmarkError):
     """
     Thrown when something is wrong with the benchmark data
     """
 
 
-class SupplyError(RallyError):
+class SupplyError(BenchmarkError):
     pass
 
 
-class BuildError(RallyError):
+class BuildError(BenchmarkError):
     pass
 
 
-class InvalidSyntax(RallyError):
+class InvalidSyntax(BenchmarkError):
     pass
 
 
-class InvalidName(RallyError):
+class InvalidName(BenchmarkError):
     pass
 
 
-class WorkloadConfigError(RallyError):
+class WorkloadConfigError(BenchmarkError):
     """
     Thrown when something is wrong with the workload config e.g. user supplied a workload-param
     that can't be set
     """
 
 
-class NotFound(RallyError):
+class NotFound(BenchmarkError):
     pass

@@ -361,7 +361,7 @@ class PluginInstaller:
         elif return_code == 74:
             raise exceptions.SupplyError("I/O error while trying to install [%s]" % self.plugin_name)
         else:
-            raise exceptions.RallyError("Unknown error while trying to install [%s] (installer return code [%s]). Please check the logs." %
+            raise exceptions.BenchmarkError("Unknown error while trying to install [%s] (installer return code [%s]). Please check the logs." %
                                         (self.plugin_name, str(return_code)))
 
     def invoke_install_hook(self, phase, variables):

@@ -318,7 +318,7 @@ class PluginInstallerTests(TestCase):
                                                 java_home="/usr/local/javas/java8",
                                                 hook_handler_class=NoopHookHandler)
 
-        with self.assertRaises(exceptions.RallyError) as ctx:
+        with self.assertRaises(exceptions.BenchmarkError) as ctx:
             installer.install(es_home_path="/opt/elasticsearch")
         self.assertEqual("Unknown error while trying to install [simple] (installer return code [12987]). Please check the logs.",
                          ctx.exception.args[0])

@@ -488,7 +488,7 @@ class BootstrapHookHandler:
         try:
             # every module needs to have a register() method
             root_module.register(self)
-        except exceptions.RallyError:
+        except exceptions.BenchmarkError:
             # just pass our own exceptions transparently.
             raise
         except BaseException:

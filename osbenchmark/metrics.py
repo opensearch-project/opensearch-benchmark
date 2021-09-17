@@ -61,7 +61,7 @@ class EsClient:
         except BaseException:
             msg = "Could not determine version of metrics cluster"
             self.logger.exception(msg)
-            raise exceptions.RallyError(msg)
+            raise exceptions.BenchmarkError(msg)
 
     def put_template(self, name, template):
         # TODO #653: Remove version-specific support for metrics stores before 7.0.0 (also adjust template)
@@ -150,7 +150,7 @@ class EsClient:
                     node = self._client.transport.hosts[0]
                     msg = "A connection timeout occurred while running the operation [%s] against your Elasticsearch metrics store on " \
                           "host [%s] at port [%s]." % (operation, node["host"], node["port"])
-                    raise exceptions.RallyError(msg)
+                    raise exceptions.BenchmarkError(msg)
             except elasticsearch.exceptions.ConnectionError:
                 node = self._client.transport.hosts[0]
                 msg = "Could not connect to your Elasticsearch metrics store. Please check that it is running on host [%s] at port [%s]" \
@@ -167,7 +167,7 @@ class EsClient:
                     msg = "A transport error occurred while running the operation [%s] against your Elasticsearch metrics store on " \
                           "host [%s] at port [%s]." % (target.__name__, node["host"], node["port"])
                     self.logger.exception(msg)
-                    raise exceptions.RallyError(msg)
+                    raise exceptions.BenchmarkError(msg)
 
             except elasticsearch.exceptions.ElasticsearchException:
                 node = self._client.transport.hosts[0]
@@ -175,7 +175,7 @@ class EsClient:
                       "at port [%s]." % (target.__name__, node["host"], node["port"])
                 self.logger.exception(msg)
                 # this does not necessarily mean it's a system setup problem...
-                raise exceptions.RallyError(msg)
+                raise exceptions.BenchmarkError(msg)
 
 
 class EsClientFactory:
@@ -1535,7 +1535,7 @@ class EsTestExecutionStore(TestExecutionStore):
         if hits == 1:
             return TestExecution.from_dict(result["hits"]["hits"][0]["_source"])
         elif hits > 1:
-            raise exceptions.RallyAssertionError(
+            raise exceptions.BenchmarkAssertionError(
                 "Expected one test execution to match test ex id [{}] but there were [{}] matches.".format(test_execution_id, hits))
         else:
             raise exceptions.NotFound("No test_execution with test_execution id [{}]".format(test_execution_id))

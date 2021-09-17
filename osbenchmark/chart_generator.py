@@ -803,7 +803,7 @@ class TimeSeriesCharts:
         elif es_license:
             title = [environment, es_license, str(workload_name)]
         elif flavor and es_license:
-            raise exceptions.RallyAssertionError(
+            raise exceptions.BenchmarkAssertionError(
                 f"Specify either flavor [{flavor}] or license [{es_license}] but not both")
         else:
             title = [environment, str(workload_name)]

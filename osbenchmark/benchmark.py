@@ -656,7 +656,7 @@ def execute_test(cfg, kill_running_processes=False):
                   f"benchmark is allowed to run at the same time.\n\nYou can use --kill-running-processes flag " \
                   f"to kill running processes automatically and allow Rally to continue to run a new benchmark. " \
                   f"Otherwise, you need to manually kill them."
-            raise exceptions.RallyError(msg)
+            raise exceptions.BenchmarkError(msg)
 
     with_actor_system(test_execution_orchestrator.run, cfg)
 
@@ -909,7 +909,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
         else:
             raise exceptions.SystemSetupError(f"Unknown subcommand [{sub_command}]")
         return True
-    except exceptions.RallyError as e:
+    except exceptions.BenchmarkError as e:
         logging.getLogger(__name__).exception("Cannot run subcommand [%s].", sub_command)
         msg = str(e.message)
         nesting = 0

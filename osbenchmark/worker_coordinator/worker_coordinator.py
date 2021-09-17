@@ -387,11 +387,11 @@ class TaskExecutionActor(actor.RallyActor):
         if sender != self.parent:
             msg = f"TaskExecutionActor expected message from [{self.parent}] but the received the following from " \
                   f"[{sender}]: {vars(msg)}"
-            raise exceptions.RallyError(msg)
+            raise exceptions.BenchmarkError(msg)
         task = msg.task
         if self.executor_future is not None:
             msg = f"TaskExecutionActor received DoTask message [{vars(msg)}], but was already busy"
-            raise exceptions.RallyError(msg)
+            raise exceptions.BenchmarkError(msg)
         if task is None:
             self.send(self.parent, WorkerIdle())
         else:
@@ -1626,7 +1626,7 @@ class AsyncExecutor:
                     break
         except BaseException as e:
             self.logger.exception("Could not execute schedule")
-            raise exceptions.RallyError(f"Cannot run task [{self.task}]: {e}") from None
+            raise exceptions.BenchmarkError(f"Cannot run task [{self.task}]: {e}") from None
         finally:
             # Actively set it if this task completes its parent
             if task_completes_parent:
@@ -1697,7 +1697,7 @@ async def execute_single(runner, es, params, on_error):
             description = request_meta_data.get("error-description")
             if description:
                 msg += ", Description: %s" % description
-            raise exceptions.RallyAssertionError(msg)
+            raise exceptions.BenchmarkAssertionError(msg)
     return total_ops, total_ops_unit, request_meta_data
 
 
@@ -2039,7 +2039,7 @@ class IterationBased:
         if warmup_iterations is not None and iterations is not None:
             self._total_iterations = self._warmup_iterations + self._iterations
             if self._total_iterations == 0:
-                raise exceptions.RallyAssertionError("Operation must run at least for one iteration.")
+                raise exceptions.BenchmarkAssertionError("Operation must run at least for one iteration.")
         else:
             self._total_iterations = None
         self._it = None

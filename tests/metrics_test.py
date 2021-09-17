@@ -228,7 +228,7 @@ class EsClientTests(TestCase):
 
         client = metrics.EsClient(EsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
 
-        with self.assertRaises(exceptions.RallyError) as ctx:
+        with self.assertRaises(exceptions.BenchmarkError) as ctx:
             client.guarded(raise_unknown_error)
         self.assertEqual("An unknown error occurred while running the operation [raise_unknown_error] against your Elasticsearch metrics "
                          "store on host [127.0.0.1] at port [9243].", ctx.exception.args[0])
@@ -287,7 +287,7 @@ class EsClientTests(TestCase):
         client = metrics.EsClient(EsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
         rnd_code = random.choice(list(TransportErrors.err_return_codes))
 
-        with self.assertRaises(exceptions.RallyError) as ctx:
+        with self.assertRaises(exceptions.BenchmarkError) as ctx:
             client.guarded(random_transport_error, rnd_code)
 
         self.assertEqual("A transport error occurred while running the operation "

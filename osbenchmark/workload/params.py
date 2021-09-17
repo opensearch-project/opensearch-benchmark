@@ -61,7 +61,7 @@ def param_source_for_name(name, workload, params):
 
 def ensure_valid_param_source(param_source):
     if not inspect.isfunction(param_source) and not inspect.isclass(param_source):
-        raise exceptions.RallyAssertionError(f"Parameter source [{param_source}] must be either a function or a class.")
+        raise exceptions.BenchmarkAssertionError(f"Parameter source [{param_source}] must be either a function or a class.")
 
 
 def register_param_source_for_operation(op_type, param_source_class):
@@ -646,7 +646,7 @@ class BulkIndexParamSource(ParamSource):
 
         # the workload has corpora but none of them match
         if t.corpora and not corpora:
-            raise exceptions.RallyAssertionError("The provided corpus %s does not match any of the corpora %s." %
+            raise exceptions.BenchmarkAssertionError("The provided corpus %s does not match any of the corpora %s." %
                                                  (corpora_names, workload_corpora_names))
 
         return corpora
@@ -657,7 +657,7 @@ class BulkIndexParamSource(ParamSource):
         return self.param_source
 
     def params(self):
-        raise exceptions.RallyError("Do not use a BulkIndexParamSource without partitioning")
+        raise exceptions.BenchmarkError("Do not use a BulkIndexParamSource without partitioning")
 
 
 class PartitionBulkIndexParamSource:
@@ -700,7 +700,7 @@ class PartitionBulkIndexParamSource:
         if self.total_partitions is None:
             self.total_partitions = total_partitions
         elif self.total_partitions != total_partitions:
-            raise exceptions.RallyAssertionError(
+            raise exceptions.BenchmarkAssertionError(
                 f"Total partitions is expected to be [{self.total_partitions}] but was [{total_partitions}]")
         self.partitions.append(partition_index)
 
@@ -856,7 +856,7 @@ def create_default_reader(docs, offset, num_lines, num_docs, batch_size, bulk_si
         use_create = True
         if id_conflicts != IndexIdConflict.NoConflicts:
             # can only create docs in data streams
-            raise exceptions.RallyError("Conflicts cannot be generated with append only data streams")
+            raise exceptions.BenchmarkError("Conflicts cannot be generated with append only data streams")
 
     if docs.includes_action_and_meta_data:
         return SourceOnlyIndexDataReader(docs.document_file, batch_size, bulk_size, source, target, docs.target_type)
@@ -988,7 +988,7 @@ class GenerateActionMetaData:
             self.meta_data_index_no_id = '{"index": {"_index": "%s"}}\n' % index_name
             self.meta_data_create_no_id = '{"create": {"_index": "%s"}}\n' % index_name
         if use_create and conflicting_ids:
-            raise exceptions.RallyError("Index mode '_create' cannot be used with conflicting ids")
+            raise exceptions.BenchmarkError("Index mode '_create' cannot be used with conflicting ids")
         self.conflicting_ids = conflicting_ids
         self.on_conflict = on_conflict
         self.use_create = use_create
@@ -1042,7 +1042,7 @@ class GenerateActionMetaData:
             elif action == "update":
                 return "update", self.meta_data_update_with_id % doc_id
             else:
-                raise exceptions.RallyAssertionError("Unknown action [{}]".format(action))
+                raise exceptions.BenchmarkAssertionError("Unknown action [{}]".format(action))
         else:
             if self.use_create:
                 return "create", self.meta_data_create_no_id

@@ -200,7 +200,7 @@ class AssertingRunnerTests(TestCase):
         delegate = mock.MagicMock()
         delegate.return_value = as_future(response)
         r = runner.AssertingRunner(delegate)
-        with self.assertRaisesRegex(exceptions.RallyTaskAssertionError,
+        with self.assertRaisesRegex(exceptions.BenchmarkTaskAssertionError,
                                     r"Expected \[hits.hits.relation\] in \[test-task\] to be == \[eq\] but was \[gte\]."):
             async with r:
                 await r(es, {
@@ -3035,7 +3035,7 @@ class RawRequestRunnerTests(TestCase):
         }
 
         with mock.patch.object(r.logger, "error") as mocked_error_logger:
-            with self.assertRaises(exceptions.RallyAssertionError) as ctx:
+            with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
                 await r(es, params)
                 self.assertEqual("RawRequest [_cat/count] failed. Path parameter must begin with a '/'.", ctx.exception.args[0])
             mocked_error_logger.assert_has_calls([
@@ -3509,7 +3509,7 @@ class WaitForSnapshotCreateTests(TestCase):
         r = runner.WaitForSnapshotCreate()
 
         with mock.patch.object(r.logger, "error") as mocked_error_logger:
-            with self.assertRaises(exceptions.RallyAssertionError) as ctx:
+            with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
                 await r(es, params)
                 self.assertEqual("Snapshot [snapshot-001] failed. Please check logs.", ctx.exception.args[0])
             mocked_error_logger.assert_has_calls([
@@ -4434,7 +4434,7 @@ class OpenPointInTimeTests(TestCase):
         es.open_point_in_time.return_value = as_future({"id": pit_id})
 
         r = runner.OpenPointInTime()
-        with self.assertRaises(exceptions.RallyAssertionError) as ctx:
+        with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
             await r(es, params)
 
         self.assertEqual("This operation is only allowed inside a composite operation.", ctx.exception.args[0])
@@ -4702,7 +4702,7 @@ class SearchAfterExtractorTests(TestCase):
         del response_copy["pit_id"]
         response_copy_bytesio = io.BytesIO(json.dumps(response_copy).encode())
         target = runner.SearchAfterExtractor()
-        with self.assertRaises(exceptions.RallyAssertionError) as ctx:
+        with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
             target(response=response_copy_bytesio, get_point_in_time=True, hits_total=None)
         self.assertEqual("Paginated query failure: pit_id was expected but not found in the response.",
                          ctx.exception.args[0])
@@ -4724,7 +4724,7 @@ class SearchAfterExtractorTests(TestCase):
 
 class CompositeContextTests(TestCase):
     def test_cannot_be_used_outside_of_composite(self):
-        with self.assertRaises(exceptions.RallyAssertionError) as ctx:
+        with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
             runner.CompositeContext.put("test", 1)
 
         self.assertEqual("This operation is only allowed inside a composite operation.", ctx.exception.args[0])
@@ -4924,7 +4924,7 @@ class CompositeTests(TestCase):
         }
 
         r = runner.Composite()
-        with self.assertRaisesRegex(exceptions.RallyTaskAssertionError,
+        with self.assertRaisesRegex(exceptions.BenchmarkTaskAssertionError,
                                     r"Expected \[hits\] to be > \[0\] but was \[0\]."):
             await r(es, params)
 
@@ -5132,7 +5132,7 @@ class CompositeTests(TestCase):
         }
 
         r = runner.Composite()
-        with self.assertRaises(exceptions.RallyAssertionError) as ctx:
+        with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
             await r(es, params)
 
         self.assertEqual("Requests structure must contain [stream] or [operation-type].", ctx.exception.args[0])
@@ -5153,7 +5153,7 @@ class CompositeTests(TestCase):
         }
 
         r = runner.Composite()
-        with self.assertRaises(exceptions.RallyAssertionError) as ctx:
+        with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
             await r(es, params)
 
         self.assertEqual("Unsupported operation-type [bulk]. Use one of [open-point-in-time, close-point-in-time, "

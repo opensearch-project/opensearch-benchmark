@@ -99,7 +99,7 @@ def runner_for(operation_type):
     try:
         return __RUNNERS[operation_type]
     except KeyError:
-        raise exceptions.RallyError("No runner available for operation type [%s]" % operation_type)
+        raise exceptions.BenchmarkError("No runner available for operation type [%s]" % operation_type)
 
 
 def enable_assertions(enabled):
@@ -118,7 +118,7 @@ def register_runner(operation_type, runner, **kwargs):
         operation_type = operation_type.to_hyphenated_string()
 
     if not async_runner:
-        raise exceptions.RallyAssertionError(
+        raise exceptions.BenchmarkAssertionError(
             "Runner [{}] must be implemented as async runner and registered with async_runner=True.".format(str(runner)))
 
     if getattr(runner, "multi_cluster", False):
@@ -374,7 +374,7 @@ class AssertingRunner(Runner, Delegator):
             else:
                 msg = f"Expected [{path}] to be {predicate_name} [{expected_value}] but was [{actual_value}]."
 
-            raise exceptions.RallyTaskAssertionError(msg)
+            raise exceptions.BenchmarkTaskAssertionError(msg)
 
     async def __call__(self, *args):
         params = args[1]
@@ -1012,7 +1012,7 @@ class SearchAfterExtractor:
         parsed = parse(response, properties)
 
         if get_point_in_time and not parsed.get("pit_id"):
-            raise exceptions.RallyAssertionError("Paginated query failure: "
+            raise exceptions.BenchmarkAssertionError("Paginated query failure: "
                                                  "pit_id was expected but not found in the response.")
         # standardize these before returning...
         parsed["hits.total.value"] = parsed.pop("hits.total.value", parsed.pop("hits.total", hits_total))
@@ -1434,7 +1434,7 @@ class ShrinkIndex(Runner):
             }
         })
         if not result["success"]:
-            raise exceptions.RallyAssertionError("Failed to wait for [{}].".format(description))
+            raise exceptions.BenchmarkAssertionError("Failed to wait for [{}].".format(description))
 
     async def __call__(self, es, params):
         source_index = mandatory(params, "source-index", self)
@@ -1458,7 +1458,7 @@ class ShrinkIndex(Runner):
                 if "data" in node["roles"]:
                     node_names.append(node["name"])
             if not node_names:
-                raise exceptions.RallyAssertionError("Could not choose a suitable shrink-node automatically. Specify it explicitly.")
+                raise exceptions.BenchmarkAssertionError("Could not choose a suitable shrink-node automatically. Specify it explicitly.")
 
         for source_index in source_indices:
             shrink_node = random.choice(node_names)
@@ -1509,7 +1509,7 @@ class RawRequest(Runner):
         path = mandatory(params, "path", self)
         if not path.startswith("/"):
             self.logger.error("RawRequest failed. Path parameter: [%s] must begin with a '/'.", path)
-            raise exceptions.RallyAssertionError(f"RawRequest [{path}] failed. Path parameter must begin with a '/'.")
+            raise exceptions.BenchmarkAssertionError(f"RawRequest [{path}] failed. Path parameter must begin with a '/'.")
         if not bool(headers):
             #counter-intuitive, but preserves prior behavior
             headers = None
@@ -1605,7 +1605,7 @@ class WaitForSnapshotCreate(Runner):
                 # https://www.elastic.co/guide/en/elasticsearch/reference/current/get-snapshot-status-api.html#get-snapshot-status-api-response-body
                 if response_state == "FAILED":
                     self.logger.error("Snapshot [%s] failed. Response:\n%s", snapshot, json.dumps(response, indent=2))
-                    raise exceptions.RallyAssertionError(f"Snapshot [{snapshot}] failed. Please check logs.")
+                    raise exceptions.BenchmarkAssertionError(f"Snapshot [{snapshot}] failed. Please check logs.")
                 snapshot_done = response_state == "SUCCESS"
                 stats = response["snapshots"][0]["stats"]
 
@@ -1810,13 +1810,13 @@ class WaitForTransform(Runner):
             transform_stats = stats_response["transforms"][0].get("stats", {})
 
             if (time.monotonic() - self._start_time) > transform_timeout:
-                raise exceptions.RallyAssertionError(
+                raise exceptions.BenchmarkAssertionError(
                     f"Transform [{transform_id}] timed out after [{transform_timeout}] seconds. "
                     "Please consider increasing the timeout in the workload.")
 
             if state == "failed":
                 failure_reason = stats_response["transforms"][0].get("reason", "unknown")
-                raise exceptions.RallyAssertionError(
+                raise exceptions.BenchmarkAssertionError(
                     f"Transform [{transform_id}] failed with [{failure_reason}].")
             elif state == "stopped" or wait_for_completion is False:
                 self._completed = True
@@ -2012,7 +2012,7 @@ class CompositeContext:
         try:
             return CompositeContext.ctx.get()
         except LookupError:
-            raise exceptions.RallyAssertionError("This operation is only allowed inside a composite operation.") from None
+            raise exceptions.BenchmarkAssertionError("This operation is only allowed inside a composite operation.") from None
 
 
 class Composite(Runner):
@@ -2048,7 +2048,7 @@ class Composite(Runner):
                         streams = []
                     op_type = item["operation-type"]
                     if op_type not in self.supported_op_types:
-                        raise exceptions.RallyAssertionError(
+                        raise exceptions.BenchmarkAssertionError(
                             f"Unsupported operation-type [{op_type}]. Use one of [{', '.join(self.supported_op_types)}].")
                     runner = RequestTiming(runner_for(op_type))
                     async with connection_limit:
@@ -2059,7 +2059,7 @@ class Composite(Runner):
                                 timings.append(timing)
 
                 else:
-                    raise exceptions.RallyAssertionError("Requests structure must contain [stream] or [operation-type].")
+                    raise exceptions.BenchmarkAssertionError("Requests structure must contain [stream] or [operation-type].")
         except BaseException:
             # stop all already created tasks in case of exceptions
             for s in streams:

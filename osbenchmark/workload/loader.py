@@ -569,7 +569,7 @@ class DocumentSetPreparator:
                     expected_size = document_set.uncompressed_size_in_bytes
                 else:
                     # this should not happen in practice as the JSON schema should take care of this
-                    raise exceptions.RallyAssertionError(f"Workload {self.workload_name} specifies documents but no corpus")
+                    raise exceptions.BenchmarkAssertionError(f"Workload {self.workload_name} specifies documents but no corpus")
 
                 try:
                     self.downloader.download(document_set.base_url, target_path, expected_size)
@@ -874,7 +874,7 @@ class TestModeWorkloadProcessor(WorkloadProcessor):
                         path, ext = io.splitext(document_set.document_file)
                         document_set.document_file = f"{path}-1k{ext}"
                     else:
-                        raise exceptions.RallyAssertionError(f"Document corpus [{corpus.name}] has neither compressed "
+                        raise exceptions.BenchmarkAssertionError(f"Document corpus [{corpus.name}] has neither compressed "
                                                              f"nor uncompressed corpus.")
 
                     # we don't want to check sizes
@@ -1009,11 +1009,11 @@ class WorkloadFileReader:
             raise exceptions.InvalidSyntax("version identifier for workload %s must be numeric but was [%s]" % (
                 workload_name, str(raw_version)))
         if WorkloadFileReader.MINIMUM_SUPPORTED_TRACK_VERSION > workload_version:
-            raise exceptions.RallyError("Workload {} is on version {} but needs to be updated at least to version {} to work with the "
+            raise exceptions.BenchmarkError("Workload {} is on version {} but needs to be updated at least to version {} to work with the "
                                         "current version of Rally.".format(workload_name, workload_version,
                                                                            WorkloadFileReader.MINIMUM_SUPPORTED_TRACK_VERSION))
         if WorkloadFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION < workload_version:
-            raise exceptions.RallyError("Workload {} requires a newer version of Rally. "
+            raise exceptions.BenchmarkError("Workload {} requires a newer version of Rally. "
                         "Please upgrade Rally (supported workload version: {}, "
                                         "required workload version: {}).".format(
                                             workload_name,

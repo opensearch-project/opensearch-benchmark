@@ -156,7 +156,7 @@ class ActionMetaDataTests(TestCase):
                          next(params.GenerateActionMetaData("test_index", None, use_create=True)))
 
     def test_generate_action_meta_data_create_with_conflicts(self):
-        with self.assertRaises(exceptions.RallyError) as ctx:
+        with self.assertRaises(exceptions.BenchmarkError) as ctx:
             params.GenerateActionMetaData("test_index", None, conflicting_ids=[100, 200, 300, 400], use_create=True)
         self.assertEqual("Index mode '_create' cannot be used with conflicting ids",
                          ctx.exception.args[0])
@@ -1009,7 +1009,7 @@ class BulkIndexParamSourceTests(TestCase):
                             target_type="test-type"
                             )])
 
-        with self.assertRaises(exceptions.RallyAssertionError) as ctx:
+        with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
             params.BulkIndexParamSource(
                 workload=workload.Workload(name="unit-test", corpora=[corpus]),
                 params={
@@ -1388,7 +1388,7 @@ class ParamsRegistrationTests(TestCase):
     def test_cannot_register_an_instance_as_param_source(self):
         source_name = "params-test-class-param-source"
         # we create an instance, instead of passing the class
-        with self.assertRaisesRegex(exceptions.RallyAssertionError,
+        with self.assertRaisesRegex(exceptions.BenchmarkAssertionError,
                                     "Parameter source \\[test param source\\] must be either a function or a class\\."):
             params.register_param_source_for_name(source_name, ParamsRegistrationTests.ParamSourceClass())
 
