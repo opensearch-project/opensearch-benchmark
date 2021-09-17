@@ -85,7 +85,7 @@ class ConfigFile:
 
     @property
     def config_dir(self):
-        return paths.rally_confdir()
+        return paths.benchmark_confdir()
 
     @property
     def location(self):

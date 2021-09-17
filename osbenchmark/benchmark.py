@@ -955,7 +955,7 @@ def main():
     cfg.load_config(auto_upgrade=True)
     cfg.add(config.Scope.application, "system", "time.start", datetime.datetime.utcnow())
     # Local config per node
-    cfg.add(config.Scope.application, "node", "rally.root", paths.rally_root())
+    cfg.add(config.Scope.application, "node", "rally.root", paths.benchmark_root())
     cfg.add(config.Scope.application, "node", "rally.cwd", os.getcwd())
 
     logger.info("OS [%s]", str(platform.uname()))

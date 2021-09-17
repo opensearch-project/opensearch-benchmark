@@ -194,7 +194,7 @@ class EsClientTests(TestCase):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             client.guarded(raise_connection_error)
         self.assertEqual("Could not connect to your Elasticsearch metrics store. Please check that it is running on host [127.0.0.1] at "
-                         "port [9200] or fix the configuration in [%s/benchmark.ini]." % paths.rally_confdir(),
+                         "port [9200] or fix the configuration in [%s/benchmark.ini]." % paths.benchmark_confdir(),
                          ctx.exception.args[0])
 
     def test_raises_sytem_setup_error_on_authentication_problems(self):
@@ -207,7 +207,7 @@ class EsClientTests(TestCase):
             client.guarded(raise_authentication_error)
         self.assertEqual("The configured user could not authenticate against your Elasticsearch metrics store running on host [127.0.0.1] "
                          "at port [9243] (wrong password?). Please fix the configuration in [%s/benchmark.ini]."
-                         % paths.rally_confdir(), ctx.exception.args[0])
+                         % paths.benchmark_confdir(), ctx.exception.args[0])
 
     def test_raises_sytem_setup_error_on_authorization_problems(self):
         def raise_authorization_error():
@@ -220,9 +220,9 @@ class EsClientTests(TestCase):
         self.assertEqual("The configured user does not have enough privileges to run the operation [raise_authorization_error] against "
                          "your Elasticsearch metrics store running on host [127.0.0.1] at port [9243]. Please "
                          "specify a user with enough privileges in the configuration in [%s/benchmark.ini]."
-                         % paths.rally_confdir(), ctx.exception.args[0])
+                         % paths.benchmark_confdir(), ctx.exception.args[0])
 
-    def test_raises_rally_error_on_unknown_problems(self):
+    def test_raises_benchmark_error_on_unknown_problems(self):
         def raise_unknown_error():
             raise elasticsearch.exceptions.SerializationError("unit-test")
 
@@ -1060,7 +1060,7 @@ class EsTestExecutionStoreTests(TestCase):
                         indices=[workload.Index(name="tests", types=["_doc"])],
                         test_procedures=[workload.TestProcedure(name="index", default=True, schedule=schedule)])
 
-        test_execution = metrics.TestExecution(rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
+        test_execution = metrics.TestExecution(benchmark_version="0.4.4", benchmark_revision="123abc", environment_name="unittest",
                             test_execution_id=EsTestExecutionStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=EsTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params={"shard-count": 3},
@@ -1166,7 +1166,7 @@ class EsResultsStoreTests(TestCase):
                             name="index", default=True, meta_data={"saturation": "70% saturated"}, schedule=schedule)],
                         meta_data={"workload-type": "saturation-degree", "saturation": "oversaturation"})
 
-        test_execution = metrics.TestExecution(rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
+        test_execution = metrics.TestExecution(benchmark_version="0.4.4", benchmark_revision="123abc", environment_name="unittest",
                             test_execution_id=EsResultsStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=EsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params=None,
@@ -1316,7 +1316,7 @@ class EsResultsStoreTests(TestCase):
                             name="index", default=True, meta_data={"saturation": "70% saturated"}, schedule=schedule)],
                         meta_data={"workload-type": "saturation-degree", "saturation": "oversaturation"})
 
-        test_execution = metrics.TestExecution(rally_version="0.4.4", rally_revision=None, environment_name="unittest",
+        test_execution = metrics.TestExecution(benchmark_version="0.4.4", benchmark_revision=None, environment_name="unittest",
                             test_execution_id=EsResultsStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=EsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params=None,
@@ -1685,7 +1685,7 @@ class FileTestExecutionStoreTests(TestCase):
                         test_procedures=[workload.TestProcedure(name="index", default=True, schedule=schedule)])
 
         test_execution = metrics.TestExecution(
-            rally_version="0.4.4", rally_revision="123abc", environment_name="unittest",
+            benchmark_version="0.4.4", benchmark_revision="123abc", environment_name="unittest",
                             test_execution_id=FileTestExecutionStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=FileTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params={"clients": 12},

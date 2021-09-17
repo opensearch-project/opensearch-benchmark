@@ -409,7 +409,7 @@ class MetricsStore:
             # prefix user tag with "tag_" in order to avoid clashes with our internal meta data
             self.add_meta_info(MetaInfoScope.cluster, None, "tag_%s" % k, v)
         # Don't store it for each metrics record as it's probably sufficient on test execution level
-        # self.add_meta_info(MetaInfoScope.cluster, None, "rally_version", version.version())
+        # self.add_meta_info(MetaInfoScope.cluster, None, "benchmark_version", version.version())
         self._stop_watch.start()
         self.opened = True
 
@@ -1213,10 +1213,10 @@ def create_test_execution(cfg, workload, test_procedure, workload_revision=None)
     workload_params = cfg.opts("workload", "params")
     provision_config_instance_params = cfg.opts("builder", "provision_config_instance.params")
     plugin_params = cfg.opts("builder", "plugin.params")
-    rally_version = version.version()
-    rally_revision = version.revision()
+    benchmark_version = version.version()
+    benchmark_revision = version.revision()
 
-    return TestExecution(rally_version, rally_revision,
+    return TestExecution(benchmark_version, benchmark_revision,
     environment, test_execution_id, test_execution_timestamp,
     pipeline, user_tags, workload,
     workload_params, test_procedure, provision_config_instance, provision_config_instance_params,
@@ -1224,7 +1224,7 @@ def create_test_execution(cfg, workload, test_procedure, workload_revision=None)
 
 
 class TestExecution:
-    def __init__(self, rally_version, rally_revision, environment_name, test_execution_id, test_execution_timestamp, pipeline, user_tags,
+    def __init__(self, benchmark_version, benchmark_revision, environment_name, test_execution_id, test_execution_timestamp, pipeline, user_tags,
                  workload, workload_params, test_procedure, provision_config_instance,
                  provision_config_instance_params, plugin_params,
                  workload_revision=None, provision_config_revision=None,
@@ -1239,8 +1239,8 @@ class TestExecution:
                 meta_data.update(workload.meta_data)
             if test_procedure:
                 meta_data.update(test_procedure.meta_data)
-        self.rally_version = rally_version
-        self.rally_revision = rally_revision
+        self.benchmark_version = benchmark_version
+        self.benchmark_revision = benchmark_revision
         self.environment_name = environment_name
         self.test_execution_id = test_execution_id
         self.test_execution_timestamp = test_execution_timestamp
@@ -1282,8 +1282,8 @@ class TestExecution:
         :return: A dict representation suitable for persisting this test execution instance as JSON.
         """
         d = {
-            "benchmark-version": self.rally_version,
-            "benchmark-revision": self.rally_revision,
+            "benchmark-version": self.benchmark_version,
+            "benchmark-revision": self.benchmark_revision,
             "environment": self.environment_name,
             "test-execution-id": self.test_execution_id,
             "test-execution-timestamp": time.to_iso8601(self.test_execution_timestamp),
@@ -1317,8 +1317,8 @@ class TestExecution:
         :return: a list of dicts, suitable for persisting the results of this test execution in a format that is Kibana-friendly.
         """
         result_template = {
-            "benchmark-version": self.rally_version,
-            "benchmark-revision": self.rally_revision,
+            "benchmark-version": self.benchmark_version,
+            "benchmark-revision": self.benchmark_revision,
             "environment": self.environment_name,
             "test-execution-id": self.test_execution_id,
             "test-execution-timestamp": time.to_iso8601(self.test_execution_timestamp),

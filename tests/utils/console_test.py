@@ -34,33 +34,33 @@ from osbenchmark.utils import console
 
 class ConsoleFunctionTests(TestCase):
     oldconsole_quiet = None
-    oldconsole_rally_running_in_docker = None
-    oldconsole_rally_assume_tty = None
+    oldconsole_benchmark_running_in_docker = None
+    oldconsole_benchmark_assume_tty = None
 
     @classmethod
     def setUpClass(cls):
         cls.oldconsole_quiet = console.QUIET
-        cls.oldconsole_rally_running_in_docker = console.RALLY_RUNNING_IN_DOCKER
-        cls.oldconsole_rally_assume_tty = console.ASSUME_TTY
+        cls.oldconsole_benchmark_running_in_docker = console.RALLY_RUNNING_IN_DOCKER
+        cls.oldconsole_benchmark_assume_tty = console.ASSUME_TTY
 
     @classmethod
     def tearDownClass(cls):
         console.QUIET = cls.oldconsole_quiet
-        console.RALLY_RUNNING_IN_DOCKER = cls.oldconsole_rally_running_in_docker
-        console.ASSUME_TTY = cls.oldconsole_rally_assume_tty
+        console.RALLY_RUNNING_IN_DOCKER = cls.oldconsole_benchmark_running_in_docker
+        console.ASSUME_TTY = cls.oldconsole_benchmark_assume_tty
 
     @mock.patch.dict(os.environ, {"RALLY_RUNNING_IN_DOCKER": random.choice(["false", "False", "FALSE", ""])})
-    def test_global_rally_running_in_docker_is_false(self):
+    def test_global_benchmark_running_in_docker_is_false(self):
         console.init()
         self.assertEqual(False, console.RALLY_RUNNING_IN_DOCKER)
 
     @mock.patch.dict(os.environ, {"RALLY_RUNNING_IN_DOCKER": ""})
-    def test_global_rally_running_in_docker_is_false_if_unset(self):
+    def test_global_benchmark_running_in_docker_is_false_if_unset(self):
         console.init()
         self.assertEqual(False, console.RALLY_RUNNING_IN_DOCKER)
 
     @mock.patch.dict(os.environ, {"RALLY_RUNNING_IN_DOCKER": random.choice(["True", "true", "TRUE"])})
-    def test_global_rally_running_in_docker_is_true(self):
+    def test_global_benchmark_running_in_docker_is_true(self):
         console.init()
         self.assertEqual(True, console.RALLY_RUNNING_IN_DOCKER)
 
@@ -113,20 +113,20 @@ class ConsoleFunctionTests(TestCase):
 # pytest style class names need to start with Test and don't need to subclass
 class TestCmdLineProgressResultsPublisher:
     oldconsole_quiet = None
-    oldconsole_rally_running_in_docker = None
-    oldconsole_rally_assume_tty = None
+    oldconsole_benchmark_running_in_docker = None
+    oldconsole_benchmark_assume_tty = None
 
     @classmethod
     def setup_class(cls):
         cls.oldconsole_quiet = console.QUIET
-        cls.oldconsole_rally_running_in_docker = console.RALLY_RUNNING_IN_DOCKER
-        cls.oldconsole_rally_assume_tty = console.ASSUME_TTY
+        cls.oldconsole_benchmark_running_in_docker = console.RALLY_RUNNING_IN_DOCKER
+        cls.oldconsole_benchmark_assume_tty = console.ASSUME_TTY
 
     @classmethod
     def teardown_class(cls):
         console.QUIET = cls.oldconsole_quiet
-        console.RALLY_RUNNING_IN_DOCKER = cls.oldconsole_rally_running_in_docker
-        console.ASSUME_TTY = cls.oldconsole_rally_assume_tty
+        console.RALLY_RUNNING_IN_DOCKER = cls.oldconsole_benchmark_running_in_docker
+        console.ASSUME_TTY = cls.oldconsole_benchmark_assume_tty
 
     @mock.patch("sys.stdout.flush")
     @mock.patch("sys.stdout.isatty")

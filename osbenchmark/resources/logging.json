@@ -18,14 +18,14 @@
     }
   },
   "handlers": {
-    "rally_log_handler": {
+    "benchmark_log_handler": {
       "class": "logging.handlers.WatchedFileHandler",
       "filename": "${LOG_PATH}rally.log",
       "encoding": "UTF-8",
       "formatter": "normal",
       "filters": ["isActorLog"]
     },
-    "rally_profile_handler": {
+    "benchmark_profile_handler": {
       "class": "logging.FileHandler",
       "filename": "${LOG_PATH}profile.log",
       "delay": true,
@@ -34,17 +34,17 @@
     }
   },
   "root": {
-    "handlers": ["rally_log_handler"],
+    "handlers": ["benchmark_log_handler"],
     "level": "INFO"
   },
   "loggers": {
     "elasticsearch": {
-      "handlers": ["rally_log_handler"],
+      "handlers": ["benchmark_log_handler"],
       "level": "WARNING",
       "propagate": false
     },
     "rally.profile": {
-      "handlers": ["rally_profile_handler"],
+      "handlers": ["benchmark_profile_handler"],
       "level": "INFO",
       "propagate": false
     }

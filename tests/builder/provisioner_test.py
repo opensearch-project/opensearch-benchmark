@@ -381,7 +381,7 @@ class DockerProvisionerTests(TestCase):
         heap_dump_dir = os.path.join(node_root_dir, "heapdump")
         data_dir = os.path.join(node_root_dir, "data", "9dbc682e-d32a-4669-8fbe-56fb77120dd4")
 
-        rally_root = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "osbenchmark"))
+        benchmark_root = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "osbenchmark"))
 
         c = provision_config.ProvisionConfigInstance("unit-test-provision-config-instance", None, "/tmp", variables={
             "docker_image": "docker.elastic.co/elasticsearch/elasticsearch-oss"
@@ -393,7 +393,7 @@ class DockerProvisionerTests(TestCase):
                                                http_port=39200,
                                                node_root_dir=node_root_dir,
                                                distribution_version="6.3.0",
-                                               rally_root=rally_root)
+                                               benchmark_root=benchmark_root)
 
         self.assertDictEqual({
             "cluster_name": "benchmark-provisioned-cluster",
@@ -457,7 +457,7 @@ services:
         heap_dump_dir = os.path.join(node_root_dir, "heapdump")
         data_dir = os.path.join(node_root_dir, "data", "86f42ae0-5840-4b5b-918d-41e7907cb644")
 
-        rally_root = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "osbenchmark"))
+        benchmark_root = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "osbenchmark"))
 
         c = provision_config.ProvisionConfigInstance("unit-test-provision-config-instance", None, "/tmp", variables={
             "docker_image": "docker.elastic.co/elasticsearch/elasticsearch",
@@ -471,7 +471,7 @@ services:
                                                http_port=39200,
                                                node_root_dir=node_root_dir,
                                                distribution_version="6.3.0",
-                                               rally_root=rally_root)
+                                               benchmark_root=benchmark_root)
 
         docker_cfg = docker._render_template_from_file(docker.docker_vars(mounts={}))
 

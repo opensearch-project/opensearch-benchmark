@@ -24,12 +24,12 @@
 import os
 
 
-def rally_confdir():
+def benchmark_confdir():
     default_home = os.path.expanduser("~")
     return os.path.join(os.getenv("BENCHMARK_HOME", default_home), ".benchmark")
 
 
-def rally_root():
+def benchmark_root():
     return os.path.dirname(os.path.realpath(__file__))
 
 
@@ -55,4 +55,4 @@ def logs():
     """
     :return: The absolute path to the directory that contains Rally's log file.
     """
-    return os.path.join(rally_confdir(), "logs")
+    return os.path.join(benchmark_confdir(), "logs")

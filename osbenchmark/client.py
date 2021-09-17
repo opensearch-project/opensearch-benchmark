@@ -73,7 +73,7 @@ class RequestContextHolder:
     """
     Holds request context variables. This class is only meant to be used together with RequestContextManager.
     """
-    request_context = contextvars.ContextVar("rally_request_context")
+    request_context = contextvars.ContextVar("benchmark_request_context")
 
     def new_request_context(self):
         return RequestContextManager(self)

@@ -55,11 +55,11 @@ def local(cfg, provision_config_instance, plugins, ip, http_port, all_node_ips, 
 
 def docker(cfg, provision_config_instance, ip, http_port, target_root, node_name):
     distribution_version = cfg.opts("builder", "distribution.version", mandatory=False)
-    rally_root = cfg.opts("node", "rally.root")
+    benchmark_root = cfg.opts("node", "rally.root")
 
     node_root_dir = os.path.join(target_root, node_name)
 
-    return DockerProvisioner(provision_config_instance, node_name, ip, http_port, node_root_dir, distribution_version, rally_root)
+    return DockerProvisioner(provision_config_instance, node_name, ip, http_port, node_root_dir, distribution_version, benchmark_root)
 
 
 class NodeConfiguration:
@@ -392,7 +392,7 @@ class PluginInstaller:
 
 
 class DockerProvisioner:
-    def __init__(self, provision_config_instance, node_name, ip, http_port, node_root_dir, distribution_version, rally_root):
+    def __init__(self, provision_config_instance, node_name, ip, http_port, node_root_dir, distribution_version, benchmark_root):
         self.provision_config_instance = provision_config_instance
         self.node_name = node_name
         self.node_ip = ip
@@ -401,7 +401,7 @@ class DockerProvisioner:
         self.node_log_dir = os.path.join(node_root_dir, "logs", "server")
         self.heap_dump_dir = os.path.join(node_root_dir, "heapdump")
         self.distribution_version = distribution_version
-        self.rally_root = rally_root
+        self.benchmark_root = benchmark_root
         self.binary_path = os.path.join(node_root_dir, "install")
         # use a random subdirectory to isolate multiple runs because an external (non-root) user cannot clean it up.
         self.data_paths = [os.path.join(node_root_dir, "data", str(uuid.uuid4()))]
@@ -505,7 +505,7 @@ class DockerProvisioner:
             raise exceptions.SystemSetupError("%s in %s" % (str(e), template_name))
 
     def _render_template_from_file(self, variables):
-        compose_file = os.path.join(self.rally_root, "resources", "docker-compose.yml.j2")
+        compose_file = os.path.join(self.benchmark_root, "resources", "docker-compose.yml.j2")
         return self._render_template(loader=jinja2.FileSystemLoader(io.dirname(compose_file)),
                                      template_name=io.basename(compose_file),
                                      variables=variables)

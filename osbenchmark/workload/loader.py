@@ -1097,7 +1097,7 @@ class WorkloadPluginReader:
     @property
     def meta_data(self):
         return {
-            "rally_version": version.release_version(),
+            "benchmark_version": version.release_version(),
             "async_runner": True
         }
 

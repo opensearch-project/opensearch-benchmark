@@ -47,8 +47,8 @@ def log_config_path():
     """
     :return: The absolute path to Rally's log configuration file.
     """
-    # print("PATH: ", os.path.join(paths.rally_confdir(), "logging.json"))
-    return os.path.join(paths.rally_confdir(), "logging.json")
+    # print("PATH: ", os.path.join(paths.benchmark_confdir(), "logging.json"))
+    return os.path.join(paths.benchmark_confdir(), "logging.json")
 
 
 def install_default_log_config():
