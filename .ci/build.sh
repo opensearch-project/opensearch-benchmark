@@ -108,11 +108,11 @@ function archive {
   set -u
 
   # this will only be done if the build number variable is present
-  RALLY_DIR=${BENCHMARK_HOME}/.rally
-  if [[ -d ${RALLY_DIR} ]]; then
-    find ${RALLY_DIR} -name "*.log" -printf "%P\\0" | tar -cvjf ${RALLY_DIR}/${BUILD_NUMBER}.tar.bz2 -C ${RALLY_DIR} --transform "s,^,ci-${BUILD_NUMBER}/," --null -T -
+  BENCHMARK_DIR=${BENCHMARK_HOME}/.rally
+  if [[ -d ${BENCHMARK_DIR} ]]; then
+    find ${BENCHMARK_DIR} -name "*.log" -printf "%P\\0" | tar -cvjf ${BENCHMARK_DIR}/${BUILD_NUMBER}.tar.bz2 -C ${BENCHMARK_DIR} --transform "s,^,ci-${BUILD_NUMBER}/," --null -T -
   else
-    echo "Rally directory [${RALLY_DIR}] not present. Ensure the RALLY_DIR environment variable is correct"
+    echo "Rally directory [${BENCHMARK_DIR}] not present. Ensure the BENCHMARK_DIR environment variable is correct"
     exit 1
   fi
 }

@@ -241,10 +241,10 @@ def build_docker_image():
     benchmark_version = version.__version__
 
     env_variables = os.environ.copy()
-    env_variables['RALLY_VERSION'] = benchmark_version
-    env_variables['RALLY_LICENSE'] = get_license()
+    env_variables['BENCHMARK_VERSION'] = benchmark_version
+    env_variables['BENCHMARK_LICENSE'] = get_license()
 
-    command = f"docker build -t elastic/rally:{benchmark_version} --build-arg RALLY_VERSION --build-arg RALLY_LICENSE " \
+    command = f"docker build -t elastic/rally:{benchmark_version} --build-arg BENCHMARK_VERSION --build-arg BENCHMARK_LICENSE " \
               f"-f {ROOT_DIR}/docker/Dockerfiles/Dockerfile-dev {ROOT_DIR}"
 
     print("DOCKER BUILD COMMAND: ", command)

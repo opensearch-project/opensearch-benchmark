@@ -358,7 +358,7 @@ def run(cfg):
     else:
         logger.info("User specified pipeline [%s].", name)
 
-    if os.environ.get("RALLY_RUNNING_IN_DOCKER", "").upper() == "TRUE":
+    if os.environ.get("BENCHMARK_RUNNING_IN_DOCKER", "").upper() == "TRUE":
         # in this case only benchmarking remote Elasticsearch clusters makes sense
         if name != "benchmark-only":
             raise exceptions.SystemSetupError(

@@ -40,29 +40,29 @@ class ConsoleFunctionTests(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.oldconsole_quiet = console.QUIET
-        cls.oldconsole_benchmark_running_in_docker = console.RALLY_RUNNING_IN_DOCKER
+        cls.oldconsole_benchmark_running_in_docker = console.BENCHMARK_RUNNING_IN_DOCKER
         cls.oldconsole_benchmark_assume_tty = console.ASSUME_TTY
 
     @classmethod
     def tearDownClass(cls):
         console.QUIET = cls.oldconsole_quiet
-        console.RALLY_RUNNING_IN_DOCKER = cls.oldconsole_benchmark_running_in_docker
+        console.BENCHMARK_RUNNING_IN_DOCKER = cls.oldconsole_benchmark_running_in_docker
         console.ASSUME_TTY = cls.oldconsole_benchmark_assume_tty
 
-    @mock.patch.dict(os.environ, {"RALLY_RUNNING_IN_DOCKER": random.choice(["false", "False", "FALSE", ""])})
+    @mock.patch.dict(os.environ, {"BENCHMARK_RUNNING_IN_DOCKER": random.choice(["false", "False", "FALSE", ""])})
     def test_global_benchmark_running_in_docker_is_false(self):
         console.init()
-        self.assertEqual(False, console.RALLY_RUNNING_IN_DOCKER)
+        self.assertEqual(False, console.BENCHMARK_RUNNING_IN_DOCKER)
 
-    @mock.patch.dict(os.environ, {"RALLY_RUNNING_IN_DOCKER": ""})
+    @mock.patch.dict(os.environ, {"BENCHMARK_RUNNING_IN_DOCKER": ""})
     def test_global_benchmark_running_in_docker_is_false_if_unset(self):
         console.init()
-        self.assertEqual(False, console.RALLY_RUNNING_IN_DOCKER)
+        self.assertEqual(False, console.BENCHMARK_RUNNING_IN_DOCKER)
 
-    @mock.patch.dict(os.environ, {"RALLY_RUNNING_IN_DOCKER": random.choice(["True", "true", "TRUE"])})
+    @mock.patch.dict(os.environ, {"BENCHMARK_RUNNING_IN_DOCKER": random.choice(["True", "true", "TRUE"])})
     def test_global_benchmark_running_in_docker_is_true(self):
         console.init()
-        self.assertEqual(True, console.RALLY_RUNNING_IN_DOCKER)
+        self.assertEqual(True, console.BENCHMARK_RUNNING_IN_DOCKER)
 
     @mock.patch("sys.stdout.isatty")
     @mock.patch("builtins.print")
@@ -70,7 +70,7 @@ class ConsoleFunctionTests(TestCase):
         console.init(quiet=False, assume_tty=False)
         random_boolean = random.choice([True, False])
         patched_isatty.return_value = random_boolean
-        console.RALLY_RUNNING_IN_DOCKER = not random_boolean
+        console.BENCHMARK_RUNNING_IN_DOCKER = not random_boolean
 
         console.println(msg="Unittest message")
         patched_print.assert_called_once_with(
@@ -94,7 +94,7 @@ class ConsoleFunctionTests(TestCase):
         random_boolean = random.choice([True, False])
         console.init(quiet=True, assume_tty=not random_boolean)
         patched_isatty.return_value = random_boolean
-        console.RALLY_RUNNING_IN_DOCKER = not random_boolean
+        console.BENCHMARK_RUNNING_IN_DOCKER = not random_boolean
         console.println(msg="Unittest message")
         patched_print.assert_not_called()
 
@@ -119,13 +119,13 @@ class TestCmdLineProgressResultsPublisher:
     @classmethod
     def setup_class(cls):
         cls.oldconsole_quiet = console.QUIET
-        cls.oldconsole_benchmark_running_in_docker = console.RALLY_RUNNING_IN_DOCKER
+        cls.oldconsole_benchmark_running_in_docker = console.BENCHMARK_RUNNING_IN_DOCKER
         cls.oldconsole_benchmark_assume_tty = console.ASSUME_TTY
 
     @classmethod
     def teardown_class(cls):
         console.QUIET = cls.oldconsole_quiet
-        console.RALLY_RUNNING_IN_DOCKER = cls.oldconsole_benchmark_running_in_docker
+        console.BENCHMARK_RUNNING_IN_DOCKER = cls.oldconsole_benchmark_running_in_docker
         console.ASSUME_TTY = cls.oldconsole_benchmark_assume_tty
 
     @mock.patch("sys.stdout.flush")
@@ -135,7 +135,7 @@ class TestCmdLineProgressResultsPublisher:
         console.init(quiet=True, assume_tty=False)
         random.seed(seed)
         patched_isatty.return_value = random.choice([True, False])
-        console.RALLY_RUNNING_IN_DOCKER = random.choice([True, False])
+        console.BENCHMARK_RUNNING_IN_DOCKER = random.choice([True, False])
 
         message = "Unit test message"
         width = random.randint(20, 140)
@@ -151,7 +151,7 @@ class TestCmdLineProgressResultsPublisher:
     def test_prints_when_isnotquiet_and_nodocker_and_isnotty(self, patched_isatty, patched_flush):
         console.init(quiet=False, assume_tty=False)
         patched_isatty.return_value = False
-        console.RALLY_RUNNING_IN_DOCKER = False
+        console.BENCHMARK_RUNNING_IN_DOCKER = False
 
         message = "Unit test message"
         width = random.randint(20, 140)
@@ -169,7 +169,7 @@ class TestCmdLineProgressResultsPublisher:
         random.seed(seed)
         random_boolean = random.choice([True, False])
         patched_isatty.return_value = random_boolean
-        console.RALLY_RUNNING_IN_DOCKER = not random_boolean
+        console.BENCHMARK_RUNNING_IN_DOCKER = not random_boolean
 
         message = "Unit test message"
         width = random.randint(20, 140)
@@ -189,7 +189,7 @@ class TestCmdLineProgressResultsPublisher:
         random.seed(seed)
         random_boolean = random.choice([True, False])
         console.init(quiet=False, assume_tty=random_boolean)
-        console.RALLY_RUNNING_IN_DOCKER = False
+        console.BENCHMARK_RUNNING_IN_DOCKER = False
         patched_isatty.return_value = not random_boolean
 
         message = "Unit test message"
@@ -208,7 +208,7 @@ class TestCmdLineProgressResultsPublisher:
     def test_noprint_when_isnotquiet_and_nodocker_and_noistty(self, patched_isatty, patched_flush):
         console.init(quiet=False, assume_tty=False)
         patched_isatty.return_value = False
-        console.RALLY_RUNNING_IN_DOCKER = False
+        console.BENCHMARK_RUNNING_IN_DOCKER = False
 
         message = "Unit test message"
         width = random.randint(20, 140)
@@ -224,7 +224,7 @@ class TestCmdLineProgressResultsPublisher:
         console.init(quiet=True, assume_tty=False)
         random.seed(seed)
         patched_isatty.return_value = random.choice([True, False])
-        console.RALLY_RUNNING_IN_DOCKER = random.choice([True, False])
+        console.BENCHMARK_RUNNING_IN_DOCKER = random.choice([True, False])
 
         width = random.randint(20, 140)
         mock_printer = mock.Mock()
@@ -239,7 +239,7 @@ class TestCmdLineProgressResultsPublisher:
         random.seed(seed)
         random_boolean = random.choice([True, False])
         patched_isatty.return_value = random_boolean
-        console.RALLY_RUNNING_IN_DOCKER = not random_boolean
+        console.BENCHMARK_RUNNING_IN_DOCKER = not random_boolean
 
         width = random.randint(20, 140)
         mock_printer = mock.Mock()
@@ -253,7 +253,7 @@ class TestCmdLineProgressResultsPublisher:
         random.seed(seed)
         random_boolean = random.choice([True, False])
         console.init(quiet=False, assume_tty=random_boolean)
-        console.RALLY_RUNNING_IN_DOCKER = False
+        console.BENCHMARK_RUNNING_IN_DOCKER = False
         patched_isatty.return_value = not random_boolean
 
         width = random.randint(20, 140)

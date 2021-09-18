@@ -36,9 +36,9 @@ RUN pip3 install /rally
 ################################################################################
 
 FROM python:3.8.2-slim
-ARG RALLY_VERSION
-ARG RALLY_LICENSE
-ENV RALLY_RUNNING_IN_DOCKER True
+ARG BENCHMARK_VERSION
+ARG BENCHMARK_LICENSE
+ENV BENCHMARK_RUNNING_IN_DOCKER True
 
 RUN apt-get -y update && \
     apt-get install -y curl git pbzip2 pigz && \
@@ -69,10 +69,10 @@ ENV PATH=/rally/venv/bin:$PATH
 LABEL org.label-schema.schema-version="1.0" \
   org.label-schema.vendor="Elastic" \
   org.label-schema.name="rally" \
-  org.label-schema.version="${RALLY_VERSION}" \
+  org.label-schema.version="${BENCHMARK_VERSION}" \
   org.label-schema.url="https://esrally.readthedocs.io/en/stable/" \
   org.label-schema.vcs-url="https://github.com/elastic/rally" \
-  license="${RALLY_LICENSE}"
+  license="${BENCHMARK_LICENSE}"
 
 VOLUME ["/rally/.rally"]
 

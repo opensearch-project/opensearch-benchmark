@@ -25,8 +25,8 @@
 #
 ##########################################################################################
 
-readonly BINARY_NAME="${__RALLY_INTERNAL_BINARY_NAME}"
-readonly HUMAN_NAME="${__RALLY_INTERNAL_HUMAN_NAME}"
+readonly BINARY_NAME="${__BENCHMARK_INTERNAL_BINARY_NAME}"
+readonly HUMAN_NAME="${__BENCHMARK_INTERNAL_HUMAN_NAME}"
 
 install_esrally_with_setuptools () {
     # Check if optional parameter with Rally binary path, points to an existing executable file.
@@ -120,16 +120,16 @@ export THESPLOG_FILE_MAXSIZE=${THESPLOG_FILE_MAXSIZE:-204800}
 export THESPLOG_THRESHOLD="INFO"
 
 # Provide a consistent binary name to the user and hide the fact that we call another binary under the hood.
-export RALLY_ALTERNATIVE_BINARY_NAME=$(basename "$0")
+export BENCHMARK_ALTERNATIVE_BINARY_NAME=$(basename "$0")
 if [[ $IN_VIRTUALENV == 0 ]]
 then
-    RALLY_ROOT=$(python3 -c "import site; print(site.USER_BASE)")
-    RALLY_BIN=${RALLY_ROOT}/bin/${BINARY_NAME}
-    install_esrally_with_setuptools "${RALLY_BIN}"
-    if [[ -x $RALLY_BIN ]]; then
-        ${RALLY_BIN} "$@"
+    BENCHMARK_ROOT=$(python3 -c "import site; print(site.USER_BASE)")
+    BENCHMARK_BIN=${BENCHMARK_ROOT}/bin/${BINARY_NAME}
+    install_esrally_with_setuptools "${BENCHMARK_BIN}"
+    if [[ -x $BENCHMARK_BIN ]]; then
+        ${BENCHMARK_BIN} "$@"
     else
-        echo "Cannot execute ${HUMAN_NAME} in ${RALLY_BIN}."
+        echo "Cannot execute ${HUMAN_NAME} in ${BENCHMARK_BIN}."
     fi
 else
     install_esrally_with_setuptools "${BINARY_NAME}"

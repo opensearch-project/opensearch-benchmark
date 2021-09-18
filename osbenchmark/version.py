@@ -32,7 +32,7 @@ from osbenchmark.utils import git, io
 
 __version__ = pkg_resources.require("esrally")[0].version
 
-__RALLY_VERSION_PATTERN = re.compile(r"^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:.(.+))?$")
+__BENCHMARK_VERSION_PATTERN = re.compile(r"^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:.(.+))?$")
 
 
 def revision():
@@ -67,7 +67,7 @@ def release_version():
     :return: The release version string split into its components: major, minor, patch and optional suffix.
     """
 
-    matches = __RALLY_VERSION_PATTERN.match(__version__)
+    matches = __BENCHMARK_VERSION_PATTERN.match(__version__)
     if matches.start(4) > 0:
         return int(matches.group(1)), int(matches.group(2)), int(matches.group(3)), matches.group(4)
     elif matches.start(3) > 0:

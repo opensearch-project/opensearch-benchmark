@@ -27,7 +27,7 @@ set -o pipefail
 # test number of parameters
 if [ $# != 1 ]
 then
-    echo "Usage: $0 RALLY_RELEASE"
+    echo "Usage: $0 BENCHMARK_RELEASE"
     exit 1
 fi
 
@@ -39,10 +39,10 @@ then
   exit 1
 fi
 
-readonly RALLY_VERSION=$1
+readonly BENCHMARK_VERSION=$1
 
 readonly WD=$(pwd)
-readonly RELATIVE_DOWNLOAD_DIR="esrally-dist-${RALLY_VERSION}"
+readonly RELATIVE_DOWNLOAD_DIR="esrally-dist-${BENCHMARK_VERSION}"
 readonly ABSOLUTE_DOWNLOAD_DIR="${WD}/${RELATIVE_DOWNLOAD_DIR}"
 readonly ABSOLUTE_DOWNLOAD_BIN_DIR="${ABSOLUTE_DOWNLOAD_DIR}/bin"
 readonly PYTHON_INSTALL_LINK="https://esrally.readthedocs.io/en/stable/install.html#python"
@@ -57,15 +57,15 @@ done
 SCRIPT_SRC_HOME="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
 function main {
-    local archive_name="esrally-dist-linux-${RALLY_VERSION}.tar.gz"
+    local archive_name="esrally-dist-linux-${BENCHMARK_VERSION}.tar.gz"
     local install_script_file="install.sh"
     local install_script="${ABSOLUTE_DOWNLOAD_DIR}/${install_script_file}"
 
-    echo "Preparing offline distribution for Rally ${RALLY_VERSION}"
+    echo "Preparing offline distribution for Rally ${BENCHMARK_VERSION}"
 
     mkdir -p "${ABSOLUTE_DOWNLOAD_BIN_DIR}"
     # Prepare install
-    pip3 download esrally=="${RALLY_VERSION}" --dest "${ABSOLUTE_DOWNLOAD_BIN_DIR}" --no-binary=MarkupSafe
+    pip3 download esrally=="${BENCHMARK_VERSION}" --dest "${ABSOLUTE_DOWNLOAD_BIN_DIR}" --no-binary=MarkupSafe
 
 
     echo "Preparing NOTICE file"
@@ -91,13 +91,13 @@ while [ -h "\$SOURCE" ]; do # resolve \$SOURCE until the file is no longer a sym
 done
 SRC_HOME="\$( cd -P "\$( dirname "\$SOURCE" )" && pwd )"
 
-echo "Installing Rally ${RALLY_VERSION}..."
+echo "Installing Rally ${BENCHMARK_VERSION}..."
 
 # Check if mandatory prerequisites are installed
 command -v python3 >/dev/null 2>&1 || { echo >&2 "Python3 ${PYTHON_ERROR_MSG}"; exit 1; }
 command -v pip3 >/dev/null 2>&1 || { echo >&2 "pip3 ${PYTHON_ERROR_MSG}"; exit 1; }
 
-pip3 install esrally==${RALLY_VERSION} --no-index --find-links file://\${SRC_HOME}/bin
+pip3 install esrally==${BENCHMARK_VERSION} --no-index --find-links file://\${SRC_HOME}/bin
 EOL
     chmod u+x ${install_script}
 

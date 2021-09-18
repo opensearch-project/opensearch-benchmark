@@ -33,10 +33,10 @@ from osbenchmark import config, exceptions, test_execution_orchestrator
 
 @pytest.fixture
 def running_in_docker():
-    os.environ["RALLY_RUNNING_IN_DOCKER"] = "true"
+    os.environ["BENCHMARK_RUNNING_IN_DOCKER"] = "true"
     # just yield anything to signal the fixture is ready
     yield True
-    del os.environ["RALLY_RUNNING_IN_DOCKER"]
+    del os.environ["BENCHMARK_RUNNING_IN_DOCKER"]
 
 
 @pytest.fixture

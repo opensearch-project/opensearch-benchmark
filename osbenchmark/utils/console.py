@@ -28,7 +28,7 @@ import sys
 
 PLAIN = False
 QUIET = False
-RALLY_RUNNING_IN_DOCKER = False
+BENCHMARK_RUNNING_IN_DOCKER = False
 ASSUME_TTY = True
 
 
@@ -102,11 +102,11 @@ def init(quiet=False, assume_tty=True):
     :param quiet: Flag indicating whether Rally should not print anything except when forced explicitly. Default: False.
     :param assume_tty: Flag indicating whether to assume a tty is attached without checking. Default: True.
     """
-    global QUIET, ASSUME_TTY, RALLY_RUNNING_IN_DOCKER, PLAIN, format
+    global QUIET, ASSUME_TTY, BENCHMARK_RUNNING_IN_DOCKER, PLAIN, format
 
     QUIET = quiet
     ASSUME_TTY = assume_tty
-    RALLY_RUNNING_IN_DOCKER = os.environ.get("RALLY_RUNNING_IN_DOCKER", "").upper() == "TRUE"
+    BENCHMARK_RUNNING_IN_DOCKER = os.environ.get("BENCHMARK_RUNNING_IN_DOCKER", "").upper() == "TRUE"
     if os.environ.get("TERM") == "dumb" or sys.platform == "win32":
         PLAIN = True
         format = PlainFormat
@@ -154,7 +154,7 @@ def error(msg, end="\n", flush=False, force=False, logger=None, overline=None, u
 
 
 def println(msg, console_prefix=None, end="\n", flush=False, force=False, logger=None, overline=None, underline=None):
-    allow_print = force or (not QUIET and (RALLY_RUNNING_IN_DOCKER or ASSUME_TTY or sys.stdout.isatty()))
+    allow_print = force or (not QUIET and (BENCHMARK_RUNNING_IN_DOCKER or ASSUME_TTY or sys.stdout.isatty()))
     if allow_print:
         complete_msg = "%s %s" % (console_prefix, msg) if console_prefix else msg
         if overline:
@@ -194,7 +194,7 @@ class CmdLineProgressResultsPublisher:
         :param message: A message to display (will be left-aligned)
         :param progress: A progress indication (will be right-aligned)
         """
-        if QUIET or (not RALLY_RUNNING_IN_DOCKER and not ASSUME_TTY and not sys.stdout.isatty()):
+        if QUIET or (not BENCHMARK_RUNNING_IN_DOCKER and not ASSUME_TTY and not sys.stdout.isatty()):
             return
         w = self._width
         if self._first_print:
@@ -217,7 +217,7 @@ class CmdLineProgressResultsPublisher:
             return "%s%s" % (text[0:max_length - len(omission) - 5], omission)
 
     def finish(self):
-        if QUIET or (not RALLY_RUNNING_IN_DOCKER and not ASSUME_TTY and not sys.stdout.isatty()):
+        if QUIET or (not BENCHMARK_RUNNING_IN_DOCKER and not ASSUME_TTY and not sys.stdout.isatty()):
             return
         # print a final statement in order to end the progress line
         self._printer("")
