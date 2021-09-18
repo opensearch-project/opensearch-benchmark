@@ -31,7 +31,7 @@ import sys
 import github3
 
 ORG = "elastic"
-REPO = "rally"
+REPO = "benchmark"
 
 
 def find_milestone(repo, title):

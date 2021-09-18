@@ -20,7 +20,7 @@
   "handlers": {
     "benchmark_log_handler": {
       "class": "logging.handlers.WatchedFileHandler",
-      "filename": "${LOG_PATH}rally.log",
+      "filename": "${LOG_PATH}benchmark.log",
       "encoding": "UTF-8",
       "formatter": "normal",
       "filters": ["isActorLog"]
@@ -43,7 +43,7 @@
       "level": "WARNING",
       "propagate": false
     },
-    "rally.profile": {
+    "benchmark.profile": {
       "handlers": ["benchmark_profile_handler"],
       "level": "INFO",
       "propagate": false
