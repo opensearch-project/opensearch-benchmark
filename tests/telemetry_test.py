@@ -96,7 +96,7 @@ class StartupTimeTests(TestCase):
     def test_store_calculated_metrics(self, metrics_store_put_value, stop_watch):
         stop_watch.total_time.return_value = 2
         metrics_store = metrics.EsMetricsStore(create_config())
-        node = cluster.Node(None, "/bin", "io", "rally0", None)
+        node = cluster.Node(None, "/bin", "io", "benchmark0", None)
         startup_time = telemetry.StartupTime()
         # replace with mock
         startup_time.timer = stop_watch
@@ -106,7 +106,7 @@ class StartupTimeTests(TestCase):
         startup_time.attach_to_node(node)
         startup_time.store_system_metrics(node, metrics_store)
 
-        metrics_store_put_value.assert_called_with("rally0", "node_startup_time", 2, "s")
+        metrics_store_put_value.assert_called_with("benchmark0", "node_startup_time", 2, "s")
 
 
 class Client:
@@ -260,7 +260,7 @@ class HeapdumpTests(TestCase):
         run_subprocess_with_logging.return_value = 0
         heapdump = telemetry.Heapdump("/var/log")
         t = telemetry.Telemetry(enabled_devices=[heapdump.command], devices=[heapdump])
-        node = cluster.Node(pid="1234", binary_path="/bin", host_name="localhost", node_name="rally0", telemetry=t)
+        node = cluster.Node(pid="1234", binary_path="/bin", host_name="localhost", node_name="benchmark0", telemetry=t)
         t.attach_to_node(node)
         t.detach_from_node(node, running=True)
         run_subprocess_with_logging.assert_called_with("jmap -dump:format=b,file=/var/log/heap_at_exit_1234.hprof 1234")
@@ -1429,7 +1429,7 @@ class NodeStatsRecorderTests(TestCase):
         "nodes": {
             "Zbl_e8EyRXmiR47gbHgPfg": {
                 "timestamp": 1524379617017,
-                "name": "rally0",
+                "name": "benchmark0",
                 "transport_address": "127.0.0.1:9300",
                 "host": "127.0.0.1",
                 "ip": "127.0.0.1:9300",
@@ -1753,7 +1753,7 @@ class NodeStatsRecorderTests(TestCase):
 
         metrics_store_put_doc.assert_called_once_with(expected_doc,
                                                       level=MetaInfoScope.node,
-                                                      node_name="rally0",
+                                                      node_name="benchmark0",
                                                       meta_data=metrics_store_meta_data)
 
     @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
@@ -1763,7 +1763,7 @@ class NodeStatsRecorderTests(TestCase):
             "nodes": {
                 "Zbl_e8EyRXmiR47gbHgPfg": {
                     "timestamp": 1524379617017,
-                    "name": "rally0",
+                    "name": "benchmark0",
                     "transport_address": "127.0.0.1:9300",
                     "host": "127.0.0.1",
                     "ip": "127.0.0.1:9300",
@@ -2064,7 +2064,7 @@ class NodeStatsRecorderTests(TestCase):
              "indexing_pressure_memory_total_primary_rejections": 0,
              "indexing_pressure_memory_total_replica_rejections": 0},
             level=MetaInfoScope.node,
-            node_name="rally0",
+            node_name="benchmark0",
             meta_data=metrics_store_meta_data)
 
     @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
@@ -2074,7 +2074,7 @@ class NodeStatsRecorderTests(TestCase):
             "nodes": {
                 "Zbl_e8EyRXmiR47gbHgPfg": {
                     "timestamp": 1524379617017,
-                    "name": "rally0",
+                    "name": "benchmark0",
                     "transport_address": "127.0.0.1:9300",
                     "host": "127.0.0.1",
                     "ip": "127.0.0.1:9300",
@@ -2350,7 +2350,7 @@ class NodeStatsRecorderTests(TestCase):
              "indexing_pressure_memory_total_primary_rejections": 0,
              "indexing_pressure_memory_total_replica_rejections": 0},
             level=MetaInfoScope.node,
-            node_name="rally0",
+            node_name="benchmark0",
             meta_data=metrics_store_meta_data)
 
     def test_exception_when_include_indices_metrics_not_valid(self):
@@ -2479,7 +2479,7 @@ class ClusterEnvironmentInfoTests(TestCase):
     def test_stores_cluster_level_metrics_on_attach(self, metrics_store_add_meta_info):
         nodes_info = {"nodes": collections.OrderedDict()}
         nodes_info["nodes"]["FCFjozkeTiOpN-SI88YEcg"] = {
-            "name": "rally0",
+            "name": "benchmark0",
             "host": "127.0.0.1",
             "attributes": {
                 "group": "cold_nodes"
@@ -2504,7 +2504,7 @@ class ClusterEnvironmentInfoTests(TestCase):
             ]
         }
         nodes_info["nodes"]["EEEjozkeTiOpN-SI88YEcg"] = {
-            "name": "rally1",
+            "name": "benchmark1",
             "host": "127.0.0.1",
             "attributes": {
                 "group": "hot_nodes"
@@ -2547,16 +2547,16 @@ class ClusterEnvironmentInfoTests(TestCase):
             mock.call(metrics.MetaInfoScope.cluster, None, "source_revision", "abc123"),
             mock.call(metrics.MetaInfoScope.cluster, None, "distribution_version", "6.0.0-alpha1"),
             mock.call(metrics.MetaInfoScope.cluster, None, "distribution_flavor", "oss"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "jvm_vendor", "Oracle Corporation"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "jvm_version", "1.8.0_74"),
-            mock.call(metrics.MetaInfoScope.node, "rally1", "jvm_vendor", "Oracle Corporation"),
-            mock.call(metrics.MetaInfoScope.node, "rally1", "jvm_version", "1.8.0_102"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "plugins", ["ingest-geoip"]),
-            mock.call(metrics.MetaInfoScope.node, "rally1", "plugins", ["ingest-geoip"]),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "jvm_vendor", "Oracle Corporation"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "jvm_version", "1.8.0_74"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark1", "jvm_vendor", "Oracle Corporation"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark1", "jvm_version", "1.8.0_102"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "plugins", ["ingest-geoip"]),
+            mock.call(metrics.MetaInfoScope.node, "benchmark1", "plugins", ["ingest-geoip"]),
             # can push up to cluster level as all nodes have the same plugins installed
             mock.call(metrics.MetaInfoScope.cluster, None, "plugins", ["ingest-geoip"]),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "attribute_group", "cold_nodes"),
-            mock.call(metrics.MetaInfoScope.node, "rally1", "attribute_group", "hot_nodes"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "attribute_group", "cold_nodes"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark1", "attribute_group", "hot_nodes"),
         ]
 
         metrics_store_add_meta_info.assert_has_calls(calls)
@@ -2587,20 +2587,20 @@ class NodeEnvironmentInfoTests(TestCase):
         logical_cpu_cores.return_value = 8
         os_version.return_value = "4.2.0-18-generic"
         os_name.return_value = "Linux"
-        node_name = "rally0"
+        node_name = "benchmark0"
         host_name = "io"
 
         metrics_store = metrics.EsMetricsStore(create_config())
         telemetry.add_metadata_for_node(metrics_store, node_name, host_name)
 
         calls = [
-            mock.call(metrics.MetaInfoScope.node, "rally0", "os_name", "Linux"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "os_version", "4.2.0-18-generic"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "cpu_logical_cores", 8),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "cpu_physical_cores", 4),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "cpu_model", "Intel(R) Core(TM) i7-4870HQ CPU @ 2.50GHz"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "node_name", node_name),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "host_name", host_name),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "os_name", "Linux"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "os_version", "4.2.0-18-generic"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "cpu_logical_cores", 8),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "cpu_physical_cores", 4),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "cpu_model", "Intel(R) Core(TM) i7-4870HQ CPU @ 2.50GHz"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "node_name", node_name),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "host_name", host_name),
         ]
 
         metrics_store_add_meta_info.assert_has_calls(calls)
@@ -2615,7 +2615,7 @@ class ExternalEnvironmentInfoTests(TestCase):
         nodes_stats = {
             "nodes": {
                 "FCFjozkeTiOpN-SI88YEcg": {
-                    "name": "rally0",
+                    "name": "benchmark0",
                     "host": "127.0.0.1"
                 }
             }
@@ -2624,7 +2624,7 @@ class ExternalEnvironmentInfoTests(TestCase):
         nodes_info = {
             "nodes": {
                 "FCFjozkeTiOpN-SI88YEcg": {
-                    "name": "rally0",
+                    "name": "benchmark0",
                     "host": "127.0.0.1",
                     "attributes": {
                         "az": "us_east1"
@@ -2665,17 +2665,17 @@ class ExternalEnvironmentInfoTests(TestCase):
         t.on_benchmark_start()
 
         calls = [
-            mock.call(metrics.MetaInfoScope.node, "rally0", "node_name", "rally0"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "host_name", "127.0.0.1"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "os_name", "Mac OS X"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "os_version", "10.11.4"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "cpu_logical_cores", 8),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "jvm_vendor", "Oracle Corporation"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "jvm_version", "1.8.0_74"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "plugins", ["ingest-geoip"]),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "node_name", "benchmark0"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "host_name", "127.0.0.1"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "os_name", "Mac OS X"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "os_version", "10.11.4"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "cpu_logical_cores", 8),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "jvm_vendor", "Oracle Corporation"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "jvm_version", "1.8.0_74"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "plugins", ["ingest-geoip"]),
             # these are automatically pushed up to cluster level (additionally) if all nodes match
             mock.call(metrics.MetaInfoScope.cluster, None, "plugins", ["ingest-geoip"]),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "attribute_az", "us_east1"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "attribute_az", "us_east1"),
             mock.call(metrics.MetaInfoScope.cluster, None, "attribute_az", "us_east1"),
         ]
         metrics_store_add_meta_info.assert_has_calls(calls)
@@ -2685,7 +2685,7 @@ class ExternalEnvironmentInfoTests(TestCase):
         nodes_stats = {
             "nodes": {
                 "FCFjozkeTiOpN-SI88YEcg": {
-                    "name": "rally0",
+                    "name": "benchmark0",
                 }
             }
         }
@@ -2693,7 +2693,7 @@ class ExternalEnvironmentInfoTests(TestCase):
         nodes_info = {
             "nodes": {
                 "FCFjozkeTiOpN-SI88YEcg": {
-                    "name": "rally0",
+                    "name": "benchmark0",
                     "os": {
                         "name": "Mac OS X",
                         "version": "10.11.4",
@@ -2721,13 +2721,13 @@ class ExternalEnvironmentInfoTests(TestCase):
         t.on_benchmark_start()
 
         calls = [
-            mock.call(metrics.MetaInfoScope.node, "rally0", "node_name", "rally0"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "host_name", "unknown"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "os_name", "Mac OS X"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "os_version", "10.11.4"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "cpu_logical_cores", 8),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "jvm_vendor", "Oracle Corporation"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "jvm_version", "1.8.0_74")
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "node_name", "benchmark0"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "host_name", "unknown"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "os_name", "Mac OS X"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "os_version", "10.11.4"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "cpu_logical_cores", 8),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "jvm_vendor", "Oracle Corporation"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "jvm_version", "1.8.0_74")
         ]
         metrics_store_add_meta_info.assert_has_calls(calls)
 
@@ -2757,7 +2757,7 @@ class DiskIoTests(TestCase):
 
         device = telemetry.DiskIo(node_count_on_host=1)
         t = telemetry.Telemetry(enabled_devices=[], devices=[device])
-        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="rally0", telemetry=t)
+        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="benchmark0", telemetry=t)
         t.attach_to_node(node)
         t.on_benchmark_start()
         # we assume that serializing and deserializing the telemetry device produces the same state
@@ -2767,8 +2767,8 @@ class DiskIoTests(TestCase):
         t.store_system_metrics(node, metrics_store)
 
         metrics_store_node_count.assert_has_calls([
-            mock.call("rally0", "disk_io_write_bytes", 1, "byte"),
-            mock.call("rally0", "disk_io_read_bytes", 1, "byte")
+            mock.call("benchmark0", "disk_io_write_bytes", 1, "byte"),
+            mock.call("benchmark0", "disk_io_read_bytes", 1, "byte")
 
         ])
 
@@ -2787,7 +2787,7 @@ class DiskIoTests(TestCase):
 
         device = telemetry.DiskIo(node_count_on_host=2)
         t = telemetry.Telemetry(enabled_devices=[], devices=[device])
-        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="rally0", telemetry=t)
+        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="benchmark0", telemetry=t)
         t.attach_to_node(node)
         t.on_benchmark_start()
         # we assume that serializing and deserializing the telemetry device produces the same state
@@ -2799,8 +2799,8 @@ class DiskIoTests(TestCase):
         # expected result is 1 byte because there are two nodes on the machine. Result is calculated
         # with total_bytes / node_count
         metrics_store_node_count.assert_has_calls([
-            mock.call("rally0", "disk_io_write_bytes", 1, "byte"),
-            mock.call("rally0", "disk_io_read_bytes", 1, "byte")
+            mock.call("benchmark0", "disk_io_write_bytes", 1, "byte"),
+            mock.call("benchmark0", "disk_io_read_bytes", 1, "byte")
         ])
 
     @mock.patch("osbenchmark.utils.sysstats.disk_io_counters")
@@ -2818,7 +2818,7 @@ class DiskIoTests(TestCase):
 
         device = telemetry.DiskIo(node_count_on_host=1)
         t = telemetry.Telemetry(enabled_devices=[], devices=[device])
-        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="rally0", telemetry=t)
+        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="benchmark0", telemetry=t)
         t.attach_to_node(node)
         t.on_benchmark_start()
         # we assume that serializing and deserializing the telemetry device produces the same state
@@ -2828,8 +2828,8 @@ class DiskIoTests(TestCase):
         t.store_system_metrics(node, metrics_store)
 
         metrics_store_node_count.assert_has_calls([
-            mock.call("rally0", "disk_io_write_bytes", 3, "byte"),
-            mock.call("rally0", "disk_io_read_bytes", 0, "byte"),
+            mock.call("benchmark0", "disk_io_write_bytes", 3, "byte"),
+            mock.call("benchmark0", "disk_io_read_bytes", 0, "byte"),
         ])
 
 
@@ -2844,7 +2844,7 @@ class JvmStatsSummaryTests(TestCase):
         nodes_stats_at_start = {
             "nodes": {
                 "FCFjozkeTiOpN-SI88YEcg": {
-                    "name": "rally0",
+                    "name": "benchmark0",
                     "host": "127.0.0.1",
                     "jvm": {
                         "mem": {
@@ -2888,7 +2888,7 @@ class JvmStatsSummaryTests(TestCase):
         nodes_stats_at_end = {
             "nodes": {
                 "FCFjozkeTiOpN-SI88YEcg": {
-                    "name": "rally0",
+                    "name": "benchmark0",
                     "host": "127.0.0.1",
                     "jvm": {
                         "mem": {
@@ -2924,10 +2924,10 @@ class JvmStatsSummaryTests(TestCase):
         t.on_benchmark_stop()
 
         metrics_store_node_level.assert_has_calls([
-            mock.call("rally0", "node_young_gen_gc_time", 700, "ms"),
-            mock.call("rally0", "node_young_gen_gc_count", 3980),
-            mock.call("rally0", "node_old_gen_gc_time", 1500, "ms"),
-            mock.call("rally0", "node_old_gen_gc_count", 1),
+            mock.call("benchmark0", "node_young_gen_gc_time", 700, "ms"),
+            mock.call("benchmark0", "node_young_gen_gc_count", 3980),
+            mock.call("benchmark0", "node_old_gen_gc_time", 1500, "ms"),
+            mock.call("benchmark0", "node_old_gen_gc_count", 1),
         ])
 
         metrics_store_cluster_level.assert_has_calls([
@@ -2952,7 +2952,7 @@ class JvmStatsSummaryTests(TestCase):
                     "peak_usage": 3084912096,
                     "unit": "byte"
                 },
-            }, level=MetaInfoScope.node, node_name="rally0"),
+            }, level=MetaInfoScope.node, node_name="benchmark0"),
         ])
 
 
