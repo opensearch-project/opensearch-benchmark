@@ -218,7 +218,7 @@ class ProcessLauncherTests(TestCase):
             cluster.Node(pid=-1,
                          binary_path="/bin",
                          host_name="localhost",
-                         node_name="rally-0",
+                         node_name="benchmark-0",
                          telemetry=telemetry.Telemetry())
         ]
 

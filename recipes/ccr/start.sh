@@ -104,4 +104,4 @@ release.cache = true
 EOF
 
 # Start Rally
-esrally --configuration-name=metricstore --target-hosts=./ccr-target-hosts.json --pipeline=benchmark-only --on-error=abort --workload=geonames --test-procedure=append-no-conflicts-index-only --workload-params="ingest_percentage:20,number_of_shards:3" --telemetry="ccr-stats" --telemetry-params="ccr-stats-sample-interval:1"
+osbenchmark --configuration-name=metricstore --target-hosts=./ccr-target-hosts.json --pipeline=benchmark-only --on-error=abort --workload=geonames --test-procedure=append-no-conflicts-index-only --workload-params="ingest_percentage:20,number_of_shards:3" --telemetry="ccr-stats" --telemetry-params="ccr-stats-sample-interval:1"

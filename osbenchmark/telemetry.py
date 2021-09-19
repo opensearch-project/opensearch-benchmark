@@ -1294,7 +1294,7 @@ class ClusterEnvironmentInfo(InternalTelemetryDevice):
 
 def add_metadata_for_node(metrics_store, node_name, host_name):
     """
-    Gathers static environment information like OS or CPU details for Rally-provisioned nodes.
+    Gathers static environment information like OS or CPU details for benchmark-provisioned nodes.
     """
     metrics_store.add_meta_info(metrics.MetaInfoScope.node, node_name, "os_name", sysstats.os_name())
     metrics_store.add_meta_info(metrics.MetaInfoScope.node, node_name, "os_version", sysstats.os_version())

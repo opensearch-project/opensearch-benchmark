@@ -522,6 +522,6 @@ class CleanupTests(TestCase):
 
         provisioner.cleanup(preserve=False, install_dir="./rally/test_executions/install", data_paths=["./rally/test_executions/data"])
 
-        expected_dir_calls = [mock.call("/tmp/some/data-path-dir"), mock.call("/rally-root/workload/test_procedure/es-bin")]
+        expected_dir_calls = [mock.call("/tmp/some/data-path-dir"), mock.call("/benchmark-root/workload/test_procedure/es-bin")]
         mock_path_exists.mock_calls = expected_dir_calls
         mock_rm.mock_calls = expected_dir_calls

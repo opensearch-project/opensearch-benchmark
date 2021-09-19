@@ -218,7 +218,7 @@ class LegacyWrappingScheduler(Scheduler):
 
 class Unthrottled(Scheduler):
     """
-    Rally-internal scheduler to handle unthrottled tasks.
+    benchmark-internal scheduler to handle unthrottled tasks.
     """
     def next(self, current):
         return 0
