@@ -2,7 +2,7 @@ version: '2.2'
 services:
   rally:
     image: elastic/rally:${BENCHMARK_VERSION}
-    container_name: rally
+    container_name: osbenchmark
     command: ${TEST_COMMAND}
     volumes:
       - rally:/rally/.rally

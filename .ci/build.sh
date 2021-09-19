@@ -30,7 +30,7 @@ function update_pyenv {
 }
 
 function build {
-  export THESPLOG_FILE="${THESPLOG_FILE:-${BENCHMARK_HOME}/.rally/logs/actor-system-internal.log}"
+  export THESPLOG_FILE="${THESPLOG_FILE:-${BENCHMARK_HOME}/.benchmark/logs/actor-system-internal.log}"
   # this value is in bytes, the default is 50kB. We increase it to 200kiB.
   export THESPLOG_FILE_MAXSIZE=${THESPLOG_FILE_MAXSIZE:-204800}
   # adjust the default log level from WARNING
@@ -55,7 +55,7 @@ function build {
 }
 
 function build_it {
-  export THESPLOG_FILE="${THESPLOG_FILE:-${BENCHMARK_HOME}/.rally/logs/actor-system-internal.log}"
+  export THESPLOG_FILE="${THESPLOG_FILE:-${BENCHMARK_HOME}/.benchmark/logs/actor-system-internal.log}"
   # this value is in bytes, the default is 50kB. We increase it to 200kiB.
   export THESPLOG_FILE_MAXSIZE=${THESPLOG_FILE_MAXSIZE:-204800}
   # adjust the default log level from WARNING
@@ -108,7 +108,7 @@ function archive {
   set -u
 
   # this will only be done if the build number variable is present
-  BENCHMARK_DIR=${BENCHMARK_HOME}/.rally
+  BENCHMARK_DIR=${BENCHMARK_HOME}/.benchmark
   if [[ -d ${BENCHMARK_DIR} ]]; then
     find ${BENCHMARK_DIR} -name "*.log" -printf "%P\\0" | tar -cvjf ${BENCHMARK_DIR}/${BUILD_NUMBER}.tar.bz2 -C ${BENCHMARK_DIR} --transform "s,^,ci-${BUILD_NUMBER}/," --null -T -
   else
