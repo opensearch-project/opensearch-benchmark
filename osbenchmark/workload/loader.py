@@ -945,7 +945,7 @@ class WorkloadFileReader:
     """
 
     def __init__(self, cfg):
-        workload_schema_file = os.path.join(cfg.opts("node", "rally.root"), "resources", "workload-schema.json")
+        workload_schema_file = os.path.join(cfg.opts("node", "benchmark.root"), "resources", "workload-schema.json")
         with open(workload_schema_file, mode="rt", encoding="utf-8") as f:
             self.workload_schema = json.loads(f.read())
         self.workload_params = cfg.opts("workload", "params", mandatory=False)

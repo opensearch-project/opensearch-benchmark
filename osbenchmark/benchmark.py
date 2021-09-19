@@ -630,7 +630,7 @@ def print_help_on_errors():
     console.println(f"* Check the log files in {paths.logs()} for errors.")
     console.println(f"* Read the documentation at {console.format.link(doc_link())}.")
     console.println(f"* Ask a question on the forum at {console.format.link(FORUM_LINK)}.")
-    console.println(f"* Raise an issue at {console.format.link('https://github.com/elastic/rally/issues')} "
+    console.println(f"* Raise an issue at {console.format.link('https://github.com/elastic/benchmark/issues')} "
                     f"and include the log files in {paths.logs()}.")
 
 
@@ -955,8 +955,8 @@ def main():
     cfg.load_config(auto_upgrade=True)
     cfg.add(config.Scope.application, "system", "time.start", datetime.datetime.utcnow())
     # Local config per node
-    cfg.add(config.Scope.application, "node", "rally.root", paths.benchmark_root())
-    cfg.add(config.Scope.application, "node", "rally.cwd", os.getcwd())
+    cfg.add(config.Scope.application, "node", "benchmark.root", paths.benchmark_root())
+    cfg.add(config.Scope.application, "node", "benchmark.cwd", os.getcwd())
 
     logger.info("OS [%s]", str(platform.uname()))
     logger.info("Python [%s]", str(sys.implementation))

@@ -108,7 +108,7 @@ class SummaryResultsPublisher:
         self.publish_all_percentile_values = results_publishing_values == "all-percentiles"
         self.show_processing_time = convert.to_bool(config.opts("results_publishing", "output.processingtime",
                                                                 mandatory=False, default_value=False))
-        self.cwd = config.opts("node", "rally.cwd")
+        self.cwd = config.opts("node", "benchmark.cwd")
 
     def publish(self):
         print_header(FINAL_SCORE)
@@ -321,7 +321,7 @@ class ComparisonResultsPublisher:
         self.results_format = config.opts("results_publishing", "format")
         self.numbers_align = config.opts("results_publishing", "numbers.align",
                                          mandatory=False, default_value="right")
-        self.cwd = config.opts("node", "rally.cwd")
+        self.cwd = config.opts("node", "benchmark.cwd")
         self.show_processing_time = convert.to_bool(config.opts("results_publishing", "output.processingtime",
                                                                 mandatory=False, default_value=False))
         self.plain = False

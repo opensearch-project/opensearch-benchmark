@@ -55,7 +55,7 @@ def local(cfg, provision_config_instance, plugins, ip, http_port, all_node_ips, 
 
 def docker(cfg, provision_config_instance, ip, http_port, target_root, node_name):
     distribution_version = cfg.opts("builder", "distribution.version", mandatory=False)
-    benchmark_root = cfg.opts("node", "rally.root")
+    benchmark_root = cfg.opts("node", "benchmark.root")
 
     node_root_dir = os.path.join(target_root, node_name)
 

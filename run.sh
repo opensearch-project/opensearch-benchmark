@@ -21,14 +21,14 @@
 #
 # Internal helper script to actually run either Rally or Rally daemon.
 #
-# Do not invoke directly but rather use the `rally` and `rallyd` scripts.
+# Do not invoke directly but rather use the `benchmark` and `benchmarkd` scripts.
 #
 ##########################################################################################
 
 readonly BINARY_NAME="${__BENCHMARK_INTERNAL_BINARY_NAME}"
 readonly HUMAN_NAME="${__BENCHMARK_INTERNAL_HUMAN_NAME}"
 
-install_esrally_with_setuptools () {
+install_esbenchmark_with_setuptools () {
     # Check if optional parameter with Rally binary path, points to an existing executable file.
     if [[ $# -ge 1 && -n $1 ]]; then
         if [[ -f $1 && -x $1 ]]; then return; fi
@@ -99,7 +99,7 @@ then
       then
         echo "Auto-updating Rally from ${REMOTE}"
         git rebase ${REMOTE}/master --quiet
-        install_esrally_with_setuptools
+        install_esbenchmark_with_setuptools
       #else
       # offline - skipping update
       fi
@@ -125,14 +125,14 @@ if [[ $IN_VIRTUALENV == 0 ]]
 then
     BENCHMARK_ROOT=$(python3 -c "import site; print(site.USER_BASE)")
     BENCHMARK_BIN=${BENCHMARK_ROOT}/bin/${BINARY_NAME}
-    install_esrally_with_setuptools "${BENCHMARK_BIN}"
+    install_esbenchmark_with_setuptools "${BENCHMARK_BIN}"
     if [[ -x $BENCHMARK_BIN ]]; then
         ${BENCHMARK_BIN} "$@"
     else
         echo "Cannot execute ${HUMAN_NAME} in ${BENCHMARK_BIN}."
     fi
 else
-    install_esrally_with_setuptools "${BINARY_NAME}"
+    install_esbenchmark_with_setuptools "${BINARY_NAME}"
 
     ${BINARY_NAME} "$@"
 fi

@@ -548,7 +548,7 @@ class NodeBuilderActor(actor.RallyActor):
                 "source"
             ])
             # set root path (normally done by the main entry point)
-            cfg.add(config.Scope.application, "node", "rally.root", paths.benchmark_root())
+            cfg.add(config.Scope.application, "node", "benchmark.root", paths.benchmark_root())
             if not msg.external:
                 cfg.add(config.Scope.benchmark, "provisioning", "node.ids", msg.node_ids)
 

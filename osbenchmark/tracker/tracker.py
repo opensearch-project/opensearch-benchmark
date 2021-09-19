@@ -93,7 +93,7 @@ def create_workload(cfg):
     }
 
     workload_path = os.path.join(output_path, "workload.json")
-    templates_path = os.path.join(cfg.opts("node", "rally.root"), "resources")
+    templates_path = os.path.join(cfg.opts("node", "benchmark.root"), "resources")
     process_template(templates_path, "workload.json.j2", template_vars, workload_path)
 
     console.println("")

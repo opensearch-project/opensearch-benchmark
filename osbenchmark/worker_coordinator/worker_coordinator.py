@@ -353,7 +353,7 @@ def load_local_config(coordinator_config):
         "telemetry"
     ])
     # set root path (normally done by the main entry point)
-    cfg.add(config.Scope.application, "node", "rally.root", paths.benchmark_root())
+    cfg.add(config.Scope.application, "node", "benchmark.root", paths.benchmark_root())
     return cfg
 
 

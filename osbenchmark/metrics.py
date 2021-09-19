@@ -222,7 +222,7 @@ class IndexTemplateProvider:
     """
 
     def __init__(self, cfg):
-        self.script_dir = cfg.opts("node", "rally.root")
+        self.script_dir = cfg.opts("node", "benchmark.root")
 
     def metrics_template(self):
         return self._read("metrics-template")

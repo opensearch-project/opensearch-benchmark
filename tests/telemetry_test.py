@@ -45,7 +45,7 @@ def create_config():
     cfg.add(config.Scope.application, "system", "env.name", "unittest")
     cfg.add(config.Scope.application, "workload", "params", {})
     # concrete path does not matter
-    cfg.add(config.Scope.application, "node", "rally.root", "/some/root/path")
+    cfg.add(config.Scope.application, "node", "benchmark.root", "/some/root/path")
 
     cfg.add(config.Scope.application, "results_publishing", "datastore.host", "localhost")
     cfg.add(config.Scope.application, "results_publishing", "datastore.port", "0")
