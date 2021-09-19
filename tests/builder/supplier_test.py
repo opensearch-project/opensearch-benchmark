@@ -674,7 +674,7 @@ class CreateSupplierTests(TestCase):
         cfg.add(config.Scope.application, "distributions", "release.url",
                 "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{VERSION}}.tar.gz")
         cfg.add(config.Scope.application, "distributions", "release.cache", True)
-        cfg.add(config.Scope.application, "node", "root.dir", "/opt/rally")
+        cfg.add(config.Scope.application, "node", "root.dir", "/opt/benchmark")
 
         provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[])
 
@@ -693,8 +693,8 @@ class CreateSupplierTests(TestCase):
         cfg.add(config.Scope.application, "distributions", "release.url",
                 "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{VERSION}}.tar.gz")
         cfg.add(config.Scope.application, "distributions", "release.cache", True)
-        cfg.add(config.Scope.application, "node", "root.dir", "/opt/rally")
-        cfg.add(config.Scope.application, "node", "src.root.dir", "/opt/rally/src")
+        cfg.add(config.Scope.application, "node", "root.dir", "/opt/benchmark")
+        cfg.add(config.Scope.application, "node", "src.root.dir", "/opt/benchmark/src")
         cfg.add(config.Scope.application, "source", "elasticsearch.src.subdir", "elasticsearch")
         cfg.add(config.Scope.application, "source", "plugin.community-plugin.src.dir", "/home/user/Projects/community-plugin")
 
@@ -728,8 +728,8 @@ class CreateSupplierTests(TestCase):
         cfg.add(config.Scope.application, "distributions", "release.url",
                 "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{VERSION}}.tar.gz")
         cfg.add(config.Scope.application, "distributions", "release.cache", True)
-        cfg.add(config.Scope.application, "node", "root.dir", "/opt/rally")
-        cfg.add(config.Scope.application, "node", "src.root.dir", "/opt/rally/src")
+        cfg.add(config.Scope.application, "node", "root.dir", "/opt/benchmark")
+        cfg.add(config.Scope.application, "node", "src.root.dir", "/opt/benchmark/src")
         cfg.add(config.Scope.application, "source", "elasticsearch.src.subdir", "elasticsearch")
         cfg.add(config.Scope.application, "source", "remote.repo.url", "https://github.com/elastic/elasticsearch.git")
         cfg.add(config.Scope.application, "source", "plugin.community-plugin.src.subdir", "elasticsearch-extra/community-plugin")

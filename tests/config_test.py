@@ -74,7 +74,7 @@ class InMemoryConfigStore:
                 "config.version": config.Config.CURRENT_CONFIG_VERSION
             },
             "benchmarks": {
-                "local.dataset.cache": "/tmp/rally/data"
+                "local.dataset.cache": "/tmp/benchmark/data"
             }
         })
 
@@ -221,7 +221,7 @@ class AutoLoadConfigTests(TestCase):
                 "config.version": config.Config.CURRENT_CONFIG_VERSION
             },
             "benchmarks": {
-                "local.dataset.cache": "/tmp/rally/data"
+                "local.dataset.cache": "/tmp/benchmark/data"
             }
         })
         self.assertTrue(cfg.config_file.present)
@@ -253,7 +253,7 @@ class AutoLoadConfigTests(TestCase):
                     "config.version": max(config.Config.CURRENT_CONFIG_VERSION - 1, config.Config.EARLIEST_SUPPORTED_VERSION)
                 },
                 "benchmarks": {
-                    "local.dataset.cache": "/tmp/rally/data"
+                    "local.dataset.cache": "/tmp/benchmark/data"
                 },
                 "runtime": {
                     "java8.home": "/opt/jdk8"
@@ -286,7 +286,7 @@ class ConfigMigrationTests(TestCase):
                 "metrics.stats.disk.device": "/dev/hdd1"
             },
             "results_publishing": {
-                "results.base.dir": "/tests/rally/results_publishing",
+                "results.base.dir": "/tests/benchmark/results_publishing",
                 "output.html.results.filename": "index.html"
             },
             "runtime": {
@@ -319,7 +319,7 @@ class ConfigMigrationTests(TestCase):
                 "metrics.stats.disk.device": "/dev/hdd1"
             },
             "results_publishing": {
-                "results.base.dir": "/tests/rally/results_publishing",
+                "results.base.dir": "/tests/benchmark/results_publishing",
                 "output.html.results.filename": "index.html"
             },
             "runtime": {

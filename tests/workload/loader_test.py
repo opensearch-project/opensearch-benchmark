@@ -846,7 +846,7 @@ class TemplateSource(TestCase):
 
     def test_read_glob_files(self):
         tmpl_obj = loader.TemplateSource(
-            base_path="/some/path/to/a/rally/workload",
+            base_path="/some/path/to/a/benchmark/workload",
             template_file_name="workload.json",
             fileglobber=lambda pat: [
                 os.path.join(os.path.dirname(__file__), "resources", "workload_fragment_1.json"),

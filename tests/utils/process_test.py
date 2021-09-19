@@ -63,7 +63,7 @@ class ProcessTests(TestCase):
                                                   ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Des.node.name=benchmark-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         metrics_store_process = ProcessTests.Process(102, "java", ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g",
-                                                                   "-Des.path.home=~/rally/metrics/",
+                                                                   "-Des.path.home=~/benchmark/metrics/",
                                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         random_python = ProcessTests.Process(103, "python3", ["/some/django/app"])
         other_process = ProcessTests.Process(104, "init", ["/usr/sbin/init"])
@@ -95,7 +95,7 @@ class ProcessTests(TestCase):
     @mock.patch("psutil.process_iter")
     def test_find_no_other_benchmark_process_running(self, process_iter):
         metrics_store_process = ProcessTests.Process(102, "java", ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g",
-                                                                   "-Des.path.home=~/rally/metrics/",
+                                                                   "-Des.path.home=~/benchmark/metrics/",
                                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         random_python = ProcessTests.Process(103, "python3", ["/some/django/app"])
 
@@ -112,7 +112,7 @@ class ProcessTests(TestCase):
                                                   ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Des.node.name=benchmark-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         metrics_store_process = ProcessTests.Process(102, "java", ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g",
-                                                                   "-Des.path.home=~/rally/metrics/",
+                                                                   "-Des.path.home=~/benchmark/metrics/",
                                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         random_python = ProcessTests.Process(103, "python3", ["/some/django/app"])
         other_process = ProcessTests.Process(104, "init", ["/usr/sbin/init"])
