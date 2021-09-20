@@ -1224,7 +1224,8 @@ def create_test_execution(cfg, workload, test_procedure, workload_revision=None)
 
 
 class TestExecution:
-    def __init__(self, benchmark_version, benchmark_revision, environment_name, test_execution_id, test_execution_timestamp, pipeline, user_tags,
+    def __init__(self, benchmark_version, benchmark_revision, environment_name,
+                 test_execution_id, test_execution_timestamp, pipeline, user_tags,
                  workload, workload_params, test_procedure, provision_config_instance,
                  provision_config_instance_params, plugin_params,
                  workload_revision=None, provision_config_revision=None,

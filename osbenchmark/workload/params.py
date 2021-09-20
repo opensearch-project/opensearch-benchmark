@@ -84,7 +84,8 @@ def _unregister_param_source_for_name(name):
 # Default
 class ParamSource:
     """
-    A `ParamSource` captures the parameters for a given operation. Benchmark will create one global ParamSource for each operation and will then
+    A `ParamSource` captures the parameters for a given operation.
+     Benchmark will create one global ParamSource for each operation and will then
      invoke `#partition()` to get a `ParamSource` instance for each client. During the benchmark, `#params()` will be called repeatedly
      before Benchmark invokes the corresponding runner (that will actually execute the operation against Elasticsearch).
     """

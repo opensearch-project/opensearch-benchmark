@@ -411,7 +411,7 @@ def create_arg_parser():
             help="Define the path to the provision_config_instance and plugin configurations to use.")
         p.add_argument(
             "--provision-config-repository",
-            help="Define the repository from where Benchmark will load provision_configs and provision_config_instances (default: default).",
+            help="Define repository from where Benchmark will load provision_configs and provision_config_instances (default: default).",
             default="default")
         p.add_argument(
             "--provision-config-revision",

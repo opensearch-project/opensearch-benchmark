@@ -786,7 +786,8 @@ class Query(Runner):
 
     The following meta data are always returned:
 
-    * ``weight``: operation-agnostic representation of the "weight" of an operation (used internally by Benchmark for throughput calculation).
+    * ``weight``: operation-agnostic representation of the "weight" of an
+                  operation (used internally by Benchmark for throughput calculation).
                   Always 1 for normal queries and the number of retrieved pages for scroll queries.
     * ``unit``: The unit in which to interpret ``weight``. Always "ops".
     * ``hits``: Total number of hits for this operation.

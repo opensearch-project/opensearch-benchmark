@@ -487,7 +487,8 @@ class Dispatcher(actor.BenchmarkActor):
     def receiveMsg_ActorSystemConventionUpdate(self, convmsg, sender):
         if not convmsg.remoteAdded:
             self.logger.warning("Remote Benchmark node [%s] exited during NodeBuilderActor startup process.", convmsg.remoteAdminAddress)
-            self.start_sender(actor.BenchmarkFailure("Remote Benchmark node [%s] has been shutdown prematurely." % convmsg.remoteAdminAddress))
+            self.start_sender(actor.BenchmarkFailure(
+                "Remote Benchmark node [%s] has been shutdown prematurely." % convmsg.remoteAdminAddress))
         else:
             remote_ip = convmsg.remoteCapabilities.get('ip', None)
             self.logger.info("Remote Benchmark node [%s] has started.", remote_ip)

@@ -431,7 +431,7 @@ services:
       - IPC_LOCK
     image: "docker.elastic.co/elasticsearch/elasticsearch-oss:6.3.0"
     labels:
-      io.rally.description: "elasticsearch-rally"
+      io.benchmark.description: "opensearch-benchmark"
     ports:
       - 39200:39200
       - 9300
@@ -483,7 +483,7 @@ services:
       - IPC_LOCK
     image: "docker.elastic.co/elasticsearch/elasticsearch:6.3.0"
     labels:
-      io.rally.description: "elasticsearch-rally"
+      io.benchmark.description: "opensearch-benchmark"
     cpu_count: 2
     mem_limit: 256m
     ports:

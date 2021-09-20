@@ -1283,7 +1283,8 @@ class ClusterEnvironmentInfo(InternalTelemetryDevice):
         nodes_info = info["nodes"].values()
         for node in nodes_info:
             node_name = node["name"]
-            # while we could determine this for bare-metal nodes that are provisioned by Benchmark, there are other cases (Docker, externally
+            # while we could determine this for bare-metal nodes that are
+            # provisioned by Benchmark, there are other cases (Docker, externally
             # provisioned clusters) where it's not that easy.
             self.metrics_store.add_meta_info(metrics.MetaInfoScope.node, node_name, "jvm_vendor", extract_value(node, ["jvm", "vm_vendor"]))
             self.metrics_store.add_meta_info(metrics.MetaInfoScope.node, node_name, "jvm_version", extract_value(node, ["jvm", "version"]))

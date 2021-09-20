@@ -1502,7 +1502,7 @@ class AsyncProfiler:
         :param target: The actual executor which should be profiled.
         """
         self.target = target
-        self.profile_logger = logging.getLogger("rally.profile")
+        self.profile_logger = logging.getLogger("benchmark.profile")
 
     async def __call__(self, *args, **kwargs):
         # initialize lazily, we don't need it in the majority of cases
