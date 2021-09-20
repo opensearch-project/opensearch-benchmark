@@ -187,10 +187,10 @@ class BenchmarkCoordinator:
             distribution_version = builder.cluster_distribution_version(self.cfg)
             self.logger.info("Automatically derived distribution version [%s]", distribution_version)
             self.cfg.add(config.Scope.benchmark, "builder", "distribution.version", distribution_version)
-            min_es_version = versions.Version.from_string(version.minimum_es_version())
+            min_os_version = versions.Version.from_string(version.minimum_os_version())
             specified_version = versions.Version.from_string(distribution_version)
-            if specified_version < min_es_version:
-                raise exceptions.SystemSetupError(f"Cluster version must be at least [{min_es_version}] but was [{distribution_version}]")
+            if specified_version < min_os_version:
+                raise exceptions.SystemSetupError(f"Cluster version must be at least [{min_os_version}] but was [{distribution_version}]")
 
         self.current_workload = workload.load_workload(self.cfg)
         self.workload_revision = self.cfg.opts("workload", "repository.revision", mandatory=False)

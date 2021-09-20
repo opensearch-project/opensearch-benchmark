@@ -68,7 +68,7 @@ def benchmark_in_mem(t):
     return wrapper
 
 
-def benchmark_es(t):
+def benchmark_os(t):
     @functools.wraps(t)
     @pytest.mark.parametrize("cfg", ["es-it"])
     def wrapper(cfg, *args, **kwargs):

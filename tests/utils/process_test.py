@@ -56,10 +56,10 @@ class ProcessTests(TestCase):
 
     @mock.patch("psutil.process_iter")
     def test_find_other_benchmark_processes(self, process_iter):
-        benchmark_es_5_process = ProcessTests.Process(100, "java",
+        benchmark_os_5_process = ProcessTests.Process(100, "java",
                                                   ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Enode.name=benchmark-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
-        benchmark_es_1_process = ProcessTests.Process(101, "java",
+        benchmark_os_1_process = ProcessTests.Process(101, "java",
                                                   ["/usr/lib/jvm/java-8-oracle/bin/java",
                                                   "-Xms2g", "-Xmx2g",
                                                   "-Des.node.name=benchmark-node0",
@@ -81,8 +81,8 @@ class ProcessTests(TestCase):
         night_benchmark_process = ProcessTests.Process(110, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/night_rally"])
 
         process_iter.return_value = [
-            benchmark_es_1_process,
-            benchmark_es_5_process,
+            benchmark_os_1_process,
+            benchmark_os_5_process,
             metrics_store_process,
             random_python,
             other_process,
@@ -110,10 +110,10 @@ class ProcessTests(TestCase):
 
     @mock.patch("psutil.process_iter")
     def test_kills_only_benchmark_processes(self, process_iter):
-        benchmark_es_5_process = ProcessTests.Process(100, "java",
+        benchmark_os_5_process = ProcessTests.Process(100, "java",
                                                   ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Enode.name=benchmark-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
-        benchmark_es_1_process = ProcessTests.Process(101, "java",
+        benchmark_os_1_process = ProcessTests.Process(101, "java",
                                                   ["/usr/lib/jvm/java-8-oracle/bin/java",
                                                   "-Xms2g", "-Xmx2g",
                                                   "-Des.node.name=benchmark-node0",
@@ -134,8 +134,8 @@ class ProcessTests(TestCase):
         night_benchmark_process = ProcessTests.Process(110, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/night_rally"])
 
         process_iter.return_value = [
-            benchmark_es_1_process,
-            benchmark_es_5_process,
+            benchmark_os_1_process,
+            benchmark_os_5_process,
             metrics_store_process,
             random_python,
             other_process,
@@ -149,8 +149,8 @@ class ProcessTests(TestCase):
 
         process.kill_running_benchmark_instances()
 
-        self.assertFalse(benchmark_es_5_process.killed)
-        self.assertFalse(benchmark_es_1_process.killed)
+        self.assertFalse(benchmark_os_5_process.killed)
+        self.assertFalse(benchmark_os_1_process.killed)
         self.assertFalse(metrics_store_process.killed)
         self.assertFalse(random_python.killed)
         self.assertFalse(other_process.killed)

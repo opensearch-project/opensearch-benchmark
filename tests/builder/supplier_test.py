@@ -197,11 +197,11 @@ class CachedElasticsearchSourceSupplierTests(TestCase):
     @mock.patch("shutil.copy")
     @mock.patch("osbenchmark.builder.supplier.ElasticsearchSourceSupplier")
     def test_does_not_cache_when_no_revision(self, es, copy, ensure_dir):
-        def add_es_artifact(binaries):
+        def add_os_artifact(binaries):
             binaries["elasticsearch"] = "/path/to/artifact.tar.gz"
 
         es.fetch.return_value = None
-        es.add.side_effect = add_es_artifact
+        es.add.side_effect = add_os_artifact
 
         # no version / revision provided
         renderer = supplier.TemplateRenderer(version=None, os_name="linux", arch="x86_64")
@@ -268,13 +268,13 @@ class CachedElasticsearchSourceSupplierTests(TestCase):
     @mock.patch("shutil.copy")
     @mock.patch("osbenchmark.builder.supplier.ElasticsearchSourceSupplier")
     def test_caches_artifact(self, es, copy, path_exists, ensure_dir):
-        def add_es_artifact(binaries):
+        def add_os_artifact(binaries):
             binaries["elasticsearch"] = "/path/to/artifact.tar.gz"
 
         path_exists.return_value = False
 
         es.fetch.return_value = "abc123"
-        es.add.side_effect = add_es_artifact
+        es.add.side_effect = add_os_artifact
 
         renderer = supplier.TemplateRenderer(version="abc123", os_name="linux", arch="x86_64")
 
@@ -320,13 +320,13 @@ class CachedElasticsearchSourceSupplierTests(TestCase):
     @mock.patch("shutil.copy")
     @mock.patch("osbenchmark.builder.supplier.ElasticsearchSourceSupplier")
     def test_does_not_cache_on_copy_error(self, es, copy, path_exists, ensure_dir):
-        def add_es_artifact(binaries):
+        def add_os_artifact(binaries):
             binaries["elasticsearch"] = "/path/to/artifact.tar.gz"
 
         path_exists.return_value = False
 
         es.fetch.return_value = "abc123"
-        es.add.side_effect = add_es_artifact
+        es.add.side_effect = add_os_artifact
         copy.side_effect = OSError("no space left on device")
 
         renderer = supplier.TemplateRenderer(version="abc123", os_name="linux", arch="x86_64")
@@ -578,7 +578,7 @@ class ExternalPluginSourceSupplierTests(TestCase):
     def test_standalone_plugin_overrides_build_dir(self):
         self.assertEqual("/Projects/src/some-plugin", self.standalone.override_build_dir)
 
-    def test_along_es_plugin_keeps_build_dir(self):
+    def test_along_os_plugin_keeps_build_dir(self):
         self.assertIsNone(self.along_es.override_build_dir)
 
     @mock.patch("glob.glob", lambda p: ["/src/elasticsearch-extra/some-plugin/plugin/build/distributions/some-plugin.zip"])
@@ -622,19 +622,19 @@ class PluginDistributionSupplierTests(TestCase):
 
 
 class CreateSupplierTests(TestCase):
-    def test_derive_supply_requirements_es_source_build(self):
+    def test_derive_supply_requirements_os_source_build(self):
         # corresponds to --revision="abc"
         requirements = supplier._supply_requirements(
             sources=True, distribution=False, plugins=[], revisions={"elasticsearch": "abc"}, distribution_version=None)
         self.assertDictEqual({"elasticsearch": ("source", "abc", True)}, requirements)
 
-    def test_derive_supply_requirements_es_distribution(self):
+    def test_derive_supply_requirements_os_distribution(self):
         # corresponds to --distribution-version=6.0.0
         requirements = supplier._supply_requirements(
             sources=False, distribution=True, plugins=[], revisions={}, distribution_version="6.0.0")
         self.assertDictEqual({"elasticsearch": ("distribution", "6.0.0", False)}, requirements)
 
-    def test_derive_supply_requirements_es_and_plugin_source_build(self):
+    def test_derive_supply_requirements_os_and_plugin_source_build(self):
         # corresponds to --revision="elasticsearch:abc,community-plugin:effab"
         core_plugin = provision_config.PluginDescriptor("analysis-icu", core_plugin=True)
         external_plugin = provision_config.PluginDescriptor("community-plugin", core_plugin=False)
@@ -649,7 +649,7 @@ class CreateSupplierTests(TestCase):
             "community-plugin": ("source", "effab", True),
         }, requirements)
 
-    def test_derive_supply_requirements_es_distribution_and_plugin_source_build(self):
+    def test_derive_supply_requirements_os_distribution_and_plugin_source_build(self):
         # corresponds to --revision="community-plugin:effab" --distribution-version="6.0.0"
         core_plugin = provision_config.PluginDescriptor("analysis-icu", core_plugin=True)
         external_plugin = provision_config.PluginDescriptor("community-plugin", core_plugin=False)
@@ -665,7 +665,7 @@ class CreateSupplierTests(TestCase):
             "community-plugin": ("source", "effab", True),
         }, requirements)
 
-    def test_create_suppliers_for_es_only_config(self):
+    def test_create_suppliers_for_os_only_config(self):
         cfg = config.Config()
         cfg.add(config.Scope.application, "builder", "distribution.version", "6.0.0")
         # default value from command line
@@ -684,7 +684,7 @@ class CreateSupplierTests(TestCase):
         self.assertIsInstance(composite_supplier.suppliers[0], supplier.ElasticsearchDistributionSupplier)
 
     @mock.patch("osbenchmark.utils.jvm.resolve_path", lambda v: (v, "/opt/java/java{}".format(v)))
-    def test_create_suppliers_for_es_distribution_plugin_source_build(self):
+    def test_create_suppliers_for_os_distribution_plugin_source_build(self):
         cfg = config.Config()
         cfg.add(config.Scope.application, "builder", "distribution.version", "6.0.0")
         # default value from command line
@@ -721,7 +721,7 @@ class CreateSupplierTests(TestCase):
         self.assertIsNotNone(composite_supplier.suppliers[2].source_supplier.builder)
 
     @mock.patch("osbenchmark.utils.jvm.resolve_path", lambda v: (v, "/opt/java/java{}".format(v)))
-    def test_create_suppliers_for_es_and_plugin_source_build(self):
+    def test_create_suppliers_for_os_and_plugin_source_build(self):
         cfg = config.Config()
         cfg.add(config.Scope.application, "builder", "source.revision", "elasticsearch:abc,community-plugin:current")
         cfg.add(config.Scope.application, "builder", "distribution.repository", "release")

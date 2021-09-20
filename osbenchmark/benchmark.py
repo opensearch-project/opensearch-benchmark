@@ -64,12 +64,12 @@ def create_arg_parser():
             except argparse.ArgumentTypeError:
                 raise argparse.ArgumentTypeError(f"must be a positive number or 'bundled' but was {v}")
 
-    def supported_es_version(v):
+    def supported_os_version(v):
         if v:
-            min_es_version = versions.Version.from_string(version.minimum_es_version())
+            min_os_version = versions.Version.from_string(version.minimum_os_version())
             specified_version = versions.Version.from_string(v)
-            if specified_version < min_es_version:
-                raise argparse.ArgumentTypeError(f"must be at least {min_es_version} but was {v}")
+            if specified_version < min_os_version:
+                raise argparse.ArgumentTypeError(f"must be at least {min_os_version} but was {v}")
         return v
 
     def add_workload_source(subparser):
@@ -240,7 +240,7 @@ def create_arg_parser():
         help="Define the path to the provision_config_instance and plugin configurations to use.")
     download_parser.add_argument(
         "--distribution-version",
-        type=supported_es_version,
+        type=supported_os_version,
         help="Define the version of the Elasticsearch distribution to download. "
              "Check https://www.elastic.co/downloads/elasticsearch for released versions.",
         default="")
@@ -304,7 +304,7 @@ def create_arg_parser():
         default="release")
     install_parser.add_argument(
         "--distribution-version",
-        type=supported_es_version,
+        type=supported_os_version,
         help="Define the version of the Elasticsearch distribution to download. "
              "Check https://www.elastic.co/downloads/elasticsearch for released versions.",
         default="")
@@ -402,7 +402,7 @@ def create_arg_parser():
     for p in [list_parser, test_execution_parser]:
         p.add_argument(
             "--distribution-version",
-            type=supported_es_version,
+            type=supported_os_version,
             help="Define the version of the Elasticsearch distribution to download. "
                  "Check https://www.elastic.co/downloads/elasticsearch for released versions.",
             default="")

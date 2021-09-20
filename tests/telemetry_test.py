@@ -712,14 +712,14 @@ class RecoveryStatsTests(TestCase):
                         "host": "my.fqdn",
                         "transport_address": "my.fqdn",
                         "ip": "10.0.1.7",
-                        "name": "my_es_node"
+                        "name": "my_os_node"
                     },
                     "target": {
                         "id": "RGMdRc-yQWWKIBM4DGvwqQ",
                         "host": "my.fqdn",
                         "transport_address": "my.fqdn",
                         "ip": "10.0.1.7",
-                        "name": "my_es_node"
+                        "name": "my_os_node"
                     },
                     "index": {
                         "size": {

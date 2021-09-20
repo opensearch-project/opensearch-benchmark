@@ -1,11 +1,11 @@
 version: '2.2'
 services:
-  rally:
+  benchmark:
     image: elastic/rally:${BENCHMARK_VERSION}
     container_name: osbenchmark
     command: ${TEST_COMMAND}
     volumes:
-      - rally:/rally/.rally
+      - benchmark:/benchmark/.benchmark
     networks:
       - esnet
     depends_on:
@@ -35,5 +35,5 @@ networks:
 volumes:
   esdata1:
     driver: local
-  rally:
+  benchmark:
     driver: local

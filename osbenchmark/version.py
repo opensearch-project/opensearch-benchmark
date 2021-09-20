@@ -74,7 +74,7 @@ def release_version():
         return int(matches.group(1)), int(matches.group(2)), int(matches.group(3)), None
 
 
-def minimum_es_version():
+def minimum_os_version():
     """
     :return: A string identifying the minimum version of Elasticsearch that is supported by Benchmark.
     """

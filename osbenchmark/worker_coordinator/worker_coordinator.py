@@ -550,7 +550,7 @@ class WorkerCoordinator:
 
         self.telemetry = None
 
-    def create_es_clients(self):
+    def create_os_clients(self):
         all_hosts = self.config.opts("client", "hosts").all_hosts
         es = {}
         for cluster_name, cluster_hosts in all_hosts.items():
@@ -619,7 +619,7 @@ class WorkerCoordinator:
                                                          self.workload.meta_data,
                                                          self.test_procedure.meta_data)
 
-        es_clients = self.create_es_clients()
+        es_clients = self.create_os_clients()
 
         skip_rest_api_check = self.config.opts("builder", "skip.rest.api.check")
         uses_static_responses = self.config.opts("client", "options").uses_static_responses

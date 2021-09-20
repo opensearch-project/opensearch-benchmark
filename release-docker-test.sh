@@ -101,7 +101,7 @@ function test_docker_release_image {
     docker_compose down
 
     info "Testing Rally docker image uses the right version"
-    actual_version=$(docker run --rm elastic/rally:${BENCHMARK_VERSION} esrally --version | cut -d ' ' -f 2,2)
+    actual_version=$(docker run --rm elastic/rally:${BENCHMARK_VERSION} osbenchmark --version | cut -d ' ' -f 2,2)
     if [[ ${actual_version} != ${BENCHMARK_VERSION} ]]; then
         echo "Rally version in Docker image: [${actual_version}] doesn't match the expected version [${BENCHMARK_VERSION}]"
         exit 1
@@ -139,7 +139,7 @@ function test_docker_release_image {
     docker_compose down
 
     # allow overriding CMD too
-    export TEST_COMMAND="esrally race --pipeline=benchmark-only --test-mode --workload=geonames --test-procedure=append-no-conflicts-index-only --target-hosts=es01:9200"
+    export TEST_COMMAND="osbenchmark race --pipeline=benchmark-only --test-mode --workload=geonames --test-procedure=append-no-conflicts-index-only --target-hosts=es01:9200"
     info "Testing Rally docker image using parameters: ${TEST_COMMAND}"
     docker_compose up
     docker_compose down
