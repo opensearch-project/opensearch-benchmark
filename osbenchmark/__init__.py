@@ -30,16 +30,16 @@ import pkg_resources
 
 __version__ = pkg_resources.require("esrally")[0].version
 
-# Allow an alternative program name be set in case Rally is invoked a wrapper script
+# Allow an alternative program name be set in case Benchmark is invoked a wrapper script
 PROGRAM_NAME = os.getenv("BENCHMARK_ALTERNATIVE_BINARY_NAME", os.path.basename(sys.argv[0]))
 
 if __version__.endswith("dev0"):
-    DOC_LINK = "https://esrally.readthedocs.io/en/latest/"
+    DOC_LINK = "https://opensearch.org/docs"
 else:
-    DOC_LINK = "https://esrally.readthedocs.io/en/%s/" % __version__
+    DOC_LINK = "https://opensearch.org/docs/%s" % __version__
 
 
-FORUM_LINK = "https://discuss.elastic.co/tags/c/elastic-stack/elasticsearch/rally"
+FORUM_LINK = "https://github.com/opensearch-project/OpenSearch-Benchmark/issues"
 
 BANNER = r"""
    ____                  _____                      __       ____                  __                         __
@@ -84,7 +84,7 @@ $$$$$$$$$$""""           ""$$$$$$$$$$$"
 
 def check_python_version():
     if sys.version_info.major != 3 or sys.version_info.minor < 8:
-        raise RuntimeError("Rally requires at least Python 3.8 but you are using:\n\nPython %s" % str(sys.version))
+        raise RuntimeError("Benchmark requires at least Python 3.8 but you are using:\n\nPython %s" % str(sys.version))
 
 
 def doc_link(path=None):

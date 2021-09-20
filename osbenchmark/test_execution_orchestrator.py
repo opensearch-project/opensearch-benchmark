@@ -362,10 +362,10 @@ def run(cfg):
         # in this case only benchmarking remote Elasticsearch clusters makes sense
         if name != "benchmark-only":
             raise exceptions.SystemSetupError(
-                "Only the [benchmark-only] pipeline is supported by the Rally Docker image.\n"
-                "Add --pipeline=benchmark-only in your Rally arguments and try again.\n"
+                "Only the [benchmark-only] pipeline is supported by the Benchmark Docker image.\n"
+                "Add --pipeline=benchmark-only in your Benchmark arguments and try again.\n"
                 "For more details read the docs for the benchmark-only pipeline in {}\n".format(
-                    doc_link("pipelines.html#benchmark-only")))
+                    doc_link("")))
 
     try:
         pipeline = pipelines[name]

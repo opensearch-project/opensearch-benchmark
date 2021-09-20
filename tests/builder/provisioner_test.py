@@ -510,7 +510,10 @@ class CleanupTests(TestCase):
     def test_preserves(self, mock_path_exists, mock_rm):
         mock_path_exists.return_value = True
 
-        provisioner.cleanup(preserve=True, install_dir="./benchmark/test_executions/install", data_paths=["./benchmark/test_executions/data"])
+        provisioner.cleanup(
+            preserve=True,
+            install_dir="./benchmark/test_executions/install",
+            data_paths=["./benchmark/test_executions/data"])
 
         self.assertEqual(mock_path_exists.call_count, 0)
         self.assertEqual(mock_rm.call_count, 0)
@@ -520,7 +523,10 @@ class CleanupTests(TestCase):
     def test_cleanup(self, mock_path_exists, mock_rm):
         mock_path_exists.return_value = True
 
-        provisioner.cleanup(preserve=False, install_dir="./benchmark/test_executions/install", data_paths=["./benchmark/test_executions/data"])
+        provisioner.cleanup(
+            preserve=False,
+            install_dir="./benchmark/test_executions/install",
+            data_paths=["./benchmark/test_executions/data"])
 
         expected_dir_calls = [mock.call("/tmp/some/data-path-dir"), mock.call("/benchmark-root/workload/test_procedure/es-bin")]
         mock_path_exists.mock_calls = expected_dir_calls

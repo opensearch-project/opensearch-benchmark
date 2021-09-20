@@ -23,7 +23,7 @@
 # under the License.
 
 """
-These tests ensure the validity of Rally installation instructions (as shown in docs)
+These tests ensure the validity of Benchmark installation instructions (as shown in docs)
 """
 
 import json
@@ -57,7 +57,7 @@ def test_installs_inside_venv():
 
 
 def test_local_installation():
-    # as in the Installing Rally install.rst
+    # as in the Installing Benchmark install.rst
     commands = (
         "cp -a /rally_ro /rally &&"
         "cd /rally &&"

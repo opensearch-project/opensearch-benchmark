@@ -50,7 +50,7 @@ class WorkloadSyntaxError(exceptions.InvalidSyntax):
 class WorkloadProcessor:
     def on_after_load_workload(self, workload):
         """
-        This method is called by Rally after a workload has been loaded. Implementations are expected to modify the
+        This method is called by Benchmark after a workload has been loaded. Implementations are expected to modify the
         provided workload object in place.
 
         :param workload: The current workload.
@@ -58,7 +58,7 @@ class WorkloadProcessor:
 
     def on_prepare_workload(self, workload, data_root_dir):
         """
-        This method is called by Rally after the "after_load_workload" phase. Here, any data that is necessary for
+        This method is called by Benchmark after the "after_load_workload" phase. Here, any data that is necessary for
         benchmark execution should be prepared, e.g. by downloading data or generating it. Implementations should
         be aware that this method might be called on a different machine than "on_after_load_workload" and they cannot
         share any state in between phases.
@@ -969,7 +969,7 @@ class WorkloadFileReader:
 
         self.logger.info("Reading workload specification file [%s].", workload_spec_file)
         # render the workload to a temporary file instead of dumping it into the logs. It is easier to check for error messages
-        # involving lines numbers and it also does not bloat Rally's log file so much.
+        # involving lines numbers and it also does not bloat Benchmark's log file so much.
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
         try:
             rendered = render_template_from_file(
@@ -1010,11 +1010,11 @@ class WorkloadFileReader:
                 workload_name, str(raw_version)))
         if WorkloadFileReader.MINIMUM_SUPPORTED_TRACK_VERSION > workload_version:
             raise exceptions.BenchmarkError("Workload {} is on version {} but needs to be updated at least to version {} to work with the "
-                                        "current version of Rally.".format(workload_name, workload_version,
+                                        "current version of Benchmark.".format(workload_name, workload_version,
                                                                            WorkloadFileReader.MINIMUM_SUPPORTED_TRACK_VERSION))
         if WorkloadFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION < workload_version:
-            raise exceptions.BenchmarkError("Workload {} requires a newer version of Rally. "
-                        "Please upgrade Rally (supported workload version: {}, "
+            raise exceptions.BenchmarkError("Workload {} requires a newer version of Benchmark. "
+                        "Please upgrade Benchmark (supported workload version: {}, "
                                         "required workload version: {}).".format(
                                             workload_name,
                                             WorkloadFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION,
@@ -1510,7 +1510,7 @@ class WorkloadSpecificationReader:
             params = {}
         else:
             meta_data = self._r(op_spec, "meta", error_ctx=error_ctx, mandatory=False)
-            # Rally's core operations will still use enums then but we'll allow users to define arbitrary operations
+            # Benchmark's core operations will still use enums then but we'll allow users to define arbitrary operations
             op_type_name = self._r(op_spec, "operation-type", error_ctx=error_ctx)
             # fallback to use the operation type as the operation name
             op_name = self._r(op_spec, "name", error_ctx=error_ctx, mandatory=False, default_value=op_type_name)

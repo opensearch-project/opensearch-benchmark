@@ -232,17 +232,17 @@ class EsClientFactory:
 
         class LazyJSONSerializer(JSONSerializer):
             def loads(self, s):
-                meta = RallyAsyncElasticsearch.request_context.get()
+                meta = BenchmarkAsyncElasticsearch.request_context.get()
                 if "raw_response" in meta:
                     return io.BytesIO(s)
                 else:
                     return super().loads(s)
 
         async def on_request_start(session, trace_config_ctx, params):
-            RallyAsyncElasticsearch.on_request_start()
+            BenchmarkAsyncElasticsearch.on_request_start()
 
         async def on_request_end(session, trace_config_ctx, params):
-            RallyAsyncElasticsearch.on_request_end()
+            BenchmarkAsyncElasticsearch.on_request_end()
 
         trace_config = aiohttp.TraceConfig()
         trace_config.on_request_start.append(on_request_start)
@@ -254,10 +254,10 @@ class EsClientFactory:
         self.client_options["serializer"] = LazyJSONSerializer()
         self.client_options["trace_config"] = trace_config
 
-        class RallyAsyncElasticsearch(elasticsearch.AsyncElasticsearch, RequestContextHolder):
+        class BenchmarkAsyncElasticsearch(elasticsearch.AsyncElasticsearch, RequestContextHolder):
             pass
 
-        return RallyAsyncElasticsearch(hosts=self.hosts,
+        return BenchmarkAsyncElasticsearch(hosts=self.hosts,
                                        connection_class=osbenchmark.async_connection.AIOHttpConnection,
                                        ssl_context=self.ssl_context,
                                        **self.client_options)

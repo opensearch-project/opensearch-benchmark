@@ -1574,11 +1574,11 @@ class TestExecutionConfigWorkload:
         # required in case a previous workload using a different repository has specified the revision
         if cfg.opts("workload", "repository.name", mandatory=False) != self.repository:
             cfg.add(config.Scope.applicationOverride, "workload", "repository.revision", None)
-        # hack to make this work with multiple workloads (Rally core is usually not meant to be used this way)
+        # hack to make this work with multiple workloads (Benchmark core is usually not meant to be used this way)
         if name:
             cfg.add(config.Scope.applicationOverride, "workload", "repository.name", self.repository)
             cfg.add(config.Scope.applicationOverride, "workload", "workload.name", name)
-        # another hack to ensure any workload-params in the test_execution config are used by Rally's workload loader
+        # another hack to ensure any workload-params in the test_execution config are used by Benchmark's workload loader
         cfg.add(config.Scope.applicationOverride, "workload", "params", params)
         if excluded_tasks:
             cfg.add(config.Scope.application, "workload", "exclude.tasks", excluded_tasks)

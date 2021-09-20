@@ -60,7 +60,9 @@ class ProcessTests(TestCase):
                                                   ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Enode.name=benchmark-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         benchmark_es_1_process = ProcessTests.Process(101, "java",
-                                                  ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Des.node.name=benchmark-node0",
+                                                  ["/usr/lib/jvm/java-8-oracle/bin/java",
+                                                  "-Xms2g", "-Xmx2g",
+                                                  "-Des.node.name=benchmark-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         metrics_store_process = ProcessTests.Process(102, "java", ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g",
                                                                    "-Des.path.home=~/benchmark/metrics/",
@@ -72,7 +74,10 @@ class ProcessTests(TestCase):
         benchmark_process_e = ProcessTests.Process(107, "osbenchmark", ["/usr/bin/python3", "~/.local/bin/osbenchmark"])
         benchmark_process_mac = ProcessTests.Process(108, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/osbenchmark"])
         # fake own process by determining our pid
-        own_benchmark_process = ProcessTests.Process(os.getpid(), "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/osbenchmark"])
+        own_benchmark_process = ProcessTests.Process(
+            os.getpid(), "Python",
+            ["/Python.app/Contents/MacOS/Python",
+            "~/.local/bin/osbenchmark"])
         night_benchmark_process = ProcessTests.Process(110, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/night_rally"])
 
         process_iter.return_value = [
@@ -109,7 +114,9 @@ class ProcessTests(TestCase):
                                                   ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Enode.name=benchmark-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         benchmark_es_1_process = ProcessTests.Process(101, "java",
-                                                  ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g", "-Des.node.name=benchmark-node0",
+                                                  ["/usr/lib/jvm/java-8-oracle/bin/java",
+                                                  "-Xms2g", "-Xmx2g",
+                                                  "-Des.node.name=benchmark-node0",
                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         metrics_store_process = ProcessTests.Process(102, "java", ["/usr/lib/jvm/java-8-oracle/bin/java", "-Xms2g", "-Xmx2g",
                                                                    "-Des.path.home=~/benchmark/metrics/",
@@ -121,7 +128,9 @@ class ProcessTests(TestCase):
         benchmark_process_e = ProcessTests.Process(107, "osbenchmark", ["/usr/bin/python3", "~/.local/bin/osbenchmark"])
         benchmark_process_mac = ProcessTests.Process(108, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/osbenchmark"])
         # fake own process by determining our pid
-        own_benchmark_process = ProcessTests.Process(os.getpid(), "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/osbenchmark"])
+        own_benchmark_process = ProcessTests.Process(
+            os.getpid(), "Python",
+            ["/Python.app/Contents/MacOS/Python", "~/.local/bin/osbenchmark"])
         night_benchmark_process = ProcessTests.Process(110, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/night_rally"])
 
         process_iter.return_value = [

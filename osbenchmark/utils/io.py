@@ -246,7 +246,7 @@ def _zipdir(source_directory, archive):
 def is_archive(name):
     """
     :param name: File name to check. Can be either just the file name or optionally also an absolute path.
-    :return: True iff the given file name is an archive that is also recognized for decompression by Rally.
+    :return: True iff the given file name is an archive that is also recognized for decompression by Benchmark.
     """
     _, ext = splitext(name)
     return ext in [".zip", ".bz2", ".gz", ".tar", ".tar.gz", ".tgz", ".tar.bz2"]

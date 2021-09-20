@@ -97,7 +97,7 @@ def extract_index_mapping_and_settings(client, index_pattern):
 
 def extract(client, outdir, index_pattern):
     """
-    Request index information to format in "index.json" for Rally
+    Request index information to format in "index.json" for Benchmark
     :param client: Elasticsearch client
     :param outdir: destination directory
     :param index_pattern: name of index

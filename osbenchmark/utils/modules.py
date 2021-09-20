@@ -33,7 +33,7 @@ from osbenchmark.utils import io
 
 class ComponentLoader:
     """
-    Loads a dynamically defined component. A component in this terminology is any piece of code that is not part of the Rally core code base
+    Loads a dynamically defined component. A component in this terminology is any piece of code that is not part of the Benchmark core code base
     but extends it. Examples include custom runners or parameter sources for workloads or install hooks for Elasticsearch plugins.
 
     A component has always a well-defined entry point. This is the

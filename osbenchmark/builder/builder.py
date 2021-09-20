@@ -275,7 +275,7 @@ def to_ip_port(hosts):
         host_or_ip = host.pop("host")
         port = host.pop("port", 9200)
         if host:
-            raise exceptions.SystemSetupError("When specifying nodes to be managed by Rally you can only supply "
+            raise exceptions.SystemSetupError("When specifying nodes to be managed by Benchmark you can only supply "
                                               "hostname:port pairs (e.g. 'localhost:9200'), any additional options cannot "
                                               "be supported.")
         ip = net.resolve(host_or_ip)
@@ -340,7 +340,7 @@ class BuilderActor(actor.BenchmarkActor):
         self.logger.info("BuilderActor#receiveMessage poison(msg = [%s] sender = [%s])", str(msg.poisonMessage), str(sender))
         # something went wrong with a child actor (or another actor with which we have communicated)
         if isinstance(msg.poisonMessage, StartEngine):
-            failmsg = "Could not start benchmark candidate. Are Rally daemons on all targeted machines running?"
+            failmsg = "Could not start benchmark candidate. Are Benchmark daemons on all targeted machines running?"
         else:
             failmsg = msg.details
         self.logger.error(failmsg)
@@ -362,14 +362,14 @@ class BuilderActor(actor.BenchmarkActor):
 
         self.externally_provisioned = msg.external
         if self.externally_provisioned:
-            self.logger.info("Cluster will not be provisioned by Rally.")
+            self.logger.info("Cluster will not be provisioned by Benchmark.")
             self.status = "nodes_started"
             self.received_responses = []
             self.on_all_nodes_started()
             self.status = "cluster_started"
         else:
             console.info("Preparing for test execution ...", flush=True)
-            self.logger.info("Cluster consisting of %s will be provisioned by Rally.", hosts)
+            self.logger.info("Cluster consisting of %s will be provisioned by Benchmark.", hosts)
             msg.hosts = hosts
             # Initialize the children array to have the right size to
             # ensure waiting for all responses
@@ -486,11 +486,11 @@ class Dispatcher(actor.BenchmarkActor):
 
     def receiveMsg_ActorSystemConventionUpdate(self, convmsg, sender):
         if not convmsg.remoteAdded:
-            self.logger.warning("Remote Rally node [%s] exited during NodeBuilderActor startup process.", convmsg.remoteAdminAddress)
-            self.start_sender(actor.BenchmarkFailure("Remote Rally node [%s] has been shutdown prematurely." % convmsg.remoteAdminAddress))
+            self.logger.warning("Remote Benchmark node [%s] exited during NodeBuilderActor startup process.", convmsg.remoteAdminAddress)
+            self.start_sender(actor.BenchmarkFailure("Remote Benchmark node [%s] has been shutdown prematurely." % convmsg.remoteAdminAddress))
         else:
             remote_ip = convmsg.remoteCapabilities.get('ip', None)
-            self.logger.info("Remote Rally node [%s] has started.", remote_ip)
+            self.logger.info("Remote Benchmark node [%s] has started.", remote_ip)
 
             for eachmsg in self.remotes[remote_ip]:
                 self.pending.append((self.createActor(NodeBuilderActor,
@@ -638,7 +638,7 @@ def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_i
                                   all_node_names, test_execution_root_path, node_name))
         l = launcher.ProcessLauncher(cfg)
     elif external:
-        raise exceptions.BenchmarkAssertionError("Externally provisioned clusters should not need to be managed by Rally's builder")
+        raise exceptions.BenchmarkAssertionError("Externally provisioned clusters should not need to be managed by Benchmark's builder")
     elif docker:
         if len(plugins) > 0:
             raise exceptions.SystemSetupError("You cannot specify any plugins for Docker clusters. Please remove "

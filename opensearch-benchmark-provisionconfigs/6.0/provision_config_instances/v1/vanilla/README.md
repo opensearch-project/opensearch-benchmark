@@ -2,7 +2,7 @@ This directory contains the Elasticsearch base configuration.
 
 ### Parameters
 
-This configuration allows to set the following parameters with Rally 0.10.0 using `--provision-config-instance-params`:
+This configuration allows to set the following parameters with Benchmark 0.10.0 using `--provision-config-instance-params`:
 
 * `data_paths` (default: "data" (relative to the Elasticsearch root directory)): A string specifying the Elasticsearch data path.
 * `additional_cluster_settings` (default: empty): A dictionary of key-value pairs with additional settings in `elasticsearch.yml`.
@@ -25,4 +25,4 @@ Example:
 }
 ```
 
-Save it as `params.json` and provide it to Rally with `--provision-config-instance-params="/path/to/params.json"`.
+Save it as `params.json` and provide it to Benchmark with `--provision-config-instance-params="/path/to/params.json"`.

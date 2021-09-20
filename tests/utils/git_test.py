@@ -34,7 +34,7 @@ from osbenchmark.utils import git
 class GitTests(TestCase):
     def test_is_git_working_copy(self):
         test_dir = os.path.dirname(os.path.dirname(__file__))
-        # this test is assuming that nobody stripped the git repo info in their Rally working copy
+        # this test is assuming that nobody stripped the git repo info in their Benchmark working copy
         self.assertFalse(git.is_working_copy(test_dir))
         self.assertTrue(git.is_working_copy(os.path.dirname(test_dir)))
 
@@ -47,7 +47,7 @@ class GitTests(TestCase):
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             git.head_revision("/src")
-        self.assertEqual("Your git version is [1.0.0] but Rally requires at least git 1.9. Please update git.", ctx.exception.args[0])
+        self.assertEqual("Your git version is [1.0.0] but Benchmark requires at least git 1.9. Please update git.", ctx.exception.args[0])
         run_subprocess_with_logging.assert_called_with("git -C /src --version", level=logging.DEBUG)
 
     @mock.patch("osbenchmark.utils.io.ensure_dir")

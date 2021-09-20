@@ -58,7 +58,7 @@ class PrepareBenchmark:
 
     def __init__(self, config, workload):
         """
-        :param config: Rally internal configuration object.
+        :param config: Benchmark internal configuration object.
         :param workload: The workload to use.
         """
         self.config = config
@@ -76,7 +76,7 @@ class PrepareWorkload:
     """
     def __init__(self, cfg, workload):
         """
-        :param cfg: Rally internal configuration object.
+        :param cfg: Benchmark internal configuration object.
         :param workload: The workload to use.
         """
         self.config = cfg
@@ -131,7 +131,7 @@ class StartWorker:
     def __init__(self, worker_id, config, workload, client_allocations):
         """
         :param worker_id: Unique (numeric) id of the worker.
-        :param config: Rally internal configuration object.
+        :param config: Benchmark internal configuration object.
         :param workload: The workload to use.
         :param client_allocations: A structure describing which clients need to run which tasks.
         """
@@ -1586,7 +1586,7 @@ class AsyncExecutor:
                 processing_time = processing_end - processing_start
                 time_period = request_end - total_start
                 self.schedule_handle.after_request(processing_end, total_ops, total_ops_unit, request_meta_data)
-                # Allow runners to override the throughput calculation in very specific circumstances. Usually, Rally
+                # Allow runners to override the throughput calculation in very specific circumstances. Usually, Benchmark
                 # assumes that throughput is the "amount of work" (determined by the "weight") per unit of time
                 # (determined by the elapsed time period). However, in certain cases (e.g. shard recovery or other
                 # long running operations where there is a dedicated stats API to determine progress), it is

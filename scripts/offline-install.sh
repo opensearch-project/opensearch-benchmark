@@ -61,7 +61,7 @@ function main {
     local install_script_file="install.sh"
     local install_script="${ABSOLUTE_DOWNLOAD_DIR}/${install_script_file}"
 
-    echo "Preparing offline distribution for Rally ${BENCHMARK_VERSION}"
+    echo "Preparing offline distribution for Benchmark ${BENCHMARK_VERSION}"
 
     mkdir -p "${ABSOLUTE_DOWNLOAD_BIN_DIR}"
     # Prepare install
@@ -91,7 +91,7 @@ while [ -h "\$SOURCE" ]; do # resolve \$SOURCE until the file is no longer a sym
 done
 SRC_HOME="\$( cd -P "\$( dirname "\$SOURCE" )" && pwd )"
 
-echo "Installing Rally ${BENCHMARK_VERSION}..."
+echo "Installing Benchmark ${BENCHMARK_VERSION}..."
 
 # Check if mandatory prerequisites are installed
 command -v python3 >/dev/null 2>&1 || { echo >&2 "Python3 ${PYTHON_ERROR_MSG}"; exit 1; }

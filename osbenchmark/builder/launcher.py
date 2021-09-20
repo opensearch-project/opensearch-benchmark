@@ -182,7 +182,7 @@ class ProcessLauncher:
             self._set_env(env, "PATH", os.path.join(java_home, "bin"), separator=os.pathsep, prepend=True)
             # This property is the higher priority starting in ES 7.12.0, and is the only supported java home in >=8.0
             env["ES_JAVA_HOME"] = java_home
-            # TODO remove this when ES <8.0 becomes unsupported by Rally
+            # TODO remove this when ES <8.0 becomes unsupported by Benchmark
             env["JAVA_HOME"] = java_home
         if not env.get("ES_JAVA_OPTS"):
             env["ES_JAVA_OPTS"] = "-XX:+ExitOnOutOfMemoryError"
@@ -219,7 +219,7 @@ class ProcessLauncher:
     @staticmethod
     def _start_process(binary_path, env):
         if os.name == "posix" and os.geteuid() == 0:
-            raise exceptions.LaunchError("Cannot launch Elasticsearch as root. Please run Rally as a non-root user.")
+            raise exceptions.LaunchError("Cannot launch Elasticsearch as root. Please run Benchmark as a non-root user.")
         os.chdir(binary_path)
         cmd = [io.escape_path(os.path.join(".", "bin", "elasticsearch"))]
         cmd.extend(["-d", "-p", "pid"])

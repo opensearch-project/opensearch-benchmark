@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "title": "workload",
-  "description": "Specification of workloads for Rally",
+  "description": "Specification of workloads for Benchmark",
   "type": "object",
   "definitions": {
     "schedule": {
@@ -87,7 +87,7 @@
                     },
                     "schedule": {
                       "type": "string",
-                      "description": "Defines the scheduling strategy that is used for throughput throttled operations. Out of the box, Rally supports 'deterministic' (default) and 'poisson' but you can implement your own schedules."
+                      "description": "Defines the scheduling strategy that is used for throughput throttled operations. Out of the box, Benchmark supports 'deterministic' (default) and 'poisson' but you can implement your own schedules."
                     },
                     "target-throughput": {
                       "anyOf": [
@@ -99,7 +99,7 @@
                           "type": "string"
                         }
                       ],
-                      "description": "Defines the number of operations per second that Rally should attempt to run."
+                      "description": "Defines the number of operations per second that Benchmark should attempt to run."
                     },
                     "target-interval": {
                       "type": "number",
@@ -166,7 +166,7 @@
                 "type": "string"
               }
             ],
-            "description": "Defines the number of operations per second that Rally should attempt to run."
+            "description": "Defines the number of operations per second that Benchmark should attempt to run."
           },
           "target-interval": {
             "type": "number",
@@ -187,7 +187,7 @@
         },
         "default": {
           "type": "boolean",
-          "description": "If true, Rally should select this test_procedure as the default test_procedure if the user does not specify one on the command line."
+          "description": "If true, Benchmark should select this test_procedure as the default test_procedure if the user does not specify one on the command line."
         },
         "meta": {
           "type": "object",
@@ -368,11 +368,11 @@
           "base-url": {
             "type": "string",
             "format": "uri",
-            "description": "The default base URL for this document corpus. Has to be a publicly accessible http or https URL. If not specified, Rally will not attempt to download data and assume that it will be available locally."
+            "description": "The default base URL for this document corpus. Has to be a publicly accessible http or https URL. If not specified, Benchmark will not attempt to download data and assume that it will be available locally."
           },
           "source-format": {
             "type": "string",
-            "description": "Defines in which format Rally should interpret the data file specified by 'source-file'. Currently, only 'bulk' is supported."
+            "description": "Defines in which format Benchmark should interpret the data file specified by 'source-file'. Currently, only 'bulk' is supported."
           },
           "includes-action-and-meta-data": {
             "type": "boolean",
@@ -412,7 +412,7 @@
                 },
                 "source-format": {
                   "type": "string",
-                  "description": "Defines in which format Rally should interpret the data file specified by 'source-file'. Currently, only 'bulk' is supported."
+                  "description": "Defines in which format Benchmark should interpret the data file specified by 'source-file'. Currently, only 'bulk' is supported."
                 },
                 "document-count": {
                   "type": "integer",
@@ -426,7 +426,7 @@
                 "compressed-bytes": {
                   "type": "integer",
                   "minimum": 1,
-                  "description": "The size in bytes of the compressed document file. This number is used to show users how much data will be downloaded by Rally and also to check whether the download is complete."
+                  "description": "The size in bytes of the compressed document file. This number is used to show users how much data will be downloaded by Benchmark and also to check whether the download is complete."
                 },
                 "uncompressed-bytes": {
                   "type": "integer",
@@ -521,15 +521,15 @@
           },
           "cache": {
             "type": "boolean",
-            "description": "[Only for type 'search']: Whether to use the query request cache. By default, Rally will define no value thus the default depends on the benchmark candidate settings and Elasticsearch version."
+            "description": "[Only for type 'search']: Whether to use the query request cache. By default, Benchmark will define no value thus the default depends on the benchmark candidate settings and Elasticsearch version."
           },
           "index": {
             "type": "string",
-            "description": "[Only for type 'search']: The index or index pattern against which the query should be executed. This property is only necessary if there is more than one index or the index contains more than one type. Otherwise, Rally will derive the index and type by itself."
+            "description": "[Only for type 'search']: The index or index pattern against which the query should be executed. This property is only necessary if there is more than one index or the index contains more than one type. Otherwise, Benchmark will derive the index and type by itself."
           },
           "type": {
             "type": "string",
-            "description": "[Only for type 'search']: The type against which the query should be executed. This property is only necessary if there is more than one index or the index contains more than one type. Otherwise, Rally will derive the index and type by itself."
+            "description": "[Only for type 'search']: The type against which the query should be executed. This property is only necessary if there is more than one index or the index contains more than one type. Otherwise, Benchmark will derive the index and type by itself."
           },
           "pages": {
             "type": "integer",

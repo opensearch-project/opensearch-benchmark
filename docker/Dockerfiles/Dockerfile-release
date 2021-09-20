@@ -19,7 +19,7 @@ WORKDIR /rally
 COPY --chown=1000:0 docker/bin/entrypoint.sh /entrypoint.sh
 
 # Openshift overrides USER and uses random ones with uid>1024 and gid=0
-# Allow ENTRYPOINT (and Rally) to run even with a different user
+# Allow ENTRYPOINT (and Benchmark) to run even with a different user
 RUN chgrp 0 /entrypoint.sh && \
     chmod g=u /etc/passwd && \
     chmod 0775 /entrypoint.sh

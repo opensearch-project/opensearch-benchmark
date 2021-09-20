@@ -39,7 +39,7 @@ def probed(f):
                 version = str(version).strip()
             else:
                 version = "Unknown"
-            raise exceptions.SystemSetupError("Your git version is [%s] but Rally requires at least git 1.9. Please update git." % version)
+            raise exceptions.SystemSetupError("Your git version is [%s] but Benchmark requires at least git 1.9. Please update git." % version)
         return f(src, *args, **kwargs)
     return probe
 

@@ -218,7 +218,7 @@ class EsClientFactory:
 
 class IndexTemplateProvider:
     """
-    Abstracts how the Rally index template is retrieved. Intended for testing.
+    Abstracts how the Benchmark index template is retrieved. Intended for testing.
     """
 
     def __init__(self, cfg):
@@ -457,7 +457,7 @@ class MetricsStore:
 
     def _clear_meta_info(self):
         """
-        Clears all internally stored meta-info. This is considered Rally internal API and not intended for normal client consumption.
+        Clears all internally stored meta-info. This is considered Benchmark internal API and not intended for normal client consumption.
         """
         self._meta_info = {
             MetaInfoScope.cluster: {},
@@ -1933,11 +1933,11 @@ class GlobalStats:
         self.op_metrics.append(doc)
 
     def tasks(self):
-        # ensure we can read test_execution.json files before Rally 0.8.0
+        # ensure we can read test_execution.json files before Benchmark 0.8.0
         return [v.get("task", v["operation"]) for v in self.op_metrics]
 
     def metrics(self, task):
-        # ensure we can read test_execution.json files before Rally 0.8.0
+        # ensure we can read test_execution.json files before Benchmark 0.8.0
         for r in self.op_metrics:
             if r.get("task", r["operation"]) == task:
                 return r

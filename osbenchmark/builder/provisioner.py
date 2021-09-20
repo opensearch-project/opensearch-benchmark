@@ -217,7 +217,7 @@ class BareProvisioner:
         mandatory_plugins = []
         for installer in self.plugin_installers:
             # For Elasticsearch < 6.3 more specific plugin names are required for mandatory plugin check
-            # Details in: https://github.com/elastic/elasticsearch/pull/28710
+            # Details in: https://github.com/opensearch-project/OpenSearch-Benchmark
             # TODO: Remove this section with Elasticsearch <6.3 becomes EOL.
             try:
                 major, minor, _, _ = versions.components(self.distribution_version)
@@ -299,9 +299,9 @@ class ElasticsearchInstaller:
             "data_paths": self.data_paths,
             "log_path": self.node_log_dir,
             "heap_dump_path": self.heap_dump_dir,
-            # this is the node's IP address as specified by the user when invoking Rally
+            # this is the node's IP address as specified by the user when invoking Benchmark
             "node_ip": self.node_ip,
-            # this is the IP address that the node will be bound to. Rally will bind to the node's IP address (but not to 0.0.0.0). The
+            # this is the IP address that the node will be bound to. Benchmark will bind to the node's IP address (but not to 0.0.0.0). The
             "network_host": network_host,
             "http_port": str(self.http_port),
             "transport_port": str(self.http_port + 100),
