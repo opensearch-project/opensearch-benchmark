@@ -100,7 +100,7 @@ def test_fails_without_benchmark_only_pipeline_in_docker(running_in_docker, unit
                 "Only the [benchmark-only] pipeline is supported by the Benchmark Docker image.\n"
                 "Add --pipeline=benchmark-only in your Benchmark arguments and try again.\n"
                 "For more details read the docs for the benchmark-only pipeline in "
-                "https://opensearch.org/\n"
+                "https://opensearch.org/docs\n"
             )):
         test_execution_orchestrator.run(cfg)
 
