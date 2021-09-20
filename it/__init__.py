@@ -173,9 +173,7 @@ class TestCluster:
                                                                      node_name=node_name,
                                                                      provision_config_instance=provision_config_instance,
                                                                      transport_port=transport_port))
-            print("output: ", output)
             self.installation_id = json.loads("".join(output))["installation-id"]
-            print("INSTALLATION ID: ", self.installation_id)
         except BaseException as e:
             raise AssertionError("Failed to install Elasticsearch {}.".format(distribution_version), e)
 
@@ -206,9 +204,7 @@ class EsMetricsStore:
                              node_name="metrics-store",
                              provision_config_instance="defaults",
                              http_port=10200)
-        print("CLUSTER INSTALLED")
         self.cluster.start(test_execution_id="metrics-store")
-        print("CLUSTER STARTED")
 
     def stop(self):
         self.cluster.stop()
@@ -246,11 +242,6 @@ def build_docker_image():
 
     command = f"docker build -t elastic/rally:{benchmark_version} --build-arg BENCHMARK_VERSION --build-arg BENCHMARK_LICENSE " \
               f"-f {ROOT_DIR}/docker/Dockerfiles/Dockerfile-dev {ROOT_DIR}"
-
-    print("DOCKER BUILD COMMAND: ", command)
-
-    rc = process.run_subprocess_with_logging(command, env=env_variables)
-    print(rc)
 
     if process.run_subprocess_with_logging(command, env=env_variables) != 0:
         raise AssertionError("It was not possible to build the docker image from Dockerfile-dev")
