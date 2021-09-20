@@ -199,7 +199,7 @@ class TaskFinished:
         self.next_task_scheduled_in = next_task_scheduled_in
 
 
-class WorkerCoordinatorActor(actor.RallyActor):
+class WorkerCoordinatorActor(actor.BenchmarkActor):
     RESET_RELATIVE_TIME_MARKER = "reset_relative_time"
 
     WAKEUP_INTERVAL_SECONDS = 1
@@ -357,7 +357,7 @@ def load_local_config(coordinator_config):
     return cfg
 
 
-class TaskExecutionActor(actor.RallyActor):
+class TaskExecutionActor(actor.BenchmarkActor):
     """
     This class should be used for long-running tasks, as it ensures they do not block the actor's messaging system
     """
@@ -419,7 +419,7 @@ class TaskExecutionActor(actor.RallyActor):
         # sent by our no_retry infrastructure; forward to master
         self.send(self.parent, msg)
 
-class WorkloadPreparationActor(actor.RallyActor):
+class WorkloadPreparationActor(actor.BenchmarkActor):
     class Status(Enum):
         INITIALIZING = "initializing"
         PROCESSOR_RUNNING = "processor running"
@@ -993,7 +993,7 @@ class ClientAllocations:
         return current_tasks
 
 
-class Worker(actor.RallyActor):
+class Worker(actor.BenchmarkActor):
     """
     The actual worker that applies load against the cluster(s).
 

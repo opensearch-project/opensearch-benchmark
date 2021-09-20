@@ -100,7 +100,7 @@ def no_retry(f, actor_name):
     return guard
 
 
-class RallyActor(thespian.actors.ActorTypeDispatcher):
+class BenchmarkActor(thespian.actors.ActorTypeDispatcher):
     def __init__(self, *args, **kw):
         super().__init__(*args, **kw)
         self.children = []

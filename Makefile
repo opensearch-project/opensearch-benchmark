@@ -66,7 +66,7 @@ install: install-user
 clean: nondocs-clean docs-clean
 
 nondocs-clean:
-	rm -rf .benchmarks .eggs .tox .benchmark_it .cache build dist esbenchmark.egg-info logs junit-py*.xml NOTICE.txt
+	rm -rf .benchmarks .eggs .tox .benchmark_it .cache build dist osbenchmark.egg-info logs junit-py*.xml NOTICE.txt
 
 docs-clean:
 	cd docs && $(MAKE) clean

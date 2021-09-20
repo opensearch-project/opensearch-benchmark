@@ -308,7 +308,7 @@ def nodes_by_host(ip_port_pairs):
     return nodes
 
 
-class BuilderActor(actor.RallyActor):
+class BuilderActor(actor.BenchmarkActor):
     WAKEUP_RESET_RELATIVE_TIME = "relative_time"
 
     """
@@ -436,7 +436,7 @@ class BuilderActor(actor.RallyActor):
 
 
 @thespian.actors.requireCapability('coordinator')
-class Dispatcher(actor.RallyActor):
+class Dispatcher(actor.BenchmarkActor):
     """This Actor receives a copy of the startmsg (with the computed hosts
        attached) and creates a NodeBuilderActor on each targeted
        remote host.  It uses Thespian SystemRegistration to get
@@ -520,7 +520,7 @@ class Dispatcher(actor.RallyActor):
         self.logger.info("builder.Dispatcher#receiveMessage unrecognized(msg = [%s] sender = [%s])", str(type(msg)), str(sender))
 
 
-class NodeBuilderActor(actor.RallyActor):
+class NodeBuilderActor(actor.BenchmarkActor):
     """
     One instance of this actor is run on each target host and coordinates the actual work of starting / stopping all nodes that should run
     on this host.

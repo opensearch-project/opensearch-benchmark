@@ -630,7 +630,7 @@ def print_help_on_errors():
     console.println(f"* Check the log files in {paths.logs()} for errors.")
     console.println(f"* Read the documentation at {console.format.link(doc_link())}.")
     console.println(f"* Ask a question on the forum at {console.format.link(FORUM_LINK)}.")
-    console.println(f"* Raise an issue at {console.format.link('https://github.com/elastic/benchmark/issues')} "
+    console.println(f"* Raise an issue at {console.format.link('https://github.com/opensearch-project/OpenSearch-Benchmark/issues')} "
                     f"and include the log files in {paths.logs()}.")
 
 

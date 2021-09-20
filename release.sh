@@ -51,7 +51,7 @@ then
 fi
 
 echo "Updating changelog"
-# For exit on error to work we have to separate 
+# For exit on error to work we have to separate
 #  CHANGELOG.md generation into two steps.
 CHANGELOG="$(python3 changelog.py ${RELEASE_VERSION})"
 printf "$CHANGELOG\n\n$(cat CHANGELOG.md)" > CHANGELOG.md
@@ -96,12 +96,12 @@ git push origin master
 
 echo ""
 echo "===================="
-echo "Released Rally ${RELEASE_VERSION}"
+echo "Released Benchmark ${RELEASE_VERSION}"
 echo "===================="
 echo ""
 echo "Manual tasks:"
 echo ""
-echo "* Close milestone on Github: https://github.com/elastic/rally/milestones"
-echo "* Upload offline install package to Github: https://github.com/elastic/rally/releases/edit/$RELEASE_VERSION"
+echo "* Close milestone on Github: https://github.com/opensearch-project/OpenSearch-Benchmark/milestones"
+echo "* Upload offline install package to Github: https://github.com/opensearch-project/OpenSearch-Benchmark/releases/edit/$RELEASE_VERSION"
 echo "* Build and publish Docker image using: https://elasticsearch-ci.elastic.co/view/All/job/elastic+rally-release-docker+master specifying $RELEASE_VERSION"
-echo "* Announce on Discuss: https://discuss.elastic.co/c/annoucements"
+echo "* Announce on News: https://opensearch.org/blog"

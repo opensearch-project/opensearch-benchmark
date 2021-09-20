@@ -82,7 +82,7 @@ class Success:
     pass
 
 
-class BenchmarkActor(actor.RallyActor):
+class BenchmarkActor(actor.BenchmarkActor):
     def __init__(self):
         super().__init__()
         self.cfg = None

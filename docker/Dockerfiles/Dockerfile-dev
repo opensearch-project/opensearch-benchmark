@@ -71,7 +71,7 @@ LABEL org.label-schema.schema-version="1.0" \
   org.label-schema.name="benchmark" \
   org.label-schema.version="${BENCHMARK_VERSION}" \
   org.label-schema.url="https://esbenchmark.readthedocs.io/en/stable/" \
-  org.label-schema.vcs-url="https://github.com/elastic/benchmark" \
+  org.label-schema.vcs-url="https://github.com/opensearch-project/OpenSearch-Benchmark" \
   license="${BENCHMARK_LICENSE}"
 
 VOLUME ["/benchmark/.benchmark"]
