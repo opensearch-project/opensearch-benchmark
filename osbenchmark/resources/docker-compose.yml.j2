@@ -5,7 +5,7 @@ services:
       - IPC_LOCK
     image: "{{docker_image}}:{{es_version}}"
     labels:
-      io.rally.description: "elasticsearch-rally"
+      io.benchmark.description: "opensearch-benchmark"
     {%- if docker_cpu_count is defined %}
     cpu_count: {{docker_cpu_count}}
     {%- endif %}
