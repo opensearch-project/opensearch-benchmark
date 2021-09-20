@@ -67,7 +67,7 @@ USER 1000
 ENV PATH=/benchmark/venv/bin:$PATH
 
 LABEL org.label-schema.schema-version="1.0" \
-  org.label-schema.vendor="Elastic" \
+  org.label-schema.vendor="OpenSearch-Project" \
   org.label-schema.name="benchmark" \
   org.label-schema.version="${BENCHMARK_VERSION}" \
   org.label-schema.url="https://opensearch.org/docs" \
