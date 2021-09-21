@@ -145,7 +145,7 @@ disable=print-statement,
         deprecated-sys-function,
         exception-escape,
         comprehension-escape,
-        # custom rally ignores start here
+        # custom benchmark ignores start here
         invalid-name,
         missing-module-docstring,
         missing-function-docstring,

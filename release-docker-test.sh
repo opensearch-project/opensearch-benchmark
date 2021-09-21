@@ -92,32 +92,32 @@ function docker_compose {
 
 # This function gets called by release-docker.sh and assumes the image has been already built
 function test_docker_release_image {
-    if [[ -z "${RALLY_VERSION}" ]]; then
-        error "Environment variable [RALLY_VERSION] needs to be set to test the release image; exiting."
-    elif [[ -z "${RALLY_LICENSE}" ]]; then
-        error "Environment variable [RALLY_LICENSE] needs to be set to test the release image; exiting."
+    if [[ -z "${BENCHMARK_VERSION}" ]]; then
+        error "Environment variable [BENCHMARK_VERSION] needs to be set to test the release image; exiting."
+    elif [[ -z "${BENCHMARK_LICENSE}" ]]; then
+        error "Environment variable [BENCHMARK_LICENSE] needs to be set to test the release image; exiting."
     fi
 
     docker_compose down
 
     info "Testing Rally docker image uses the right version"
-    actual_version=$(docker run --rm elastic/rally:${RALLY_VERSION} esrally --version | cut -d ' ' -f 2,2)
-    if [[ ${actual_version} != ${RALLY_VERSION} ]]; then
-        echo "Rally version in Docker image: [${actual_version}] doesn't match the expected version [${RALLY_VERSION}]"
+    actual_version=$(docker run --rm elastic/rally:${BENCHMARK_VERSION} osbenchmark --version | cut -d ' ' -f 2,2)
+    if [[ ${actual_version} != ${BENCHMARK_VERSION} ]]; then
+        echo "Rally version in Docker image: [${actual_version}] doesn't match the expected version [${BENCHMARK_VERSION}]"
         exit 1
     fi
 
     info "Testing Rally docker image version label is correct"
-    actual_version=$(docker inspect --format '{{ index .Config.Labels "org.label-schema.version"}}' elastic/rally:${RALLY_VERSION})
-    if [[ ${actual_version} != ${RALLY_VERSION} ]]; then
-        echo "org.label-schema.version label in Rally Docker image: [${actual_version}] doesn't match the expected version [${RALLY_VERSION}]"
+    actual_version=$(docker inspect --format '{{ index .Config.Labels "org.label-schema.version"}}' elastic/rally:${BENCHMARK_VERSION})
+    if [[ ${actual_version} != ${BENCHMARK_VERSION} ]]; then
+        echo "org.label-schema.version label in Rally Docker image: [${actual_version}] doesn't match the expected version [${BENCHMARK_VERSION}]"
         exit 1
     fi
 
     info "Testing Rally docker image license label is correct"
-    actual_license=$(docker inspect --format '{{ index .Config.Labels "license"}}' elastic/rally:${RALLY_VERSION})
-    if [[ ${actual_license} != ${RALLY_LICENSE} ]]; then
-        echo "license label in Rally Docker image: [${actual_license}] doesn't match the expected license [${RALLY_LICENSE}]"
+    actual_license=$(docker inspect --format '{{ index .Config.Labels "license"}}' elastic/rally:${BENCHMARK_VERSION})
+    if [[ ${actual_license} != ${BENCHMARK_LICENSE} ]]; then
+        echo "license label in Rally Docker image: [${actual_license}] doesn't match the expected license [${BENCHMARK_LICENSE}]"
         exit 1
     fi
 
@@ -139,7 +139,7 @@ function test_docker_release_image {
     docker_compose down
 
     # allow overriding CMD too
-    export TEST_COMMAND="esrally race --pipeline=benchmark-only --test-mode --workload=geonames --test-procedure=append-no-conflicts-index-only --target-hosts=es01:9200"
+    export TEST_COMMAND="osbenchmark race --pipeline=benchmark-only --test-mode --workload=geonames --test-procedure=append-no-conflicts-index-only --target-hosts=es01:9200"
     info "Testing Rally docker image using parameters: ${TEST_COMMAND}"
     docker_compose up
     docker_compose down

@@ -23,7 +23,7 @@
 # under the License.
 
 """
-These tests ensure the validity of Rally installation instructions (as shown in docs)
+These tests ensure the validity of Benchmark installation instructions (as shown in docs)
 """
 
 import json
@@ -50,21 +50,21 @@ def test_installs_inside_venv():
         "cd /rally &&"
         "python3 -m pip install --upgrade pip &&"
         "python3 -m pip install -e . &&"
-        "esrally list workloads"
+        "osbenchmark list workloads"
     )
 
     assert it.command_in_docker(commands, python_version=MIN_PY_VER) == 0
 
 
 def test_local_installation():
-    # as in the Installing Rally install.rst
+    # as in the Installing Benchmark install.rst
     commands = (
         "cp -a /rally_ro /rally &&"
         "cd /rally &&"
         "export PATH=$PATH:~/.local/bin &&"
         "python3 -m pip install --user --upgrade pip &&"
         "python3 -m pip install --user -e . &&"
-        "esrally list workloads"
+        "osbenchmark list workloads"
     )
 
     assert it.command_in_docker(commands, python_version=MIN_PY_VER) == 0

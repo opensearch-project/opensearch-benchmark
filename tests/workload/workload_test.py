@@ -24,8 +24,8 @@
 
 from unittest import TestCase
 
-from esrally import exceptions
-from esrally.workload import workload
+from osbenchmark import exceptions
+from osbenchmark.workload import workload
 
 
 class WorkloadTests(TestCase):
@@ -211,7 +211,7 @@ class DocumentCorpusTests(TestCase):
         b = workload.DocumentCorpus("other", documents=[
             workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK, number_of_documents=5, target_index="logs-02"),
         ])
-        with self.assertRaises(exceptions.RallyAssertionError) as ae:
+        with self.assertRaises(exceptions.BenchmarkAssertionError) as ae:
             a.union(b)
         self.assertEqual(ae.exception.message, "Corpora names differ: [test] and [other].")
 
@@ -226,7 +226,7 @@ class DocumentCorpusTests(TestCase):
         ], meta_data={
             "with-metadata": True
         })
-        with self.assertRaises(exceptions.RallyAssertionError) as ae:
+        with self.assertRaises(exceptions.BenchmarkAssertionError) as ae:
             a.union(b)
         self.assertEqual(ae.exception.message,
                          "Corpora meta-data differ: [{'with-metadata': False}] and [{'with-metadata': True}].")

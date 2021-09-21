@@ -32,8 +32,8 @@ import time
 
 import pytest
 
-from esrally import client, config, version
-from esrally.utils import process
+from osbenchmark import client, config, version
+from osbenchmark.utils import process
 
 CONFIG_NAMES = ["in-memory-it", "es-it"]
 DISTRIBUTIONS = ["6.8.0", "7.6.0"]
@@ -41,7 +41,7 @@ WORKLOADS = ["geonames", "nyc_taxis", "http_logs", "nested"]
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 
-def all_rally_configs(t):
+def all_benchmark_configs(t):
     @functools.wraps(t)
     @pytest.mark.parametrize("cfg", CONFIG_NAMES)
     def wrapper(cfg, *args, **kwargs):
@@ -50,7 +50,7 @@ def all_rally_configs(t):
     return wrapper
 
 
-def random_rally_config(t):
+def random_benchmark_config(t):
     @functools.wraps(t)
     @pytest.mark.parametrize("cfg", [random.choice(CONFIG_NAMES)])
     def wrapper(cfg, *args, **kwargs):
@@ -59,7 +59,7 @@ def random_rally_config(t):
     return wrapper
 
 
-def rally_in_mem(t):
+def benchmark_in_mem(t):
     @functools.wraps(t)
     @pytest.mark.parametrize("cfg", ["in-memory-it"])
     def wrapper(cfg, *args, **kwargs):
@@ -68,7 +68,7 @@ def rally_in_mem(t):
     return wrapper
 
 
-def rally_es(t):
+def benchmark_os(t):
     @functools.wraps(t)
     @pytest.mark.parametrize("cfg", ["es-it"])
     def wrapper(cfg, *args, **kwargs):
@@ -77,24 +77,24 @@ def rally_es(t):
     return wrapper
 
 
-def esrally_command_line_for(cfg, command_line):
-    return f"esrally {command_line} --configuration-name='{cfg}'"
+def osbenchmark_command_line_for(cfg, command_line):
+    return f"osbenchmark {command_line} --configuration-name='{cfg}'"
 
 
-def esrally(cfg, command_line):
+def osbenchmark(cfg, command_line):
     """
-    This method should be used for rally invocations of the all commands besides test_execution.
+    This method should be used for benchmark invocations of the all commands besides test_execution.
     These commands may have different CLI options than test_execution.
     """
-    return os.system(esrally_command_line_for(cfg, command_line))
+    return os.system(osbenchmark_command_line_for(cfg, command_line))
 
 
 def execute_test(cfg, command_line):
     """
-    This method should be used for rally invocations of the test_execution command.
+    This method should be used for benchmark invocations of the test_execution command.
     It sets up some defaults for how the integration tests expect to run test_executions.
     """
-    return esrally(cfg, f"execute_test {command_line} --kill-running-processes --on-error='abort' --enable-assertions")
+    return osbenchmark(cfg, f"execute_test {command_line} --kill-running-processes --on-error='abort' --enable-assertions")
 
 
 def shell_cmd(command_line):
@@ -143,14 +143,14 @@ def check_prerequisites():
 
 class ConfigFile:
     def __init__(self, config_name):
-        self.user_home = os.getenv("RALLY_HOME", os.path.expanduser("~"))
-        self.rally_home = os.path.join(self.user_home, ".rally")
+        self.user_home = os.getenv("BENCHMARK_HOME", os.path.expanduser("~"))
+        self.benchmark_home = os.path.join(self.user_home, ".benchmark")
         if config_name is not None:
-            self.config_file_name = f"rally-{config_name}.ini"
+            self.config_file_name = f"benchmark-{config_name}.ini"
         else:
-            self.config_file_name = "rally.ini"
+            self.config_file_name = "benchmark.ini"
         self.source_path = os.path.join(os.path.dirname(__file__), "resources", self.config_file_name)
-        self.target_path = os.path.join(self.rally_home, self.config_file_name)
+        self.target_path = os.path.join(self.benchmark_home, self.config_file_name)
 
 
 class TestCluster:
@@ -164,7 +164,7 @@ class TestCluster:
         transport_port = http_port + 100
         try:
             output = process.run_subprocess_with_output(
-                "esrally install --configuration-name={cfg} --quiet --distribution-version={dist} --build-type=tar "
+                "osbenchmark install --configuration-name={cfg} --quiet --distribution-version={dist} --build-type=tar "
                 "--http-port={http_port} --node={node_name} --master-nodes="
                 "{node_name} --provision-config-instance={provision_config_instance} "
                 "--seed-hosts=\"127.0.0.1:{transport_port}\"".format(cfg=self.cfg,
@@ -179,14 +179,14 @@ class TestCluster:
 
     def start(self, test_execution_id):
         cmd = "start --runtime-jdk=\"bundled\" --installation-id={} --test-execution-id={}".format(self.installation_id, test_execution_id)
-        if esrally(self.cfg, cmd) != 0:
+        if osbenchmark(self.cfg, cmd) != 0:
             raise AssertionError("Failed to start Elasticsearch test cluster.")
         es = client.EsClientFactory(hosts=[{"host": "127.0.0.1", "port": self.http_port}], client_options={}).create()
         client.wait_for_rest_layer(es)
 
     def stop(self):
         if self.installation_id:
-            if esrally(self.cfg, "stop --installation-id={}".format(self.installation_id)) != 0:
+            if osbenchmark(self.cfg, "stop --installation-id={}".format(self.installation_id)) != 0:
                 raise AssertionError("Failed to stop Elasticsearch test cluster.")
 
     def __str__(self):
@@ -212,7 +212,7 @@ class EsMetricsStore:
 
 def install_integration_test_config():
     def copy_config(name):
-        source_path = os.path.join(os.path.dirname(__file__), "resources", f"rally-{name}.ini")
+        source_path = os.path.join(os.path.dirname(__file__), "resources", f"benchmark-{name}.ini")
         f = config.ConfigFile(name)
         f.store_default_config(template_path=source_path)
 
@@ -234,13 +234,13 @@ def get_license():
 
 
 def build_docker_image():
-    rally_version = version.__version__
+    benchmark_version = version.__version__
 
     env_variables = os.environ.copy()
-    env_variables['RALLY_VERSION'] = rally_version
-    env_variables['RALLY_LICENSE'] = get_license()
+    env_variables['BENCHMARK_VERSION'] = benchmark_version
+    env_variables['BENCHMARK_LICENSE'] = get_license()
 
-    command = f"docker build -t elastic/rally:{rally_version} --build-arg RALLY_VERSION --build-arg RALLY_LICENSE " \
+    command = f"docker build -t elastic/rally:{benchmark_version} --build-arg BENCHMARK_VERSION --build-arg BENCHMARK_LICENSE " \
               f"-f {ROOT_DIR}/docker/Dockerfiles/Dockerfile-dev {ROOT_DIR}"
 
     if process.run_subprocess_with_logging(command, env=env_variables) != 0:

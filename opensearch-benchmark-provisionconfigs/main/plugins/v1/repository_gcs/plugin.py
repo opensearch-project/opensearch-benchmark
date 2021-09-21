@@ -18,10 +18,10 @@
 import logging
 import os
 
-from esrally.utils import process
-from esrally import exceptions
+from osbenchmark.utils import process
+from osbenchmark import exceptions
 
-LOGGER_NAME = "esrally.provisioner.repository_gcs"
+LOGGER_NAME = "osbenchmark.provisioner.repository_gcs"
 
 
 def resolve_binary(install_root, binary_name):

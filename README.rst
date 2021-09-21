@@ -1,46 +1,46 @@
-Rally
+Benchmark
 =====
 
-Rally is the macrobenchmarking framework for Elasticsearch
+Benchmark is the macrobenchmarking framework for OpenSearch
 
-What is Rally?
+What is Benchmark?
 --------------
 
-You want to benchmark Elasticsearch? Then Rally is for you. It can help you with the following tasks:
+You want to benchmark OpenSearch? Then Benchmark is for you. It can help you with the following tasks:
 
-* Setup and teardown of an Elasticsearch cluster for benchmarking
-* Management of benchmark data and specifications even across Elasticsearch versions
+* Setup and teardown of an OpenSearch cluster for benchmarking
+* Management of benchmark data and specifications even across OpenSearch versions
 * Running benchmarks and recording results
 * Finding performance problems by attaching so-called telemetry devices
 * Comparing performance results
 
-We have also put considerable effort in Rally to ensure that benchmarking data are reproducible.
+We have also put considerable effort in Benchmark to ensure that benchmarking data are reproducible.
 
 Quick Start
 -----------
 
-Rally is developed for Unix and is actively tested on Linux and MacOS. Rally supports `benchmarking Elasticsearch clusters running on Windows <http://esrally.readthedocs.io/en/stable/recipes.html#benchmarking-an-existing-cluster>`_ but Rally itself needs to be installed on machines running Unix.
+Benchmark is developed for Unix and is actively tested on Linux and MacOS. Benchmark supports `benchmarking OpenSearch clusters running on Windows <http://osbenchmark.readthedocs.io/en/stable/recipes.html#benchmarking-an-existing-cluster>`_ but Benchmark itself needs to be installed on machines running Unix.
 
-Installing Rally
+Installing Benchmark
 ~~~~~~~~~~~~~~~~
 
-**Note**: If you actively develop on Elasticsearch, we recommend that you `install Rally in development mode <https://esrally.readthedocs.io/en/latest/developing.html#installation-instructions-for-development>`_ instead as Elasticsearch is fast moving and Rally always adapts accordingly to the latest master version.
+**Note**: If you actively develop on OpenSearch, we recommend that you `install Benchmark in development mode <https://osbenchmark.readthedocs.io/en/latest/developing.html#installation-instructions-for-development>`_ instead as OpenSearch is fast moving and Benchmark always adapts accordingly to the latest master version.
 
-Install Python 3.8+ including ``pip3``, git 1.9+ and an `appropriate JDK to run Elasticsearch <https://www.elastic.co/support/matrix#matrix_jvm>`_ Be sure that ``JAVA_HOME`` points to that JDK. Then run the following command, optionally prefixed by ``sudo`` if necessary::
+Install Python 3.8+ including ``pip3``, git 1.9+ and an `appropriate JDK to run OpenSearch <https://www.elastic.co/support/matrix#matrix_jvm>`_ Be sure that ``JAVA_HOME`` points to that JDK. Then run the following command, optionally prefixed by ``sudo`` if necessary::
 
-    pip3 install esrally
+    pip3 install osbenchmark
 
 
-If you have any trouble or need more detailed instructions, please look in the `detailed installation guide <https://esrally.readthedocs.io/en/latest/install.html>`_.
+If you have any trouble or need more detailed instructions, please look in the `detailed installation guide <https://osbenchmark.readthedocs.io/en/latest/install.html>`_.
 
 Run your first race
 -------------------
 
 Now we're ready to run our first race::
 
-    esrally race --distribution-version=6.0.0 --track=geonames
+    osbenchmark race --distribution-version=6.0.0 --track=geonames
 
-This will download Elasticsearch 6.0.0 and run Rally's default track - the `geonames track <https://github.com/elastic/rally-tracks/tree/master/geonames>`_ - against it. After the race, a summary report is written to the command line:::
+This will download OpenSearch 6.0.0 and run Benchmark's default track - the `geonames track <https://github.com/opensearch-project/OpenSearch-Benchmark-tracks/tree/master/geonames>`_ - against it. After the race, a summary report is written to the command line:::
 
     ------------------------------------------------------
         _______             __   _____
@@ -104,22 +104,22 @@ This will download Elasticsearch 6.0.0 and run Rally's default track - the `geon
 Getting help
 ------------
 
-* Quick help: ``esrally --help``
-* Look in `Rally's user guide <https://esrally.readthedocs.io/>`_ for more information
-* Ask questions about Rally in the `Rally Discuss forum <https://discuss.elastic.co/tags/c/elastic-stack/elasticsearch/rally>`_.
-* File improvements or bug reports in our `Github repo <https://github.com/elastic/rally/issues>`_.
+* Quick help: ``osbenchmark --help``
+* Look in `Benchmark's user guide <https://osbenchmark.readthedocs.io/>`_ for more information
+* Ask questions about Benchmark in the `Benchmark Discuss forum <https://discuss.elastic.co/tags/c/elastic-stack/elasticsearch/benchmark>`_.
+* File improvements or bug reports in our `Github repo <https://github.com/opensearch-project/OpenSearch-Benchmark/issues>`_.
 
 How to Contribute
 -----------------
 
-See all details in the `contributor guidelines <https://github.com/elastic/rally/blob/master/CONTRIBUTING.md>`_.
+See all details in the `contributor guidelines <https://github.com/opensearch-project/OpenSearch-Benchmark/blob/master/CONTRIBUTING.md>`_.
 
 License
 -------
- 
+
 This software is licensed under the Apache License, version 2 ("ALv2"), quoted below.
 
-Copyright 2015-2021 Elasticsearch <https://www.elastic.co>
+Copyright 2015-2021 OpenSearch <https://www.elastic.co>
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not
 use this file except in compliance with the License. You may obtain a copy of

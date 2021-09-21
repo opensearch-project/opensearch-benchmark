@@ -26,4 +26,4 @@ Example:
 }
 ```
 
-Save it as `params.json` and provide it to Rally with `--provision-config-instance-params="/path/to/params.json"`.
+Save it as `params.json` and provide it to Benchmark with `--provision-config-instance-params="/path/to/params.json"`.

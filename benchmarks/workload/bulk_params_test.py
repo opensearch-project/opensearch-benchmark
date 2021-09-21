@@ -26,7 +26,7 @@ import sys
 
 import pytest
 
-from esrally.workload import params
+from osbenchmark.workload import params
 
 
 class StaticSource:

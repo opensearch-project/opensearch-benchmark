@@ -33,33 +33,33 @@ if [[ $# -eq 0 ]] ; then
     echo "For example: $0 1.1.0"
     exit 1
 fi
-export RALLY_VERSION=$1
-export RALLY_LICENSE=$(awk 'FNR>=2 && FNR<=2' LICENSE | sed 's/^[ \t]*//')
+export BENCHMARK_VERSION=$1
+export BENCHMARK_LICENSE=$(awk 'FNR>=2 && FNR<=2' LICENSE | sed 's/^[ \t]*//')
 
 echo "========================================================"
-echo "Building Docker image for Rally release $RALLY_VERSION  "
+echo "Building Docker image for Rally release $BENCHMARK_VERSION  "
 echo "========================================================"
 
-docker build -t elastic/rally:${RALLY_VERSION} --build-arg RALLY_VERSION --build-arg RALLY_LICENSE -f docker/Dockerfiles/Dockerfile-release $PWD
+docker build -t elastic/rally:${BENCHMARK_VERSION} --build-arg BENCHMARK_VERSION --build-arg BENCHMARK_LICENSE -f docker/Dockerfiles/Dockerfile-release $PWD
 
 echo "======================================================="
-echo "Testing Docker image for Rally release $RALLY_VERSION  "
+echo "Testing Docker image for Rally release $BENCHMARK_VERSION  "
 echo "======================================================="
 
 ./release-docker-test.sh
 
 echo "======================================================="
-echo "Publishing Docker image elastic/rally:$RALLY_VERSION   "
+echo "Publishing Docker image elastic/rally:$BENCHMARK_VERSION   "
 echo "======================================================="
 
 trap push_failed ERR
-docker push elastic/rally:${RALLY_VERSION}
+docker push elastic/rally:${BENCHMARK_VERSION}
 
 echo "============================================"
 echo "Publishing Docker image elastic/rally:latest"
 echo "============================================"
 
-docker tag elastic/rally:${RALLY_VERSION} elastic/rally:latest
+docker tag elastic/rally:${BENCHMARK_VERSION} elastic/rally:latest
 docker push elastic/rally:latest
 
 trap - ERR

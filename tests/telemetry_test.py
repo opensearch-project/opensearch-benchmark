@@ -34,10 +34,10 @@ from unittest.mock import call
 import elasticsearch
 import pytest
 
-from esrally import config, metrics, exceptions, telemetry
-from esrally.builder import cluster
-from esrally.metrics import MetaInfoScope
-from esrally.utils import console
+from osbenchmark import config, metrics, exceptions, telemetry
+from osbenchmark.builder import cluster
+from osbenchmark.metrics import MetaInfoScope
+from osbenchmark.utils import console
 
 
 def create_config():
@@ -45,7 +45,7 @@ def create_config():
     cfg.add(config.Scope.application, "system", "env.name", "unittest")
     cfg.add(config.Scope.application, "workload", "params", {})
     # concrete path does not matter
-    cfg.add(config.Scope.application, "node", "rally.root", "/some/root/path")
+    cfg.add(config.Scope.application, "node", "benchmark.root", "/some/root/path")
 
     cfg.add(config.Scope.application, "results_publishing", "datastore.host", "localhost")
     cfg.add(config.Scope.application, "results_publishing", "datastore.port", "0")
@@ -91,12 +91,12 @@ class TelemetryTests(TestCase):
 
 
 class StartupTimeTests(TestCase):
-    @mock.patch("esrally.time.StopWatch")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.time.StopWatch")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
     def test_store_calculated_metrics(self, metrics_store_put_value, stop_watch):
         stop_watch.total_time.return_value = 2
         metrics_store = metrics.EsMetricsStore(create_config())
-        node = cluster.Node(None, "/bin", "io", "rally0", None)
+        node = cluster.Node(None, "/bin", "io", "benchmark0", None)
         startup_time = telemetry.StartupTime()
         # replace with mock
         startup_time.timer = stop_watch
@@ -106,7 +106,7 @@ class StartupTimeTests(TestCase):
         startup_time.attach_to_node(node)
         startup_time.store_system_metrics(node, metrics_store)
 
-        metrics_store_put_value.assert_called_with("rally0", "node_startup_time", 2, "s")
+        metrics_store_put_value.assert_called_with("benchmark0", "node_startup_time", 2, "s")
 
 
 class Client:
@@ -255,12 +255,12 @@ class GcTests(TestCase):
 
 
 class HeapdumpTests(TestCase):
-    @mock.patch("esrally.utils.process.run_subprocess_with_logging")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     def test_generates_heap_dump(self, run_subprocess_with_logging):
         run_subprocess_with_logging.return_value = 0
         heapdump = telemetry.Heapdump("/var/log")
         t = telemetry.Telemetry(enabled_devices=[heapdump.command], devices=[heapdump])
-        node = cluster.Node(pid="1234", binary_path="/bin", host_name="localhost", node_name="rally0", telemetry=t)
+        node = cluster.Node(pid="1234", binary_path="/bin", host_name="localhost", node_name="benchmark0", telemetry=t)
         t.attach_to_node(node)
         t.detach_from_node(node, running=True)
         run_subprocess_with_logging.assert_called_with("jmap -dump:format=b,file=/var/log/heap_at_exit_1234.hprof 1234")
@@ -326,13 +326,13 @@ class CcrStatsRecorderTests(TestCase):
         client = Client(transport_client=TransportClient(response={}, force_error=True))
         cfg = create_config()
         metrics_store = metrics.EsMetricsStore(cfg)
-        with self.assertRaisesRegex(exceptions.RallyError,
+        with self.assertRaisesRegex(exceptions.BenchmarkError,
                                     r"A transport error occurred while collecting CCR stats from the endpoint "
                                     r"\[/_ccr/stats\?filter_path=follow_stats\] on "
                                     r"cluster \[remote\]"):
             telemetry.CcrStatsRecorder(cluster_name="remote", client=client, metrics_store=metrics_store, sample_interval=1).record()
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_default_ccr_stats(self, metrics_store_put_doc):
         java_signed_maxlong = CcrStatsRecorderTests.java_signed_maxlong
 
@@ -429,7 +429,7 @@ class CcrStatsRecorderTests(TestCase):
             meta_data=shard_metadata
         )
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_default_ccr_stats_many_shards(self, metrics_store_put_doc):
         java_signed_maxlong = CcrStatsRecorderTests.java_signed_maxlong
 
@@ -542,7 +542,7 @@ class CcrStatsRecorderTests(TestCase):
             any_order=True
         )
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_filtered_ccr_stats(self, metrics_store_put_doc):
         java_signed_maxlong = CcrStatsRecorderTests.java_signed_maxlong
 
@@ -677,7 +677,7 @@ class CcrStatsRecorderTests(TestCase):
 
 
 class RecoveryStatsTests(TestCase):
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_no_metrics_if_no_pending_recoveries(self, metrics_store_put_doc):
         response = {}
         cfg = create_config()
@@ -692,7 +692,7 @@ class RecoveryStatsTests(TestCase):
 
         self.assertEqual(0, metrics_store_put_doc.call_count)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_single_shard_stats(self, metrics_store_put_doc):
         response = {
             "index1": {
@@ -712,14 +712,14 @@ class RecoveryStatsTests(TestCase):
                         "host": "my.fqdn",
                         "transport_address": "my.fqdn",
                         "ip": "10.0.1.7",
-                        "name": "my_es_node"
+                        "name": "my_os_node"
                     },
                     "target": {
                         "id": "RGMdRc-yQWWKIBM4DGvwqQ",
                         "host": "my.fqdn",
                         "transport_address": "my.fqdn",
                         "ip": "10.0.1.7",
-                        "name": "my_es_node"
+                        "name": "my_os_node"
                     },
                     "index": {
                         "size": {
@@ -786,7 +786,7 @@ class RecoveryStatsTests(TestCase):
             }, level=MetaInfoScope.cluster, meta_data=shard_metadata)
         ],  any_order=True)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_multi_index_multi_shard_stats(self, metrics_store_put_doc):
         response = {
             "index1": {
@@ -1260,7 +1260,7 @@ class TestSearchableSnapshotsStats:
                                   }
     }
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_no_metrics_if_empty_searchable_snapshots_stats(self, metrics_store_put_doc):
         response = {}
         cfg = create_config()
@@ -1277,7 +1277,7 @@ class TestSearchableSnapshotsStats:
 
         assert metrics_store_put_doc.call_count == 0
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_no_metrics_if_no_searchable_snapshots_stats(self, metrics_store_put_doc):
         cfg = create_config()
         metrics_store = metrics.EsMetricsStore(cfg)
@@ -1295,7 +1295,7 @@ class TestSearchableSnapshotsStats:
             sample_interval=1,
             indices=["logs*"])
 
-        logger = logging.getLogger("esrally.telemetry")
+        logger = logging.getLogger("osbenchmark.telemetry")
         with mock.patch.object(logger, "info") as mocked_info:
             recorder.record()
             mocked_info.assert_called_once_with(
@@ -1305,7 +1305,7 @@ class TestSearchableSnapshotsStats:
         assert metrics_store_put_doc.call_count == 0
 
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_total_stats(self, metrics_store_put_doc):
         response = {
             "total": copy.deepcopy(TestSearchableSnapshotsStats.response_fragment_total)
@@ -1335,7 +1335,7 @@ class TestSearchableSnapshotsStats:
         metrics_store_put_doc.assert_has_calls(expected_calls, any_order=True)
 
     @pytest.mark.parametrize("seed", range(40))
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_index_stats(self, metrics_store_put_doc, seed):
         random.seed(seed)
         response = {
@@ -1389,8 +1389,8 @@ class NodeStatsTests(TestCase):
           _nodes/stats Elasticsearch endpoint trigger additional refreshes and WILL SKEW results.
     """
 
-    @mock.patch("esrally.telemetry.NodeStatsRecorder", mock.Mock())
-    @mock.patch("esrally.telemetry.SamplerThread", mock.Mock())
+    @mock.patch("osbenchmark.telemetry.NodeStatsRecorder", mock.Mock())
+    @mock.patch("osbenchmark.telemetry.SamplerThread", mock.Mock())
     def test_prints_warning_using_node_stats(self):
         clients = {"default": Client(info={"version": {"number": "7.1.0"}})}
         cfg = create_config()
@@ -1407,8 +1407,8 @@ class NodeStatsTests(TestCase):
             logger=t.logger
         )
 
-    @mock.patch("esrally.telemetry.NodeStatsRecorder", mock.Mock())
-    @mock.patch("esrally.telemetry.SamplerThread", mock.Mock())
+    @mock.patch("osbenchmark.telemetry.NodeStatsRecorder", mock.Mock())
+    @mock.patch("osbenchmark.telemetry.SamplerThread", mock.Mock())
     def test_no_warning_using_node_stats_after_version(self):
         clients = {"default": Client(info={"version": {"number": "7.2.0"}})}
         cfg = create_config()
@@ -1429,7 +1429,7 @@ class NodeStatsRecorderTests(TestCase):
         "nodes": {
             "Zbl_e8EyRXmiR47gbHgPfg": {
                 "timestamp": 1524379617017,
-                "name": "rally0",
+                "name": "benchmark0",
                 "transport_address": "127.0.0.1:9300",
                 "host": "127.0.0.1",
                 "ip": "127.0.0.1:9300",
@@ -1734,7 +1734,7 @@ class NodeStatsRecorderTests(TestCase):
         )
         self.assertDictEqual(NodeStatsRecorderTests.indices_stats_response_flattened, flattened_fields)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_default_nodes_stats(self, metrics_store_put_doc):
         client = Client(nodes=SubClient(stats=NodeStatsRecorderTests.node_stats_response))
         cfg = create_config()
@@ -1753,17 +1753,17 @@ class NodeStatsRecorderTests(TestCase):
 
         metrics_store_put_doc.assert_called_once_with(expected_doc,
                                                       level=MetaInfoScope.node,
-                                                      node_name="rally0",
+                                                      node_name="benchmark0",
                                                       meta_data=metrics_store_meta_data)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_all_nodes_stats(self, metrics_store_put_doc):
         node_stats_response = {
             "cluster_name": "elasticsearch",
             "nodes": {
                 "Zbl_e8EyRXmiR47gbHgPfg": {
                     "timestamp": 1524379617017,
-                    "name": "rally0",
+                    "name": "benchmark0",
                     "transport_address": "127.0.0.1:9300",
                     "host": "127.0.0.1",
                     "ip": "127.0.0.1:9300",
@@ -2064,17 +2064,17 @@ class NodeStatsRecorderTests(TestCase):
              "indexing_pressure_memory_total_primary_rejections": 0,
              "indexing_pressure_memory_total_replica_rejections": 0},
             level=MetaInfoScope.node,
-            node_name="rally0",
+            node_name="benchmark0",
             meta_data=metrics_store_meta_data)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     def test_stores_selected_indices_metrics_from_nodes_stats(self, metrics_store_put_doc):
         node_stats_response = {
             "cluster_name": "elasticsearch",
             "nodes": {
                 "Zbl_e8EyRXmiR47gbHgPfg": {
                     "timestamp": 1524379617017,
-                    "name": "rally0",
+                    "name": "benchmark0",
                     "transport_address": "127.0.0.1:9300",
                     "host": "127.0.0.1",
                     "ip": "127.0.0.1:9300",
@@ -2350,7 +2350,7 @@ class NodeStatsRecorderTests(TestCase):
              "indexing_pressure_memory_total_primary_rejections": 0,
              "indexing_pressure_memory_total_replica_rejections": 0},
             level=MetaInfoScope.node,
-            node_name="rally0",
+            node_name="benchmark0",
             meta_data=metrics_store_meta_data)
 
     def test_exception_when_include_indices_metrics_not_valid(self):
@@ -2444,7 +2444,7 @@ class TransformStatsRecorderTests(TestCase):
             "transforms": transforms
         }
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_cluster_level")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_cluster_level")
     def test_stores_default_stats(self, metrics_store_put_value):
         client = Client(transform=SubClient(transform_stats=TransformStatsRecorderTests.transform_stats_response))
         cfg = create_config()
@@ -2475,11 +2475,11 @@ class TransformStatsRecorderTests(TestCase):
 
 
 class ClusterEnvironmentInfoTests(TestCase):
-    @mock.patch("esrally.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
     def test_stores_cluster_level_metrics_on_attach(self, metrics_store_add_meta_info):
         nodes_info = {"nodes": collections.OrderedDict()}
         nodes_info["nodes"]["FCFjozkeTiOpN-SI88YEcg"] = {
-            "name": "rally0",
+            "name": "benchmark0",
             "host": "127.0.0.1",
             "attributes": {
                 "group": "cold_nodes"
@@ -2504,7 +2504,7 @@ class ClusterEnvironmentInfoTests(TestCase):
             ]
         }
         nodes_info["nodes"]["EEEjozkeTiOpN-SI88YEcg"] = {
-            "name": "rally1",
+            "name": "benchmark1",
             "host": "127.0.0.1",
             "attributes": {
                 "group": "hot_nodes"
@@ -2547,21 +2547,21 @@ class ClusterEnvironmentInfoTests(TestCase):
             mock.call(metrics.MetaInfoScope.cluster, None, "source_revision", "abc123"),
             mock.call(metrics.MetaInfoScope.cluster, None, "distribution_version", "6.0.0-alpha1"),
             mock.call(metrics.MetaInfoScope.cluster, None, "distribution_flavor", "oss"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "jvm_vendor", "Oracle Corporation"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "jvm_version", "1.8.0_74"),
-            mock.call(metrics.MetaInfoScope.node, "rally1", "jvm_vendor", "Oracle Corporation"),
-            mock.call(metrics.MetaInfoScope.node, "rally1", "jvm_version", "1.8.0_102"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "plugins", ["ingest-geoip"]),
-            mock.call(metrics.MetaInfoScope.node, "rally1", "plugins", ["ingest-geoip"]),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "jvm_vendor", "Oracle Corporation"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "jvm_version", "1.8.0_74"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark1", "jvm_vendor", "Oracle Corporation"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark1", "jvm_version", "1.8.0_102"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "plugins", ["ingest-geoip"]),
+            mock.call(metrics.MetaInfoScope.node, "benchmark1", "plugins", ["ingest-geoip"]),
             # can push up to cluster level as all nodes have the same plugins installed
             mock.call(metrics.MetaInfoScope.cluster, None, "plugins", ["ingest-geoip"]),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "attribute_group", "cold_nodes"),
-            mock.call(metrics.MetaInfoScope.node, "rally1", "attribute_group", "hot_nodes"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "attribute_group", "cold_nodes"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark1", "attribute_group", "hot_nodes"),
         ]
 
         metrics_store_add_meta_info.assert_has_calls(calls)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
     def test_resilient_if_error_response(self, metrics_store_add_meta_info):
         cfg = create_config()
         client = Client(nodes=SubClient(stats=raiseTransportError, info=raiseTransportError), info=raiseTransportError)
@@ -2574,12 +2574,12 @@ class ClusterEnvironmentInfoTests(TestCase):
 
 
 class NodeEnvironmentInfoTests(TestCase):
-    @mock.patch("esrally.metrics.EsMetricsStore.add_meta_info")
-    @mock.patch("esrally.utils.sysstats.os_name")
-    @mock.patch("esrally.utils.sysstats.os_version")
-    @mock.patch("esrally.utils.sysstats.logical_cpu_cores")
-    @mock.patch("esrally.utils.sysstats.physical_cpu_cores")
-    @mock.patch("esrally.utils.sysstats.cpu_model")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.utils.sysstats.os_name")
+    @mock.patch("osbenchmark.utils.sysstats.os_version")
+    @mock.patch("osbenchmark.utils.sysstats.logical_cpu_cores")
+    @mock.patch("osbenchmark.utils.sysstats.physical_cpu_cores")
+    @mock.patch("osbenchmark.utils.sysstats.cpu_model")
     def test_stores_node_level_metrics(self, cpu_model, physical_cpu_cores, logical_cpu_cores,
                                        os_version, os_name, metrics_store_add_meta_info):
         cpu_model.return_value = "Intel(R) Core(TM) i7-4870HQ CPU @ 2.50GHz"
@@ -2587,20 +2587,20 @@ class NodeEnvironmentInfoTests(TestCase):
         logical_cpu_cores.return_value = 8
         os_version.return_value = "4.2.0-18-generic"
         os_name.return_value = "Linux"
-        node_name = "rally0"
+        node_name = "benchmark0"
         host_name = "io"
 
         metrics_store = metrics.EsMetricsStore(create_config())
         telemetry.add_metadata_for_node(metrics_store, node_name, host_name)
 
         calls = [
-            mock.call(metrics.MetaInfoScope.node, "rally0", "os_name", "Linux"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "os_version", "4.2.0-18-generic"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "cpu_logical_cores", 8),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "cpu_physical_cores", 4),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "cpu_model", "Intel(R) Core(TM) i7-4870HQ CPU @ 2.50GHz"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "node_name", node_name),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "host_name", host_name),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "os_name", "Linux"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "os_version", "4.2.0-18-generic"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "cpu_logical_cores", 8),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "cpu_physical_cores", 4),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "cpu_model", "Intel(R) Core(TM) i7-4870HQ CPU @ 2.50GHz"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "node_name", node_name),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "host_name", host_name),
         ]
 
         metrics_store_add_meta_info.assert_has_calls(calls)
@@ -2610,12 +2610,12 @@ class ExternalEnvironmentInfoTests(TestCase):
     def setUp(self):
         self.cfg = create_config()
 
-    @mock.patch("esrally.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
     def test_stores_all_node_metrics_on_attach(self, metrics_store_add_meta_info):
         nodes_stats = {
             "nodes": {
                 "FCFjozkeTiOpN-SI88YEcg": {
-                    "name": "rally0",
+                    "name": "benchmark0",
                     "host": "127.0.0.1"
                 }
             }
@@ -2624,7 +2624,7 @@ class ExternalEnvironmentInfoTests(TestCase):
         nodes_info = {
             "nodes": {
                 "FCFjozkeTiOpN-SI88YEcg": {
-                    "name": "rally0",
+                    "name": "benchmark0",
                     "host": "127.0.0.1",
                     "attributes": {
                         "az": "us_east1"
@@ -2665,27 +2665,27 @@ class ExternalEnvironmentInfoTests(TestCase):
         t.on_benchmark_start()
 
         calls = [
-            mock.call(metrics.MetaInfoScope.node, "rally0", "node_name", "rally0"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "host_name", "127.0.0.1"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "os_name", "Mac OS X"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "os_version", "10.11.4"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "cpu_logical_cores", 8),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "jvm_vendor", "Oracle Corporation"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "jvm_version", "1.8.0_74"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "plugins", ["ingest-geoip"]),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "node_name", "benchmark0"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "host_name", "127.0.0.1"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "os_name", "Mac OS X"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "os_version", "10.11.4"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "cpu_logical_cores", 8),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "jvm_vendor", "Oracle Corporation"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "jvm_version", "1.8.0_74"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "plugins", ["ingest-geoip"]),
             # these are automatically pushed up to cluster level (additionally) if all nodes match
             mock.call(metrics.MetaInfoScope.cluster, None, "plugins", ["ingest-geoip"]),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "attribute_az", "us_east1"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "attribute_az", "us_east1"),
             mock.call(metrics.MetaInfoScope.cluster, None, "attribute_az", "us_east1"),
         ]
         metrics_store_add_meta_info.assert_has_calls(calls)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
     def test_fallback_when_host_not_available(self, metrics_store_add_meta_info):
         nodes_stats = {
             "nodes": {
                 "FCFjozkeTiOpN-SI88YEcg": {
-                    "name": "rally0",
+                    "name": "benchmark0",
                 }
             }
         }
@@ -2693,7 +2693,7 @@ class ExternalEnvironmentInfoTests(TestCase):
         nodes_info = {
             "nodes": {
                 "FCFjozkeTiOpN-SI88YEcg": {
-                    "name": "rally0",
+                    "name": "benchmark0",
                     "os": {
                         "name": "Mac OS X",
                         "version": "10.11.4",
@@ -2721,17 +2721,17 @@ class ExternalEnvironmentInfoTests(TestCase):
         t.on_benchmark_start()
 
         calls = [
-            mock.call(metrics.MetaInfoScope.node, "rally0", "node_name", "rally0"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "host_name", "unknown"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "os_name", "Mac OS X"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "os_version", "10.11.4"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "cpu_logical_cores", 8),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "jvm_vendor", "Oracle Corporation"),
-            mock.call(metrics.MetaInfoScope.node, "rally0", "jvm_version", "1.8.0_74")
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "node_name", "benchmark0"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "host_name", "unknown"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "os_name", "Mac OS X"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "os_version", "10.11.4"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "cpu_logical_cores", 8),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "jvm_vendor", "Oracle Corporation"),
+            mock.call(metrics.MetaInfoScope.node, "benchmark0", "jvm_version", "1.8.0_74")
         ]
         metrics_store_add_meta_info.assert_has_calls(calls)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
     def test_resilient_if_error_response(self, metrics_store_add_meta_info):
         client = Client(nodes=SubClient(stats=raiseTransportError, info=raiseTransportError), info=raiseTransportError)
         metrics_store = metrics.EsMetricsStore(self.cfg)
@@ -2744,8 +2744,8 @@ class ExternalEnvironmentInfoTests(TestCase):
 
 class DiskIoTests(TestCase):
 
-    @mock.patch("esrally.utils.sysstats.process_io_counters")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.utils.sysstats.process_io_counters")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
     def test_diskio_process_io_counters(self, metrics_store_node_count, process_io_counters):
         Diskio = namedtuple("Diskio", "read_bytes write_bytes")
         process_start = Diskio(10, 10)
@@ -2757,7 +2757,7 @@ class DiskIoTests(TestCase):
 
         device = telemetry.DiskIo(node_count_on_host=1)
         t = telemetry.Telemetry(enabled_devices=[], devices=[device])
-        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="rally0", telemetry=t)
+        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="benchmark0", telemetry=t)
         t.attach_to_node(node)
         t.on_benchmark_start()
         # we assume that serializing and deserializing the telemetry device produces the same state
@@ -2767,14 +2767,14 @@ class DiskIoTests(TestCase):
         t.store_system_metrics(node, metrics_store)
 
         metrics_store_node_count.assert_has_calls([
-            mock.call("rally0", "disk_io_write_bytes", 1, "byte"),
-            mock.call("rally0", "disk_io_read_bytes", 1, "byte")
+            mock.call("benchmark0", "disk_io_write_bytes", 1, "byte"),
+            mock.call("benchmark0", "disk_io_read_bytes", 1, "byte")
 
         ])
 
-    @mock.patch("esrally.utils.sysstats.disk_io_counters")
-    @mock.patch("esrally.utils.sysstats.process_io_counters")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.utils.sysstats.disk_io_counters")
+    @mock.patch("osbenchmark.utils.sysstats.process_io_counters")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
     def test_diskio_disk_io_counters(self, metrics_store_node_count, process_io_counters, disk_io_counters):
         Diskio = namedtuple("Diskio", "read_bytes write_bytes")
         process_start = Diskio(10, 10)
@@ -2787,7 +2787,7 @@ class DiskIoTests(TestCase):
 
         device = telemetry.DiskIo(node_count_on_host=2)
         t = telemetry.Telemetry(enabled_devices=[], devices=[device])
-        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="rally0", telemetry=t)
+        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="benchmark0", telemetry=t)
         t.attach_to_node(node)
         t.on_benchmark_start()
         # we assume that serializing and deserializing the telemetry device produces the same state
@@ -2799,13 +2799,13 @@ class DiskIoTests(TestCase):
         # expected result is 1 byte because there are two nodes on the machine. Result is calculated
         # with total_bytes / node_count
         metrics_store_node_count.assert_has_calls([
-            mock.call("rally0", "disk_io_write_bytes", 1, "byte"),
-            mock.call("rally0", "disk_io_read_bytes", 1, "byte")
+            mock.call("benchmark0", "disk_io_write_bytes", 1, "byte"),
+            mock.call("benchmark0", "disk_io_read_bytes", 1, "byte")
         ])
 
-    @mock.patch("esrally.utils.sysstats.disk_io_counters")
-    @mock.patch("esrally.utils.sysstats.process_io_counters")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.utils.sysstats.disk_io_counters")
+    @mock.patch("osbenchmark.utils.sysstats.process_io_counters")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
     def test_diskio_writes_metrics_if_available(self, metrics_store_node_count, process_io_counters, disk_io_counters):
         Diskio = namedtuple("Diskio", "read_bytes write_bytes")
         process_start = Diskio(10, 10)
@@ -2818,7 +2818,7 @@ class DiskIoTests(TestCase):
 
         device = telemetry.DiskIo(node_count_on_host=1)
         t = telemetry.Telemetry(enabled_devices=[], devices=[device])
-        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="rally0", telemetry=t)
+        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="benchmark0", telemetry=t)
         t.attach_to_node(node)
         t.on_benchmark_start()
         # we assume that serializing and deserializing the telemetry device produces the same state
@@ -2828,15 +2828,15 @@ class DiskIoTests(TestCase):
         t.store_system_metrics(node, metrics_store)
 
         metrics_store_node_count.assert_has_calls([
-            mock.call("rally0", "disk_io_write_bytes", 3, "byte"),
-            mock.call("rally0", "disk_io_read_bytes", 0, "byte"),
+            mock.call("benchmark0", "disk_io_write_bytes", 3, "byte"),
+            mock.call("benchmark0", "disk_io_read_bytes", 0, "byte"),
         ])
 
 
 class JvmStatsSummaryTests(TestCase):
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_cluster_level")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_cluster_level")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
     def test_stores_only_diff_of_gc_times(self,
                                           metrics_store_node_level,
                                           metrics_store_cluster_level,
@@ -2844,7 +2844,7 @@ class JvmStatsSummaryTests(TestCase):
         nodes_stats_at_start = {
             "nodes": {
                 "FCFjozkeTiOpN-SI88YEcg": {
-                    "name": "rally0",
+                    "name": "benchmark0",
                     "host": "127.0.0.1",
                     "jvm": {
                         "mem": {
@@ -2888,7 +2888,7 @@ class JvmStatsSummaryTests(TestCase):
         nodes_stats_at_end = {
             "nodes": {
                 "FCFjozkeTiOpN-SI88YEcg": {
-                    "name": "rally0",
+                    "name": "benchmark0",
                     "host": "127.0.0.1",
                     "jvm": {
                         "mem": {
@@ -2924,10 +2924,10 @@ class JvmStatsSummaryTests(TestCase):
         t.on_benchmark_stop()
 
         metrics_store_node_level.assert_has_calls([
-            mock.call("rally0", "node_young_gen_gc_time", 700, "ms"),
-            mock.call("rally0", "node_young_gen_gc_count", 3980),
-            mock.call("rally0", "node_old_gen_gc_time", 1500, "ms"),
-            mock.call("rally0", "node_old_gen_gc_count", 1),
+            mock.call("benchmark0", "node_young_gen_gc_time", 700, "ms"),
+            mock.call("benchmark0", "node_young_gen_gc_count", 3980),
+            mock.call("benchmark0", "node_old_gen_gc_time", 1500, "ms"),
+            mock.call("benchmark0", "node_old_gen_gc_count", 1),
         ])
 
         metrics_store_cluster_level.assert_has_calls([
@@ -2952,13 +2952,13 @@ class JvmStatsSummaryTests(TestCase):
                     "peak_usage": 3084912096,
                     "unit": "byte"
                 },
-            }, level=MetaInfoScope.node, node_name="rally0"),
+            }, level=MetaInfoScope.node, node_name="benchmark0"),
         ])
 
 
 class IndexStatsTests(TestCase):
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_cluster_level")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_cluster_level")
     def test_stores_available_index_stats(self, metrics_store_cluster_value, metrics_store_put_doc):
         client = Client(indices=SubClient({
             "_all": {
@@ -3204,7 +3204,7 @@ class IndexStatsTests(TestCase):
 
 
 class MlBucketProcessingTimeTests(TestCase):
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     @mock.patch("elasticsearch.Elasticsearch")
     def test_error_on_retrieval_does_not_store_metrics(self, es, metrics_store_put_doc):
         es.search.side_effect = elasticsearch.TransportError("unit test error")
@@ -3216,7 +3216,7 @@ class MlBucketProcessingTimeTests(TestCase):
 
         self.assertEqual(0, metrics_store_put_doc.call_count)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     @mock.patch("elasticsearch.Elasticsearch")
     def test_empty_result_does_not_store_metrics(self, es, metrics_store_put_doc):
         es.search.return_value = {
@@ -3234,7 +3234,7 @@ class MlBucketProcessingTimeTests(TestCase):
 
         self.assertEqual(0, metrics_store_put_doc.call_count)
 
-    @mock.patch("esrally.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
     @mock.patch("elasticsearch.Elasticsearch")
     def test_result_is_stored(self, es, metrics_store_put_doc):
         es.search.return_value = {
@@ -3311,8 +3311,8 @@ class MlBucketProcessingTimeTests(TestCase):
 
 
 class IndexSizeTests(TestCase):
-    @mock.patch("esrally.utils.io.get_size")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.utils.io.get_size")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
     def test_stores_index_size_for_data_paths(self, metrics_store_node_value, get_size):
         get_size.side_effect = [2048, 16384]
 
@@ -3320,7 +3320,7 @@ class IndexSizeTests(TestCase):
         metrics_store = metrics.EsMetricsStore(cfg)
         device = telemetry.IndexSize(["/var/elasticsearch/data/1", "/var/elasticsearch/data/2"])
         t = telemetry.Telemetry(enabled_devices=[], devices=[device])
-        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="rally-node-0", telemetry=t)
+        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="benchmark-node-0", telemetry=t)
         t.attach_to_node(node)
         t.on_benchmark_start()
         t.on_benchmark_stop()
@@ -3329,12 +3329,12 @@ class IndexSizeTests(TestCase):
         t.store_system_metrics(node, metrics_store)
 
         metrics_store_node_value.assert_has_calls([
-            mock.call("rally-node-0", "final_index_size_bytes", 18432, "byte")
+            mock.call("benchmark-node-0", "final_index_size_bytes", 18432, "byte")
         ])
 
-    @mock.patch("esrally.utils.io.get_size")
-    @mock.patch("esrally.metrics.EsMetricsStore.put_value_cluster_level")
-    @mock.patch("esrally.utils.process.run_subprocess_with_logging")
+    @mock.patch("osbenchmark.utils.io.get_size")
+    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_cluster_level")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     def test_stores_nothing_if_no_data_path(self, run_subprocess, metrics_store_cluster_value, get_size):
         get_size.return_value = 2048
 
@@ -3343,7 +3343,7 @@ class IndexSizeTests(TestCase):
         metrics_store = metrics.EsMetricsStore(cfg)
         device = telemetry.IndexSize(data_paths=[])
         t = telemetry.Telemetry(devices=[device])
-        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="rally-node-0", telemetry=t)
+        node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="benchmark-node-0", telemetry=t)
         t.attach_to_node(node)
         t.on_benchmark_start()
         t.on_benchmark_stop()

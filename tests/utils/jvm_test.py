@@ -25,8 +25,8 @@
 import unittest.mock as mock
 from unittest import TestCase
 
-from esrally import exceptions
-from esrally.utils import jvm
+from osbenchmark import exceptions
+from osbenchmark.utils import jvm
 
 
 class JvmTests(TestCase):

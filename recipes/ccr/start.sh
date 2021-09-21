@@ -51,7 +51,7 @@ curl -sS -o /dev/null -H 'Content-Type: application/json' -X PUT localhost:39202
     }
 EOF
 
-# Create target-hosts file for Rally
+# Create target-hosts file for Benchmark
 cat >ccr-target-hosts.json <<'EOF'
 {
   "default": [
@@ -63,8 +63,8 @@ cat >ccr-target-hosts.json <<'EOF'
 }
 EOF
 
-# Create Rally metricstore ini file
-cat >~/.rally/rally-metricstore.ini <<EOF
+# Create Benchmark metricstore ini file
+cat >~/.benchmark/benchmark-metricstore.ini <<EOF
 [meta]
 config.version = 17
 
@@ -72,15 +72,15 @@ config.version = 17
 env.name = local
 
 [node]
-root.dir = ${HOME}/.rally/benchmarks
-src.root.dir = ${HOME}/.rally/benchmarks/src
+root.dir = ${HOME}/.benchmark/benchmarks
+src.root.dir = ${HOME}/.benchmark/benchmarks/src
 
 [source]
 remote.repo.url = https://github.com/elastic/elasticsearch.git
 elasticsearch.src.subdir = elasticsearch
 
 [benchmarks]
-local.dataset.cache = ${HOME}/.rally/benchmarks/data
+local.dataset.cache = ${HOME}/.benchmark/benchmarks/data
 
 [results_publishing]
 datastore.type = elasticsearch
@@ -103,5 +103,5 @@ preserve_benchmark_candidate = False
 release.cache = true
 EOF
 
-# Start Rally
-esrally --configuration-name=metricstore --target-hosts=./ccr-target-hosts.json --pipeline=benchmark-only --on-error=abort --workload=geonames --test-procedure=append-no-conflicts-index-only --workload-params="ingest_percentage:20,number_of_shards:3" --telemetry="ccr-stats" --telemetry-params="ccr-stats-sample-interval:1"
+# Start Benchmark
+osbenchmark --configuration-name=metricstore --target-hosts=./ccr-target-hosts.json --pipeline=benchmark-only --on-error=abort --workload=geonames --test-procedure=append-no-conflicts-index-only --workload-params="ingest_percentage:20,number_of_shards:3" --telemetry="ccr-stats" --telemetry-params="ccr-stats-sample-interval:1"

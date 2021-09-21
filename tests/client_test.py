@@ -33,8 +33,8 @@ from unittest import TestCase, mock
 import elasticsearch
 import urllib3.exceptions
 
-from esrally import client, exceptions, doc_link
-from esrally.utils import console
+from osbenchmark import client, exceptions, doc_link
+from osbenchmark.utils import console
 from tests import run_async
 
 
@@ -67,7 +67,7 @@ class EsClientFactoryTests(TestCase):
         # make a copy so we can verify later that the factory did not modify it
         original_client_options = deepcopy(client_options)
 
-        logger = logging.getLogger("esrally.client")
+        logger = logging.getLogger("osbenchmark.client")
         with mock.patch.object(logger, "info") as mocked_info_logger:
             f = client.EsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
@@ -105,7 +105,7 @@ class EsClientFactoryTests(TestCase):
         # make a copy so we can verify later that the factory did not modify it
         original_client_options = deepcopy(client_options)
 
-        logger = logging.getLogger("esrally.client")
+        logger = logging.getLogger("osbenchmark.client")
         with mock.patch.object(logger, "info") as mocked_info_logger:
             f = client.EsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
@@ -145,7 +145,7 @@ class EsClientFactoryTests(TestCase):
         # make a copy so we can verify later that the factory did not modify it
         original_client_options = deepcopy(client_options)
 
-        logger = logging.getLogger("esrally.client")
+        logger = logging.getLogger("osbenchmark.client")
         with mock.patch.object(logger, "info") as mocked_info_logger:
             f = client.EsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
@@ -220,7 +220,7 @@ class EsClientFactoryTests(TestCase):
         # make a copy so we can verify later that the factory did not modify it
         original_client_options = dict(client_options)
 
-        logger = logging.getLogger("esrally.client")
+        logger = logging.getLogger("osbenchmark.client")
         with mock.patch.object(logger, "info") as mocked_info_logger:
             f = client.EsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
@@ -258,7 +258,7 @@ class EsClientFactoryTests(TestCase):
         # make a copy so we can verify later that the factory did not modify it
         original_client_options = deepcopy(client_options)
 
-        logger = logging.getLogger("esrally.client")
+        logger = logging.getLogger("osbenchmark.client")
         with mock.patch.object(logger, "info") as mocked_info_logger:
             f = client.EsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([

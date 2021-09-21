@@ -30,7 +30,7 @@ function update_pyenv {
 }
 
 function build {
-  export THESPLOG_FILE="${THESPLOG_FILE:-${RALLY_HOME}/.rally/logs/actor-system-internal.log}"
+  export THESPLOG_FILE="${THESPLOG_FILE:-${BENCHMARK_HOME}/.benchmark/logs/actor-system-internal.log}"
   # this value is in bytes, the default is 50kB. We increase it to 200kiB.
   export THESPLOG_FILE_MAXSIZE=${THESPLOG_FILE_MAXSIZE:-204800}
   # adjust the default log level from WARNING
@@ -55,7 +55,7 @@ function build {
 }
 
 function build_it {
-  export THESPLOG_FILE="${THESPLOG_FILE:-${RALLY_HOME}/.rally/logs/actor-system-internal.log}"
+  export THESPLOG_FILE="${THESPLOG_FILE:-${BENCHMARK_HOME}/.benchmark/logs/actor-system-internal.log}"
   # this value is in bytes, the default is 50kB. We increase it to 200kiB.
   export THESPLOG_FILE_MAXSIZE=${THESPLOG_FILE_MAXSIZE:-204800}
   # adjust the default log level from WARNING
@@ -67,7 +67,7 @@ function build_it {
   export PATH="$HOME/.pyenv/bin:$PATH"
   export TERM=dumb
   export LC_ALL=en_US.UTF-8
-  export RALLY_HOME=$WORKSPACE
+  export BENCHMARK_HOME=$WORKSPACE
   export JAVA_PATH="/opt/hostedtoolcache/Java_Adopt_jdk"
   export JAVA_HOME="$JAVA_PATH/15.0.2-7/x64"
   export JAVA8_HOME="$JAVA_PATH/8.0.292-1/x64"
@@ -108,11 +108,11 @@ function archive {
   set -u
 
   # this will only be done if the build number variable is present
-  RALLY_DIR=${RALLY_HOME}/.rally
-  if [[ -d ${RALLY_DIR} ]]; then
-    find ${RALLY_DIR} -name "*.log" -printf "%P\\0" | tar -cvjf ${RALLY_DIR}/${BUILD_NUMBER}.tar.bz2 -C ${RALLY_DIR} --transform "s,^,ci-${BUILD_NUMBER}/," --null -T -
+  BENCHMARK_DIR=${BENCHMARK_HOME}/.benchmark
+  if [[ -d ${BENCHMARK_DIR} ]]; then
+    find ${BENCHMARK_DIR} -name "*.log" -printf "%P\\0" | tar -cvjf ${BENCHMARK_DIR}/${BUILD_NUMBER}.tar.bz2 -C ${BENCHMARK_DIR} --transform "s,^,ci-${BUILD_NUMBER}/," --null -T -
   else
-    echo "Rally directory [${RALLY_DIR}] not present. Ensure the RALLY_DIR environment variable is correct"
+    echo "Benchmark directory [${BENCHMARK_DIR}] not present. Ensure the BENCHMARK_DIR environment variable is correct"
     exit 1
   fi
 }

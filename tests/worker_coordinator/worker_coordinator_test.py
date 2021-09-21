@@ -33,9 +33,9 @@ from unittest import TestCase
 
 import elasticsearch
 
-from esrally import metrics, workload, exceptions, config
-from esrally.worker_coordinator import worker_coordinator, runner, scheduler
-from esrally.workload import params
+from osbenchmark import metrics, workload, exceptions, config
+from osbenchmark.worker_coordinator import worker_coordinator, runner, scheduler
+from osbenchmark.workload import params
 from tests import run_async, as_future
 
 
@@ -131,7 +131,7 @@ class WorkerCoordinatorTests(TestCase):
         }
         return mock.Mock(**attrs)
 
-    @mock.patch("esrally.utils.net.resolve")
+    @mock.patch("osbenchmark.utils.net.resolve")
     def test_start_benchmark_and_prepare_workload(self, resolve):
         # override load worker_coordinator host
         self.cfg.add(config.Scope.applicationOverride, "worker_coordinator", "load_worker_coordinator_hosts", ["10.5.5.1", "10.5.5.2"])
@@ -288,7 +288,7 @@ class SamplePostprocessorTests(TestCase):
                          relative_time=relative_time,
                          meta_data={})
 
-    @mock.patch("esrally.metrics.MetricsStore")
+    @mock.patch("osbenchmark.metrics.MetricsStore")
     def test_all_samples(self, metrics_store):
         post_process = worker_coordinator.SamplePostprocessor(metrics_store,
                                                   downsample_factor=1,
@@ -315,7 +315,7 @@ class SamplePostprocessorTests(TestCase):
         ]
         metrics_store.put_value_cluster_level.assert_has_calls(calls)
 
-    @mock.patch("esrally.metrics.MetricsStore")
+    @mock.patch("osbenchmark.metrics.MetricsStore")
     def test_downsamples(self, metrics_store):
         post_process = worker_coordinator.SamplePostprocessor(metrics_store,
                                                   downsample_factor=2,
@@ -343,7 +343,7 @@ class SamplePostprocessorTests(TestCase):
         ]
         metrics_store.put_value_cluster_level.assert_has_calls(calls)
 
-    @mock.patch("esrally.metrics.MetricsStore")
+    @mock.patch("osbenchmark.metrics.MetricsStore")
     def test_dependent_samples(self, metrics_store):
         post_process = worker_coordinator.SamplePostprocessor(metrics_store,
                                                   downsample_factor=1,
@@ -812,7 +812,7 @@ class SchedulerTests(TestCase):
     class CustomComplexScheduler:
         def __init__(self, task):
             self.task = task
-            # will be injected by Rally
+            # will be injected by Benchmark
             self.parameter_source = None
 
         def before_request(self, now):
@@ -1484,7 +1484,7 @@ class AsyncExecutorTests(TestCase):
                                                 complete=complete,
                                                 on_error="continue")
 
-        with self.assertRaisesRegex(exceptions.RallyError, r"Cannot run task \[no-op\]: expected unit test exception"):
+        with self.assertRaisesRegex(exceptions.BenchmarkError, r"Cannot run task \[no-op\]: expected unit test exception"):
             await execute_schedule()
 
         self.assertEqual(0, es.call_count)
@@ -1558,7 +1558,7 @@ class AsyncExecutorTests(TestCase):
                 # ES client uses pseudo-status "N/A" in this case...
                 runner = mock.Mock(side_effect=as_future(exception=elasticsearch.ConnectionError("N/A", "no route to host", None)))
 
-                with self.assertRaises(exceptions.RallyAssertionError) as ctx:
+                with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
                     await worker_coordinator.execute_single(self.context_managed(runner), es, params, on_error=on_error)
                 self.assertEqual(
                     "Request returned an error. Error type: transport, Description: no route to host",
@@ -1571,7 +1571,7 @@ class AsyncExecutorTests(TestCase):
         runner = mock.Mock(side_effect=
                            as_future(exception=elasticsearch.NotFoundError(404, "not found", "the requested document could not be found")))
 
-        with self.assertRaises(exceptions.RallyAssertionError) as ctx:
+        with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
             await worker_coordinator.execute_single(self.context_managed(runner), es, params, on_error="abort")
         self.assertEqual(
             "Request returned an error. Error type: transport, Description: not found (the requested document could not be found)",

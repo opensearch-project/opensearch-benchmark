@@ -24,7 +24,7 @@
 
 from unittest import TestCase
 
-from esrally.utils import convert
+from osbenchmark.utils import convert
 
 
 class ToBoolTests(TestCase):

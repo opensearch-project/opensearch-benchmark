@@ -19,7 +19,7 @@
 
 # Prerequisites for releasing:
 
-# pip3 install twine sphinx sphinx_rtd_theme
+# pip3 install twine
 # pip3 install --pre github3.py (see changelog.py)
 
 # fail this script immediately if any command fails with a non-zero exit code
@@ -31,7 +31,7 @@ __NOTICE_OUTPUT_FILE="NOTICE.txt"
 
 
 echo "============================="
-echo "Preparing Rally release $RELEASE_VERSION"
+echo "Preparing Benchmark release $RELEASE_VERSION"
 echo "============================="
 
 echo "Preparing ${__NOTICE_OUTPUT_FILE}"
@@ -47,15 +47,15 @@ set -e
 exit_code=$?
 if [[ ${exit_code} != "0" ]]
 then
-    git commit -a -m "Update AUTHORS for Rally release $RELEASE_VERSION"
+    git commit -a -m "Update AUTHORS for Benchmark release $RELEASE_VERSION"
 fi
 
 echo "Updating changelog"
-# For exit on error to work we have to separate 
+# For exit on error to work we have to separate
 #  CHANGELOG.md generation into two steps.
 CHANGELOG="$(python3 changelog.py ${RELEASE_VERSION})"
 printf "$CHANGELOG\n\n$(cat CHANGELOG.md)" > CHANGELOG.md
-git commit -a -m "Update changelog for Rally release $RELEASE_VERSION"
+git commit -a -m "Update changelog for Benchmark release $RELEASE_VERSION"
 
 # * Update version in `setup.py` and `docs/conf.py`
 echo "Updating release version number"
@@ -68,7 +68,7 @@ python3 setup.py develop --upgrade
 # Check version
 if ! [[ $(esrally --version) =~ "esrally ${RELEASE_VERSION} (git revision" ]]
 then
-    echo "ERROR: Rally version string [$(esrally --version)] does not start with expected version string [esrally $RELEASE_VERSION]"
+    echo "ERROR: Benchmark version string [$(esrally --version)] does not start with expected version string [esrally $RELEASE_VERSION]"
     exit 2
 fi
 
@@ -79,7 +79,7 @@ printf "\033[0;31mUploading to PyPI. Please enter your credentials ...\033[0m\n"
 twine upload dist/esrally-${RELEASE_VERSION}-*.whl
 
 # Create (signed) release tag
-git tag -s "${RELEASE_VERSION}" -m "Rally release $RELEASE_VERSION"
+git tag -s "${RELEASE_VERSION}" -m "Benchmark release $RELEASE_VERSION"
 git push --tags
 
 # Update version to next dev version
@@ -96,12 +96,12 @@ git push origin master
 
 echo ""
 echo "===================="
-echo "Released Rally ${RELEASE_VERSION}"
+echo "Released Benchmark ${RELEASE_VERSION}"
 echo "===================="
 echo ""
 echo "Manual tasks:"
 echo ""
-echo "* Close milestone on Github: https://github.com/elastic/rally/milestones"
-echo "* Upload offline install package to Github: https://github.com/elastic/rally/releases/edit/$RELEASE_VERSION"
+echo "* Close milestone on Github: https://github.com/opensearch-project/OpenSearch-Benchmark/milestones"
+echo "* Upload offline install package to Github: https://github.com/opensearch-project/OpenSearch-Benchmark/releases/edit/$RELEASE_VERSION"
 echo "* Build and publish Docker image using: https://elasticsearch-ci.elastic.co/view/All/job/elastic+rally-release-docker+master specifying $RELEASE_VERSION"
-echo "* Announce on Discuss: https://discuss.elastic.co/c/annoucements"
+echo "* Announce on News: https://opensearch.org/blog"

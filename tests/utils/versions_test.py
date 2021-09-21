@@ -27,8 +27,8 @@ import re
 
 import pytest  # type: ignore
 
-from esrally import exceptions
-from esrally.utils import versions
+from osbenchmark import exceptions
+from osbenchmark.utils import versions
 
 
 class TestsVersions:

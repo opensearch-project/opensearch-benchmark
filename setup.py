@@ -105,12 +105,10 @@ tests_require = [
     "pytest-asyncio==0.14.0"
 ]
 
-# These packages are only required when developing Rally
+# These packages are only required when developing Benchmark
 develop_require = [
     "tox==3.14.0",
     "coverage==5.5",
-    "sphinx==2.2.0",
-    "sphinx_rtd_theme==0.5.1",
     "twine==1.15.0",
     "wheel==0.33.6",
     "github3.py==1.3.0",
@@ -125,21 +123,21 @@ first_supported_version = "{}.{}".format(supported_python_versions[0][0], suppor
 # next minor after the latest supported version
 first_unsupported_version = "{}.{}".format(supported_python_versions[-1][0], supported_python_versions[-1][1] + 1)
 
-# we call the tool rally, but it will be published as esrally on pypi
+# we call the tool benchmark, but it will be published as osbenchmark on pypi
 setup(name="esrally",
       maintainer="Daniel Mitterdorfer",
       maintainer_email="daniel.mitterdorfer@gmail.com",
       version=__versionstr__,
-      description="Macrobenchmarking framework for Elasticsearch",
+      description="Macrobenchmarking framework for OpenSearch",
       long_description=long_description,
-      url="https://github.com/elastic/rally",
+      url="https://github.com/opensearch-project/OpenSearch-Benchmark",
       license="Apache License, Version 2.0",
       packages=find_packages(
           where=".",
           exclude=("tests*", "benchmarks*", "it*")
       ),
       include_package_data=True,
-      # supported Python versions. This will prohibit pip (> 9.0.0) from even installing Rally on an unsupported
+      # supported Python versions. This will prohibit pip (> 9.0.0) from even installing Benchmark on an unsupported
       # Python version.
       # See also https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
       #
@@ -162,8 +160,8 @@ setup(name="esrally",
       },
       entry_points={
           "console_scripts": [
-              "esrally=esrally.benchmark:main",
-              "esrallyd=esrally.benchmarkd:main"
+              "osbenchmark=osbenchmark.benchmark:main",
+              "osbenchmarkd=osbenchmark.benchmarkd:main"
           ],
       },
       classifiers=[

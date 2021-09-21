@@ -24,7 +24,7 @@
 
 from unittest import TestCase
 
-from esrally import results_publisher
+from osbenchmark import results_publisher
 
 
 class FormatterTests(TestCase):

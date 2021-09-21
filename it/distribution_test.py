@@ -25,7 +25,7 @@
 import it
 
 
-@it.random_rally_config
+@it.random_benchmark_config
 def test_tar_distributions(cfg):
     port = 19200
     for dist in it.DISTRIBUTIONS:
@@ -35,7 +35,7 @@ def test_tar_distributions(cfg):
                                 f"--test-mode --provision-config-instance=4gheap --target-hosts=127.0.0.1:{port}") == 0
 
 
-@it.random_rally_config
+@it.random_benchmark_config
 def test_docker_distribution(cfg):
     port = 19200
     # only test the most recent Docker distribution
@@ -46,7 +46,7 @@ def test_docker_distribution(cfg):
                         f"--provision-config-instance=4gheap --target-hosts=127.0.0.1:{port}") == 0
 
 
-@it.random_rally_config
+@it.random_benchmark_config
 def test_does_not_benchmark_unsupported_distribution(cfg):
     port = 19200
     it.wait_until_port_is_free(port_number=port)

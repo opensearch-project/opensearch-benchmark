@@ -1,0 +1,110 @@
+{
+  "index_patterns": ["benchmark-results-*"],
+  "settings": {
+    "index": {
+      "refresh_interval": "5s",
+      "number_of_shards": 1
+    }
+  },
+  "mappings": {
+    "_doc": {
+      "date_detection": false,
+      "dynamic_templates": [
+        {
+          "strings": {
+            "match": "*",
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword"
+            }
+          }
+        }
+      ],
+      "_source": {
+        "enabled": true
+      },
+      "properties": {
+        "test-execution-id": {
+          "type": "keyword"
+        },
+        "test-execution-timestamp": {
+          "type": "date",
+          "format": "basic_date_time_no_millis",
+          "fields": {
+            "raw": {
+              "type": "keyword"
+            }
+          }
+        },
+        "active": {
+          "type": "boolean"
+        },
+        "benchmark-version": {
+          "type": "keyword"
+        },
+        "benchmark-revision": {
+          "type": "keyword"
+        },
+        "environment": {
+          "type": "keyword"
+        },
+        "workload": {
+          "type": "keyword"
+        },
+        "test_procedure": {
+          "type": "keyword"
+        },
+        "provision-config-instance": {
+          "type": "keyword"
+        },
+        "node-count": {
+          "type": "short"
+        },
+        "plugins": {
+          "type": "keyword"
+        },
+        "distribution-flavor": {
+          "type": "keyword"
+        },
+        "distribution-version": {
+          "type": "keyword"
+        },
+        "distribution-major-version": {
+          "type": "short"
+        },
+        "task": {
+          "type": "keyword"
+        },
+        "operation": {
+          "type": "keyword"
+        },
+        "job": {
+          "type": "keyword"
+        },
+        "name": {
+          "type": "keyword"
+        },
+        "value": {
+          "type": "object",
+          "properties": {
+            "single": {
+              "type": "double"
+            },
+            "min": {
+              "type": "double"
+            },
+            "mean": {
+              "type": "double"
+            },
+            "median": {
+              "type": "double"
+            },
+            "max": {
+              "type": "double"
+            }
+          }
+        }
+      }
+    }
+  }
+}

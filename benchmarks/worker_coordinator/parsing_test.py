@@ -30,7 +30,7 @@ from unittest import TestCase
 import pytest
 import ujson
 
-from esrally.worker_coordinator import runner
+from osbenchmark.worker_coordinator import runner
 
 @pytest.mark.benchmark(
     group="parse",

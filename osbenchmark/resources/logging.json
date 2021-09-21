@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "formatters": {
+    "normal": {
+      "format": "%(asctime)s,%(msecs)d %(actorAddress)s/PID:%(process)d %(name)s %(levelname)s %(message)s",
+      "datefmt": "%Y-%m-%d %H:%M:%S",
+      "()": "osbenchmark.log.configure_utc_formatter"
+    },
+    "profile": {
+      "format": "%(asctime)s,%(msecs)d PID:%(process)d %(name)s %(levelname)s %(message)s",
+      "datefmt": "%Y-%m-%d %H:%M:%S",
+      "()": "osbenchmark.log.configure_utc_formatter"
+    }
+  },
+  "filters": {
+    "isActorLog": {
+      "()": "thespian.director.ActorAddressLogFilter"
+    }
+  },
+  "handlers": {
+    "benchmark_log_handler": {
+      "class": "logging.handlers.WatchedFileHandler",
+      "filename": "${LOG_PATH}benchmark.log",
+      "encoding": "UTF-8",
+      "formatter": "normal",
+      "filters": ["isActorLog"]
+    },
+    "benchmark_profile_handler": {
+      "class": "logging.FileHandler",
+      "filename": "${LOG_PATH}profile.log",
+      "delay": true,
+      "encoding": "UTF-8",
+      "formatter": "profile"
+    }
+  },
+  "root": {
+    "handlers": ["benchmark_log_handler"],
+    "level": "INFO"
+  },
+  "loggers": {
+    "elasticsearch": {
+      "handlers": ["benchmark_log_handler"],
+      "level": "WARNING",
+      "propagate": false
+    },
+    "benchmark.profile": {
+      "handlers": ["benchmark_profile_handler"],
+      "level": "INFO",
+      "propagate": false
+    }
+  }
+}

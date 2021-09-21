@@ -66,7 +66,7 @@ install: install-user
 clean: nondocs-clean docs-clean
 
 nondocs-clean:
-	rm -rf .benchmarks .eggs .tox .rally_it .cache build dist esrally.egg-info logs junit-py*.xml NOTICE.txt
+	rm -rf .benchmarks .eggs .tox .benchmark_it .cache build dist osbenchmark.egg-info logs junit-py*.xml NOTICE.txt
 
 docs-clean:
 	cd docs && $(MAKE) clean
@@ -87,7 +87,7 @@ tox-env-clean:
 	rm -rf .tox
 
 lint: check-venv
-	@find esrally benchmarks scripts tests it -name "*.py" -exec $(VEPYLINT) -j0 -rn --load-plugins pylint_quotes --rcfile=$(CURDIR)/.pylintrc \{\} +
+	@find osbenchmark benchmarks scripts tests it -name "*.py" -exec $(VEPYLINT) -j0 -rn --load-plugins pylint_quotes --rcfile=$(CURDIR)/.pylintrc \{\} +
 
 docs: check-venv
 	@. $(VENV_ACTIVATE_FILE); cd docs && $(MAKE) html

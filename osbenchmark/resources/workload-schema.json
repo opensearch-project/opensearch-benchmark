@@ -1,0 +1,580 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "title": "workload",
+  "description": "Specification of workloads for Benchmark",
+  "type": "object",
+  "definitions": {
+    "schedule": {
+      "title": "Schedule",
+      "type": "array",
+      "minItems": 1,
+      "description": "Defines the concrete execution order of operations.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "parallel": {
+            "type": "object",
+            "description": "This element allows to define tasks that should be run in parallel. We do not support nested parallel tasks.",
+            "properties": {
+              "clients": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "warmup-iterations": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "iterations": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "warmup-time-period": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Defines the time period in seconds to run the operation in order to warmup the benchmark candidate. The warmup time period will not be considered in the benchmark result."
+              },
+              "time-period": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Defines the time period in seconds to run the operation. Note that the parameter source may be exhausted before the specified time period has elapsed."
+              },
+              "completed-by": {
+                "type": "string",
+                "description": "The name of an operation in the 'tasks' block. When this operation is completed, the whole parallel element is considered to be completed."
+              },
+              "tasks": {
+                "type": "array",
+                "minItems": 1,
+                "description": "Defines the operations that will be run in parallel",
+                "items": {
+                  "type": "object",
+                  "description": "Defines an individual operation that is executed",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Explicit name of the task. By default the operation's name is implicitly used as the task's name but if the same operation is run multiple times, a unique task name must be specified."
+                    },
+                    "operation": {
+                      "description": "The name of an operation that should be executed. This name must match the operation name in the 'operations' block."
+                    },
+                    "meta": {
+                      "type": "object",
+                      "description": "Meta-information which will be added to each metrics-record of this task."
+                    },
+                    "clients": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "warmup-iterations": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Defines the number of times to run the operation in order to warmup the benchmark candidate. Warmup iterations will not be considered in the benchmark result."
+                    },
+                    "iterations": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Defines the number of times to run the operation."
+                    },
+                    "warmup-time-period": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Defines the time period in seconds to run the operation in order to warmup the benchmark candidate. The warmup time period will not be considered in the benchmark result."
+                    },
+                    "time-period": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Defines the time period in seconds to run the operation. Note that the parameter source may be exhausted before the specified time period has elapsed."
+                    },
+                    "schedule": {
+                      "type": "string",
+                      "description": "Defines the scheduling strategy that is used for throughput throttled operations. Out of the box, Benchmark supports 'deterministic' (default) and 'poisson' but you can implement your own schedules."
+                    },
+                    "target-throughput": {
+                      "anyOf": [
+                        {
+                          "type": "number",
+                          "minimum": 0
+                        },
+                        {
+                          "type": "string"
+                        }
+                      ],
+                      "description": "Defines the number of operations per second that Benchmark should attempt to run."
+                    },
+                    "target-interval": {
+                      "type": "number",
+                      "minimum": 0,
+                      "description": "Defines the number of seconds to wait between operations (inverse of target-throughput). Only one of 'target-throughput' or 'target-interval' may be defined."
+                    },
+                    "ignore-response-error-level": {
+                      "type": "string",
+                      "description": "Overrides non-fatal error handling globally defined via the cli arg on-error=abort. Only 'non-fatal' may be defined which will continue unless a fatal error occurs."
+                    }
+                  },
+                  "required": [
+                    "operation"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "tasks"
+            ]
+          },
+          "name": {
+            "type": "string",
+            "description": "Explicit name of the task. By default the operation's name is implicitly used as the task's name but if the same operation is run multiple times, a unique task name must be specified."
+          },
+          "operation": {
+            "description": "The name of an operation that should be executed. This name must match the operation name in the 'operations' block."
+          },
+          "meta": {
+            "type": "object",
+            "description": "Meta-information which will be added to each metrics-record of this task."
+          },
+          "clients": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "warmup-iterations": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Defines the number of times to run the operation in order to warmup the benchmark candidate. Warmup iterations will not be considered in the benchmark result."
+          },
+          "iterations": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Defines the number of times to run the operation."
+          },
+          "warmup-time-period": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Defines the time period in seconds to run the operation in order to warmup the benchmark candidate. The warmup time period will not be considered in the benchmark result."
+          },
+          "time-period": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Defines the time period in seconds to run the operation. Note that the parameter source may be exhausted before the specified time period has elapsed."
+          },
+          "target-throughput": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "string"
+              }
+            ],
+            "description": "Defines the number of operations per second that Benchmark should attempt to run."
+          },
+          "target-interval": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Defines the number of seconds to wait between operations (inverse of target-throughput). Only one of 'target-throughput' or 'target-interval' may be defined."
+          }
+        }
+      }
+    },
+    "test_procedure": {
+      "title": "TestProcedure",
+      "type": "object",
+      "description": "Defines the concrete execution order",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "A descriptive name of the test_procedure. Should not contain spaces in order to simplify handling on the command line for users."
+        },
+        "default": {
+          "type": "boolean",
+          "description": "If true, Benchmark should select this test_procedure as the default test_procedure if the user does not specify one on the command line."
+        },
+        "meta": {
+          "type": "object",
+          "description": "Meta-information which will be added to each metrics-record of this test_procedure."
+        },
+        "description": {
+          "type": "string",
+          "description": "A human readable description of the test_procedure"
+        },
+        "cluster-settings": {
+          "type": "object",
+          "description": "Defines the cluster settings of the benchmark candidate."
+        },
+        "schedule": {
+          "$ref": "#/definitions/schedule"
+        }
+      },
+      "required": [
+        "name",
+        "schedule"
+      ]
+    }
+  },
+  "properties": {
+    "description": {
+      "type": "string",
+      "description": "A description of this workload suitable for command line usage. It should be less than 80 characters."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The version of the workload specification format that is being used (optional)."
+    },
+    "meta": {
+      "type": "object",
+      "description": "Meta-information which will be added to each metrics-record of this workload."
+    },
+    "component-templates": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "title": "Component Template",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Component template name."
+          },
+          "template": {
+            "type": "string",
+            "description": "Component template file name."
+          }
+        },
+        "required": [
+          "name",
+          "template"
+        ]
+      }
+    },
+    "composable-templates": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "title": "Composable Template",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Composable template name."
+          },
+          "index-pattern": {
+            "type": "string",
+            "description": "Index pattern that matches the composable template. This must match the definition in the composable index template file."
+          },
+          "delete-matching-indices": {
+            "type": "boolean",
+            "description": "Delete all indices that match the provided index pattern before start of the benchmark (optional, defaults to true)."
+          },
+          "template": {
+            "type": "string",
+            "description": "Composable template file name."
+          }
+        },
+        "required": [
+          "name",
+          "index-pattern",
+          "template"
+        ]
+      }
+    },
+    "templates": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "title": "Template",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Index template name."
+          },
+          "index-pattern": {
+            "type": "string",
+            "description": "Index pattern that matches the index template. This must match the definition in the index template file."
+          },
+          "delete-matching-indices": {
+            "type": "boolean",
+            "description": "Delete all indices that match the provided index pattern before start of the benchmark (optional, defaults to true)."
+          },
+          "template": {
+            "type": "string",
+            "description": "Index template file name."
+          }
+        },
+        "required": [
+          "name",
+          "index-pattern",
+          "template"
+        ]
+      }
+    },
+    "indices": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "title": "Index",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the index to create."
+          },
+          "types": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    "data-streams": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "title": "Data Stream",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the data stream to create."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    "corpora": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "title": "Corpus",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the document corpus."
+          },
+          "base-url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The default base URL for this document corpus. Has to be a publicly accessible http or https URL. If not specified, Benchmark will not attempt to download data and assume that it will be available locally."
+          },
+          "source-format": {
+            "type": "string",
+            "description": "Defines in which format Benchmark should interpret the data file specified by 'source-file'. Currently, only 'bulk' is supported."
+          },
+          "includes-action-and-meta-data": {
+            "type": "boolean",
+            "description": "Whether or not the source file already contains an action-and-meta-data line (default: false)."
+          },
+          "target-index": {
+            "type": "string",
+            "description": "The name of the associated index (if any)."
+          },
+          "target-data-stream": {
+            "type": "string",
+            "description": "The name of the associated data stream (if any)."
+          },
+          "target-type": {
+            "type": "string",
+            "description": "The name of the associated document type (if any)."
+          },
+          "meta": {
+            "type": "object",
+            "description": "Meta-information for a corpus."
+          },
+          "documents": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "object",
+              "properties": {
+                "base-url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "The root URL for these documents."
+                },
+                "source-file": {
+                  "type": "string",
+                  "description": "Name of file containing documents. This file has to be compressed either as bz2, zip or tar.gz and must contain exactly one JSON file with the same name (Examples: documents.json.bz2, documents.zip (which should contain one file called 'documents.json'))."
+                },
+                "source-format": {
+                  "type": "string",
+                  "description": "Defines in which format Benchmark should interpret the data file specified by 'source-file'. Currently, only 'bulk' is supported."
+                },
+                "document-count": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Number of documents in the documents file. This number will be used to verify that all documents have been indexed successfully."
+                },
+                "includes-action-and-meta-data": {
+                  "type": "boolean",
+                  "description": "Whether or not the source file already contains an action-and-meta-data line (default: false)."
+                },
+                "compressed-bytes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "The size in bytes of the compressed document file. This number is used to show users how much data will be downloaded by Benchmark and also to check whether the download is complete."
+                },
+                "uncompressed-bytes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "The size in bytes of the documents file after decompression."
+                },
+                "target-index": {
+                  "type": "string",
+                  "description": "The name of the associated index (if any)."
+                },
+                "target-type": {
+                  "type": "string",
+                  "description": "The name of the associated document type (if any)."
+                },
+                "meta": {
+                  "type": "object",
+                  "description": "Meta-information for a source file."
+                }
+              },
+              "required": [
+                "source-file"
+              ]
+            }
+          }
+        },
+        "required": [
+          "name",
+          "documents"
+        ]
+      }
+    },
+    "operations": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "The 'operations' block describes the operations that can be executed. These can be reused later in the 'test_procedures' block which describes the actual execution schedule.",
+      "items": {
+        "title": "Operation",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "A human-readable name of this operation"
+          },
+          "meta": {
+            "type": "object",
+            "description": "Meta-information which will be added to each metrics-record of this operation."
+          },
+          "operation-type": {
+            "type": "string",
+            "description": "Type of this operation."
+          },
+          "request-timeout": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Client-side per-request timeout in seconds for this operation."
+          },
+          "bulk-size": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "[Only for type == 'index']: Defines the bulk size."
+          },
+          "pipeline": {
+            "type": "string",
+            "description": "[Only for type == 'index']: Defines the name of the ingest node pipeline to use."
+          },
+          "conflicts": {
+            "type": "string",
+            "enum": [
+              "sequential",
+              "random"
+            ],
+            "description": "[Only for type == 'index']: Type of index conflicts to simulate. If not specified, no conflicts will be simulated. Valid values are: 'sequential' (A document id is replaced with a document id with a sequentially increasing id), 'random' (A document id is replaced with a document id with a random other id)."
+          },
+          "clients": {
+            "type": "object",
+            "properties": {
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1024,
+                "description": "Number of clients which should execute this operation."
+              },
+              "compression": {
+                "type": "boolean",
+                "description": "Whether to compress requests on the client."
+              }
+            },
+            "required": [
+              "count"
+            ]
+          },
+          "cache": {
+            "type": "boolean",
+            "description": "[Only for type 'search']: Whether to use the query request cache. By default, Benchmark will define no value thus the default depends on the benchmark candidate settings and Elasticsearch version."
+          },
+          "index": {
+            "type": "string",
+            "description": "[Only for type 'search']: The index or index pattern against which the query should be executed. This property is only necessary if there is more than one index or the index contains more than one type. Otherwise, Benchmark will derive the index and type by itself."
+          },
+          "type": {
+            "type": "string",
+            "description": "[Only for type 'search']: The type against which the query should be executed. This property is only necessary if there is more than one index or the index contains more than one type. Otherwise, Benchmark will derive the index and type by itself."
+          },
+          "pages": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "[Only for type 'search']: Number of pages to retrieve. If this parameter is present, a scroll query will be executed."
+          },
+          "results-per-page": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "[Only for type 'search']: Number of documents to retrieve per page for scroll queries."
+          },
+          "body": {
+            "type": "object",
+            "description": "[Only for type 'search']: The query body."
+          },
+          "mode": {
+            "type": "string",
+            "enum": ["blocking", "polling"],
+            "description": "[Only for type 'force-merge']: Determines whether forced merge is blocking, causing a potential client timeout, or if it polls until no further force merge tasks."
+          },
+          "poll-period": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "[Only for type 'force-merge']: Poll period in seconds for which to check action completion. Used on force-merge action when mode is 'polling' to determine periodicity of check to tasks API for merge completion. By default, set to 10s."
+          }
+        },
+        "required": [
+          "name",
+          "operation-type"
+        ]
+      }
+    },
+    "test_procedures": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/definitions/test_procedure"
+      }
+    },
+    "test_procedure": {
+      "$ref": "#/definitions/test_procedure"
+    },
+    "schedule": {
+      "$ref": "#/definitions/schedule"
+    }
+  }
+}

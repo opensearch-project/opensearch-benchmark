@@ -31,7 +31,7 @@ import sys
 import github3
 
 ORG = "elastic"
-REPO = "rally"
+REPO = "benchmark"
 
 
 def find_milestone(repo, title):
@@ -98,9 +98,9 @@ def main():
     # requires a personal Github access token with permission `public_repo` (see https://github.com/settings/tokens)
     gh = github3.login(token=open("%s/.github/rally_release_changelog.token" % os.getenv("HOME"), "r").readline().strip())
 
-    rally_repo = gh.repository(ORG, REPO)
+    benchmark_repo = gh.repository(ORG, REPO)
 
-    milestone = find_milestone(rally_repo, title=milestone_name)
+    milestone = find_milestone(benchmark_repo, title=milestone_name)
     if not milestone:
         print("No open milestone named [%s] found." % milestone_name, file=sys.stderr)
         exit(2)

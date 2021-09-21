@@ -25,12 +25,12 @@
 import unittest.mock as mock
 from unittest import TestCase
 
-from esrally import config, exceptions
-from esrally.builder import builder
+from osbenchmark import config, exceptions
+from osbenchmark.builder import builder
 
 
 class HostHandlingTests(TestCase):
-    @mock.patch("esrally.utils.net.resolve")
+    @mock.patch("osbenchmark.utils.net.resolve")
     def test_converts_valid_hosts(self, resolver):
         resolver.side_effect = ["127.0.0.1", "10.16.23.5", "11.22.33.44"]
 
@@ -47,7 +47,7 @@ class HostHandlingTests(TestCase):
             ("11.22.33.44", 9200),
         ], builder.to_ip_port(hosts))
 
-    @mock.patch("esrally.utils.net.resolve")
+    @mock.patch("osbenchmark.utils.net.resolve")
     def test_rejects_hosts_with_unexpected_properties(self, resolver):
         resolver.side_effect = ["127.0.0.1", "10.16.23.5", "11.22.33.44"]
 
@@ -59,7 +59,8 @@ class HostHandlingTests(TestCase):
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             builder.to_ip_port(hosts)
-        self.assertEqual("When specifying nodes to be managed by Rally you can only supply hostname:port pairs (e.g. 'localhost:9200'), "
+        self.assertEqual("When specifying nodes to be managed by "
+        "Benchmark you can only supply hostname:port pairs (e.g. 'localhost:9200'), "
                          "any additional options cannot be supported.", ctx.exception.args[0])
 
     def test_groups_nodes_by_host(self):
@@ -105,7 +106,7 @@ class BuilderTests(TestCase):
 
         def start(self, node_configs):
             self.started = True
-            return [BuilderTests.Node("rally-node-{}".format(n)) for n in range(len(node_configs))]
+            return [BuilderTests.Node("benchmark-node-{}".format(n)) for n in range(len(node_configs))]
 
         def stop(self, nodes, metrics_store):
             self.started = False
@@ -118,7 +119,7 @@ class BuilderTests(TestCase):
         def _add_results(self, current_test_execution, node):
             pass
 
-    @mock.patch("esrally.builder.provisioner.cleanup")
+    @mock.patch("osbenchmark.builder.provisioner.cleanup")
     def test_start_stop_nodes(self, cleanup):
         supplier = lambda: "/home/user/src/elasticsearch/es.tar.gz"
         provisioners = [mock.Mock(), mock.Mock()]

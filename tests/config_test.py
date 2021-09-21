@@ -25,7 +25,7 @@
 import configparser
 from unittest import TestCase
 
-from esrally import config, exceptions
+from osbenchmark import config, exceptions
 
 
 class MockInput:
@@ -74,7 +74,7 @@ class InMemoryConfigStore:
                 "config.version": config.Config.CURRENT_CONFIG_VERSION
             },
             "benchmarks": {
-                "local.dataset.cache": "/tmp/rally/data"
+                "local.dataset.cache": "/tmp/benchmark/data"
             }
         })
 
@@ -93,7 +93,7 @@ class ConfigTests(TestCase):
         cfg = config.Config(config_file_class=InMemoryConfigStore)
         self.assertFalse(cfg.config_present())
         # standard properties are still available
-        self.assertEqual("rally-node", cfg.opts("provisioning", "node.name.prefix"))
+        self.assertEqual("benchmark-node", cfg.opts("provisioning", "node.name.prefix"))
 
     def test_load_existing_config(self):
         cfg = config.Config(config_file_class=InMemoryConfigStore)
@@ -112,7 +112,7 @@ class ConfigTests(TestCase):
         self.assertTrue(cfg.config_present())
         cfg.load_config()
         # standard properties are still available
-        self.assertEqual("rally-node", cfg.opts("provisioning", "node.name.prefix"))
+        self.assertEqual("benchmark-node", cfg.opts("provisioning", "node.name.prefix"))
         self.assertEqual("value", cfg.opts("tests", "sample.key"))
         # we can also override values
         cfg.add(config.Scope.applicationOverride, "tests", "sample.key", "override")
@@ -221,7 +221,7 @@ class AutoLoadConfigTests(TestCase):
                 "config.version": config.Config.CURRENT_CONFIG_VERSION
             },
             "benchmarks": {
-                "local.dataset.cache": "/tmp/rally/data"
+                "local.dataset.cache": "/tmp/benchmark/data"
             }
         })
         self.assertTrue(cfg.config_file.present)
@@ -253,7 +253,7 @@ class AutoLoadConfigTests(TestCase):
                     "config.version": max(config.Config.CURRENT_CONFIG_VERSION - 1, config.Config.EARLIEST_SUPPORTED_VERSION)
                 },
                 "benchmarks": {
-                    "local.dataset.cache": "/tmp/rally/data"
+                    "local.dataset.cache": "/tmp/benchmark/data"
                 },
                 "runtime": {
                     "java8.home": "/opt/jdk8"
@@ -286,7 +286,7 @@ class ConfigMigrationTests(TestCase):
                 "metrics.stats.disk.device": "/dev/hdd1"
             },
             "results_publishing": {
-                "results.base.dir": "/tests/rally/results_publishing",
+                "results.base.dir": "/tests/benchmark/results_publishing",
                 "output.html.results.filename": "index.html"
             },
             "runtime": {
@@ -296,7 +296,7 @@ class ConfigMigrationTests(TestCase):
 
         config_file.store(sample_config)
         with self.assertRaisesRegex(exceptions.ConfigError,
-                                    "The config file.*is too old. Please delete it and reconfigure Rally from scratch"):
+                                    "The config file.*is too old. Please delete it and reconfigure Benchmark from scratch"):
             config.migrate(config_file, config.Config.EARLIEST_SUPPORTED_VERSION - 1, config.Config.CURRENT_CONFIG_VERSION, out=null_output)
 
     # catch all test, migrations are checked in more detail in the other tests
@@ -319,7 +319,7 @@ class ConfigMigrationTests(TestCase):
                 "metrics.stats.disk.device": "/dev/hdd1"
             },
             "results_publishing": {
-                "results.base.dir": "/tests/rally/results_publishing",
+                "results.base.dir": "/tests/benchmark/results_publishing",
                 "output.html.results.filename": "index.html"
             },
             "runtime": {

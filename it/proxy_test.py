@@ -30,7 +30,7 @@ import tempfile
 import pytest
 
 import it
-from esrally.utils import process
+from osbenchmark.utils import process
 
 HttpProxy = collections.namedtuple("HttpProxy", ["authenticated_url", "anonymous_url"])
 
@@ -54,10 +54,10 @@ def http_proxy():
 @pytest.fixture(scope="function")
 def fresh_log_file():
     cfg = it.ConfigFile(config_name=None)
-    log_file = os.path.join(cfg.rally_home, "logs", "rally.log")
+    log_file = os.path.join(cfg.benchmark_home, "logs", "benchmark.log")
 
     if os.path.exists(log_file):
-        bak = os.path.join(tempfile.mkdtemp(), "rally.log")
+        bak = os.path.join(tempfile.mkdtemp(), "benchmark.log")
         shutil.move(log_file, bak)
         yield log_file
         # append log lines to the original file and move it back to its original
@@ -74,27 +74,27 @@ def assert_log_line_present(log_file, text):
         assert any(text in line for line in f), f"Could not find [{text}] in [{log_file}]."
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_run_with_direct_internet_connection(cfg, http_proxy, fresh_log_file):
-    assert it.esrally(cfg, "list workloads") == 0
+    assert it.osbenchmark(cfg, "list workloads") == 0
     assert_log_line_present(fresh_log_file, "Connecting directly to the Internet")
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_anonymous_proxy_no_connection(cfg, http_proxy, fresh_log_file):
     env = dict(os.environ)
     env["http_proxy"] = http_proxy.anonymous_url
-    assert process.run_subprocess_with_logging(it.esrally_command_line_for(cfg, "list workloads"), env=env) == 0
+    assert process.run_subprocess_with_logging(it.osbenchmark_command_line_for(cfg, "list workloads"), env=env) == 0
     assert_log_line_present(fresh_log_file, f"Connecting via proxy URL [{http_proxy.anonymous_url}] to the Internet")
     # unauthenticated proxy access is prevented
     assert_log_line_present(fresh_log_file, "No Internet connection detected")
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_authenticated_proxy_user_can_connect(cfg, http_proxy, fresh_log_file):
     env = dict(os.environ)
     env["http_proxy"] = http_proxy.authenticated_url
-    assert process.run_subprocess_with_logging(it.esrally_command_line_for(cfg, "list workloads"), env=env) == 0
+    assert process.run_subprocess_with_logging(it.osbenchmark_command_line_for(cfg, "list workloads"), env=env) == 0
     assert_log_line_present(fresh_log_file,
                             f"Connecting via proxy URL [{http_proxy.authenticated_url}] to the Internet")
     # authenticated proxy access is allowed

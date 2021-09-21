@@ -1,0 +1,76 @@
+{
+  "index_patterns": ["benchmark-test-executions-*"],
+  "settings": {
+    "index": {
+      "refresh_interval": "5s",
+      "number_of_shards": 1
+    }
+  },
+  "mappings": {
+    "_doc": {
+      "date_detection": false,
+      "dynamic_templates": [
+        {
+          "strings": {
+            "match": "*",
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword"
+            }
+          }
+        }
+      ],
+      "_source": {
+        "enabled": true
+      },
+      "properties": {
+        "test-execution-id": {
+          "type": "keyword"
+        },
+        "test-execution-timestamp": {
+          "type": "date",
+          "format": "basic_date_time_no_millis",
+          "fields": {
+            "raw": {
+              "type": "keyword"
+            }
+          }
+        },
+        "benchmark-version": {
+          "type": "keyword"
+        },
+        "benchmark-revision": {
+          "type": "keyword"
+        },
+        "environment": {
+          "type": "keyword"
+        },
+        "pipeline": {
+          "type": "keyword"
+        },
+        "workload": {
+          "type": "keyword"
+        },
+        "test_procedure": {
+          "type": "keyword"
+        },
+        "provision-config-instance": {
+          "type": "keyword"
+        },
+        "node-count": {
+          "type": "short"
+        },
+        "plugins": {
+          "type": "keyword"
+        },
+        "results": {
+          "properties": {
+            "op_metrics": {
+              "type": "nested"
+            }
+          }
+        }
+      }
+    }
+  }
+}

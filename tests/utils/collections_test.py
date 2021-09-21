@@ -27,7 +27,7 @@ from typing import Any, Mapping
 
 import pytest  # type: ignore
 
-from esrally.utils import collections
+from osbenchmark.utils import collections
 
 
 class TestMergeDicts:

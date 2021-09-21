@@ -38,13 +38,13 @@ def test_cluster():
     test_execution_id = str(uuid.uuid4())
 
     it.wait_until_port_is_free(port_number=port)
-    cluster.install(distribution_version=dist, node_name="rally-node", provision_config_instance="4gheap", http_port=port)
+    cluster.install(distribution_version=dist, node_name="benchmark-node", provision_config_instance="4gheap", http_port=port)
     cluster.start(test_execution_id=test_execution_id)
     yield cluster
     cluster.stop()
 
 
-@it.rally_in_mem
+@it.benchmark_in_mem
 def test_create_workload(cfg, tmp_path, test_cluster):
     # prepare some data
     cmd = f"--test-mode --pipeline=benchmark-only --target-hosts=127.0.0.1:{test_cluster.http_port} " \
@@ -55,7 +55,7 @@ def test_create_workload(cfg, tmp_path, test_cluster):
     workload_name = f"test-workload-{uuid.uuid4()}"
     workload_path = tmp_path / workload_name
 
-    assert it.esrally(cfg, f"create-workload --target-hosts=127.0.0.1:{test_cluster.http_port} --indices=geonames "
+    assert it.osbenchmark(cfg, f"create-workload --target-hosts=127.0.0.1:{test_cluster.http_port} --indices=geonames "
                            f"--workload={workload_name} --output-path={tmp_path}") == 0
 
     expected_files = ["workload.json",
