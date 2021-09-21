@@ -50,7 +50,7 @@ class TestNetUtils:
         with pytest.raises(ImportError, match="no module named 'boto3'"):
             net.download_from_bucket("s3", "s3://mybucket/data", "/tmp/data", None, None)
         console_error.assert_called_once_with(
-            "S3 support is optional. Install it with `python -m pip install esrally[s3]`"
+            "S3 support is optional. Install it with `python -m pip install osbenchmark[s3]`"
         )
 
     @pytest.mark.parametrize("seed", range(1))

@@ -19,7 +19,7 @@
 
 # Prerequisites for releasing:
 
-# pip3 install twine
+# pip3 install twine sphinx sphinx_rtd_theme
 # pip3 install --pre github3.py (see changelog.py)
 
 # fail this script immediately if any command fails with a non-zero exit code
@@ -57,7 +57,7 @@ CHANGELOG="$(python3 changelog.py ${RELEASE_VERSION})"
 printf "$CHANGELOG\n\n$(cat CHANGELOG.md)" > CHANGELOG.md
 git commit -a -m "Update changelog for Benchmark release $RELEASE_VERSION"
 
-# * Update version in `setup.py` and `docs/conf.py`
+# * Update version in `setup.py`
 echo "Updating release version number"
 echo "$RELEASE_VERSION" > version.txt
 git commit -a -m "Bump version to $RELEASE_VERSION"
@@ -66,9 +66,9 @@ git commit -a -m "Bump version to $RELEASE_VERSION"
 python3 setup.py develop --upgrade
 
 # Check version
-if ! [[ $(esrally --version) =~ "esrally ${RELEASE_VERSION} (git revision" ]]
+if ! [[ $(osbenchmark --version) =~ "osbenchmark ${RELEASE_VERSION} (git revision" ]]
 then
-    echo "ERROR: Benchmark version string [$(esrally --version)] does not start with expected version string [esrally $RELEASE_VERSION]"
+    echo "ERROR: Benchmark version string [$(osbenchmark --version)] does not start with expected version string [osbenchmark $RELEASE_VERSION]"
     exit 2
 fi
 
@@ -76,7 +76,7 @@ fi
 python3 setup.py bdist_wheel
 # Upload to PyPI
 printf "\033[0;31mUploading to PyPI. Please enter your credentials ...\033[0m\n"
-twine upload dist/esrally-${RELEASE_VERSION}-*.whl
+twine upload dist/osbenchmark-${RELEASE_VERSION}-*.whl
 
 # Create (signed) release tag
 git tag -s "${RELEASE_VERSION}" -m "Benchmark release $RELEASE_VERSION"
