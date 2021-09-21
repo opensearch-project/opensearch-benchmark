@@ -42,7 +42,7 @@ fi
 readonly BENCHMARK_VERSION=$1
 
 readonly WD=$(pwd)
-readonly RELATIVE_DOWNLOAD_DIR="esrally-dist-${BENCHMARK_VERSION}"
+readonly RELATIVE_DOWNLOAD_DIR="osbenchmark-dist-${BENCHMARK_VERSION}"
 readonly ABSOLUTE_DOWNLOAD_DIR="${WD}/${RELATIVE_DOWNLOAD_DIR}"
 readonly ABSOLUTE_DOWNLOAD_BIN_DIR="${ABSOLUTE_DOWNLOAD_DIR}/bin"
 readonly PYTHON_INSTALL_LINK="https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md"
@@ -57,7 +57,7 @@ done
 SCRIPT_SRC_HOME="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
 function main {
-    local archive_name="esrally-dist-linux-${BENCHMARK_VERSION}.tar.gz"
+    local archive_name="osbenchmark-dist-linux-${BENCHMARK_VERSION}.tar.gz"
     local install_script_file="install.sh"
     local install_script="${ABSOLUTE_DOWNLOAD_DIR}/${install_script_file}"
 
@@ -65,7 +65,7 @@ function main {
 
     mkdir -p "${ABSOLUTE_DOWNLOAD_BIN_DIR}"
     # Prepare install
-    pip3 download esrally=="${BENCHMARK_VERSION}" --dest "${ABSOLUTE_DOWNLOAD_BIN_DIR}" --no-binary=MarkupSafe
+    pip3 download osbenchmark=="${BENCHMARK_VERSION}" --dest "${ABSOLUTE_DOWNLOAD_BIN_DIR}" --no-binary=MarkupSafe
 
 
     echo "Preparing NOTICE file"
@@ -97,7 +97,7 @@ echo "Installing Benchmark ${BENCHMARK_VERSION}..."
 command -v python3 >/dev/null 2>&1 || { echo >&2 "Python3 ${PYTHON_ERROR_MSG}"; exit 1; }
 command -v pip3 >/dev/null 2>&1 || { echo >&2 "pip3 ${PYTHON_ERROR_MSG}"; exit 1; }
 
-pip3 install esrally==${BENCHMARK_VERSION} --no-index --find-links file://\${SRC_HOME}/bin
+pip3 install osbenchmark==${BENCHMARK_VERSION} --no-index --find-links file://\${SRC_HOME}/bin
 EOL
     chmod u+x ${install_script}
 

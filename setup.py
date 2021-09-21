@@ -124,9 +124,9 @@ first_supported_version = "{}.{}".format(supported_python_versions[0][0], suppor
 first_unsupported_version = "{}.{}".format(supported_python_versions[-1][0], supported_python_versions[-1][1] + 1)
 
 # we call the tool benchmark, but it will be published as osbenchmark on pypi
-setup(name="esrally",
-      maintainer="Daniel Mitterdorfer",
-      maintainer_email="daniel.mitterdorfer@gmail.com",
+setup(name="osbenchmark",
+      maintainer="OpenSearchAdmin",
+      maintainer_email="opensearch@amazon.com",
       version=__versionstr__,
       description="Macrobenchmarking framework for OpenSearch",
       long_description=long_description,

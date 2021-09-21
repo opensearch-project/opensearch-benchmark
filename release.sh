@@ -20,6 +20,8 @@
 # Prerequisites for releasing:
 
 # pip3 install twine
+# pip3 install twine sphinx sphinx_rtd_theme
+# pip3 install --pre github3.py (see changelog.py)
 
 # fail this script immediately if any command fails with a non-zero exit code
 set -eu
@@ -49,7 +51,14 @@ then
     git commit -a -m "Update AUTHORS for Benchmark release $RELEASE_VERSION"
 fi
 
-# * Update version in `setup.py` and `docs/conf.py`
+echo "Updating changelog"
+# For exit on error to work we have to separate
+#  CHANGELOG.md generation into two steps.
+CHANGELOG="$(python3 changelog.py ${RELEASE_VERSION})"
+printf "$CHANGELOG\n\n$(cat CHANGELOG.md)" > CHANGELOG.md
+git commit -a -m "Update changelog for Benchmark release $RELEASE_VERSION"
+
+# * Update version in `setup.py`
 echo "Updating release version number"
 echo "$RELEASE_VERSION" > version.txt
 git commit -a -m "Bump version to $RELEASE_VERSION"
