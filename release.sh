@@ -47,23 +47,25 @@ set -e
 exit_code=$?
 if [[ ${exit_code} != "0" ]]
 then
-    git commit -a -m "Update AUTHORS for Benchmark release $RELEASE_VERSION"
+    git commit -a -m "Update AUTHORS for Benchmark release $RELEASE_VERSION" --signoff
 fi
 
 echo "Updating changelog"
 # For exit on error to work we have to separate
-#  CHANGELOG.md generation into two steps.
+# CHANGELOG.md generation into two steps.
 CHANGELOG="$(python3 changelog.py ${RELEASE_VERSION})"
 printf "$CHANGELOG\n\n$(cat CHANGELOG.md)" > CHANGELOG.md
-git commit -a -m "Update changelog for Benchmark release $RELEASE_VERSION"
+git commit -a -m "Update changelog for Benchmark release $RELEASE_VERSION" --signoff
 
 # * Update version in `setup.py`
 echo "Updating release version number"
 echo "$RELEASE_VERSION" > version.txt
-git commit -a -m "Bump version to $RELEASE_VERSION"
+git commit -a -m "Bump version to $RELEASE_VERSION" --signoff
 
-# --upgrade is required for virtualenv
-python3 setup.py develop --upgrade
+# Opted to use this since it is preferred over directly invoking
+# `python3 setup.py develop --upgrade`, which often causes issues
+# for #dependencies
+pip install -e .
 
 # Check version
 if ! [[ $(osbenchmark --version) =~ "osbenchmark ${RELEASE_VERSION} (git revision" ]]
@@ -72,11 +74,15 @@ then
     exit 2
 fi
 
-# Build new version
-python3 setup.py bdist_wheel
+# Build new version of Benchmark located in dist directory
+python3 setup.py bdist_wheel sdist
+
 # Upload to PyPI
+# To upload to testpypi, use `--repository testpypi`
+# Upload all files under dist to keep the name install command
+# as `pip install osbenchmark` instead of `pip install osbenchmark==version`
 printf "\033[0;31mUploading to PyPI. Please enter your credentials ...\033[0m\n"
-twine upload dist/osbenchmark-${RELEASE_VERSION}-*.whl
+twine upload --repository pypi dist/*
 
 # Create (signed) release tag
 git tag -s "${RELEASE_VERSION}" -m "Benchmark release $RELEASE_VERSION"
@@ -86,10 +92,10 @@ git push --tags
 echo "$NEXT_RELEASE" > version.txt
 
 # Install locally for development
-python3 setup.py develop --upgrade
+pip install -e .
 
-git commit -a -m "Continue in $NEXT_RELEASE"
-git push origin master
+git commit -a -m "Continue in $NEXT_RELEASE" --signoff
+git push origin main
 
 # Prepare offline installation package
 # source scripts/offline-install.sh "${RELEASE_VERSION}"
