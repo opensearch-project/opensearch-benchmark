@@ -5,7 +5,7 @@ This document will walk you through on what's needed to start contributing code 
 ## Installation
 ### Prerequisites
 
-- Pyenv : Install `pyenv` and follow the instructions in the output of `pyenv init` to setup your shell and restart it before proceeding. 
+- Pyenv : Install `pyenv` and follow the instructions in the output of `pyenv init` to setup your shell and restart it before proceeding.
 For more details please refer to the [PyEnv installation instructions](https://github.com/pyenv/pyenv#installation).
 - JDK : JDK version required to build OpenSearch. Please refer to the [build setup requirements](https://github.com/opensearch-project/OpenSearch/blob/ca564fd04f5059cf9e3ce8aba442575afb3d99f1/DEVELOPER_GUIDE.md#install-prerequisites).
 - Docker : Docker and additionally `docker-compose`  on Linux.
@@ -24,15 +24,15 @@ source .venv/bin/activate
 
 ## Importing the project into an IDE
 
-OpenSearch Benchmark builds using virtualenv. When importing into an IDE you will need to define an appropriate Python SDK, which is provided by virtualenv.
+OpenSearch Benchmark builds using virtualenv. When importing into an IDE, such as PyCharm IDE, you will need to define an appropriate Python SDK, which is provided by virtualenv.
 Refer to IDE documentation for more details on defining a Python SDK. We recommend using the Python SDK that `make prereq` creates.
-This is typically created via `Virtualenv Environment` / `Existing Environment` and pointing to `.venv/bin/python3` within the OpenSearch Benchmark source directory.
+This is typically created in PyCharm IDE by visiting the `Python Interpreter`, selecting either `Virtualenv Environment` or `Existing Environment`, and pointing interpreter to `.venv/bin/python3` within the OpenSearch Benchmark source directory.
 
-In order to run tests within the IDE, ensure the `Python Integrated Tools` / `Testing` / `Default Test Runner` is set to `pytest`.
+In order to run tests within the PyCharm IDE, ensure the `Python Integrated Tools` / `Testing` / `Default Test Runner` is set to `pytest`.
 
 ## Executing tests
 
-Once setup is complete, you may run unit/integration tests using the following : 
+Once setup is complete, you may run unit/integration tests using the following :
 
 ```
 ## Run a unit test
@@ -61,8 +61,8 @@ Once your changes and tests are ready to submit for review:
 4. Submit a pull request
 
     Push your local changes to your forked copy of the repository and [submit a pull request](https://help.github.com/articles/using-pull-requests). In the pull request, choose a title which sums up the changes that you have made, and in the body provide more details about what your changes do. Also mention the number of the issue where discussion has taken place, eg "Closes #123".
-    
-    
+
+
 ## Misc
 
 ### git-secrets
