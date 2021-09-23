@@ -45,7 +45,7 @@ readonly WD=$(pwd)
 readonly RELATIVE_DOWNLOAD_DIR="osbenchmark-dist-${BENCHMARK_VERSION}"
 readonly ABSOLUTE_DOWNLOAD_DIR="${WD}/${RELATIVE_DOWNLOAD_DIR}"
 readonly ABSOLUTE_DOWNLOAD_BIN_DIR="${ABSOLUTE_DOWNLOAD_DIR}/bin"
-readonly PYTHON_INSTALL_LINK="https://esrally.readthedocs.io/en/stable/install.html#python"
+readonly PYTHON_INSTALL_LINK="https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md"
 readonly PYTHON_ERROR_MSG="is required but not installed. Follow the instructions in ${PYTHON_INSTALL_LINK} and try again."
 
 SOURCE="${BASH_SOURCE[0]}"
