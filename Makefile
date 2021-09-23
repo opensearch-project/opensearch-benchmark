@@ -78,7 +78,7 @@ python-caches-clean:
 
 # Force recreation of the virtual environment used by tox.
 #
-# See https://tox.readthedocs.io/en/latest/#system-overview:
+# See https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md:
 #
 # > Note pip will not update project dependencies (specified either in the install_requires or the extras
 # > section of the setup.py) if any version already exists in the virtual environment; therefore we recommend
