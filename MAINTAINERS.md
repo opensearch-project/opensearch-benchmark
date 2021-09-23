@@ -2,7 +2,7 @@
 
 | Maintainer | GitHub ID | Affiliation |
 | --------------- | --------- | ----------- |
-| Ian Hoang | [IanHoang](https://github.com/ianhoang) | Amazon |
+| Ian Hoang | [ianhoang](https://github.com/ianhoang) | Amazon |
 | Achit Ojha | [achitojha](https://github.com/achitojha) | Amazon |
 | Benedict Travis | [travisbenedict](https://github.com/travisbenedict) | Amazon |
 | Chase Engelbrecht | [engechas](https://github.com/engechas) | Amazon |
