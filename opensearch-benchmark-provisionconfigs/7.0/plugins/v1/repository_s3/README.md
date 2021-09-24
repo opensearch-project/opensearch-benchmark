@@ -1,5 +1,4 @@
 This directory contains the (optional) keystore configuration for the `repository-s3` plugin.
-For more details on secure settings for the repository-s3 plugin please refer to the [repository-s3-client](https://www.elastic.co/guide/en/elasticsearch/plugins/current/repository-s3-client.html) documentation.
 
 ### Parameters
 
