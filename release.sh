@@ -58,9 +58,9 @@ git commit -a -m "Bump version to $RELEASE_VERSION"
 python3 setup.py develop --upgrade
 
 # Check version
-if ! [[ $(esrally --version) =~ "esrally ${RELEASE_VERSION} (git revision" ]]
+if ! [[ $(osbenchmark --version) =~ "osbenchmark ${RELEASE_VERSION} (git revision" ]]
 then
-    echo "ERROR: Benchmark version string [$(esrally --version)] does not start with expected version string [esrally $RELEASE_VERSION]"
+    echo "ERROR: Benchmark version string [$(osbenchmark --version)] does not start with expected version string [osbenchmark $RELEASE_VERSION]"
     exit 2
 fi
 
@@ -68,7 +68,7 @@ fi
 python3 setup.py bdist_wheel
 # Upload to PyPI
 printf "\033[0;31mUploading to PyPI. Please enter your credentials ...\033[0m\n"
-twine upload dist/esrally-${RELEASE_VERSION}-*.whl
+twine upload dist/osbenchmark-${RELEASE_VERSION}-*.whl
 
 # Create (signed) release tag
 git tag -s "${RELEASE_VERSION}" -m "Benchmark release $RELEASE_VERSION"
