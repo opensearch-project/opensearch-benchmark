@@ -45,7 +45,7 @@ def local(cfg, provision_config_instance, plugins, ip, http_port, all_node_ips, 
     runtime_jdk = provision_config_instance.mandatory_var("runtime.jdk")
     _, java_home = java_resolver.java_home(runtime_jdk, cfg.opts("builder", "runtime.jdk"), runtime_jdk_bundled)
 
-    es_installer = ElasticsearchInstaller(
+    es_installer = OpenSearchInstaller(
         provision_config_instance, java_home, node_name,
         node_root_dir, all_node_ips, all_node_names, ip, http_port)
     plugin_installers = [PluginInstaller(plugin, java_home) for plugin in plugins]
@@ -164,7 +164,6 @@ def _apply_config(source_root_path, target_root_path, config_vars):
             target_file = os.path.join(absolute_target_root, name)
             if plain_text(source_file):
                 logger.info("Reading config template file [%s] and writing to [%s].", source_file, target_file)
-                # automatically merge config snippets from plugins (e.g. if they want to add config to elasticsearch.yml)
                 with open(target_file, mode="a", encoding="utf-8") as f:
                     f.write(_render_template(env, config_vars, source_file))
             else:
@@ -216,9 +215,6 @@ class BareProvisioner:
         plugin_variables = {}
         mandatory_plugins = []
         for installer in self.plugin_installers:
-            # For Elasticsearch < 6.3 more specific plugin names are required for mandatory plugin check
-            # Details in: https://github.com/opensearch-project/OpenSearch-Benchmark
-            # TODO: Remove this section with Elasticsearch <6.3 becomes EOL.
             try:
                 major, minor, _, _ = versions.components(self.distribution_version)
                 if (major == 6 and minor < 3) or major < 6:
@@ -233,8 +229,6 @@ class BareProvisioner:
         if mandatory_plugins:
             # as a safety measure, prevent the cluster to startup if something went wrong during plugin installation which
             # we did not detect already here. This ensures we fail fast.
-            #
-            # https://www.elastic.co/guide/en/elasticsearch/plugins/current/_plugins_directory.html#_mandatory_plugins
             cluster_settings["plugin.mandatory"] = mandatory_plugins
 
         provisioner_vars = {}
@@ -245,7 +239,7 @@ class BareProvisioner:
         return provisioner_vars
 
 
-class ElasticsearchInstaller:
+class OpenSearchInstaller:
     def __init__(self, provision_config_instance, java_home, node_name, node_root_dir, all_node_ips, all_node_names, ip, http_port,
                  hook_handler_class=provision_config.BootstrapHookHandler):
         self.provision_config_instance = provision_config_instance
@@ -279,7 +273,7 @@ class ElasticsearchInstaller:
 
     def delete_pre_bundled_configuration(self):
         config_path = os.path.join(self.es_home_path, "config")
-        self.logger.info("Deleting pre-bundled Elasticsearch configuration at [%s]", config_path)
+        self.logger.info("Deleting pre-bundled OpenSearch configuration at [%s]", config_path)
         shutil.rmtree(config_path)
 
     def invoke_install_hook(self, phase, variables):
@@ -352,7 +346,6 @@ class PluginInstaller:
             install_cmd = '%s install --batch "%s"' % (installer_binary_path, self.plugin_name)
 
         return_code = process.run_subprocess_with_logging(install_cmd, env=self.env())
-        # see: https://www.elastic.co/guide/en/elasticsearch/plugins/current/_other_command_line_parameters.html
         if return_code == 0:
             self.logger.info("Successfully installed [%s].", self.plugin_name)
         elif return_code == 64:

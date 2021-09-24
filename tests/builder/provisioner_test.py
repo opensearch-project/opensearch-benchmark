@@ -45,7 +45,7 @@ class BareProvisionerTests(TestCase):
         def null_apply_config(source_root_path, target_root_path, config_vars):
             apply_config_calls.append((source_root_path, target_root_path, config_vars))
 
-        installer = provisioner.ElasticsearchInstaller(provision_config_instance=
+        installer = provisioner.OpenSearchInstaller(provision_config_instance=
         provision_config.ProvisionConfigInstance(
             names="unit-test-provision-config-instance",
             root_path=None,
@@ -128,7 +128,7 @@ class ElasticsearchInstallerTests(TestCase):
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("shutil.rmtree")
     def test_prepare_default_data_paths(self, mock_rm, mock_ensure_dir, mock_decompress):
-        installer = provisioner.ElasticsearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
+        installer = provisioner.OpenSearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
                                                                     root_path=None,
                                                                     config_paths="/tmp"),
                                                        java_home="/usr/local/javas/java8",
@@ -165,7 +165,7 @@ class ElasticsearchInstallerTests(TestCase):
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("shutil.rmtree")
     def test_prepare_user_provided_data_path(self, mock_rm, mock_ensure_dir, mock_decompress):
-        installer = provisioner.ElasticsearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
+        installer = provisioner.OpenSearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
                                                                     root_path=None,
                                                                     config_paths="/tmp",
                                                                     variables={"data_paths": "/tmp/some/data-path-dir"}),
@@ -199,7 +199,7 @@ class ElasticsearchInstallerTests(TestCase):
         self.assertEqual(installer.data_paths, ["/tmp/some/data-path-dir"])
 
     def test_invokes_hook_with_java_home(self):
-        installer = provisioner.ElasticsearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
+        installer = provisioner.OpenSearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
                                                                     root_path="/tmp",
                                                                     config_paths="/tmp/templates",
                                                                     variables={"data_paths": "/tmp/some/data-path-dir"}),
@@ -220,7 +220,7 @@ class ElasticsearchInstallerTests(TestCase):
                          installer.hook_handler.hook_calls["post_install"]["kwargs"])
 
     def test_invokes_hook_no_java_home(self):
-        installer = provisioner.ElasticsearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
+        installer = provisioner.OpenSearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
                                                                     root_path="/tmp",
                                                                     config_paths="/tmp/templates",
                                                                     variables={"data_paths": "/tmp/some/data-path-dir"}),
