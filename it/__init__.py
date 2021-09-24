@@ -240,7 +240,7 @@ def build_docker_image():
     env_variables['BENCHMARK_VERSION'] = benchmark_version
     env_variables['BENCHMARK_LICENSE'] = get_license()
 
-    command = f"docker build -t elastic/rally:{benchmark_version} --build-arg BENCHMARK_VERSION --build-arg BENCHMARK_LICENSE " \
+    command = f"docker build -t opensearchproject/benchmark:{benchmark_version} --build-arg BENCHMARK_VERSION --build-arg BENCHMARK_LICENSE " \
               f"-f {ROOT_DIR}/docker/Dockerfiles/Dockerfile-dev {ROOT_DIR}"
 
     if process.run_subprocess_with_logging(command, env=env_variables) != 0:

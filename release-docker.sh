@@ -40,7 +40,7 @@ echo "========================================================"
 echo "Building Docker image for Rally release $BENCHMARK_VERSION  "
 echo "========================================================"
 
-docker build -t elastic/rally:${BENCHMARK_VERSION} --build-arg BENCHMARK_VERSION --build-arg BENCHMARK_LICENSE -f docker/Dockerfiles/Dockerfile-release $PWD
+docker build -t opensearchproject/benchmark:${BENCHMARK_VERSION} --build-arg BENCHMARK_VERSION --build-arg BENCHMARK_LICENSE -f docker/Dockerfiles/Dockerfile-release $PWD
 
 echo "======================================================="
 echo "Testing Docker image for Rally release $BENCHMARK_VERSION  "
@@ -49,17 +49,17 @@ echo "======================================================="
 ./release-docker-test.sh
 
 echo "======================================================="
-echo "Publishing Docker image elastic/rally:$BENCHMARK_VERSION   "
+echo "Publishing Docker image opensearchproject/benchmark:$BENCHMARK_VERSION   "
 echo "======================================================="
 
 trap push_failed ERR
-docker push elastic/rally:${BENCHMARK_VERSION}
+docker push opensearchproject/benchmark:${BENCHMARK_VERSION}
 
 echo "============================================"
-echo "Publishing Docker image elastic/rally:latest"
+echo "Publishing Docker image opensearchproject/benchmark:latest"
 echo "============================================"
 
-docker tag elastic/rally:${BENCHMARK_VERSION} elastic/rally:latest
-docker push elastic/rally:latest
+docker tag opensearchproject/benchmark:${BENCHMARK_VERSION} opensearchproject/benchmark:latest
+docker push opensearchproject/benchmark:latest
 
 trap - ERR
