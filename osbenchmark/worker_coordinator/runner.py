@@ -154,7 +154,7 @@ def remove_runner(operation_type):
 
 class Runner:
     """
-    Base class for all operations against Elasticsearch.
+    Base class for all operations against OpenSearch.
     """
 
     def __init__(self, *args, **kwargs):
@@ -441,7 +441,7 @@ class BulkIndex(Runner):
         """
         Runs one bulk indexing operation.
 
-        :param es: The Elasticsearch client.
+        :param es: The OpenSearch client.
         :param params: A hash with all parameters. See below for details.
         :return: A hash with meta data for this bulk operation. See below for details.
 
@@ -623,7 +623,7 @@ class BulkIndex(Runner):
 
 class ForceMerge(Runner):
     """
-    Runs a force merge operation against Elasticsearch.
+    Runs a force merge operation against OpenSearch.
     """
 
     async def __call__(self, es, params):
@@ -756,7 +756,7 @@ def parse(text: BytesIO, props: List[str], lists: List[str] = None) -> dict:
 
 class Query(Runner):
     """
-    Runs a request body search against Elasticsearch.
+    Runs a request body search against OpenSearch.
 
     It expects at least the following keys in the `params` hash:
 
@@ -951,7 +951,7 @@ class Query(Runner):
                         await es.clear_scroll(body={"scroll_id": [scroll_id]})
                     except BaseException:
                         self.logger.exception("Could not clear scroll [%s]. This will lead to excessive resource usage in "
-                                              "Elasticsearch and will skew your benchmark results.", scroll_id)
+                                              "OpenSearch and will skew your benchmark results.", scroll_id)
 
             return {
                 "weight": retrieved_pages,
@@ -1061,7 +1061,7 @@ class ClusterHealth(Runner):
 
         request_params = params.get("request-params", {})
         api_kw_params = self._default_kw_params(params)
-        # by default, Elasticsearch will not wait and thus we treat this as success
+        # by default, OpenSearch will not wait and thus we treat this as success
         expected_cluster_status = request_params.get("wait_for_status", str(ClusterHealthStatus.UNKNOWN))
         if "wait_for_no_relocating_shards" in request_params:
             expected_relocating_shards = 0
@@ -1089,10 +1089,6 @@ class ClusterHealth(Runner):
 
 
 class PutPipeline(Runner):
-    """
-    Execute the `put pipeline API <https://www.elastic.co/guide/en/elasticsearch/reference/current/put-pipeline-api.html>`_.
-    """
-
     async def __call__(self, es, params):
         await es.ingest.put_pipeline(id=mandatory(params, "id", self),
                                      body=mandatory(params, "body", self),
@@ -1105,10 +1101,6 @@ class PutPipeline(Runner):
 
 
 class Refresh(Runner):
-    """
-    Execute the `refresh API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-refresh.html>`_.
-    """
-
     async def __call__(self, es, params):
         await es.indices.refresh(index=params.get("index", "_all"))
 
@@ -1117,10 +1109,6 @@ class Refresh(Runner):
 
 
 class CreateIndex(Runner):
-    """
-    Execute the `create index API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-create-index.html>`_.
-    """
-
     async def __call__(self, es, params):
         indices = mandatory(params, "indices", self)
         api_params = self._default_kw_params(params)
@@ -1140,10 +1128,6 @@ class CreateIndex(Runner):
 
 
 class CreateDataStream(Runner):
-    """
-    Execute the `create data stream API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-create-data-stream.html>`_.
-    """
-
     async def __call__(self, es, params):
         data_streams = mandatory(params, "data-streams", self)
         request_params = mandatory(params, "request-params", self)
@@ -1177,10 +1161,6 @@ async def set_destructive_requires_name(es, value):
 
 
 class DeleteIndex(Runner):
-    """
-    Execute the `delete index API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-delete-index.html>`_.
-    """
-
     async def __call__(self, es, params):
         ops = 0
 
@@ -1210,10 +1190,6 @@ class DeleteIndex(Runner):
 
 
 class DeleteDataStream(Runner):
-    """
-    Execute the `delete data stream API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-delete-data-stream.html>`_.
-    """
-
     async def __call__(self, es, params):
         ops = 0
 
@@ -1241,11 +1217,6 @@ class DeleteDataStream(Runner):
 
 
 class CreateComponentTemplate(Runner):
-    """
-    Execute the `PUT component template API
-    <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-component-template.html>`_.
-    """
-
     async def __call__(self, es, params):
         templates = mandatory(params, "templates", self)
         request_params = mandatory(params, "request-params", self)
@@ -1263,11 +1234,6 @@ class CreateComponentTemplate(Runner):
 
 
 class DeleteComponentTemplate(Runner):
-    """
-    Execute the `DELETE component template API
-    <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-delete-component-template.html>`_.
-    """
-
     async def __call__(self, es, params):
         template_names = mandatory(params, "templates", self)
         only_if_exists = mandatory(params, "only-if-exists", self)
@@ -1302,10 +1268,6 @@ class DeleteComponentTemplate(Runner):
 
 
 class CreateComposableTemplate(Runner):
-    """
-    Execute the `PUT index template API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-put-template.html>`_.
-    """
-
     async def __call__(self, es, params):
         templates = mandatory(params, "templates", self)
         request_params = mandatory(params, "request-params", self)
@@ -1323,10 +1285,6 @@ class CreateComposableTemplate(Runner):
 
 
 class DeleteComposableTemplate(Runner):
-    """
-    Execute the `PUT index template API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-delete-template.html>`_.
-    """
-
     async def __call__(self, es, params):
         templates = mandatory(params, "templates", self)
         only_if_exists = mandatory(params, "only-if-exists", self)
@@ -1357,10 +1315,6 @@ class DeleteComposableTemplate(Runner):
 
 
 class CreateIndexTemplate(Runner):
-    """
-    Execute the `PUT index template API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-templates.html>`_.
-    """
-
     async def __call__(self, es, params):
         templates = mandatory(params, "templates", self)
         request_params = params.get("request-params", {})
@@ -1379,11 +1333,6 @@ class CreateIndexTemplate(Runner):
 
 
 class DeleteIndexTemplate(Runner):
-    """
-    Execute the `delete index template API
-    <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-templates.html#delete>`_.
-    """
-
     async def __call__(self, es, params):
         template_names = mandatory(params, "templates", self)
         only_if_exists = params.get("only-if-exists", False)
@@ -1414,12 +1363,6 @@ class DeleteIndexTemplate(Runner):
 
 
 class ShrinkIndex(Runner):
-    """
-    Execute the `shrink index API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-shrink-index.html>`_.
-
-    This is a high-level runner that actually executes multiple low-level operations under the hood.
-    """
-
     def __init__(self):
         super().__init__()
         self.cluster_health = Retry(ClusterHealth())
@@ -1602,8 +1545,6 @@ class WaitForSnapshotCreate(Runner):
 
             if "snapshots" in response:
                 response_state = response["snapshots"][0]["state"]
-                # Possible states:
-                # https://www.elastic.co/guide/en/elasticsearch/reference/current/get-snapshot-status-api.html#get-snapshot-status-api-response-body
                 if response_state == "FAILED":
                     self.logger.error("Snapshot [%s] failed. Response:\n%s", snapshot, json.dumps(response, indent=2))
                     raise exceptions.BenchmarkAssertionError(f"Snapshot [{snapshot}] failed. Please check logs.")
@@ -1703,10 +1644,6 @@ class IndicesRecovery(Runner):
 
 
 class PutSettings(Runner):
-    """
-    Updates cluster settings with the
-    `cluster settings API <http://www.elastic.co/guide/en/elasticsearch/reference/current/cluster-update-settings.html>_.
-    """
     async def __call__(self, es, params):
         await es.cluster.put_settings(body=mandatory(params, "body", repr(self)))
 
@@ -1715,10 +1652,6 @@ class PutSettings(Runner):
 
 
 class CreateTransform(Runner):
-    """
-    Execute the `create transform API https://www.elastic.co/guide/en/elasticsearch/reference/current/put-transform.html`_.
-    """
-
     async def __call__(self, es, params):
         transform_id = mandatory(params, "transform-id", self)
         body = mandatory(params, "body", self)
@@ -1730,11 +1663,6 @@ class CreateTransform(Runner):
 
 
 class StartTransform(Runner):
-    """
-    Execute the `start transform API
-    https://www.elastic.co/guide/en/elasticsearch/reference/current/start-transform.html`_.
-    """
-
     async def __call__(self, es, params):
         transform_id = mandatory(params, "transform-id", self)
         timeout = params.get("timeout")
@@ -1770,13 +1698,9 @@ class WaitForTransform(Runner):
         """
         stop the transform and wait until transform has finished return stats
 
-        :param es: The Elasticsearch client.
+        :param es: The OpenSearch client.
         :param params: A hash with all parameters. See below for details.
         :return: A hash with stats from the run.
-
-        Different to the `stop transform API
-        https://www.elastic.co/guide/en/elasticsearch/reference/current/stop-transform.html`_ this command will wait
-        until the transform is stopped and a checkpoint has been reached.
 
         It expects a parameter dict with the following mandatory keys:
 
@@ -1864,11 +1788,6 @@ class WaitForTransform(Runner):
 
 
 class DeleteTransform(Runner):
-    """
-    Execute the `delete transform API
-    https://www.elastic.co/guide/en/elasticsearch/reference/current/delete-transform.html`_.
-    """
-
     async def __call__(self, es, params):
         transform_id = mandatory(params, "transform-id", self)
         force = params.get("force", False)
