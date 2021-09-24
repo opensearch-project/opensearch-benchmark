@@ -106,6 +106,7 @@ Getting help
 
 * Quick help: ``osbenchmark --help``
 * Look in `Benchmark's user guide <https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>`_ for more information
+* For any questions or answers, visit our `community forum <https://discuss.opendistrocommunity.dev/>`_.
 * File improvements or bug reports in our `Github repo <https://github.com/opensearch-project/OpenSearch-Benchmark/issues>`_.
 
 How to Contribute
