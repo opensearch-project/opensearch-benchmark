@@ -14,7 +14,7 @@ RUN mkdir -p /benchmark/osbenchmark
 COPY setup.py /benchmark/
 COPY setup.cfg /benchmark/
 COPY version.txt /benchmark/
-COPY README.rst /benchmark/
+COPY README.md /benchmark/
 COPY MANIFEST.in /benchmark/
 COPY osbenchmark/ /benchmark/osbenchmark/
 

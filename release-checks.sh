@@ -64,7 +64,3 @@ then
     echo "Error: the git remote [origin] does not point to Benchmark's main repo at opensearch-project/OpenSearch-Benchmark but to [${ORIGIN_URL}]."
     exit 1
 fi
-
-# Check if there will be any errors during CHANGELOG.md generation
-CHANGELOG="$(python3 changelog.py ${RELEASE_VERSION})"
-
