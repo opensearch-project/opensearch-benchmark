@@ -19,8 +19,22 @@ git clone https://github.com/opensearch-project/OpenSearch-Benchmark.git
 cd OpenSearch-Benchmark
 make prereq
 make install
-source .venv/bin/activate
 ```
+
+Depending on the playform and shell you have, activate the virtual environment:
+
+| Platform | Shell | Command used to activate the virtual environment |
+| --------------- | --------- | ------------------------------------- |
+| Posix| bash/zsh | source .venv/bin/activate |
+| | fish | source .venv/bin/activate.fish |
+| | csh/tcsh | source .venv/bin/activate.csh |
+|  | PowerShell Core | .venv/bin/Activate.ps1 |
+| Windows | cmd.exe| C:\> <venv>\Scripts\activate.bat |
+| | PowerShell | PS C:\> <venv>\Scripts\Activate.ps1 |
+
+For more information regarding activating virtual environments, please see https://docs.python.org/3/library/venv.html.
+
+As an extra step, please consider configuring your JAVA_HOMES as mentioned in the `Important information related to integration tests`.
 
 ### Notes regarding Setup
 
