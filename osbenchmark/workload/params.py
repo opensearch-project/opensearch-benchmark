@@ -582,7 +582,7 @@ class BulkIndexParamSource(ParamSource):
 
         if len(self.corpora) == 0:
             raise exceptions.InvalidSyntax(f"There is no document corpus definition for workload {workload}. You must add at "
-                                           f"least one before making bulk requests to Elasticsearch.")
+                                           f"least one before making bulk requests to OpenSearch.")
 
         for corpus in self.corpora:
             for document_set in corpus.documents:

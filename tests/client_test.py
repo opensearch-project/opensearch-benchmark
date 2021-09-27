@@ -193,7 +193,7 @@ class EsClientFactoryTests(TestCase):
                 client.EsClientFactory(hosts, client_options)
         mocked_console_println.assert_called_once_with(
             "'{}' is missing from client-options but '{}' has been specified.\n"
-            "If your Elasticsearch setup requires client certificate verification both need to be supplied.\n"
+            "If your OpenSearch setup requires client certificate verification both need to be supplied.\n"
             "Read the documentation at {}\n".format(
                 missing_client_ssl_option,
                 random_client_ssl_option,

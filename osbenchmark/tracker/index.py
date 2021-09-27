@@ -39,7 +39,7 @@ INDEX_SETTINGS_PARAMETERS = {
 
 def filter_ephemeral_index_settings(settings):
     """
-    Some of the 'settings' published by Elasticsearch for an index are
+    Some of the 'settings' published by OpenSearch for an index are
     ephemeral values, not useful for re-creating the index.
     :param settings: Index settings published by index.get()
     :return: settings with ephemeral keys removed
@@ -69,7 +69,7 @@ def extract_index_mapping_and_settings(client, index_pattern):
     """
     Calls index GET to retrieve mapping + settings, filtering settings
     so they can be used to re-create this index
-    :param client: Elasticsearch client
+    :param client: OpenSearch client
     :param index_pattern: name of index
     :return: index creation dictionary
     """
@@ -98,7 +98,7 @@ def extract_index_mapping_and_settings(client, index_pattern):
 def extract(client, outdir, index_pattern):
     """
     Request index information to format in "index.json" for Benchmark
-    :param client: Elasticsearch client
+    :param client: OpenSearch client
     :param outdir: destination directory
     :param index_pattern: name of index
     :return: Dict of template variables representing the index for use in workload

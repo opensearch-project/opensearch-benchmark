@@ -32,7 +32,7 @@ from osbenchmark import exceptions
 
 class Index:
     """
-    Defines an index in Elasticsearch.
+    Defines an index in OpenSearch.
     """
 
     def __init__(self, name, body=None, types=None):
@@ -80,7 +80,7 @@ class Index:
 
 class DataStream:
     """
-    Defines a data stream in Elasticsearch.
+    Defines a data stream in OpenSearch.
     """
 
     def __init__(self, name):
@@ -120,7 +120,7 @@ class DataStream:
 
 class IndexTemplate:
     """
-    Defines an index template in Elasticsearch.
+    Defines an index template in OpenSearch.
     """
 
     def __init__(self, name, pattern, content, delete_matching_indices=False):
@@ -156,7 +156,7 @@ class IndexTemplate:
 
 class ComponentTemplate:
     """
-    Defines a component template in Elasticsearch.
+    Defines a component template in OpenSearch.
     """
 
     def __init__(self, name, content):

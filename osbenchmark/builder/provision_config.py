@@ -98,10 +98,10 @@ def load_provision_config_instance(repo, name, provision_config_instance_params=
 def list_plugins(cfg):
     plugins = PluginLoader(provision_config_path(cfg)).plugins()
     if plugins:
-        console.println("Available Elasticsearch plugins:\n")
+        console.println("Available OpenSearch plugins:\n")
         console.println(tabulate.tabulate([[p.name, p.config] for p in plugins], headers=["Name", "Configuration"]))
     else:
-        console.println("No Elasticsearch plugins are available.\n")
+        console.println("No OpenSearch plugins are available.\n")
 
 
 def load_plugin(repo, name, config, plugin_params=None):
@@ -474,7 +474,7 @@ class BootstrapHookHandler:
         :param loader_class: The implementation that loads the provided component's code.
         """
         self.component = component
-        # Don't allow the loader to recurse. The subdirectories may contain Elasticsearch specific files which we do not want to add to
+        # Don't allow the loader to recurse. The subdirectories may contain OpenSearch specific files which we do not want to add to
         # Benchmark's Python load path. We may need to define a more advanced strategy in the future.
         self.loader = loader_class(root_path=self.component.root_path, component_entry_point=self.component.entry_point, recurse=False)
         self.hooks = {}

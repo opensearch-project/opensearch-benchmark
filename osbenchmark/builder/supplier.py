@@ -120,7 +120,7 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
         if supplier_type == "source":
             if CorePluginSourceSupplier.can_handle(plugin):
                 logger.info("Adding core plugin source supplier for [%s].", plugin.name)
-                assert es_src_dir is not None, f"Cannot build core plugin {plugin.name} when Elasticsearch is not built from source."
+                assert es_src_dir is not None, f"Cannot build core plugin {plugin.name} when OpenSearch is not built from source."
                 plugin_supplier = CorePluginSourceSupplier(plugin, es_src_dir, builder)
             elif ExternalPluginSourceSupplier.can_handle(plugin):
                 logger.info("Adding external plugin source supplier for [%s].", plugin.name)
@@ -137,7 +137,7 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
             suppliers.append(plugin_supplier)
         else:
             logger.info("Adding plugin distribution supplier for [%s].", plugin.name)
-            assert repo is not None, "Cannot benchmark plugin %s from a distribution version but Elasticsearch from sources" % plugin.name
+            assert repo is not None, "Cannot benchmark plugin %s from a distribution version but OpenSearch from sources" % plugin.name
             suppliers.append(PluginDistributionSupplier(repo, plugin))
 
     return CompositeSupplier(suppliers)
@@ -145,7 +145,7 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
 
 def _required_version(version):
     if not version or version.strip() == "":
-        raise exceptions.SystemSetupError("Could not determine version. Please specify the Elasticsearch distribution "
+        raise exceptions.SystemSetupError("Could not determine version. Please specify the OpenSearch distribution "
                                           "to download with the command line parameter --distribution-version.")
     else:
         return version
@@ -160,12 +160,12 @@ def _required_revision(revisions, key, name=None):
 
 
 def _supply_requirements(sources, distribution, plugins, revisions, distribution_version):
-    # per artifact (elasticsearch or a specific plugin):
+    # per artifact (OpenSearch or a specific plugin):
     #   * key: artifact
     #   * value: ("source" | "distribution", distribution_version | revision, build = True | False)
     supply_requirements = {}
 
-    # can only build Elasticsearch with source-related pipelines -> ignore revision in that case
+    # can only build OpenSearch with source-related pipelines -> ignore revision in that case
     if "elasticsearch" in revisions and sources:
         supply_requirements["elasticsearch"] = ("source", _required_revision(revisions, "elasticsearch", "Elasticsearch"), True)
     else:
@@ -174,7 +174,7 @@ def _supply_requirements(sources, distribution, plugins, revisions, distribution
 
     for plugin in plugins:
         if plugin.core_plugin:
-            # core plugins are entirely dependent upon Elasticsearch.
+            # core plugins are entirely dependent upon OpenSearch.
             supply_requirements[plugin.name] = supply_requirements["elasticsearch"]
         else:
             # allow catch-all only if we're generally building from sources. If it is mixed, the user should tell explicitly.
@@ -202,7 +202,7 @@ def _src_dir(cfg, mandatory=True):
     try:
         return cfg.opts("node", "src.root.dir", mandatory=mandatory)
     except exceptions.ConfigError:
-        raise exceptions.SystemSetupError("You cannot benchmark Elasticsearch from sources. Did you install Gradle? Please install"
+        raise exceptions.SystemSetupError("You cannot benchmark OpenSearch from sources. Did you install Gradle? Please install"
                                           " all prerequisites and reconfigure Benchmark with %s configure" % PROGRAM_NAME)
 
 
@@ -350,7 +350,7 @@ class CachedSourceSupplier:
         else:
             self.source_supplier.add(binaries)
             original_path = self.file_resolver.to_file_system_path(binaries[self.file_resolver.artifact_key])
-            # this can be None if the Elasticsearch does not reside in a git repo and the user has only
+            # this can be None if the OpenSearch does not reside in a git repo and the user has only
             # copied all source files. In that case, we cannot resolve a revision hash and thus we cannot cache.
             if self.cached_path:
                 try:
@@ -430,7 +430,7 @@ class ExternalPluginSourceSupplier:
             raise exceptions.SystemSetupError("Can only specify one of %s and %s but both are set." % (dir_cfg_key, subdir_cfg_key))
         elif dir_cfg_key in self.src_config:
             self.plugin_src_dir = _config_value(self.src_config, dir_cfg_key)
-            # we must build directly in the plugin dir, not relative to Elasticsearch
+            # we must build directly in the plugin dir, not relative to OpenSearch
             self.override_build_dir = self.plugin_src_dir
         elif subdir_cfg_key in self.src_config:
             self.plugin_src_dir = os.path.join(self.src_dir, _config_value(self.src_config, subdir_cfg_key))
@@ -477,7 +477,7 @@ class CorePluginSourceSupplier:
         return plugin.core_plugin
 
     def fetch(self):
-        # Just retrieve the current revision *number* and assume that Elasticsearch has prepared the source tree.
+        # Just retrieve the current revision *number* and assume that OpenSearch has prepared the source tree.
         return SourceRepository("Elasticsearch", None, self.es_src_dir).fetch(revision="current")
 
     def prepare(self):
@@ -512,14 +512,14 @@ class ElasticsearchDistributionSupplier:
         self.logger.info("Resolved download URL [%s] for version [%s]", download_url, self.version)
         if not os.path.isfile(distribution_path) or not self.repo.cache:
             try:
-                self.logger.info("Starting download of Elasticsearch [%s]", self.version)
-                progress = net.Progress("[INFO] Downloading Elasticsearch %s" % self.version)
+                self.logger.info("Starting download of OpenSearch [%s]", self.version)
+                progress = net.Progress("[INFO] Downloading OpenSearch %s" % self.version)
                 net.download(download_url, distribution_path, progress_indicator=progress)
                 progress.finish()
-                self.logger.info("Successfully downloaded Elasticsearch [%s].", self.version)
+                self.logger.info("Successfully downloaded OpenSearch [%s].", self.version)
             except urllib.error.HTTPError:
-                self.logger.exception("Cannot download Elasticsearch distribution for version [%s] from [%s].", self.version, download_url)
-                raise exceptions.SystemSetupError("Cannot download Elasticsearch distribution from [%s]. Please check that the specified "
+                self.logger.exception("Cannot download OpenSearch distribution for version [%s] from [%s].", self.version, download_url)
+                raise exceptions.SystemSetupError("Cannot download OpenSearch distribution from [%s]. Please check that the specified "
                                                   "version [%s] is correct." % (download_url, self.version))
         else:
             self.logger.info("Skipping download for version [%s]. Found an existing binary at [%s].", self.version, distribution_path)

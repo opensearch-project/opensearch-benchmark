@@ -219,7 +219,7 @@ class ProcessLauncher:
     @staticmethod
     def _start_process(binary_path, env):
         if os.name == "posix" and os.geteuid() == 0:
-            raise exceptions.LaunchError("Cannot launch Elasticsearch as root. Please run Benchmark as a non-root user.")
+            raise exceptions.LaunchError("Cannot launch OpenSearch as root. Please run Benchmark as a non-root user.")
         os.chdir(binary_path)
         cmd = [io.escape_path(os.path.join(".", "bin", "elasticsearch"))]
         cmd.extend(["-d", "-p", "pid"])

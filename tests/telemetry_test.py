@@ -1385,8 +1385,8 @@ class TestSearchableSnapshotsStats:
 
 
 class NodeStatsTests(TestCase):
-    warning = """You have enabled the node-stats telemetry device with Elasticsearch < 7.2.0. Requests to the
-          _nodes/stats Elasticsearch endpoint trigger additional refreshes and WILL SKEW results.
+    warning = """You have enabled the node-stats telemetry device with OpenSearch < 1.1.0. Requests to the
+          _nodes/stats OpenSearch endpoint trigger additional refreshes and WILL SKEW results.
     """
 
     @mock.patch("osbenchmark.telemetry.NodeStatsRecorder", mock.Mock())

@@ -383,7 +383,7 @@ class CcrStatsRecorder:
     def __init__(self, cluster_name, client, metrics_store, sample_interval, indices=None):
         """
         :param cluster_name: The cluster_name that the client connects to, as specified in target.hosts.
-        :param client: The Elasticsearch client for this cluster.
+        :param client: The OpenSearch client for this cluster.
         :param metrics_store: The configured metrics store we write to.
         :param sample_interval: integer controlling the interval, in seconds, between collecting samples.
         :param indices: optional list of indices to filter results from.
@@ -531,7 +531,7 @@ class RecoveryStatsRecorder:
     def __init__(self, cluster_name, client, metrics_store, sample_interval, indices=None):
         """
         :param cluster_name: The cluster_name that the client connects to, as specified in target.hosts.
-        :param client: The Elasticsearch client for this cluster.
+        :param client: The OpenSearch client for this cluster.
         :param metrics_store: The configured metrics store we write to.
         :param sample_interval: integer controlling the interval, in seconds, between collecting samples.
         :param indices: optional list of indices to filter results from.
@@ -584,8 +584,8 @@ class NodeStats(TelemetryDevice):
     command = "node-stats"
     human_name = "Node Stats"
     help = "Regularly samples node stats"
-    warning = """You have enabled the node-stats telemetry device with Elasticsearch < 7.2.0. Requests to the
-          _nodes/stats Elasticsearch endpoint trigger additional refreshes and WILL SKEW results.
+    warning = """You have enabled the node-stats telemetry device with OpenSearch < 1.1.0. Requests to the
+          _nodes/stats OpenSearch endpoint trigger additional refreshes and WILL SKEW results.
     """
 
     def __init__(self, telemetry_params, clients, metrics_store):
@@ -828,7 +828,7 @@ class TransformStatsRecorder:
     def __init__(self, cluster_name, client, metrics_store, sample_interval, transforms=None):
         """
         :param cluster_name: The cluster_name that the client connects to, as specified in target.hosts.
-        :param client: The Elasticsearch client for this cluster.
+        :param client: The OpenSearch client for this cluster.
         :param metrics_store: The configured metrics store we write to.
         :param sample_interval: integer controlling the interval, in seconds, between collecting samples.
         :param transforms: optional list of transforms to filter results from.
@@ -1041,7 +1041,7 @@ class SearchableSnapshotsStatsRecorder:
     def __init__(self, cluster_name, client, metrics_store, sample_interval, indices=None):
         """
         :param cluster_name: The cluster_name that the client connects to, as specified in target.hosts.
-        :param client: The Elasticsearch client for this cluster.
+        :param client: The OpenSearch client for this cluster.
         :param metrics_store: The configured metrics store we write to.
         :param sample_interval: integer controlling the interval, in seconds, between collecting samples.
         :param indices: optional list of indices to filter results from.
@@ -1070,7 +1070,6 @@ class SearchableSnapshotsStatsRecorder:
             level = "indices" if self.indices else "cluster"
             # we don't use the existing client support (searchable_snapshots.stats())
             # as the API is deliberately undocumented and might change:
-            # https://www.elastic.co/guide/en/elasticsearch/reference/current/searchable-snapshots-api-stats.html
             stats = self.client.transport.perform_request("GET", stats_api_endpoint, params={"level": level})
         except elasticsearch.NotFoundError as e:
             if "No searchable snapshots indices found" in e.info.get("error").get("reason"):
@@ -1116,7 +1115,7 @@ class SearchableSnapshotsStatsRecorder:
 
     # TODO Consider moving under the utils package for broader/future use?
     # at the moment it's only useful here as this stats API is undocumented and we don't wan't to use
-    # a specific elasticsearch-py stats method that could support index filtering in a standard way
+    # a specific opensearch-py stats method that could support index filtering in a standard way
     def _match_list_or_pattern(self, idx):
         """
         Match idx from self.indices
@@ -1443,7 +1442,7 @@ class JvmStatsSummary(InternalTelemetryDevice):
 
 class IndexStats(InternalTelemetryDevice):
     """
-    Gathers statistics via the Elasticsearch index stats API
+    Gathers statistics via the OpenSearch index stats API
     """
     def __init__(self, client, metrics_store):
         super().__init__()

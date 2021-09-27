@@ -127,14 +127,14 @@ class EsClient:
             except elasticsearch.exceptions.AuthenticationException:
                 # we know that it is just one host (see EsClientFactory)
                 node = self._client.transport.hosts[0]
-                msg = "The configured user could not authenticate against your Elasticsearch metrics store running on host [%s] at " \
+                msg = "The configured user could not authenticate against your OpenSearch metrics store running on host [%s] at " \
                       "port [%s] (wrong password?). Please fix the configuration in [%s]." % \
                       (node["host"], node["port"], config.ConfigFile().location)
                 self.logger.exception(msg)
                 raise exceptions.SystemSetupError(msg)
             except elasticsearch.exceptions.AuthorizationException:
                 node = self._client.transport.hosts[0]
-                msg = "The configured user does not have enough privileges to run the operation [%s] against your Elasticsearch metrics " \
+                msg = "The configured user does not have enough privileges to run the operation [%s] against your OpenSearch metrics " \
                       "store running on host [%s] at port [%s]. Please specify a user with enough " \
                       "privileges in the configuration in [%s]." % \
                       (target.__name__, node["host"], node["port"], config.ConfigFile().location)
@@ -148,12 +148,12 @@ class EsClient:
                     operation = target.__name__
                     self.logger.exception("Connection timeout while running [%s] (retried %d times).", operation, max_execution_count)
                     node = self._client.transport.hosts[0]
-                    msg = "A connection timeout occurred while running the operation [%s] against your Elasticsearch metrics store on " \
+                    msg = "A connection timeout occurred while running the operation [%s] against your OpenSearch metrics store on " \
                           "host [%s] at port [%s]." % (operation, node["host"], node["port"])
                     raise exceptions.BenchmarkError(msg)
             except elasticsearch.exceptions.ConnectionError:
                 node = self._client.transport.hosts[0]
-                msg = "Could not connect to your Elasticsearch metrics store. Please check that it is running on host [%s] at port [%s]" \
+                msg = "Could not connect to your OpenSearch metrics store. Please check that it is running on host [%s] at port [%s]" \
                       " or fix the configuration in [%s]." % (node["host"], node["port"], config.ConfigFile().location)
                 self.logger.exception(msg)
                 raise exceptions.SystemSetupError(msg)
@@ -164,14 +164,14 @@ class EsClient:
                     time.sleep(time_to_sleep)
                 else:
                     node = self._client.transport.hosts[0]
-                    msg = "A transport error occurred while running the operation [%s] against your Elasticsearch metrics store on " \
+                    msg = "A transport error occurred while running the operation [%s] against your OpenSearch metrics store on " \
                           "host [%s] at port [%s]." % (target.__name__, node["host"], node["port"])
                     self.logger.exception(msg)
                     raise exceptions.BenchmarkError(msg)
 
             except elasticsearch.exceptions.ElasticsearchException:
                 node = self._client.transport.hosts[0]
-                msg = "An unknown error occurred while running the operation [%s] against your Elasticsearch metrics store on host [%s] " \
+                msg = "An unknown error occurred while running the operation [%s] against your OpenSearch metrics store on host [%s] " \
                       "at port [%s]." % (target.__name__, node["host"], node["port"])
                 self.logger.exception(msg)
                 # this does not necessarily mean it's a system setup problem...
@@ -180,7 +180,7 @@ class EsClient:
 
 class EsClientFactory:
     """
-    Abstracts how the Elasticsearch client is created. Intended for testing.
+    Abstracts how the OpenSearch client is created. Intended for testing.
     """
 
     def __init__(self, cfg):
@@ -241,11 +241,11 @@ class IndexTemplateProvider:
 class MetaInfoScope(Enum):
     """
     Defines the scope of a meta-information. Meta-information provides more context for a metric, for example the concrete version
-    of Elasticsearch that has been benchmarked or environment information like CPU model or OS.
+    of OpenSearch that has been benchmarked or environment information like CPU model or OS.
     """
     cluster = 1
     """
-    Cluster level meta-information is valid for all nodes in the cluster (e.g. the benchmarked Elasticsearch version)
+    Cluster level meta-information is valid for all nodes in the cluster (e.g. the benchmarked OpenSearch version)
     """
     node = 3
     """
@@ -763,7 +763,7 @@ class MetricsStore:
 
 class EsMetricsStore(MetricsStore):
     """
-    A metrics store backed by Elasticsearch.
+    A metrics store backed by OpenSearch.
     """
     METRICS_DOC_TYPE = "_doc"
 
@@ -862,7 +862,7 @@ class EsMetricsStore(MetricsStore):
         self.logger.debug("Issuing get against index=[%s], query=[%s].", self._index, query)
         result = self._client.search(index=self._index, body=query)
         hits = result["hits"]["total"]
-        # Elasticsearch 7.0+
+        # OpenSearch 1.0+
         if isinstance(hits, dict):
             hits = hits["value"]
         self.logger.debug("Metrics query produced [%s] results.", hits)
@@ -947,7 +947,7 @@ class EsMetricsStore(MetricsStore):
         self.logger.debug("Issuing get_percentiles against index=[%s], query=[%s]", self._index, query)
         result = self._client.search(index=self._index, body=query)
         hits = result["hits"]["total"]
-        # Elasticsearch 7.0+
+        # OpenSearch 1.0+
         if isinstance(hits, dict):
             hits = hits["value"]
         self.logger.debug("get_percentiles produced %d hits", hits)
@@ -1394,11 +1394,11 @@ class TestExecutionStore:
 # Does not inherit from TestExecutionStore as it is only a delegator with the same API.
 class CompositeTestExecutionStore:
     """
-    Internal helper class to store test executions as file and to Elasticsearch in case users
-    want Elasticsearch as a test executions store.
+    Internal helper class to store test executions as file and to OpenSearch in case users
+    want OpenSearch as a test executions store.
 
     It provides the same API as TestExecutionStore. It delegates writes to all stores
-    and all read operations only the Elasticsearch test execution store.
+    and all read operations only the OpenSearch test execution store.
     """
     def __init__(self, es_store, file_store):
         self.es_store = es_store
@@ -1506,7 +1506,7 @@ class EsTestExecutionStore(TestExecutionStore):
         }
         result = self.client.search(index="%s*" % EsTestExecutionStore.INDEX_PREFIX, body=query)
         hits = result["hits"]["total"]
-        # Elasticsearch 7.0+
+        # OpenSearch 1.0+
         if isinstance(hits, dict):
             hits = hits["value"]
         if hits > 0:
@@ -1530,7 +1530,7 @@ class EsTestExecutionStore(TestExecutionStore):
         }
         result = self.client.search(index="%s*" % EsTestExecutionStore.INDEX_PREFIX, body=query)
         hits = result["hits"]["total"]
-        # Elasticsearch 7.0+
+        # OpenSearch 1.0+
         if isinstance(hits, dict):
             hits = hits["value"]
         if hits == 1:
@@ -1582,7 +1582,7 @@ class NoopResultsStore:
         pass
 
 
-# helper function for encoding and decoding float keys so that the Elasticsearch metrics store can save them.
+# helper function for encoding and decoding float keys so that the OpenSearch metrics store can save them.
 def encode_float_key(k):
     # ensure that the key is indeed a float to unify the representation (e.g. 50 should be represented as "50_0")
     return str(float(k)).replace(".", "_")

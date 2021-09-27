@@ -257,7 +257,7 @@ def cluster_distribution_version(cfg, client_factory=client.EsClientFactory):
     provisioned clusters).
 
     :param cfg: The current config object.
-    :param client_factory: Factory class that creates the Elasticsearch client.
+    :param client_factory: Factory class that creates the OpenSearch client.
     :return: The distribution version.
     """
     hosts = cfg.opts("client", "hosts").default

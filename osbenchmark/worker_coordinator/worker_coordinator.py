@@ -593,7 +593,7 @@ class WorkerCoordinator:
             self.logger.info("REST API is available.")
         else:
             self.logger.error("REST API layer is not yet available. Stopping benchmark.")
-            raise exceptions.SystemSetupError("Elasticsearch REST API layer is not available.")
+            raise exceptions.SystemSetupError("OpenSearch REST API layer is not available.")
 
     def retrieve_cluster_info(self, es):
         try:
@@ -1536,7 +1536,7 @@ class AsyncExecutor:
 
         :param task: The task that is executed.
         :param schedule: The schedule for this task.
-        :param es: Elasticsearch client that will be used to execute the operation.
+        :param es: OpenSearch client that will be used to execute the operation.
         :param sampler: A container to store raw samples.
         :param cancel: A shared boolean that indicates we need to cancel execution.
         :param complete: A shared boolean that indicates we need to prematurely complete execution.

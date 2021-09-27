@@ -77,7 +77,7 @@ def create_workload(cfg):
                              client_options=client_options.all_client_options[opts.TargetHosts.DEFAULT]).create()
 
     info = client.info()
-    console.info(f"Connected to Elasticsearch cluster [{info['name']}] version [{info['version']['number']}].\n", logger=logger)
+    console.info(f"Connected to OpenSearch cluster [{info['name']}] version [{info['version']['number']}].\n", logger=logger)
 
     output_path = os.path.abspath(os.path.join(io.normalize_path(root_path), workload_name))
     io.ensure_dir(output_path)

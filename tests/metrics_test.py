@@ -193,7 +193,7 @@ class EsClientTests(TestCase):
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             client.guarded(raise_connection_error)
-        self.assertEqual("Could not connect to your Elasticsearch metrics store. Please check that it is running on host [127.0.0.1] at "
+        self.assertEqual("Could not connect to your OpenSearch metrics store. Please check that it is running on host [127.0.0.1] at "
                          "port [9200] or fix the configuration in [%s/benchmark.ini]." % paths.benchmark_confdir(),
                          ctx.exception.args[0])
 
@@ -205,7 +205,7 @@ class EsClientTests(TestCase):
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             client.guarded(raise_authentication_error)
-        self.assertEqual("The configured user could not authenticate against your Elasticsearch metrics store running on host [127.0.0.1] "
+        self.assertEqual("The configured user could not authenticate against your OpenSearch metrics store running on host [127.0.0.1] "
                          "at port [9243] (wrong password?). Please fix the configuration in [%s/benchmark.ini]."
                          % paths.benchmark_confdir(), ctx.exception.args[0])
 
@@ -218,7 +218,7 @@ class EsClientTests(TestCase):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             client.guarded(raise_authorization_error)
         self.assertEqual("The configured user does not have enough privileges to run the operation [raise_authorization_error] against "
-                         "your Elasticsearch metrics store running on host [127.0.0.1] at port [9243]. Please "
+                         "your OpenSearch metrics store running on host [127.0.0.1] at port [9243]. Please "
                          "specify a user with enough privileges in the configuration in [%s/benchmark.ini]."
                          % paths.benchmark_confdir(), ctx.exception.args[0])
 
@@ -230,7 +230,7 @@ class EsClientTests(TestCase):
 
         with self.assertRaises(exceptions.BenchmarkError) as ctx:
             client.guarded(raise_unknown_error)
-        self.assertEqual("An unknown error occurred while running the operation [raise_unknown_error] against your Elasticsearch metrics "
+        self.assertEqual("An unknown error occurred while running the operation [raise_unknown_error] against your OpenSearch metrics "
                          "store on host [127.0.0.1] at port [9243].", ctx.exception.args[0])
 
     def test_retries_on_various_transport_errors(self):
@@ -291,7 +291,7 @@ class EsClientTests(TestCase):
             client.guarded(random_transport_error, rnd_code)
 
         self.assertEqual("A transport error occurred while running the operation "
-                         "[random_transport_error] against your Elasticsearch metrics "
+                         "[random_transport_error] against your OpenSearch metrics "
                          "store on host [127.0.0.1] at port [9243].",
                          ctx.exception.args[0])
 

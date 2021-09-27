@@ -54,7 +54,7 @@ def extract(client, output_path, index):
     """
     Scroll an index with a match-all query, dumping document source to ``outdir/documents.json``.
 
-    :param client: Elasticsearch client used to extract data
+    :param client: OpenSearch client used to extract data
     :param output_path: Destination directory for corpus dump
     :param index: Name of index to dump
     :return: dict of properties describing the corpus for templates

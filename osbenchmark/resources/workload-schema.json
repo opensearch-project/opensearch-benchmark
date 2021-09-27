@@ -521,7 +521,7 @@
           },
           "cache": {
             "type": "boolean",
-            "description": "[Only for type 'search']: Whether to use the query request cache. By default, Benchmark will define no value thus the default depends on the benchmark candidate settings and Elasticsearch version."
+            "description": "[Only for type 'search']: Whether to use the query request cache. By default, Benchmark will define no value thus the default depends on the benchmark candidate settings and OpenSearch version."
           },
           "index": {
             "type": "string",

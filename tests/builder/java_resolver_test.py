@@ -64,5 +64,5 @@ class JavaResolverTests(TestCase):
     def test_disallowed_bundled_jdk(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             java_resolver.java_home("12,11,10,9,8", specified_runtime_jdk="bundled")
-        self.assertEqual("This Elasticsearch version does not contain a bundled JDK. Please specify a different runtime JDK.",
+        self.assertEqual("This OpenSearch version does not contain a bundled JDK. Please specify a different runtime JDK.",
                          ctx.exception.args[0])

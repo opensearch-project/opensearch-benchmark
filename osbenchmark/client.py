@@ -174,7 +174,7 @@ class EsClientFactory:
                 missing_client_ssl_option = "client_cert" if client_key else "client_key"
                 console.println(
                     "'{}' is missing from client-options but '{}' has been specified.\n"
-                    "If your Elasticsearch setup requires client certificate verification both need to be supplied.\n"
+                    "If your OpenSearch setup requires client certificate verification both need to be supplied.\n"
                     "Read the documentation at {}\n".format(
                         missing_client_ssl_option,
                         defined_client_ssl_option,
@@ -265,11 +265,11 @@ class EsClientFactory:
 
 def wait_for_rest_layer(es, max_attempts=40):
     """
-    Waits for ``max_attempts`` until Elasticsearch's REST API is available.
+    Waits for ``max_attempts`` until OpenSearch's REST API is available.
 
-    :param es: Elasticsearch client to use for connecting.
+    :param es: OpenSearch client to use for connecting.
     :param max_attempts: The maximum number of attempts to check whether the REST API is available.
-    :return: True iff Elasticsearch's REST API is available.
+    :return: True iff OpenSearch's REST API is available.
     """
     # assume that at least the hosts that we expect to contact should be available. Note that this is not 100%
     # bullet-proof as a cluster could have e.g. dedicated masters which are not contained in our list of target hosts
@@ -281,7 +281,7 @@ def wait_for_rest_layer(es, max_attempts=40):
         # pylint: disable=import-outside-toplevel
         import elasticsearch
         try:
-            # see also WaitForHttpResource in Elasticsearch tests. Contrary to the ES tests we consider the API also
+            # see also WaitForHttpResource in OpenSearch tests. Contrary to the ES tests we consider the API also
             # available when the cluster status is RED (as long as all required nodes are present)
             es.cluster.health(wait_for_nodes=">={}".format(expected_node_count))
             logger.info("REST API is available for >= [%s] nodes after [%s] attempts.", expected_node_count, attempt)
