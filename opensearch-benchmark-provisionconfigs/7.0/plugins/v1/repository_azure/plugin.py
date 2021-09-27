@@ -93,7 +93,7 @@ def configure_keystore(config_names, variables, **kwargs):
         create_keystore(install_root, keystore_binary, env)
 
     for property_name in keystore_params:
-        # the actual Elasticsearch secure settings for the azure plugin don't contain the azure_ prefix
+        # the actual OpenSearch secure settings for the azure plugin don't contain the azure_ prefix
         es_property_name = property_name.replace("azure_", "")
         property_value = variables.get(property_name)
         # skip optional properties like session_token

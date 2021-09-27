@@ -1,11 +1,11 @@
-This directory contains the Elasticsearch base configuration.
+This directory contains the OpenSearch base configuration.
 
 ### Parameters
 
 This configuration allows to set the following parameters with Benchmark 0.10.0 using `--provision-config-instance-params`:
 
-* `data_paths` (default: "data" (relative to the Elasticsearch root directory)): A string specifying the Elasticsearch data path.
-* `indexing_pressure_memory_limit` (default: not set): A percentage value defining the cluster setting [`indexing_pressure.memory.limit`](https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-indexing-pressure.html).
+* `data_paths` (default: "data" (relative to the OpenSearch root directory)): A string specifying the OpenSearch data path.
+* `indexing_pressure_memory_limit` (default: not set): A percentage value defining the cluster setting `indexing_pressure.memory.limit`.
 * `additional_cluster_settings` (default: empty): A dictionary of key-value pairs with additional settings in `elasticsearch.yml`.
 * `additional_java_settings` (default: empty): A list of additional settings in `jvm.options`. Each entry in the list will end up as one line in `jvm.options`.
 
