@@ -251,7 +251,7 @@ class NodesStopped:
     pass
 
 
-def cluster_distribution_version(cfg, client_factory=client.EsClientFactory):
+def cluster_distribution_version(cfg, client_factory=client.OsClientFactory):
     """
     Attempt to get the cluster's distribution version even before it is actually started (which makes only sense for externally
     provisioned clusters).
@@ -262,10 +262,10 @@ def cluster_distribution_version(cfg, client_factory=client.EsClientFactory):
     """
     hosts = cfg.opts("client", "hosts").default
     client_options = cfg.opts("client", "options").default
-    es = client_factory(hosts, client_options).create()
+    osearch = client_factory(hosts, client_options).create()
     # unconditionally wait for the REST layer - if it's not up by then, we'll intentionally raise the original error
-    client.wait_for_rest_layer(es)
-    return es.info()["version"]["number"]
+    client.wait_for_rest_layer(osearch)
+    return osearch.info()["version"]["number"]
 
 
 def to_ip_port(hosts):

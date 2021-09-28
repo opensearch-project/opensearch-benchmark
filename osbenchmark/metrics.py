@@ -43,7 +43,7 @@ from osbenchmark import client, time, exceptions, config, version, paths
 from osbenchmark.utils import convert, console, io, versions
 
 
-class EsClient:
+class OsClient:
     """
     Provides a stripped-down client interface that is easier to exchange for testing
     """
@@ -125,7 +125,7 @@ class EsClient:
             try:
                 return target(*args, **kwargs)
             except elasticsearch.exceptions.AuthenticationException:
-                # we know that it is just one host (see EsClientFactory)
+                # we know that it is just one host (see OsClientFactory)
                 node = self._client.transport.hosts[0]
                 msg = "The configured user could not authenticate against your OpenSearch metrics store running on host [%s] at " \
                       "port [%s] (wrong password?). Please fix the configuration in [%s]." % \
@@ -178,7 +178,7 @@ class EsClient:
                 raise exceptions.BenchmarkError(msg)
 
 
-class EsClientFactory:
+class OsClientFactory:
     """
     Abstracts how the OpenSearch client is created. Intended for testing.
     """
@@ -206,11 +206,11 @@ class EsClientFactory:
             client_options["basic_auth_user"] = user
             client_options["basic_auth_password"] = password
 
-        factory = client.EsClientFactory(hosts=[{"host": host, "port": port}], client_options=client_options)
+        factory = client.OsClientFactory(hosts=[{"host": host, "port": port}], client_options=client_options)
         self._client = factory.create()
 
     def create(self):
-        c = EsClient(self._client)
+        c = OsClient(self._client)
         if self.probe_version:
             c.probe_version()
         return c
@@ -769,7 +769,7 @@ class OsMetricsStore(MetricsStore):
 
     def __init__(self,
                  cfg,
-                 client_factory_class=EsClientFactory,
+                 client_factory_class=OsClientFactory,
                  index_template_provider_class=IndexTemplateProvider,
                  clock=time.Clock, meta_info=None):
         """
@@ -1454,7 +1454,7 @@ class EsTestExecutionStore(TestExecutionStore):
     INDEX_PREFIX = "benchmark-test-executions-"
     TEST_EXECUTION_DOC_TYPE = "_doc"
 
-    def __init__(self, cfg, client_factory_class=EsClientFactory, index_template_provider_class=IndexTemplateProvider):
+    def __init__(self, cfg, client_factory_class=OsClientFactory, index_template_provider_class=IndexTemplateProvider):
         """
         Creates a new metrics store.
 
@@ -1549,7 +1549,7 @@ class OsResultsStore:
     INDEX_PREFIX = "benchmark-results-"
     RESULTS_DOC_TYPE = "_doc"
 
-    def __init__(self, cfg, client_factory_class=EsClientFactory, index_template_provider_class=IndexTemplateProvider):
+    def __init__(self, cfg, client_factory_class=OsClientFactory, index_template_provider_class=IndexTemplateProvider):
         """
         Creates a new results store.
 

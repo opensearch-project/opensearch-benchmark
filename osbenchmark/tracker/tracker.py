@@ -29,7 +29,7 @@ from elasticsearch import ElasticsearchException
 from jinja2 import Environment, FileSystemLoader
 
 from osbenchmark import PROGRAM_NAME
-from osbenchmark.client import EsClientFactory
+from osbenchmark.client import OsClientFactory
 from osbenchmark.tracker import corpus, index
 from osbenchmark.utils import io, opts, console
 
@@ -73,7 +73,7 @@ def create_workload(cfg):
 
     logger.info("Creating workload [%s] matching indices [%s]", workload_name, indices)
 
-    client = EsClientFactory(hosts=target_hosts.all_hosts[opts.TargetHosts.DEFAULT],
+    client = OsClientFactory(hosts=target_hosts.all_hosts[opts.TargetHosts.DEFAULT],
                              client_options=client_options.all_client_options[opts.TargetHosts.DEFAULT]).create()
 
     info = client.info()

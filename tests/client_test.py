@@ -47,7 +47,7 @@ class OsClientFactoryTests(TestCase):
         # make a copy so we can verify later that the factory did not modify it
         original_client_options = dict(client_options)
 
-        f = client.EsClientFactory(hosts, client_options)
+        f = client.OsClientFactory(hosts, client_options)
 
         self.assertEqual(hosts, f.hosts)
         self.assertIsNone(f.ssl_context)
@@ -69,7 +69,7 @@ class OsClientFactoryTests(TestCase):
 
         logger = logging.getLogger("osbenchmark.client")
         with mock.patch.object(logger, "info") as mocked_info_logger:
-            f = client.EsClientFactory(hosts, client_options)
+            f = client.OsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
             mock.call("SSL support: on"),
             mock.call("SSL certificate verification: on"),
@@ -107,7 +107,7 @@ class OsClientFactoryTests(TestCase):
 
         logger = logging.getLogger("osbenchmark.client")
         with mock.patch.object(logger, "info") as mocked_info_logger:
-            f = client.EsClientFactory(hosts, client_options)
+            f = client.OsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
             mock.call("SSL support: on"),
             mock.call("SSL certificate verification: on"),
@@ -147,7 +147,7 @@ class OsClientFactoryTests(TestCase):
 
         logger = logging.getLogger("osbenchmark.client")
         with mock.patch.object(logger, "info") as mocked_info_logger:
-            f = client.EsClientFactory(hosts, client_options)
+            f = client.OsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
             mock.call("SSL support: on"),
             mock.call("SSL certificate verification: on"),
@@ -190,7 +190,7 @@ class OsClientFactoryTests(TestCase):
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             with mock.patch.object(console, "println") as mocked_console_println:
-                client.EsClientFactory(hosts, client_options)
+                client.OsClientFactory(hosts, client_options)
         mocked_console_println.assert_called_once_with(
             "'{}' is missing from client-options but '{}' has been specified.\n"
             "If your OpenSearch setup requires client certificate verification both need to be supplied.\n"
@@ -222,7 +222,7 @@ class OsClientFactoryTests(TestCase):
 
         logger = logging.getLogger("osbenchmark.client")
         with mock.patch.object(logger, "info") as mocked_info_logger:
-            f = client.EsClientFactory(hosts, client_options)
+            f = client.OsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
             mock.call("SSL support: on"),
             mock.call("SSL certificate verification: off"),
@@ -260,7 +260,7 @@ class OsClientFactoryTests(TestCase):
 
         logger = logging.getLogger("osbenchmark.client")
         with mock.patch.object(logger, "info") as mocked_info_logger:
-            f = client.EsClientFactory(hosts, client_options)
+            f = client.OsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
             mock.call("SSL certificate verification: off"),
             mock.call("SSL client authentication: on")
@@ -311,23 +311,23 @@ class RequestContextManagerTests(TestCase):
 
 class RestLayerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
-    def test_successfully_waits_for_rest_layer(self, es):
-        es.transport.hosts = [
+    def test_successfully_waits_for_rest_layer(self, osearch):
+        osearch.transport.hosts = [
             {"host": "node-a.example.org", "port": 9200},
             {"host": "node-b.example.org", "port": 9200}
         ]
 
-        self.assertTrue(client.wait_for_rest_layer(es, max_attempts=3))
+        self.assertTrue(client.wait_for_rest_layer(osearch, max_attempts=3))
 
-        es.cluster.health.assert_has_calls([
+        osearch.cluster.health.assert_has_calls([
             mock.call(wait_for_nodes=">=2"),
         ])
 
     # don't sleep in realtime
     @mock.patch("time.sleep")
     @mock.patch("elasticsearch.Elasticsearch")
-    def test_retries_on_transport_errors(self, es, sleep):
-        es.cluster.health.side_effect = [
+    def test_retries_on_transport_errors(self, osearch, sleep):
+        osearch.cluster.health.side_effect = [
             elasticsearch.TransportError(503, "Service Unavailable"),
             elasticsearch.TransportError(401, "Unauthorized"),
             elasticsearch.TransportError(408, "Timed Out"),
@@ -339,21 +339,21 @@ class RestLayerTests(TestCase):
                 }
             }
         ]
-        self.assertTrue(client.wait_for_rest_layer(es, max_attempts=5))
+        self.assertTrue(client.wait_for_rest_layer(osearch, max_attempts=5))
 
     # don't sleep in realtime
     @mock.patch("time.sleep")
     @mock.patch("elasticsearch.Elasticsearch")
-    def test_dont_retry_eternally_on_transport_errors(self, es, sleep):
-        es.cluster.health.side_effect = elasticsearch.TransportError(401, "Unauthorized")
-        self.assertFalse(client.wait_for_rest_layer(es, max_attempts=3))
+    def test_dont_retry_eternally_on_transport_errors(self, osearch, sleep):
+        osearch.cluster.health.side_effect = elasticsearch.TransportError(401, "Unauthorized")
+        self.assertFalse(client.wait_for_rest_layer(osearch, max_attempts=3))
 
     @mock.patch("elasticsearch.Elasticsearch")
-    def test_ssl_error(self, es):
-        es.cluster.health.side_effect = elasticsearch.ConnectionError("N/A",
+    def test_ssl_error(self, osearch):
+        osearch.cluster.health.side_effect = elasticsearch.ConnectionError("N/A",
                                                             "[SSL: UNKNOWN_PROTOCOL] unknown protocol (_ssl.c:719)",
                                                             urllib3.exceptions.SSLError(
                                                                 "[SSL: UNKNOWN_PROTOCOL] unknown protocol (_ssl.c:719)"))
         with self.assertRaisesRegex(expected_exception=exceptions.SystemSetupError,
                                     expected_regex="Could not connect to cluster via https. Is this an https endpoint?"):
-            client.wait_for_rest_layer(es, max_attempts=3)
+            client.wait_for_rest_layer(osearch, max_attempts=3)

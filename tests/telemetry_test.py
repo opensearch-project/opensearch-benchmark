@@ -269,18 +269,18 @@ class HeapdumpTests(TestCase):
 class SegmentStatsTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @mock.patch("builtins.open", new_callable=mock.mock_open)
-    def test_generates_log_file(self, file_mock, es):
+    def test_generates_log_file(self, file_mock, osearch):
 
         stats_response = """
         index    shard prirep ip        segment generation docs.count docs.deleted   size size.memory committed searchable version compound
         geonames 0     p      127.0.0.1 _0               0        212            0 72.3kb        9621 true      true       8.4.0   true
         """
 
-        es.cat.segments.return_value = stats_response
+        osearch.cat.segments.return_value = stats_response
 
-        segment_stats = telemetry.SegmentStats("/var/log", es)
+        segment_stats = telemetry.SegmentStats("/var/log", osearch)
         segment_stats.on_benchmark_stop()
-        es.cat.segments.assert_called_with(index="_all", v=True)
+        osearch.cat.segments.assert_called_with(index="_all", v=True)
         file_mock.assert_has_calls([
             call("/var/log/segment_stats.log", "wt"),
             call().__enter__(),
@@ -3206,11 +3206,11 @@ class IndexStatsTests(TestCase):
 class MlBucketProcessingTimeTests(TestCase):
     @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     @mock.patch("elasticsearch.Elasticsearch")
-    def test_error_on_retrieval_does_not_store_metrics(self, es, metrics_store_put_doc):
-        es.search.side_effect = elasticsearch.TransportError("unit test error")
+    def test_error_on_retrieval_does_not_store_metrics(self, osearch, metrics_store_put_doc):
+        osearch.search.side_effect = elasticsearch.TransportError("unit test error")
         cfg = create_config()
         metrics_store = metrics.OsMetricsStore(cfg)
-        device = telemetry.MlBucketProcessingTime(es, metrics_store)
+        device = telemetry.MlBucketProcessingTime(osearch, metrics_store)
         t = telemetry.Telemetry(cfg, devices=[device])
         t.on_benchmark_stop()
 
@@ -3218,8 +3218,8 @@ class MlBucketProcessingTimeTests(TestCase):
 
     @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     @mock.patch("elasticsearch.Elasticsearch")
-    def test_empty_result_does_not_store_metrics(self, es, metrics_store_put_doc):
-        es.search.return_value = {
+    def test_empty_result_does_not_store_metrics(self, osearch, metrics_store_put_doc):
+        osearch.search.return_value = {
             "aggregations": {
                 "jobs": {
                     "buckets": []
@@ -3228,7 +3228,7 @@ class MlBucketProcessingTimeTests(TestCase):
         }
         cfg = create_config()
         metrics_store = metrics.OsMetricsStore(cfg)
-        device = telemetry.MlBucketProcessingTime(es, metrics_store)
+        device = telemetry.MlBucketProcessingTime(osearch, metrics_store)
         t = telemetry.Telemetry(cfg, devices=[device])
         t.on_benchmark_stop()
 
@@ -3236,8 +3236,8 @@ class MlBucketProcessingTimeTests(TestCase):
 
     @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     @mock.patch("elasticsearch.Elasticsearch")
-    def test_result_is_stored(self, es, metrics_store_put_doc):
-        es.search.return_value = {
+    def test_result_is_stored(self, osearch, metrics_store_put_doc):
+        osearch.search.return_value = {
             "aggregations": {
                 "jobs": {
                     "buckets": [
@@ -3284,7 +3284,7 @@ class MlBucketProcessingTimeTests(TestCase):
 
         cfg = create_config()
         metrics_store = metrics.OsMetricsStore(cfg)
-        device = telemetry.MlBucketProcessingTime(es, metrics_store)
+        device = telemetry.MlBucketProcessingTime(osearch, metrics_store)
         t = telemetry.Telemetry(cfg, devices=[device])
         t.on_benchmark_stop()
 

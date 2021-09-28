@@ -114,7 +114,7 @@ class RequestContextHolder:
         ctx["raw_response"] = True
 
 
-class EsClientFactory:
+class OsClientFactory:
     """
     Abstracts how the Elasticsearch client is created. Intended for testing.
     """
@@ -263,18 +263,18 @@ class EsClientFactory:
                                        **self.client_options)
 
 
-def wait_for_rest_layer(es, max_attempts=40):
+def wait_for_rest_layer(osearch, max_attempts=40):
     """
     Waits for ``max_attempts`` until OpenSearch's REST API is available.
 
-    :param es: OpenSearch client to use for connecting.
+    :param osearch: OpenSearch client to use for connecting.
     :param max_attempts: The maximum number of attempts to check whether the REST API is available.
     :return: True iff OpenSearch's REST API is available.
     """
     # assume that at least the hosts that we expect to contact should be available. Note that this is not 100%
     # bullet-proof as a cluster could have e.g. dedicated masters which are not contained in our list of target hosts
     # but this is still better than just checking for any random node's REST API being reachable.
-    expected_node_count = len(es.transport.hosts)
+    expected_node_count = len(osearch.transport.hosts)
     logger = logging.getLogger(__name__)
     for attempt in range(max_attempts):
         logger.debug("REST API is available after %s attempts", attempt)
@@ -283,7 +283,7 @@ def wait_for_rest_layer(es, max_attempts=40):
         try:
             # see also WaitForHttpResource in OpenSearch tests. Contrary to the ES tests we consider the API also
             # available when the cluster status is RED (as long as all required nodes are present)
-            es.cluster.health(wait_for_nodes=">={}".format(expected_node_count))
+            osearch.cluster.health(wait_for_nodes=">={}".format(expected_node_count))
             logger.info("REST API is available for >= [%s] nodes after [%s] attempts.", expected_node_count, attempt)
             return True
         except elasticsearch.ConnectionError as e:

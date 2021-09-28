@@ -43,7 +43,7 @@ from osbenchmark.workload import Task, Operation, TestProcedure, Workload
 
 class MockClientFactory:
     def __init__(self, cfg):
-        self._es = mock.create_autospec(metrics.EsClient)
+        self._es = mock.create_autospec(metrics.OsClient)
 
     def create(self):
         return self._es
@@ -152,8 +152,8 @@ class OsClientTests(TestCase):
         def __init__(self, hosts):
             self.transport = OsClientTests.TransportMock(hosts)
 
-    @mock.patch("osbenchmark.client.EsClientFactory")
-    def test_config_opts_parsing(self, client_esclientfactory):
+    @mock.patch("osbenchmark.client.OsClientFactory")
+    def test_config_opts_parsing(self, client_OsClientfactory):
         cfg = config.Config()
 
         _datastore_host = ".".join([str(random.randint(1, 254)) for _ in range(4)])
@@ -171,7 +171,7 @@ class OsClientTests(TestCase):
         if not _datastore_verify_certs:
             cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.ssl.verification_mode", "none")
 
-        metrics.EsClientFactory(cfg)
+        metrics.OsClientFactory(cfg)
         expected_client_options = {
             "use_ssl": True,
             "timeout": 120,
@@ -180,7 +180,7 @@ class OsClientTests(TestCase):
             "verify_certs": _datastore_verify_certs
         }
 
-        client_esclientfactory.assert_called_with(
+        client_OsClientfactory.assert_called_with(
             hosts=[{"host": _datastore_host, "port": _datastore_port}],
             client_options=expected_client_options
         )
@@ -189,7 +189,7 @@ class OsClientTests(TestCase):
         def raise_connection_error():
             raise elasticsearch.exceptions.ConnectionError("unit-test")
 
-        client = metrics.EsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9200"}]))
+        client = metrics.OsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9200"}]))
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             client.guarded(raise_connection_error)
@@ -201,7 +201,7 @@ class OsClientTests(TestCase):
         def raise_authentication_error():
             raise elasticsearch.exceptions.AuthenticationException("unit-test")
 
-        client = metrics.EsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
+        client = metrics.OsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             client.guarded(raise_authentication_error)
@@ -213,7 +213,7 @@ class OsClientTests(TestCase):
         def raise_authorization_error():
             raise elasticsearch.exceptions.AuthorizationException("unit-test")
 
-        client = metrics.EsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
+        client = metrics.OsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             client.guarded(raise_authorization_error)
@@ -226,7 +226,7 @@ class OsClientTests(TestCase):
         def raise_unknown_error():
             raise elasticsearch.exceptions.SerializationError("unit-test")
 
-        client = metrics.EsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
+        client = metrics.OsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
 
         with self.assertRaises(exceptions.BenchmarkError) as ctx:
             client.guarded(raise_unknown_error)
@@ -243,7 +243,7 @@ class OsClientTests(TestCase):
             # Disable additional randomization time in exponential backoff calls
             mocked_random.return_value = 0
 
-            client = metrics.EsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
+            client = metrics.OsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
 
             logger = logging.getLogger("osbenchmark.metrics")
             with mock.patch.object(logger, "debug") as mocked_debug_logger:
@@ -284,7 +284,7 @@ class OsClientTests(TestCase):
         def random_transport_error(rnd_resp_code):
             raise elasticsearch.exceptions.TransportError(rnd_resp_code, TransportErrors.err_return_codes[rnd_resp_code])
 
-        client = metrics.EsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
+        client = metrics.OsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
         rnd_code = random.choice(list(TransportErrors.err_return_codes))
 
         with self.assertRaises(exceptions.BenchmarkError) as ctx:

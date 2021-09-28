@@ -239,29 +239,29 @@ class ProcessLauncher:
             if metrics_store:
                 telemetry.add_metadata_for_node(metrics_store, node_name, node.host_name)
             try:
-                es = psutil.Process(pid=node.pid)
+                osearch = psutil.Process(pid=node.pid)
                 node.telemetry.detach_from_node(node, running=True)
             except psutil.NoSuchProcess:
                 self.logger.warning("No process found with PID [%s] for node [%s].", node.pid, node_name)
-                es = None
+                osearch = None
 
-            if es:
+            if osearch:
                 stop_watch = self._clock.stop_watch()
                 stop_watch.start()
                 try:
-                    es.terminate()
-                    es.wait(10.0)
+                    osearch.terminate()
+                    osearch.wait(10.0)
                     stopped_nodes.append(node)
                 except psutil.NoSuchProcess:
-                    self.logger.warning("No process found with PID [%s] for node [%s].", es.pid, node_name)
+                    self.logger.warning("No process found with PID [%s] for node [%s].", osearch.pid, node_name)
                 except psutil.TimeoutExpired:
                     self.logger.info("kill -KILL node [%s]", node_name)
                     try:
                         # kill -9
-                        es.kill()
+                        osearch.kill()
                         stopped_nodes.append(node)
                     except psutil.NoSuchProcess:
-                        self.logger.warning("No process found with PID [%s] for node [%s].", es.pid, node_name)
+                        self.logger.warning("No process found with PID [%s] for node [%s].", osearch.pid, node_name)
                 self.logger.info("Done shutting down node [%s] in [%.1f] s.", node_name, stop_watch.split_time())
 
                 node.telemetry.detach_from_node(node, running=False)

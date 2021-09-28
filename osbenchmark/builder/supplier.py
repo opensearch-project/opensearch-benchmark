@@ -100,10 +100,10 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
                                                       template_renderer=template_renderer)
 
         if caching_enabled:
-            es_file_resolver = OpenSearchFileNameResolver(dist_cfg, template_renderer)
+            os_file_resolver = OpenSearchFileNameResolver(dist_cfg, template_renderer)
             source_supplier = CachedSourceSupplier(source_distributions_root,
                                                    source_supplier,
-                                                   es_file_resolver)
+                                                   os_file_resolver)
 
         suppliers.append(source_supplier)
         repo = None

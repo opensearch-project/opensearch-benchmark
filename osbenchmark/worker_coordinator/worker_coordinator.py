@@ -512,7 +512,7 @@ def num_cores(cfg):
 
 
 class WorkerCoordinator:
-    def __init__(self, target, config, es_client_factory_class=client.EsClientFactory):
+    def __init__(self, target, config, os_client_factory_class=client.OsClientFactory):
         """
         Coordinates all workers. It is technology-agnostic, i.e. it does not know anything about actors. To allow us to hook in an actor,
         we provide a ``target`` parameter which will be called whenever some event has occurred. The ``target`` can use this to send
@@ -524,7 +524,7 @@ class WorkerCoordinator:
         self.logger = logging.getLogger(__name__)
         self.target = target
         self.config = config
-        self.es_client_factory = es_client_factory_class
+        self.os_client_factory = os_client_factory_class
         self.workload = None
         self.test_procedure = None
         self.metrics_store = None
@@ -552,42 +552,42 @@ class WorkerCoordinator:
 
     def create_os_clients(self):
         all_hosts = self.config.opts("client", "hosts").all_hosts
-        es = {}
+        osearch = {}
         for cluster_name, cluster_hosts in all_hosts.items():
             all_client_options = self.config.opts("client", "options").all_client_options
             cluster_client_options = dict(all_client_options[cluster_name])
             # Use retries to avoid aborts on long living connections for telemetry devices
             cluster_client_options["retry-on-timeout"] = True
-            es[cluster_name] = self.es_client_factory(cluster_hosts, cluster_client_options).create()
-        return es
+            osearch[cluster_name] = self.os_client_factory(cluster_hosts, cluster_client_options).create()
+        return osearch
 
-    def prepare_telemetry(self, es, enable):
+    def prepare_telemetry(self, osearch, enable):
         enabled_devices = self.config.opts("telemetry", "devices")
         telemetry_params = self.config.opts("telemetry", "params")
         log_root = paths.test_execution_root(self.config)
 
-        os_default = es["default"]
+        os_default = osearch["default"]
 
         if enable:
             devices = [
-                telemetry.NodeStats(telemetry_params, es, self.metrics_store),
+                telemetry.NodeStats(telemetry_params, osearch, self.metrics_store),
                 telemetry.ExternalEnvironmentInfo(os_default, self.metrics_store),
                 telemetry.ClusterEnvironmentInfo(os_default, self.metrics_store),
                 telemetry.JvmStatsSummary(os_default, self.metrics_store),
                 telemetry.IndexStats(os_default, self.metrics_store),
                 telemetry.MlBucketProcessingTime(os_default, self.metrics_store),
                 telemetry.SegmentStats(log_root, os_default),
-                telemetry.CcrStats(telemetry_params, es, self.metrics_store),
-                telemetry.RecoveryStats(telemetry_params, es, self.metrics_store),
-                telemetry.TransformStats(telemetry_params, es, self.metrics_store),
-                telemetry.SearchableSnapshotsStats(telemetry_params, es, self.metrics_store)
+                telemetry.CcrStats(telemetry_params, osearch, self.metrics_store),
+                telemetry.RecoveryStats(telemetry_params, osearch, self.metrics_store),
+                telemetry.TransformStats(telemetry_params, osearch, self.metrics_store),
+                telemetry.SearchableSnapshotsStats(telemetry_params, osearch, self.metrics_store)
             ]
         else:
             devices = []
         self.telemetry = telemetry.Telemetry(enabled_devices, devices=devices)
 
-    def wait_for_rest_api(self, es):
-        os_default = es["default"]
+    def wait_for_rest_api(self, osearch):
+        os_default = osearch["default"]
         self.logger.info("Checking if REST API is available.")
         if client.wait_for_rest_layer(os_default, max_attempts=40):
             self.logger.info("REST API is available.")
@@ -595,9 +595,9 @@ class WorkerCoordinator:
             self.logger.error("REST API layer is not yet available. Stopping benchmark.")
             raise exceptions.SystemSetupError("OpenSearch REST API layer is not available.")
 
-    def retrieve_cluster_info(self, es):
+    def retrieve_cluster_info(self, osearch):
         try:
-            return es["default"].info()
+            return osearch["default"].info()
         except BaseException:
             self.logger.exception("Could not retrieve cluster info on benchmark start")
             return None
@@ -1445,15 +1445,15 @@ class AsyncIoAdapter:
 
     async def run(self):
         def os_clients(all_hosts, all_client_options):
-            es = {}
+            osearch = {}
             for cluster_name, cluster_hosts in all_hosts.items():
-                es[cluster_name] = client.EsClientFactory(cluster_hosts, all_client_options[cluster_name]).create_async()
-            return es
+                osearch[cluster_name] = client.OsClientFactory(cluster_hosts, all_client_options[cluster_name]).create_async()
+            return osearch
 
         # Properly size the internal connection pool to match the number of expected clients but allow the user
         # to override it if needed.
         client_count = len(self.task_allocations)
-        es = os_clients(self.cfg.opts("client", "hosts").all_hosts,
+        osearch = os_clients(self.cfg.opts("client", "hosts").all_hosts,
                         self.cfg.opts("client", "options").with_max_connections(client_count))
 
         self.logger.info("Task assertions enabled: %s", str(self.assertions_enabled))
@@ -1477,7 +1477,7 @@ class AsyncIoAdapter:
             # need to start from (client) index 0 in both cases instead of 0 for indexA and 4 for indexB.
             schedule = schedule_for(task, task_allocation.client_index_in_task, params_per_task[task])
             async_executor = AsyncExecutor(
-                client_id, task, schedule, es, self.sampler, self.cancel, self.complete,
+                client_id, task, schedule, osearch, self.sampler, self.cancel, self.complete,
                 task.error_behavior(self.abort_on_error))
             final_executor = AsyncProfiler(async_executor) if self.profiling_enabled else async_executor
             aws.append(final_executor())
@@ -1490,8 +1490,8 @@ class AsyncIoAdapter:
             await asyncio.get_event_loop().shutdown_asyncgens()
             shutdown_asyncgens_end = time.perf_counter()
             self.logger.info("Total time to shutdown asyncgens: %f seconds.", (shutdown_asyncgens_end - run_end))
-            for e in es.values():
-                await e.transport.close()
+            for s in osearch.values():
+                await s.transport.close()
             transport_close_end = time.perf_counter()
             self.logger.info("Total time to close transports: %f seconds.", (shutdown_asyncgens_end - transport_close_end))
 
@@ -1530,13 +1530,13 @@ class AsyncProfiler:
 
 
 class AsyncExecutor:
-    def __init__(self, client_id, task, schedule, es, sampler, cancel, complete, on_error):
+    def __init__(self, client_id, task, schedule, osearch, sampler, cancel, complete, on_error):
         """
         Executes tasks according to the schedule for a given operation.
 
         :param task: The task that is executed.
         :param schedule: The schedule for this task.
-        :param es: OpenSearch client that will be used to execute the operation.
+        :param osearch: OpenSearch client that will be used to execute the operation.
         :param sampler: A container to store raw samples.
         :param cancel: A shared boolean that indicates we need to cancel execution.
         :param complete: A shared boolean that indicates we need to prematurely complete execution.
@@ -1546,7 +1546,7 @@ class AsyncExecutor:
         self.task = task
         self.op = task.operation
         self.schedule_handle = schedule
-        self.es = es
+        self.osearch = osearch
         self.sampler = sampler
         self.cancel = cancel
         self.complete = complete
@@ -1576,8 +1576,8 @@ class AsyncExecutor:
                 absolute_processing_start = time.time()
                 processing_start = time.perf_counter()
                 self.schedule_handle.before_request(processing_start)
-                async with self.es["default"].new_request_context() as request_context:
-                    total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.es, params, self.on_error)
+                async with self.osearch["default"].new_request_context() as request_context:
+                    total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.osearch, params, self.on_error)
                     request_start = request_context.request_start
                     request_end = request_context.request_end
 
@@ -1635,7 +1635,7 @@ class AsyncExecutor:
                 self.complete.set()
 
 
-async def execute_single(runner, es, params, on_error):
+async def execute_single(runner, osearch, params, on_error):
     """
     Invokes the given runner once and provides the runner's return value in a uniform structure.
 
@@ -1646,7 +1646,7 @@ async def execute_single(runner, es, params, on_error):
     fatal_error = False
     try:
         async with runner:
-            return_value = await runner(es, params)
+            return_value = await runner(osearch, params)
         if isinstance(return_value, tuple) and len(return_value) == 2:
             total_ops, total_ops_unit = return_value
             request_meta_data = {"success": True}
