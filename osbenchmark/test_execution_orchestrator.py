@@ -359,7 +359,7 @@ def run(cfg):
         logger.info("User specified pipeline [%s].", name)
 
     if os.environ.get("BENCHMARK_RUNNING_IN_DOCKER", "").upper() == "TRUE":
-        # in this case only benchmarking remote Elasticsearch clusters makes sense
+        # in this case only benchmarking remote OpenSearch clusters makes sense
         if name != "benchmark-only":
             raise exceptions.SystemSetupError(
                 "Only the [benchmark-only] pipeline is supported by the Benchmark Docker image.\n"

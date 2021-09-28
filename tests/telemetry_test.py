@@ -1074,7 +1074,7 @@ class TestSearchableSnapshotsStats:
         ]
 
     response_fragment_indices = {
-        "elasticlogs-2020-01-01": {
+        "opensearchlogs-2020-01-01": {
                                       "total": [
                                           {
                                               "file_ext": "fnm",
@@ -1353,8 +1353,8 @@ class TestSearchableSnapshotsStats:
             metrics_store=metrics_store,
             sample_interval=1,
             indices=random.choice([
-                ["elasticlogs*"],
-                ["elasticlogs-2020-01-01"]
+                ["opensearchlogs*"],
+                ["opensearchlogs-2020-01-01"]
             ])
         )
         recorder.record()
@@ -1374,12 +1374,12 @@ class TestSearchableSnapshotsStats:
                 "name": "searchable-snapshots-stats",
                 "lucene_file_type": stat["file_ext"],
                 "stats": stat,
-                "index": "elasticlogs-2020-01-01"
+                "index": "opensearchlogs-2020-01-01"
                 },
                 level=MetaInfoScope.cluster,
                 meta_data={
                     "cluster": "default", "level": "index"})
-            for stat in TestSearchableSnapshotsStats.response_fragment_indices["elasticlogs-2020-01-01"]["total"]])
+            for stat in TestSearchableSnapshotsStats.response_fragment_indices["opensearchlogs-2020-01-01"]["total"]])
 
         metrics_store_put_doc.assert_has_calls(expected_calls, any_order=True)
 

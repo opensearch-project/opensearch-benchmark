@@ -116,7 +116,7 @@ class RequestContextHolder:
 
 class OsClientFactory:
     """
-    Abstracts how the Elasticsearch client is created. Intended for testing.
+    Abstracts how the OpenSearch client is created. Intended for testing.
     """
     def __init__(self, hosts, client_options):
         self.hosts = hosts
@@ -232,17 +232,17 @@ class OsClientFactory:
 
         class LazyJSONSerializer(JSONSerializer):
             def loads(self, s):
-                meta = BenchmarkAsyncElasticsearch.request_context.get()
+                meta = BenchmarkAsyncOpenSearch.request_context.get()
                 if "raw_response" in meta:
                     return io.BytesIO(s)
                 else:
                     return super().loads(s)
 
         async def on_request_start(session, trace_config_ctx, params):
-            BenchmarkAsyncElasticsearch.on_request_start()
+            BenchmarkAsyncOpenSearch.on_request_start()
 
         async def on_request_end(session, trace_config_ctx, params):
-            BenchmarkAsyncElasticsearch.on_request_end()
+            BenchmarkAsyncOpenSearch.on_request_end()
 
         trace_config = aiohttp.TraceConfig()
         trace_config.on_request_start.append(on_request_start)
@@ -254,10 +254,10 @@ class OsClientFactory:
         self.client_options["serializer"] = LazyJSONSerializer()
         self.client_options["trace_config"] = trace_config
 
-        class BenchmarkAsyncElasticsearch(elasticsearch.AsyncElasticsearch, RequestContextHolder):
+        class BenchmarkAsyncOpenSearch(elasticsearch.AsyncElasticsearch, RequestContextHolder):
             pass
 
-        return BenchmarkAsyncElasticsearch(hosts=self.hosts,
+        return BenchmarkAsyncOpenSearch(hosts=self.hosts,
                                        connection_class=osbenchmark.async_connection.AIOHttpConnection,
                                        ssl_context=self.ssl_context,
                                        **self.client_options)

@@ -966,9 +966,9 @@ class SearchableSnapshotsStats(TelemetryDevice):
 
             Examples:
 
-            --telemetry-params="searchable-snapshots-stats-indices:elasticlogs-2020-01-01"
+            --telemetry-params="searchable-snapshots-stats-indices:opensearchlogs-2020-01-01"
 
-            --telemetry-params="searchable-snapshots-stats-indices:elasticlogs*"
+            --telemetry-params="searchable-snapshots-stats-indices:opensearchlogs*"
 
             --telemetry-params=./telemetry-params.json
 
@@ -976,8 +976,8 @@ class SearchableSnapshotsStats(TelemetryDevice):
 
             {
               "searchable-snapshots-stats-indices": {
-                "default": ["leader-elasticlogs-*"],
-                "follower": ["follower-elasticlogs-*"]
+                "default": ["leader-opensearchlogs-*"],
+                "follower": ["follower-opensearchlogs-*"]
               }
             }
 
