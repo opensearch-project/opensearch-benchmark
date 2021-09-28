@@ -47,13 +47,13 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
     distribution_version = cfg.opts("builder", "distribution.version", mandatory=False)
     supply_requirements = _supply_requirements(sources, distribution, plugins, revisions, distribution_version)
     build_needed = any([build for _, _, build in supply_requirements.values()])
-    es_supplier_type, es_version, _ = supply_requirements["elasticsearch"]
+    os_supplier_type, os_version, _ = supply_requirements["elasticsearch"]
     src_config = cfg.all_opts("source")
     suppliers = []
 
     target_os = cfg.opts("builder", "target.os", mandatory=False)
     target_arch = cfg.opts("builder", "target.arch", mandatory=False)
-    template_renderer = TemplateRenderer(version=es_version, os_name=target_os, arch=target_arch)
+    template_renderer = TemplateRenderer(version=os_version, os_name=target_os, arch=target_arch)
 
     if build_needed:
         raw_build_jdk = provision_config_instance.mandatory_var("build.jdk")
@@ -89,10 +89,10 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
         logger.info("Disabling source artifact caching.")
         source_distributions_root = None
 
-    if es_supplier_type == "source":
+    if os_supplier_type == "source":
         os_src_dir = os.path.join(_src_dir(cfg), _config_value(src_config, "opensearch.src.subdir"))
 
-        source_supplier = OpenSearchSourceSupplier(es_version,
+        source_supplier = OpenSearchSourceSupplier(os_version,
                                                       os_src_dir,
                                                       remote_url=cfg.opts("source", "remote.repo.url"),
                                                       provision_config_instance=provision_config_instance,
@@ -112,7 +112,7 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
         repo = DistributionRepository(name=cfg.opts("builder", "distribution.repository"),
                                       distribution_config=dist_cfg,
                                       template_renderer=template_renderer)
-        suppliers.append(OpenSearchDistributionSupplier(repo, es_version, distributions_root))
+        suppliers.append(OpenSearchDistributionSupplier(repo, os_version, distributions_root))
 
     for plugin in plugins:
         supplier_type, plugin_version, _ = supply_requirements[plugin.name]

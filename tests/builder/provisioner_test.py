@@ -412,10 +412,10 @@ class DockerProvisionerTests(TestCase):
         }, docker.config_vars)
 
         self.assertDictEqual({
-            "es_data_dir": data_dir,
-            "es_log_dir": log_dir,
-            "es_heap_dump_dir": heap_dump_dir,
-            "es_version": "6.3.0",
+            "os_data_dir": data_dir,
+            "os_log_dir": log_dir,
+            "os_heap_dump_dir": heap_dump_dir,
+            "os_version": "6.3.0",
             "docker_image": "docker.elastic.co/elasticsearch/elasticsearch-oss",
             "http_port": 39200,
             "mounts": {}

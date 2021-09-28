@@ -470,12 +470,12 @@ class DockerProvisioner:
 
     def docker_vars(self, mounts):
         v = {
-            "es_version": self.distribution_version,
+            "os_version": self.distribution_version,
             "docker_image": self.provision_config_instance.mandatory_var("docker_image"),
             "http_port": self.http_port,
-            "es_data_dir": self.data_paths[0],
-            "es_log_dir": self.node_log_dir,
-            "es_heap_dump_dir": self.heap_dump_dir,
+            "os_data_dir": self.data_paths[0],
+            "os_log_dir": self.node_log_dir,
+            "os_heap_dump_dir": self.heap_dump_dir,
             "mounts": mounts
         }
         self._add_if_defined_for_provision_config_instance(v, "docker_mem_limit")
