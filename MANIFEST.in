@@ -5,7 +5,7 @@ include MANIFEST.in
 include README.md
 include setup.py
 include version.txt
-include osbenchmark/min-es-version.txt
+include osbenchmark/min-os-version.txt
 recursive-include docs *
 recursive-include osbenchmark/resources *
 # recursive-exclude * __pycache__
