@@ -195,7 +195,7 @@ class TemplateRendererTests(TestCase):
 class CachedOpenSearchSourceSupplierTests(TestCase):
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("shutil.copy")
-    @mock.patch("osbenchmark.builder.supplier.ElasticsearchSourceSupplier")
+    @mock.patch("osbenchmark.builder.supplier.OpenSearchSourceSupplier")
     def test_does_not_cache_when_no_revision(self, es, copy, ensure_dir):
         def add_os_artifact(binaries):
             binaries["elasticsearch"] = "/path/to/artifact.tar.gz"
@@ -210,7 +210,7 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
             "runtime.jdk.bundled": "true",
             "jdk.bundled.release_url": "https://elstc.co/elasticsearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz"
         }
-        file_resolver = supplier.ElasticsearchFileNameResolver(
+        file_resolver = supplier.OpenSearchFileNameResolver(
             distribution_config=dist_cfg,
             template_renderer=renderer
         )
@@ -231,7 +231,7 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
         self.assertEqual("/path/to/artifact.tar.gz", binaries["elasticsearch"])
 
     @mock.patch("os.path.exists")
-    @mock.patch("osbenchmark.builder.supplier.ElasticsearchSourceSupplier")
+    @mock.patch("osbenchmark.builder.supplier.OpenSearchSourceSupplier")
     def test_uses_already_cached_artifact(self, es, path_exists):
         # assume that the artifact is already cached
         path_exists.return_value = True
@@ -241,7 +241,7 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
             "runtime.jdk.bundled": "true",
             "jdk.bundled.release_url": "https://elstc.co/elasticsearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz"
         }
-        file_resolver = supplier.ElasticsearchFileNameResolver(
+        file_resolver = supplier.OpenSearchFileNameResolver(
             distribution_config=dist_cfg,
             template_renderer=renderer
         )
@@ -266,7 +266,7 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("os.path.exists")
     @mock.patch("shutil.copy")
-    @mock.patch("osbenchmark.builder.supplier.ElasticsearchSourceSupplier")
+    @mock.patch("osbenchmark.builder.supplier.OpenSearchSourceSupplier")
     def test_caches_artifact(self, es, copy, path_exists, ensure_dir):
         def add_os_artifact(binaries):
             binaries["elasticsearch"] = "/path/to/artifact.tar.gz"
@@ -285,7 +285,7 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
 
         cached_supplier = supplier.CachedSourceSupplier(distributions_root="/tmp",
                                                         source_supplier=es,
-                                                        file_resolver=supplier.ElasticsearchFileNameResolver(
+                                                        file_resolver=supplier.OpenSearchFileNameResolver(
                                                             distribution_config=dist_cfg,
                                                             template_renderer=renderer
                                                         ))
@@ -318,7 +318,7 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("os.path.exists")
     @mock.patch("shutil.copy")
-    @mock.patch("osbenchmark.builder.supplier.ElasticsearchSourceSupplier")
+    @mock.patch("osbenchmark.builder.supplier.OpenSearchSourceSupplier")
     def test_does_not_cache_on_copy_error(self, es, copy, path_exists, ensure_dir):
         def add_os_artifact(binaries):
             binaries["elasticsearch"] = "/path/to/artifact.tar.gz"
@@ -338,7 +338,7 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
 
         cached_supplier = supplier.CachedSourceSupplier(distributions_root="/tmp",
                                                         source_supplier=es,
-                                                        file_resolver=supplier.ElasticsearchFileNameResolver(
+                                                        file_resolver=supplier.OpenSearchFileNameResolver(
                                                             distribution_config=dist_cfg,
                                                             template_renderer=renderer
                                                         ))
@@ -367,7 +367,7 @@ class OpenSearchFileNameResolverTests(TestCase):
             "jdk.bundled.release_url": "https://elstc.co/elasticsearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz"
         }
 
-        self.resolver = supplier.ElasticsearchFileNameResolver(
+        self.resolver = supplier.OpenSearchFileNameResolver(
             distribution_config=dist_cfg,
             template_renderer=renderer
         )
@@ -457,7 +457,7 @@ class OpenSearchSourceSupplierTests(TestCase):
             "system.build_command": "./gradlew assemble"
         })
         renderer = supplier.TemplateRenderer(version=None)
-        es = supplier.ElasticsearchSourceSupplier(revision="abc",
+        es = supplier.OpenSearchSourceSupplier(revision="abc",
                                                   os_src_dir="/src",
                                                   remote_url="",
                                                   provision_config_instance=provision_config_instance,
@@ -473,7 +473,7 @@ class OpenSearchSourceSupplierTests(TestCase):
         })
         builder = mock.create_autospec(supplier.Builder)
         renderer = supplier.TemplateRenderer(version="abc")
-        es = supplier.ElasticsearchSourceSupplier(revision="abc",
+        es = supplier.OpenSearchSourceSupplier(revision="abc",
                                                   os_src_dir="/src",
                                                   remote_url="",
                                                   provision_config_instance=provision_config_instance,
@@ -490,7 +490,7 @@ class OpenSearchSourceSupplierTests(TestCase):
         })
         renderer = supplier.TemplateRenderer(version="abc")
         builder = mock.create_autospec(supplier.Builder)
-        es = supplier.ElasticsearchSourceSupplier(revision="abc",
+        es = supplier.OpenSearchSourceSupplier(revision="abc",
                                                   os_src_dir="/src",
                                                   remote_url="",
                                                   provision_config_instance=provision_config_instance,
@@ -510,7 +510,7 @@ class OpenSearchSourceSupplierTests(TestCase):
             "system.artifact_path_pattern": "distribution/archives/tar/build/distributions/*.tar.gz"
         })
         renderer = supplier.TemplateRenderer(version="abc")
-        es = supplier.ElasticsearchSourceSupplier(revision="abc",
+        es = supplier.OpenSearchSourceSupplier(revision="abc",
                                                   os_src_dir="/src",
                                                   remote_url="",
                                                   provision_config_instance=provision_config_instance,
@@ -681,7 +681,7 @@ class CreateSupplierTests(TestCase):
         composite_supplier = supplier.create(cfg, sources=False, distribution=True, provision_config_instance=provision_config_instance)
 
         self.assertEqual(1, len(composite_supplier.suppliers))
-        self.assertIsInstance(composite_supplier.suppliers[0], supplier.ElasticsearchDistributionSupplier)
+        self.assertIsInstance(composite_supplier.suppliers[0], supplier.OpenSearchDistributionSupplier)
 
     @mock.patch("osbenchmark.utils.jvm.resolve_path", lambda v: (v, "/opt/java/java{}".format(v)))
     def test_create_suppliers_for_os_distribution_plugin_source_build(self):
@@ -713,7 +713,7 @@ class CreateSupplierTests(TestCase):
         ])
 
         self.assertEqual(3, len(composite_supplier.suppliers))
-        self.assertIsInstance(composite_supplier.suppliers[0], supplier.ElasticsearchDistributionSupplier)
+        self.assertIsInstance(composite_supplier.suppliers[0], supplier.OpenSearchDistributionSupplier)
         self.assertIsInstance(composite_supplier.suppliers[1], supplier.PluginDistributionSupplier)
         self.assertEqual(core_plugin, composite_supplier.suppliers[1].plugin)
         self.assertIsInstance(composite_supplier.suppliers[2].source_supplier, supplier.ExternalPluginSourceSupplier)
@@ -751,7 +751,7 @@ class CreateSupplierTests(TestCase):
         ])
 
         self.assertEqual(3, len(composite_supplier.suppliers))
-        self.assertIsInstance(composite_supplier.suppliers[0].source_supplier, supplier.ElasticsearchSourceSupplier)
+        self.assertIsInstance(composite_supplier.suppliers[0].source_supplier, supplier.OpenSearchSourceSupplier)
         self.assertIsInstance(composite_supplier.suppliers[1].source_supplier, supplier.CorePluginSourceSupplier)
         self.assertEqual(core_plugin, composite_supplier.suppliers[1].source_supplier.plugin)
         self.assertIsInstance(composite_supplier.suppliers[2].source_supplier, supplier.ExternalPluginSourceSupplier)

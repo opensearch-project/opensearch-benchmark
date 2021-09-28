@@ -92,7 +92,7 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
     if es_supplier_type == "source":
         os_src_dir = os.path.join(_src_dir(cfg), _config_value(src_config, "opensearch.src.subdir"))
 
-        source_supplier = ElasticsearchSourceSupplier(es_version,
+        source_supplier = OpenSearchSourceSupplier(es_version,
                                                       os_src_dir,
                                                       remote_url=cfg.opts("source", "remote.repo.url"),
                                                       provision_config_instance=provision_config_instance,
@@ -100,7 +100,7 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
                                                       template_renderer=template_renderer)
 
         if caching_enabled:
-            es_file_resolver = ElasticsearchFileNameResolver(dist_cfg, template_renderer)
+            es_file_resolver = OpenSearchFileNameResolver(dist_cfg, template_renderer)
             source_supplier = CachedSourceSupplier(source_distributions_root,
                                                    source_supplier,
                                                    es_file_resolver)
@@ -112,7 +112,7 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
         repo = DistributionRepository(name=cfg.opts("builder", "distribution.repository"),
                                       distribution_config=dist_cfg,
                                       template_renderer=template_renderer)
-        suppliers.append(ElasticsearchDistributionSupplier(repo, es_version, distributions_root))
+        suppliers.append(OpenSearchDistributionSupplier(repo, es_version, distributions_root))
 
     for plugin in plugins:
         supplier_type, plugin_version, _ = supply_requirements[plugin.name]
@@ -274,7 +274,7 @@ class CompositeSupplier:
         return binaries
 
 
-class ElasticsearchFileNameResolver:
+class OpenSearchFileNameResolver:
     def __init__(self, distribution_config, template_renderer):
         self.cfg = distribution_config
         self.runtime_jdk_bundled = convert.to_bool(self.cfg.get("runtime.jdk.bundled", False))
@@ -364,7 +364,7 @@ class CachedSourceSupplier:
                 self.logger.info("Not caching [%s] (no revision info).", original_path)
 
 
-class ElasticsearchSourceSupplier:
+class OpenSearchSourceSupplier:
     def __init__(self, revision, os_src_dir, remote_url, provision_config_instance, builder, template_renderer):
         self.revision = revision
         self.src_dir = os_src_dir
@@ -496,7 +496,7 @@ class CorePluginSourceSupplier:
                                    self.plugin.name)
 
 
-class ElasticsearchDistributionSupplier:
+class OpenSearchDistributionSupplier:
     def __init__(self, repo, version, distributions_root):
         self.repo = repo
         self.version = version
