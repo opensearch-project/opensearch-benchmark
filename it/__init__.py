@@ -175,19 +175,19 @@ class TestCluster:
                                                                      transport_port=transport_port))
             self.installation_id = json.loads("".join(output))["installation-id"]
         except BaseException as e:
-            raise AssertionError("Failed to install Elasticsearch {}.".format(distribution_version), e)
+            raise AssertionError("Failed to install OpenSearch {}.".format(distribution_version), e)
 
     def start(self, test_execution_id):
         cmd = "start --runtime-jdk=\"bundled\" --installation-id={} --test-execution-id={}".format(self.installation_id, test_execution_id)
         if osbenchmark(self.cfg, cmd) != 0:
-            raise AssertionError("Failed to start Elasticsearch test cluster.")
+            raise AssertionError("Failed to start OpenSearch test cluster.")
         es = client.EsClientFactory(hosts=[{"host": "127.0.0.1", "port": self.http_port}], client_options={}).create()
         client.wait_for_rest_layer(es)
 
     def stop(self):
         if self.installation_id:
             if osbenchmark(self.cfg, "stop --installation-id={}".format(self.installation_id)) != 0:
-                raise AssertionError("Failed to stop Elasticsearch test cluster.")
+                raise AssertionError("Failed to stop OpenSearch test cluster.")
 
     def __str__(self):
         return f"TestCluster[installation-id={self.installation_id}]"

@@ -60,9 +60,9 @@ function stop_and_clean_docker_container {
 }
 
 function kill_related_es_processes {
-    # kill all lingering Rally instances that might still be hanging
+    # kill all lingering Benchmark instances that might still be hanging
     set +e
-    # kill all lingering Elasticsearch Docker containers launched by Rally
+    # kill all lingering OpenSearch Docker containers launched by Benchmark
     RUNNING_DOCKER_CONTAINERS=$(docker ps --filter "label=io.rally.description" --format "{{.ID}}")
     if [ -n "${RUNNING_DOCKER_CONTAINERS}" ]; then
         for container in "${RUNNING_DOCKER_CONTAINERS}"

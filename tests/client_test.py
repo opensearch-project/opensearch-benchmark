@@ -38,7 +38,7 @@ from osbenchmark.utils import console
 from tests import run_async
 
 
-class EsClientFactoryTests(TestCase):
+class OsClientFactoryTests(TestCase):
     cwd = os.path.dirname(__file__)
 
     def test_create_http_connection(self):
@@ -98,9 +98,9 @@ class EsClientFactoryTests(TestCase):
             "use_ssl": True,
             "verify_certs": True,
             "http_auth": ("user", "password"),
-            "ca_certs": os.path.join(EsClientFactoryTests.cwd, "utils/resources/certs/ca.crt"),
-            "client_cert": os.path.join(EsClientFactoryTests.cwd, "utils/resources/certs/client.crt"),
-            "client_key": os.path.join(EsClientFactoryTests.cwd, "utils/resources/certs/client.key")
+            "ca_certs": os.path.join(OsClientFactoryTests.cwd, "utils/resources/certs/ca.crt"),
+            "client_cert": os.path.join(OsClientFactoryTests.cwd, "utils/resources/certs/client.crt"),
+            "client_key": os.path.join(OsClientFactoryTests.cwd, "utils/resources/certs/client.key")
         }
         # make a copy so we can verify later that the factory did not modify it
         original_client_options = deepcopy(client_options)
@@ -140,7 +140,7 @@ class EsClientFactoryTests(TestCase):
             "use_ssl": True,
             "verify_certs": True,
             "http_auth": ("user", "password"),
-            "ca_certs": os.path.join(EsClientFactoryTests.cwd, "utils/resources/certs/ca.crt")
+            "ca_certs": os.path.join(OsClientFactoryTests.cwd, "utils/resources/certs/ca.crt")
         }
         # make a copy so we can verify later that the factory did not modify it
         original_client_options = deepcopy(client_options)
@@ -174,7 +174,7 @@ class EsClientFactoryTests(TestCase):
             "use_ssl": True,
             "verify_certs": True,
             "http_auth": ("user", "password"),
-            "ca_certs": os.path.join(EsClientFactoryTests.cwd, "utils/resources/certs/ca.crt")
+            "ca_certs": os.path.join(OsClientFactoryTests.cwd, "utils/resources/certs/ca.crt")
         }
 
         client_ssl_options = {
@@ -252,8 +252,8 @@ class EsClientFactoryTests(TestCase):
             "use_ssl": True,
             "verify_certs": False,
             "http_auth": ("user", "password"),
-            "client_cert": os.path.join(EsClientFactoryTests.cwd, "utils/resources/certs/client.crt"),
-            "client_key": os.path.join(EsClientFactoryTests.cwd, "utils/resources/certs/client.key")
+            "client_cert": os.path.join(OsClientFactoryTests.cwd, "utils/resources/certs/client.crt"),
+            "client_key": os.path.join(OsClientFactoryTests.cwd, "utils/resources/certs/client.key")
         }
         # make a copy so we can verify later that the factory did not modify it
         original_client_options = deepcopy(client_options)

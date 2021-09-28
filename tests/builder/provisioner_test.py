@@ -122,7 +122,7 @@ class NoopHookHandler:
         }
 
 
-class ElasticsearchInstallerTests(TestCase):
+class OpenSearchInstallerTests(TestCase):
     @mock.patch("glob.glob", lambda p: ["/install/elasticsearch-5.0.0-SNAPSHOT"])
     @mock.patch("osbenchmark.utils.io.decompress")
     @mock.patch("osbenchmark.utils.io.ensure_dir")

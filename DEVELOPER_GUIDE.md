@@ -74,7 +74,7 @@ export JAVA15_HOME=/Library/Java/JavaVirtualMachines/amazon-corretto-15.jdk/Cont
 export JAVA16_HOME=/Library/Java/JavaVirtualMachines/amazon-corretto-16.jdk/Contents/Home/
 ```
 
-Ensure that you are not connected to a VPN when running integration tests as VPNs can prevent distribution versions from downloading correctly or other unnamed issues.
+Ensure that you are not connected to a VPN when running integration tests as VPNs can prevent the docker build from building correctly or distribution versions from downloading correctly.
 
 ## Submitting your changes for a pull request
 

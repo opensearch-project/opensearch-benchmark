@@ -31,7 +31,7 @@ bulk_index = runner.BulkIndex()
 BULK_SIZE = 5000
 
 
-class ElasticsearchMock:
+class OpenSearchMock:
     def __init__(self, bulk_size):
         self.no_errors = {
             "took": 500,
@@ -61,7 +61,7 @@ class ElasticsearchMock:
         return self.no_errors
 
 
-es = ElasticsearchMock(bulk_size=BULK_SIZE)
+es = OpenSearchMock(bulk_size=BULK_SIZE)
 
 
 @pytest.mark.benchmark(

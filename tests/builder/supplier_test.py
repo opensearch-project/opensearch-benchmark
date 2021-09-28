@@ -192,7 +192,7 @@ class TemplateRendererTests(TestCase):
                          renderer.render("This is version {{VERSION}} on {{OSNAME}} with a {{ARCH}} CPU."))
 
 
-class CachedElasticsearchSourceSupplierTests(TestCase):
+class CachedOpenSearchSourceSupplierTests(TestCase):
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("shutil.copy")
     @mock.patch("osbenchmark.builder.supplier.ElasticsearchSourceSupplier")
@@ -357,7 +357,7 @@ class CachedElasticsearchSourceSupplierTests(TestCase):
         self.assertEqual("/path/to/artifact.tar.gz", binaries["elasticsearch"])
 
 
-class ElasticsearchFileNameResolverTests(TestCase):
+class OpenSearchFileNameResolverTests(TestCase):
     def setUp(self):
         super().setUp()
         renderer = supplier.TemplateRenderer(version="8.0.0-SNAPSHOT", os_name="linux", arch="x86_64")
@@ -450,7 +450,7 @@ class PruneTests(TestCase):
         rm.assert_called_with("/tmp/test/elasticsearch-6.8.0.tar.gz")
 
 
-class ElasticsearchSourceSupplierTests(TestCase):
+class OpenSearchSourceSupplierTests(TestCase):
     def test_no_build(self):
         provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
             "clean_command": "./gradlew clean",
@@ -503,7 +503,7 @@ class ElasticsearchSourceSupplierTests(TestCase):
         self.assertEqual(0, builder.build.call_count)
 
     @mock.patch("glob.glob", lambda p: ["elasticsearch.tar.gz"])
-    def test_add_elasticsearch_binary(self):
+    def test_add_opensearch_binary(self):
         provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
             "clean_command": "./gradlew clean",
             "system.build_command": "./gradlew assemble",
@@ -582,7 +582,7 @@ class ExternalPluginSourceSupplierTests(TestCase):
         self.assertIsNone(self.along_es.override_build_dir)
 
     @mock.patch("glob.glob", lambda p: ["/src/elasticsearch-extra/some-plugin/plugin/build/distributions/some-plugin.zip"])
-    def test_add_binary_built_along_elasticsearch(self):
+    def test_add_binary_built_along_opensearch(self):
         binaries = {}
         self.along_es.add(binaries)
         self.assertDictEqual(binaries,

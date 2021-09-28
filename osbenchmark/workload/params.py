@@ -87,7 +87,7 @@ class ParamSource:
     A `ParamSource` captures the parameters for a given operation.
      Benchmark will create one global ParamSource for each operation and will then
      invoke `#partition()` to get a `ParamSource` instance for each client. During the benchmark, `#params()` will be called repeatedly
-     before Benchmark invokes the corresponding runner (that will actually execute the operation against Elasticsearch).
+     before Benchmark invokes the corresponding runner (that will actually execute the operation against OpenSearch).
     """
 
     def __init__(self, workload, params, **kwargs):
@@ -146,9 +146,9 @@ class ParamSource:
 
     def _client_params(self):
         """
-        For use when a ParamSource does not propagate self._params but does use elasticsearch client under the hood
+        For use when a ParamSource does not propagate self._params but does use opensearch client under the hood
 
-        :return: all applicable parameters that are global to Benchmark and apply to the elasticsearch-py client
+        :return: all applicable parameters that are global to Benchmark and apply to the opensearch-py client
         """
         return {
             "request-timeout": self._params.get("request-timeout"),

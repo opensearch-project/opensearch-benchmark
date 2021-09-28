@@ -143,14 +143,14 @@ class ExtractUserTagsTests(TestCase):
         self.assertDictEqual({"os": "Linux", "cpu": "ARM"}, metrics.extract_user_tags_from_config(cfg))
 
 
-class EsClientTests(TestCase):
+class OsClientTests(TestCase):
     class TransportMock:
         def __init__(self, hosts):
             self.hosts = hosts
 
     class ClientMock:
         def __init__(self, hosts):
-            self.transport = EsClientTests.TransportMock(hosts)
+            self.transport = OsClientTests.TransportMock(hosts)
 
     @mock.patch("osbenchmark.client.EsClientFactory")
     def test_config_opts_parsing(self, client_esclientfactory):
@@ -189,7 +189,7 @@ class EsClientTests(TestCase):
         def raise_connection_error():
             raise elasticsearch.exceptions.ConnectionError("unit-test")
 
-        client = metrics.EsClient(EsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9200"}]))
+        client = metrics.EsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9200"}]))
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             client.guarded(raise_connection_error)
@@ -201,7 +201,7 @@ class EsClientTests(TestCase):
         def raise_authentication_error():
             raise elasticsearch.exceptions.AuthenticationException("unit-test")
 
-        client = metrics.EsClient(EsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
+        client = metrics.EsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             client.guarded(raise_authentication_error)
@@ -213,7 +213,7 @@ class EsClientTests(TestCase):
         def raise_authorization_error():
             raise elasticsearch.exceptions.AuthorizationException("unit-test")
 
-        client = metrics.EsClient(EsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
+        client = metrics.EsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             client.guarded(raise_authorization_error)
@@ -226,7 +226,7 @@ class EsClientTests(TestCase):
         def raise_unknown_error():
             raise elasticsearch.exceptions.SerializationError("unit-test")
 
-        client = metrics.EsClient(EsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
+        client = metrics.EsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
 
         with self.assertRaises(exceptions.BenchmarkError) as ctx:
             client.guarded(raise_unknown_error)
@@ -243,7 +243,7 @@ class EsClientTests(TestCase):
             # Disable additional randomization time in exponential backoff calls
             mocked_random.return_value = 0
 
-            client = metrics.EsClient(EsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
+            client = metrics.EsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
 
             logger = logging.getLogger("osbenchmark.metrics")
             with mock.patch.object(logger, "debug") as mocked_debug_logger:
@@ -284,7 +284,7 @@ class EsClientTests(TestCase):
         def random_transport_error(rnd_resp_code):
             raise elasticsearch.exceptions.TransportError(rnd_resp_code, TransportErrors.err_return_codes[rnd_resp_code])
 
-        client = metrics.EsClient(EsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
+        client = metrics.EsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
         rnd_code = random.choice(list(TransportErrors.err_return_codes))
 
         with self.assertRaises(exceptions.BenchmarkError) as ctx:
@@ -296,7 +296,7 @@ class EsClientTests(TestCase):
                          ctx.exception.args[0])
 
 
-class EsMetricsTests(TestCase):
+class OsMetricsTests(TestCase):
     TEST_EXECUTION_TIMESTAMP = datetime.datetime(2016, 1, 31)
     TEST_EXECUTION_ID = "6ebc6e53-ee20-4b0c-99b4-09697987e9f4"
 
@@ -315,14 +315,14 @@ class EsMetricsTests(TestCase):
     def test_put_value_without_meta_info(self):
         throughput = 5000
         self.metrics_store.open(
-            EsMetricsTests.TEST_EXECUTION_ID,
-            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            OsMetricsTests.TEST_EXECUTION_ID,
+            OsMetricsTests.TEST_EXECUTION_TIMESTAMP,
             "test", "append", "defaults", create=True)
 
         self.metrics_store.put_value_cluster_level("indexing_throughput", throughput, "docs/s")
         expected_doc = {
             "@timestamp": StaticClock.NOW * 1000,
-            "test-execution-id": EsMetricsTests.TEST_EXECUTION_ID,
+            "test-execution-id": OsMetricsTests.TEST_EXECUTION_ID,
             "test-execution-timestamp": "20160131T000000Z",
             "relative-time-ms": 0,
             "environment": "unittest",
@@ -346,15 +346,15 @@ class EsMetricsTests(TestCase):
     def test_put_value_with_explicit_timestamps(self):
         throughput = 5000
         self.metrics_store.open(
-            EsMetricsTests.TEST_EXECUTION_ID,
-            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            OsMetricsTests.TEST_EXECUTION_ID,
+            OsMetricsTests.TEST_EXECUTION_TIMESTAMP,
             "test", "append", "defaults", create=True)
 
         self.metrics_store.put_value_cluster_level(name="indexing_throughput", value=throughput, unit="docs/s",
                                                    absolute_time=0, relative_time=10)
         expected_doc = {
             "@timestamp": 0,
-            "test-execution-id": EsMetricsTests.TEST_EXECUTION_ID,
+            "test-execution-id": OsMetricsTests.TEST_EXECUTION_ID,
             "test-execution-timestamp": "20160131T000000Z",
             "relative-time-ms": 10000,
             "environment": "unittest",
@@ -380,8 +380,8 @@ class EsMetricsTests(TestCase):
         # add a user-defined tag
         self.cfg.add(config.Scope.application, "test_execution", "user.tag", "intention:testing,disk_type:hdd")
         self.metrics_store.open(
-            EsMetricsTests.TEST_EXECUTION_ID,
-            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            OsMetricsTests.TEST_EXECUTION_ID,
+            OsMetricsTests.TEST_EXECUTION_TIMESTAMP,
             "test", "append", "defaults", create=True)
 
         # Ensure we also merge in cluster level meta info
@@ -395,7 +395,7 @@ class EsMetricsTests(TestCase):
         self.metrics_store.put_value_node_level("node0", "indexing_throughput", throughput, "docs/s")
         expected_doc = {
             "@timestamp": StaticClock.NOW * 1000,
-            "test-execution-id": EsMetricsTests.TEST_EXECUTION_ID,
+            "test-execution-id": OsMetricsTests.TEST_EXECUTION_ID,
             "test-execution-timestamp": "20160131T000000Z",
             "relative-time-ms": 0,
             "environment": "unittest",
@@ -424,8 +424,8 @@ class EsMetricsTests(TestCase):
 
     def test_put_doc_no_meta_data(self):
         self.metrics_store.open(
-            EsMetricsTests.TEST_EXECUTION_ID,
-            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            OsMetricsTests.TEST_EXECUTION_ID,
+            OsMetricsTests.TEST_EXECUTION_TIMESTAMP,
             "test", "append", "defaults", create=True)
 
         self.metrics_store.put_doc(doc={
@@ -436,7 +436,7 @@ class EsMetricsTests(TestCase):
         })
         expected_doc = {
             "@timestamp": StaticClock.NOW * 1000,
-            "test-execution-id": EsMetricsTests.TEST_EXECUTION_ID,
+            "test-execution-id": OsMetricsTests.TEST_EXECUTION_ID,
             "test-execution-timestamp": "20160131T000000Z",
             "relative-time-ms": 0,
             "environment": "unittest",
@@ -460,8 +460,8 @@ class EsMetricsTests(TestCase):
         # add a user-defined tag
         self.cfg.add(config.Scope.application, "test_execution", "user.tag", "intention:testing,disk_type:hdd")
         self.metrics_store.open(
-            EsMetricsTests.TEST_EXECUTION_ID,
-            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            OsMetricsTests.TEST_EXECUTION_ID,
+            OsMetricsTests.TEST_EXECUTION_TIMESTAMP,
             "test", "append", "defaults", create=True)
 
         # Ensure we also merge in cluster level meta info
@@ -484,7 +484,7 @@ class EsMetricsTests(TestCase):
             })
         expected_doc = {
             "@timestamp": StaticClock.NOW * 1000,
-            "test-execution-id": EsMetricsTests.TEST_EXECUTION_ID,
+            "test-execution-id": OsMetricsTests.TEST_EXECUTION_ID,
             "test-execution-timestamp": "20160131T000000Z",
             "relative-time-ms": 0,
             "environment": "unittest",
@@ -536,8 +536,8 @@ class EsMetricsTests(TestCase):
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
         self.metrics_store.open(
-            EsMetricsTests.TEST_EXECUTION_ID,
-            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            OsMetricsTests.TEST_EXECUTION_ID,
+            OsMetricsTests.TEST_EXECUTION_TIMESTAMP,
             "test", "append-no-conflicts", "defaults")
 
         expected_query = {
@@ -546,7 +546,7 @@ class EsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-execution-id": EsMetricsTests.TEST_EXECUTION_ID
+                                "test-execution-id": OsMetricsTests.TEST_EXECUTION_ID
                             }
                         },
                         {
@@ -586,8 +586,8 @@ class EsMetricsTests(TestCase):
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
         self.metrics_store.open(
-            EsMetricsTests.TEST_EXECUTION_ID,
-            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            OsMetricsTests.TEST_EXECUTION_ID,
+            OsMetricsTests.TEST_EXECUTION_TIMESTAMP,
             "test", "append-no-conflicts", "defaults")
 
         expected_query = {
@@ -596,7 +596,7 @@ class EsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-execution-id": EsMetricsTests.TEST_EXECUTION_ID
+                                "test-execution-id": OsMetricsTests.TEST_EXECUTION_ID
                             }
                         },
                         {
@@ -643,8 +643,8 @@ class EsMetricsTests(TestCase):
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
         self.metrics_store.open(
-            EsMetricsTests.TEST_EXECUTION_ID,
-            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            OsMetricsTests.TEST_EXECUTION_ID,
+            OsMetricsTests.TEST_EXECUTION_TIMESTAMP,
             "test", "append-no-conflicts", "defaults")
 
         expected_query = {
@@ -653,7 +653,7 @@ class EsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-execution-id": EsMetricsTests.TEST_EXECUTION_ID
+                                "test-execution-id": OsMetricsTests.TEST_EXECUTION_ID
                             }
                         },
                         {
@@ -691,8 +691,8 @@ class EsMetricsTests(TestCase):
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
         self.metrics_store.open(
-            EsMetricsTests.TEST_EXECUTION_ID,
-            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            OsMetricsTests.TEST_EXECUTION_ID,
+            OsMetricsTests.TEST_EXECUTION_TIMESTAMP,
             "test", "append-no-conflicts", "defaults")
 
         expected_query = {
@@ -701,7 +701,7 @@ class EsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-execution-id": EsMetricsTests.TEST_EXECUTION_ID
+                                "test-execution-id": OsMetricsTests.TEST_EXECUTION_ID
                             }
                         },
                         {
@@ -745,8 +745,8 @@ class EsMetricsTests(TestCase):
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
         self.metrics_store.open(
-            EsMetricsTests.TEST_EXECUTION_ID,
-            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            OsMetricsTests.TEST_EXECUTION_ID,
+            OsMetricsTests.TEST_EXECUTION_TIMESTAMP,
             "test", "append-no-conflicts", "defaults")
 
         expected_query = {
@@ -755,7 +755,7 @@ class EsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-execution-id": EsMetricsTests.TEST_EXECUTION_ID
+                                "test-execution-id": OsMetricsTests.TEST_EXECUTION_ID
                             }
                         },
                         {
@@ -804,8 +804,8 @@ class EsMetricsTests(TestCase):
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
         self.metrics_store.open(
-            EsMetricsTests.TEST_EXECUTION_ID,
-            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            OsMetricsTests.TEST_EXECUTION_ID,
+            OsMetricsTests.TEST_EXECUTION_TIMESTAMP,
             "test", "append-no-conflicts", "defaults")
 
         expected_query = {
@@ -814,7 +814,7 @@ class EsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-execution-id": EsMetricsTests.TEST_EXECUTION_ID
+                                "test-execution-id": OsMetricsTests.TEST_EXECUTION_ID
                             }
                         },
                         {
@@ -941,8 +941,8 @@ class EsMetricsTests(TestCase):
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
         self.metrics_store.open(
-            EsMetricsTests.TEST_EXECUTION_ID,
-            EsMetricsTests.TEST_EXECUTION_TIMESTAMP,
+            OsMetricsTests.TEST_EXECUTION_ID,
+            OsMetricsTests.TEST_EXECUTION_TIMESTAMP,
             "test", "append-no-conflicts", "defaults")
 
         expected_query = {
@@ -951,7 +951,7 @@ class EsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-execution-id": EsMetricsTests.TEST_EXECUTION_ID
+                                "test-execution-id": OsMetricsTests.TEST_EXECUTION_ID
                             }
                         },
                         {
@@ -982,7 +982,7 @@ class EsMetricsTests(TestCase):
         return actual_error_rate
 
 
-class EsTestExecutionStoreTests(TestCase):
+class OsTestExecutionStoreTests(TestCase):
     TEST_EXECUTION_TIMESTAMP = datetime.datetime(2016, 1, 31)
     TEST_EXECUTION_ID = "6ebc6e53-ee20-4b0c-99b4-09697987e9f4"
 
@@ -996,7 +996,7 @@ class EsTestExecutionStoreTests(TestCase):
     def setUp(self):
         self.cfg = config.Config()
         self.cfg.add(config.Scope.application, "system", "env.name", "unittest-env")
-        self.cfg.add(config.Scope.application, "system", "time.start", EsTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP)
+        self.cfg.add(config.Scope.application, "system", "time.start", OsTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP)
         self.cfg.add(config.Scope.application, "system", "test_execution.id", FileTestExecutionStoreTests.TEST_EXECUTION_ID)
         self.test_execution_store = metrics.EsTestExecutionStore(self.cfg,
                                               client_factory_class=MockClientFactory,
@@ -1017,7 +1017,7 @@ class EsTestExecutionStoreTests(TestCase):
                         "_source": {
                             "benchmark-version": "0.4.4",
                             "environment": "unittest",
-                            "test-execution-id": EsTestExecutionStoreTests.TEST_EXECUTION_ID,
+                            "test-execution-id": OsTestExecutionStoreTests.TEST_EXECUTION_ID,
                             "test-execution-timestamp": "20160131T000000Z",
                             "pipeline": "from-sources",
                             "workload": "unittest",
@@ -1034,8 +1034,8 @@ class EsTestExecutionStoreTests(TestCase):
             }
         }
 
-        test_execution = self.test_execution_store.find_by_test_execution_id(test_execution_id=EsTestExecutionStoreTests.TEST_EXECUTION_ID)
-        self.assertEqual(test_execution.test_execution_id, EsTestExecutionStoreTests.TEST_EXECUTION_ID)
+        test_execution = self.test_execution_store.find_by_test_execution_id(test_execution_id=OsTestExecutionStoreTests.TEST_EXECUTION_ID)
+        self.assertEqual(test_execution.test_execution_id, OsTestExecutionStoreTests.TEST_EXECUTION_ID)
 
     def test_does_not_find_missing_test_execution_by_test_execution_id(self):
         self.es_mock.search.return_value = {
@@ -1061,8 +1061,8 @@ class EsTestExecutionStoreTests(TestCase):
                         test_procedures=[workload.TestProcedure(name="index", default=True, schedule=schedule)])
 
         test_execution = metrics.TestExecution(benchmark_version="0.4.4", benchmark_revision="123abc", environment_name="unittest",
-                            test_execution_id=EsTestExecutionStoreTests.TEST_EXECUTION_ID,
-                            test_execution_timestamp=EsTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
+                            test_execution_id=OsTestExecutionStoreTests.TEST_EXECUTION_ID,
+                            test_execution_timestamp=OsTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params={"shard-count": 3},
                             test_procedure=t.default_test_procedure,
                             provision_config_instance="defaults",
@@ -1070,7 +1070,7 @@ class EsTestExecutionStoreTests(TestCase):
                             plugin_params=None,
                             workload_revision="abc1", provision_config_revision="abc12333", distribution_version="5.0.0",
                             distribution_flavor="default", revision="aaaeeef",
-                            results=EsTestExecutionStoreTests.DictHolder(
+                            results=OsTestExecutionStoreTests.DictHolder(
                                 {
                                     "young_gc_time": 100,
                                     "old_gc_time": 5,
@@ -1095,7 +1095,7 @@ class EsTestExecutionStoreTests(TestCase):
             "benchmark-version": "0.4.4",
             "benchmark-revision": "123abc",
             "environment": "unittest",
-            "test-execution-id": EsTestExecutionStoreTests.TEST_EXECUTION_ID,
+            "test-execution-id": OsTestExecutionStoreTests.TEST_EXECUTION_ID,
             "test-execution-timestamp": "20160131T000000Z",
             "pipeline": "from-sources",
             "user-tags": {
@@ -1136,18 +1136,18 @@ class EsTestExecutionStoreTests(TestCase):
         }
         self.es_mock.index.assert_called_with(index="benchmark-test-executions-2016-01",
                                               doc_type="_doc",
-                                              id=EsTestExecutionStoreTests.TEST_EXECUTION_ID,
+                                              id=OsTestExecutionStoreTests.TEST_EXECUTION_ID,
                                               item=expected_doc)
 
 
-class EsResultsStoreTests(TestCase):
+class OsResultsStoreTests(TestCase):
     TEST_EXECUTION_TIMESTAMP = datetime.datetime(2016, 1, 31)
     TEST_EXECUTION_ID = "6ebc6e53-ee20-4b0c-99b4-09697987e9f4"
 
     def setUp(self):
         self.cfg = config.Config()
         self.cfg.add(config.Scope.application, "system", "env.name", "unittest")
-        self.cfg.add(config.Scope.application, "system", "time.start", EsTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP)
+        self.cfg.add(config.Scope.application, "system", "time.start", OsTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP)
         self.results_store = metrics.EsResultsStore(self.cfg,
                                                     client_factory_class=MockClientFactory,
                                                     index_template_provider_class=DummyIndexTemplateProvider,
@@ -1167,8 +1167,8 @@ class EsResultsStoreTests(TestCase):
                         meta_data={"workload-type": "saturation-degree", "saturation": "oversaturation"})
 
         test_execution = metrics.TestExecution(benchmark_version="0.4.4", benchmark_revision="123abc", environment_name="unittest",
-                            test_execution_id=EsResultsStoreTests.TEST_EXECUTION_ID,
-                            test_execution_timestamp=EsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
+                            test_execution_id=OsResultsStoreTests.TEST_EXECUTION_ID,
+                            test_execution_timestamp=OsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params=None,
                             test_procedure=t.default_test_procedure,
                             provision_config_instance="4gheap",
@@ -1207,7 +1207,7 @@ class EsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": "123abc",
                 "environment": "unittest",
-                "test-execution-id": EsResultsStoreTests.TEST_EXECUTION_ID,
+                "test-execution-id": OsResultsStoreTests.TEST_EXECUTION_ID,
                 "test-execution-timestamp": "20160131T000000Z",
                 "distribution-flavor": "oss",
                 "distribution-version": "5.0.0",
@@ -1237,7 +1237,7 @@ class EsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": "123abc",
                 "environment": "unittest",
-                "test-execution-id": EsResultsStoreTests.TEST_EXECUTION_ID,
+                "test-execution-id": OsResultsStoreTests.TEST_EXECUTION_ID,
                 "test-execution-timestamp": "20160131T000000Z",
                 "distribution-flavor": "oss",
                 "distribution-version": "5.0.0",
@@ -1273,7 +1273,7 @@ class EsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": "123abc",
                 "environment": "unittest",
-                "test-execution-id": EsResultsStoreTests.TEST_EXECUTION_ID,
+                "test-execution-id": OsResultsStoreTests.TEST_EXECUTION_ID,
                 "test-execution-timestamp": "20160131T000000Z",
                 "distribution-flavor": "oss",
                 "distribution-version": "5.0.0",
@@ -1317,8 +1317,8 @@ class EsResultsStoreTests(TestCase):
                         meta_data={"workload-type": "saturation-degree", "saturation": "oversaturation"})
 
         test_execution = metrics.TestExecution(benchmark_version="0.4.4", benchmark_revision=None, environment_name="unittest",
-                            test_execution_id=EsResultsStoreTests.TEST_EXECUTION_ID,
-                            test_execution_timestamp=EsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
+                            test_execution_id=OsResultsStoreTests.TEST_EXECUTION_ID,
+                            test_execution_timestamp=OsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params=None,
                             test_procedure=t.default_test_procedure,
                             provision_config_instance="4gheap",
@@ -1359,7 +1359,7 @@ class EsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": None,
                 "environment": "unittest",
-                "test-execution-id": EsResultsStoreTests.TEST_EXECUTION_ID,
+                "test-execution-id": OsResultsStoreTests.TEST_EXECUTION_ID,
                 "test-execution-timestamp": "20160131T000000Z",
                 "distribution-flavor": None,
                 "distribution-version": None,
@@ -1385,7 +1385,7 @@ class EsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": None,
                 "environment": "unittest",
-                "test-execution-id": EsResultsStoreTests.TEST_EXECUTION_ID,
+                "test-execution-id": OsResultsStoreTests.TEST_EXECUTION_ID,
                 "test-execution-timestamp": "20160131T000000Z",
                 "distribution-flavor": None,
                 "distribution-version": None,
@@ -1417,7 +1417,7 @@ class EsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": None,
                 "environment": "unittest",
-                "test-execution-id": EsResultsStoreTests.TEST_EXECUTION_ID,
+                "test-execution-id": OsResultsStoreTests.TEST_EXECUTION_ID,
                 "test-execution-timestamp": "20160131T000000Z",
                 "distribution-flavor": None,
                 "distribution-version": None,
