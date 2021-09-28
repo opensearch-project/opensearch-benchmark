@@ -911,8 +911,7 @@ class EsMetricsStore(MetricsStore):
         """
         Gets standard statistics for the given metric name.
 
-        :return: A metric_stats structure. For details please refer to
-        https://www.elastic.co/guide/en/elasticsearch/reference/current/search-aggregations-metrics-stats-aggregation.html
+        :return: A metric_stats structure.
         """
         query = {
             "query": self._query_by_name(name, task, operation_type, sample_type, None),

@@ -97,7 +97,7 @@ def create_arg_parser():
         preserve_install = False
 
     parser = argparse.ArgumentParser(prog=PROGRAM_NAME,
-                                     description=BANNER + "\n\n You Know, for Benchmarking Elasticsearch.",
+                                     description=BANNER + "\n\n You Know, for Benchmarking OpenSearch.",
                                      epilog="Find out more about Benchmark at {}".format(console.format.link(doc_link())),
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--version', action='version', version="%(prog)s " + version.version())
@@ -241,12 +241,12 @@ def create_arg_parser():
     download_parser.add_argument(
         "--distribution-version",
         type=supported_os_version,
-        help="Define the version of the Elasticsearch distribution to download. "
-             "Check https://www.elastic.co/downloads/elasticsearch for released versions.",
+        help="Define the version of the OpenSearch distribution to download. "
+             "Check https://opensearch.org/docs/version-history/ for released versions.",
         default="")
     download_parser.add_argument(
         "--distribution-repository",
-        help="Define the repository from where the Elasticsearch distribution should be downloaded (default: release).",
+        help="Define the repository from where the OpenSearch distribution should be downloaded (default: release).",
         default="release")
     download_parser.add_argument(
         "--provision-config-instance",
@@ -268,7 +268,7 @@ def create_arg_parser():
         help="The name of the CPU architecture for which an artifact should be downloaded (default: current architecture)",
     )
 
-    install_parser = subparsers.add_parser("install", help="Installs an Elasticsearch node locally")
+    install_parser = subparsers.add_parser("install", help="Installs an OpenSearch node locally")
     install_parser.add_argument(
         "--revision",
         help="Define the source code revision for building the benchmark candidate. 'current' uses the source tree as is,"
@@ -300,13 +300,13 @@ def create_arg_parser():
         default=None)
     install_parser.add_argument(
         "--distribution-repository",
-        help="Define the repository from where the Elasticsearch distribution should be downloaded (default: release).",
+        help="Define the repository from where the OpenSearch distribution should be downloaded (default: release).",
         default="release")
     install_parser.add_argument(
         "--distribution-version",
         type=supported_os_version,
-        help="Define the version of the Elasticsearch distribution to download. "
-             "Check https://www.elastic.co/downloads/elasticsearch for released versions.",
+        help="Define the version of the OpenSearch distribution to download. "
+             "Check https://opensearch.org/docs/version-history/ for released versions.",
         default="")
     install_parser.add_argument(
         "--provision-config-instance",
@@ -340,7 +340,7 @@ def create_arg_parser():
     )
     install_parser.add_argument(
         "--node-name",
-        help="The name of this Elasticsearch node",
+        help="The name of this OpenSearch node",
         default="benchmark-node-0"
     )
     install_parser.add_argument(
@@ -354,7 +354,7 @@ def create_arg_parser():
         default=""
     )
 
-    start_parser = subparsers.add_parser("start", help="Starts an Elasticsearch node locally")
+    start_parser = subparsers.add_parser("start", help="Starts an OpenSearch node locally")
     start_parser.add_argument(
         "--installation-id",
         required=True,
@@ -384,7 +384,7 @@ def create_arg_parser():
         default=""
     )
 
-    stop_parser = subparsers.add_parser("stop", help="Stops an Elasticsearch node locally")
+    stop_parser = subparsers.add_parser("stop", help="Stops an OpenSearch node locally")
     stop_parser.add_argument(
         "--installation-id",
         required=True,
@@ -403,8 +403,8 @@ def create_arg_parser():
         p.add_argument(
             "--distribution-version",
             type=supported_os_version,
-            help="Define the version of the Elasticsearch distribution to download. "
-                 "Check https://www.elastic.co/downloads/elasticsearch for released versions.",
+            help="Define the version of the OpenSearch distribution to download. "
+                 "Check https://opensearch.org/docs/version-history/ for released versions.",
             default="")
         p.add_argument(
             "--provision-config-path",
@@ -485,7 +485,7 @@ def create_arg_parser():
         default="localhost")
     test_execution_parser.add_argument(
         "--client-options",
-        help=f"Define a comma-separated list of client options to use. The options will be passed to the Elasticsearch "
+        help=f"Define a comma-separated list of client options to use. The options will be passed to the OpenSearch "
              f"Python client (default: {opts.ClientOptions.DEFAULT_CLIENT_OPTIONS}).",
         default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS)
     test_execution_parser.add_argument("--on-error",
@@ -504,7 +504,7 @@ def create_arg_parser():
     )
     test_execution_parser.add_argument(
         "--distribution-repository",
-        help="Define the repository from where the Elasticsearch distribution should be downloaded (default: release).",
+        help="Define the repository from where the OpenSearch distribution should be downloaded (default: release).",
         default="release")
 
     task_filter_group = test_execution_parser.add_mutually_exclusive_group()
