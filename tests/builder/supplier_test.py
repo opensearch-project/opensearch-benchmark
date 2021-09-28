@@ -458,7 +458,7 @@ class OpenSearchSourceSupplierTests(TestCase):
         })
         renderer = supplier.TemplateRenderer(version=None)
         es = supplier.ElasticsearchSourceSupplier(revision="abc",
-                                                  es_src_dir="/src",
+                                                  os_src_dir="/src",
                                                   remote_url="",
                                                   provision_config_instance=provision_config_instance,
                                                   builder=None,
@@ -474,7 +474,7 @@ class OpenSearchSourceSupplierTests(TestCase):
         builder = mock.create_autospec(supplier.Builder)
         renderer = supplier.TemplateRenderer(version="abc")
         es = supplier.ElasticsearchSourceSupplier(revision="abc",
-                                                  es_src_dir="/src",
+                                                  os_src_dir="/src",
                                                   remote_url="",
                                                   provision_config_instance=provision_config_instance,
                                                   builder=builder,
@@ -491,7 +491,7 @@ class OpenSearchSourceSupplierTests(TestCase):
         renderer = supplier.TemplateRenderer(version="abc")
         builder = mock.create_autospec(supplier.Builder)
         es = supplier.ElasticsearchSourceSupplier(revision="abc",
-                                                  es_src_dir="/src",
+                                                  os_src_dir="/src",
                                                   remote_url="",
                                                   provision_config_instance=provision_config_instance,
                                                   builder=builder,
@@ -511,7 +511,7 @@ class OpenSearchSourceSupplierTests(TestCase):
         })
         renderer = supplier.TemplateRenderer(version="abc")
         es = supplier.ElasticsearchSourceSupplier(revision="abc",
-                                                  es_src_dir="/src",
+                                                  os_src_dir="/src",
                                                   remote_url="",
                                                   provision_config_instance=provision_config_instance,
                                                   builder=None,
@@ -581,12 +581,12 @@ class ExternalPluginSourceSupplierTests(TestCase):
     def test_along_os_plugin_keeps_build_dir(self):
         self.assertIsNone(self.along_es.override_build_dir)
 
-    @mock.patch("glob.glob", lambda p: ["/src/elasticsearch-extra/some-plugin/plugin/build/distributions/some-plugin.zip"])
+    @mock.patch("glob.glob", lambda p: ["/src/opensearch-extra/some-plugin/plugin/build/distributions/some-plugin.zip"])
     def test_add_binary_built_along_opensearch(self):
         binaries = {}
         self.along_es.add(binaries)
         self.assertDictEqual(binaries,
-                             {"some-plugin": "file:///src/elasticsearch-extra/some-plugin/plugin/build/distributions/some-plugin.zip"})
+                             {"some-plugin": "file:///src/opensearch-extra/some-plugin/plugin/build/distributions/some-plugin.zip"})
 
     @mock.patch("glob.glob", lambda p: ["/Projects/src/some-plugin/build/distributions/some-plugin.zip"])
     def test_resolve_plugin_binary_built_standalone(self):
@@ -597,15 +597,15 @@ class ExternalPluginSourceSupplierTests(TestCase):
 
 
 class CorePluginSourceSupplierTests(TestCase):
-    @mock.patch("glob.glob", lambda p: ["/src/elasticsearch/core-plugin/build/distributions/core-plugin.zip"])
+    @mock.patch("glob.glob", lambda p: ["/src/opensearch/core-plugin/build/distributions/core-plugin.zip"])
     def test_resolve_plugin_binary(self):
         s = supplier.CorePluginSourceSupplier(plugin=provision_config.PluginDescriptor("core-plugin", core_plugin=True),
                                               # built separately
-                                              es_src_dir="/src/elasticsearch",
+                                              os_src_dir="/src/opensearch",
                                               builder=None)
         binaries = {}
         s.add(binaries)
-        self.assertDictEqual(binaries, {"core-plugin": "file:///src/elasticsearch/core-plugin/build/distributions/core-plugin.zip"})
+        self.assertDictEqual(binaries, {"core-plugin": "file:///src/opensearch/core-plugin/build/distributions/core-plugin.zip"})
 
 
 class PluginDistributionSupplierTests(TestCase):
@@ -695,7 +695,7 @@ class CreateSupplierTests(TestCase):
         cfg.add(config.Scope.application, "distributions", "release.cache", True)
         cfg.add(config.Scope.application, "node", "root.dir", "/opt/benchmark")
         cfg.add(config.Scope.application, "node", "src.root.dir", "/opt/benchmark/src")
-        cfg.add(config.Scope.application, "source", "elasticsearch.src.subdir", "elasticsearch")
+        cfg.add(config.Scope.application, "source", "opensearch.src.subdir", "elasticsearch")
         cfg.add(config.Scope.application, "source", "plugin.community-plugin.src.dir", "/home/user/Projects/community-plugin")
 
         provision_config_instance = provision_config.ProvisionConfigInstance(
@@ -730,8 +730,8 @@ class CreateSupplierTests(TestCase):
         cfg.add(config.Scope.application, "distributions", "release.cache", True)
         cfg.add(config.Scope.application, "node", "root.dir", "/opt/benchmark")
         cfg.add(config.Scope.application, "node", "src.root.dir", "/opt/benchmark/src")
-        cfg.add(config.Scope.application, "source", "elasticsearch.src.subdir", "elasticsearch")
-        cfg.add(config.Scope.application, "source", "remote.repo.url", "https://github.com/elastic/elasticsearch.git")
+        cfg.add(config.Scope.application, "source", "opensearch.src.subdir", "elasticsearch")
+        cfg.add(config.Scope.application, "source", "remote.repo.url", "https://github.com/opensearch-project/OpenSearch.git")
         cfg.add(config.Scope.application, "source", "plugin.community-plugin.src.subdir", "elasticsearch-extra/community-plugin")
 
         provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
