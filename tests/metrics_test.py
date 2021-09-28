@@ -304,7 +304,7 @@ class OsMetricsTests(TestCase):
         self.cfg = config.Config()
         self.cfg.add(config.Scope.application, "system", "env.name", "unittest")
         self.cfg.add(config.Scope.application, "workload", "params", {"shard-count": 3})
-        self.metrics_store = metrics.EsMetricsStore(self.cfg,
+        self.metrics_store = metrics.OsMetricsStore(self.cfg,
                                                     client_factory_class=MockClientFactory,
                                                     index_template_provider_class=DummyIndexTemplateProvider,
                                                     clock=StaticClock)
@@ -1148,7 +1148,7 @@ class OsResultsStoreTests(TestCase):
         self.cfg = config.Config()
         self.cfg.add(config.Scope.application, "system", "env.name", "unittest")
         self.cfg.add(config.Scope.application, "system", "time.start", OsTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP)
-        self.results_store = metrics.EsResultsStore(self.cfg,
+        self.results_store = metrics.OsResultsStore(self.cfg,
                                                     client_factory_class=MockClientFactory,
                                                     index_template_provider_class=DummyIndexTemplateProvider,
                                                     )

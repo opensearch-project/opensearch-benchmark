@@ -59,7 +59,7 @@ function stop_and_clean_docker_container {
     docker rm ${1} > /dev/null || true
 }
 
-function kill_related_es_processes {
+function kill_related_os_processes {
     # kill all lingering Benchmark instances that might still be hanging
     set +e
     # kill all lingering OpenSearch Docker containers launched by Benchmark
@@ -154,7 +154,7 @@ function main {
 
 function tear_down {
     info "tearing down"
-    kill_related_es_processes
+    kill_related_os_processes
 }
 
 trap "tear_down" EXIT

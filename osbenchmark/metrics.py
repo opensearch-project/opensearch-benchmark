@@ -289,7 +289,7 @@ def metrics_store(cfg, read_only=True, workload=None, test_procedure=None, provi
 
 def metrics_store_class(cfg):
     if cfg.opts("results_publishing", "datastore.type") == "elasticsearch":
-        return EsMetricsStore
+        return OsMetricsStore
     else:
         return InMemoryMetricsStore
 
@@ -761,7 +761,7 @@ class MetricsStore:
         return stats["avg"] if stats else None
 
 
-class EsMetricsStore(MetricsStore):
+class OsMetricsStore(MetricsStore):
     """
     A metrics store backed by OpenSearch.
     """
@@ -827,7 +827,7 @@ class EsMetricsStore(MetricsStore):
         if self._docs:
             sw = time.StopWatch()
             sw.start()
-            self._client.bulk_index(index=self._index, doc_type=EsMetricsStore.METRICS_DOC_TYPE, items=self._docs)
+            self._client.bulk_index(index=self._index, doc_type=OsMetricsStore.METRICS_DOC_TYPE, items=self._docs)
             sw.stop()
             self.logger.info("Successfully added %d metrics documents for test execution timestamp=[%s], workload=[%s], "
                              "test_procedure=[%s], provision_config_instance=[%s] in [%f] seconds.",
@@ -1139,7 +1139,7 @@ def test_execution_store(cfg):
     """
     logger = logging.getLogger(__name__)
     if cfg.opts("results_publishing", "datastore.type") == "elasticsearch":
-        logger.info("Creating ES test executin store")
+        logger.info("Creating OS test execution store")
         return CompositeTestExecutionStore(EsTestExecutionStore(cfg), FileTestExecutionStore(cfg))
     else:
         logger.info("Creating file test_execution store")
@@ -1154,8 +1154,8 @@ def results_store(cfg):
     """
     logger = logging.getLogger(__name__)
     if cfg.opts("results_publishing", "datastore.type") == "elasticsearch":
-        logger.info("Creating ES results store")
-        return EsResultsStore(cfg)
+        logger.info("Creating OS results store")
+        return OsResultsStore(cfg)
     else:
         logger.info("Creating no-op results store")
         return NoopResultsStore()
@@ -1399,19 +1399,19 @@ class CompositeTestExecutionStore:
     It provides the same API as TestExecutionStore. It delegates writes to all stores
     and all read operations only the OpenSearch test execution store.
     """
-    def __init__(self, es_store, file_store):
-        self.es_store = es_store
+    def __init__(self, os_store, file_store):
+        self.os_store = os_store
         self.file_store = file_store
 
     def find_by_test_execution_id(self, test_execution_id):
-        return self.es_store.find_by_test_execution_id(test_execution_id)
+        return self.os_store.find_by_test_execution_id(test_execution_id)
 
     def store_test_execution(self, test_execution):
         self.file_store.store_test_execution(test_execution)
-        self.es_store.store_test_execution(test_execution)
+        self.os_store.store_test_execution(test_execution)
 
     def list(self):
-        return self.es_store.list()
+        return self.os_store.list()
 
 
 class FileTestExecutionStore(TestExecutionStore):
@@ -1541,7 +1541,7 @@ class EsTestExecutionStore(TestExecutionStore):
             raise exceptions.NotFound("No test_execution with test_execution id [{}]".format(test_execution_id))
 
 
-class EsResultsStore:
+class OsResultsStore:
     """
     Stores the results of a test_execution in a format that is
     better suited for reporting with Kibana.
@@ -1565,12 +1565,12 @@ class EsResultsStore:
         # always update the mapping to the latest version
         self.client.put_template("benchmark-results", self.index_template_provider.results_template())
         self.client.bulk_index(index=self.index_name(test_execution),
-                               doc_type=EsResultsStore.RESULTS_DOC_TYPE,
+                               doc_type=OsResultsStore.RESULTS_DOC_TYPE,
                                items=test_execution.to_result_dicts())
 
     def index_name(self, test_execution):
         test_execution_timestamp = test_execution.test_execution_timestamp
-        return f"{EsResultsStore.INDEX_PREFIX}{test_execution_timestamp:%Y-%m}"
+        return f"{OsResultsStore.INDEX_PREFIX}{test_execution_timestamp:%Y-%m}"
 
 
 class NoopResultsStore:

@@ -59,7 +59,7 @@ class BareProvisionerTests(TestCase):
             ip="10.17.22.23",
             http_port=9200)
 
-        p = provisioner.BareProvisioner(es_installer=installer,
+        p = provisioner.BareProvisioner(os_installer=installer,
                                         plugin_installers=[],
                                         apply_config=null_apply_config)
 
@@ -140,7 +140,7 @@ class OpenSearchInstallerTests(TestCase):
                                                        node_root_dir=HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest")
 
         installer.install("/data/builds/distributions")
-        self.assertEqual(installer.es_home_path, "/install/elasticsearch-5.0.0-SNAPSHOT")
+        self.assertEqual(installer.os_home_path, "/install/elasticsearch-5.0.0-SNAPSHOT")
 
         self.assertEqual({
             "cluster_name": "benchmark-provisioned-cluster",
@@ -178,7 +178,7 @@ class OpenSearchInstallerTests(TestCase):
                                                        node_root_dir="~/.benchmark/benchmarks/test_executions/unittest")
 
         installer.install("/data/builds/distributions")
-        self.assertEqual(installer.es_home_path, "/install/elasticsearch-5.0.0-SNAPSHOT")
+        self.assertEqual(installer.os_home_path, "/install/elasticsearch-5.0.0-SNAPSHOT")
 
         self.assertEqual({
             "cluster_name": "benchmark-provisioned-cluster",
@@ -250,7 +250,7 @@ class PluginInstallerTests(TestCase):
                                                 java_home="/usr/local/javas/java8",
                                                 hook_handler_class=NoopHookHandler)
 
-        installer.install(es_home_path="/opt/elasticsearch")
+        installer.install(os_home_path="/opt/elasticsearch")
 
         installer_subprocess.assert_called_with(
             '/opt/elasticsearch/bin/elasticsearch-plugin install --batch "unit-test-plugin"',
@@ -266,7 +266,7 @@ class PluginInstallerTests(TestCase):
                                                 java_home=None,
                                                 hook_handler_class=NoopHookHandler)
 
-        installer.install(es_home_path="/opt/elasticsearch")
+        installer.install(os_home_path="/opt/elasticsearch")
 
         installer_subprocess.assert_called_with(
             '/opt/elasticsearch/bin/elasticsearch-plugin install --batch "unit-test-plugin"',
@@ -283,7 +283,7 @@ class PluginInstallerTests(TestCase):
                                                 hook_handler_class=NoopHookHandler)
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            installer.install(es_home_path="/opt/elasticsearch")
+            installer.install(os_home_path="/opt/elasticsearch")
         self.assertEqual("Unknown plugin [unknown]", ctx.exception.args[0])
 
         installer_subprocess.assert_called_with(
@@ -301,7 +301,7 @@ class PluginInstallerTests(TestCase):
                                                 hook_handler_class=NoopHookHandler)
 
         with self.assertRaises(exceptions.SupplyError) as ctx:
-            installer.install(es_home_path="/opt/elasticsearch")
+            installer.install(os_home_path="/opt/elasticsearch")
         self.assertEqual("I/O error while trying to install [simple]", ctx.exception.args[0])
 
         installer_subprocess.assert_called_with(
@@ -319,7 +319,7 @@ class PluginInstallerTests(TestCase):
                                                 hook_handler_class=NoopHookHandler)
 
         with self.assertRaises(exceptions.BenchmarkError) as ctx:
-            installer.install(es_home_path="/opt/elasticsearch")
+            installer.install(os_home_path="/opt/elasticsearch")
         self.assertEqual("Unknown error while trying to install [simple] (installer return code [12987]). Please check the logs.",
                          ctx.exception.args[0])
 

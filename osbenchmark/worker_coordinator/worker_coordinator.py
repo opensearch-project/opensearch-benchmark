@@ -566,17 +566,17 @@ class WorkerCoordinator:
         telemetry_params = self.config.opts("telemetry", "params")
         log_root = paths.test_execution_root(self.config)
 
-        es_default = es["default"]
+        os_default = es["default"]
 
         if enable:
             devices = [
                 telemetry.NodeStats(telemetry_params, es, self.metrics_store),
-                telemetry.ExternalEnvironmentInfo(es_default, self.metrics_store),
-                telemetry.ClusterEnvironmentInfo(es_default, self.metrics_store),
-                telemetry.JvmStatsSummary(es_default, self.metrics_store),
-                telemetry.IndexStats(es_default, self.metrics_store),
-                telemetry.MlBucketProcessingTime(es_default, self.metrics_store),
-                telemetry.SegmentStats(log_root, es_default),
+                telemetry.ExternalEnvironmentInfo(os_default, self.metrics_store),
+                telemetry.ClusterEnvironmentInfo(os_default, self.metrics_store),
+                telemetry.JvmStatsSummary(os_default, self.metrics_store),
+                telemetry.IndexStats(os_default, self.metrics_store),
+                telemetry.MlBucketProcessingTime(os_default, self.metrics_store),
+                telemetry.SegmentStats(log_root, os_default),
                 telemetry.CcrStats(telemetry_params, es, self.metrics_store),
                 telemetry.RecoveryStats(telemetry_params, es, self.metrics_store),
                 telemetry.TransformStats(telemetry_params, es, self.metrics_store),
@@ -587,9 +587,9 @@ class WorkerCoordinator:
         self.telemetry = telemetry.Telemetry(enabled_devices, devices=devices)
 
     def wait_for_rest_api(self, es):
-        es_default = es["default"]
+        os_default = es["default"]
         self.logger.info("Checking if REST API is available.")
-        if client.wait_for_rest_layer(es_default, max_attempts=40):
+        if client.wait_for_rest_layer(os_default, max_attempts=40):
             self.logger.info("REST API is available.")
         else:
             self.logger.error("REST API layer is not yet available. Stopping benchmark.")
@@ -619,7 +619,7 @@ class WorkerCoordinator:
                                                          self.workload.meta_data,
                                                          self.test_procedure.meta_data)
 
-        es_clients = self.create_os_clients()
+        os_clients = self.create_os_clients()
 
         skip_rest_api_check = self.config.opts("builder", "skip.rest.api.check")
         uses_static_responses = self.config.opts("client", "options").uses_static_responses
@@ -628,12 +628,12 @@ class WorkerCoordinator:
         elif uses_static_responses:
             self.logger.info("Skipping REST API check as static responses are used.")
         else:
-            self.wait_for_rest_api(es_clients)
-            self.target.on_cluster_details_retrieved(self.retrieve_cluster_info(es_clients))
+            self.wait_for_rest_api(os_clients)
+            self.target.on_cluster_details_retrieved(self.retrieve_cluster_info(os_clients))
 
         # Avoid issuing any requests to the target cluster when static responses are enabled. The results
         # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
-        self.prepare_telemetry(es_clients, enable=not uses_static_responses)
+        self.prepare_telemetry(os_clients, enable=not uses_static_responses)
 
         for host in self.config.opts("worker_coordinator", "load_worker_coordinator_hosts"):
             host_config = {
@@ -1444,7 +1444,7 @@ class AsyncIoAdapter:
         self.logger.error("Uncaught exception in event loop: %s", context)
 
     async def run(self):
-        def es_clients(all_hosts, all_client_options):
+        def os_clients(all_hosts, all_client_options):
             es = {}
             for cluster_name, cluster_hosts in all_hosts.items():
                 es[cluster_name] = client.EsClientFactory(cluster_hosts, all_client_options[cluster_name]).create_async()
@@ -1453,7 +1453,7 @@ class AsyncIoAdapter:
         # Properly size the internal connection pool to match the number of expected clients but allow the user
         # to override it if needed.
         client_count = len(self.task_allocations)
-        es = es_clients(self.cfg.opts("client", "hosts").all_hosts,
+        es = os_clients(self.cfg.opts("client", "hosts").all_hosts,
                         self.cfg.opts("client", "options").with_max_connections(client_count))
 
         self.logger.info("Task assertions enabled: %s", str(self.assertions_enabled))

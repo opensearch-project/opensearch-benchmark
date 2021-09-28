@@ -59,7 +59,7 @@ class SourceRepositoryTests(TestCase):
         mock_is_working_copy.side_effect = [False, True]
         mock_head_revision.return_value = "HEAD"
 
-        s = supplier.SourceRepository(name="Elasticsearch", remote_url="some-github-url", src_dir="/src")
+        s = supplier.SourceRepository(name="OpenSearch", remote_url="some-github-url", src_dir="/src")
         s.fetch("latest")
 
         mock_is_working_copy.assert_called_with("/src")
@@ -75,7 +75,7 @@ class SourceRepositoryTests(TestCase):
         mock_is_working_copy.return_value = True
         mock_head_revision.return_value = "HEAD"
 
-        s = supplier.SourceRepository(name="Elasticsearch", remote_url="some-github-url", src_dir="/src")
+        s = supplier.SourceRepository(name="OpenSearch", remote_url="some-github-url", src_dir="/src")
         s.fetch("current")
 
         mock_is_working_copy.assert_called_with("/src")
@@ -94,7 +94,7 @@ class SourceRepositoryTests(TestCase):
         mock_head_revision.return_value = "HEAD"
 
         # local only, we dont specify a remote
-        s = supplier.SourceRepository(name="Elasticsearch", remote_url=None, src_dir="/src")
+        s = supplier.SourceRepository(name="OpenSearch", remote_url=None, src_dir="/src")
         s.fetch("67c2f42")
 
         mock_is_working_copy.assert_called_with("/src")
@@ -110,7 +110,7 @@ class SourceRepositoryTests(TestCase):
         mock_is_working_copy.return_value = True
         mock_head_revision.return_value = "HEAD"
 
-        s = supplier.SourceRepository(name="Elasticsearch", remote_url="some-github-url", src_dir="/src")
+        s = supplier.SourceRepository(name="OpenSearch", remote_url="some-github-url", src_dir="/src")
         s.fetch("@2015-01-01-01:00:00")
 
         mock_is_working_copy.assert_called_with("/src")
@@ -124,7 +124,7 @@ class SourceRepositoryTests(TestCase):
         mock_is_working_copy.return_value = True
         mock_head_revision.return_value = "HEAD"
 
-        s = supplier.SourceRepository(name="Elasticsearch", remote_url="some-github-url", src_dir="/src")
+        s = supplier.SourceRepository(name="OpenSearch", remote_url="some-github-url", src_dir="/src")
         s.fetch("67c2f42")
 
         mock_is_working_copy.assert_called_with("/src")
@@ -196,12 +196,12 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("shutil.copy")
     @mock.patch("osbenchmark.builder.supplier.OpenSearchSourceSupplier")
-    def test_does_not_cache_when_no_revision(self, es, copy, ensure_dir):
+    def test_does_not_cache_when_no_revision(self, opensearch, copy, ensure_dir):
         def add_os_artifact(binaries):
             binaries["elasticsearch"] = "/path/to/artifact.tar.gz"
 
-        es.fetch.return_value = None
-        es.add.side_effect = add_os_artifact
+        opensearch.fetch.return_value = None
+        opensearch.add.side_effect = add_os_artifact
 
         # no version / revision provided
         renderer = supplier.TemplateRenderer(version=None, os_name="linux", arch="x86_64")
@@ -215,7 +215,7 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
             template_renderer=renderer
         )
         cached_supplier = supplier.CachedSourceSupplier(distributions_root="/tmp",
-                                                        source_supplier=es,
+                                                        source_supplier=opensearch,
                                                         file_resolver=file_resolver)
 
         cached_supplier.fetch()
@@ -232,7 +232,7 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
 
     @mock.patch("os.path.exists")
     @mock.patch("osbenchmark.builder.supplier.OpenSearchSourceSupplier")
-    def test_uses_already_cached_artifact(self, es, path_exists):
+    def test_uses_already_cached_artifact(self, opensearch, path_exists):
         # assume that the artifact is already cached
         path_exists.return_value = True
         renderer = supplier.TemplateRenderer(version="abc123", os_name="linux", arch="x86_64")
@@ -246,7 +246,7 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
             template_renderer=renderer
         )
         cached_supplier = supplier.CachedSourceSupplier(distributions_root="/tmp",
-                                                        source_supplier=es,
+                                                        source_supplier=opensearch,
                                                         file_resolver=file_resolver)
 
         cached_supplier.fetch()
@@ -256,9 +256,9 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
 
         cached_supplier.add(binaries)
 
-        self.assertEqual(0, es.fetch.call_count)
-        self.assertEqual(0, es.prepare.call_count)
-        self.assertEqual(0, es.add.call_count)
+        self.assertEqual(0, opensearch.fetch.call_count)
+        self.assertEqual(0, opensearch.prepare.call_count)
+        self.assertEqual(0, opensearch.add.call_count)
         self.assertTrue(cached_supplier.cached)
         self.assertIn("elasticsearch", binaries)
         self.assertEqual("/tmp/elasticsearch-abc123-linux-x86_64.tar.gz", binaries["elasticsearch"])
@@ -267,14 +267,14 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
     @mock.patch("os.path.exists")
     @mock.patch("shutil.copy")
     @mock.patch("osbenchmark.builder.supplier.OpenSearchSourceSupplier")
-    def test_caches_artifact(self, es, copy, path_exists, ensure_dir):
+    def test_caches_artifact(self, opensearch, copy, path_exists, ensure_dir):
         def add_os_artifact(binaries):
             binaries["elasticsearch"] = "/path/to/artifact.tar.gz"
 
         path_exists.return_value = False
 
-        es.fetch.return_value = "abc123"
-        es.add.side_effect = add_os_artifact
+        opensearch.fetch.return_value = "abc123"
+        opensearch.add.side_effect = add_os_artifact
 
         renderer = supplier.TemplateRenderer(version="abc123", os_name="linux", arch="x86_64")
 
@@ -284,7 +284,7 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
         }
 
         cached_supplier = supplier.CachedSourceSupplier(distributions_root="/tmp",
-                                                        source_supplier=es,
+                                                        source_supplier=opensearch,
                                                         file_resolver=supplier.OpenSearchFileNameResolver(
                                                             distribution_config=dist_cfg,
                                                             template_renderer=renderer
@@ -299,7 +299,7 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
         path_exists.return_value = True
 
         self.assertEqual(1, copy.call_count, "artifact has been copied")
-        self.assertEqual(1, es.add.call_count, "artifact has been added by internal supplier")
+        self.assertEqual(1, opensearch.add.call_count, "artifact has been added by internal supplier")
         self.assertTrue(cached_supplier.cached)
         self.assertIn("elasticsearch", binaries)
 
@@ -312,21 +312,21 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
 
         self.assertEqual(1, copy.call_count, "artifact has not been copied twice")
         # the internal supplier did not get called again as we reuse the cached artifact
-        self.assertEqual(1, es.add.call_count, "internal supplier is not called again")
+        self.assertEqual(1, opensearch.add.call_count, "internal supplier is not called again")
         self.assertTrue(cached_supplier.cached)
 
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("os.path.exists")
     @mock.patch("shutil.copy")
     @mock.patch("osbenchmark.builder.supplier.OpenSearchSourceSupplier")
-    def test_does_not_cache_on_copy_error(self, es, copy, path_exists, ensure_dir):
+    def test_does_not_cache_on_copy_error(self, opensearch, copy, path_exists, ensure_dir):
         def add_os_artifact(binaries):
             binaries["elasticsearch"] = "/path/to/artifact.tar.gz"
 
         path_exists.return_value = False
 
-        es.fetch.return_value = "abc123"
-        es.add.side_effect = add_os_artifact
+        opensearch.fetch.return_value = "abc123"
+        opensearch.add.side_effect = add_os_artifact
         copy.side_effect = OSError("no space left on device")
 
         renderer = supplier.TemplateRenderer(version="abc123", os_name="linux", arch="x86_64")
@@ -337,7 +337,7 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
         }
 
         cached_supplier = supplier.CachedSourceSupplier(distributions_root="/tmp",
-                                                        source_supplier=es,
+                                                        source_supplier=opensearch,
                                                         file_resolver=supplier.OpenSearchFileNameResolver(
                                                             distribution_config=dist_cfg,
                                                             template_renderer=renderer
@@ -350,7 +350,7 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
         cached_supplier.add(binaries)
 
         self.assertEqual(1, copy.call_count, "artifact has been copied")
-        self.assertEqual(1, es.add.call_count, "artifact has been added by internal supplier")
+        self.assertEqual(1, opensearch.add.call_count, "artifact has been added by internal supplier")
         self.assertFalse(cached_supplier.cached)
         self.assertIn("elasticsearch", binaries)
         # still the uncached artifact
@@ -457,13 +457,13 @@ class OpenSearchSourceSupplierTests(TestCase):
             "system.build_command": "./gradlew assemble"
         })
         renderer = supplier.TemplateRenderer(version=None)
-        es = supplier.OpenSearchSourceSupplier(revision="abc",
+        opensearch = supplier.OpenSearchSourceSupplier(revision="abc",
                                                   os_src_dir="/src",
                                                   remote_url="",
                                                   provision_config_instance=provision_config_instance,
                                                   builder=None,
                                                   template_renderer=renderer)
-        es.prepare()
+        opensearch.prepare()
         # nothing has happened (intentionally) because there is no builder
 
     def test_build(self):
@@ -473,13 +473,13 @@ class OpenSearchSourceSupplierTests(TestCase):
         })
         builder = mock.create_autospec(supplier.Builder)
         renderer = supplier.TemplateRenderer(version="abc")
-        es = supplier.OpenSearchSourceSupplier(revision="abc",
+        opensearch = supplier.OpenSearchSourceSupplier(revision="abc",
                                                   os_src_dir="/src",
                                                   remote_url="",
                                                   provision_config_instance=provision_config_instance,
                                                   builder=builder,
                                                   template_renderer=renderer)
-        es.prepare()
+        opensearch.prepare()
 
         builder.build.assert_called_once_with(["./gradlew clean", "./gradlew assemble"])
 
@@ -490,7 +490,7 @@ class OpenSearchSourceSupplierTests(TestCase):
         })
         renderer = supplier.TemplateRenderer(version="abc")
         builder = mock.create_autospec(supplier.Builder)
-        es = supplier.OpenSearchSourceSupplier(revision="abc",
+        opensearch = supplier.OpenSearchSourceSupplier(revision="abc",
                                                   os_src_dir="/src",
                                                   remote_url="",
                                                   provision_config_instance=provision_config_instance,
@@ -498,7 +498,7 @@ class OpenSearchSourceSupplierTests(TestCase):
                                                   template_renderer=renderer)
         with self.assertRaisesRegex(exceptions.SystemSetupError,
                                     "ProvisionConfigInstance \"default\" requires config key \"system.build_command\""):
-            es.prepare()
+            opensearch.prepare()
 
         self.assertEqual(0, builder.build.call_count)
 
@@ -510,25 +510,25 @@ class OpenSearchSourceSupplierTests(TestCase):
             "system.artifact_path_pattern": "distribution/archives/tar/build/distributions/*.tar.gz"
         })
         renderer = supplier.TemplateRenderer(version="abc")
-        es = supplier.OpenSearchSourceSupplier(revision="abc",
+        opensearch = supplier.OpenSearchSourceSupplier(revision="abc",
                                                   os_src_dir="/src",
                                                   remote_url="",
                                                   provision_config_instance=provision_config_instance,
                                                   builder=None,
                                                   template_renderer=renderer)
         binaries = {}
-        es.add(binaries=binaries)
+        opensearch.add(binaries=binaries)
         self.assertEqual(binaries, {"elasticsearch": "elasticsearch.tar.gz"})
 
 
 class ExternalPluginSourceSupplierTests(TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.along_es = None
+        self.along_opensearch = None
         self.standalone = None
 
     def setUp(self):
-        self.along_es = supplier.ExternalPluginSourceSupplier(plugin=provision_config.PluginDescriptor("some-plugin", core_plugin=False),
+        self.along_opensearch = supplier.ExternalPluginSourceSupplier(plugin=provision_config.PluginDescriptor("some-plugin", core_plugin=False),
                                                               revision="abc",
                                                               # built along-side ES
                                                               src_dir="/src",
@@ -579,19 +579,19 @@ class ExternalPluginSourceSupplierTests(TestCase):
         self.assertEqual("/Projects/src/some-plugin", self.standalone.override_build_dir)
 
     def test_along_os_plugin_keeps_build_dir(self):
-        self.assertIsNone(self.along_es.override_build_dir)
+        self.assertIsNone(self.along_opensearch.override_build_dir)
 
     @mock.patch("glob.glob", lambda p: ["/src/opensearch-extra/some-plugin/plugin/build/distributions/some-plugin.zip"])
     def test_add_binary_built_along_opensearch(self):
         binaries = {}
-        self.along_es.add(binaries)
+        self.along_opensearch.add(binaries)
         self.assertDictEqual(binaries,
                              {"some-plugin": "file:///src/opensearch-extra/some-plugin/plugin/build/distributions/some-plugin.zip"})
 
     @mock.patch("glob.glob", lambda p: ["/Projects/src/some-plugin/build/distributions/some-plugin.zip"])
     def test_resolve_plugin_binary_built_standalone(self):
         binaries = {}
-        self.along_es.add(binaries)
+        self.along_opensearch.add(binaries)
         self.assertDictEqual(binaries,
                              {"some-plugin": "file:///Projects/src/some-plugin/build/distributions/some-plugin.zip"})
 
@@ -730,7 +730,7 @@ class CreateSupplierTests(TestCase):
         cfg.add(config.Scope.application, "distributions", "release.cache", True)
         cfg.add(config.Scope.application, "node", "root.dir", "/opt/benchmark")
         cfg.add(config.Scope.application, "node", "src.root.dir", "/opt/benchmark/src")
-        cfg.add(config.Scope.application, "source", "opensearch.src.subdir", "elasticsearch")
+        cfg.add(config.Scope.application, "source", "opensearch.src.subdir", "opensearch")
         cfg.add(config.Scope.application, "source", "remote.repo.url", "https://github.com/opensearch-project/OpenSearch.git")
         cfg.add(config.Scope.application, "source", "plugin.community-plugin.src.subdir", "elasticsearch-extra/community-plugin")
 

@@ -71,7 +71,7 @@ class BarCharts:
 
     @staticmethod
     # flavor's unused but we need the same signature used by the corresponding method in TimeSeriesCharts
-    def format_title(environment, workload_name, flavor=None, es_license=None, suffix=None):
+    def format_title(environment, workload_name, flavor=None, os_license=None, suffix=None):
         title = f"{environment}-{workload_name}"
 
         if suffix:
@@ -797,14 +797,14 @@ class BarCharts:
 
 class TimeSeriesCharts:
     @staticmethod
-    def format_title(environment, workload_name, flavor=None, es_license=None, suffix=None):
+    def format_title(environment, workload_name, flavor=None, os_license=None, suffix=None):
         if flavor:
             title = [environment, flavor, str(workload_name)]
-        elif es_license:
-            title = [environment, es_license, str(workload_name)]
-        elif flavor and es_license:
+        elif os_license:
+            title = [environment, os_license, str(workload_name)]
+        elif flavor and os_license:
             raise exceptions.BenchmarkAssertionError(
-                f"Specify either flavor [{flavor}] or license [{es_license}] but not both")
+                f"Specify either flavor [{flavor}] or license [{os_license}] but not both")
         else:
             title = [environment, str(workload_name)]
         if suffix:
@@ -815,9 +815,9 @@ class TimeSeriesCharts:
     @staticmethod
     def filter_string(environment, test_ex_config):
         nightly_extra_filter = ""
-        if test_ex_config.es_license:
+        if test_ex_config.os_license:
             # Time series charts need to support different licenses and produce customized titles.
-            nightly_extra_filter = f" AND user-tags.license:\"{test_ex_config.es_license}\""
+            nightly_extra_filter = f" AND user-tags.license:\"{test_ex_config.os_license}\""
         if test_ex_config.name:
             return f"environment:\"{environment}\" AND active:true AND user-tags.name:\"{test_ex_config.name}\"{nightly_extra_filter}"
         else:
@@ -1311,7 +1311,7 @@ class TimeSeriesCharts:
     @staticmethod
     def query(environment, test_ex_config, q):
         metric = "latency"
-        title = TimeSeriesCharts.format_title(environment, test_ex_config.workload, es_license=test_ex_config.es_license,
+        title = TimeSeriesCharts.format_title(environment, test_ex_config.workload, os_license=test_ex_config.os_license,
                                               suffix="%s-%s-%s" % (test_ex_config.label, q, metric))
 
         vis_state = {
@@ -1598,7 +1598,7 @@ def generate_index_ops(chart_type, test_execution_configs, environment, logger):
                      test_execution_conf.name,
                      test_execution_conf.label,
                      test_execution_conf.flavor,
-                     test_execution_conf.es_license)
+                     test_execution_conf.os_license)
     charts = []
 
     if idx_test_execution_configs:
@@ -1627,7 +1627,7 @@ def generate_io(chart_type, test_execution_configs, environment):
     structures = []
     for test_execution_config in test_execution_configs:
         if "io" in test_execution_config.charts:
-            title = chart_type.format_title(environment, test_execution_config.workload, es_license=test_execution_config.es_license,
+            title = chart_type.format_title(environment, test_execution_config.workload, os_license=test_execution_config.os_license,
                                             suffix="%s-io" % test_execution_config.label)
             structures.append(chart_type.io(title, environment, test_execution_config))
 
@@ -1638,7 +1638,7 @@ def generate_gc(chart_type, test_execution_configs, environment):
     structures = []
     for test_execution_config in test_execution_configs:
         if "gc" in test_execution_config.charts:
-            title = chart_type.format_title(environment, test_execution_config.workload, es_license=test_execution_config.es_license,
+            title = chart_type.format_title(environment, test_execution_config.workload, os_license=test_execution_config.os_license,
                                             suffix="%s-gc" % test_execution_config.label)
             structures.append(chart_type.gc(title, environment, test_execution_config))
 
@@ -1648,7 +1648,7 @@ def generate_merge_time(chart_type, test_execution_configs, environment):
     structures = []
     for test_execution_config in test_execution_configs:
         if "merge_times" in test_execution_config.charts:
-            title = chart_type.format_title(environment, test_execution_config.workload, es_license=test_execution_config.es_license,
+            title = chart_type.format_title(environment, test_execution_config.workload, os_license=test_execution_config.os_license,
                                             suffix=f"{test_execution_config.label}-merge-times")
             structures.append(chart_type.merge_time(title, environment, test_execution_config))
 
@@ -1658,7 +1658,7 @@ def generate_merge_count(chart_type, test_execution_configs, environment):
     structures = []
     for test_execution_config in test_execution_configs:
         if "merge_count" in test_execution_config.charts:
-            title = chart_type.format_title(environment, test_execution_config.workload, es_license=test_execution_config.es_license,
+            title = chart_type.format_title(environment, test_execution_config.workload, os_license=test_execution_config.os_license,
                                             suffix=f"{test_execution_config.label}-merge-count")
             structures.append(chart_type.merge_count(title, environment, test_execution_config))
 
@@ -1669,7 +1669,7 @@ def generate_segment_memory(chart_type, test_execution_configs, environment):
     structures = []
     for test_execution_config in test_execution_configs:
         if "segment_memory" in test_execution_config.charts:
-            title = chart_type.format_title(environment, test_execution_config.workload, es_license=test_execution_config.es_license,
+            title = chart_type.format_title(environment, test_execution_config.workload, os_license=test_execution_config.os_license,
                                             suffix="%s-segment-memory" % test_execution_config.label)
             chart = chart_type.segment_memory(title, environment, test_execution_config)
             if chart:
@@ -1751,14 +1751,14 @@ def generate_dashboard(chart_type, environment, workload, charts, flavor=None):
 
 
 class TestExecutionConfig:
-    def __init__(self, workload, cfg=None, flavor=None, es_license=None, \
+    def __init__(self, workload, cfg=None, flavor=None, os_license=None, \
         test_procedure=None, provision_config_instance=None, node_count=None,\
              charts=None):
         self.workload = workload
         if cfg:
             self.configuration = cfg
             self.configuration["flavor"] = flavor
-            self.configuration["es_license"] = es_license
+            self.configuration["os_license"] = os_license
         else:
             self.configuration = {
                 "charts": charts,
@@ -1776,8 +1776,8 @@ class TestExecutionConfig:
         return self.configuration.get("flavor")
 
     @property
-    def es_license(self):
-        return self.configuration.get("es_license")
+    def os_license(self):
+        return self.configuration.get("os_license")
 
     @property
     def label(self):
@@ -1844,7 +1844,7 @@ def load_test_execution_configs(cfg, chart_type, chart_spec_path=None):
                                                              excluded_tasks=excluded_tasks),
                            cfg=test_execution_config,
                            flavor=flavor_name,
-                           es_license=lic)
+                           os_license=lic)
             )
         return configs_per_lic
 

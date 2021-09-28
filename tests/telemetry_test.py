@@ -92,10 +92,10 @@ class TelemetryTests(TestCase):
 
 class StartupTimeTests(TestCase):
     @mock.patch("osbenchmark.time.StopWatch")
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_value_node_level")
     def test_store_calculated_metrics(self, metrics_store_put_value, stop_watch):
         stop_watch.total_time.return_value = 2
-        metrics_store = metrics.EsMetricsStore(create_config())
+        metrics_store = metrics.OsMetricsStore(create_config())
         node = cluster.Node(None, "/bin", "io", "benchmark0", None)
         startup_time = telemetry.StartupTime()
         # replace with mock
@@ -293,7 +293,7 @@ class CcrStatsTests(TestCase):
     def test_negative_sample_interval_forbidden(self):
         clients = {"default": Client(), "cluster_b": Client()}
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         telemetry_params = {
             "ccr-stats-sample-interval": -1 * random.random()
         }
@@ -304,7 +304,7 @@ class CcrStatsTests(TestCase):
     def test_wrong_cluster_name_in_ccr_stats_indices_forbidden(self):
         clients = {"default": Client(), "cluster_b": Client()}
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         telemetry_params = {
             "ccr-stats-indices":{
                 "default": ["leader"],
@@ -325,14 +325,14 @@ class CcrStatsRecorderTests(TestCase):
     def test_raises_exception_on_transport_error(self):
         client = Client(transport_client=TransportClient(response={}, force_error=True))
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         with self.assertRaisesRegex(exceptions.BenchmarkError,
                                     r"A transport error occurred while collecting CCR stats from the endpoint "
                                     r"\[/_ccr/stats\?filter_path=follow_stats\] on "
                                     r"cluster \[remote\]"):
             telemetry.CcrStatsRecorder(cluster_name="remote", client=client, metrics_store=metrics_store, sample_interval=1).record()
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     def test_stores_default_ccr_stats(self, metrics_store_put_doc):
         java_signed_maxlong = CcrStatsRecorderTests.java_signed_maxlong
 
@@ -411,7 +411,7 @@ class CcrStatsRecorderTests(TestCase):
 
         client = Client(transport_client=TransportClient(response=ccr_stats_filtered_follower_response))
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         recorder = telemetry.CcrStatsRecorder(cluster_name="remote", client=client, metrics_store=metrics_store, sample_interval=1)
         recorder.record()
 
@@ -429,7 +429,7 @@ class CcrStatsRecorderTests(TestCase):
             meta_data=shard_metadata
         )
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     def test_stores_default_ccr_stats_many_shards(self, metrics_store_put_doc):
         java_signed_maxlong = CcrStatsRecorderTests.java_signed_maxlong
 
@@ -508,7 +508,7 @@ class CcrStatsRecorderTests(TestCase):
 
         client = Client(transport_client=TransportClient(response=ccr_stats_filtered_follower_response))
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         recorder = telemetry.CcrStatsRecorder("remote", client, metrics_store, 1)
         recorder.record()
 
@@ -542,7 +542,7 @@ class CcrStatsRecorderTests(TestCase):
             any_order=True
         )
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     def test_stores_filtered_ccr_stats(self, metrics_store_put_doc):
         java_signed_maxlong = CcrStatsRecorderTests.java_signed_maxlong
 
@@ -654,7 +654,7 @@ class CcrStatsRecorderTests(TestCase):
         ccr_stats_filtered_follower_response = {"follow_stats": ccr_stats_follower_response["follow_stats"]}
         client = Client(transport_client=TransportClient(response=ccr_stats_follower_response))
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         recorder = telemetry.CcrStatsRecorder("remote", client, metrics_store, 1, indices=[follower_index1])
         recorder.record()
 
@@ -677,11 +677,11 @@ class CcrStatsRecorderTests(TestCase):
 
 
 class RecoveryStatsTests(TestCase):
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     def test_no_metrics_if_no_pending_recoveries(self, metrics_store_put_doc):
         response = {}
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         client = Client(indices=SubClient(recovery=response))
         recorder = telemetry.RecoveryStatsRecorder(cluster_name="leader",
                                                    client=client,
@@ -692,7 +692,7 @@ class RecoveryStatsTests(TestCase):
 
         self.assertEqual(0, metrics_store_put_doc.call_count)
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     def test_stores_single_shard_stats(self, metrics_store_put_doc):
         response = {
             "index1": {
@@ -764,7 +764,7 @@ class RecoveryStatsTests(TestCase):
         }
 
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         client = Client(indices=SubClient(recovery=response))
         recorder = telemetry.RecoveryStatsRecorder(cluster_name="leader",
                                                    client=client,
@@ -786,7 +786,7 @@ class RecoveryStatsTests(TestCase):
             }, level=MetaInfoScope.cluster, meta_data=shard_metadata)
         ],  any_order=True)
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     def test_stores_multi_index_multi_shard_stats(self, metrics_store_put_doc):
         response = {
             "index1": {
@@ -836,7 +836,7 @@ class RecoveryStatsTests(TestCase):
         }
 
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         client = Client(indices=SubClient(recovery=response))
         recorder = telemetry.RecoveryStatsRecorder(cluster_name="leader",
                                                    client=client,
@@ -1260,11 +1260,11 @@ class TestSearchableSnapshotsStats:
                                   }
     }
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     def test_no_metrics_if_empty_searchable_snapshots_stats(self, metrics_store_put_doc):
         response = {}
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         client = Client(transport_client=TransportClient(response=response))
         recorder = telemetry.SearchableSnapshotsStatsRecorder(
             cluster_name="default",
@@ -1277,10 +1277,10 @@ class TestSearchableSnapshotsStats:
 
         assert metrics_store_put_doc.call_count == 0
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     def test_no_metrics_if_no_searchable_snapshots_stats(self, metrics_store_put_doc):
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         client = Client(transport_client=TransportClient(
             force_error=True,
             error=elasticsearch.NotFoundError(
@@ -1305,14 +1305,14 @@ class TestSearchableSnapshotsStats:
         assert metrics_store_put_doc.call_count == 0
 
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     def test_stores_total_stats(self, metrics_store_put_doc):
         response = {
             "total": copy.deepcopy(TestSearchableSnapshotsStats.response_fragment_total)
         }
 
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         client = Client(transport_client=TransportClient(response=response))
 
         recorder = telemetry.SearchableSnapshotsStatsRecorder(
@@ -1335,7 +1335,7 @@ class TestSearchableSnapshotsStats:
         metrics_store_put_doc.assert_has_calls(expected_calls, any_order=True)
 
     @pytest.mark.parametrize("seed", range(40))
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     def test_stores_index_stats(self, metrics_store_put_doc, seed):
         random.seed(seed)
         response = {
@@ -1344,7 +1344,7 @@ class TestSearchableSnapshotsStats:
         }
 
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         client = Client(transport_client=TransportClient(response=response))
 
         recorder = telemetry.SearchableSnapshotsStatsRecorder(
@@ -1394,7 +1394,7 @@ class NodeStatsTests(TestCase):
     def test_prints_warning_using_node_stats(self):
         clients = {"default": Client(info={"version": {"number": "7.1.0"}})}
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         telemetry_params = {
             "node-stats-sample-interval": random.randint(1, 100)
         }
@@ -1412,7 +1412,7 @@ class NodeStatsTests(TestCase):
     def test_no_warning_using_node_stats_after_version(self):
         clients = {"default": Client(info={"version": {"number": "7.2.0"}})}
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         telemetry_params = {
             "node-stats-sample-interval": random.randint(1, 100)
         }
@@ -1714,7 +1714,7 @@ class NodeStatsRecorderTests(TestCase):
     def test_negative_sample_interval_forbidden(self):
         client = Client()
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         telemetry_params = {
             "node-stats-sample-interval": -1 * random.random()
         }
@@ -1725,7 +1725,7 @@ class NodeStatsRecorderTests(TestCase):
     def test_flatten_indices_fields(self):
         client = Client(nodes=SubClient(stats=NodeStatsRecorderTests.node_stats_response))
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         telemetry_params = {}
         recorder = telemetry.NodeStatsRecorder(telemetry_params, cluster_name="remote", client=client, metrics_store=metrics_store)
         flattened_fields = recorder.flatten_stats_fields(
@@ -1734,11 +1734,11 @@ class NodeStatsRecorderTests(TestCase):
         )
         self.assertDictEqual(NodeStatsRecorderTests.indices_stats_response_flattened, flattened_fields)
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     def test_stores_default_nodes_stats(self, metrics_store_put_doc):
         client = Client(nodes=SubClient(stats=NodeStatsRecorderTests.node_stats_response))
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         node_name = [NodeStatsRecorderTests.node_stats_response["nodes"][node]["name"]
                      for node in NodeStatsRecorderTests.node_stats_response["nodes"]][0]
         metrics_store_meta_data = {"cluster": "remote", "node_name": node_name}
@@ -1756,7 +1756,7 @@ class NodeStatsRecorderTests(TestCase):
                                                       node_name="benchmark0",
                                                       meta_data=metrics_store_meta_data)
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     def test_stores_all_nodes_stats(self, metrics_store_put_doc):
         node_stats_response = {
             "cluster_name": "elasticsearch",
@@ -1964,7 +1964,7 @@ class NodeStatsRecorderTests(TestCase):
 
         client = Client(nodes=SubClient(stats=node_stats_response))
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         node_name = [node_stats_response["nodes"][node]["name"] for node in node_stats_response["nodes"]][0]
         metrics_store_meta_data = {"cluster": "remote", "node_name": node_name}
         telemetry_params = {
@@ -2067,7 +2067,7 @@ class NodeStatsRecorderTests(TestCase):
             node_name="benchmark0",
             meta_data=metrics_store_meta_data)
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     def test_stores_selected_indices_metrics_from_nodes_stats(self, metrics_store_put_doc):
         node_stats_response = {
             "cluster_name": "elasticsearch",
@@ -2275,7 +2275,7 @@ class NodeStatsRecorderTests(TestCase):
 
         client = Client(nodes=SubClient(stats=node_stats_response))
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         node_name = [node_stats_response["nodes"][node]["name"] for node in node_stats_response["nodes"]][0]
         metrics_store_meta_data = {"cluster": "remote", "node_name": node_name}
         telemetry_params = {
@@ -2358,7 +2358,7 @@ class NodeStatsRecorderTests(TestCase):
 
         client = Client(nodes=SubClient(stats=node_stats_response))
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         telemetry_params = {
             "node-stats-include-indices-metrics": {"bad": "input"}
         }
@@ -2372,7 +2372,7 @@ class TransformStatsTests(TestCase):
     def test_negative_sample_interval_forbidden(self):
         clients = {"default": Client(), "cluster_b": Client()}
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         telemetry_params = {
             "transform-stats-sample-interval": -1 * random.random()
         }
@@ -2383,7 +2383,7 @@ class TransformStatsTests(TestCase):
     def test_wrong_cluster_name_in_transform_stats_indices_forbidden(self):
         clients = {"default": Client(), "cluster_b": Client()}
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         telemetry_params = {
             "transform-stats-transforms": {
                 "default": ["leader"],
@@ -2444,11 +2444,11 @@ class TransformStatsRecorderTests(TestCase):
             "transforms": transforms
         }
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_cluster_level")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_value_cluster_level")
     def test_stores_default_stats(self, metrics_store_put_value):
         client = Client(transform=SubClient(transform_stats=TransformStatsRecorderTests.transform_stats_response))
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         recorder = telemetry.TransformStatsRecorder(cluster_name="transform_cluster", client=client,
                                                     metrics_store=metrics_store,
                                                     sample_interval=1)
@@ -2475,7 +2475,7 @@ class TransformStatsRecorderTests(TestCase):
 
 
 class ClusterEnvironmentInfoTests(TestCase):
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.add_meta_info")
     def test_stores_cluster_level_metrics_on_attach(self, metrics_store_add_meta_info):
         nodes_info = {"nodes": collections.OrderedDict()}
         nodes_info["nodes"]["FCFjozkeTiOpN-SI88YEcg"] = {
@@ -2539,7 +2539,7 @@ class ClusterEnvironmentInfoTests(TestCase):
 
         cfg = create_config()
         client = Client(nodes=SubClient(info=nodes_info), info=cluster_info)
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         env_device = telemetry.ClusterEnvironmentInfo(client, metrics_store)
         t = telemetry.Telemetry(cfg, devices=[env_device])
         t.on_benchmark_start()
@@ -2561,11 +2561,11 @@ class ClusterEnvironmentInfoTests(TestCase):
 
         metrics_store_add_meta_info.assert_has_calls(calls)
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.add_meta_info")
     def test_resilient_if_error_response(self, metrics_store_add_meta_info):
         cfg = create_config()
         client = Client(nodes=SubClient(stats=raiseTransportError, info=raiseTransportError), info=raiseTransportError)
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         env_device = telemetry.ClusterEnvironmentInfo(client, metrics_store)
         t = telemetry.Telemetry(cfg, devices=[env_device])
         t.on_benchmark_start()
@@ -2574,7 +2574,7 @@ class ClusterEnvironmentInfoTests(TestCase):
 
 
 class NodeEnvironmentInfoTests(TestCase):
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.add_meta_info")
     @mock.patch("osbenchmark.utils.sysstats.os_name")
     @mock.patch("osbenchmark.utils.sysstats.os_version")
     @mock.patch("osbenchmark.utils.sysstats.logical_cpu_cores")
@@ -2590,7 +2590,7 @@ class NodeEnvironmentInfoTests(TestCase):
         node_name = "benchmark0"
         host_name = "io"
 
-        metrics_store = metrics.EsMetricsStore(create_config())
+        metrics_store = metrics.OsMetricsStore(create_config())
         telemetry.add_metadata_for_node(metrics_store, node_name, host_name)
 
         calls = [
@@ -2610,7 +2610,7 @@ class ExternalEnvironmentInfoTests(TestCase):
     def setUp(self):
         self.cfg = create_config()
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.add_meta_info")
     def test_stores_all_node_metrics_on_attach(self, metrics_store_add_meta_info):
         nodes_stats = {
             "nodes": {
@@ -2659,7 +2659,7 @@ class ExternalEnvironmentInfoTests(TestCase):
                 }
         }
         client = Client(nodes=SubClient(stats=nodes_stats, info=nodes_info), info=cluster_info)
-        metrics_store = metrics.EsMetricsStore(self.cfg)
+        metrics_store = metrics.OsMetricsStore(self.cfg)
         env_device = telemetry.ExternalEnvironmentInfo(client, metrics_store)
         t = telemetry.Telemetry(devices=[env_device])
         t.on_benchmark_start()
@@ -2680,7 +2680,7 @@ class ExternalEnvironmentInfoTests(TestCase):
         ]
         metrics_store_add_meta_info.assert_has_calls(calls)
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.add_meta_info")
     def test_fallback_when_host_not_available(self, metrics_store_add_meta_info):
         nodes_stats = {
             "nodes": {
@@ -2715,7 +2715,7 @@ class ExternalEnvironmentInfoTests(TestCase):
                 }
         }
         client = Client(nodes=SubClient(stats=nodes_stats, info=nodes_info), info=cluster_info)
-        metrics_store = metrics.EsMetricsStore(self.cfg)
+        metrics_store = metrics.OsMetricsStore(self.cfg)
         env_device = telemetry.ExternalEnvironmentInfo(client, metrics_store)
         t = telemetry.Telemetry(self.cfg, devices=[env_device])
         t.on_benchmark_start()
@@ -2731,10 +2731,10 @@ class ExternalEnvironmentInfoTests(TestCase):
         ]
         metrics_store_add_meta_info.assert_has_calls(calls)
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.add_meta_info")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.add_meta_info")
     def test_resilient_if_error_response(self, metrics_store_add_meta_info):
         client = Client(nodes=SubClient(stats=raiseTransportError, info=raiseTransportError), info=raiseTransportError)
-        metrics_store = metrics.EsMetricsStore(self.cfg)
+        metrics_store = metrics.OsMetricsStore(self.cfg)
         env_device = telemetry.ExternalEnvironmentInfo(client, metrics_store)
         t = telemetry.Telemetry(self.cfg, devices=[env_device])
         t.on_benchmark_start()
@@ -2745,7 +2745,7 @@ class ExternalEnvironmentInfoTests(TestCase):
 class DiskIoTests(TestCase):
 
     @mock.patch("osbenchmark.utils.sysstats.process_io_counters")
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_value_node_level")
     def test_diskio_process_io_counters(self, metrics_store_node_count, process_io_counters):
         Diskio = namedtuple("Diskio", "read_bytes write_bytes")
         process_start = Diskio(10, 10)
@@ -2753,7 +2753,7 @@ class DiskIoTests(TestCase):
         process_io_counters.side_effect = [process_start, process_stop]
 
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
 
         device = telemetry.DiskIo(node_count_on_host=1)
         t = telemetry.Telemetry(enabled_devices=[], devices=[device])
@@ -2774,7 +2774,7 @@ class DiskIoTests(TestCase):
 
     @mock.patch("osbenchmark.utils.sysstats.disk_io_counters")
     @mock.patch("osbenchmark.utils.sysstats.process_io_counters")
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_value_node_level")
     def test_diskio_disk_io_counters(self, metrics_store_node_count, process_io_counters, disk_io_counters):
         Diskio = namedtuple("Diskio", "read_bytes write_bytes")
         process_start = Diskio(10, 10)
@@ -2783,7 +2783,7 @@ class DiskIoTests(TestCase):
         process_io_counters.side_effect = [None, None]
 
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
 
         device = telemetry.DiskIo(node_count_on_host=2)
         t = telemetry.Telemetry(enabled_devices=[], devices=[device])
@@ -2805,7 +2805,7 @@ class DiskIoTests(TestCase):
 
     @mock.patch("osbenchmark.utils.sysstats.disk_io_counters")
     @mock.patch("osbenchmark.utils.sysstats.process_io_counters")
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_value_node_level")
     def test_diskio_writes_metrics_if_available(self, metrics_store_node_count, process_io_counters, disk_io_counters):
         Diskio = namedtuple("Diskio", "read_bytes write_bytes")
         process_start = Diskio(10, 10)
@@ -2814,7 +2814,7 @@ class DiskIoTests(TestCase):
         process_io_counters.side_effect = [None, None]
 
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
 
         device = telemetry.DiskIo(node_count_on_host=1)
         t = telemetry.Telemetry(enabled_devices=[], devices=[device])
@@ -2834,9 +2834,9 @@ class DiskIoTests(TestCase):
 
 
 class JvmStatsSummaryTests(TestCase):
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_cluster_level")
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_value_cluster_level")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_value_node_level")
     def test_stores_only_diff_of_gc_times(self,
                                           metrics_store_node_level,
                                           metrics_store_cluster_level,
@@ -2880,7 +2880,7 @@ class JvmStatsSummaryTests(TestCase):
         client = Client(nodes=SubClient(nodes_stats_at_start))
         cfg = create_config()
 
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         device = telemetry.JvmStatsSummary(client, metrics_store)
         t = telemetry.Telemetry(cfg, devices=[device])
         t.on_benchmark_start()
@@ -2957,8 +2957,8 @@ class JvmStatsSummaryTests(TestCase):
 
 
 class IndexStatsTests(TestCase):
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_cluster_level")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_value_cluster_level")
     def test_stores_available_index_stats(self, metrics_store_cluster_value, metrics_store_put_doc):
         client = Client(indices=SubClient({
             "_all": {
@@ -2987,7 +2987,7 @@ class IndexStatsTests(TestCase):
         }))
         cfg = create_config()
 
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         device = telemetry.IndexStats(client, metrics_store)
         t = telemetry.Telemetry(cfg, devices=[device])
         t.on_benchmark_start()
@@ -3204,19 +3204,19 @@ class IndexStatsTests(TestCase):
 
 
 class MlBucketProcessingTimeTests(TestCase):
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     @mock.patch("elasticsearch.Elasticsearch")
     def test_error_on_retrieval_does_not_store_metrics(self, es, metrics_store_put_doc):
         es.search.side_effect = elasticsearch.TransportError("unit test error")
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         device = telemetry.MlBucketProcessingTime(es, metrics_store)
         t = telemetry.Telemetry(cfg, devices=[device])
         t.on_benchmark_stop()
 
         self.assertEqual(0, metrics_store_put_doc.call_count)
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     @mock.patch("elasticsearch.Elasticsearch")
     def test_empty_result_does_not_store_metrics(self, es, metrics_store_put_doc):
         es.search.return_value = {
@@ -3227,14 +3227,14 @@ class MlBucketProcessingTimeTests(TestCase):
             }
         }
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         device = telemetry.MlBucketProcessingTime(es, metrics_store)
         t = telemetry.Telemetry(cfg, devices=[device])
         t.on_benchmark_stop()
 
         self.assertEqual(0, metrics_store_put_doc.call_count)
 
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_doc")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     @mock.patch("elasticsearch.Elasticsearch")
     def test_result_is_stored(self, es, metrics_store_put_doc):
         es.search.return_value = {
@@ -3283,7 +3283,7 @@ class MlBucketProcessingTimeTests(TestCase):
         }
 
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         device = telemetry.MlBucketProcessingTime(es, metrics_store)
         t = telemetry.Telemetry(cfg, devices=[device])
         t.on_benchmark_stop()
@@ -3312,12 +3312,12 @@ class MlBucketProcessingTimeTests(TestCase):
 
 class IndexSizeTests(TestCase):
     @mock.patch("osbenchmark.utils.io.get_size")
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_node_level")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_value_node_level")
     def test_stores_index_size_for_data_paths(self, metrics_store_node_value, get_size):
         get_size.side_effect = [2048, 16384]
 
         cfg = create_config()
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         device = telemetry.IndexSize(["/var/elasticsearch/data/1", "/var/elasticsearch/data/2"])
         t = telemetry.Telemetry(enabled_devices=[], devices=[device])
         node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="benchmark-node-0", telemetry=t)
@@ -3333,14 +3333,14 @@ class IndexSizeTests(TestCase):
         ])
 
     @mock.patch("osbenchmark.utils.io.get_size")
-    @mock.patch("osbenchmark.metrics.EsMetricsStore.put_value_cluster_level")
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_value_cluster_level")
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     def test_stores_nothing_if_no_data_path(self, run_subprocess, metrics_store_cluster_value, get_size):
         get_size.return_value = 2048
 
         cfg = create_config()
 
-        metrics_store = metrics.EsMetricsStore(cfg)
+        metrics_store = metrics.OsMetricsStore(cfg)
         device = telemetry.IndexSize(data_paths=[])
         t = telemetry.Telemetry(devices=[device])
         node = cluster.Node(pid=None, binary_path="/bin", host_name="localhost", node_name="benchmark-node-0", telemetry=t)

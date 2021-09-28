@@ -45,12 +45,12 @@ def local(cfg, provision_config_instance, plugins, ip, http_port, all_node_ips, 
     runtime_jdk = provision_config_instance.mandatory_var("runtime.jdk")
     _, java_home = java_resolver.java_home(runtime_jdk, cfg.opts("builder", "runtime.jdk"), runtime_jdk_bundled)
 
-    es_installer = OpenSearchInstaller(
+    os_installer = OpenSearchInstaller(
         provision_config_instance, java_home, node_name,
         node_root_dir, all_node_ips, all_node_names, ip, http_port)
     plugin_installers = [PluginInstaller(plugin, java_home) for plugin in plugins]
 
-    return BareProvisioner(es_installer, plugin_installers, distribution_version=distribution_version)
+    return BareProvisioner(os_installer, plugin_installers, distribution_version=distribution_version)
 
 
 def docker(cfg, provision_config_instance, ip, http_port, target_root, node_name):
@@ -177,22 +177,22 @@ class BareProvisioner:
     of the benchmark candidate to the appropriate place.
     """
 
-    def __init__(self, es_installer, plugin_installers, distribution_version=None, apply_config=_apply_config):
-        self.es_installer = es_installer
+    def __init__(self, os_installer, plugin_installers, distribution_version=None, apply_config=_apply_config):
+        self.os_installer = os_installer
         self.plugin_installers = plugin_installers
         self.distribution_version = distribution_version
         self.apply_config = apply_config
         self.logger = logging.getLogger(__name__)
 
     def prepare(self, binary):
-        self.es_installer.install(binary["elasticsearch"])
+        self.os_installer.install(binary["elasticsearch"])
         # we need to immediately delete it as plugins may copy their configuration during installation.
-        self.es_installer.delete_pre_bundled_configuration()
+        self.os_installer.delete_pre_bundled_configuration()
 
         # determine after installation because some variables will depend on the install directory
-        target_root_path = self.es_installer.es_home_path
+        target_root_path = self.os_installer.os_home_path
         provisioner_vars = self._provisioner_variables()
-        for p in self.es_installer.config_source_paths:
+        for p in self.os_installer.config_source_paths:
             self.apply_config(p, target_root_path, provisioner_vars)
 
         for installer in self.plugin_installers:
@@ -201,15 +201,15 @@ class BareProvisioner:
                 self.apply_config(plugin_config_path, target_root_path, provisioner_vars)
 
         # Never let install hooks modify our original provisioner variables and just provide a copy!
-        self.es_installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, provisioner_vars.copy())
+        self.os_installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, provisioner_vars.copy())
         for installer in self.plugin_installers:
             installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, provisioner_vars.copy())
 
-        return NodeConfiguration("tar", self.es_installer.provision_config_instance.mandatory_var("runtime.jdk"),
-                                 convert.to_bool(self.es_installer.provision_config_instance.mandatory_var("runtime.jdk.bundled")),
-                                 self.es_installer.node_ip, self.es_installer.node_name,
-                                 self.es_installer.node_root_dir, self.es_installer.es_home_path,
-                                 self.es_installer.data_paths)
+        return NodeConfiguration("tar", self.os_installer.provision_config_instance.mandatory_var("runtime.jdk"),
+                                 convert.to_bool(self.os_installer.provision_config_instance.mandatory_var("runtime.jdk.bundled")),
+                                 self.os_installer.node_ip, self.os_installer.node_name,
+                                 self.os_installer.node_root_dir, self.os_installer.os_home_path,
+                                 self.os_installer.data_paths)
 
     def _provisioner_variables(self):
         plugin_variables = {}
@@ -232,7 +232,7 @@ class BareProvisioner:
             cluster_settings["plugin.mandatory"] = mandatory_plugins
 
         provisioner_vars = {}
-        provisioner_vars.update(self.es_installer.variables)
+        provisioner_vars.update(self.os_installer.variables)
         provisioner_vars.update(plugin_variables)
         provisioner_vars["cluster_settings"] = cluster_settings
 
@@ -256,7 +256,7 @@ class OpenSearchInstaller:
         self.hook_handler = hook_handler_class(self.provision_config_instance)
         if self.hook_handler.can_load():
             self.hook_handler.load()
-        self.es_home_path = None
+        self.os_home_path = None
         self.data_paths = None
         self.logger = logging.getLogger(__name__)
 
@@ -268,11 +268,11 @@ class OpenSearchInstaller:
 
         self.logger.info("Unzipping %s to %s", binary, self.install_dir)
         io.decompress(binary, self.install_dir)
-        self.es_home_path = glob.glob(os.path.join(self.install_dir, "elasticsearch*"))[0]
+        self.os_home_path = glob.glob(os.path.join(self.install_dir, "elasticsearch*"))[0]
         self.data_paths = self._data_paths()
 
     def delete_pre_bundled_configuration(self):
-        config_path = os.path.join(self.es_home_path, "config")
+        config_path = os.path.join(self.os_home_path, "config")
         self.logger.info("Deleting pre-bundled OpenSearch configuration at [%s]", config_path)
         shutil.rmtree(config_path)
 
@@ -303,7 +303,7 @@ class OpenSearchInstaller:
             "all_node_names": "[\"%s\"]" % "\",\"".join(self.all_node_names),
             # at the moment we are strict and enforce that all nodes are master eligible nodes
             "minimum_master_nodes": len(self.all_node_ips),
-            "install_root_path": self.es_home_path
+            "install_root_path": self.os_home_path
         }
         variables = {}
         variables.update(self.provision_config_instance.variables)
@@ -324,7 +324,7 @@ class OpenSearchInstaller:
             else:
                 raise exceptions.SystemSetupError("Expected [data_paths] to be either a string or a list but was [%s]." % type(data_paths))
         else:
-            return [os.path.join(self.es_home_path, "data")]
+            return [os.path.join(self.os_home_path, "data")]
 
 
 class PluginInstaller:
@@ -336,13 +336,13 @@ class PluginInstaller:
             self.hook_handler.load()
         self.logger = logging.getLogger(__name__)
 
-    def install(self, es_home_path, plugin_url=None):
-        installer_binary_path = os.path.join(es_home_path, "bin", "elasticsearch-plugin")
+    def install(self, os_home_path, plugin_url=None):
+        installer_binary_path = os.path.join(os_home_path, "bin", "elasticsearch-plugin")
         if plugin_url:
-            self.logger.info("Installing [%s] into [%s] from [%s]", self.plugin_name, es_home_path, plugin_url)
+            self.logger.info("Installing [%s] into [%s] from [%s]", self.plugin_name, os_home_path, plugin_url)
             install_cmd = '%s install --batch "%s"' % (installer_binary_path, plugin_url)
         else:
-            self.logger.info("Installing [%s] into [%s]", self.plugin_name, es_home_path)
+            self.logger.info("Installing [%s] into [%s]", self.plugin_name, os_home_path)
             install_cmd = '%s install --batch "%s"' % (installer_binary_path, self.plugin_name)
 
         return_code = process.run_subprocess_with_logging(install_cmd, env=self.env())

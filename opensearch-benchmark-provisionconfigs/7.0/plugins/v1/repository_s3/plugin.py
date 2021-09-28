@@ -96,13 +96,13 @@ def configure_keystore(config_names, variables, **kwargs):
 
     for property_name in keystore_params:
         # the actual OpenSearch secure settings for the s3 plugin don't contain the s3_ prefix
-        es_property_name = property_name.replace("s3_", "")
+        os_property_name = property_name.replace("s3_", "")
         property_value = variables.get(property_name)
         # skip optional properties like session_token
         if not property_value:
             continue
 
-        add_property_to_keystore(keystore_binary, client_name, es_property_name, property_value, env)
+        add_property_to_keystore(keystore_binary, client_name, os_property_name, property_value, env)
 
     # Success
     return True

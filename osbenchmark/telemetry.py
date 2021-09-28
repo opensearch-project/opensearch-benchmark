@@ -1154,8 +1154,8 @@ class DiskIo(InternalTelemetryDevice):
         self.write_bytes = None
 
     def attach_to_node(self, node):
-        es_process = sysstats.setup_process_stats(node.pid)
-        process_start = sysstats.process_io_counters(es_process)
+        os_process = sysstats.setup_process_stats(node.pid)
+        process_start = sysstats.process_io_counters(os_process)
         if process_start:
             self.read_bytes = process_start.read_bytes
             self.write_bytes = process_start.write_bytes
@@ -1177,8 +1177,8 @@ class DiskIo(InternalTelemetryDevice):
             # Thus we're conservative and only publish I/O bytes now.
             # noinspection PyBroadException
             try:
-                es_process = sysstats.setup_process_stats(node.pid)
-                process_end = sysstats.process_io_counters(es_process)
+                os_process = sysstats.setup_process_stats(node.pid)
+                process_end = sysstats.process_io_counters(os_process)
                 # we have process-based disk counters, no need to worry how many nodes are on this host
                 if process_end:
                     self.read_bytes = process_end.read_bytes - self.read_bytes
