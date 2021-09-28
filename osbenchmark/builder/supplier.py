@@ -62,8 +62,8 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
         except ValueError:
             raise exceptions.SystemSetupError(f"ProvisionConfigInstance config key [build.jdk] is invalid: [{raw_build_jdk}] (must be int)")
 
-        es_src_dir = os.path.join(_src_dir(cfg), _config_value(src_config, "elasticsearch.src.subdir"))
-        builder = Builder(es_src_dir, build_jdk, paths.logs())
+        os_src_dir = os.path.join(_src_dir(cfg), _config_value(src_config, "opensearch.src.subdir"))
+        builder = Builder(os_src_dir, build_jdk, paths.logs())
     else:
         builder = None
 
@@ -90,10 +90,10 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
         source_distributions_root = None
 
     if es_supplier_type == "source":
-        es_src_dir = os.path.join(_src_dir(cfg), _config_value(src_config, "elasticsearch.src.subdir"))
+        os_src_dir = os.path.join(_src_dir(cfg), _config_value(src_config, "opensearch.src.subdir"))
 
         source_supplier = ElasticsearchSourceSupplier(es_version,
-                                                      es_src_dir,
+                                                      os_src_dir,
                                                       remote_url=cfg.opts("source", "remote.repo.url"),
                                                       provision_config_instance=provision_config_instance,
                                                       builder=builder,
@@ -108,7 +108,7 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
         suppliers.append(source_supplier)
         repo = None
     else:
-        es_src_dir = None
+        os_src_dir = None
         repo = DistributionRepository(name=cfg.opts("builder", "distribution.repository"),
                                       distribution_config=dist_cfg,
                                       template_renderer=template_renderer)
@@ -120,8 +120,8 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
         if supplier_type == "source":
             if CorePluginSourceSupplier.can_handle(plugin):
                 logger.info("Adding core plugin source supplier for [%s].", plugin.name)
-                assert es_src_dir is not None, f"Cannot build core plugin {plugin.name} when OpenSearch is not built from source."
-                plugin_supplier = CorePluginSourceSupplier(plugin, es_src_dir, builder)
+                assert os_src_dir is not None, f"Cannot build core plugin {plugin.name} when OpenSearch is not built from source."
+                plugin_supplier = CorePluginSourceSupplier(plugin, os_src_dir, builder)
             elif ExternalPluginSourceSupplier.can_handle(plugin):
                 logger.info("Adding external plugin source supplier for [%s].", plugin.name)
                 plugin_supplier = ExternalPluginSourceSupplier(plugin, plugin_version, _src_dir(cfg, mandatory=False), src_config, builder)
@@ -365,9 +365,9 @@ class CachedSourceSupplier:
 
 
 class ElasticsearchSourceSupplier:
-    def __init__(self, revision, es_src_dir, remote_url, provision_config_instance, builder, template_renderer):
+    def __init__(self, revision, os_src_dir, remote_url, provision_config_instance, builder, template_renderer):
         self.revision = revision
-        self.src_dir = es_src_dir
+        self.src_dir = os_src_dir
         self.remote_url = remote_url
         self.provision_config_instance = provision_config_instance
         self.builder = builder
@@ -466,10 +466,10 @@ class ExternalPluginSourceSupplier:
 
 
 class CorePluginSourceSupplier:
-    def __init__(self, plugin, es_src_dir, builder):
+    def __init__(self, plugin, os_src_dir, builder):
         assert plugin.core_plugin, "Plugin %s is not a core plugin" % plugin.name
         self.plugin = plugin
-        self.es_src_dir = es_src_dir
+        self.os_src_dir = os_src_dir
         self.builder = builder
 
     @staticmethod
@@ -478,7 +478,7 @@ class CorePluginSourceSupplier:
 
     def fetch(self):
         # Just retrieve the current revision *number* and assume that OpenSearch has prepared the source tree.
-        return SourceRepository("Elasticsearch", None, self.es_src_dir).fetch(revision="current")
+        return SourceRepository("OpenSearch", None, self.os_src_dir).fetch(revision="current")
 
     def prepare(self):
         if self.builder:
@@ -489,7 +489,7 @@ class CorePluginSourceSupplier:
 
     def resolve_binary(self):
         try:
-            name = glob.glob("%s/plugins/%s/build/distributions/*.zip" % (self.es_src_dir, self.plugin.name))[0]
+            name = glob.glob("%s/plugins/%s/build/distributions/*.zip" % (self.os_src_dir, self.plugin.name))[0]
             return "file://%s" % name
         except IndexError:
             raise SystemSetupError("Couldn't find a plugin zip file for [%s]. Please run Benchmark with the pipeline 'from-sources'." %
