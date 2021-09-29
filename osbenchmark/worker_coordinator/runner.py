@@ -849,7 +849,9 @@ class Query(Runner):
                     body["pit"] = {"id": pit_id,
                                    "keep_alive": "1m" }
 
-                response = await self._raw_search(osearch, doc_type=None, index=index, body=body.copy(), params=request_params, headers=headers)
+                response = await self._raw_search(
+                    osearch, doc_type=None, index=index, body=body.copy(),
+                    params=request_params, headers=headers)
                 parsed, last_sort = self._extractor(response, bool(pit_op), results.get("hits"))
                 results["pages"] = page
                 results["weight"] = page

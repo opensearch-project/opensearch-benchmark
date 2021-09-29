@@ -528,7 +528,8 @@ class ExternalPluginSourceSupplierTests(TestCase):
         self.standalone = None
 
     def setUp(self):
-        self.along_opensearch = supplier.ExternalPluginSourceSupplier(plugin=provision_config.PluginDescriptor("some-plugin", core_plugin=False),
+        self.along_opensearch = supplier.ExternalPluginSourceSupplier(
+            plugin=provision_config.PluginDescriptor("some-plugin", core_plugin=False),
                                                               revision="abc",
                                                               # built along-side ES
                                                               src_dir="/src",
