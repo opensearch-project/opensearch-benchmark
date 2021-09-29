@@ -21,7 +21,7 @@ make prereq
 make install
 ```
 
-Depending on the playform and shell you have, activate the virtual environment:
+Depending on the platform and shell you have, use the following command to activate the virtual environment:
 
 | Platform | Shell | Command used to activate the virtual environment |
 | --------------- | --------- | ------------------------------------- |
@@ -42,7 +42,7 @@ As an extra step, please consider configuring your JAVA_HOMES as mentioned in th
 ```
 IMPORTANT: please add `eval "$(pyenv init -)"` to your bash profile and restart your terminal before proceeding any further.
 ```
-This line is commonly thought of as an error message but rather it's just a warning. Unless you haven't already added that to your bash profile and restarted your terminal, then feel free to proceed forward. This eval statement is necessary in the startup configuration as it allows Pyenv to manage python versions by adding python shims to your path. If you experience any issues, please see https://github.com/pyenv/pyenv.
+This line is commonly thought of as an error message but rather it's just a warning. Unless you haven't already added `eval "$(pyenv init -)"` to your bash profile and restarted your terminal, then feel free to proceed forward. This eval statement is necessary in the startup configuration as it allows Pyenv to manage python versions by adding python shims to your path. If you experience any issues, please see https://github.com/pyenv/pyenv.
 
 ## Importing the project into an IDE
 
