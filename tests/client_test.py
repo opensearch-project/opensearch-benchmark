@@ -311,23 +311,23 @@ class RequestContextManagerTests(TestCase):
 
 class RestLayerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
-    def test_successfully_waits_for_rest_layer(self, osearch):
-        osearch.transport.hosts = [
+    def test_successfully_waits_for_rest_layer(self, opensearch):
+        opensearch.transport.hosts = [
             {"host": "node-a.example.org", "port": 9200},
             {"host": "node-b.example.org", "port": 9200}
         ]
 
-        self.assertTrue(client.wait_for_rest_layer(osearch, max_attempts=3))
+        self.assertTrue(client.wait_for_rest_layer(opensearch, max_attempts=3))
 
-        osearch.cluster.health.assert_has_calls([
+        opensearch.cluster.health.assert_has_calls([
             mock.call(wait_for_nodes=">=2"),
         ])
 
     # don't sleep in realtime
     @mock.patch("time.sleep")
     @mock.patch("elasticsearch.Elasticsearch")
-    def test_retries_on_transport_errors(self, osearch, sleep):
-        osearch.cluster.health.side_effect = [
+    def test_retries_on_transport_errors(self, opensearch, sleep):
+        opensearch.cluster.health.side_effect = [
             elasticsearch.TransportError(503, "Service Unavailable"),
             elasticsearch.TransportError(401, "Unauthorized"),
             elasticsearch.TransportError(408, "Timed Out"),
@@ -339,21 +339,21 @@ class RestLayerTests(TestCase):
                 }
             }
         ]
-        self.assertTrue(client.wait_for_rest_layer(osearch, max_attempts=5))
+        self.assertTrue(client.wait_for_rest_layer(opensearch, max_attempts=5))
 
     # don't sleep in realtime
     @mock.patch("time.sleep")
     @mock.patch("elasticsearch.Elasticsearch")
-    def test_dont_retry_eternally_on_transport_errors(self, osearch, sleep):
-        osearch.cluster.health.side_effect = elasticsearch.TransportError(401, "Unauthorized")
-        self.assertFalse(client.wait_for_rest_layer(osearch, max_attempts=3))
+    def test_dont_retry_eternally_on_transport_errors(self, opensearch, sleep):
+        opensearch.cluster.health.side_effect = elasticsearch.TransportError(401, "Unauthorized")
+        self.assertFalse(client.wait_for_rest_layer(opensearch, max_attempts=3))
 
     @mock.patch("elasticsearch.Elasticsearch")
-    def test_ssl_error(self, osearch):
-        osearch.cluster.health.side_effect = elasticsearch.ConnectionError("N/A",
+    def test_ssl_error(self, opensearch):
+        opensearch.cluster.health.side_effect = elasticsearch.ConnectionError("N/A",
                                                             "[SSL: UNKNOWN_PROTOCOL] unknown protocol (_ssl.c:719)",
                                                             urllib3.exceptions.SSLError(
                                                                 "[SSL: UNKNOWN_PROTOCOL] unknown protocol (_ssl.c:719)"))
         with self.assertRaisesRegex(expected_exception=exceptions.SystemSetupError,
                                     expected_regex="Could not connect to cluster via https. Is this an https endpoint?"):
-            client.wait_for_rest_layer(osearch, max_attempts=3)
+            client.wait_for_rest_layer(opensearch, max_attempts=3)

@@ -181,8 +181,8 @@ class TestCluster:
         cmd = "start --runtime-jdk=\"bundled\" --installation-id={} --test-execution-id={}".format(self.installation_id, test_execution_id)
         if osbenchmark(self.cfg, cmd) != 0:
             raise AssertionError("Failed to start OpenSearch test cluster.")
-        osearch = client.OsClientFactory(hosts=[{"host": "127.0.0.1", "port": self.http_port}], client_options={}).create()
-        client.wait_for_rest_layer(osearch)
+        opensearch = client.OsClientFactory(hosts=[{"host": "127.0.0.1", "port": self.http_port}], client_options={}).create()
+        client.wait_for_rest_layer(opensearch)
 
     def stop(self):
         if self.installation_id:

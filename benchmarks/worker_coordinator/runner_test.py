@@ -61,7 +61,7 @@ class OpenSearchMock:
         return self.no_errors
 
 
-osearch = OpenSearchMock(bulk_size=BULK_SIZE)
+os_mock = OpenSearchMock(bulk_size=BULK_SIZE)
 
 
 @pytest.mark.benchmark(
@@ -71,7 +71,7 @@ osearch = OpenSearchMock(bulk_size=BULK_SIZE)
     disable_gc=True
 )
 def test_bulk_runner_without_errors_no_detailed_results(benchmark):
-    benchmark(bulk_index, osearch, {
+    benchmark(bulk_index, os_mock, {
         "action-metadata-present": True,
         "body": "bulk API body",
         "bulk-size": BULK_SIZE
@@ -85,7 +85,7 @@ def test_bulk_runner_without_errors_no_detailed_results(benchmark):
     disable_gc=True
 )
 def test_bulk_runner_without_errors_with_detailed_results(benchmark):
-    benchmark(bulk_index, osearch, {
+    benchmark(bulk_index, os_mock, {
         "action-metadata-present": True,
         "body": "bulk API body",
         "bulk-size": BULK_SIZE,

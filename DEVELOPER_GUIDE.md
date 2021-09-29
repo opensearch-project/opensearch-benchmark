@@ -21,7 +21,7 @@ make prereq
 make install
 ```
 
-NOTE: `make prereq` produces the following message:
+NOTE: `make prereq` produces the following message.
 ```
 IMPORTANT: please add `eval "$(pyenv init -)"` to your bash profile and restart your terminal before proceeding any further.
 ```

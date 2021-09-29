@@ -262,10 +262,10 @@ def cluster_distribution_version(cfg, client_factory=client.OsClientFactory):
     """
     hosts = cfg.opts("client", "hosts").default
     client_options = cfg.opts("client", "options").default
-    osearch = client_factory(hosts, client_options).create()
+    opensearch = client_factory(hosts, client_options).create()
     # unconditionally wait for the REST layer - if it's not up by then, we'll intentionally raise the original error
-    client.wait_for_rest_layer(osearch)
-    return osearch.info()["version"]["number"]
+    client.wait_for_rest_layer(opensearch)
+    return opensearch.info()["version"]["number"]
 
 
 def to_ip_port(hosts):

@@ -155,7 +155,7 @@ class AssertingRunnerTests(TestCase):
 
     @run_async
     async def test_asserts_equal_succeeds(self):
-        osearch = None
+        opensearch = None
         response = {
             "hits": {
                 "hits": {
@@ -168,7 +168,7 @@ class AssertingRunnerTests(TestCase):
         delegate.return_value = as_future(response)
         r = runner.AssertingRunner(delegate)
         async with r:
-            final_response = await r(osearch, {
+            final_response = await r(opensearch, {
                 "name": "test-task",
                 "assertions": [
                     {
@@ -188,7 +188,7 @@ class AssertingRunnerTests(TestCase):
 
     @run_async
     async def test_asserts_equal_fails(self):
-        osearch =  None
+        opensearch =  None
         response = {
             "hits": {
                 "hits": {
@@ -203,7 +203,7 @@ class AssertingRunnerTests(TestCase):
         with self.assertRaisesRegex(exceptions.BenchmarkTaskAssertionError,
                                     r"Expected \[hits.hits.relation\] in \[test-task\] to be == \[eq\] but was \[gte\]."):
             async with r:
-                await r(osearch, {
+                await r(opensearch, {
                     "name": "test-task",
                     "assertions": [
                         {
@@ -221,13 +221,13 @@ class AssertingRunnerTests(TestCase):
 
     @run_async
     async def test_skips_asserts_for_non_dicts(self):
-        osearch = None
+        opensearch = None
         response = (1, "ops")
         delegate = mock.MagicMock()
         delegate.return_value = as_future(response)
         r = runner.AssertingRunner(delegate)
         async with r:
-            final_response = await r(osearch, {
+            final_response = await r(opensearch, {
                 "name": "test-task",
                 "assertions": [
                     {
@@ -350,12 +350,12 @@ class SelectiveJsonParserTests(TestCase):
 class BulkIndexRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_bulk_index_missing_params(self, osearch):
+    async def test_bulk_index_missing_params(self, opensearch):
         bulk_response = {
             "errors": False,
             "took": 8
         }
-        osearch.bulk.return_value = as_future(io.StringIO(json.dumps(bulk_response)))
+        opensearch.bulk.return_value = as_future(io.StringIO(json.dumps(bulk_response)))
 
         bulk = runner.BulkIndex()
 
@@ -369,19 +369,19 @@ class BulkIndexRunnerTests(TestCase):
         }
 
         with self.assertRaises(exceptions.DataError) as ctx:
-            await bulk(osearch, bulk_params)
+            await bulk(opensearch, bulk_params)
         self.assertEqual(
             "Parameter source for operation 'bulk-index' did not provide the mandatory parameter 'action-metadata-present'. "
             "Add it to your parameter source and try again.", ctx.exception.args[0])
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_bulk_index_success_with_metadata(self, osearch):
+    async def test_bulk_index_success_with_metadata(self, opensearch):
         bulk_response = {
             "errors": False,
             "took": 8
         }
-        osearch.bulk.return_value = as_future(io.StringIO(json.dumps(bulk_response)))
+        opensearch.bulk.return_value = as_future(io.StringIO(json.dumps(bulk_response)))
 
         bulk = runner.BulkIndex()
 
@@ -397,7 +397,7 @@ class BulkIndexRunnerTests(TestCase):
             "unit": "docs"
         }
 
-        result = await bulk(osearch, bulk_params)
+        result = await bulk(opensearch, bulk_params)
 
         self.assertEqual(8, result["took"])
         self.assertIsNone(result["index"])
@@ -407,16 +407,16 @@ class BulkIndexRunnerTests(TestCase):
         self.assertEqual(0, result["error-count"])
         self.assertFalse("error-type" in result)
 
-        osearch.bulk.assert_called_with(body=bulk_params["body"], params={})
+        opensearch.bulk.assert_called_with(body=bulk_params["body"], params={})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_simple_bulk_with_timeout_and_headers(self, osearch):
+    async def test_simple_bulk_with_timeout_and_headers(self, opensearch):
         bulk_response = {
             "errors": False,
             "took": 8
         }
-        osearch.bulk.return_value = as_future(io.StringIO(json.dumps(bulk_response)))
+        opensearch.bulk.return_value = as_future(io.StringIO(json.dumps(bulk_response)))
 
         bulk = runner.BulkIndex()
 
@@ -434,7 +434,7 @@ class BulkIndexRunnerTests(TestCase):
             "unit": "docs"
         }
 
-        result = await bulk(osearch, bulk_params)
+        result = await bulk(opensearch, bulk_params)
 
         self.assertEqual(8, result["took"])
         self.assertEqual(3, result["weight"])
@@ -443,7 +443,7 @@ class BulkIndexRunnerTests(TestCase):
         self.assertEqual(0, result["error-count"])
         self.assertFalse("error-type" in result)
 
-        osearch.bulk.assert_called_with(doc_type="_doc",
+        opensearch.bulk.assert_called_with(doc_type="_doc",
                                    params={},
                                    body="index_line\nindex_line\nindex_line\n",
                                    headers={"x-test-id": "1234"},
@@ -453,12 +453,12 @@ class BulkIndexRunnerTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_bulk_index_success_without_metadata_with_doc_type(self, osearch):
+    async def test_bulk_index_success_without_metadata_with_doc_type(self, opensearch):
         bulk_response = {
             "errors": False,
             "took": 8
         }
-        osearch.bulk.return_value = as_future(io.StringIO(json.dumps(bulk_response)))
+        opensearch.bulk.return_value = as_future(io.StringIO(json.dumps(bulk_response)))
         bulk = runner.BulkIndex()
 
         bulk_params = {
@@ -472,7 +472,7 @@ class BulkIndexRunnerTests(TestCase):
             "type": "_doc"
         }
 
-        result = await bulk(osearch, bulk_params)
+        result = await bulk(opensearch, bulk_params)
 
         self.assertEqual(8, result["took"])
         self.assertEqual("test-index", result["index"])
@@ -482,16 +482,16 @@ class BulkIndexRunnerTests(TestCase):
         self.assertEqual(0, result["error-count"])
         self.assertFalse("error-type" in result)
 
-        osearch.bulk.assert_called_with(body=bulk_params["body"], index="test-index", doc_type="_doc", params={})
+        opensearch.bulk.assert_called_with(body=bulk_params["body"], index="test-index", doc_type="_doc", params={})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_bulk_index_success_without_metadata_and_without_doc_type(self, osearch):
+    async def test_bulk_index_success_without_metadata_and_without_doc_type(self, opensearch):
         bulk_response = {
             "errors": False,
             "took": 8
         }
-        osearch.bulk.return_value = as_future(io.StringIO(json.dumps(bulk_response)))
+        opensearch.bulk.return_value = as_future(io.StringIO(json.dumps(bulk_response)))
         bulk = runner.BulkIndex()
 
         bulk_params = {
@@ -504,7 +504,7 @@ class BulkIndexRunnerTests(TestCase):
             "index": "test-index"
         }
 
-        result = await bulk(osearch, bulk_params)
+        result = await bulk(opensearch, bulk_params)
 
         self.assertEqual(8, result["took"])
         self.assertEqual("test-index", result["index"])
@@ -514,11 +514,11 @@ class BulkIndexRunnerTests(TestCase):
         self.assertEqual(0, result["error-count"])
         self.assertFalse("error-type" in result)
 
-        osearch.bulk.assert_called_with(body=bulk_params["body"], index="test-index", doc_type=None, params={})
+        opensearch.bulk.assert_called_with(body=bulk_params["body"], index="test-index", doc_type=None, params={})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_bulk_index_error(self, osearch):
+    async def test_bulk_index_error(self, opensearch):
         bulk_response = {
             "took": 5,
             "errors": True,
@@ -556,7 +556,7 @@ class BulkIndexRunnerTests(TestCase):
             ]
         }
 
-        osearch.bulk.return_value = as_future(io.StringIO(json.dumps(bulk_response)))
+        opensearch.bulk.return_value = as_future(io.StringIO(json.dumps(bulk_response)))
 
         bulk = runner.BulkIndex()
 
@@ -573,7 +573,7 @@ class BulkIndexRunnerTests(TestCase):
             "index": "test"
         }
 
-        result = await bulk(osearch, bulk_params)
+        result = await bulk(opensearch, bulk_params)
 
         self.assertEqual("test", result["index"])
         self.assertEqual(5, result["took"])
@@ -583,11 +583,11 @@ class BulkIndexRunnerTests(TestCase):
         self.assertEqual(2, result["error-count"])
         self.assertEqual("bulk", result["error-type"])
 
-        osearch.bulk.assert_called_with(body=bulk_params["body"], params={})
+        opensearch.bulk.assert_called_with(body=bulk_params["body"], params={})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_bulk_index_error_no_shards(self, osearch):
+    async def test_bulk_index_error_no_shards(self, opensearch):
         bulk_response = {
             "took": 20,
             "errors": True,
@@ -622,7 +622,7 @@ class BulkIndexRunnerTests(TestCase):
             ]
         }
 
-        osearch.bulk.return_value = as_future(io.StringIO(json.dumps(bulk_response)))
+        opensearch.bulk.return_value = as_future(io.StringIO(json.dumps(bulk_response)))
 
         bulk = runner.BulkIndex()
 
@@ -640,7 +640,7 @@ class BulkIndexRunnerTests(TestCase):
             "index": "test"
         }
 
-        result = await bulk(osearch, bulk_params)
+        result = await bulk(opensearch, bulk_params)
 
         self.assertEqual("test", result["index"])
         self.assertEqual(20, result["took"])
@@ -650,11 +650,11 @@ class BulkIndexRunnerTests(TestCase):
         self.assertEqual(3, result["error-count"])
         self.assertEqual("bulk", result["error-type"])
 
-        osearch.bulk.assert_called_with(body=bulk_params["body"], params={})
+        opensearch.bulk.assert_called_with(body=bulk_params["body"], params={})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_mixed_bulk_with_simple_stats(self, osearch):
+    async def test_mixed_bulk_with_simple_stats(self, opensearch):
         bulk_response = {
             "took": 30,
             "ingest_took": 20,
@@ -728,7 +728,7 @@ class BulkIndexRunnerTests(TestCase):
                 }
             ]
         }
-        osearch.bulk.return_value = as_future(io.StringIO(json.dumps(bulk_response)))
+        opensearch.bulk.return_value = as_future(io.StringIO(json.dumps(bulk_response)))
         bulk = runner.BulkIndex()
 
         bulk_params = {
@@ -747,7 +747,7 @@ class BulkIndexRunnerTests(TestCase):
             "index": "test"
         }
 
-        result = await bulk(osearch, bulk_params)
+        result = await bulk(opensearch, bulk_params)
 
         self.assertEqual("test", result["index"])
         self.assertEqual(30, result["took"])
@@ -758,12 +758,12 @@ class BulkIndexRunnerTests(TestCase):
         self.assertEqual(2, result["error-count"])
         self.assertEqual("bulk", result["error-type"])
 
-        osearch.bulk.assert_called_with(body=bulk_params["body"], params={})
+        opensearch.bulk.assert_called_with(body=bulk_params["body"], params={})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_mixed_bulk_with_detailed_stats_body_as_string(self, osearch):
-        osearch.bulk.return_value = as_future({
+    async def test_mixed_bulk_with_detailed_stats_body_as_string(self, opensearch):
+        opensearch.bulk.return_value = as_future({
             "took": 30,
             "ingest_took": 20,
             "errors": True,
@@ -892,7 +892,7 @@ class BulkIndexRunnerTests(TestCase):
             "index": "test"
         }
 
-        result = await bulk(osearch, bulk_params)
+        result = await bulk(opensearch, bulk_params)
 
         self.assertEqual("test", result["index"])
         self.assertEqual(30, result["took"])
@@ -946,16 +946,16 @@ class BulkIndexRunnerTests(TestCase):
         self.assertEqual(582, result["bulk-request-size-bytes"])
         self.assertEqual(234, result["total-document-size-bytes"])
 
-        osearch.bulk.assert_called_with(body=bulk_params["body"], params={})
+        opensearch.bulk.assert_called_with(body=bulk_params["body"], params={})
 
-        osearch.bulk.return_value.result().pop("ingest_took")
-        result = await bulk(osearch, bulk_params)
+        opensearch.bulk.return_value.result().pop("ingest_took")
+        result = await bulk(opensearch, bulk_params)
         self.assertNotIn("ingest_took", result)
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_simple_bulk_with_detailed_stats_body_as_list(self, osearch):
-        osearch.bulk.return_value = as_future({
+    async def test_simple_bulk_with_detailed_stats_body_as_list(self, opensearch):
+        opensearch.bulk.return_value = as_future({
             "took": 30,
             "ingest_took": 20,
             "errors": False,
@@ -991,7 +991,7 @@ class BulkIndexRunnerTests(TestCase):
             "index": "test"
         }
 
-        result = await bulk(osearch, bulk_params)
+        result = await bulk(opensearch, bulk_params)
 
         self.assertEqual("test", result["index"])
         self.assertEqual(30, result["took"])
@@ -1021,16 +1021,16 @@ class BulkIndexRunnerTests(TestCase):
         self.assertEqual(93, result["bulk-request-size-bytes"])
         self.assertEqual(39, result["total-document-size-bytes"])
 
-        osearch.bulk.assert_called_with(body=bulk_params["body"], params={})
+        opensearch.bulk.assert_called_with(body=bulk_params["body"], params={})
 
-        osearch.bulk.return_value.result().pop("ingest_took")
-        result = await bulk(osearch, bulk_params)
+        opensearch.bulk.return_value.result().pop("ingest_took")
+        result = await bulk(opensearch, bulk_params)
         self.assertNotIn("ingest_took", result)
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_simple_bulk_with_detailed_stats_body_as_unrecognized_type(self, osearch):
-        osearch.bulk.return_value = as_future({
+    async def test_simple_bulk_with_detailed_stats_body_as_unrecognized_type(self, opensearch):
+        opensearch.bulk.return_value = as_future({
             "took": 30,
             "ingest_took": 20,
             "errors": False,
@@ -1069,70 +1069,70 @@ class BulkIndexRunnerTests(TestCase):
         }
 
         with self.assertRaisesRegex(exceptions.DataError, "bulk body is neither string nor list"):
-            await bulk(osearch, bulk_params)
+            await bulk(opensearch, bulk_params)
 
-        osearch.bulk.assert_called_with(body=bulk_params["body"], params={})
+        opensearch.bulk.assert_called_with(body=bulk_params["body"], params={})
 
 
 class ForceMergeRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_force_merge_with_defaults(self, osearch):
-        osearch.indices.forcemerge.return_value = as_future()
+    async def test_force_merge_with_defaults(self, opensearch):
+        opensearch.indices.forcemerge.return_value = as_future()
         force_merge = runner.ForceMerge()
-        await force_merge(osearch, params={"index": "_all"})
+        await force_merge(opensearch, params={"index": "_all"})
 
-        osearch.indices.forcemerge.assert_called_once_with(index="_all")
+        opensearch.indices.forcemerge.assert_called_once_with(index="_all")
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_force_merge_with_timeout_and_headers(self, osearch):
-        osearch.indices.forcemerge.return_value = as_future()
+    async def test_force_merge_with_timeout_and_headers(self, opensearch):
+        opensearch.indices.forcemerge.return_value = as_future()
         force_merge = runner.ForceMerge()
-        await force_merge(osearch, params={"index": "_all",
+        await force_merge(opensearch, params={"index": "_all",
                                       "opaque-id": "test-id",
                                       "request-timeout": 3.0,
                                       "headers": {"header1": "value1"}})
 
-        osearch.indices.forcemerge.assert_called_once_with(headers={"header1": "value1"},
+        opensearch.indices.forcemerge.assert_called_once_with(headers={"header1": "value1"},
                                                       index="_all",
                                                       opaque_id="test-id",
                                                       request_timeout=3.0)
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_force_merge_override_request_timeout(self, osearch):
-        osearch.indices.forcemerge.return_value = as_future()
+    async def test_force_merge_override_request_timeout(self, opensearch):
+        opensearch.indices.forcemerge.return_value = as_future()
 
         force_merge = runner.ForceMerge()
-        await force_merge(osearch, params={"index": "_all", "request-timeout": 50000})
+        await force_merge(opensearch, params={"index": "_all", "request-timeout": 50000})
 
-        osearch.indices.forcemerge.assert_called_once_with(index="_all", request_timeout=50000)
+        opensearch.indices.forcemerge.assert_called_once_with(index="_all", request_timeout=50000)
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_force_merge_with_params(self, osearch):
-        osearch.indices.forcemerge.return_value = as_future()
+    async def test_force_merge_with_params(self, opensearch):
+        opensearch.indices.forcemerge.return_value = as_future()
 
         force_merge = runner.ForceMerge()
-        await force_merge(osearch, params={"index": "_all", "max-num-segments": 1, "request-timeout": 50000})
+        await force_merge(opensearch, params={"index": "_all", "max-num-segments": 1, "request-timeout": 50000})
 
-        osearch.indices.forcemerge.assert_called_once_with(index="_all", max_num_segments=1, request_timeout=50000)
+        opensearch.indices.forcemerge.assert_called_once_with(index="_all", max_num_segments=1, request_timeout=50000)
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_force_merge_with_polling_no_timeout(self, osearch):
-        osearch.indices.forcemerge.return_value = as_future()
+    async def test_force_merge_with_polling_no_timeout(self, opensearch):
+        opensearch.indices.forcemerge.return_value = as_future()
 
         force_merge = runner.ForceMerge()
-        await force_merge(osearch, params={"index" : "_all", "mode": "polling", 'poll-period': 0})
-        osearch.indices.forcemerge.assert_called_once_with(index="_all")
+        await force_merge(opensearch, params={"index" : "_all", "mode": "polling", 'poll-period': 0})
+        opensearch.indices.forcemerge.assert_called_once_with(index="_all")
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_force_merge_with_polling(self, osearch):
-        osearch.indices.forcemerge.return_value = as_future(exception=elasticsearch.ConnectionTimeout())
-        osearch.tasks.list.side_effect = [
+    async def test_force_merge_with_polling(self, opensearch):
+        opensearch.indices.forcemerge.return_value = as_future(exception=elasticsearch.ConnectionTimeout())
+        opensearch.tasks.list.side_effect = [
             as_future({
                 "nodes": {
                     "Ap3OfntPT7qL4CBeKvamxg": {
@@ -1175,14 +1175,14 @@ class ForceMergeRunnerTests(TestCase):
             })
         ]
         force_merge = runner.ForceMerge()
-        await force_merge(osearch, params={"index": "_all", "mode": "polling", "poll-period": 0})
-        osearch.indices.forcemerge.assert_called_once_with(index="_all")
+        await force_merge(opensearch, params={"index": "_all", "mode": "polling", "poll-period": 0})
+        opensearch.indices.forcemerge.assert_called_once_with(index="_all")
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_force_merge_with_polling_and_params(self, osearch):
-        osearch.indices.forcemerge.return_value = as_future(exception=elasticsearch.ConnectionTimeout())
-        osearch.tasks.list.side_effect = [
+    async def test_force_merge_with_polling_and_params(self, opensearch):
+        opensearch.indices.forcemerge.return_value = as_future(exception=elasticsearch.ConnectionTimeout())
+        opensearch.tasks.list.side_effect = [
             as_future({
                 "nodes": {
                     "Ap3OfntPT7qL4CBeKvamxg": {
@@ -1226,37 +1226,37 @@ class ForceMergeRunnerTests(TestCase):
         ]
         force_merge = runner.ForceMerge()
         # request-timeout should be ignored as mode:polling
-        await force_merge(osearch, params={"index" : "_all", "mode": "polling", "max-num-segments": 1,
+        await force_merge(opensearch, params={"index" : "_all", "mode": "polling", "max-num-segments": 1,
                                       "request-timeout": 50000, "poll-period": 0})
-        osearch.indices.forcemerge.assert_called_once_with(index="_all", max_num_segments=1, request_timeout=50000)
+        opensearch.indices.forcemerge.assert_called_once_with(index="_all", max_num_segments=1, request_timeout=50000)
 
 
 class IndicesStatsRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_indices_stats_without_parameters(self, osearch):
-        osearch.indices.stats.return_value = as_future({})
+    async def test_indices_stats_without_parameters(self, opensearch):
+        opensearch.indices.stats.return_value = as_future({})
         indices_stats = runner.IndicesStats()
-        result = await indices_stats(osearch, params={})
+        result = await indices_stats(opensearch, params={})
         self.assertEqual(1, result["weight"])
         self.assertEqual("ops", result["unit"])
         self.assertTrue(result["success"])
 
-        osearch.indices.stats.assert_called_once_with(index="_all", metric="_all")
+        opensearch.indices.stats.assert_called_once_with(index="_all", metric="_all")
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_indices_stats_with_timeout_and_headers(self, osearch):
-        osearch.indices.stats.return_value = as_future({})
+    async def test_indices_stats_with_timeout_and_headers(self, opensearch):
+        opensearch.indices.stats.return_value = as_future({})
         indices_stats = runner.IndicesStats()
-        result = await indices_stats(osearch, params={"request-timeout": 3.0,
+        result = await indices_stats(opensearch, params={"request-timeout": 3.0,
                                                  "headers": {"header1": "value1"},
                                                  "opaque-id": "test-id1"})
         self.assertEqual(1, result["weight"])
         self.assertEqual("ops", result["unit"])
         self.assertTrue(result["success"])
 
-        osearch.indices.stats.assert_called_once_with(index="_all",
+        opensearch.indices.stats.assert_called_once_with(index="_all",
                                                  metric="_all",
                                                  headers={"header1": "value1"},
                                                  opaque_id="test-id1",
@@ -1264,8 +1264,8 @@ class IndicesStatsRunnerTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_indices_stats_with_failed_condition(self, osearch):
-        osearch.indices.stats.return_value = as_future({
+    async def test_indices_stats_with_failed_condition(self, opensearch):
+        opensearch.indices.stats.return_value = as_future({
             "_all": {
                 "total": {
                     "merges": {
@@ -1278,7 +1278,7 @@ class IndicesStatsRunnerTests(TestCase):
 
         indices_stats = runner.IndicesStats()
 
-        result = await indices_stats(osearch, params={
+        result = await indices_stats(opensearch, params={
             "index": "logs-*",
             "condition": {
                 "path": "_all.total.merges.current",
@@ -1294,12 +1294,12 @@ class IndicesStatsRunnerTests(TestCase):
             "expected-value": "0"
         }, result["condition"])
 
-        osearch.indices.stats.assert_called_once_with(index="logs-*", metric="_all")
+        opensearch.indices.stats.assert_called_once_with(index="logs-*", metric="_all")
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_indices_stats_with_successful_condition(self, osearch):
-        osearch.indices.stats.return_value = as_future({
+    async def test_indices_stats_with_successful_condition(self, opensearch):
+        opensearch.indices.stats.return_value = as_future({
             "_all": {
                 "total": {
                     "merges": {
@@ -1312,7 +1312,7 @@ class IndicesStatsRunnerTests(TestCase):
 
         indices_stats = runner.IndicesStats()
 
-        result = await indices_stats(osearch, params={
+        result = await indices_stats(opensearch, params={
             "index": "logs-*",
             "condition": {
                 "path": "_all.total.merges.current",
@@ -1328,12 +1328,12 @@ class IndicesStatsRunnerTests(TestCase):
             "expected-value": "0"
         }, result["condition"])
 
-        osearch.indices.stats.assert_called_once_with(index="logs-*", metric="_all")
+        opensearch.indices.stats.assert_called_once_with(index="logs-*", metric="_all")
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_indices_stats_with_non_existing_path(self, osearch):
-        osearch.indices.stats.return_value = as_future({
+    async def test_indices_stats_with_non_existing_path(self, opensearch):
+        opensearch.indices.stats.return_value = as_future({
             "indices": {
                 "total": {
                     "docs": {
@@ -1345,7 +1345,7 @@ class IndicesStatsRunnerTests(TestCase):
 
         indices_stats = runner.IndicesStats()
 
-        result = await indices_stats(osearch, params={
+        result = await indices_stats(opensearch, params={
             "index": "logs-*",
             "condition": {
                 # non-existing path
@@ -1362,13 +1362,13 @@ class IndicesStatsRunnerTests(TestCase):
             "expected-value": "0"
         }, result["condition"])
 
-        osearch.indices.stats.assert_called_once_with(index="logs-*", metric="_all")
+        opensearch.indices.stats.assert_called_once_with(index="logs-*", metric="_all")
 
 
 class QueryRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_query_match_only_request_body_defined(self, osearch):
+    async def test_query_match_only_request_body_defined(self, opensearch):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -1387,7 +1387,7 @@ class QueryRunnerTests(TestCase):
                 ]
             }
         }
-        osearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
 
         query_runner = runner.Query()
 
@@ -1403,7 +1403,7 @@ class QueryRunnerTests(TestCase):
         }
 
         async with query_runner:
-            result = await query_runner(osearch, params)
+            result = await query_runner(opensearch, params)
 
         self.assertEqual(1, result["weight"])
         self.assertEqual("ops", result["unit"])
@@ -1413,18 +1413,18 @@ class QueryRunnerTests(TestCase):
         self.assertEqual(5, result["took"])
         self.assertFalse("error-type" in result)
 
-        osearch.transport.perform_request.assert_called_once_with(
+        opensearch.transport.perform_request.assert_called_once_with(
             "GET",
             "/_all/_search",
             params={"request_cache": "true"},
             body=params["body"],
             headers=None
         )
-        osearch.clear_scroll.assert_not_called()
+        opensearch.clear_scroll.assert_not_called()
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_query_with_timeout_and_headers(self, osearch):
+    async def test_query_with_timeout_and_headers(self, opensearch):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -1443,7 +1443,7 @@ class QueryRunnerTests(TestCase):
                 ]
             }
         }
-        osearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
 
         query_runner = runner.Query()
 
@@ -1462,7 +1462,7 @@ class QueryRunnerTests(TestCase):
         }
 
         async with query_runner:
-            result = await query_runner(osearch, params)
+            result = await query_runner(opensearch, params)
 
         self.assertEqual(1, result["weight"])
         self.assertEqual("ops", result["unit"])
@@ -1472,18 +1472,18 @@ class QueryRunnerTests(TestCase):
         self.assertEqual(5, result["took"])
         self.assertFalse("error-type" in result)
 
-        osearch.transport.perform_request.assert_called_once_with(
+        opensearch.transport.perform_request.assert_called_once_with(
             "GET",
             "/_all/_search",
             params={"request_timeout": 3.0, "request_cache": "true"},
             body=params["body"],
             headers={"header1": "value1", "x-opaque-id": "test-id1"}
         )
-        osearch.clear_scroll.assert_not_called()
+        opensearch.clear_scroll.assert_not_called()
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_query_match_using_request_params(self, osearch):
+    async def test_query_match_using_request_params(self, opensearch):
         response = {
             "timed_out": False,
             "took": 62,
@@ -1503,7 +1503,7 @@ class QueryRunnerTests(TestCase):
                 ]
             }
         }
-        osearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(response)))
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(response)))
 
         query_runner = runner.Query()
         params = {
@@ -1517,7 +1517,7 @@ class QueryRunnerTests(TestCase):
         }
 
         async with query_runner:
-            result = await query_runner(osearch, params)
+            result = await query_runner(opensearch, params)
 
         self.assertEqual(1, result["weight"])
         self.assertEqual("ops", result["unit"])
@@ -1527,7 +1527,7 @@ class QueryRunnerTests(TestCase):
         self.assertEqual(62, result["took"])
         self.assertFalse("error-type" in result)
 
-        osearch.transport.perform_request.assert_called_once_with(
+        opensearch.transport.perform_request.assert_called_once_with(
             "GET",
             "/_all/_search",
             params={
@@ -1537,11 +1537,11 @@ class QueryRunnerTests(TestCase):
             body=params["body"],
             headers=None
         )
-        osearch.clear_scroll.assert_not_called()
+        opensearch.clear_scroll.assert_not_called()
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_query_no_detailed_results(self, osearch):
+    async def test_query_no_detailed_results(self, opensearch):
         response = {
             "timed_out": False,
             "took": 62,
@@ -1561,7 +1561,7 @@ class QueryRunnerTests(TestCase):
                 ]
             }
         }
-        osearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(response)))
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(response)))
 
         query_runner = runner.Query()
         params = {
@@ -1574,7 +1574,7 @@ class QueryRunnerTests(TestCase):
         }
 
         async with query_runner:
-            result = await query_runner(osearch, params)
+            result = await query_runner(opensearch, params)
 
         self.assertEqual(1, result["weight"])
         self.assertEqual("ops", result["unit"])
@@ -1584,18 +1584,18 @@ class QueryRunnerTests(TestCase):
         self.assertNotIn("took", result)
         self.assertNotIn("error-type", result)
 
-        osearch.transport.perform_request.assert_called_once_with(
+        opensearch.transport.perform_request.assert_called_once_with(
             "GET",
             "/_all/_search",
             params={"q": "user:kimchy"},
             body=params["body"],
             headers=None
         )
-        osearch.clear_scroll.assert_not_called()
+        opensearch.clear_scroll.assert_not_called()
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_query_hits_total_as_number(self, osearch):
+    async def test_query_hits_total_as_number(self, opensearch):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -1611,7 +1611,7 @@ class QueryRunnerTests(TestCase):
                 ]
             }
         }
-        osearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
 
         query_runner = runner.Query()
 
@@ -1627,7 +1627,7 @@ class QueryRunnerTests(TestCase):
         }
 
         async with query_runner:
-            result = await query_runner(osearch, params)
+            result = await query_runner(opensearch, params)
 
         self.assertEqual(1, result["weight"])
         self.assertEqual("ops", result["unit"])
@@ -1637,7 +1637,7 @@ class QueryRunnerTests(TestCase):
         self.assertEqual(5, result["took"])
         self.assertFalse("error-type" in result)
 
-        osearch.transport.perform_request.assert_called_once_with(
+        opensearch.transport.perform_request.assert_called_once_with(
             "GET",
             "/_all/_search",
             params={
@@ -1646,11 +1646,11 @@ class QueryRunnerTests(TestCase):
             body=params["body"],
             headers=None
         )
-        osearch.clear_scroll.assert_not_called()
+        opensearch.clear_scroll.assert_not_called()
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_query_match_all(self, osearch):
+    async def test_query_match_all(self, opensearch):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -1669,7 +1669,7 @@ class QueryRunnerTests(TestCase):
                 ]
             }
         }
-        osearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
 
         query_runner = runner.Query()
 
@@ -1685,7 +1685,7 @@ class QueryRunnerTests(TestCase):
         }
 
         async with query_runner:
-            result = await query_runner(osearch, params)
+            result = await query_runner(opensearch, params)
 
         self.assertEqual(1, result["weight"])
         self.assertEqual("ops", result["unit"])
@@ -1695,18 +1695,18 @@ class QueryRunnerTests(TestCase):
         self.assertEqual(5, result["took"])
         self.assertFalse("error-type" in result)
 
-        osearch.transport.perform_request.assert_called_once_with(
+        opensearch.transport.perform_request.assert_called_once_with(
             "GET",
             "/unittest/_search",
             params={},
             body=params["body"],
             headers={"Accept-Encoding": "identity"}
         )
-        osearch.clear_scroll.assert_not_called()
+        opensearch.clear_scroll.assert_not_called()
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_query_match_all_doc_type_fallback(self, osearch):
+    async def test_query_match_all_doc_type_fallback(self, opensearch):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -1726,7 +1726,7 @@ class QueryRunnerTests(TestCase):
             }
         }
 
-        osearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
 
         query_runner = runner.Query()
 
@@ -1743,7 +1743,7 @@ class QueryRunnerTests(TestCase):
         }
 
         async with query_runner:
-            result = await query_runner(osearch, params)
+            result = await query_runner(opensearch, params)
 
         self.assertEqual(1, result["weight"])
         self.assertEqual("ops", result["unit"])
@@ -1753,17 +1753,17 @@ class QueryRunnerTests(TestCase):
         self.assertEqual(5, result["took"])
         self.assertFalse("error-type" in result)
 
-        osearch.transport.perform_request.assert_called_once_with(
+        opensearch.transport.perform_request.assert_called_once_with(
             "GET", "/unittest/type/_search",
             body=params["body"],
             params={},
             headers=None
         )
-        osearch.clear_scroll.assert_not_called()
+        opensearch.clear_scroll.assert_not_called()
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_scroll_query_only_one_page(self, osearch):
+    async def test_scroll_query_only_one_page(self, opensearch):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -1785,8 +1785,8 @@ class QueryRunnerTests(TestCase):
             }
         }
 
-        osearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
-        osearch.clear_scroll.return_value = as_future(io.StringIO('{"acknowledged": true}'))
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+        opensearch.clear_scroll.return_value = as_future(io.StringIO('{"acknowledged": true}'))
 
         query_runner = runner.Query()
 
@@ -1803,7 +1803,7 @@ class QueryRunnerTests(TestCase):
         }
 
         async with query_runner:
-            results = await query_runner(osearch, params)
+            results = await query_runner(opensearch, params)
 
         self.assertEqual(1, results["weight"])
         self.assertEqual(1, results["pages"])
@@ -1814,18 +1814,18 @@ class QueryRunnerTests(TestCase):
         self.assertFalse(results["timed_out"])
         self.assertFalse("error-type" in results)
 
-        osearch.transport.perform_request.assert_called_once_with(
+        opensearch.transport.perform_request.assert_called_once_with(
             "GET",
             "/unittest/_search",
             params={"request_cache": "true", "sort": "_doc", "scroll": "10s", "size": 100},
             body=params["body"],
             headers=None
         )
-        osearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
+        opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_scroll_query_no_request_cache(self, osearch):
+    async def test_scroll_query_no_request_cache(self, opensearch):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -1847,8 +1847,8 @@ class QueryRunnerTests(TestCase):
             }
         }
 
-        osearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
-        osearch.clear_scroll.return_value = as_future(io.StringIO('{"acknowledged": true}'))
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+        opensearch.clear_scroll.return_value = as_future(io.StringIO('{"acknowledged": true}'))
 
         query_runner = runner.Query()
 
@@ -1865,7 +1865,7 @@ class QueryRunnerTests(TestCase):
         }
 
         async with query_runner:
-            results = await query_runner(osearch, params)
+            results = await query_runner(opensearch, params)
 
         self.assertEqual(1, results["weight"])
         self.assertEqual(1, results["pages"])
@@ -1876,18 +1876,18 @@ class QueryRunnerTests(TestCase):
         self.assertFalse(results["timed_out"])
         self.assertFalse("error-type" in results)
 
-        osearch.transport.perform_request.assert_called_once_with(
+        opensearch.transport.perform_request.assert_called_once_with(
             "GET",
             "/unittest/_search",
             params={"sort": "_doc", "scroll": "10s", "size": 100},
             body=params["body"],
             headers={"Accept-Encoding": "identity"}
         )
-        osearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
+        opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_scroll_query_only_one_page_only_request_body_defined(self, osearch):
+    async def test_scroll_query_only_one_page_only_request_body_defined(self, opensearch):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -1909,8 +1909,8 @@ class QueryRunnerTests(TestCase):
             }
         }
 
-        osearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
-        osearch.clear_scroll.return_value = as_future(io.StringIO('{"acknowledged": true}'))
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+        opensearch.clear_scroll.return_value = as_future(io.StringIO('{"acknowledged": true}'))
 
         query_runner = runner.Query()
 
@@ -1926,7 +1926,7 @@ class QueryRunnerTests(TestCase):
         }
 
         async with query_runner:
-            results = await query_runner(osearch, params)
+            results = await query_runner(opensearch, params)
 
         self.assertEqual(1, results["weight"])
         self.assertEqual(1, results["pages"])
@@ -1937,7 +1937,7 @@ class QueryRunnerTests(TestCase):
         self.assertFalse(results["timed_out"])
         self.assertFalse("error-type" in results)
 
-        osearch.transport.perform_request.assert_called_once_with(
+        opensearch.transport.perform_request.assert_called_once_with(
             "GET",
             "/_all/_search",
             params={"sort": "_doc", "scroll": "10s", "size": 100},
@@ -1945,11 +1945,11 @@ class QueryRunnerTests(TestCase):
             headers=None
         )
 
-        osearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
+        opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_scroll_query_with_explicit_number_of_pages(self, osearch):
+    async def test_scroll_query_with_explicit_number_of_pages(self, opensearch):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -1986,12 +1986,12 @@ class QueryRunnerTests(TestCase):
             }
         }
 
-        osearch.transport.perform_request.side_effect = [
+        opensearch.transport.perform_request.side_effect = [
             as_future(io.StringIO(json.dumps(search_response))),
             as_future(io.StringIO(json.dumps(scroll_response)))
         ]
 
-        osearch.clear_scroll.return_value = as_future(io.StringIO('{"acknowledged": true}'))
+        opensearch.clear_scroll.return_value = as_future(io.StringIO('{"acknowledged": true}'))
 
         query_runner = runner.Query()
 
@@ -2008,7 +2008,7 @@ class QueryRunnerTests(TestCase):
         }
 
         async with query_runner:
-            results = await query_runner(osearch, params)
+            results = await query_runner(opensearch, params)
 
         self.assertEqual(2, results["weight"])
         self.assertEqual(2, results["pages"])
@@ -2019,11 +2019,11 @@ class QueryRunnerTests(TestCase):
         self.assertTrue(results["timed_out"])
         self.assertFalse("error-type" in results)
 
-        osearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
+        opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_scroll_query_cannot_clear_scroll(self, osearch):
+    async def test_scroll_query_cannot_clear_scroll(self, opensearch):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -2042,8 +2042,8 @@ class QueryRunnerTests(TestCase):
             }
         }
 
-        osearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
-        osearch.clear_scroll.return_value = as_future(exception=elasticsearch.ConnectionTimeout())
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+        opensearch.clear_scroll.return_value = as_future(exception=elasticsearch.ConnectionTimeout())
 
         query_runner = runner.Query()
 
@@ -2060,7 +2060,7 @@ class QueryRunnerTests(TestCase):
         }
 
         async with query_runner:
-            results = await query_runner(osearch, params)
+            results = await query_runner(opensearch, params)
 
         self.assertEqual(1, results["weight"])
         self.assertEqual(1, results["pages"])
@@ -2070,11 +2070,11 @@ class QueryRunnerTests(TestCase):
         self.assertEqual(53, results["took"])
         self.assertFalse("error-type" in results)
 
-        osearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
+        opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_scroll_query_request_all_pages(self, osearch):
+    async def test_scroll_query_request_all_pages(self, opensearch):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -2112,11 +2112,11 @@ class QueryRunnerTests(TestCase):
             }
         }
 
-        osearch.transport.perform_request.side_effect = [
+        opensearch.transport.perform_request.side_effect = [
             as_future(io.StringIO(json.dumps(search_response))),
             as_future(io.StringIO(json.dumps(scroll_response)))
         ]
-        osearch.clear_scroll.return_value = as_future(io.StringIO('{"acknowledged": true}'))
+        opensearch.clear_scroll.return_value = as_future(io.StringIO('{"acknowledged": true}'))
 
         query_runner = runner.Query()
 
@@ -2133,7 +2133,7 @@ class QueryRunnerTests(TestCase):
         }
 
         async with query_runner:
-            results = await query_runner(osearch, params)
+            results = await query_runner(opensearch, params)
 
         self.assertEqual(2, results["weight"])
         self.assertEqual(2, results["pages"])
@@ -2144,14 +2144,14 @@ class QueryRunnerTests(TestCase):
         self.assertFalse(results["timed_out"])
         self.assertFalse("error-type" in results)
 
-        osearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
+        opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
 
 class PutPipelineRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_create_pipeline(self, osearch):
-        osearch.ingest.put_pipeline.return_value = as_future()
+    async def test_create_pipeline(self, opensearch):
+        opensearch.ingest.put_pipeline.return_value = as_future()
 
         r = runner.PutPipeline()
 
@@ -2170,14 +2170,14 @@ class PutPipelineRunnerTests(TestCase):
             }
         }
 
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.ingest.put_pipeline.assert_called_once_with(id="rename", body=params["body"], master_timeout=None, timeout=None)
+        opensearch.ingest.put_pipeline.assert_called_once_with(id="rename", body=params["body"], master_timeout=None, timeout=None)
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_param_body_mandatory(self, osearch):
-        osearch.ingest.put_pipeline.return_value = as_future()
+    async def test_param_body_mandatory(self, opensearch):
+        opensearch.ingest.put_pipeline.return_value = as_future()
 
         r = runner.PutPipeline()
 
@@ -2187,14 +2187,14 @@ class PutPipelineRunnerTests(TestCase):
         with self.assertRaisesRegex(exceptions.DataError,
                                     "Parameter source for operation 'put-pipeline' did not provide the mandatory parameter 'body'. "
                                     "Add it to your parameter source and try again."):
-            await r(osearch, params)
+            await r(opensearch, params)
 
-        self.assertEqual(0, osearch.ingest.put_pipeline.call_count)
+        self.assertEqual(0, opensearch.ingest.put_pipeline.call_count)
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_param_id_mandatory(self, osearch):
-        osearch.ingest.put_pipeline.return_value = as_future()
+    async def test_param_id_mandatory(self, opensearch):
+        opensearch.ingest.put_pipeline.return_value = as_future()
 
         r = runner.PutPipeline()
 
@@ -2204,16 +2204,16 @@ class PutPipelineRunnerTests(TestCase):
         with self.assertRaisesRegex(exceptions.DataError,
                                     "Parameter source for operation 'put-pipeline' did not provide the mandatory parameter 'id'. "
                                     "Add it to your parameter source and try again."):
-            await r(osearch, params)
+            await r(opensearch, params)
 
-        self.assertEqual(0, osearch.ingest.put_pipeline.call_count)
+        self.assertEqual(0, opensearch.ingest.put_pipeline.call_count)
 
 
 class ClusterHealthRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_waits_for_expected_cluster_status(self, osearch):
-        osearch.cluster.health.return_value = as_future({
+    async def test_waits_for_expected_cluster_status(self, opensearch):
+        opensearch.cluster.health.return_value = as_future({
             "status": "green",
             "relocating_shards": 0
         })
@@ -2225,7 +2225,7 @@ class ClusterHealthRunnerTests(TestCase):
             }
         }
 
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         self.assertDictEqual({
             "weight": 1,
@@ -2235,12 +2235,12 @@ class ClusterHealthRunnerTests(TestCase):
             "relocating-shards": 0
         }, result)
 
-        osearch.cluster.health.assert_called_once_with(params={"wait_for_status": "green"})
+        opensearch.cluster.health.assert_called_once_with(params={"wait_for_status": "green"})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_accepts_better_cluster_status(self, osearch):
-        osearch.cluster.health.return_value = as_future({
+    async def test_accepts_better_cluster_status(self, opensearch):
+        opensearch.cluster.health.return_value = as_future({
             "status": "green",
             "relocating_shards": 0
         })
@@ -2252,7 +2252,7 @@ class ClusterHealthRunnerTests(TestCase):
             }
         }
 
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         self.assertDictEqual({
             "weight": 1,
@@ -2262,12 +2262,12 @@ class ClusterHealthRunnerTests(TestCase):
             "relocating-shards": 0
         }, result)
 
-        osearch.cluster.health.assert_called_once_with(params={"wait_for_status": "yellow"})
+        opensearch.cluster.health.assert_called_once_with(params={"wait_for_status": "yellow"})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_cluster_health_with_timeout_and_headers(self, osearch):
-        osearch.cluster.health.return_value = as_future({
+    async def test_cluster_health_with_timeout_and_headers(self, opensearch):
+        opensearch.cluster.health.return_value = as_future({
             "status": "green",
             "relocating_shards": 0
         })
@@ -2282,7 +2282,7 @@ class ClusterHealthRunnerTests(TestCase):
             "opaque-id": "testid-1"
         }
 
-        result = await cluster_health_runner(osearch, params)
+        result = await cluster_health_runner(opensearch, params)
 
         self.assertDictEqual({
             "weight": 1,
@@ -2292,15 +2292,15 @@ class ClusterHealthRunnerTests(TestCase):
             "relocating-shards": 0
         }, result)
 
-        osearch.cluster.health.assert_called_once_with(headers={"header1": "value1"},
+        opensearch.cluster.health.assert_called_once_with(headers={"header1": "value1"},
                                                   opaque_id="testid-1",
                                                   params={"wait_for_status": "yellow"},
                                                   request_timeout=3.0)
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_rejects_relocating_shards(self, osearch):
-        osearch.cluster.health.return_value = as_future({
+    async def test_rejects_relocating_shards(self, opensearch):
+        opensearch.cluster.health.return_value = as_future({
             "status": "yellow",
             "relocating_shards": 3
         })
@@ -2314,7 +2314,7 @@ class ClusterHealthRunnerTests(TestCase):
             }
         }
 
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         self.assertDictEqual({
             "weight": 1,
@@ -2324,13 +2324,13 @@ class ClusterHealthRunnerTests(TestCase):
             "relocating-shards": 3
         }, result)
 
-        osearch.cluster.health.assert_called_once_with(index="logs-*",
+        opensearch.cluster.health.assert_called_once_with(index="logs-*",
                                                   params={"wait_for_status": "red", "wait_for_no_relocating_shards": True})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_rejects_unknown_cluster_status(self, osearch):
-        osearch.cluster.health.return_value = as_future({
+    async def test_rejects_unknown_cluster_status(self, opensearch):
+        opensearch.cluster.health.return_value = as_future({
             "status": None,
             "relocating_shards": 0
         })
@@ -2342,7 +2342,7 @@ class ClusterHealthRunnerTests(TestCase):
             }
         }
 
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         self.assertDictEqual({
             "weight": 1,
@@ -2352,14 +2352,14 @@ class ClusterHealthRunnerTests(TestCase):
             "relocating-shards": 0
         }, result)
 
-        osearch.cluster.health.assert_called_once_with(params={"wait_for_status": "green"})
+        opensearch.cluster.health.assert_called_once_with(params={"wait_for_status": "green"})
 
 
 class CreateIndexRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_creates_multiple_indices(self, osearch):
-        osearch.indices.create.return_value = as_future()
+    async def test_creates_multiple_indices(self, opensearch):
+        opensearch.indices.create.return_value = as_future()
 
         r = runner.CreateIndex()
 
@@ -2375,7 +2375,7 @@ class CreateIndexRunnerTests(TestCase):
             "request-params": request_params
         }
 
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         self.assertDictEqual({
             "weight": 2,
@@ -2383,15 +2383,15 @@ class CreateIndexRunnerTests(TestCase):
             "success": True
         }, result)
 
-        osearch.indices.create.assert_has_calls([
+        opensearch.indices.create.assert_has_calls([
             mock.call(index="indexA", body={"settings": {}}, params=request_params),
             mock.call(index="indexB", body={"settings": {}}, params=request_params)
         ])
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_create_with_timeout_and_headers(self, osearch):
-        osearch.indices.create.return_value = as_future()
+    async def test_create_with_timeout_and_headers(self, opensearch):
+        opensearch.indices.create.return_value = as_future()
 
         create_index_runner = runner.CreateIndex()
 
@@ -2409,7 +2409,7 @@ class CreateIndexRunnerTests(TestCase):
             "request-params": request_params
         }
 
-        result = await create_index_runner(osearch, params)
+        result = await create_index_runner(opensearch, params)
 
         self.assertDictEqual({
             "weight": 1,
@@ -2418,7 +2418,7 @@ class CreateIndexRunnerTests(TestCase):
         }, result)
 
 
-        osearch.indices.create.assert_called_once_with(index="indexA",
+        opensearch.indices.create.assert_called_once_with(index="indexA",
                                                   body={"settings": {}},
                                                   headers={"header1": "value1"},
                                                   opaque_id="test-id1",
@@ -2427,8 +2427,8 @@ class CreateIndexRunnerTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_ignore_invalid_params(self, osearch):
-        osearch.indices.create.return_value = as_future()
+    async def test_ignore_invalid_params(self, opensearch):
+        opensearch.indices.create.return_value = as_future()
 
         r = runner.CreateIndex()
 
@@ -2445,7 +2445,7 @@ class CreateIndexRunnerTests(TestCase):
             "request-params": request_params
         }
 
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         self.assertDictEqual({
             "weight": 1,
@@ -2453,14 +2453,14 @@ class CreateIndexRunnerTests(TestCase):
             "success": True
         }, result)
 
-        osearch.indices.create.assert_called_once_with(index="indexA",
+        opensearch.indices.create.assert_called_once_with(index="indexA",
                                                   body={"settings": {}},
                                                   params={"wait_for_active_shards": "true"})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_param_indices_mandatory(self, osearch):
-        osearch.indices.create.return_value = as_future()
+    async def test_param_indices_mandatory(self, opensearch):
+        opensearch.indices.create.return_value = as_future()
 
         r = runner.CreateIndex()
 
@@ -2468,16 +2468,16 @@ class CreateIndexRunnerTests(TestCase):
         with self.assertRaisesRegex(exceptions.DataError,
                                     "Parameter source for operation 'create-index' did not provide the mandatory parameter 'indices'. "
                                     "Add it to your parameter source and try again."):
-            await r(osearch, params)
+            await r(opensearch, params)
 
-        self.assertEqual(0, osearch.indices.create.call_count)
+        self.assertEqual(0, opensearch.indices.create.call_count)
 
 
 class CreateDataStreamRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_creates_multiple_data_streams(self, osearch):
-        osearch.indices.create_data_stream.return_value = as_future()
+    async def test_creates_multiple_data_streams(self, opensearch):
+        opensearch.indices.create_data_stream.return_value = as_future()
 
         r = runner.CreateDataStream()
 
@@ -2493,7 +2493,7 @@ class CreateDataStreamRunnerTests(TestCase):
             "request-params": request_params
         }
 
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         self.assertDictEqual({
             "weight": 2,
@@ -2501,15 +2501,15 @@ class CreateDataStreamRunnerTests(TestCase):
             "success": True
         }, result)
 
-        osearch.indices.create_data_stream.assert_has_calls([
+        opensearch.indices.create_data_stream.assert_has_calls([
             mock.call("data-stream-A", params=request_params),
             mock.call("data-stream-B", params=request_params)
         ])
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_param_data_streams_mandatory(self, osearch):
-        osearch.indices.create_data_stream.return_value = as_future()
+    async def test_param_data_streams_mandatory(self, opensearch):
+        opensearch.indices.create_data_stream.return_value = as_future()
 
         r = runner.CreateDataStream()
 
@@ -2517,20 +2517,20 @@ class CreateDataStreamRunnerTests(TestCase):
         with self.assertRaisesRegex(exceptions.DataError,
                                     "Parameter source for operation 'create-data-stream' did not provide the "
                                     "mandatory parameter 'data-streams'. Add it to your parameter source and try again."):
-            await r(osearch, params)
+            await r(opensearch, params)
 
-        self.assertEqual(0, osearch.indices.create_data_stream.call_count)
+        self.assertEqual(0, opensearch.indices.create_data_stream.call_count)
 
 
 class DeleteIndexRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_deletes_existing_indices(self, osearch):
-        osearch.indices.exists.side_effect = [as_future(False), as_future(True)]
-        osearch.indices.delete.return_value = as_future()
-        osearch.cluster.get_settings.return_value = as_future({"persistent": {},
+    async def test_deletes_existing_indices(self, opensearch):
+        opensearch.indices.exists.side_effect = [as_future(False), as_future(True)]
+        opensearch.indices.delete.return_value = as_future()
+        opensearch.cluster.get_settings.return_value = as_future({"persistent": {},
                                                           "transient": {"action.destructive_requires_name": True}})
-        osearch.cluster.put_settings.return_value = as_future()
+        opensearch.cluster.put_settings.return_value = as_future()
         r = runner.DeleteIndex()
 
         params = {
@@ -2538,7 +2538,7 @@ class DeleteIndexRunnerTests(TestCase):
             "only-if-exists": True
         }
 
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         self.assertDictEqual({
             "weight": 1,
@@ -2546,18 +2546,18 @@ class DeleteIndexRunnerTests(TestCase):
             "success": True
         }, result)
 
-        osearch.cluster.put_settings.assert_has_calls([
+        opensearch.cluster.put_settings.assert_has_calls([
             mock.call(body={"transient": {"action.destructive_requires_name": False}}),
             mock.call(body={"transient": {"action.destructive_requires_name": True}})
         ])
-        osearch.indices.delete.assert_called_once_with(index="indexB", params={})
+        opensearch.indices.delete.assert_called_once_with(index="indexB", params={})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_deletes_all_indices(self, osearch):
-        osearch.indices.delete.return_value = as_future()
-        osearch.cluster.get_settings.return_value = as_future({"persistent": {}, "transient": {}})
-        osearch.cluster.put_settings.return_value = as_future()
+    async def test_deletes_all_indices(self, opensearch):
+        opensearch.indices.delete.return_value = as_future()
+        opensearch.cluster.get_settings.return_value = as_future({"persistent": {}, "transient": {}})
+        opensearch.cluster.put_settings.return_value = as_future()
         r = runner.DeleteIndex()
 
         params = {
@@ -2569,7 +2569,7 @@ class DeleteIndexRunnerTests(TestCase):
             }
         }
 
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         self.assertDictEqual({
             "weight": 2,
@@ -2577,23 +2577,23 @@ class DeleteIndexRunnerTests(TestCase):
             "success": True
         }, result)
 
-        osearch.cluster.put_settings.assert_has_calls([
+        opensearch.cluster.put_settings.assert_has_calls([
             mock.call(body={"transient": {"action.destructive_requires_name": False}}),
             mock.call(body={"transient": {"action.destructive_requires_name": None}})
         ])
-        osearch.indices.delete.assert_has_calls([
+        opensearch.indices.delete.assert_has_calls([
             mock.call(index="indexA", params=params["request-params"]),
             mock.call(index="indexB", params=params["request-params"])
         ])
-        self.assertEqual(0, osearch.indices.exists.call_count)
+        self.assertEqual(0, opensearch.indices.exists.call_count)
 
 
 class DeleteDataStreamRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_deletes_existing_data_streams(self, osearch):
-        osearch.indices.exists.side_effect = [as_future(False), as_future(True)]
-        osearch.indices.delete_data_stream.return_value = as_future()
+    async def test_deletes_existing_data_streams(self, opensearch):
+        opensearch.indices.exists.side_effect = [as_future(False), as_future(True)]
+        opensearch.indices.delete_data_stream.return_value = as_future()
 
         r = runner.DeleteDataStream()
 
@@ -2603,7 +2603,7 @@ class DeleteDataStreamRunnerTests(TestCase):
             "request-params": {}
         }
 
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         self.assertDictEqual({
             "weight": 1,
@@ -2611,12 +2611,12 @@ class DeleteDataStreamRunnerTests(TestCase):
             "success": True
         }, result)
 
-        osearch.indices.delete_data_stream.assert_called_once_with("data-stream-B", params={})
+        opensearch.indices.delete_data_stream.assert_called_once_with("data-stream-B", params={})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_deletes_all_data_streams(self, osearch):
-        osearch.indices.delete_data_stream.return_value = as_future()
+    async def test_deletes_all_data_streams(self, opensearch):
+        opensearch.indices.delete_data_stream.return_value = as_future()
 
         r = runner.DeleteDataStream()
 
@@ -2629,7 +2629,7 @@ class DeleteDataStreamRunnerTests(TestCase):
             }
         }
 
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         self.assertDictEqual({
             "weight": 2,
@@ -2637,18 +2637,18 @@ class DeleteDataStreamRunnerTests(TestCase):
             "success": True
         }, result)
 
-        osearch.indices.delete_data_stream.assert_has_calls([
+        opensearch.indices.delete_data_stream.assert_has_calls([
             mock.call("data-stream-A", ignore=[404], params=params["request-params"]),
             mock.call("data-stream-B", ignore=[404], params=params["request-params"])
         ])
-        self.assertEqual(0, osearch.indices.exists.call_count)
+        self.assertEqual(0, opensearch.indices.exists.call_count)
 
 
 class CreateIndexTemplateRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_create_index_templates(self, osearch):
-        osearch.indices.put_template.return_value = as_future()
+    async def test_create_index_templates(self, opensearch):
+        opensearch.indices.put_template.return_value = as_future()
 
         r = runner.CreateIndexTemplate()
 
@@ -2663,7 +2663,7 @@ class CreateIndexTemplateRunnerTests(TestCase):
             }
         }
 
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         self.assertDictEqual({
             "weight": 2,
@@ -2671,15 +2671,15 @@ class CreateIndexTemplateRunnerTests(TestCase):
             "success": True
         }, result)
 
-        osearch.indices.put_template.assert_has_calls([
+        opensearch.indices.put_template.assert_has_calls([
             mock.call(name="templateA", body={"settings": {}}, params=params["request-params"]),
             mock.call(name="templateB", body={"settings": {}}, params=params["request-params"])
         ])
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_param_templates_mandatory(self, osearch):
-        osearch.indices.put_template.return_value = as_future()
+    async def test_param_templates_mandatory(self, opensearch):
+        opensearch.indices.put_template.return_value = as_future()
 
         r = runner.CreateIndexTemplate()
 
@@ -2687,17 +2687,17 @@ class CreateIndexTemplateRunnerTests(TestCase):
         with self.assertRaisesRegex(exceptions.DataError,
                                     "Parameter source for operation 'create-index-template' did not provide the mandatory parameter "
                                     "'templates'. Add it to your parameter source and try again."):
-            await r(osearch, params)
+            await r(opensearch, params)
 
-        self.assertEqual(0, osearch.indices.put_template.call_count)
+        self.assertEqual(0, opensearch.indices.put_template.call_count)
 
 
 class DeleteIndexTemplateRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_deletes_all_index_templates(self, osearch):
-        osearch.indices.delete_template.return_value = as_future()
-        osearch.indices.delete.return_value = as_future()
+    async def test_deletes_all_index_templates(self, opensearch):
+        opensearch.indices.delete_template.return_value = as_future()
+        opensearch.indices.delete.return_value = as_future()
 
         r = runner.DeleteIndexTemplate()
 
@@ -2710,7 +2710,7 @@ class DeleteIndexTemplateRunnerTests(TestCase):
                 "timeout": 60
             }
         }
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         # 2 times delete index template, one time delete matching indices
         self.assertDictEqual({
@@ -2719,17 +2719,17 @@ class DeleteIndexTemplateRunnerTests(TestCase):
             "success": True
         }, result)
 
-        osearch.indices.delete_template.assert_has_calls([
+        opensearch.indices.delete_template.assert_has_calls([
             mock.call(name="templateA", params=params["request-params"]),
             mock.call(name="templateB", params=params["request-params"])
         ])
-        osearch.indices.delete.assert_called_once_with(index="logs-*")
+        opensearch.indices.delete.assert_called_once_with(index="logs-*")
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_deletes_only_existing_index_templates(self, osearch):
-        osearch.indices.exists_template.side_effect = [as_future(False), as_future(True)]
-        osearch.indices.delete_template.return_value = as_future()
+    async def test_deletes_only_existing_index_templates(self, opensearch):
+        opensearch.indices.exists_template.side_effect = [as_future(False), as_future(True)]
+        opensearch.indices.delete_template.return_value = as_future()
 
         r = runner.DeleteIndexTemplate()
 
@@ -2744,7 +2744,7 @@ class DeleteIndexTemplateRunnerTests(TestCase):
             },
             "only-if-exists": True
         }
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         # 2 times delete index template, one time delete matching indices
         self.assertDictEqual({
@@ -2753,29 +2753,29 @@ class DeleteIndexTemplateRunnerTests(TestCase):
             "success": True
         }, result)
 
-        osearch.indices.delete_template.assert_called_once_with(name="templateB", params=params["request-params"])
+        opensearch.indices.delete_template.assert_called_once_with(name="templateB", params=params["request-params"])
         # not called because the matching index is empty.
-        self.assertEqual(0, osearch.indices.delete.call_count)
+        self.assertEqual(0, opensearch.indices.delete.call_count)
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_param_templates_mandatory(self, osearch):
+    async def test_param_templates_mandatory(self, opensearch):
         r = runner.DeleteIndexTemplate()
 
         params = {}
         with self.assertRaisesRegex(exceptions.DataError,
                                     "Parameter source for operation 'delete-index-template' did not provide the mandatory parameter "
                                     "'templates'. Add it to your parameter source and try again."):
-            await r(osearch, params)
+            await r(opensearch, params)
 
-        self.assertEqual(0, osearch.indices.delete_template.call_count)
+        self.assertEqual(0, opensearch.indices.delete_template.call_count)
 
 
 class CreateComponentTemplateRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_create_index_templates(self, osearch):
-        osearch.cluster.put_component_template.return_value = as_future()
+    async def test_create_index_templates(self, opensearch):
+        opensearch.cluster.put_component_template.return_value = as_future()
         r = runner.CreateComponentTemplate()
         params = {
             "templates": [
@@ -2788,13 +2788,13 @@ class CreateComponentTemplateRunnerTests(TestCase):
             }
         }
 
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
         self.assertDictEqual({
             "weight": 2,
             "unit": "ops",
             "success": True
         }, result)
-        osearch.cluster.put_component_template.assert_has_calls([
+        opensearch.cluster.put_component_template.assert_has_calls([
             mock.call(name="templateA", body={"template":{"mappings":{"properties":{"@timestamp":{"type": "date"}}}}},
                       params=params["request-params"]),
             mock.call(name="templateB", body={"template":{"settings": {"index.number_of_shards": 1,"index.number_of_replicas": 1}}},
@@ -2803,8 +2803,8 @@ class CreateComponentTemplateRunnerTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_param_templates_mandatory(self, osearch):
-        osearch.cluster.put_component_template.return_value = as_future()
+    async def test_param_templates_mandatory(self, opensearch):
+        opensearch.cluster.put_component_template.return_value = as_future()
 
         r = runner.CreateComponentTemplate()
 
@@ -2812,17 +2812,17 @@ class CreateComponentTemplateRunnerTests(TestCase):
         with self.assertRaisesRegex(exceptions.DataError,
                                     "Parameter source for operation 'create-component-template' did not provide the mandatory parameter "
                                     "'templates'. Add it to your parameter source and try again."):
-            await r(osearch, params)
+            await r(opensearch, params)
 
-        self.assertEqual(0, osearch.cluster.put_component_template.call_count)
+        self.assertEqual(0, opensearch.cluster.put_component_template.call_count)
 
 
 class DeleteComponentTemplateRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_deletes_all_index_templates(self, osearch):
-        osearch.cluster.delete_component_template.return_value = as_future()
-        osearch.cluster.delete_component_template.return_value = as_future()
+    async def test_deletes_all_index_templates(self, opensearch):
+        opensearch.cluster.delete_component_template.return_value = as_future()
+        opensearch.cluster.delete_component_template.return_value = as_future()
 
         r = runner.DeleteComponentTemplate()
 
@@ -2836,29 +2836,29 @@ class DeleteComponentTemplateRunnerTests(TestCase):
             },
             "only-if-exists": False
         }
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
         self.assertDictEqual({
             "weight": 2,
             "unit": "ops",
             "success": True
         }, result)
 
-        osearch.cluster.delete_component_template.assert_has_calls([
+        opensearch.cluster.delete_component_template.assert_has_calls([
             mock.call(name="templateA", params=params["request-params"], ignore=[404]),
             mock.call(name="templateB", params=params["request-params"], ignore=[404])
         ])
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_deletes_only_existing_index_templates(self, osearch):
+    async def test_deletes_only_existing_index_templates(self, opensearch):
 
         def _side_effect(http_method, path):
             if http_method == "HEAD":
                 return as_future(path == "/_component_template/templateB")
             return as_future()
 
-        osearch.transport.perform_request.side_effect = _side_effect
-        osearch.cluster.delete_component_template.return_value = as_future()
+        opensearch.transport.perform_request.side_effect = _side_effect
+        opensearch.cluster.delete_component_template.return_value = as_future()
 
         r = runner.DeleteComponentTemplate()
 
@@ -2872,7 +2872,7 @@ class DeleteComponentTemplateRunnerTests(TestCase):
             },
             "only-if-exists": True
         }
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         self.assertDictEqual({
             "weight": 1,
@@ -2880,27 +2880,27 @@ class DeleteComponentTemplateRunnerTests(TestCase):
             "success": True
         }, result)
 
-        osearch.cluster.delete_component_template.assert_called_once_with(name="templateB", params=params["request-params"])
+        opensearch.cluster.delete_component_template.assert_called_once_with(name="templateB", params=params["request-params"])
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_param_templates_mandatory(self, osearch):
+    async def test_param_templates_mandatory(self, opensearch):
         r = runner.DeleteComponentTemplate()
 
         params = {}
         with self.assertRaisesRegex(exceptions.DataError,
                                     "Parameter source for operation 'delete-component-template' did not provide the mandatory parameter "
                                     "'templates'. Add it to your parameter source and try again."):
-            await r(osearch, params)
+            await r(opensearch, params)
 
-        self.assertEqual(0, osearch.indices.delete_template.call_count)
+        self.assertEqual(0, opensearch.indices.delete_template.call_count)
 
 
 class CreateComposableTemplateRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_create_index_templates(self, osearch):
-        osearch.cluster.put_index_template.return_value = as_future()
+    async def test_create_index_templates(self, opensearch):
+        opensearch.cluster.put_index_template.return_value = as_future()
         r = runner.CreateComposableTemplate()
         params = {
             "templates": [
@@ -2914,13 +2914,13 @@ class CreateComposableTemplateRunnerTests(TestCase):
             }
         }
 
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
         self.assertDictEqual({
             "weight": 2,
             "unit": "ops",
             "success": True
         }, result)
-        osearch.cluster.put_index_template.assert_has_calls([
+        opensearch.cluster.put_index_template.assert_has_calls([
             mock.call(name="templateA", body={"index_patterns":["logs-*"],"template":{"settings":{"index.number_of_shards":3}},
                                               "composed_of":["ct1","ct2"]}, params=params["request-params"]),
             mock.call(name="templateB", body={"index_patterns":["metrics-*"],"template":{"settings":{"index.number_of_shards":2}},
@@ -2929,8 +2929,8 @@ class CreateComposableTemplateRunnerTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_param_templates_mandatory(self, osearch):
-        osearch.cluster.put_index_template.return_value = as_future()
+    async def test_param_templates_mandatory(self, opensearch):
+        opensearch.cluster.put_index_template.return_value = as_future()
 
         r = runner.CreateComposableTemplate()
 
@@ -2938,17 +2938,17 @@ class CreateComposableTemplateRunnerTests(TestCase):
         with self.assertRaisesRegex(exceptions.DataError,
                                     "Parameter source for operation 'create-composable-template' did not provide the mandatory parameter "
                                     "'templates'. Add it to your parameter source and try again."):
-            await r(osearch, params)
+            await r(opensearch, params)
 
-        self.assertEqual(0, osearch.cluster.put_index_template.call_count)
+        self.assertEqual(0, opensearch.cluster.put_index_template.call_count)
 
 
 class DeleteComposableTemplateRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_deletes_all_index_templates(self, osearch):
-        osearch.indices.delete_index_template.return_value = as_future()
-        osearch.indices.delete.return_value = as_future()
+    async def test_deletes_all_index_templates(self, opensearch):
+        opensearch.indices.delete_index_template.return_value = as_future()
+        opensearch.indices.delete.return_value = as_future()
 
         r = runner.DeleteComposableTemplate()
 
@@ -2962,7 +2962,7 @@ class DeleteComposableTemplateRunnerTests(TestCase):
             },
             "only-if-exists": False
         }
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         # 2 times delete index template, one time delete matching indices
         self.assertDictEqual({
@@ -2971,17 +2971,17 @@ class DeleteComposableTemplateRunnerTests(TestCase):
             "success": True
         }, result)
 
-        osearch.indices.delete_index_template.assert_has_calls([
+        opensearch.indices.delete_index_template.assert_has_calls([
             mock.call(name="templateA", params=params["request-params"], ignore=[404]),
             mock.call(name="templateB", params=params["request-params"], ignore=[404])
         ])
-        osearch.indices.delete.assert_called_once_with(index="logs-*")
+        opensearch.indices.delete.assert_called_once_with(index="logs-*")
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_deletes_only_existing_index_templates(self, osearch):
-        osearch.indices.exists_template.side_effect = [as_future(False), as_future(True)]
-        osearch.indices.delete_index_template.return_value = as_future()
+    async def test_deletes_only_existing_index_templates(self, opensearch):
+        opensearch.indices.exists_template.side_effect = [as_future(False), as_future(True)]
+        opensearch.indices.delete_index_template.return_value = as_future()
 
         r = runner.DeleteComposableTemplate()
 
@@ -2996,7 +2996,7 @@ class DeleteComposableTemplateRunnerTests(TestCase):
             },
             "only-if-exists": True
         }
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         # 2 times delete index template, one time delete matching indices
         self.assertDictEqual({
@@ -3005,29 +3005,29 @@ class DeleteComposableTemplateRunnerTests(TestCase):
             "success": True
         }, result)
 
-        osearch.indices.delete_index_template.assert_called_once_with(name="templateB", params=params["request-params"])
+        opensearch.indices.delete_index_template.assert_called_once_with(name="templateB", params=params["request-params"])
         # not called because the matching index is empty.
-        self.assertEqual(0, osearch.indices.delete.call_count)
+        self.assertEqual(0, opensearch.indices.delete.call_count)
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_param_templates_mandatory(self, osearch):
+    async def test_param_templates_mandatory(self, opensearch):
         r = runner.DeleteComposableTemplate()
 
         params = {}
         with self.assertRaisesRegex(exceptions.DataError,
                                     "Parameter source for operation 'delete-composable-template' did not provide the mandatory parameter "
                                     "'templates'. Add it to your parameter source and try again."):
-            await r(osearch, params)
+            await r(opensearch, params)
 
-        self.assertEqual(0, osearch.indices.delete_index_template.call_count)
+        self.assertEqual(0, opensearch.indices.delete_index_template.call_count)
 
 
 class RawRequestRunnerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_raises_missing_slash(self, osearch):
-        osearch.transport.perform_request.return_value = as_future()
+    async def test_raises_missing_slash(self, opensearch):
+        opensearch.transport.perform_request.return_value = as_future()
         r = runner.RawRequest()
 
         params = {
@@ -3036,7 +3036,7 @@ class RawRequestRunnerTests(TestCase):
 
         with mock.patch.object(r.logger, "error") as mocked_error_logger:
             with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
-                await r(osearch, params)
+                await r(opensearch, params)
                 self.assertEqual("RawRequest [_cat/count] failed. Path parameter must begin with a '/'.", ctx.exception.args[0])
             mocked_error_logger.assert_has_calls([
                 mock.call("RawRequest failed. Path parameter: [%s] must begin with a '/'.", params["path"])
@@ -3044,16 +3044,16 @@ class RawRequestRunnerTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_issue_request_with_defaults(self, osearch):
-        osearch.transport.perform_request.return_value = as_future()
+    async def test_issue_request_with_defaults(self, opensearch):
+        opensearch.transport.perform_request.return_value = as_future()
         r = runner.RawRequest()
 
         params = {
             "path": "/_cat/count"
         }
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.transport.perform_request.assert_called_once_with(method="GET",
+        opensearch.transport.perform_request.assert_called_once_with(method="GET",
                                                              url="/_cat/count",
                                                              headers=None,
                                                              body=None,
@@ -3061,8 +3061,8 @@ class RawRequestRunnerTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_issue_delete_index(self, osearch):
-        osearch.transport.perform_request.return_value = as_future()
+    async def test_issue_delete_index(self, opensearch):
+        opensearch.transport.perform_request.return_value = as_future()
         r = runner.RawRequest()
 
         params = {
@@ -3073,9 +3073,9 @@ class RawRequestRunnerTests(TestCase):
                 "pretty": "true"
             }
         }
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.transport.perform_request.assert_called_once_with(method="DELETE",
+        opensearch.transport.perform_request.assert_called_once_with(method="DELETE",
                                                              url="/twitter",
                                                              headers=None,
                                                              body=None,
@@ -3083,8 +3083,8 @@ class RawRequestRunnerTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_issue_create_index(self, osearch):
-        osearch.transport.perform_request.return_value = as_future()
+    async def test_issue_create_index(self, opensearch):
+        opensearch.transport.perform_request.return_value = as_future()
         r = runner.RawRequest()
 
         params = {
@@ -3098,9 +3098,9 @@ class RawRequestRunnerTests(TestCase):
                 }
             }
         }
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.transport.perform_request.assert_called_once_with(method="POST",
+        opensearch.transport.perform_request.assert_called_once_with(method="POST",
                                                              url="/twitter",
                                                              headers=None,
                                                              body={
@@ -3114,8 +3114,8 @@ class RawRequestRunnerTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_issue_msearch(self, osearch):
-        osearch.transport.perform_request.return_value = as_future()
+    async def test_issue_msearch(self, opensearch):
+        opensearch.transport.perform_request.return_value = as_future()
         r = runner.RawRequest()
 
         params = {
@@ -3130,9 +3130,9 @@ class RawRequestRunnerTests(TestCase):
                 {"query": {"match_all": {}}}
             ]
         }
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.transport.perform_request.assert_called_once_with(method="GET",
+        opensearch.transport.perform_request.assert_called_once_with(method="GET",
                                                              url="/_msearch",
                                                              headers={"Content-Type": "application/x-ndjson"},
                                                              body=[
@@ -3145,8 +3145,8 @@ class RawRequestRunnerTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_raw_with_timeout_and_opaqueid(self, osearch):
-        osearch.transport.perform_request.return_value = as_future()
+    async def test_raw_with_timeout_and_opaqueid(self, opensearch):
+        opensearch.transport.perform_request.return_value = as_future()
         r = runner.RawRequest()
 
         params = {
@@ -3163,9 +3163,9 @@ class RawRequestRunnerTests(TestCase):
                 {"query": {"match_all": {}}}
             ]
         }
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.transport.perform_request.assert_called_once_with(method="GET",
+        opensearch.transport.perform_request.assert_called_once_with(method="GET",
                                                              url="/_msearch",
                                                              headers={"Content-Type": "application/x-ndjson",
                                                                       "x-opaque-id": "test-id1"},
@@ -3183,52 +3183,52 @@ class SleepTests(TestCase):
     # To avoid real sleeps in unit tests
     @mock.patch("asyncio.sleep", return_value=as_future())
     @run_async
-    async def test_missing_parameter(self, sleep, osearch):
+    async def test_missing_parameter(self, sleep, opensearch):
         r = runner.Sleep()
         with self.assertRaisesRegex(exceptions.DataError,
                                     "Parameter source for operation 'sleep' did not provide the mandatory parameter "
                                     "'duration'. Add it to your parameter source and try again."):
-            await r(osearch, params={})
+            await r(opensearch, params={})
 
-        self.assertEqual(0, osearch.call_count)
-        self.assertEqual(1, osearch.on_request_start.call_count)
-        self.assertEqual(1, osearch.on_request_end.call_count)
+        self.assertEqual(0, opensearch.call_count)
+        self.assertEqual(1, opensearch.on_request_start.call_count)
+        self.assertEqual(1, opensearch.on_request_end.call_count)
         self.assertEqual(0, sleep.call_count)
 
     @mock.patch("elasticsearch.Elasticsearch")
     # To avoid real sleeps in unit tests
     @mock.patch("asyncio.sleep", return_value=as_future())
     @run_async
-    async def test_sleep(self, sleep, osearch):
+    async def test_sleep(self, sleep, opensearch):
         r = runner.Sleep()
-        await r(osearch, params={"duration": 4.3})
+        await r(opensearch, params={"duration": 4.3})
 
-        self.assertEqual(0, osearch.call_count)
-        self.assertEqual(1, osearch.on_request_start.call_count)
-        self.assertEqual(1, osearch.on_request_end.call_count)
+        self.assertEqual(0, opensearch.call_count)
+        self.assertEqual(1, opensearch.on_request_start.call_count)
+        self.assertEqual(1, opensearch.on_request_end.call_count)
         sleep.assert_called_once_with(4.3)
 
 
 class DeleteSnapshotRepositoryTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_delete_snapshot_repository(self, osearch):
-        osearch.snapshot.delete_repository.return_value = as_future()
+    async def test_delete_snapshot_repository(self, opensearch):
+        opensearch.snapshot.delete_repository.return_value = as_future()
         params = {
             "repository": "backups"
         }
 
         r = runner.DeleteSnapshotRepository()
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.snapshot.delete_repository.assert_called_once_with(repository="backups")
+        opensearch.snapshot.delete_repository.assert_called_once_with(repository="backups")
 
 
 class CreateSnapshotRepositoryTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_create_snapshot_repository(self, osearch):
-        osearch.snapshot.create_repository.return_value = as_future()
+    async def test_create_snapshot_repository(self, opensearch):
+        opensearch.snapshot.create_repository.return_value = as_future()
         params = {
             "repository": "backups",
             "body": {
@@ -3240,9 +3240,9 @@ class CreateSnapshotRepositoryTests(TestCase):
         }
 
         r = runner.CreateSnapshotRepository()
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.snapshot.create_repository.assert_called_once_with(repository="backups",
+        opensearch.snapshot.create_repository.assert_called_once_with(repository="backups",
                                                               body={
                                                                   "type": "fs",
                                                                   "settings": {
@@ -3255,8 +3255,8 @@ class CreateSnapshotRepositoryTests(TestCase):
 class CreateSnapshotTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_create_snapshot_no_wait(self, osearch):
-        osearch.snapshot.create.return_value = as_future({})
+    async def test_create_snapshot_no_wait(self, opensearch):
+        opensearch.snapshot.create.return_value = as_future({})
 
         params = {
             "repository": "backups",
@@ -3271,9 +3271,9 @@ class CreateSnapshotTests(TestCase):
         }
 
         r = runner.CreateSnapshot()
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.snapshot.create.assert_called_once_with(repository="backups",
+        opensearch.snapshot.create.assert_called_once_with(repository="backups",
                                                    snapshot="snapshot-001",
                                                    body={
                                                        "indices": "logs-*"
@@ -3283,8 +3283,8 @@ class CreateSnapshotTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_create_snapshot_wait_for_completion(self, osearch):
-        osearch.snapshot.create.return_value = as_future({
+    async def test_create_snapshot_wait_for_completion(self, opensearch):
+        opensearch.snapshot.create.return_value = as_future({
             "snapshot": {
                 "snapshot": "snapshot-001",
                 "uuid": "wjt6zFEIRua_-jutT5vrAw",
@@ -3322,9 +3322,9 @@ class CreateSnapshotTests(TestCase):
         }
 
         r = runner.CreateSnapshot()
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.snapshot.create.assert_called_once_with(repository="backups",
+        opensearch.snapshot.create.assert_called_once_with(repository="backups",
                                                    snapshot="snapshot-001",
                                                    body={
                                                        "indices": "logs-*"
@@ -3336,8 +3336,8 @@ class CreateSnapshotTests(TestCase):
 class WaitForSnapshotCreateTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_wait_for_snapshot_create_entire_lifecycle(self, osearch):
-        osearch.snapshot.status.side_effect = [
+    async def test_wait_for_snapshot_create_entire_lifecycle(self, opensearch):
+        opensearch.snapshot.status.side_effect = [
             # empty response
             as_future({}),
             # active snapshot
@@ -3419,9 +3419,9 @@ class WaitForSnapshotCreateTests(TestCase):
         }
 
         r = runner.WaitForSnapshotCreate()
-        result = await r(osearch, basic_params)
+        result = await r(opensearch, basic_params)
 
-        osearch.snapshot.status.assert_called_with(
+        opensearch.snapshot.status.assert_called_with(
             repository="restore_speed",
             snapshot="restore_speed_snapshot",
             ignore_unavailable=True
@@ -3438,12 +3438,12 @@ class WaitForSnapshotCreateTests(TestCase):
             "stop_time_millis": 1597317564956 + 1113462
         }, result)
 
-        self.assertEqual(3, osearch.snapshot.status.call_count)
+        self.assertEqual(3, opensearch.snapshot.status.call_count)
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_wait_for_snapshot_create_immediate_success(self, osearch):
-        osearch.snapshot.status.return_value = as_future({
+    async def test_wait_for_snapshot_create_immediate_success(self, opensearch):
+        opensearch.snapshot.status.return_value = as_future({
             "snapshots": [
                 {
                     "snapshot": "snapshot-001",
@@ -3469,7 +3469,7 @@ class WaitForSnapshotCreateTests(TestCase):
         }
 
         r = runner.WaitForSnapshotCreate()
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         self.assertDictEqual({
             "weight": 9399505,
@@ -3482,13 +3482,13 @@ class WaitForSnapshotCreateTests(TestCase):
             "stop_time_millis": 1591776481060 + 200
         }, result)
 
-        osearch.snapshot.status.assert_called_once_with(repository="backups",
+        opensearch.snapshot.status.assert_called_once_with(repository="backups",
                                                    snapshot="snapshot-001",
                                                    ignore_unavailable=True)
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_wait_for_snapshot_create_failure(self, osearch):
+    async def test_wait_for_snapshot_create_failure(self, opensearch):
         snapshot_status = {
             "snapshots": [
                 {
@@ -3499,7 +3499,7 @@ class WaitForSnapshotCreateTests(TestCase):
                 }
             ]
         }
-        osearch.snapshot.status.return_value = as_future(snapshot_status)
+        opensearch.snapshot.status.return_value = as_future(snapshot_status)
 
         params = {
             "repository": "backups",
@@ -3510,7 +3510,7 @@ class WaitForSnapshotCreateTests(TestCase):
 
         with mock.patch.object(r.logger, "error") as mocked_error_logger:
             with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
-                await r(osearch, params)
+                await r(opensearch, params)
                 self.assertEqual("Snapshot [snapshot-001] failed. Please check logs.", ctx.exception.args[0])
             mocked_error_logger.assert_has_calls([
                 mock.call("Snapshot [%s] failed. Response:\n%s", "snapshot-001", json.dumps(snapshot_status, indent=2))
@@ -3520,8 +3520,8 @@ class WaitForSnapshotCreateTests(TestCase):
 class RestoreSnapshotTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_restore_snapshot(self, osearch):
-        osearch.snapshot.restore.return_value = as_future()
+    async def test_restore_snapshot(self, opensearch):
+        opensearch.snapshot.restore.return_value = as_future()
 
         params = {
             "repository": "backups",
@@ -3533,17 +3533,17 @@ class RestoreSnapshotTests(TestCase):
         }
 
         r = runner.RestoreSnapshot()
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.snapshot.restore.assert_called_once_with(repository="backups",
+        opensearch.snapshot.restore.assert_called_once_with(repository="backups",
                                                     snapshot="snapshot-001",
                                                     wait_for_completion=True,
                                                     params={"request_timeout": 7200})
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_restore_snapshot_with_body(self, osearch):
-        osearch.snapshot.restore.return_value = as_future()
+    async def test_restore_snapshot_with_body(self, opensearch):
+        opensearch.snapshot.restore.return_value = as_future()
         params = {
             "repository": "backups",
             "snapshot": "snapshot-001",
@@ -3561,9 +3561,9 @@ class RestoreSnapshotTests(TestCase):
         }
 
         r = runner.RestoreSnapshot()
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.snapshot.restore.assert_called_once_with(repository="backups",
+        opensearch.snapshot.restore.assert_called_once_with(repository="backups",
                                                     snapshot="snapshot-001",
                                                     body={
                                                         "indices": "index1,index2",
@@ -3579,9 +3579,9 @@ class RestoreSnapshotTests(TestCase):
 class IndicesRecoveryTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_waits_for_ongoing_indices_recovery(self, osearch):
+    async def test_waits_for_ongoing_indices_recovery(self, opensearch):
         # empty response
-        osearch.indices.recovery.side_effect = [
+        opensearch.indices.recovery.side_effect = [
             # recovery did not yet start
             as_future({}),
             # recovery about to be started
@@ -3705,7 +3705,7 @@ class IndicesRecoveryTests(TestCase):
 
         r = runner.IndicesRecovery()
 
-        result = await r(osearch, {
+        result = await r(opensearch, {
             "completion-recheck-wait-period": 0,
             "index": "index1"
         })
@@ -3719,9 +3719,9 @@ class IndicesRecoveryTests(TestCase):
         self.assertEqual(1393244155000, result["start_time_millis"])
         self.assertEqual(1393244160000, result["stop_time_millis"])
 
-        osearch.indices.recovery.assert_called_with(index="index1")
+        opensearch.indices.recovery.assert_called_with(index="index1")
         # retries four times
-        self.assertEqual(4, osearch.indices.recovery.call_count)
+        self.assertEqual(4, opensearch.indices.recovery.call_count)
 
 
 class ShrinkIndexTests(TestCase):
@@ -3729,17 +3729,17 @@ class ShrinkIndexTests(TestCase):
     # To avoid real sleeps in unit tests
     @mock.patch("asyncio.sleep", return_value=as_future())
     @run_async
-    async def test_shrink_index_with_shrink_node(self, sleep, osearch):
-        osearch.indices.get.return_value = as_future({
+    async def test_shrink_index_with_shrink_node(self, sleep, opensearch):
+        opensearch.indices.get.return_value = as_future({
             "src": {}
         })
         # cluster health API
-        osearch.cluster.health.return_value = as_future({
+        opensearch.cluster.health.return_value = as_future({
             "status": "green",
             "relocating_shards": 0
         })
-        osearch.indices.put_settings.return_value = as_future()
-        osearch.indices.shrink.return_value = as_future()
+        opensearch.indices.put_settings.return_value = as_future()
+        opensearch.indices.shrink.return_value = as_future()
 
         r = runner.ShrinkIndex()
         params = {
@@ -3754,9 +3754,9 @@ class ShrinkIndexTests(TestCase):
             "shrink-node": "benchmark-node-0"
         }
 
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.indices.put_settings.assert_called_once_with(index="src",
+        opensearch.indices.put_settings.assert_called_once_with(index="src",
                                                         body={
                                                             "settings": {
                                                                 "index.routing.allocation.require._name": "benchmark-node-0",
@@ -3765,12 +3765,12 @@ class ShrinkIndexTests(TestCase):
                                                         },
                                                         preserve_existing=True)
 
-        osearch.cluster.health.assert_has_calls([
+        opensearch.cluster.health.assert_has_calls([
             mock.call(index="src", params={"wait_for_no_relocating_shards": "true"}),
             mock.call(index="target", params={"wait_for_no_relocating_shards": "true"}),
         ])
 
-        osearch.indices.shrink.assert_called_once_with(index="src", target="target", body={
+        opensearch.indices.shrink.assert_called_once_with(index="src", target="target", body={
             "settings": {
                 "index.number_of_replicas": 2,
                 "index.number_of_shards": 0,
@@ -3783,16 +3783,16 @@ class ShrinkIndexTests(TestCase):
     # To avoid real sleeps in unit tests
     @mock.patch("asyncio.sleep", return_value=as_future())
     @run_async
-    async def test_shrink_index_derives_shrink_node(self, sleep, osearch):
-        osearch.indices.get.return_value = as_future({
+    async def test_shrink_index_derives_shrink_node(self, sleep, opensearch):
+        opensearch.indices.get.return_value = as_future({
             "src": {}
         })
         # cluster health API
-        osearch.cluster.health.return_value = as_future({
+        opensearch.cluster.health.return_value = as_future({
             "status": "green",
             "relocating_shards": 0
         })
-        osearch.nodes.info.return_value = as_future({
+        opensearch.nodes.info.return_value = as_future({
             "_nodes": {
                 "total": 3,
                 "successful": 3,
@@ -3822,8 +3822,8 @@ class ShrinkIndexTests(TestCase):
                 }
             }
         })
-        osearch.indices.put_settings.return_value = as_future()
-        osearch.indices.shrink.return_value = as_future()
+        opensearch.indices.put_settings.return_value = as_future()
+        opensearch.indices.shrink.return_value = as_future()
 
         r = runner.ShrinkIndex()
         params = {
@@ -3837,9 +3837,9 @@ class ShrinkIndexTests(TestCase):
             }
         }
 
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.indices.put_settings.assert_called_once_with(index="src",
+        opensearch.indices.put_settings.assert_called_once_with(index="src",
                                                         body={
                                                             "settings": {
                                                                 # the only data node in the cluster was chosen
@@ -3849,12 +3849,12 @@ class ShrinkIndexTests(TestCase):
                                                         },
                                                         preserve_existing=True)
 
-        osearch.cluster.health.assert_has_calls([
+        opensearch.cluster.health.assert_has_calls([
             mock.call(index="src", params={"wait_for_no_relocating_shards": "true"}),
             mock.call(index="target", params={"wait_for_no_relocating_shards": "true"}),
         ])
 
-        osearch.indices.shrink.assert_called_once_with(index="src", target="target", body={
+        opensearch.indices.shrink.assert_called_once_with(index="src", target="target", body={
             "settings": {
                 "index.number_of_replicas": 2,
                 "index.number_of_shards": 0,
@@ -3867,17 +3867,17 @@ class ShrinkIndexTests(TestCase):
     # To avoid real sleeps in unit tests
     @mock.patch("asyncio.sleep", return_value=as_future())
     @run_async
-    async def test_shrink_index_pattern_with_shrink_node(self, sleep, osearch):
-        osearch.indices.get.return_value = as_future({
+    async def test_shrink_index_pattern_with_shrink_node(self, sleep, opensearch):
+        opensearch.indices.get.return_value = as_future({
             "src1": {}, "src2": {}, "src-2020": {}
         })
         # cluster health API
-        osearch.cluster.health.return_value = as_future({
+        opensearch.cluster.health.return_value = as_future({
             "status": "green",
             "relocating_shards": 0
         })
-        osearch.indices.put_settings.return_value = as_future()
-        osearch.indices.shrink.return_value = as_future()
+        opensearch.indices.put_settings.return_value = as_future()
+        opensearch.indices.shrink.return_value = as_future()
 
         r = runner.ShrinkIndex()
         params = {
@@ -3892,9 +3892,9 @@ class ShrinkIndexTests(TestCase):
             "shrink-node": "benchmark-node-0"
         }
 
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.indices.put_settings.assert_has_calls([
+        opensearch.indices.put_settings.assert_has_calls([
             mock.call(index="src1",
                       body={
                           "settings": {
@@ -3920,7 +3920,7 @@ class ShrinkIndexTests(TestCase):
                       },
                       preserve_existing=True)])
 
-        osearch.cluster.health.assert_has_calls([
+        opensearch.cluster.health.assert_has_calls([
             mock.call(index="src1", params={"wait_for_no_relocating_shards": "true"}),
             mock.call(index="target1", params={"wait_for_no_relocating_shards": "true"}),
             mock.call(index="src2", params={"wait_for_no_relocating_shards": "true"}),
@@ -3929,7 +3929,7 @@ class ShrinkIndexTests(TestCase):
             mock.call(index="target-2020", params={"wait_for_no_relocating_shards": "true"}),
         ])
 
-        osearch.indices.shrink.assert_has_calls([
+        opensearch.indices.shrink.assert_has_calls([
             mock.call(
                 index="src1", target="target1", body={
                     "settings": {
@@ -3962,8 +3962,8 @@ class ShrinkIndexTests(TestCase):
 class PutSettingsTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_put_settings(self, osearch):
-        osearch.cluster.put_settings.return_value = as_future()
+    async def test_put_settings(self, opensearch):
+        opensearch.cluster.put_settings.return_value = as_future()
         params = {
             "body": {
                 "transient": {
@@ -3973,9 +3973,9 @@ class PutSettingsTests(TestCase):
         }
 
         r = runner.PutSettings()
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.cluster.put_settings.assert_called_once_with(body={
+        opensearch.cluster.put_settings.assert_called_once_with(body={
             "transient": {
                 "indices.recovery.max_bytes_per_sec": "20mb"
             }
@@ -3985,8 +3985,8 @@ class PutSettingsTests(TestCase):
 class CreateTransformTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_create_transform(self, osearch):
-        osearch.transform.put_transform.return_value = as_future()
+    async def test_create_transform(self, opensearch):
+        opensearch.transform.put_transform.return_value = as_future()
 
         params = {
             "transform-id": "a-transform",
@@ -4019,17 +4019,17 @@ class CreateTransformTests(TestCase):
         }
 
         r = runner.CreateTransform()
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.transform.put_transform.assert_called_once_with(transform_id=params["transform-id"], body=params["body"],
+        opensearch.transform.put_transform.assert_called_once_with(transform_id=params["transform-id"], body=params["body"],
                                                            defer_validation=params["defer-validation"])
 
 
 class StartTransformTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_start_transform(self, osearch):
-        osearch.transform.start_transform.return_value = as_future()
+    async def test_start_transform(self, opensearch):
+        opensearch.transform.start_transform.return_value = as_future()
 
         transform_id = "a-transform"
         params = {
@@ -4038,16 +4038,16 @@ class StartTransformTests(TestCase):
         }
 
         r = runner.StartTransform()
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.transform.start_transform.assert_called_once_with(transform_id=transform_id, timeout=params["timeout"])
+        opensearch.transform.start_transform.assert_called_once_with(transform_id=transform_id, timeout=params["timeout"])
 
 
 class WaitForTransformTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_wait_for_transform(self, osearch):
-        osearch.transform.stop_transform.return_value = as_future()
+    async def test_wait_for_transform(self, opensearch):
+        opensearch.transform.stop_transform.return_value = as_future()
         transform_id = "a-transform"
         params = {
             "transform-id": transform_id,
@@ -4057,7 +4057,7 @@ class WaitForTransformTests(TestCase):
             "wait-for-checkpoint": random.choice([False, True]),
         }
 
-        osearch.transform.get_transform_stats.return_value = as_future({
+        opensearch.transform.get_transform_stats.return_value = as_future({
             "count": 1,
             "transforms": [
                 {
@@ -4095,14 +4095,14 @@ class WaitForTransformTests(TestCase):
         self.assertFalse(r.completed)
         self.assertEqual(r.percent_completed, 0.0)
 
-        result = await r(osearch, params)
+        result = await r(opensearch, params)
 
         self.assertTrue(r.completed)
         self.assertEqual(r.percent_completed, 1.0)
         self.assertEqual(2, result["weight"], 2)
         self.assertEqual(result["unit"], "docs")
 
-        osearch.transform.stop_transform.assert_called_once_with(transform_id=transform_id, force=params["force"],
+        opensearch.transform.stop_transform.assert_called_once_with(transform_id=transform_id, force=params["force"],
                                                             timeout=params["timeout"],
                                                             wait_for_completion=False,
                                                             wait_for_checkpoint=params["wait-for-checkpoint"]
@@ -4110,8 +4110,8 @@ class WaitForTransformTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_wait_for_transform_progress(self, osearch):
-        osearch.transform.stop_transform.return_value = as_future()
+    async def test_wait_for_transform_progress(self, opensearch):
+        opensearch.transform.stop_transform.return_value = as_future()
         transform_id = "a-transform"
         params = {
             "transform-id": transform_id,
@@ -4120,7 +4120,7 @@ class WaitForTransformTests(TestCase):
         }
 
         # return 4 times, simulating progress
-        osearch.transform.get_transform_stats.side_effect = [
+        opensearch.transform.get_transform_stats.side_effect = [
             as_future({
                 "count": 1,
                 "transforms": [
@@ -4273,7 +4273,7 @@ class WaitForTransformTests(TestCase):
 
         total_calls = 0
         while not r.completed:
-            result = await r(osearch, params)
+            result = await r(opensearch, params)
             total_calls += 1
             if total_calls < 4:
                 self.assertAlmostEqual(r.percent_completed, (total_calls * 10.20) / 100.0)
@@ -4284,7 +4284,7 @@ class WaitForTransformTests(TestCase):
         self.assertEqual(result["weight"], 60000)
         self.assertEqual(result["unit"], "docs")
 
-        osearch.transform.stop_transform.assert_called_once_with(transform_id=transform_id, force=params["force"],
+        opensearch.transform.stop_transform.assert_called_once_with(transform_id=transform_id, force=params["force"],
                                                             timeout=params["timeout"],
                                                             wait_for_completion=False,
                                                             wait_for_checkpoint=True
@@ -4294,8 +4294,8 @@ class WaitForTransformTests(TestCase):
 class DeleteTransformTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_delete_transform(self, osearch):
-        osearch.transform.delete_transform.return_value = as_future()
+    async def test_delete_transform(self, opensearch):
+        opensearch.transform.delete_transform.return_value = as_future()
 
         transform_id = "a-transform"
         params = {
@@ -4304,17 +4304,17 @@ class DeleteTransformTests(TestCase):
         }
 
         r = runner.DeleteTransform()
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.transform.delete_transform.assert_called_once_with(transform_id=transform_id, force=params["force"],
+        opensearch.transform.delete_transform.assert_called_once_with(transform_id=transform_id, force=params["force"],
                                                               ignore=[404])
 
 
 class SubmitAsyncSearchTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_submit_async_search(self, osearch):
-        osearch.async_search.submit.return_value = as_future({"id": "12345"})
+    async def test_submit_async_search(self, opensearch):
+        opensearch.async_search.submit.return_value = as_future({"id": "12345"})
         r = runner.SubmitAsyncSearch()
         params = {
             "name": "search-1",
@@ -4327,11 +4327,11 @@ class SubmitAsyncSearchTests(TestCase):
         }
 
         async with runner.CompositeContext():
-            await r(osearch, params)
+            await r(opensearch, params)
             # search id is registered in context
             self.assertEqual("12345", runner.CompositeContext.get("search-1"))
 
-        osearch.async_search.submit.assert_called_once_with(body={
+        opensearch.async_search.submit.assert_called_once_with(body={
             "query": {
                 "match_all": {}
             }
@@ -4341,8 +4341,8 @@ class SubmitAsyncSearchTests(TestCase):
 class GetAsyncSearchTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_get_async_search(self, osearch):
-        osearch.async_search.get.return_value = as_future({
+    async def test_get_async_search(self, opensearch):
+        opensearch.async_search.get.return_value = as_future({
             "is_running": False,
             "response": {
                 "took": 1122,
@@ -4362,7 +4362,7 @@ class GetAsyncSearchTests(TestCase):
 
         async with runner.CompositeContext():
             runner.CompositeContext.put("search-1", "12345")
-            response = await r(osearch, params)
+            response = await r(opensearch, params)
             self.assertDictEqual(response, {
                 "weight": 1,
                 "unit": "ops",
@@ -4377,14 +4377,14 @@ class GetAsyncSearchTests(TestCase):
                 }
             })
 
-        osearch.async_search.get.assert_called_once_with(id="12345", params={})
+        opensearch.async_search.get.assert_called_once_with(id="12345", params={})
 
 
 class DeleteAsyncSearchTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_delete_async_search(self, osearch):
-        osearch.async_search.delete.side_effect = [
+    async def test_delete_async_search(self, opensearch):
+        opensearch.async_search.delete.side_effect = [
             as_future({}),
             as_future({})
         ]
@@ -4397,9 +4397,9 @@ class DeleteAsyncSearchTests(TestCase):
             runner.CompositeContext.put("search-1", "12345")
             runner.CompositeContext.put("search-2", None)
             runner.CompositeContext.put("search-3", "6789")
-            await r(osearch, params)
+            await r(opensearch, params)
 
-        osearch.async_search.delete.assert_has_calls([
+        opensearch.async_search.delete.assert_has_calls([
             mock.call(id="12345"),
             mock.call(id="6789"),
         ])
@@ -4408,59 +4408,59 @@ class DeleteAsyncSearchTests(TestCase):
 class OpenPointInTimeTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_creates_point_in_time(self, osearch):
+    async def test_creates_point_in_time(self, opensearch):
         pit_id = "0123456789abcdef"
         params = {
             "name": "open-pit-test",
             "index": "test-index"
         }
 
-        osearch.open_point_in_time.return_value = as_future({"id": pit_id})
+        opensearch.open_point_in_time.return_value = as_future({"id": pit_id})
 
         r = runner.OpenPointInTime()
         async with runner.CompositeContext():
-            await r(osearch, params)
+            await r(opensearch, params)
             self.assertEqual(pit_id, runner.CompositeContext.get("open-pit-test"))
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_can_only_be_run_in_composite(self, osearch):
+    async def test_can_only_be_run_in_composite(self, opensearch):
         pit_id = "0123456789abcdef"
         params = {
             "name": "open-pit-test",
             "index": "test-index"
         }
 
-        osearch.open_point_in_time.return_value = as_future({"id": pit_id})
+        opensearch.open_point_in_time.return_value = as_future({"id": pit_id})
 
         r = runner.OpenPointInTime()
         with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
-            await r(osearch, params)
+            await r(opensearch, params)
 
         self.assertEqual("This operation is only allowed inside a composite operation.", ctx.exception.args[0])
 
 class ClosePointInTimeTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_closes_point_in_time(self, osearch):
+    async def test_closes_point_in_time(self, opensearch):
         pit_id = "0123456789abcdef"
         params = {
             "name": "close-pit-test",
             "with-point-in-time-from": "open-pit-task1",
         }
-        osearch.close_point_in_time.return_value=(as_future())
+        opensearch.close_point_in_time.return_value=(as_future())
         r = runner.ClosePointInTime()
         async with runner.CompositeContext():
             runner.CompositeContext.put("open-pit-task1", pit_id)
-            await r(osearch, params)
+            await r(opensearch, params)
 
-        osearch.close_point_in_time.assert_called_once_with(body={"id": "0123456789abcdef"}, params={}, headers=None)
+        opensearch.close_point_in_time.assert_called_once_with(body={"id": "0123456789abcdef"}, params={}, headers=None)
 
 
 class QueryWithSearchAfterScrollTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_search_after_with_pit(self, osearch):
+    async def test_search_after_with_pit(self, opensearch):
         pit_op = "open-point-in-time1"
         pit_id = "0123456789abcdef"
         params = {
@@ -4516,18 +4516,18 @@ class QueryWithSearchAfterScrollTests(TestCase):
                      ]
                  }}
 
-        osearch.transport.perform_request.side_effect = [as_future(io.BytesIO(json.dumps(page_1).encode())),
+        opensearch.transport.perform_request.side_effect = [as_future(io.BytesIO(json.dumps(page_1).encode())),
                                                     as_future(io.BytesIO(json.dumps(page_2).encode()))]
 
         r = runner.Query()
 
         async with runner.CompositeContext():
             runner.CompositeContext.put(pit_op, pit_id)
-            await r(osearch, params)
+            await r(opensearch, params)
             # make sure pit_id is updated afterward
             self.assertEqual("fedcba9876543211", runner.CompositeContext.get(pit_op))
 
-        osearch.transport.perform_request.assert_has_calls([mock.call("GET", "/_search", params={},
+        opensearch.transport.perform_request.assert_has_calls([mock.call("GET", "/_search", params={},
                                                                  body={
                                                                      "query": {
                                                                          "match-all": {}
@@ -4563,7 +4563,7 @@ class QueryWithSearchAfterScrollTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_search_after_without_pit(self, osearch):
+    async def test_search_after_without_pit(self, opensearch):
         params = {
             "name": "search-with-pit",
             "operation-type": "paginated-search",
@@ -4615,12 +4615,12 @@ class QueryWithSearchAfterScrollTests(TestCase):
             }
         }
 
-        osearch.transport.perform_request.side_effect = [as_future(io.BytesIO(json.dumps(page_1).encode())),
+        opensearch.transport.perform_request.side_effect = [as_future(io.BytesIO(json.dumps(page_1).encode())),
                                                     as_future(io.BytesIO(json.dumps(page_2).encode()))]
         r = runner.Query()
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.transport.perform_request.assert_has_calls([mock.call("GET", "/test-index-1/_search", params={},
+        opensearch.transport.perform_request.assert_has_calls([mock.call("GET", "/test-index-1/_search", params={},
                                                                  body={"query": {"match-all": {}},
                                                                        "sort": [
                                                                            {"timestamp": "asc",
@@ -4773,7 +4773,7 @@ class CompositeTests(TestCase):
             self.current += 1
             return self
 
-        async def __call__(self, osearch, params):
+        async def __call__(self, opensearch, params):
             self.max_value = max(self.max_value, self.current)
             # wait for a short moment to ensure overlap
             await asyncio.sleep(0.1)
@@ -4786,7 +4786,7 @@ class CompositeTests(TestCase):
         def __init__(self):
             self.calls = []
 
-        async def __call__(self, osearch, params):
+        async def __call__(self, opensearch, params):
             self.calls.append(params["name"])
             # wait for a short moment to ensure overlap
             await asyncio.sleep(0.1)
@@ -4806,8 +4806,8 @@ class CompositeTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_execute_multiple_streams(self, osearch):
-        osearch.transport.perform_request.side_effect = [
+    async def test_execute_multiple_streams(self, opensearch):
+        opensearch.transport.perform_request.side_effect = [
             # raw-request
             as_future(),
             # search
@@ -4862,9 +4862,9 @@ class CompositeTests(TestCase):
         }
 
         r = runner.Composite()
-        await r(osearch, params)
+        await r(opensearch, params)
 
-        osearch.transport.perform_request.assert_has_calls([
+        opensearch.transport.perform_request.assert_has_calls([
             mock.call(method="GET",
                       url="/",
                       headers=None,
@@ -4883,8 +4883,8 @@ class CompositeTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_propagates_violated_assertions(self, osearch):
-        osearch.transport.perform_request.side_effect = [
+    async def test_propagates_violated_assertions(self, opensearch):
+        opensearch.transport.perform_request.side_effect = [
             # search
             as_future(io.StringIO(json.dumps({
                 "hits": {
@@ -4926,9 +4926,9 @@ class CompositeTests(TestCase):
         r = runner.Composite()
         with self.assertRaisesRegex(exceptions.BenchmarkTaskAssertionError,
                                     r"Expected \[hits\] to be > \[0\] but was \[0\]."):
-            await r(osearch, params)
+            await r(opensearch, params)
 
-        osearch.transport.perform_request.assert_has_calls([
+        opensearch.transport.perform_request.assert_has_calls([
             mock.call("GET",
                       "/test/_search",
                       params={},
@@ -4942,8 +4942,8 @@ class CompositeTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_executes_tasks_in_specified_order(self, osearch):
-        osearch.transport.perform_request.return_value = as_future()
+    async def test_executes_tasks_in_specified_order(self, opensearch):
+        opensearch.transport.perform_request.return_value = as_future()
 
         params = {
             "requests": [
@@ -4997,7 +4997,7 @@ class CompositeTests(TestCase):
 
         r = runner.Composite()
         r.supported_op_types = ["call-recorder"]
-        await r(osearch, params)
+        await r(opensearch, params)
 
         self.assertEqual([
             "initial-call",
@@ -5013,7 +5013,7 @@ class CompositeTests(TestCase):
     async def test_adds_request_timings(self):
         # We only need the request context holder functionality but not any calls to Elasticsearch.
         # Therefore we can use the the request context holder as a substitute and get proper timing info.
-        osearch = client.RequestContextHolder()
+        opensearch = client.RequestContextHolder()
 
         params = {
             "requests": [
@@ -5044,7 +5044,7 @@ class CompositeTests(TestCase):
         }
 
         r = runner.Composite()
-        response = await r(osearch, params)
+        response = await r(opensearch, params)
 
         self.assertEqual(1, response["weight"])
         self.assertEqual("ops", response["unit"])
@@ -5070,7 +5070,7 @@ class CompositeTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_limits_connections(self, osearch):
+    async def test_limits_connections(self, opensearch):
         params = {
             "max-connections": 2,
             "requests": [
@@ -5101,14 +5101,14 @@ class CompositeTests(TestCase):
 
         r = runner.Composite()
         r.supported_op_types = ["counter"]
-        await r(osearch, params)
+        await r(opensearch, params)
 
         # composite runner should limit to two concurrent connections
         self.assertEqual(2, self.counter_runner.max_value)
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_rejects_invalid_stream(self, osearch):
+    async def test_rejects_invalid_stream(self, opensearch):
         # params contains a "streams" property (plural) but it should be "stream" (singular)
         params = {
             "max-connections": 2,
@@ -5133,13 +5133,13 @@ class CompositeTests(TestCase):
 
         r = runner.Composite()
         with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
-            await r(osearch, params)
+            await r(opensearch, params)
 
         self.assertEqual("Requests structure must contain [stream] or [operation-type].", ctx.exception.args[0])
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_rejects_unsupported_operations(self, osearch):
+    async def test_rejects_unsupported_operations(self, opensearch):
         params = {
             "requests": [
                 {
@@ -5154,7 +5154,7 @@ class CompositeTests(TestCase):
 
         r = runner.Composite()
         with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
-            await r(osearch, params)
+            await r(opensearch, params)
 
         self.assertEqual("Unsupported operation-type [bulk]. Use one of [open-point-in-time, close-point-in-time, "
                          "search, raw-request, sleep, submit-async-search, get-async-search, delete-async-search].",
@@ -5184,9 +5184,9 @@ class RequestTimingTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_merges_timing_info(self, osearch):
-        multi_cluster_client = {"default": osearch}
-        osearch.new_request_context.return_value = RequestTimingTests.StaticRequestTiming(task_start=2)
+    async def test_merges_timing_info(self, opensearch):
+        multi_cluster_client = {"default": opensearch}
+        opensearch.new_request_context.return_value = RequestTimingTests.StaticRequestTiming(task_start=2)
 
         delegate = mock.Mock(return_value=as_future({
             "weight": 5,
@@ -5217,9 +5217,9 @@ class RequestTimingTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_creates_new_timing_info(self, osearch):
-        multi_cluster_client = {"default": osearch}
-        osearch.new_request_context.return_value = RequestTimingTests.StaticRequestTiming(task_start=2)
+    async def test_creates_new_timing_info(self, opensearch):
+        multi_cluster_client = {"default": opensearch}
+        opensearch.new_request_context.return_value = RequestTimingTests.StaticRequestTiming(task_start=2)
 
         # a simple runner without a return value
         delegate = mock.Mock(return_value=as_future())
@@ -5252,50 +5252,50 @@ class RetryTests(TestCase):
     @run_async
     async def test_is_transparent_on_success_when_no_retries(self):
         delegate = mock.Mock(return_value=as_future())
-        osearch = None
+        opensearch = None
         params = {
             # no retries
         }
         retrier = runner.Retry(delegate)
 
-        await retrier(osearch, params)
+        await retrier(opensearch, params)
 
-        delegate.assert_called_once_with(osearch, params)
+        delegate.assert_called_once_with(opensearch, params)
 
     @run_async
     async def test_is_transparent_on_exception_when_no_retries(self):
         delegate = mock.Mock(side_effect=as_future(exception=elasticsearch.ConnectionError("N/A", "no route to host")))
-        osearch = None
+        opensearch = None
         params = {
             # no retries
         }
         retrier = runner.Retry(delegate)
 
         with self.assertRaises(elasticsearch.ConnectionError):
-            await retrier(osearch, params)
+            await retrier(opensearch, params)
 
-        delegate.assert_called_once_with(osearch, params)
+        delegate.assert_called_once_with(opensearch, params)
 
     @run_async
     async def test_is_transparent_on_application_error_when_no_retries(self):
         original_return_value = {"weight": 1, "unit": "ops", "success": False}
 
         delegate = mock.Mock(return_value=as_future(original_return_value))
-        osearch = None
+        opensearch = None
         params = {
             # no retries
         }
         retrier = runner.Retry(delegate)
 
-        result = await retrier(osearch, params)
+        result = await retrier(opensearch, params)
 
         self.assertEqual(original_return_value, result)
-        delegate.assert_called_once_with(osearch, params)
+        delegate.assert_called_once_with(opensearch, params)
 
     @run_async
     async def test_is_does_not_retry_on_success(self):
         delegate = mock.Mock(return_value=as_future())
-        osearch = None
+        opensearch = None
         params = {
             "retries": 3,
             "retry-wait-period": 0.1,
@@ -5304,9 +5304,9 @@ class RetryTests(TestCase):
         }
         retrier = runner.Retry(delegate)
 
-        await retrier(osearch, params)
+        await retrier(opensearch, params)
 
-        delegate.assert_called_once_with(osearch, params)
+        delegate.assert_called_once_with(opensearch, params)
 
     @run_async
     async def test_retries_on_timeout_if_wanted_and_raises_if_no_recovery(self):
@@ -5316,7 +5316,7 @@ class RetryTests(TestCase):
             as_future(exception=elasticsearch.ConnectionError("N/A", "no route to host")),
             as_future(exception=elasticsearch.ConnectionError("N/A", "no route to host"))
         ])
-        osearch = None
+        opensearch = None
         params = {
             "retries": 3,
             "retry-wait-period": 0.01,
@@ -5326,12 +5326,12 @@ class RetryTests(TestCase):
         retrier = runner.Retry(delegate)
 
         with self.assertRaises(elasticsearch.ConnectionError):
-            await retrier(osearch, params)
+            await retrier(opensearch, params)
 
         delegate.assert_has_calls([
-            mock.call(osearch, params),
-            mock.call(osearch, params),
-            mock.call(osearch, params)
+            mock.call(opensearch, params),
+            mock.call(opensearch, params),
+            mock.call(opensearch, params)
         ])
 
     @run_async
@@ -5342,7 +5342,7 @@ class RetryTests(TestCase):
             as_future(exception=elasticsearch.ConnectionError("N/A", "no route to host")),
             as_future(failed_return_value)
         ])
-        osearch = None
+        opensearch = None
         params = {
             "retries": 3,
             "retry-wait-period": 0.01,
@@ -5351,14 +5351,14 @@ class RetryTests(TestCase):
         }
         retrier = runner.Retry(delegate)
 
-        result = await retrier(osearch, params)
+        result = await retrier(opensearch, params)
         self.assertEqual(failed_return_value, result)
 
         delegate.assert_has_calls([
             # has returned a connection error
-            mock.call(osearch, params),
+            mock.call(opensearch, params),
             # has returned normally
-            mock.call(osearch, params)
+            mock.call(opensearch, params)
         ])
 
     @run_async
@@ -5375,7 +5375,7 @@ class RetryTests(TestCase):
             as_future(failed_return_value),
             as_future(success_return_value)
         ])
-        osearch = None
+        opensearch = None
         params = {
             # we try exactly as often as there are errors to also test the semantics of "retry".
             "retries": 5,
@@ -5385,28 +5385,28 @@ class RetryTests(TestCase):
         }
         retrier = runner.Retry(delegate)
 
-        result = await retrier(osearch, params)
+        result = await retrier(opensearch, params)
         self.assertEqual(success_return_value, result)
 
         delegate.assert_has_calls([
             # connection error
-            mock.call(osearch, params),
+            mock.call(opensearch, params),
             # application error
-            mock.call(osearch, params),
+            mock.call(opensearch, params),
             # connection error
-            mock.call(osearch, params),
+            mock.call(opensearch, params),
             # connection error
-            mock.call(osearch, params),
+            mock.call(opensearch, params),
             # application error
-            mock.call(osearch, params),
+            mock.call(opensearch, params),
             # success
-            mock.call(osearch, params)
+            mock.call(opensearch, params)
         ])
 
     @run_async
     async def test_does_not_retry_on_timeout_if_not_wanted(self):
         delegate = mock.Mock(side_effect=as_future(exception=elasticsearch.ConnectionTimeout(408, "timed out")))
-        osearch = None
+        opensearch = None
         params = {
             "retries": 3,
             "retry-wait-period": 0.01,
@@ -5416,9 +5416,9 @@ class RetryTests(TestCase):
         retrier = runner.Retry(delegate)
 
         with self.assertRaises(elasticsearch.ConnectionTimeout):
-            await retrier(osearch, params)
+            await retrier(opensearch, params)
 
-        delegate.assert_called_once_with(osearch, params)
+        delegate.assert_called_once_with(opensearch, params)
 
     @run_async
     async def test_retries_on_application_error_if_wanted(self):
@@ -5429,7 +5429,7 @@ class RetryTests(TestCase):
             as_future(failed_return_value),
             as_future(success_return_value)
         ])
-        osearch = None
+        opensearch = None
         params = {
             "retries": 3,
             "retry-wait-period": 0.01,
@@ -5438,14 +5438,14 @@ class RetryTests(TestCase):
         }
         retrier = runner.Retry(delegate)
 
-        result = await retrier(osearch, params)
+        result = await retrier(opensearch, params)
 
         self.assertEqual(success_return_value, result)
 
         delegate.assert_has_calls([
-            mock.call(osearch, params),
+            mock.call(opensearch, params),
             # one retry
-            mock.call(osearch, params)
+            mock.call(opensearch, params)
         ])
 
     @run_async
@@ -5453,7 +5453,7 @@ class RetryTests(TestCase):
         failed_return_value = {"weight": 1, "unit": "ops", "success": False}
 
         delegate = mock.Mock(return_value=as_future(failed_return_value))
-        osearch = None
+        opensearch = None
         params = {
             "retries": 3,
             "retry-wait-period": 0.01,
@@ -5462,16 +5462,16 @@ class RetryTests(TestCase):
         }
         retrier = runner.Retry(delegate)
 
-        result = await retrier(osearch, params)
+        result = await retrier(opensearch, params)
 
         self.assertEqual(failed_return_value, result)
 
-        delegate.assert_called_once_with(osearch, params)
+        delegate.assert_called_once_with(opensearch, params)
 
     @run_async
     async def test_assumes_success_if_runner_returns_non_dict(self):
         delegate = mock.Mock(return_value=as_future(result=(1, "ops")))
-        osearch = None
+        opensearch = None
         params = {
             "retries": 3,
             "retry-wait-period": 0.01,
@@ -5480,11 +5480,11 @@ class RetryTests(TestCase):
         }
         retrier = runner.Retry(delegate)
 
-        result = await retrier(osearch, params)
+        result = await retrier(opensearch, params)
 
         self.assertEqual((1, "ops"), result)
 
-        delegate.assert_called_once_with(osearch, params)
+        delegate.assert_called_once_with(opensearch, params)
 
     @run_async
     async def test_retries_until_success(self):
@@ -5498,18 +5498,18 @@ class RetryTests(TestCase):
         responses += [as_future(success_return_value)]
 
         delegate = mock.Mock(side_effect=responses)
-        osearch = None
+        opensearch = None
         params = {
             "retry-until-success": True,
             "retry-wait-period": 0.01
         }
         retrier = runner.Retry(delegate)
 
-        result = await retrier(osearch, params)
+        result = await retrier(opensearch, params)
 
         self.assertEqual(success_return_value, result)
 
-        delegate.assert_has_calls([mock.call(osearch, params) for _ in range(failure_count + 1)])
+        delegate.assert_has_calls([mock.call(opensearch, params) for _ in range(failure_count + 1)])
 
 
 class RemovePrefixTests(TestCase):
