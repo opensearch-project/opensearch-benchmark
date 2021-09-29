@@ -146,7 +146,7 @@ class BenchmarkRepository:
         # Branches have been moved into opensearch-benchmark-provisionconfigs
         branches = [b for b in os.listdir(pc_path) if os.path.isdir(os.path.join(pc_path, b)) and b != "main"]
         branches.sort(key=lambda b: list(map(int, b.split('.'))), reverse=True)
-
+        self.logger.info("branches: %s", branches)
         convert = lambda s: list(map(int, s.split('.')))
         if distribution_version is not None:
             # Return a branch that is less than or equal to the distribution version

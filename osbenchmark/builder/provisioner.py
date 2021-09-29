@@ -268,7 +268,7 @@ class OpenSearchInstaller:
 
         self.logger.info("Unzipping %s to %s", binary, self.install_dir)
         io.decompress(binary, self.install_dir)
-        self.os_home_path = glob.glob(os.path.join(self.install_dir, "elasticsearch*"))[0]
+        self.os_home_path = glob.glob(os.path.join(self.install_dir, "opensearch*"))[0]
         self.data_paths = self._data_paths()
 
     def delete_pre_bundled_configuration(self):

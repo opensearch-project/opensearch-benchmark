@@ -39,7 +39,7 @@ def run_subprocess_with_output(command_line):
     logger = logging.getLogger(__name__)
     logger.debug("Running subprocess [%s] with output.", command_line)
     command_line_args = shlex.split(command_line)
-    logger.info("RUNNING SUBPROCESS")
+    # logger.info("RUNNING SUBPROCESS")
     # results = subprocess.run(args=command_line_args, stdout=subprocess.PIPE)
     # logger.info("SUBPROCESS RESULTS [%s]:", results)
     # print(results)

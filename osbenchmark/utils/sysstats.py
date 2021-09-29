@@ -64,7 +64,11 @@ def cpu_arch():
     """
     :return: The CPU architecture name.
     """
-    return platform.uname().machine
+    # Distribution link uses x64 instead of x86_64
+    architecture = platform.uname().machine
+    if architecture == "x86_64":
+        return "x64"
+    return architecture
 
 
 def disks():
@@ -80,7 +84,12 @@ def total_memory():
 
 
 def os_name():
-    return platform.uname().system
+    uname = platform.uname().system
+    # Darwin is the unix-like os that Apple is built on. Since there
+    # is no Darwin distribution for OpenSearch, we should use Linux
+    if uname == "Darwin":
+        return "Linux"
+    return uname
 
 
 def os_version():

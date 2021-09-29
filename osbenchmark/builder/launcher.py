@@ -206,6 +206,7 @@ class ProcessLauncher:
     @staticmethod
     def _run_subprocess(command_line, env):
         command_line_args = shlex.split(command_line)
+        self.logger.info("command_line_args: %s", command_line_args)
 
         with subprocess.Popen(command_line_args,
                               stdout=subprocess.DEVNULL,

@@ -328,7 +328,7 @@ class CachedSourceSupplier:
         # Can we already resolve the artifact without fetching the source tree at all? This is the case when a specific
         # revision (instead of a meta-revision like "current") is provided and the artifact is already cached. This is
         # also needed if an external process pushes artifacts to Benchmark's cache which might have been built from a
-        # fork. In that case the provided commit hash would not be present in any case in the main ES repo.
+        # fork. In that case the provided commit hash would not be present in any case in the main OS repo.
         maybe_an_artifact = os.path.join(self.distributions_root, self.file_name)
         if os.path.exists(maybe_an_artifact):
             self.cached_path = maybe_an_artifact
@@ -507,7 +507,8 @@ class OpenSearchDistributionSupplier:
 
     def fetch(self):
         io.ensure_dir(self.distributions_root)
-        download_url = net.add_url_param_opensearch_no_kpi(self.repo.download_url)
+        # download_url = net.add_url_param_opensearch_no_kpi(self.repo.download_url)
+        download_url = self.repo.download_url
         distribution_path = os.path.join(self.distributions_root, self.repo.file_name)
         self.logger.info("Resolved download URL [%s] for version [%s]", download_url, self.version)
         if not os.path.isfile(distribution_path) or not self.repo.cache:
@@ -700,16 +701,19 @@ class DistributionRepository:
         self.cfg = distribution_config
         self.runtime_jdk_bundled = convert.to_bool(self.cfg.get("runtime.jdk.bundled", False))
         self.template_renderer = template_renderer
+        self.logger = logging.getLogger(__name__)
 
     @property
     def download_url(self):
         # provision_config repo
+        self.logger.info("runtime_jdk_bundled? [%s]", self.runtime_jdk_bundled)
         if self.runtime_jdk_bundled:
             default_key = "jdk.bundled.{}_url".format(self.name)
         else:
             default_key = "jdk.unbundled.{}_url".format(self.name)
         # benchmark.ini
         override_key = "{}.url".format(self.name)
+        self.logger.info("keys: [%s] and [%s]", override_key, default_key)
         return self._url_for(override_key, default_key)
 
     @property

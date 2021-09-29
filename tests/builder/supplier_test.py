@@ -762,36 +762,36 @@ class CreateSupplierTests(TestCase):
 
 class DistributionRepositoryTests(TestCase):
     @mock.patch("osbenchmark.utils.sysstats.os_name", return_value="Linux")
-    @mock.patch("osbenchmark.utils.sysstats.cpu_arch", return_value="X86_64")
+    @mock.patch("osbenchmark.utils.sysstats.cpu_arch", return_value="x64")
     def test_release_repo_config_with_default_url(self, os_name, cpu_arch):
-        renderer = supplier.TemplateRenderer(version="7.3.2")
+        renderer = supplier.TemplateRenderer(version="1.0.0")
         repo = supplier.DistributionRepository(name="release", distribution_config={
             "runtime.jdk.bundled": "true",
             "jdk.bundled.release_url":
-                "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz",
+                "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz",
             "release.cache": "true"
         }, template_renderer=renderer)
-        self.assertEqual("https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.3.2-linux-x86_64.tar.gz", repo.download_url)
-        self.assertEqual("elasticsearch-7.3.2-linux-x86_64.tar.gz", repo.file_name)
+        self.assertEqual("https://artifacts.opensearch.org/releases/bundle/opensearch/1.0.0/opensearch-1.0.0-linux-x64.tar.gz", repo.download_url)
+        self.assertEqual("opensearch-1.0.0-linux-x64.tar.gz", repo.file_name)
         self.assertTrue(repo.cache)
 
     def test_release_repo_config_with_user_url(self):
-        renderer = supplier.TemplateRenderer(version="2.4.3")
+        renderer = supplier.TemplateRenderer(version="1.0.0")
         repo = supplier.DistributionRepository(name="release", distribution_config={
-            "jdk.unbundled.release_url": "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{VERSION}}.tar.gz",
+            "jdk.unbundled.release_url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-linux-x64.tar.gz",
             "runtime.jdk.bundled": "false",
             # user override
-            "release.url": "https://es-mirror.example.org/downloads/elasticsearch/elasticsearch-{{VERSION}}.tar.gz",
+            "release.url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-linux-x64.tar.gz",
             "release.cache": "false"
         }, template_renderer=renderer)
-        self.assertEqual("https://es-mirror.example.org/downloads/elasticsearch/elasticsearch-2.4.3.tar.gz", repo.download_url)
-        self.assertEqual("elasticsearch-2.4.3.tar.gz", repo.file_name)
+        self.assertEqual("https://artifacts.opensearch.org/releases/bundle/opensearch/1.0.0/opensearch-1.0.0-linux-x64.tar.gz", repo.download_url)
+        self.assertEqual("opensearch-1.0.0-linux-x64.tar.gz", repo.file_name)
         self.assertFalse(repo.cache)
 
     def test_missing_url(self):
-        renderer = supplier.TemplateRenderer(version="2.4.3")
+        renderer = supplier.TemplateRenderer(version="1.0.0")
         repo = supplier.DistributionRepository(name="miss", distribution_config={
-            "jdk.unbundled.release_url": "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{VERSION}}.tar.gz",
+            "jdk.unbundled.release_url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-linux-x64.tar.gz",
             "runtime.jdk.bundled": "false",
             "release.cache": "true"
         }, template_renderer=renderer)
@@ -802,9 +802,9 @@ class DistributionRepositoryTests(TestCase):
         self.assertEqual("Neither config key [miss.url] nor [jdk.unbundled.miss_url] is defined.", ctx.exception.args[0])
 
     def test_missing_cache(self):
-        renderer = supplier.TemplateRenderer(version="2.4.3")
+        renderer = supplier.TemplateRenderer(version="1.0.0")
         repo = supplier.DistributionRepository(name="release", distribution_config={
-            "jdk.unbundled.release.url": "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{VERSION}}.tar.gz",
+            "jdk.unbundled.release.url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-linux-x64.tar.gz",
             "runtime.jdk.bundled": "false"
         }, template_renderer=renderer)
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
@@ -814,9 +814,9 @@ class DistributionRepositoryTests(TestCase):
         self.assertEqual("Mandatory config key [release.cache] is undefined.", ctx.exception.args[0])
 
     def test_invalid_cache_value(self):
-        renderer = supplier.TemplateRenderer(version="2.4.3")
+        renderer = supplier.TemplateRenderer(version="1.0.0")
         repo = supplier.DistributionRepository(name="release", distribution_config={
-            "jdk.unbundled.release.url": "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{VERSION}}.tar.gz",
+            "jdk.unbundled.release.url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-linux-x64.tar.gz",
             "runtime.jdk.bundled": "false",
             "release.cache": "Invalid"
         }, template_renderer=renderer)
