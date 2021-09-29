@@ -166,7 +166,9 @@ class ProcessLauncher:
 
         t = telemetry.Telemetry(enabled_devices, devices=node_telemetry)
         env = self._prepare_env(node_name, java_home, t)
+        self.logger.info("ENV: [%s]", env)
         t.on_pre_node_start(node_name)
+        self.logger.info("ENV2: [%s]", env)
         node_pid = self._start_process(binary_path, env)
         self.logger.info("Successfully started node [%s] with PID [%s].", node_name, node_pid)
         node = cluster.Node(node_pid, binary_path, host_name, node_name, t)
@@ -181,15 +183,15 @@ class ProcessLauncher:
         if java_home:
             self._set_env(env, "PATH", os.path.join(java_home, "bin"), separator=os.pathsep, prepend=True)
             # This property is the higher priority starting in ES 7.12.0, and is the only supported java home in >=8.0
-            env["ES_JAVA_HOME"] = java_home
+            env["OPENSEARCH_JAVA_HOME"] = java_home
             # TODO remove this when ES <8.0 becomes unsupported by Benchmark
             env["JAVA_HOME"] = java_home
-        if not env.get("ES_JAVA_OPTS"):
-            env["ES_JAVA_OPTS"] = "-XX:+ExitOnOutOfMemoryError"
+        if not env.get("OPENSEARCH_JAVA_OPTS"):
+            env["OPENSEARCH_JAVA_OPTS"] = "-XX:+ExitOnOutOfMemoryError"
 
         # we just blindly trust telemetry here...
         for v in t.instrument_candidate_java_opts():
-            self._set_env(env, "ES_JAVA_OPTS", v)
+            self._set_env(env, "OPENSEARCH_JAVA_OPTS", v)
 
         self.logger.debug("env for [%s]: %s", node_name, str(env))
         return env
@@ -206,23 +208,32 @@ class ProcessLauncher:
     @staticmethod
     def _run_subprocess(command_line, env):
         command_line_args = shlex.split(command_line)
-        self.logger.info("command_line_args: %s", command_line_args)
+        logger = logging.getLogger(__name__)
+        logger.info("command_line_args: %s", command_line_args)
+
+        # results = subprocess.check_output(command_line_args, env=env)
+        # logger.info("RESULTS: %s", results)
 
         with subprocess.Popen(command_line_args,
-                              stdout=subprocess.DEVNULL,
-                              stderr=subprocess.DEVNULL,
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE,
                               env=env,
                               start_new_session=True) as command_line_process:
             # wait for it to finish
             command_line_process.wait()
+        out, err = command_line_process.communicate()
+        logger.info("OUT OUTPUT: [%s]", out.decode("utf-8"))
+        logger.info("ERR OUTPUT: [%s]", err.decode("utf-8"))
         return command_line_process.returncode
 
     @staticmethod
     def _start_process(binary_path, env):
+        logger = logging.getLogger(__name__)
+        logger.info("HERE?")
         if os.name == "posix" and os.geteuid() == 0:
             raise exceptions.LaunchError("Cannot launch OpenSearch as root. Please run Benchmark as a non-root user.")
         os.chdir(binary_path)
-        cmd = [io.escape_path(os.path.join(".", "bin", "elasticsearch"))]
+        cmd = [io.escape_path(os.path.join(".", "bin", "opensearch"))]
         cmd.extend(["-d", "-p", "pid"])
         ret = ProcessLauncher._run_subprocess(command_line=" ".join(cmd), env=env)
         if ret != 0:
