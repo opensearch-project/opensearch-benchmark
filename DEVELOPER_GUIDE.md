@@ -13,13 +13,19 @@ For more details please refer to the [PyEnv installation instructions](https://g
 
 ### Setup
 
-Use the following command-lin instructions to setup OpenSearch Benchmark for development (Please see the `Notes regarding Setup` section right after for extraneous information regarding the setup commands):
+Use the following command-line instructions to setup OpenSearch Benchmark for development:
 ```
 git clone https://github.com/opensearch-project/OpenSearch-Benchmark.git
 cd OpenSearch-Benchmark
 make prereq
 make install
 ```
+
+NOTE: `make prereq` produces the following message:
+```
+IMPORTANT: please add `eval "$(pyenv init -)"` to your bash profile and restart your terminal before proceeding any further.
+```
+This line is commonly thought of as an error message but rather it's just a warning. Unless you haven't already added `eval "$(pyenv init -)"` to your bash profile and restarted your terminal, then feel free to proceed forward. This eval statement is necessary in the startup configuration as it allows Pyenv to manage python versions by adding python shims to your path. If you experience any issues, please see https://github.com/pyenv/pyenv.
 
 Depending on the platform and shell you have, use the following command to activate the virtual environment:
 
@@ -35,14 +41,6 @@ Depending on the platform and shell you have, use the following command to activ
 For more information regarding activating virtual environments, please see https://docs.python.org/3/library/venv.html.
 
 As an extra step, please consider configuring your JAVA_HOMES as mentioned in the `Important information related to integration tests`.
-
-### Notes regarding Setup
-
-`make prereq` produces the following message:
-```
-IMPORTANT: please add `eval "$(pyenv init -)"` to your bash profile and restart your terminal before proceeding any further.
-```
-This line is commonly thought of as an error message but rather it's just a warning. Unless you haven't already added `eval "$(pyenv init -)"` to your bash profile and restarted your terminal, then feel free to proceed forward. This eval statement is necessary in the startup configuration as it allows Pyenv to manage python versions by adding python shims to your path. If you experience any issues, please see https://github.com/pyenv/pyenv.
 
 ## Importing the project into an IDE
 
