@@ -78,6 +78,7 @@ def benchmark_os(t):
 
 
 def osbenchmark_command_line_for(cfg, command_line):
+    print(f"osbenchmark {command_line} --configuration-name='{cfg}'")
     return f"osbenchmark {command_line} --configuration-name='{cfg}'"
 
 
@@ -174,6 +175,7 @@ class TestCluster:
                                                                      provision_config_instance=provision_config_instance,
                                                                      transport_port=transport_port))
             self.installation_id = json.loads("".join(output))["installation-id"]
+            print("INSTALLATION ID: ", self.installation_id)
         except BaseException as e:
             raise AssertionError("Failed to install OpenSearch {}.".format(distribution_version), e)
 

@@ -166,9 +166,9 @@ class ProcessLauncher:
 
         t = telemetry.Telemetry(enabled_devices, devices=node_telemetry)
         env = self._prepare_env(node_name, java_home, t)
-        self.logger.info("ENV: [%s]", env)
         t.on_pre_node_start(node_name)
         self.logger.info("ENV2: [%s]", env)
+        self.logger.info("Binary path: %s", binary_path)
         node_pid = self._start_process(binary_path, env)
         self.logger.info("Successfully started node [%s] with PID [%s].", node_name, node_pid)
         node = cluster.Node(node_pid, binary_path, host_name, node_name, t)
@@ -222,8 +222,6 @@ class ProcessLauncher:
             # wait for it to finish
             command_line_process.wait()
         out, err = command_line_process.communicate()
-        logger.info("OUT OUTPUT: [%s]", out.decode("utf-8"))
-        logger.info("ERR OUTPUT: [%s]", err.decode("utf-8"))
         return command_line_process.returncode
 
     @staticmethod
