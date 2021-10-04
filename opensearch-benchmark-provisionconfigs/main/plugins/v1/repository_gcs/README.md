@@ -1,5 +1,4 @@
 This directory contains the (optional) keystore configuration for the `repository-gcs` plugin.
-For more details on secure settings for the repository-gcs plugin please refer to the [repository-gcs-client](https://www.elastic.co/guide/en/elasticsearch/plugins/current/repository-gcs-client.html) documentation.
 
 ### Parameters
 

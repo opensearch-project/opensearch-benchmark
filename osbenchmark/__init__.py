@@ -39,7 +39,7 @@ else:
     DOC_LINK = "https://opensearch.org/docs/%s" % __version__
 
 
-FORUM_LINK = "https://github.com/opensearch-project/OpenSearch-Benchmark/issues"
+FORUM_LINK = "https://discuss.opendistrocommunity.dev/"
 
 BANNER = r"""
    ____                  _____                      __       ____                  __                         __

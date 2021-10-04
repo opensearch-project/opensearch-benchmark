@@ -1,10 +1,10 @@
 Benchmark
-=====
+=========
 
 Benchmark is the macrobenchmarking framework for OpenSearch
 
 What is Benchmark?
---------------
+------------------
 
 You want to benchmark OpenSearch? Then Benchmark is for you. It can help you with the following tasks:
 
@@ -19,28 +19,28 @@ We have also put considerable effort in Benchmark to ensure that benchmarking da
 Quick Start
 -----------
 
-Benchmark is developed for Unix and is actively tested on Linux and MacOS. Benchmark supports `benchmarking OpenSearch clusters running on Windows <http://osbenchmark.readthedocs.io/en/stable/recipes.html#benchmarking-an-existing-cluster>`_ but Benchmark itself needs to be installed on machines running Unix.
+Benchmark is developed for Unix and is actively tested on Linux and MacOS. Benchmark supports `benchmarking OpenSearch clusters running on Windows <https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>`_ but Benchmark itself needs to be installed on machines running Unix.
 
 Installing Benchmark
-~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
 
-**Note**: If you actively develop on OpenSearch, we recommend that you `install Benchmark in development mode <https://osbenchmark.readthedocs.io/en/latest/developing.html#installation-instructions-for-development>`_ instead as OpenSearch is fast moving and Benchmark always adapts accordingly to the latest master version.
+**Note**: If you actively develop on OpenSearch, we recommend that you `install Benchmark in development mode <https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>`_ instead as OpenSearch is fast moving and Benchmark always adapts accordingly to the latest main version.
 
-Install Python 3.8+ including ``pip3``, git 1.9+ and an `appropriate JDK to run OpenSearch <https://www.elastic.co/support/matrix#matrix_jvm>`_ Be sure that ``JAVA_HOME`` points to that JDK. Then run the following command, optionally prefixed by ``sudo`` if necessary::
+Install Python 3.8+ including ``pip3``, git 1.9+ and an `appropriate JDK to run OpenSearch <https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>`_ Be sure that ``JAVA_HOME`` points to that JDK. Then run the following command, optionally prefixed by ``sudo`` if necessary::
 
     pip3 install osbenchmark
 
 
-If you have any trouble or need more detailed instructions, please look in the `detailed installation guide <https://osbenchmark.readthedocs.io/en/latest/install.html>`_.
+If you have any trouble or need more detailed instructions, please look in the `detailed installation guide <https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>`_.
 
-Run your first race
--------------------
+Run your first test execution
+-----------------------------
 
-Now we're ready to run our first race::
+Now we're ready to run our first test execution::
 
-    osbenchmark race --distribution-version=6.0.0 --track=geonames
+    osbenchmark execute_test --distribution-version=1.0.0 --workload=geonames
 
-This will download OpenSearch 6.0.0 and run Benchmark's default track - the `geonames track <https://github.com/opensearch-project/OpenSearch-Benchmark-tracks/tree/master/geonames>`_ - against it. After the race, a summary report is written to the command line:::
+This will download OpenSearch 1.0.0 and run Benchmark's default workload - the `geonames workload <https://github.com/opensearch-project/opensearch-benchmark-workloads/tree/main/geonames>`_ - against it. After the test execution, a summary report is written to the command line:::
 
     ------------------------------------------------------
         _______             __   _____
@@ -105,8 +105,8 @@ Getting help
 ------------
 
 * Quick help: ``osbenchmark --help``
-* Look in `Benchmark's user guide <https://osbenchmark.readthedocs.io/>`_ for more information
-* Ask questions about Benchmark in the `Benchmark Discuss forum <https://discuss.elastic.co/tags/c/elastic-stack/elasticsearch/benchmark>`_.
+* Look in `Benchmark's user guide <https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>`_ for more information
+* For any questions or answers, visit our `community forum <https://discuss.opendistrocommunity.dev/>`_.
 * File improvements or bug reports in our `Github repo <https://github.com/opensearch-project/OpenSearch-Benchmark/issues>`_.
 
 How to Contribute
@@ -119,7 +119,7 @@ License
 
 This software is licensed under the Apache License, version 2 ("ALv2"), quoted below.
 
-Copyright 2015-2021 OpenSearch <https://www.elastic.co>
+Copyright 2015-2021 OpenSearch <https://opensearch.org/>
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not
 use this file except in compliance with the License. You may obtain a copy of

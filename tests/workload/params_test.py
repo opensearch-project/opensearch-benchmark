@@ -734,7 +734,7 @@ class BulkIndexParamSourceTests(TestCase):
             params.BulkIndexParamSource(workload=workload.Workload(name="unit-test"), params={})
 
         self.assertEqual("There is no document corpus definition for workload unit-test. "
-                         "You must add at least one before making bulk requests to Elasticsearch.", ctx.exception.args[0])
+                         "You must add at least one before making bulk requests to OpenSearch.", ctx.exception.args[0])
 
     def test_create_with_non_numeric_bulk_size(self):
         corpus = workload.DocumentCorpus(name="default", documents=[

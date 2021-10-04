@@ -1,7 +1,7 @@
 version: '2.2'
 services:
   benchmark:
-    image: elastic/rally:${BENCHMARK_VERSION}
+    image: opensearchproject/benchmark:${BENCHMARK_VERSION}
     container_name: osbenchmark
     command: ${TEST_COMMAND}
     volumes:

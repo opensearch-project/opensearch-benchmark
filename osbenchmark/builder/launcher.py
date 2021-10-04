@@ -219,7 +219,7 @@ class ProcessLauncher:
     @staticmethod
     def _start_process(binary_path, env):
         if os.name == "posix" and os.geteuid() == 0:
-            raise exceptions.LaunchError("Cannot launch Elasticsearch as root. Please run Benchmark as a non-root user.")
+            raise exceptions.LaunchError("Cannot launch OpenSearch as root. Please run Benchmark as a non-root user.")
         os.chdir(binary_path)
         cmd = [io.escape_path(os.path.join(".", "bin", "elasticsearch"))]
         cmd.extend(["-d", "-p", "pid"])
@@ -239,29 +239,29 @@ class ProcessLauncher:
             if metrics_store:
                 telemetry.add_metadata_for_node(metrics_store, node_name, node.host_name)
             try:
-                es = psutil.Process(pid=node.pid)
+                opensearch = psutil.Process(pid=node.pid)
                 node.telemetry.detach_from_node(node, running=True)
             except psutil.NoSuchProcess:
                 self.logger.warning("No process found with PID [%s] for node [%s].", node.pid, node_name)
-                es = None
+                opensearch = None
 
-            if es:
+            if opensearch:
                 stop_watch = self._clock.stop_watch()
                 stop_watch.start()
                 try:
-                    es.terminate()
-                    es.wait(10.0)
+                    opensearch.terminate()
+                    opensearch.wait(10.0)
                     stopped_nodes.append(node)
                 except psutil.NoSuchProcess:
-                    self.logger.warning("No process found with PID [%s] for node [%s].", es.pid, node_name)
+                    self.logger.warning("No process found with PID [%s] for node [%s].", opensearch.pid, node_name)
                 except psutil.TimeoutExpired:
                     self.logger.info("kill -KILL node [%s]", node_name)
                     try:
                         # kill -9
-                        es.kill()
+                        opensearch.kill()
                         stopped_nodes.append(node)
                     except psutil.NoSuchProcess:
-                        self.logger.warning("No process found with PID [%s] for node [%s].", es.pid, node_name)
+                        self.logger.warning("No process found with PID [%s] for node [%s].", opensearch.pid, node_name)
                 self.logger.info("Done shutting down node [%s] in [%.1f] s.", node_name, stop_watch.split_time())
 
                 node.telemetry.detach_from_node(node, running=False)

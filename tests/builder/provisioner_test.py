@@ -45,7 +45,7 @@ class BareProvisionerTests(TestCase):
         def null_apply_config(source_root_path, target_root_path, config_vars):
             apply_config_calls.append((source_root_path, target_root_path, config_vars))
 
-        installer = provisioner.ElasticsearchInstaller(provision_config_instance=
+        installer = provisioner.OpenSearchInstaller(provision_config_instance=
         provision_config.ProvisionConfigInstance(
             names="unit-test-provision-config-instance",
             root_path=None,
@@ -59,7 +59,7 @@ class BareProvisionerTests(TestCase):
             ip="10.17.22.23",
             http_port=9200)
 
-        p = provisioner.BareProvisioner(es_installer=installer,
+        p = provisioner.BareProvisioner(os_installer=installer,
                                         plugin_installers=[],
                                         apply_config=null_apply_config)
 
@@ -122,13 +122,13 @@ class NoopHookHandler:
         }
 
 
-class ElasticsearchInstallerTests(TestCase):
+class OpenSearchInstallerTests(TestCase):
     @mock.patch("glob.glob", lambda p: ["/install/elasticsearch-5.0.0-SNAPSHOT"])
     @mock.patch("osbenchmark.utils.io.decompress")
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("shutil.rmtree")
     def test_prepare_default_data_paths(self, mock_rm, mock_ensure_dir, mock_decompress):
-        installer = provisioner.ElasticsearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
+        installer = provisioner.OpenSearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
                                                                     root_path=None,
                                                                     config_paths="/tmp"),
                                                        java_home="/usr/local/javas/java8",
@@ -140,7 +140,7 @@ class ElasticsearchInstallerTests(TestCase):
                                                        node_root_dir=HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest")
 
         installer.install("/data/builds/distributions")
-        self.assertEqual(installer.es_home_path, "/install/elasticsearch-5.0.0-SNAPSHOT")
+        self.assertEqual(installer.os_home_path, "/install/elasticsearch-5.0.0-SNAPSHOT")
 
         self.assertEqual({
             "cluster_name": "benchmark-provisioned-cluster",
@@ -165,7 +165,7 @@ class ElasticsearchInstallerTests(TestCase):
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("shutil.rmtree")
     def test_prepare_user_provided_data_path(self, mock_rm, mock_ensure_dir, mock_decompress):
-        installer = provisioner.ElasticsearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
+        installer = provisioner.OpenSearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
                                                                     root_path=None,
                                                                     config_paths="/tmp",
                                                                     variables={"data_paths": "/tmp/some/data-path-dir"}),
@@ -178,7 +178,7 @@ class ElasticsearchInstallerTests(TestCase):
                                                        node_root_dir="~/.benchmark/benchmarks/test_executions/unittest")
 
         installer.install("/data/builds/distributions")
-        self.assertEqual(installer.es_home_path, "/install/elasticsearch-5.0.0-SNAPSHOT")
+        self.assertEqual(installer.os_home_path, "/install/elasticsearch-5.0.0-SNAPSHOT")
 
         self.assertEqual({
             "cluster_name": "benchmark-provisioned-cluster",
@@ -199,7 +199,7 @@ class ElasticsearchInstallerTests(TestCase):
         self.assertEqual(installer.data_paths, ["/tmp/some/data-path-dir"])
 
     def test_invokes_hook_with_java_home(self):
-        installer = provisioner.ElasticsearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
+        installer = provisioner.OpenSearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
                                                                     root_path="/tmp",
                                                                     config_paths="/tmp/templates",
                                                                     variables={"data_paths": "/tmp/some/data-path-dir"}),
@@ -220,7 +220,7 @@ class ElasticsearchInstallerTests(TestCase):
                          installer.hook_handler.hook_calls["post_install"]["kwargs"])
 
     def test_invokes_hook_no_java_home(self):
-        installer = provisioner.ElasticsearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
+        installer = provisioner.OpenSearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
                                                                     root_path="/tmp",
                                                                     config_paths="/tmp/templates",
                                                                     variables={"data_paths": "/tmp/some/data-path-dir"}),
@@ -250,7 +250,7 @@ class PluginInstallerTests(TestCase):
                                                 java_home="/usr/local/javas/java8",
                                                 hook_handler_class=NoopHookHandler)
 
-        installer.install(es_home_path="/opt/elasticsearch")
+        installer.install(os_home_path="/opt/elasticsearch")
 
         installer_subprocess.assert_called_with(
             '/opt/elasticsearch/bin/elasticsearch-plugin install --batch "unit-test-plugin"',
@@ -266,7 +266,7 @@ class PluginInstallerTests(TestCase):
                                                 java_home=None,
                                                 hook_handler_class=NoopHookHandler)
 
-        installer.install(es_home_path="/opt/elasticsearch")
+        installer.install(os_home_path="/opt/elasticsearch")
 
         installer_subprocess.assert_called_with(
             '/opt/elasticsearch/bin/elasticsearch-plugin install --batch "unit-test-plugin"',
@@ -283,7 +283,7 @@ class PluginInstallerTests(TestCase):
                                                 hook_handler_class=NoopHookHandler)
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            installer.install(es_home_path="/opt/elasticsearch")
+            installer.install(os_home_path="/opt/elasticsearch")
         self.assertEqual("Unknown plugin [unknown]", ctx.exception.args[0])
 
         installer_subprocess.assert_called_with(
@@ -301,7 +301,7 @@ class PluginInstallerTests(TestCase):
                                                 hook_handler_class=NoopHookHandler)
 
         with self.assertRaises(exceptions.SupplyError) as ctx:
-            installer.install(es_home_path="/opt/elasticsearch")
+            installer.install(os_home_path="/opt/elasticsearch")
         self.assertEqual("I/O error while trying to install [simple]", ctx.exception.args[0])
 
         installer_subprocess.assert_called_with(
@@ -319,7 +319,7 @@ class PluginInstallerTests(TestCase):
                                                 hook_handler_class=NoopHookHandler)
 
         with self.assertRaises(exceptions.BenchmarkError) as ctx:
-            installer.install(es_home_path="/opt/elasticsearch")
+            installer.install(os_home_path="/opt/elasticsearch")
         self.assertEqual("Unknown error while trying to install [simple] (installer return code [12987]). Please check the logs.",
                          ctx.exception.args[0])
 
@@ -412,10 +412,10 @@ class DockerProvisionerTests(TestCase):
         }, docker.config_vars)
 
         self.assertDictEqual({
-            "es_data_dir": data_dir,
-            "es_log_dir": log_dir,
-            "es_heap_dump_dir": heap_dump_dir,
-            "es_version": "6.3.0",
+            "os_data_dir": data_dir,
+            "os_log_dir": log_dir,
+            "os_heap_dump_dir": heap_dump_dir,
+            "os_version": "6.3.0",
             "docker_image": "docker.elastic.co/elasticsearch/elasticsearch-oss",
             "http_port": 39200,
             "mounts": {}

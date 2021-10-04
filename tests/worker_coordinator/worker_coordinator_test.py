@@ -82,11 +82,11 @@ class WorkerCoordinatorTests(TestCase):
 
         def __init__(self, *args, **kwargs):
             WorkerCoordinatorTests.StaticClientFactory.PATCHER = mock.patch("elasticsearch.Elasticsearch")
-            self.es = WorkerCoordinatorTests.StaticClientFactory.PATCHER.start()
-            self.es.indices.stats.return_value = {"mocked": True}
+            self.opensearch = WorkerCoordinatorTests.StaticClientFactory.PATCHER.start()
+            self.opensearch.indices.stats.return_value = {"mocked": True}
 
         def create(self):
-            return self.es
+            return self.opensearch
 
         @classmethod
         def close(cls):
@@ -138,7 +138,7 @@ class WorkerCoordinatorTests(TestCase):
         resolve.side_effect = ["10.5.5.1", "10.5.5.2"]
 
         target = self.create_test_worker_coordinator_target()
-        d = worker_coordinator.WorkerCoordinator(target, self.cfg, es_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
+        d = worker_coordinator.WorkerCoordinator(target, self.cfg, os_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
         d.prepare_benchmark(t=self.workload)
 
         target.prepare_workload.assert_called_once_with(["10.5.5.1", "10.5.5.2"], self.cfg, self.workload)
@@ -156,7 +156,7 @@ class WorkerCoordinatorTests(TestCase):
 
     def test_assign_worker_coordinators_round_robin(self):
         target = self.create_test_worker_coordinator_target()
-        d = worker_coordinator.WorkerCoordinator(target, self.cfg, es_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
+        d = worker_coordinator.WorkerCoordinator(target, self.cfg, os_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
 
         d.prepare_benchmark(t=self.workload)
 
@@ -176,7 +176,7 @@ class WorkerCoordinatorTests(TestCase):
 
     def test_client_reaches_join_point_others_still_executing(self):
         target = self.create_test_worker_coordinator_target()
-        d = worker_coordinator.WorkerCoordinator(target, self.cfg, es_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
+        d = worker_coordinator.WorkerCoordinator(target, self.cfg, os_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
 
         d.prepare_benchmark(t=self.workload)
         d.start_benchmark()
@@ -194,7 +194,7 @@ class WorkerCoordinatorTests(TestCase):
 
     def test_client_reaches_join_point_which_completes_parent(self):
         target = self.create_test_worker_coordinator_target()
-        d = worker_coordinator.WorkerCoordinator(target, self.cfg, es_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
+        d = worker_coordinator.WorkerCoordinator(target, self.cfg, os_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
 
         d.prepare_benchmark(t=self.workload)
         d.start_benchmark()
@@ -1122,11 +1122,11 @@ class AsyncExecutorTests(TestCase):
         def percent_completed(self):
             return (self.iterations - self.iterations_left) / self.iterations
 
-        async def __call__(self, es, params):
+        async def __call__(self, opensearch, params):
             self.iterations_left -= 1
 
     class RunnerOverridingThroughput:
-        async def __call__(self, es, params):
+        async def __call__(self, opensearch, params):
             return {
                 "weight": 1,
                 "unit": "ops",
@@ -1150,11 +1150,11 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_execute_schedule_in_throughput_mode(self, es):
+    async def test_execute_schedule_in_throughput_mode(self, opensearch):
         task_start = time.perf_counter()
-        es.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
+        opensearch.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
 
-        es.bulk.return_value = as_future(io.StringIO('{"errors": false, "took": 8}'))
+        opensearch.bulk.return_value = as_future(io.StringIO('{"errors": false, "took": 8}'))
 
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_workload = workload.Workload(name="unittest", description="unittest workload",
@@ -1184,8 +1184,8 @@ class AsyncExecutorTests(TestCase):
         execute_schedule = worker_coordinator.AsyncExecutor(client_id=2,
                                                 task=task,
                                                 schedule=schedule,
-                                                es={
-                                                    "default": es
+                                                opensearch={
+                                                    "default": opensearch
                                                 },
                                                 sampler=sampler,
                                                 cancel=cancel,
@@ -1215,9 +1215,9 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_execute_schedule_with_progress_determined_by_runner(self, es):
+    async def test_execute_schedule_with_progress_determined_by_runner(self, opensearch):
         task_start = time.perf_counter()
-        es.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
+        opensearch.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
 
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_workload = workload.Workload(name="unittest", description="unittest workload",
@@ -1239,8 +1239,8 @@ class AsyncExecutorTests(TestCase):
         execute_schedule = worker_coordinator.AsyncExecutor(client_id=2,
                                                 task=task,
                                                 schedule=schedule,
-                                                es={
-                                                    "default": es
+                                                opensearch={
+                                                    "default": opensearch
                                                 },
                                                 sampler=sampler,
                                                 cancel=cancel,
@@ -1274,9 +1274,9 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_execute_schedule_runner_overrides_times(self, es):
+    async def test_execute_schedule_runner_overrides_times(self, opensearch):
         task_start = time.perf_counter()
-        es.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
+        opensearch.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
 
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_workload = workload.Workload(name="unittest", description="unittest workload",
@@ -1301,8 +1301,8 @@ class AsyncExecutorTests(TestCase):
         execute_schedule = worker_coordinator.AsyncExecutor(client_id=0,
                                                 task=task,
                                                 schedule=schedule,
-                                                es={
-                                                    "default": es
+                                                opensearch={
+                                                    "default": opensearch
                                                 },
                                                 sampler=sampler,
                                                 cancel=cancel,
@@ -1328,17 +1328,17 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_execute_schedule_throughput_throttled(self, es):
+    async def test_execute_schedule_throughput_throttled(self, opensearch):
         def perform_request(*args, **kwargs):
             return as_future()
 
-        es.init_request_context.return_value = {
+        opensearch.init_request_context.return_value = {
             "request_start": 0,
             "request_end": 10
         }
         # as this method is called several times we need to return a fresh instance every time as the previous
         # one has been "consumed".
-        es.transport.perform_request.side_effect = perform_request
+        opensearch.transport.perform_request.side_effect = perform_request
 
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_workload = workload.Workload(name="unittest", description="unittest workload",
@@ -1371,8 +1371,8 @@ class AsyncExecutorTests(TestCase):
             execute_schedule = worker_coordinator.AsyncExecutor(client_id=0,
                                                     task=task,
                                                     schedule=schedule,
-                                                    es={
-                                                        "default": es
+                                                    opensearch={
+                                                        "default": opensearch
                                                     },
                                                     sampler=sampler,
                                                     cancel=cancel,
@@ -1391,12 +1391,12 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_cancel_execute_schedule(self, es):
-        es.init_request_context.return_value = {
+    async def test_cancel_execute_schedule(self, opensearch):
+        opensearch.init_request_context.return_value = {
             "request_start": 0,
             "request_end": 10
         }
-        es.bulk.return_value = as_future(io.StringIO('{"errors": false, "took": 8}'))
+        opensearch.bulk.return_value = as_future(io.StringIO('{"errors": false, "took": 8}'))
 
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_workload = workload.Workload(name="unittest", description="unittest workload",
@@ -1425,8 +1425,8 @@ class AsyncExecutorTests(TestCase):
             execute_schedule = worker_coordinator.AsyncExecutor(client_id=0,
                                                     task=task,
                                                     schedule=schedule,
-                                                    es={
-                                                        "default": es
+                                                    opensearch={
+                                                        "default": opensearch
                                                     },
                                                     sampler=sampler,
                                                     cancel=cancel,
@@ -1443,7 +1443,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch("elasticsearch.Elasticsearch")
     @run_async
-    async def test_execute_schedule_aborts_on_error(self, es):
+    async def test_execute_schedule_aborts_on_error(self, opensearch):
         class ExpectedUnitTestException(Exception):
 
             def __str__(self):
@@ -1476,8 +1476,8 @@ class AsyncExecutorTests(TestCase):
         execute_schedule = worker_coordinator.AsyncExecutor(client_id=2,
                                                 task=task,
                                                 schedule=ScheduleHandle(),
-                                                es={
-                                                    "default": es
+                                                opensearch={
+                                                    "default": opensearch
                                                 },
                                                 sampler=sampler,
                                                 cancel=cancel,
@@ -1487,18 +1487,18 @@ class AsyncExecutorTests(TestCase):
         with self.assertRaisesRegex(exceptions.BenchmarkError, r"Cannot run task \[no-op\]: expected unit test exception"):
             await execute_schedule()
 
-        self.assertEqual(0, es.call_count)
+        self.assertEqual(0, opensearch.call_count)
 
     @run_async
     async def test_execute_single_no_return_value(self):
-        es = None
+        opensearch = None
         params = None
         runner = mock.Mock()
         runner.return_value = as_future()
 
         ops, unit, request_meta_data = await worker_coordinator.execute_single(
             self.context_managed(runner),
-            es,
+            opensearch,
             params,
             on_error="continue")
 
@@ -1508,14 +1508,14 @@ class AsyncExecutorTests(TestCase):
 
     @run_async
     async def test_execute_single_tuple(self):
-        es = None
+        opensearch = None
         params = None
         runner = mock.Mock()
         runner.return_value = as_future(result=(500, "MB"))
 
         ops, unit, request_meta_data = await worker_coordinator.execute_single(
             self.context_managed(runner),
-            es,
+            opensearch,
             params,
             on_error="continue")
 
@@ -1525,7 +1525,7 @@ class AsyncExecutorTests(TestCase):
 
     @run_async
     async def test_execute_single_dict(self):
-        es = None
+        opensearch = None
         params = None
         runner = mock.Mock()
         runner.return_value = as_future({
@@ -1537,7 +1537,7 @@ class AsyncExecutorTests(TestCase):
 
         ops, unit, request_meta_data = await worker_coordinator.execute_single(
             self.context_managed(runner),
-            es,
+            opensearch,
             params,
             on_error="continue")
 
@@ -1553,26 +1553,26 @@ class AsyncExecutorTests(TestCase):
     async def test_execute_single_with_connection_error_always_aborts(self):
         for on_error in ["abort", "continue"]:
             with self.subTest():
-                es = None
+                opensearch = None
                 params = None
                 # ES client uses pseudo-status "N/A" in this case...
                 runner = mock.Mock(side_effect=as_future(exception=elasticsearch.ConnectionError("N/A", "no route to host", None)))
 
                 with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
-                    await worker_coordinator.execute_single(self.context_managed(runner), es, params, on_error=on_error)
+                    await worker_coordinator.execute_single(self.context_managed(runner), opensearch, params, on_error=on_error)
                 self.assertEqual(
                     "Request returned an error. Error type: transport, Description: no route to host",
                     ctx.exception.args[0])
 
     @run_async
     async def test_execute_single_with_http_400_aborts_when_specified(self):
-        es = None
+        opensearch = None
         params = None
         runner = mock.Mock(side_effect=
                            as_future(exception=elasticsearch.NotFoundError(404, "not found", "the requested document could not be found")))
 
         with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
-            await worker_coordinator.execute_single(self.context_managed(runner), es, params, on_error="abort")
+            await worker_coordinator.execute_single(self.context_managed(runner), opensearch, params, on_error="abort")
         self.assertEqual(
             "Request returned an error. Error type: transport, Description: not found (the requested document could not be found)",
             ctx.exception.args[0])
@@ -1580,13 +1580,13 @@ class AsyncExecutorTests(TestCase):
 
     @run_async
     async def test_execute_single_with_http_400(self):
-        es = None
+        opensearch = None
         params = None
         runner = mock.Mock(side_effect=
                            as_future(exception=elasticsearch.NotFoundError(404, "not found", "the requested document could not be found")))
 
         ops, unit, request_meta_data = await worker_coordinator.execute_single(
-            self.context_managed(runner), es, params, on_error="continue")
+            self.context_managed(runner), opensearch, params, on_error="continue")
 
         self.assertEqual(0, ops)
         self.assertEqual("ops", unit)
@@ -1599,13 +1599,13 @@ class AsyncExecutorTests(TestCase):
 
     @run_async
     async def test_execute_single_with_http_413(self):
-        es = None
+        opensearch = None
         params = None
         runner = mock.Mock(side_effect=
                            as_future(exception=elasticsearch.NotFoundError(413, b"", b"")))
 
         ops, unit, request_meta_data = await worker_coordinator.execute_single(
-            self.context_managed(runner), es, params, on_error="continue")
+            self.context_managed(runner), opensearch, params, on_error="continue")
 
         self.assertEqual(0, ops)
         self.assertEqual("ops", unit)
@@ -1625,7 +1625,7 @@ class AsyncExecutorTests(TestCase):
             def __str__(self):
                 return "failing_mock_runner"
 
-        es = None
+        opensearch = None
         params = collections.OrderedDict()
         # simulating an error; this should be "bulk-size"
         params["bulk"] = 5000
@@ -1633,7 +1633,7 @@ class AsyncExecutorTests(TestCase):
         runner = FailingRunner()
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            await worker_coordinator.execute_single(self.context_managed(runner), es, params, on_error="continue")
+            await worker_coordinator.execute_single(self.context_managed(runner), opensearch, params, on_error="continue")
         self.assertEqual(
             "Cannot execute [failing_mock_runner]. Provided parameters are: ['bulk', 'mode']. Error: ['bulk-size missing'].",
             ctx.exception.args[0])

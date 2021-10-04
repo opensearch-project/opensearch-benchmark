@@ -2,10 +2,9 @@
 #
 # This config file is used for Benchmark >= 0.7.3.
 #
-# It contains the names of all plugins that are part of Elasticsearch
+# It contains the names of all plugins that are part of OpenSearch
 # core. Some of them require custom configuration and will not work
-# out of the box (see x_pack for an example on how to create a custom
-# plugin configuration).
+# out of the box.
 #
 ########################################################################
 analysis-icu

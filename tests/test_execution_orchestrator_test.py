@@ -58,10 +58,10 @@ def unittest_pipeline():
 
 def test_finds_available_pipelines():
     expected = [
-        ["from-sources", "Builds and provisions Elasticsearch, runs a benchmark and publishes results."],
+        ["from-sources", "Builds and provisions OpenSearch, runs a benchmark and publishes results."],
         ["from-distribution",
-         "Downloads an Elasticsearch distribution, provisions it, runs a benchmark and publishes results."],
-        ["benchmark-only", "Assumes an already running Elasticsearch instance, runs a benchmark and publishes results"],
+         "Downloads an OpenSearch distribution, provisions it, runs a benchmark and publishes results."],
+        ["benchmark-only", "Assumes an already running OpenSearch instance, runs a benchmark and publishes results"],
     ]
 
     assert expected == test_execution_orchestrator.available_pipelines()

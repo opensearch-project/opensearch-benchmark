@@ -59,10 +59,10 @@ function stop_and_clean_docker_container {
     docker rm ${1} > /dev/null || true
 }
 
-function kill_related_es_processes {
-    # kill all lingering Rally instances that might still be hanging
+function kill_related_os_processes {
+    # kill all lingering Benchmark instances that might still be hanging
     set +e
-    # kill all lingering Elasticsearch Docker containers launched by Rally
+    # kill all lingering OpenSearch Docker containers launched by Benchmark
     RUNNING_DOCKER_CONTAINERS=$(docker ps --filter "label=io.rally.description" --format "{{.ID}}")
     if [ -n "${RUNNING_DOCKER_CONTAINERS}" ]; then
         for container in "${RUNNING_DOCKER_CONTAINERS}"
@@ -101,21 +101,21 @@ function test_docker_release_image {
     docker_compose down
 
     info "Testing Rally docker image uses the right version"
-    actual_version=$(docker run --rm elastic/rally:${BENCHMARK_VERSION} osbenchmark --version | cut -d ' ' -f 2,2)
+    actual_version=$(docker run --rm opensearchproject/benchmark:${BENCHMARK_VERSION} osbenchmark --version | cut -d ' ' -f 2,2)
     if [[ ${actual_version} != ${BENCHMARK_VERSION} ]]; then
         echo "Rally version in Docker image: [${actual_version}] doesn't match the expected version [${BENCHMARK_VERSION}]"
         exit 1
     fi
 
     info "Testing Rally docker image version label is correct"
-    actual_version=$(docker inspect --format '{{ index .Config.Labels "org.label-schema.version"}}' elastic/rally:${BENCHMARK_VERSION})
+    actual_version=$(docker inspect --format '{{ index .Config.Labels "org.label-schema.version"}}' opensearchproject/benchmark:${BENCHMARK_VERSION})
     if [[ ${actual_version} != ${BENCHMARK_VERSION} ]]; then
         echo "org.label-schema.version label in Rally Docker image: [${actual_version}] doesn't match the expected version [${BENCHMARK_VERSION}]"
         exit 1
     fi
 
     info "Testing Rally docker image license label is correct"
-    actual_license=$(docker inspect --format '{{ index .Config.Labels "license"}}' elastic/rally:${BENCHMARK_VERSION})
+    actual_license=$(docker inspect --format '{{ index .Config.Labels "license"}}' opensearchproject/benchmark:${BENCHMARK_VERSION})
     if [[ ${actual_license} != ${BENCHMARK_LICENSE} ]]; then
         echo "license label in Rally Docker image: [${actual_license}] doesn't match the expected license [${BENCHMARK_LICENSE}]"
         exit 1
@@ -154,7 +154,7 @@ function main {
 
 function tear_down {
     info "tearing down"
-    kill_related_es_processes
+    kill_related_os_processes
 }
 
 trap "tear_down" EXIT

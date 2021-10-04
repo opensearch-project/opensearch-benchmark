@@ -44,7 +44,7 @@ class Pipeline:
     Describes a whole execution pipeline. A pipeline can consist of one or more steps. Each pipeline should contain roughly of the following
     steps:
 
-    * Prepare the benchmark candidate: It can build Elasticsearch from sources, download a ZIP from somewhere etc.
+    * Prepare the benchmark candidate: It can build OpenSearch from sources, download a ZIP from somewhere etc.
     * Launch the benchmark candidate: This can be done directly, with tools like Ansible or it can assume the candidate is already launched
     * Run the benchmark
     * Publish results
@@ -320,17 +320,17 @@ def docker(cfg):
 
 
 Pipeline("from-sources",
-         "Builds and provisions Elasticsearch, runs a benchmark and publishes results.", from_sources)
+         "Builds and provisions OpenSearch, runs a benchmark and publishes results.", from_sources)
 
 Pipeline("from-distribution",
-         "Downloads an Elasticsearch distribution, provisions it, runs a benchmark and publishes results.", from_distribution)
+         "Downloads an OpenSearch distribution, provisions it, runs a benchmark and publishes results.", from_distribution)
 
 Pipeline("benchmark-only",
-         "Assumes an already running Elasticsearch instance, runs a benchmark and publishes results", benchmark_only)
+         "Assumes an already running OpenSearch instance, runs a benchmark and publishes results", benchmark_only)
 
 # Very experimental Docker pipeline. Should only be used with great care and is also not supported on all platforms.
 Pipeline("docker",
-         "Runs a benchmark against the official Elasticsearch Docker container and publishes results", docker, stable=False)
+         "Runs a benchmark against the official OpenSearch Docker container and publishes results", docker, stable=False)
 
 
 def available_pipelines():
@@ -359,7 +359,7 @@ def run(cfg):
         logger.info("User specified pipeline [%s].", name)
 
     if os.environ.get("BENCHMARK_RUNNING_IN_DOCKER", "").upper() == "TRUE":
-        # in this case only benchmarking remote Elasticsearch clusters makes sense
+        # in this case only benchmarking remote OpenSearch clusters makes sense
         if name != "benchmark-only":
             raise exceptions.SystemSetupError(
                 "Only the [benchmark-only] pipeline is supported by the Benchmark Docker image.\n"

@@ -1,5 +1,4 @@
 This directory contains the (optional) keystore configuration for the `repository-azure` plugin.
-For more details on secure settings for the repository-azure plugin please refer to the [repository-azure-client](https://www.elastic.co/guide/en/elasticsearch/plugins/current/repository-azure-client-settings.html) documentation.
 
 ### Parameters
 

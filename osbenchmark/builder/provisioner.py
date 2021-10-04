@@ -45,12 +45,12 @@ def local(cfg, provision_config_instance, plugins, ip, http_port, all_node_ips, 
     runtime_jdk = provision_config_instance.mandatory_var("runtime.jdk")
     _, java_home = java_resolver.java_home(runtime_jdk, cfg.opts("builder", "runtime.jdk"), runtime_jdk_bundled)
 
-    es_installer = ElasticsearchInstaller(
+    os_installer = OpenSearchInstaller(
         provision_config_instance, java_home, node_name,
         node_root_dir, all_node_ips, all_node_names, ip, http_port)
     plugin_installers = [PluginInstaller(plugin, java_home) for plugin in plugins]
 
-    return BareProvisioner(es_installer, plugin_installers, distribution_version=distribution_version)
+    return BareProvisioner(os_installer, plugin_installers, distribution_version=distribution_version)
 
 
 def docker(cfg, provision_config_instance, ip, http_port, target_root, node_name):
@@ -164,7 +164,6 @@ def _apply_config(source_root_path, target_root_path, config_vars):
             target_file = os.path.join(absolute_target_root, name)
             if plain_text(source_file):
                 logger.info("Reading config template file [%s] and writing to [%s].", source_file, target_file)
-                # automatically merge config snippets from plugins (e.g. if they want to add config to elasticsearch.yml)
                 with open(target_file, mode="a", encoding="utf-8") as f:
                     f.write(_render_template(env, config_vars, source_file))
             else:
@@ -178,22 +177,22 @@ class BareProvisioner:
     of the benchmark candidate to the appropriate place.
     """
 
-    def __init__(self, es_installer, plugin_installers, distribution_version=None, apply_config=_apply_config):
-        self.es_installer = es_installer
+    def __init__(self, os_installer, plugin_installers, distribution_version=None, apply_config=_apply_config):
+        self.os_installer = os_installer
         self.plugin_installers = plugin_installers
         self.distribution_version = distribution_version
         self.apply_config = apply_config
         self.logger = logging.getLogger(__name__)
 
     def prepare(self, binary):
-        self.es_installer.install(binary["elasticsearch"])
+        self.os_installer.install(binary["elasticsearch"])
         # we need to immediately delete it as plugins may copy their configuration during installation.
-        self.es_installer.delete_pre_bundled_configuration()
+        self.os_installer.delete_pre_bundled_configuration()
 
         # determine after installation because some variables will depend on the install directory
-        target_root_path = self.es_installer.es_home_path
+        target_root_path = self.os_installer.os_home_path
         provisioner_vars = self._provisioner_variables()
-        for p in self.es_installer.config_source_paths:
+        for p in self.os_installer.config_source_paths:
             self.apply_config(p, target_root_path, provisioner_vars)
 
         for installer in self.plugin_installers:
@@ -202,23 +201,20 @@ class BareProvisioner:
                 self.apply_config(plugin_config_path, target_root_path, provisioner_vars)
 
         # Never let install hooks modify our original provisioner variables and just provide a copy!
-        self.es_installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, provisioner_vars.copy())
+        self.os_installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, provisioner_vars.copy())
         for installer in self.plugin_installers:
             installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, provisioner_vars.copy())
 
-        return NodeConfiguration("tar", self.es_installer.provision_config_instance.mandatory_var("runtime.jdk"),
-                                 convert.to_bool(self.es_installer.provision_config_instance.mandatory_var("runtime.jdk.bundled")),
-                                 self.es_installer.node_ip, self.es_installer.node_name,
-                                 self.es_installer.node_root_dir, self.es_installer.es_home_path,
-                                 self.es_installer.data_paths)
+        return NodeConfiguration("tar", self.os_installer.provision_config_instance.mandatory_var("runtime.jdk"),
+                                 convert.to_bool(self.os_installer.provision_config_instance.mandatory_var("runtime.jdk.bundled")),
+                                 self.os_installer.node_ip, self.os_installer.node_name,
+                                 self.os_installer.node_root_dir, self.os_installer.os_home_path,
+                                 self.os_installer.data_paths)
 
     def _provisioner_variables(self):
         plugin_variables = {}
         mandatory_plugins = []
         for installer in self.plugin_installers:
-            # For Elasticsearch < 6.3 more specific plugin names are required for mandatory plugin check
-            # Details in: https://github.com/opensearch-project/OpenSearch-Benchmark
-            # TODO: Remove this section with Elasticsearch <6.3 becomes EOL.
             try:
                 major, minor, _, _ = versions.components(self.distribution_version)
                 if (major == 6 and minor < 3) or major < 6:
@@ -233,19 +229,17 @@ class BareProvisioner:
         if mandatory_plugins:
             # as a safety measure, prevent the cluster to startup if something went wrong during plugin installation which
             # we did not detect already here. This ensures we fail fast.
-            #
-            # https://www.elastic.co/guide/en/elasticsearch/plugins/current/_plugins_directory.html#_mandatory_plugins
             cluster_settings["plugin.mandatory"] = mandatory_plugins
 
         provisioner_vars = {}
-        provisioner_vars.update(self.es_installer.variables)
+        provisioner_vars.update(self.os_installer.variables)
         provisioner_vars.update(plugin_variables)
         provisioner_vars["cluster_settings"] = cluster_settings
 
         return provisioner_vars
 
 
-class ElasticsearchInstaller:
+class OpenSearchInstaller:
     def __init__(self, provision_config_instance, java_home, node_name, node_root_dir, all_node_ips, all_node_names, ip, http_port,
                  hook_handler_class=provision_config.BootstrapHookHandler):
         self.provision_config_instance = provision_config_instance
@@ -262,7 +256,7 @@ class ElasticsearchInstaller:
         self.hook_handler = hook_handler_class(self.provision_config_instance)
         if self.hook_handler.can_load():
             self.hook_handler.load()
-        self.es_home_path = None
+        self.os_home_path = None
         self.data_paths = None
         self.logger = logging.getLogger(__name__)
 
@@ -274,12 +268,12 @@ class ElasticsearchInstaller:
 
         self.logger.info("Unzipping %s to %s", binary, self.install_dir)
         io.decompress(binary, self.install_dir)
-        self.es_home_path = glob.glob(os.path.join(self.install_dir, "elasticsearch*"))[0]
+        self.os_home_path = glob.glob(os.path.join(self.install_dir, "elasticsearch*"))[0]
         self.data_paths = self._data_paths()
 
     def delete_pre_bundled_configuration(self):
-        config_path = os.path.join(self.es_home_path, "config")
-        self.logger.info("Deleting pre-bundled Elasticsearch configuration at [%s]", config_path)
+        config_path = os.path.join(self.os_home_path, "config")
+        self.logger.info("Deleting pre-bundled OpenSearch configuration at [%s]", config_path)
         shutil.rmtree(config_path)
 
     def invoke_install_hook(self, phase, variables):
@@ -309,7 +303,7 @@ class ElasticsearchInstaller:
             "all_node_names": "[\"%s\"]" % "\",\"".join(self.all_node_names),
             # at the moment we are strict and enforce that all nodes are master eligible nodes
             "minimum_master_nodes": len(self.all_node_ips),
-            "install_root_path": self.es_home_path
+            "install_root_path": self.os_home_path
         }
         variables = {}
         variables.update(self.provision_config_instance.variables)
@@ -330,7 +324,7 @@ class ElasticsearchInstaller:
             else:
                 raise exceptions.SystemSetupError("Expected [data_paths] to be either a string or a list but was [%s]." % type(data_paths))
         else:
-            return [os.path.join(self.es_home_path, "data")]
+            return [os.path.join(self.os_home_path, "data")]
 
 
 class PluginInstaller:
@@ -342,17 +336,16 @@ class PluginInstaller:
             self.hook_handler.load()
         self.logger = logging.getLogger(__name__)
 
-    def install(self, es_home_path, plugin_url=None):
-        installer_binary_path = os.path.join(es_home_path, "bin", "elasticsearch-plugin")
+    def install(self, os_home_path, plugin_url=None):
+        installer_binary_path = os.path.join(os_home_path, "bin", "elasticsearch-plugin")
         if plugin_url:
-            self.logger.info("Installing [%s] into [%s] from [%s]", self.plugin_name, es_home_path, plugin_url)
+            self.logger.info("Installing [%s] into [%s] from [%s]", self.plugin_name, os_home_path, plugin_url)
             install_cmd = '%s install --batch "%s"' % (installer_binary_path, plugin_url)
         else:
-            self.logger.info("Installing [%s] into [%s]", self.plugin_name, es_home_path)
+            self.logger.info("Installing [%s] into [%s]", self.plugin_name, os_home_path)
             install_cmd = '%s install --batch "%s"' % (installer_binary_path, self.plugin_name)
 
         return_code = process.run_subprocess_with_logging(install_cmd, env=self.env())
-        # see: https://www.elastic.co/guide/en/elasticsearch/plugins/current/_other_command_line_parameters.html
         if return_code == 0:
             self.logger.info("Successfully installed [%s].", self.plugin_name)
         elif return_code == 64:
@@ -477,12 +470,12 @@ class DockerProvisioner:
 
     def docker_vars(self, mounts):
         v = {
-            "es_version": self.distribution_version,
+            "os_version": self.distribution_version,
             "docker_image": self.provision_config_instance.mandatory_var("docker_image"),
             "http_port": self.http_port,
-            "es_data_dir": self.data_paths[0],
-            "es_log_dir": self.node_log_dir,
-            "es_heap_dump_dir": self.heap_dump_dir,
+            "os_data_dir": self.data_paths[0],
+            "os_log_dir": self.node_log_dir,
+            "os_heap_dump_dir": self.heap_dump_dir,
             "mounts": mounts
         }
         self._add_if_defined_for_provision_config_instance(v, "docker_mem_limit")

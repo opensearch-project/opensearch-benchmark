@@ -154,7 +154,7 @@ def remove_runner(operation_type):
 
 class Runner:
     """
-    Base class for all operations against Elasticsearch.
+    Base class for all operations against OpenSearch.
     """
 
     def __init__(self, *args, **kwargs):
@@ -164,7 +164,7 @@ class Runner:
     async def __aenter__(self):
         return self
 
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         """
         Runs the actual method that should be benchmarked.
 
@@ -230,12 +230,12 @@ def unwrap(runner):
 
 def _single_cluster_runner(runnable, name, context_manager_enabled=False):
     # only pass the default ES client
-    return MultiClientRunner(runnable, name, lambda es: es["default"], context_manager_enabled)
+    return MultiClientRunner(runnable, name, lambda opensearch: opensearch["default"], context_manager_enabled)
 
 
 def _multi_cluster_runner(runnable, name, context_manager_enabled=False):
     # pass all ES clients
-    return MultiClientRunner(runnable, name, lambda es: es, context_manager_enabled)
+    return MultiClientRunner(runnable, name, lambda opensearch: opensearch, context_manager_enabled)
 
 
 def _with_assertions(delegate):
@@ -437,11 +437,11 @@ class BulkIndex(Runner):
     Bulk indexes the given documents.
     """
 
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         """
         Runs one bulk indexing operation.
 
-        :param es: The Elasticsearch client.
+        :param opensearch: The OpenSearch client.
         :param params: A hash with all parameters. See below for details.
         :return: A hash with meta data for this bulk operation. See below for details.
 
@@ -481,14 +481,14 @@ class BulkIndex(Runner):
         # parse responses lazily in the standard case - responses might be large thus parsing skews results and if no
         # errors have occurred we only need a small amount of information from the potentially large response.
         if not detailed_results:
-            es.return_raw_response()
+            opensearch.return_raw_response()
 
         if with_action_metadata:
             api_kwargs.pop("index", None)
             # only half of the lines are documents
-            response = await es.bulk(params=bulk_params, **api_kwargs)
+            response = await opensearch.bulk(params=bulk_params, **api_kwargs)
         else:
-            response = await es.bulk(doc_type=params.get("type"), params=bulk_params, **api_kwargs)
+            response = await opensearch.bulk(doc_type=params.get("type"), params=bulk_params, **api_kwargs)
 
         stats = self.detailed_stats(params, response) if detailed_results else self.simple_stats(bulk_size, unit, response)
 
@@ -623,10 +623,10 @@ class BulkIndex(Runner):
 
 class ForceMerge(Runner):
     """
-    Runs a force merge operation against Elasticsearch.
+    Runs a force merge operation against OpenSearch.
     """
 
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         # pylint: disable=import-outside-toplevel
         import elasticsearch
         max_num_segments = params.get("max-num-segments")
@@ -637,18 +637,18 @@ class ForceMerge(Runner):
         if mode == "polling":
             complete = False
             try:
-                await es.indices.forcemerge(**merge_params)
+                await opensearch.indices.forcemerge(**merge_params)
                 complete = True
             except elasticsearch.ConnectionTimeout:
                 pass
             while not complete:
                 await asyncio.sleep(params.get("poll-period"))
-                tasks = await es.tasks.list(params={"actions": "indices:admin/forcemerge"})
+                tasks = await opensearch.tasks.list(params={"actions": "indices:admin/forcemerge"})
                 if len(tasks["nodes"]) == 0:
                     # empty nodes response indicates no tasks
                     complete = True
         else:
-            await es.indices.forcemerge(**merge_params)
+            await opensearch.indices.forcemerge(**merge_params)
 
     def __repr__(self, *args, **kwargs):
         return "force-merge"
@@ -670,11 +670,11 @@ class IndicesStats(Runner):
     def _safe_string(self, v):
         return str(v) if v is not None else None
 
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         api_kwargs = self._default_kw_params(params)
         index = api_kwargs.pop("index", "_all")
         condition = params.get("condition")
-        response = await es.indices.stats(index=index, metric="_all", **api_kwargs)
+        response = await opensearch.indices.stats(index=index, metric="_all", **api_kwargs)
         if condition:
             path = mandatory(condition, "path", repr(self))
             expected_value = mandatory(condition, "expected-value", repr(self))
@@ -707,9 +707,9 @@ class NodeStats(Runner):
     Gather node stats for all nodes.
     """
 
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         request_timeout = params.get("request-timeout")
-        await es.nodes.stats(metric="_all", request_timeout=request_timeout)
+        await opensearch.nodes.stats(metric="_all", request_timeout=request_timeout)
 
     def __repr__(self, *args, **kwargs):
         return "node-stats"
@@ -756,7 +756,7 @@ def parse(text: BytesIO, props: List[str], lists: List[str] = None) -> dict:
 
 class Query(Runner):
     """
-    Runs a request body search against Elasticsearch.
+    Runs a request body search against OpenSearch.
 
     It expects at least the following keys in the `params` hash:
 
@@ -804,7 +804,7 @@ class Query(Runner):
         super().__init__()
         self._extractor = SearchAfterExtractor()
 
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         request_params, headers = self._transport_request_params(params)
         # Mandatory to ensure it is always provided. This is especially important when this runner is used in a
         # composite context where there is no actual parameter source and the entire request structure must be provided
@@ -825,9 +825,9 @@ class Query(Runner):
             # counter-intuitive but preserves prior behavior
             headers = None
         # disable eager response parsing - responses might be huge thus skewing results
-        es.return_raw_response()
+        opensearch.return_raw_response()
 
-        async def _search_after_query(es, params):
+        async def _search_after_query(opensearch, params):
             index = params.get("index", "_all")
             pit_op = params.get("with-point-in-time-from")
             results = {
@@ -849,7 +849,9 @@ class Query(Runner):
                     body["pit"] = {"id": pit_id,
                                    "keep_alive": "1m" }
 
-                response = await self._raw_search(es, doc_type=None, index=index, body=body.copy(), params=request_params, headers=headers)
+                response = await self._raw_search(
+                    opensearch, doc_type=None, index=index, body=body.copy(),
+                    params=request_params, headers=headers)
                 parsed, last_sort = self._extractor(response, bool(pit_op), results.get("hits"))
                 results["pages"] = page
                 results["weight"] = page
@@ -874,10 +876,10 @@ class Query(Runner):
 
             return results
 
-        async def _request_body_query(es, params):
+        async def _request_body_query(opensearch, params):
             doc_type = params.get("type")
 
-            r = await self._raw_search(es, doc_type, index, body, request_params, headers=headers)
+            r = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
 
             if detailed_results:
                 props = parse(r, ["hits.total", "hits.total.value", "hits.total.relation", "timed_out", "took"])
@@ -902,7 +904,7 @@ class Query(Runner):
                     "success": True
                 }
 
-        async def _scroll_query(es, params):
+        async def _scroll_query(opensearch, params):
             hits = 0
             hits_relation = None
             timed_out = False
@@ -921,7 +923,7 @@ class Query(Runner):
                         params["sort"] = sort
                         params["scroll"] = scroll
                         params["size"] = size
-                        r = await self._raw_search(es, doc_type, index, body, params, headers=headers)
+                        r = await self._raw_search(opensearch, doc_type, index, body, params, headers=headers)
 
                         props = parse(r, ["_scroll_id", "hits.total", "hits.total.value", "hits.total.relation",
                                           "timed_out", "took"], ["hits.hits"])
@@ -932,7 +934,7 @@ class Query(Runner):
                         took = props.get("took", 0)
                         all_results_collected = (size is not None and hits < size) or hits == 0
                     else:
-                        r = await es.transport.perform_request("GET", "/_search/scroll",
+                        r = await opensearch.transport.perform_request("GET", "/_search/scroll",
                                                                body={"scroll_id": scroll_id, "scroll": "10s"},
                                                                params=request_params,
                                                                headers=headers)
@@ -948,10 +950,10 @@ class Query(Runner):
                 if scroll_id:
                     # noinspection PyBroadException
                     try:
-                        await es.clear_scroll(body={"scroll_id": [scroll_id]})
+                        await opensearch.clear_scroll(body={"scroll_id": [scroll_id]})
                     except BaseException:
                         self.logger.exception("Could not clear scroll [%s]. This will lead to excessive resource usage in "
-                                              "Elasticsearch and will skew your benchmark results.", scroll_id)
+                                              "OpenSearch and will skew your benchmark results.", scroll_id)
 
             return {
                 "weight": retrieved_pages,
@@ -965,17 +967,17 @@ class Query(Runner):
 
         search_method = params.get("operation-type")
         if search_method == "paginated-search":
-            return await _search_after_query(es, params)
+            return await _search_after_query(opensearch, params)
         elif search_method == "scroll-search":
-            return await _scroll_query(es, params)
+            return await _scroll_query(opensearch, params)
         elif "pages" in params:
             logging.getLogger(__name__).warning("Invoking a scroll search with the 'search' operation is deprecated "
                                                 "and will be removed in a future release. Use 'scroll-search' instead.")
-            return await _scroll_query(es, params)
+            return await _scroll_query(opensearch, params)
         else:
-            return await _request_body_query(es, params)
+            return await _request_body_query(opensearch, params)
 
-    async def _raw_search(self, es, doc_type, index, body, params, headers=None):
+    async def _raw_search(self, opensearch, doc_type, index, body, params, headers=None):
         components = []
         if index:
             components.append(index)
@@ -983,7 +985,7 @@ class Query(Runner):
             components.append(doc_type)
         components.append("_search")
         path = "/".join(components)
-        return await es.transport.perform_request("GET", "/" + path, params=params, body=body, headers=headers)
+        return await opensearch.transport.perform_request("GET", "/" + path, params=params, body=body, headers=headers)
 
     def _query_headers(self, params):
         # reduces overhead due to decompression of very large responses
@@ -1039,7 +1041,7 @@ class ClusterHealth(Runner):
     Get cluster health
     """
 
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         @total_ordering
         class ClusterHealthStatus(Enum):
             UNKNOWN = 0
@@ -1061,7 +1063,7 @@ class ClusterHealth(Runner):
 
         request_params = params.get("request-params", {})
         api_kw_params = self._default_kw_params(params)
-        # by default, Elasticsearch will not wait and thus we treat this as success
+        # by default, OpenSearch will not wait and thus we treat this as success
         expected_cluster_status = request_params.get("wait_for_status", str(ClusterHealthStatus.UNKNOWN))
         if "wait_for_no_relocating_shards" in request_params:
             expected_relocating_shards = 0
@@ -1069,7 +1071,7 @@ class ClusterHealth(Runner):
             # we're good with any count of relocating shards.
             expected_relocating_shards = sys.maxsize
 
-        result = await es.cluster.health(**api_kw_params)
+        result = await opensearch.cluster.health(**api_kw_params)
         cluster_status = result["status"]
         relocating_shards = result["relocating_shards"]
 
@@ -1089,12 +1091,8 @@ class ClusterHealth(Runner):
 
 
 class PutPipeline(Runner):
-    """
-    Execute the `put pipeline API <https://www.elastic.co/guide/en/elasticsearch/reference/current/put-pipeline-api.html>`_.
-    """
-
-    async def __call__(self, es, params):
-        await es.ingest.put_pipeline(id=mandatory(params, "id", self),
+    async def __call__(self, opensearch, params):
+        await opensearch.ingest.put_pipeline(id=mandatory(params, "id", self),
                                      body=mandatory(params, "body", self),
                                      master_timeout=params.get("master-timeout"),
                                      timeout=params.get("timeout"),
@@ -1105,30 +1103,22 @@ class PutPipeline(Runner):
 
 
 class Refresh(Runner):
-    """
-    Execute the `refresh API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-refresh.html>`_.
-    """
-
-    async def __call__(self, es, params):
-        await es.indices.refresh(index=params.get("index", "_all"))
+    async def __call__(self, opensearch, params):
+        await opensearch.indices.refresh(index=params.get("index", "_all"))
 
     def __repr__(self, *args, **kwargs):
         return "refresh"
 
 
 class CreateIndex(Runner):
-    """
-    Execute the `create index API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-create-index.html>`_.
-    """
-
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         indices = mandatory(params, "indices", self)
         api_params = self._default_kw_params(params)
         ## ignore invalid entries rather than erroring
         for term in ["index", "body"]:
             api_params.pop(term, None)
         for index, body in indices:
-            await es.indices.create(index=index, body=body, **api_params)
+            await opensearch.indices.create(index=index, body=body, **api_params)
         return {
             "weight": len(indices),
             "unit": "ops",
@@ -1140,15 +1130,11 @@ class CreateIndex(Runner):
 
 
 class CreateDataStream(Runner):
-    """
-    Execute the `create data stream API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-create-data-stream.html>`_.
-    """
-
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         data_streams = mandatory(params, "data-streams", self)
         request_params = mandatory(params, "request-params", self)
         for data_stream in data_streams:
-            await es.indices.create_data_stream(data_stream, params=request_params)
+            await opensearch.indices.create_data_stream(data_stream, params=request_params)
         return {
             "weight": len(data_streams),
             "unit": "ops",
@@ -1159,12 +1145,12 @@ class CreateDataStream(Runner):
         return "create-data-stream"
 
 
-async def set_destructive_requires_name(es, value):
+async def set_destructive_requires_name(opensearch, value):
     """
     Sets `action.destructive_requires_name` to provided value
     :return: the prior setting, if any
     """
-    all_settings = await es.cluster.get_settings(flat_settings=True)
+    all_settings = await opensearch.cluster.get_settings(flat_settings=True)
     # If the setting was persistent or left as default, we consider resetting later with null sufficient
     prior_value = all_settings.get("transient").get("action.destructive_requires_name")
     settings_body = {
@@ -1172,33 +1158,29 @@ async def set_destructive_requires_name(es, value):
             "action.destructive_requires_name": value
         }
     }
-    await es.cluster.put_settings(body=settings_body)
+    await opensearch.cluster.put_settings(body=settings_body)
     return prior_value
 
 
 class DeleteIndex(Runner):
-    """
-    Execute the `delete index API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-delete-index.html>`_.
-    """
-
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         ops = 0
 
         indices = mandatory(params, "indices", self)
         only_if_exists = params.get("only-if-exists", False)
         request_params = params.get("request-params", {})
-        prior_destructive_setting = await set_destructive_requires_name(es, False)
+        prior_destructive_setting = await set_destructive_requires_name(opensearch, False)
         try:
             for index_name in indices:
                 if not only_if_exists:
-                    await es.indices.delete(index=index_name, params=request_params)
+                    await opensearch.indices.delete(index=index_name, params=request_params)
                     ops += 1
-                elif only_if_exists and await es.indices.exists(index=index_name):
+                elif only_if_exists and await opensearch.indices.exists(index=index_name):
                     self.logger.info("Index [%s] already exists. Deleting it.", index_name)
-                    await es.indices.delete(index=index_name, params=request_params)
+                    await opensearch.indices.delete(index=index_name, params=request_params)
                     ops += 1
         finally:
-            await set_destructive_requires_name(es, prior_destructive_setting)
+            await set_destructive_requires_name(opensearch, prior_destructive_setting)
         return {
             "weight": ops,
             "unit": "ops",
@@ -1210,11 +1192,7 @@ class DeleteIndex(Runner):
 
 
 class DeleteDataStream(Runner):
-    """
-    Execute the `delete data stream API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-delete-data-stream.html>`_.
-    """
-
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         ops = 0
 
         data_streams = mandatory(params, "data-streams", self)
@@ -1223,11 +1201,11 @@ class DeleteDataStream(Runner):
 
         for data_stream in data_streams:
             if not only_if_exists:
-                await es.indices.delete_data_stream(data_stream, ignore=[404], params=request_params)
+                await opensearch.indices.delete_data_stream(data_stream, ignore=[404], params=request_params)
                 ops += 1
-            elif only_if_exists and await es.indices.exists(index=data_stream):
+            elif only_if_exists and await opensearch.indices.exists(index=data_stream):
                 self.logger.info("Data stream [%s] already exists. Deleting it.", data_stream)
-                await es.indices.delete_data_stream(data_stream, params=request_params)
+                await opensearch.indices.delete_data_stream(data_stream, params=request_params)
                 ops += 1
 
         return {
@@ -1241,16 +1219,11 @@ class DeleteDataStream(Runner):
 
 
 class CreateComponentTemplate(Runner):
-    """
-    Execute the `PUT component template API
-    <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-component-template.html>`_.
-    """
-
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         templates = mandatory(params, "templates", self)
         request_params = mandatory(params, "request-params", self)
         for template, body in templates:
-            await es.cluster.put_component_template(name=template, body=body,
+            await opensearch.cluster.put_component_template(name=template, body=body,
                                                     params=request_params)
         return {
             "weight": len(templates),
@@ -1263,12 +1236,7 @@ class CreateComponentTemplate(Runner):
 
 
 class DeleteComponentTemplate(Runner):
-    """
-    Execute the `DELETE component template API
-    <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-delete-component-template.html>`_.
-    """
-
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         template_names = mandatory(params, "templates", self)
         only_if_exists = mandatory(params, "only-if-exists", self)
         request_params = mandatory(params, "request-params", self)
@@ -1277,18 +1245,18 @@ class DeleteComponentTemplate(Runner):
             # pylint: disable=import-outside-toplevel
             from elasticsearch.client import _make_path
             # currently not supported by client and hence custom request
-            return await es.transport.perform_request(
+            return await opensearch.transport.perform_request(
                 "HEAD", _make_path("_component_template", name)
             )
 
         ops_count = 0
         for template_name in template_names:
             if not only_if_exists:
-                await es.cluster.delete_component_template(name=template_name, params=request_params, ignore=[404])
+                await opensearch.cluster.delete_component_template(name=template_name, params=request_params, ignore=[404])
                 ops_count += 1
             elif only_if_exists and await _exists(template_name):
                 self.logger.info("Component Index template [%s] already exists. Deleting it.", template_name)
-                await es.cluster.delete_component_template(name=template_name, params=request_params)
+                await opensearch.cluster.delete_component_template(name=template_name, params=request_params)
                 ops_count += 1
         return {
             "weight": ops_count,
@@ -1302,15 +1270,11 @@ class DeleteComponentTemplate(Runner):
 
 
 class CreateComposableTemplate(Runner):
-    """
-    Execute the `PUT index template API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-put-template.html>`_.
-    """
-
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         templates = mandatory(params, "templates", self)
         request_params = mandatory(params, "request-params", self)
         for template, body in templates:
-            await es.cluster.put_index_template(name=template, body=body, params=request_params)
+            await opensearch.cluster.put_index_template(name=template, body=body, params=request_params)
 
         return {
             "weight": len(templates),
@@ -1323,11 +1287,7 @@ class CreateComposableTemplate(Runner):
 
 
 class DeleteComposableTemplate(Runner):
-    """
-    Execute the `PUT index template API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-delete-template.html>`_.
-    """
-
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         templates = mandatory(params, "templates", self)
         only_if_exists = mandatory(params, "only-if-exists", self)
         request_params = mandatory(params, "request-params", self)
@@ -1335,15 +1295,15 @@ class DeleteComposableTemplate(Runner):
 
         for template_name, delete_matching_indices, index_pattern in templates:
             if not only_if_exists:
-                await es.indices.delete_index_template(name=template_name, params=request_params, ignore=[404])
+                await opensearch.indices.delete_index_template(name=template_name, params=request_params, ignore=[404])
                 ops_count += 1
-            elif only_if_exists and await es.indices.exists_template(template_name):
+            elif only_if_exists and await opensearch.indices.exists_template(template_name):
                 self.logger.info("Composable Index template [%s] already exists. Deleting it.", template_name)
-                await es.indices.delete_index_template(name=template_name, params=request_params)
+                await opensearch.indices.delete_index_template(name=template_name, params=request_params)
                 ops_count += 1
             # ensure that we do not provide an empty index pattern by accident
             if delete_matching_indices and index_pattern:
-                await es.indices.delete(index=index_pattern)
+                await opensearch.indices.delete(index=index_pattern)
                 ops_count += 1
 
         return {
@@ -1357,15 +1317,11 @@ class DeleteComposableTemplate(Runner):
 
 
 class CreateIndexTemplate(Runner):
-    """
-    Execute the `PUT index template API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-templates.html>`_.
-    """
-
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         templates = mandatory(params, "templates", self)
         request_params = params.get("request-params", {})
         for template, body in templates:
-            await es.indices.put_template(name=template,
+            await opensearch.indices.put_template(name=template,
                                           body=body,
                                           params=request_params)
         return {
@@ -1379,12 +1335,7 @@ class CreateIndexTemplate(Runner):
 
 
 class DeleteIndexTemplate(Runner):
-    """
-    Execute the `delete index template API
-    <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-templates.html#delete>`_.
-    """
-
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         template_names = mandatory(params, "templates", self)
         only_if_exists = params.get("only-if-exists", False)
         request_params = params.get("request-params", {})
@@ -1392,15 +1343,15 @@ class DeleteIndexTemplate(Runner):
 
         for template_name, delete_matching_indices, index_pattern in template_names:
             if not only_if_exists:
-                await es.indices.delete_template(name=template_name, params=request_params)
+                await opensearch.indices.delete_template(name=template_name, params=request_params)
                 ops_count += 1
-            elif only_if_exists and await es.indices.exists_template(template_name):
+            elif only_if_exists and await opensearch.indices.exists_template(template_name):
                 self.logger.info("Index template [%s] already exists. Deleting it.", template_name)
-                await es.indices.delete_template(name=template_name, params=request_params)
+                await opensearch.indices.delete_template(name=template_name, params=request_params)
                 ops_count += 1
             # ensure that we do not provide an empty index pattern by accident
             if delete_matching_indices and index_pattern:
-                await es.indices.delete(index=index_pattern)
+                await opensearch.indices.delete(index=index_pattern)
                 ops_count += 1
 
         return {
@@ -1414,20 +1365,14 @@ class DeleteIndexTemplate(Runner):
 
 
 class ShrinkIndex(Runner):
-    """
-    Execute the `shrink index API <https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-shrink-index.html>`_.
-
-    This is a high-level runner that actually executes multiple low-level operations under the hood.
-    """
-
     def __init__(self):
         super().__init__()
         self.cluster_health = Retry(ClusterHealth())
 
-    async def _wait_for(self, es, idx, description):
+    async def _wait_for(self, opensearch, idx, description):
         # wait a little bit before the first check
         await asyncio.sleep(3)
-        result = await self.cluster_health(es, params={
+        result = await self.cluster_health(opensearch, params={
             "index": idx,
             "retries": sys.maxsize,
             "request-params": {
@@ -1437,9 +1382,9 @@ class ShrinkIndex(Runner):
         if not result["success"]:
             raise exceptions.BenchmarkAssertionError("Failed to wait for [{}].".format(description))
 
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         source_index = mandatory(params, "source-index", self)
-        source_indices_get = await es.indices.get(source_index)
+        source_indices_get = await opensearch.indices.get(source_index)
         source_indices = list(source_indices_get.keys())
         source_indices_stem = commonprefix(source_indices)
 
@@ -1454,7 +1399,7 @@ class ShrinkIndex(Runner):
         else:
             node_names = []
             # choose a random data node
-            node_info = await es.nodes.info()
+            node_info = await opensearch.nodes.info()
             for node in node_info["nodes"].values():
                 if "data" in node["roles"]:
                     node_names.append(node["name"])
@@ -1467,7 +1412,7 @@ class ShrinkIndex(Runner):
             self.logger.info("Preparing [%s] for shrinking.", source_index)
 
             # prepare index for shrinking
-            await es.indices.put_settings(index=source_index,
+            await opensearch.indices.put_settings(index=source_index,
                                           body={
                                               "settings": {
                                                   "index.routing.allocation.require._name": shrink_node,
@@ -1477,7 +1422,7 @@ class ShrinkIndex(Runner):
                                           preserve_existing=True)
 
             self.logger.info("Waiting for relocation to finish for index [%s] ...", source_index)
-            await self._wait_for(es, source_index, f"shard relocation for index [{source_index}]")
+            await self._wait_for(opensearch, source_index, f"shard relocation for index [{source_index}]")
             self.logger.info("Shrinking [%s] to [%s].", source_index, target_index)
             if "settings" not in target_body:
                 target_body["settings"] = {}
@@ -1486,10 +1431,10 @@ class ShrinkIndex(Runner):
             # kick off the shrink operation
             index_suffix = remove_prefix(source_index, source_indices_stem)
             final_target_index = target_index if len(index_suffix) == 0 else target_index+index_suffix
-            await es.indices.shrink(index=source_index, target=final_target_index, body=target_body)
+            await opensearch.indices.shrink(index=source_index, target=final_target_index, body=target_body)
 
             self.logger.info("Waiting for shrink to finish for index [%s] ...", source_index)
-            await self._wait_for(es, final_target_index, f"shrink for index [{final_target_index}]")
+            await self._wait_for(opensearch, final_target_index, f"shrink for index [{final_target_index}]")
             self.logger.info("Shrinking [%s] to [%s] has finished.", source_index, final_target_index)
         # ops_count is not really important for this operation...
         return {
@@ -1503,7 +1448,7 @@ class ShrinkIndex(Runner):
 
 
 class RawRequest(Runner):
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         request_params, headers = self._transport_request_params(params)
         if "ignore" in params:
             request_params["ignore"] = params["ignore"]
@@ -1515,7 +1460,7 @@ class RawRequest(Runner):
             #counter-intuitive, but preserves prior behavior
             headers = None
 
-        await es.transport.perform_request(method=params.get("method", "GET"),
+        await opensearch.transport.perform_request(method=params.get("method", "GET"),
                                            url=path,
                                            headers=headers,
                                            body=params.get("body"),
@@ -1530,12 +1475,12 @@ class Sleep(Runner):
     Sleeps for the specified duration not issuing any request.
     """
 
-    async def __call__(self, es, params):
-        es.on_request_start()
+    async def __call__(self, opensearch, params):
+        opensearch.on_request_start()
         try:
             await asyncio.sleep(mandatory(params, "duration", "sleep"))
         finally:
-            es.on_request_end()
+            opensearch.on_request_end()
 
     def __repr__(self, *args, **kwargs):
         return "sleep"
@@ -1545,8 +1490,8 @@ class DeleteSnapshotRepository(Runner):
     """
     Deletes a snapshot repository
     """
-    async def __call__(self, es, params):
-        await es.snapshot.delete_repository(repository=mandatory(params, "repository", repr(self)))
+    async def __call__(self, opensearch, params):
+        await opensearch.snapshot.delete_repository(repository=mandatory(params, "repository", repr(self)))
 
     def __repr__(self, *args, **kwargs):
         return "delete-snapshot-repository"
@@ -1556,9 +1501,9 @@ class CreateSnapshotRepository(Runner):
     """
     Creates a new snapshot repository
     """
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         request_params = params.get("request-params", {})
-        await es.snapshot.create_repository(repository=mandatory(params, "repository", repr(self)),
+        await opensearch.snapshot.create_repository(repository=mandatory(params, "repository", repr(self)),
                                             body=mandatory(params, "body", repr(self)),
                                             params=request_params)
 
@@ -1570,14 +1515,14 @@ class CreateSnapshot(Runner):
     """
     Creates a new snapshot repository
     """
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         wait_for_completion = params.get("wait-for-completion", False)
         repository = mandatory(params, "repository", repr(self))
         snapshot = mandatory(params, "snapshot", repr(self))
         # just assert, gets set in _default_kw_params
         mandatory(params, "body", repr(self))
         api_kwargs = self._default_kw_params(params)
-        await es.snapshot.create(repository=repository,
+        await opensearch.snapshot.create(repository=repository,
                                  snapshot=snapshot,
                                  wait_for_completion=wait_for_completion,
                                  **api_kwargs)
@@ -1587,7 +1532,7 @@ class CreateSnapshot(Runner):
 
 
 class WaitForSnapshotCreate(Runner):
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         repository = mandatory(params, "repository", repr(self))
         snapshot = mandatory(params, "snapshot", repr(self))
         wait_period = params.get("completion-recheck-wait-period", 1)
@@ -1596,14 +1541,12 @@ class WaitForSnapshotCreate(Runner):
         stats = {}
 
         while not snapshot_done:
-            response = await es.snapshot.status(repository=repository,
+            response = await opensearch.snapshot.status(repository=repository,
                                                 snapshot=snapshot,
                                                 ignore_unavailable=True)
 
             if "snapshots" in response:
                 response_state = response["snapshots"][0]["state"]
-                # Possible states:
-                # https://www.elastic.co/guide/en/elasticsearch/reference/current/get-snapshot-status-api.html#get-snapshot-status-api-response-body
                 if response_state == "FAILED":
                     self.logger.error("Snapshot [%s] failed. Response:\n%s", snapshot, json.dumps(response, indent=2))
                     raise exceptions.BenchmarkAssertionError(f"Snapshot [{snapshot}] failed. Please check logs.")
@@ -1638,9 +1581,9 @@ class RestoreSnapshot(Runner):
     """
     Restores a snapshot from an already registered repository
     """
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         api_kwargs = self._default_kw_params(params)
-        await es.snapshot.restore(repository=mandatory(params, "repository", repr(self)),
+        await opensearch.snapshot.restore(repository=mandatory(params, "repository", repr(self)),
                                   snapshot=mandatory(params, "snapshot", repr(self)),
                                   wait_for_completion=params.get("wait-for-completion", False),
                                   **api_kwargs)
@@ -1650,7 +1593,7 @@ class RestoreSnapshot(Runner):
 
 
 class IndicesRecovery(Runner):
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         index = mandatory(params, "index", repr(self))
         wait_period = params.get("completion-recheck-wait-period", 1)
 
@@ -1663,7 +1606,7 @@ class IndicesRecovery(Runner):
         # The nesting level is ok here given the structure of the API response
         # pylint: disable=too-many-nested-blocks
         while not all_shards_done:
-            response = await es.indices.recovery(index=index)
+            response = await opensearch.indices.recovery(index=index)
             # This might happen if we happen to call the API before the next recovery is scheduled.
             if not response:
                 self.logger.debug("Empty index recovery response for [%s].", index)
@@ -1703,43 +1646,30 @@ class IndicesRecovery(Runner):
 
 
 class PutSettings(Runner):
-    """
-    Updates cluster settings with the
-    `cluster settings API <http://www.elastic.co/guide/en/elasticsearch/reference/current/cluster-update-settings.html>_.
-    """
-    async def __call__(self, es, params):
-        await es.cluster.put_settings(body=mandatory(params, "body", repr(self)))
+    async def __call__(self, opensearch, params):
+        await opensearch.cluster.put_settings(body=mandatory(params, "body", repr(self)))
 
     def __repr__(self, *args, **kwargs):
         return "put-settings"
 
 
 class CreateTransform(Runner):
-    """
-    Execute the `create transform API https://www.elastic.co/guide/en/elasticsearch/reference/current/put-transform.html`_.
-    """
-
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         transform_id = mandatory(params, "transform-id", self)
         body = mandatory(params, "body", self)
         defer_validation = params.get("defer-validation", False)
-        await es.transform.put_transform(transform_id=transform_id, body=body, defer_validation=defer_validation)
+        await opensearch.transform.put_transform(transform_id=transform_id, body=body, defer_validation=defer_validation)
 
     def __repr__(self, *args, **kwargs):
         return "create-transform"
 
 
 class StartTransform(Runner):
-    """
-    Execute the `start transform API
-    https://www.elastic.co/guide/en/elasticsearch/reference/current/start-transform.html`_.
-    """
-
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         transform_id = mandatory(params, "transform-id", self)
         timeout = params.get("timeout")
 
-        await es.transform.start_transform(transform_id=transform_id, timeout=timeout)
+        await opensearch.transform.start_transform(transform_id=transform_id, timeout=timeout)
 
     def __repr__(self, *args, **kwargs):
         return "start-transform"
@@ -1766,17 +1696,13 @@ class WaitForTransform(Runner):
     def percent_completed(self):
         return self._percent_completed
 
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         """
         stop the transform and wait until transform has finished return stats
 
-        :param es: The Elasticsearch client.
+        :param opensearch: The OpenSearch client.
         :param params: A hash with all parameters. See below for details.
         :return: A hash with stats from the run.
-
-        Different to the `stop transform API
-        https://www.elastic.co/guide/en/elasticsearch/reference/current/stop-transform.html`_ this command will wait
-        until the transform is stopped and a checkpoint has been reached.
 
         It expects a parameter dict with the following mandatory keys:
 
@@ -1799,14 +1725,14 @@ class WaitForTransform(Runner):
 
         if not self._start_time:
             self._start_time = time.monotonic()
-            await es.transform.stop_transform(transform_id=transform_id,
+            await opensearch.transform.stop_transform(transform_id=transform_id,
                                               force=force,
                                               timeout=timeout,
                                               wait_for_completion=False,
                                               wait_for_checkpoint=wait_for_checkpoint)
 
         while True:
-            stats_response = await es.transform.get_transform_stats(transform_id=transform_id)
+            stats_response = await opensearch.transform.get_transform_stats(transform_id=transform_id)
             state = stats_response["transforms"][0].get("state")
             transform_stats = stats_response["transforms"][0].get("stats", {})
 
@@ -1864,25 +1790,20 @@ class WaitForTransform(Runner):
 
 
 class DeleteTransform(Runner):
-    """
-    Execute the `delete transform API
-    https://www.elastic.co/guide/en/elasticsearch/reference/current/delete-transform.html`_.
-    """
-
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         transform_id = mandatory(params, "transform-id", self)
         force = params.get("force", False)
         # we don't want to fail if a job does not exist, thus we ignore 404s.
-        await es.transform.delete_transform(transform_id=transform_id, force=force, ignore=[404])
+        await opensearch.transform.delete_transform(transform_id=transform_id, force=force, ignore=[404])
 
     def __repr__(self, *args, **kwargs):
         return "delete-transform"
 
 
 class SubmitAsyncSearch(Runner):
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         request_params = params.get("request-params", {})
-        response = await es.async_search.submit(body=mandatory(params, "body", self),
+        response = await opensearch.async_search.submit(body=mandatory(params, "body", self),
                                                 index=params.get("index"),
                                                 params=request_params)
 
@@ -1905,13 +1826,13 @@ def async_search_ids(op_names):
 
 
 class GetAsyncSearch(Runner):
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         success = True
         searches = mandatory(params, "retrieve-results-for", self)
         request_params = params.get("request-params", {})
         stats = {}
         for search_id, search in async_search_ids(searches):
-            response = await es.async_search.get(id=search_id,
+            response = await opensearch.async_search.get(id=search_id,
                                                  params=request_params)
             is_running = response["is_running"]
             success = success and not is_running
@@ -1936,10 +1857,10 @@ class GetAsyncSearch(Runner):
 
 
 class DeleteAsyncSearch(Runner):
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         searches = mandatory(params, "delete-results-for", self)
         for search_id, search in async_search_ids(searches):
-            await es.async_search.delete(id=search_id)
+            await opensearch.async_search.delete(id=search_id)
             CompositeContext.remove(search)
 
     def __repr__(self, *args, **kwargs):
@@ -1947,11 +1868,11 @@ class DeleteAsyncSearch(Runner):
 
 
 class OpenPointInTime(Runner):
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         op_name = mandatory(params, "name", self)
         index = mandatory(params, "index", self)
         keep_alive = params.get("keep-alive", "1m")
-        response = await es.open_point_in_time(index=index,
+        response = await opensearch.open_point_in_time(index=index,
                                          params=params.get("request-params"),
                                          keep_alive=keep_alive)
         id = response.get("id")
@@ -1962,12 +1883,12 @@ class OpenPointInTime(Runner):
 
 
 class ClosePointInTime(Runner):
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         pit_op = mandatory(params, "with-point-in-time-from", self)
         pit_id = CompositeContext.get(pit_op)
         request_params = params.get("request-params", {})
         body = {"id": pit_id}
-        await es.close_point_in_time(body=body, params=request_params, headers=None)
+        await opensearch.close_point_in_time(body=body, params=request_params, headers=None)
         CompositeContext.remove(pit_op)
 
     def __repr__(self, *args, **kwargs):
@@ -2033,13 +1954,13 @@ class Composite(Runner):
             "delete-async-search"
         ]
 
-    async def run_stream(self, es, stream, connection_limit):
+    async def run_stream(self, opensearch, stream, connection_limit):
         streams = []
         timings = []
         try:
             for item in stream:
                 if "stream" in item:
-                    streams.append(asyncio.create_task(self.run_stream(es, item["stream"], connection_limit)))
+                    streams.append(asyncio.create_task(self.run_stream(opensearch, item["stream"], connection_limit)))
                 elif "operation-type" in item:
                     # consume all prior streams first
                     if streams:
@@ -2054,7 +1975,7 @@ class Composite(Runner):
                     runner = RequestTiming(runner_for(op_type))
                     async with connection_limit:
                         async with runner:
-                            response = await runner({"default": es}, item)
+                            response = await runner({"default": opensearch}, item)
                             timing = response.get("dependent_timing") if response else None
                             if timing:
                                 timings.append(timing)
@@ -2075,11 +1996,11 @@ class Composite(Runner):
                 timings += stream_timings
         return timings
 
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         requests = mandatory(params, "requests", self)
         max_connections = params.get("max-connections", sys.maxsize)
         async with CompositeContext():
-            response = await self.run_stream(es, requests, asyncio.BoundedSemaphore(max_connections))
+            response = await self.run_stream(opensearch, requests, asyncio.BoundedSemaphore(max_connections))
         return {
             "weight": 1,
             "unit": "ops",
@@ -2098,10 +2019,10 @@ class RequestTiming(Runner, Delegator):
         await self.delegate.__aenter__()
         return self
 
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         absolute_time = time.time()
-        async with es["default"].new_request_context() as request_context:
-            return_value = await self.delegate(es, params)
+        async with opensearch["default"].new_request_context() as request_context:
+            return_value = await self.delegate(opensearch, params)
             if isinstance(return_value, tuple) and len(return_value) == 2:
                 total_ops, total_ops_unit = return_value
                 result = {
@@ -2159,7 +2080,7 @@ class Retry(Runner, Delegator):
         await self.delegate.__aenter__()
         return self
 
-    async def __call__(self, es, params):
+    async def __call__(self, opensearch, params):
         # pylint: disable=import-outside-toplevel
         import elasticsearch
         import socket
@@ -2177,7 +2098,7 @@ class Retry(Runner, Delegator):
         for attempt in range(max_attempts):
             last_attempt = attempt + 1 == max_attempts
             try:
-                return_value = await self.delegate(es, params)
+                return_value = await self.delegate(opensearch, params)
                 if last_attempt or not retry_on_error:
                     return return_value
                 # we can determine success if and only if the runner returns a dict. Otherwise, we have to assume it was fine.

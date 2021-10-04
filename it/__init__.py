@@ -35,7 +35,7 @@ import pytest
 from osbenchmark import client, config, version
 from osbenchmark.utils import process
 
-CONFIG_NAMES = ["in-memory-it", "es-it"]
+CONFIG_NAMES = ["in-memory-it", "os-it"]
 DISTRIBUTIONS = ["6.8.0", "7.6.0"]
 WORKLOADS = ["geonames", "nyc_taxis", "http_logs", "nested"]
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -70,7 +70,7 @@ def benchmark_in_mem(t):
 
 def benchmark_os(t):
     @functools.wraps(t)
-    @pytest.mark.parametrize("cfg", ["es-it"])
+    @pytest.mark.parametrize("cfg", ["os-it"])
     def wrapper(cfg, *args, **kwargs):
         t(cfg, *args, **kwargs)
 
@@ -175,32 +175,32 @@ class TestCluster:
                                                                      transport_port=transport_port))
             self.installation_id = json.loads("".join(output))["installation-id"]
         except BaseException as e:
-            raise AssertionError("Failed to install Elasticsearch {}.".format(distribution_version), e)
+            raise AssertionError("Failed to install OpenSearch {}.".format(distribution_version), e)
 
     def start(self, test_execution_id):
         cmd = "start --runtime-jdk=\"bundled\" --installation-id={} --test-execution-id={}".format(self.installation_id, test_execution_id)
         if osbenchmark(self.cfg, cmd) != 0:
-            raise AssertionError("Failed to start Elasticsearch test cluster.")
-        es = client.EsClientFactory(hosts=[{"host": "127.0.0.1", "port": self.http_port}], client_options={}).create()
-        client.wait_for_rest_layer(es)
+            raise AssertionError("Failed to start OpenSearch test cluster.")
+        opensearch = client.OsClientFactory(hosts=[{"host": "127.0.0.1", "port": self.http_port}], client_options={}).create()
+        client.wait_for_rest_layer(opensearch)
 
     def stop(self):
         if self.installation_id:
             if osbenchmark(self.cfg, "stop --installation-id={}".format(self.installation_id)) != 0:
-                raise AssertionError("Failed to stop Elasticsearch test cluster.")
+                raise AssertionError("Failed to stop OpenSearch test cluster.")
 
     def __str__(self):
         return f"TestCluster[installation-id={self.installation_id}]"
 
 
-class EsMetricsStore:
+class OsMetricsStore:
     VERSION = "7.6.0"
 
     def __init__(self):
         self.cluster = TestCluster("in-memory-it")
 
     def start(self):
-        self.cluster.install(distribution_version=EsMetricsStore.VERSION,
+        self.cluster.install(distribution_version=OsMetricsStore.VERSION,
                              node_name="metrics-store",
                              provision_config_instance="defaults",
                              http_port=10200)
@@ -225,7 +225,7 @@ def remove_integration_test_config():
         os.remove(config.ConfigFile(config_name).location)
 
 
-ES_METRICS_STORE = EsMetricsStore()
+OS_METRICS_STORE = OsMetricsStore()
 
 
 def get_license():
@@ -240,7 +240,8 @@ def build_docker_image():
     env_variables['BENCHMARK_VERSION'] = benchmark_version
     env_variables['BENCHMARK_LICENSE'] = get_license()
 
-    command = f"docker build -t elastic/rally:{benchmark_version} --build-arg BENCHMARK_VERSION --build-arg BENCHMARK_LICENSE " \
+    command = f"docker build -t opensearchproject/benchmark:{benchmark_version}" \
+        f" --build-arg BENCHMARK_VERSION --build-arg BENCHMARK_LICENSE " \
               f"-f {ROOT_DIR}/docker/Dockerfiles/Dockerfile-dev {ROOT_DIR}"
 
     if process.run_subprocess_with_logging(command, env=env_variables) != 0:
@@ -250,10 +251,10 @@ def build_docker_image():
 def setup_module():
     check_prerequisites()
     install_integration_test_config()
-    ES_METRICS_STORE.start()
+    OS_METRICS_STORE.start()
     build_docker_image()
 
 
 def teardown_module():
-    ES_METRICS_STORE.stop()
+    OS_METRICS_STORE.stop()
     remove_integration_test_config()

@@ -38,7 +38,7 @@ from osbenchmark.utils import console
 from tests import run_async
 
 
-class EsClientFactoryTests(TestCase):
+class OsClientFactoryTests(TestCase):
     cwd = os.path.dirname(__file__)
 
     def test_create_http_connection(self):
@@ -47,7 +47,7 @@ class EsClientFactoryTests(TestCase):
         # make a copy so we can verify later that the factory did not modify it
         original_client_options = dict(client_options)
 
-        f = client.EsClientFactory(hosts, client_options)
+        f = client.OsClientFactory(hosts, client_options)
 
         self.assertEqual(hosts, f.hosts)
         self.assertIsNone(f.ssl_context)
@@ -69,7 +69,7 @@ class EsClientFactoryTests(TestCase):
 
         logger = logging.getLogger("osbenchmark.client")
         with mock.patch.object(logger, "info") as mocked_info_logger:
-            f = client.EsClientFactory(hosts, client_options)
+            f = client.OsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
             mock.call("SSL support: on"),
             mock.call("SSL certificate verification: on"),
@@ -98,16 +98,16 @@ class EsClientFactoryTests(TestCase):
             "use_ssl": True,
             "verify_certs": True,
             "http_auth": ("user", "password"),
-            "ca_certs": os.path.join(EsClientFactoryTests.cwd, "utils/resources/certs/ca.crt"),
-            "client_cert": os.path.join(EsClientFactoryTests.cwd, "utils/resources/certs/client.crt"),
-            "client_key": os.path.join(EsClientFactoryTests.cwd, "utils/resources/certs/client.key")
+            "ca_certs": os.path.join(OsClientFactoryTests.cwd, "utils/resources/certs/ca.crt"),
+            "client_cert": os.path.join(OsClientFactoryTests.cwd, "utils/resources/certs/client.crt"),
+            "client_key": os.path.join(OsClientFactoryTests.cwd, "utils/resources/certs/client.key")
         }
         # make a copy so we can verify later that the factory did not modify it
         original_client_options = deepcopy(client_options)
 
         logger = logging.getLogger("osbenchmark.client")
         with mock.patch.object(logger, "info") as mocked_info_logger:
-            f = client.EsClientFactory(hosts, client_options)
+            f = client.OsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
             mock.call("SSL support: on"),
             mock.call("SSL certificate verification: on"),
@@ -140,14 +140,14 @@ class EsClientFactoryTests(TestCase):
             "use_ssl": True,
             "verify_certs": True,
             "http_auth": ("user", "password"),
-            "ca_certs": os.path.join(EsClientFactoryTests.cwd, "utils/resources/certs/ca.crt")
+            "ca_certs": os.path.join(OsClientFactoryTests.cwd, "utils/resources/certs/ca.crt")
         }
         # make a copy so we can verify later that the factory did not modify it
         original_client_options = deepcopy(client_options)
 
         logger = logging.getLogger("osbenchmark.client")
         with mock.patch.object(logger, "info") as mocked_info_logger:
-            f = client.EsClientFactory(hosts, client_options)
+            f = client.OsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
             mock.call("SSL support: on"),
             mock.call("SSL certificate verification: on"),
@@ -174,7 +174,7 @@ class EsClientFactoryTests(TestCase):
             "use_ssl": True,
             "verify_certs": True,
             "http_auth": ("user", "password"),
-            "ca_certs": os.path.join(EsClientFactoryTests.cwd, "utils/resources/certs/ca.crt")
+            "ca_certs": os.path.join(OsClientFactoryTests.cwd, "utils/resources/certs/ca.crt")
         }
 
         client_ssl_options = {
@@ -190,10 +190,10 @@ class EsClientFactoryTests(TestCase):
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             with mock.patch.object(console, "println") as mocked_console_println:
-                client.EsClientFactory(hosts, client_options)
+                client.OsClientFactory(hosts, client_options)
         mocked_console_println.assert_called_once_with(
             "'{}' is missing from client-options but '{}' has been specified.\n"
-            "If your Elasticsearch setup requires client certificate verification both need to be supplied.\n"
+            "If your OpenSearch setup requires client certificate verification both need to be supplied.\n"
             "Read the documentation at {}\n".format(
                 missing_client_ssl_option,
                 random_client_ssl_option,
@@ -222,7 +222,7 @@ class EsClientFactoryTests(TestCase):
 
         logger = logging.getLogger("osbenchmark.client")
         with mock.patch.object(logger, "info") as mocked_info_logger:
-            f = client.EsClientFactory(hosts, client_options)
+            f = client.OsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
             mock.call("SSL support: on"),
             mock.call("SSL certificate verification: off"),
@@ -252,15 +252,15 @@ class EsClientFactoryTests(TestCase):
             "use_ssl": True,
             "verify_certs": False,
             "http_auth": ("user", "password"),
-            "client_cert": os.path.join(EsClientFactoryTests.cwd, "utils/resources/certs/client.crt"),
-            "client_key": os.path.join(EsClientFactoryTests.cwd, "utils/resources/certs/client.key")
+            "client_cert": os.path.join(OsClientFactoryTests.cwd, "utils/resources/certs/client.crt"),
+            "client_key": os.path.join(OsClientFactoryTests.cwd, "utils/resources/certs/client.key")
         }
         # make a copy so we can verify later that the factory did not modify it
         original_client_options = deepcopy(client_options)
 
         logger = logging.getLogger("osbenchmark.client")
         with mock.patch.object(logger, "info") as mocked_info_logger:
-            f = client.EsClientFactory(hosts, client_options)
+            f = client.OsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
             mock.call("SSL certificate verification: off"),
             mock.call("SSL client authentication: on")
@@ -311,23 +311,23 @@ class RequestContextManagerTests(TestCase):
 
 class RestLayerTests(TestCase):
     @mock.patch("elasticsearch.Elasticsearch")
-    def test_successfully_waits_for_rest_layer(self, es):
-        es.transport.hosts = [
+    def test_successfully_waits_for_rest_layer(self, opensearch):
+        opensearch.transport.hosts = [
             {"host": "node-a.example.org", "port": 9200},
             {"host": "node-b.example.org", "port": 9200}
         ]
 
-        self.assertTrue(client.wait_for_rest_layer(es, max_attempts=3))
+        self.assertTrue(client.wait_for_rest_layer(opensearch, max_attempts=3))
 
-        es.cluster.health.assert_has_calls([
+        opensearch.cluster.health.assert_has_calls([
             mock.call(wait_for_nodes=">=2"),
         ])
 
     # don't sleep in realtime
     @mock.patch("time.sleep")
     @mock.patch("elasticsearch.Elasticsearch")
-    def test_retries_on_transport_errors(self, es, sleep):
-        es.cluster.health.side_effect = [
+    def test_retries_on_transport_errors(self, opensearch, sleep):
+        opensearch.cluster.health.side_effect = [
             elasticsearch.TransportError(503, "Service Unavailable"),
             elasticsearch.TransportError(401, "Unauthorized"),
             elasticsearch.TransportError(408, "Timed Out"),
@@ -339,21 +339,21 @@ class RestLayerTests(TestCase):
                 }
             }
         ]
-        self.assertTrue(client.wait_for_rest_layer(es, max_attempts=5))
+        self.assertTrue(client.wait_for_rest_layer(opensearch, max_attempts=5))
 
     # don't sleep in realtime
     @mock.patch("time.sleep")
     @mock.patch("elasticsearch.Elasticsearch")
-    def test_dont_retry_eternally_on_transport_errors(self, es, sleep):
-        es.cluster.health.side_effect = elasticsearch.TransportError(401, "Unauthorized")
-        self.assertFalse(client.wait_for_rest_layer(es, max_attempts=3))
+    def test_dont_retry_eternally_on_transport_errors(self, opensearch, sleep):
+        opensearch.cluster.health.side_effect = elasticsearch.TransportError(401, "Unauthorized")
+        self.assertFalse(client.wait_for_rest_layer(opensearch, max_attempts=3))
 
     @mock.patch("elasticsearch.Elasticsearch")
-    def test_ssl_error(self, es):
-        es.cluster.health.side_effect = elasticsearch.ConnectionError("N/A",
+    def test_ssl_error(self, opensearch):
+        opensearch.cluster.health.side_effect = elasticsearch.ConnectionError("N/A",
                                                             "[SSL: UNKNOWN_PROTOCOL] unknown protocol (_ssl.c:719)",
                                                             urllib3.exceptions.SSLError(
                                                                 "[SSL: UNKNOWN_PROTOCOL] unknown protocol (_ssl.c:719)"))
         with self.assertRaisesRegex(expected_exception=exceptions.SystemSetupError,
                                     expected_regex="Could not connect to cluster via https. Is this an https endpoint?"):
-            client.wait_for_rest_layer(es, max_attempts=3)
+            client.wait_for_rest_layer(opensearch, max_attempts=3)

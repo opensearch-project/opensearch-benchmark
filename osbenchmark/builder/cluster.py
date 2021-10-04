@@ -25,7 +25,7 @@
 
 class Node:
     """
-    Represents an Elasticsearch cluster node.
+    Represents an OpenSearch cluster node.
     """
 
     def __init__(self, pid, binary_path, host_name, node_name, telemetry):

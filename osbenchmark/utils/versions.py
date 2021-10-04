@@ -167,7 +167,7 @@ def best_match(available_alternatives, distribution_version):
     See test_find_best_match() for examples.
 
     :param available_alternatives: A list of possible distribution versions (or shortened versions).
-    :param distribution_version: An Elasticsearch distribution version.
+    :param distribution_version: An OpenSearch distribution version.
     :return: The most specific alternative that is available or None.
     """
     if is_version_identifier(distribution_version):

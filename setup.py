@@ -41,7 +41,7 @@ VERSION = raw_version.split(".")
 __version__ = VERSION
 __versionstr__ = raw_version
 
-long_description = str_from_file("README.rst")
+long_description = str_from_file("README.md")
 
 # tuples of (major, minor) of supported Python versions ordered from lowest to highest
 supported_python_versions = [(3, 8), (3, 9)]

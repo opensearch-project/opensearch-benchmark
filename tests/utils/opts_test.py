@@ -217,7 +217,7 @@ class TestClientOptions(TestCase):
 
     def test_jsonstring_client_options_parses(self):
         client_options_string = '{"default": {"timeout": 60},' \
-            '"remote_1": {"use_ssl":true,"verify_certs":true,"basic_auth_user": "elastic", "basic_auth_password": "changeme"},'\
+            '"remote_1": {"use_ssl":true,"verify_certs":true,"basic_auth_user": "opensearch", "basic_auth_password": "changeme"},'\
             '"remote_2": {"use_ssl":true,"verify_certs":true,"ca_certs":"/path/to/cacert.pem"}}'
 
         self.assertEqual(
@@ -230,14 +230,14 @@ class TestClientOptions(TestCase):
 
         self.assertEqual(
             {'default': {'timeout':60},
-             'remote_1': {'use_ssl': True,'verify_certs': True,'basic_auth_user':'elastic','basic_auth_password':'changeme'},
+             'remote_1': {'use_ssl': True,'verify_certs': True,'basic_auth_user':'opensearch','basic_auth_password':'changeme'},
              'remote_2': {'use_ssl': True,'verify_certs': True, 'ca_certs':'/path/to/cacert.pem'}},
             opts.ClientOptions(client_options_string).all_client_options)
 
     def test_json_file_parameter_parses(self):
         self.assertEqual(
             {'default': {'timeout':60},
-             'remote_1': {'use_ssl': True,'verify_certs': True,'basic_auth_user':'elastic','basic_auth_password':'changeme'},
+             'remote_1': {'use_ssl': True,'verify_certs': True,'basic_auth_user':'opensearch','basic_auth_password':'changeme'},
              'remote_2': {'use_ssl': True,'verify_certs': True, 'ca_certs':'/path/to/cacert.pem'}},
             opts.ClientOptions(os.path.join(os.path.dirname(__file__), "resources", "client_options_1.json")).all_client_options)
 

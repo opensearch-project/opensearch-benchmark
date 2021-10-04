@@ -31,7 +31,7 @@ bulk_index = runner.BulkIndex()
 BULK_SIZE = 5000
 
 
-class ElasticsearchMock:
+class OpenSearchMock:
     def __init__(self, bulk_size):
         self.no_errors = {
             "took": 500,
@@ -61,7 +61,7 @@ class ElasticsearchMock:
         return self.no_errors
 
 
-es = ElasticsearchMock(bulk_size=BULK_SIZE)
+os_mock = OpenSearchMock(bulk_size=BULK_SIZE)
 
 
 @pytest.mark.benchmark(
@@ -71,7 +71,7 @@ es = ElasticsearchMock(bulk_size=BULK_SIZE)
     disable_gc=True
 )
 def test_bulk_runner_without_errors_no_detailed_results(benchmark):
-    benchmark(bulk_index, es, {
+    benchmark(bulk_index, os_mock, {
         "action-metadata-present": True,
         "body": "bulk API body",
         "bulk-size": BULK_SIZE
@@ -85,7 +85,7 @@ def test_bulk_runner_without_errors_no_detailed_results(benchmark):
     disable_gc=True
 )
 def test_bulk_runner_without_errors_with_detailed_results(benchmark):
-    benchmark(bulk_index, es, {
+    benchmark(bulk_index, os_mock, {
         "action-metadata-present": True,
         "body": "bulk API body",
         "bulk-size": BULK_SIZE,

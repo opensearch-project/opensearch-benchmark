@@ -114,9 +114,9 @@ class RequestContextHolder:
         ctx["raw_response"] = True
 
 
-class EsClientFactory:
+class OsClientFactory:
     """
-    Abstracts how the Elasticsearch client is created. Intended for testing.
+    Abstracts how the OpenSearch client is created. Intended for testing.
     """
     def __init__(self, hosts, client_options):
         self.hosts = hosts
@@ -174,7 +174,7 @@ class EsClientFactory:
                 missing_client_ssl_option = "client_cert" if client_key else "client_key"
                 console.println(
                     "'{}' is missing from client-options but '{}' has been specified.\n"
-                    "If your Elasticsearch setup requires client certificate verification both need to be supplied.\n"
+                    "If your OpenSearch setup requires client certificate verification both need to be supplied.\n"
                     "Read the documentation at {}\n".format(
                         missing_client_ssl_option,
                         defined_client_ssl_option,
@@ -232,17 +232,17 @@ class EsClientFactory:
 
         class LazyJSONSerializer(JSONSerializer):
             def loads(self, s):
-                meta = BenchmarkAsyncElasticsearch.request_context.get()
+                meta = BenchmarkAsyncOpenSearch.request_context.get()
                 if "raw_response" in meta:
                     return io.BytesIO(s)
                 else:
                     return super().loads(s)
 
         async def on_request_start(session, trace_config_ctx, params):
-            BenchmarkAsyncElasticsearch.on_request_start()
+            BenchmarkAsyncOpenSearch.on_request_start()
 
         async def on_request_end(session, trace_config_ctx, params):
-            BenchmarkAsyncElasticsearch.on_request_end()
+            BenchmarkAsyncOpenSearch.on_request_end()
 
         trace_config = aiohttp.TraceConfig()
         trace_config.on_request_start.append(on_request_start)
@@ -254,36 +254,36 @@ class EsClientFactory:
         self.client_options["serializer"] = LazyJSONSerializer()
         self.client_options["trace_config"] = trace_config
 
-        class BenchmarkAsyncElasticsearch(elasticsearch.AsyncElasticsearch, RequestContextHolder):
+        class BenchmarkAsyncOpenSearch(elasticsearch.AsyncElasticsearch, RequestContextHolder):
             pass
 
-        return BenchmarkAsyncElasticsearch(hosts=self.hosts,
+        return BenchmarkAsyncOpenSearch(hosts=self.hosts,
                                        connection_class=osbenchmark.async_connection.AIOHttpConnection,
                                        ssl_context=self.ssl_context,
                                        **self.client_options)
 
 
-def wait_for_rest_layer(es, max_attempts=40):
+def wait_for_rest_layer(opensearch, max_attempts=40):
     """
-    Waits for ``max_attempts`` until Elasticsearch's REST API is available.
+    Waits for ``max_attempts`` until OpenSearch's REST API is available.
 
-    :param es: Elasticsearch client to use for connecting.
+    :param opensearch: OpenSearch client to use for connecting.
     :param max_attempts: The maximum number of attempts to check whether the REST API is available.
-    :return: True iff Elasticsearch's REST API is available.
+    :return: True iff OpenSearch's REST API is available.
     """
     # assume that at least the hosts that we expect to contact should be available. Note that this is not 100%
     # bullet-proof as a cluster could have e.g. dedicated masters which are not contained in our list of target hosts
     # but this is still better than just checking for any random node's REST API being reachable.
-    expected_node_count = len(es.transport.hosts)
+    expected_node_count = len(opensearch.transport.hosts)
     logger = logging.getLogger(__name__)
     for attempt in range(max_attempts):
         logger.debug("REST API is available after %s attempts", attempt)
         # pylint: disable=import-outside-toplevel
         import elasticsearch
         try:
-            # see also WaitForHttpResource in Elasticsearch tests. Contrary to the ES tests we consider the API also
+            # see also WaitForHttpResource in OpenSearch tests. Contrary to the ES tests we consider the API also
             # available when the cluster status is RED (as long as all required nodes are present)
-            es.cluster.health(wait_for_nodes=">={}".format(expected_node_count))
+            opensearch.cluster.health(wait_for_nodes=">={}".format(expected_node_count))
             logger.info("REST API is available for >= [%s] nodes after [%s] attempts.", expected_node_count, attempt)
             return True
         except elasticsearch.ConnectionError as e:
