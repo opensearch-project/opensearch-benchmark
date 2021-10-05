@@ -71,7 +71,8 @@ class JavaResolverTests(TestCase):
                                                    specified_runtime_jdk="bundled",
                                                    provides_bundled_jdk=True)
 
-        java_home_set = os.environ["JAVA_HOME"]
+        # Make sure you have already set JAVA_HOME to JDK 11 path in your venv or it will throw a key error
+        java_home_set = os.getenv("JAVA_HOME")
         # assumes most recent JDK
         self.assertEqual(major, 11)
         # sets JAVA_HOME to JAVA_HOME env
