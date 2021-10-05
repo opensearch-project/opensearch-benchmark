@@ -66,12 +66,11 @@ def java_home(provision_config_instance_runtime_jdks, specified_runtime_jdk=None
         os_check = sysstats.os_name(check_jdk=True)
         if os_check == "Darwin":
             # OpenSearch does not provide a Darwin version of OpenSearch or a MacOS JDK version
-            # MIGHT HAVE TO FIX LOGIC OF DETERMINE_RUNTIME_JDKS()
             logger.info("Using JDK set from JAVA_HOME because OS is Darwin.")
             return detect_jdk(allowed_runtime_jdks)
 
         # assume that the bundled JDK is the highest available; the path is irrelevant
-        # UPDATE FOR INTEG TESTS: OpenSeaerch doesn't provide the correct build for MacOS.
+        # UPDATE FOR INTEG TESTS: OpenSearch doesn't provide the correct build for MacOS.
         # Please set your JAVA_HOME to JDK 11 or 8 and set the flag in config.ini in corresponding
         # provision_config_instance version (for example:
         # OpenSearch/opensearch-benchmark-provisionconfigs/1.0/provision_config_instances/v1/vanilla/config.ini)
