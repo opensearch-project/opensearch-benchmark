@@ -58,7 +58,7 @@ def java_home(provision_config_instance_runtime_jdks, specified_runtime_jdk=None
                                               "Please specify a different runtime JDK.")
         logger.info("Using JDK bundled with OpenSearch.")
 
-        os_check = sysstats.os_name()
+        os_check = sysstats.os_name(check_jdk=True)
         if os_check == "Darwin":
             # OpenSearch does not provide a Darwin version of OpenSearch or a MacOS JDK version
             # MIGHT HAVE TO FIX LOGIC OF DETERMINE_RUNTIME_JDKS()
