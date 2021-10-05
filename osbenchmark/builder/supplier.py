@@ -262,6 +262,8 @@ class TemplateRenderer:
 class CompositeSupplier:
     def __init__(self, suppliers):
         self.suppliers = suppliers
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Suppliers: %s", self.suppliers)
 
     def __call__(self, *args, **kwargs):
         binaries = {}
@@ -531,7 +533,7 @@ class OpenSearchDistributionSupplier:
         pass
 
     def add(self, binaries):
-        binaries["elasticsearch"] = self.distribution_path
+        binaries["opensearch"] = self.distribution_path
 
 
 class PluginDistributionSupplier:

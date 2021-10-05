@@ -89,6 +89,8 @@ discovery.type: {{discovery_type}}
 # Require explicit names when deleting indices:
 #
 #action.destructive_requires_name: true
+plugins.security.disabled: true
+
 
 {%- if indexing_pressure_memory_limit is defined %}
 indexing_pressure.memory.limit: {{indexing_pressure_memory_limit}}

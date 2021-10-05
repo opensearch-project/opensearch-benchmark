@@ -185,7 +185,7 @@ class BareProvisioner:
         self.logger = logging.getLogger(__name__)
 
     def prepare(self, binary):
-        self.os_installer.install(binary["elasticsearch"])
+        self.os_installer.install(binary["opensearch"])
         # we need to immediately delete it as plugins may copy their configuration during installation.
         self.os_installer.delete_pre_bundled_configuration()
 
@@ -312,6 +312,7 @@ class OpenSearchInstaller:
 
     @property
     def config_source_paths(self):
+        logger = logging.getLogger(__name__)
         return self.provision_config_instance.config_paths
 
     def _data_paths(self):

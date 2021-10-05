@@ -146,9 +146,12 @@ class ProcessLauncher:
         data_paths = node_configuration.data_paths
         node_telemetry_dir = os.path.join(node_configuration.node_root_path, "telemetry")
 
+        self.logger.info("About to get java_home")
         java_major_version, java_home = java_resolver.java_home(node_configuration.provision_config_instance_runtime_jdks,
                                                                 self.cfg.opts("builder", "runtime.jdk"),
                                                                 node_configuration.provision_config_instance_provides_bundled_jdk)
+        self.logger.info("Java major version: %s", java_major_version)
+        self.logger.info("Java home: %s", java_home)
 
         self.logger.info("Starting node [%s].", node_name)
 
@@ -164,6 +167,10 @@ class ProcessLauncher:
             telemetry.StartupTime(),
         ]
 
+        self.logger.info("Java major version: %s", java_major_version)
+        self.logger.info("Java home: %s", java_home)
+        # self.logger.info("sleeping for 30 seconds")
+        # time.sleep(300)
         t = telemetry.Telemetry(enabled_devices, devices=node_telemetry)
         env = self._prepare_env(node_name, java_home, t)
         t.on_pre_node_start(node_name)
@@ -179,6 +186,7 @@ class ProcessLauncher:
         return node
 
     def _prepare_env(self, node_name, java_home, t):
+        self.logger.info("JAVA HOME: %s", java_home)
         env = {k: v for k, v in os.environ.items() if k in self.pass_env_vars}
         if java_home:
             self._set_env(env, "PATH", os.path.join(java_home, "bin"), separator=os.pathsep, prepend=True)
@@ -186,6 +194,7 @@ class ProcessLauncher:
             env["OPENSEARCH_JAVA_HOME"] = java_home
             # TODO remove this when ES <8.0 becomes unsupported by Benchmark
             env["JAVA_HOME"] = java_home
+            self.logger.info("JAVA HOME: %s", env["JAVA_HOME"])
         if not env.get("OPENSEARCH_JAVA_OPTS"):
             env["OPENSEARCH_JAVA_OPTS"] = "-XX:+ExitOnOutOfMemoryError"
 
@@ -210,18 +219,20 @@ class ProcessLauncher:
         command_line_args = shlex.split(command_line)
         logger = logging.getLogger(__name__)
         logger.info("command_line_args: %s", command_line_args)
-
+        logger.info("ENV: [%s]", env)
+        # logger.info("SLEEPING FOR 30 seconds")
+        # time.sleep(30)
         # results = subprocess.check_output(command_line_args, env=env)
         # logger.info("RESULTS: %s", results)
-
+        # Run the command manually but make sure the env is the same
         with subprocess.Popen(command_line_args,
-                              stdout=subprocess.PIPE,
-                              stderr=subprocess.PIPE,
+                              stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL,
                               env=env,
                               start_new_session=True) as command_line_process:
             # wait for it to finish
             command_line_process.wait()
-        out, err = command_line_process.communicate()
+
         return command_line_process.returncode
 
     @staticmethod

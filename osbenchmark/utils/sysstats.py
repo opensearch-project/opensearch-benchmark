@@ -87,8 +87,8 @@ def os_name():
     uname = platform.uname().system
     # Darwin is the unix-like os that Apple is built on. Since there
     # is no Darwin distribution for OpenSearch, we should use Linux
-    if uname == "Darwin":
-        return "Linux"
+    # if uname == "Darwin":
+    #     return "Linux"
     return uname
 
 

@@ -56,7 +56,7 @@
 {%- endif %}
 
 ## JVM temporary directory
--Djava.io.tmpdir=${ES_TMPDIR}
+-Djava.io.tmpdir=${OPENSEARCH_TMPDIR}
 
 ## heap dumps
 
