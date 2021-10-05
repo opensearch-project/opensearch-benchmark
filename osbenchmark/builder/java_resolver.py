@@ -35,6 +35,11 @@ def java_home(provision_config_instance_runtime_jdks, specified_runtime_jdk=None
         else:
             return allowed_runtime_jdks
 
+    def detect_jdk(jdks):
+        major, java_home = jvm.resolve_path(jdks)
+        logger.info("Detected JDK with major version [%s] in [%s].", major, java_home)
+        return major, java_home
+
     logger = logging.getLogger(__name__)
     logger.info("pci runtime jdks: %s", provision_config_instance_runtime_jdks)
     logger.info("specified runtime jdk: %s", specified_runtime_jdk)
@@ -63,9 +68,7 @@ def java_home(provision_config_instance_runtime_jdks, specified_runtime_jdk=None
             # OpenSearch does not provide a Darwin version of OpenSearch or a MacOS JDK version
             # MIGHT HAVE TO FIX LOGIC OF DETERMINE_RUNTIME_JDKS()
             logger.info("Using JDK set from JAVA_HOME because OS is Darwin.")
-            major, java_home = jvm.resolve_path(allowed_runtime_jdks)
-            logger.info("Using java major version [%s] in [%s].", major, java_home)
-            return major, java_home
+            return detect_jdk(allowed_runtime_jdks)
 
         # assume that the bundled JDK is the highest available; the path is irrelevant
         # UPDATE FOR INTEG TESTS: OpenSeaerch doesn't provide the correct build for MacOS.
@@ -76,6 +79,5 @@ def java_home(provision_config_instance_runtime_jdks, specified_runtime_jdk=None
         return allowed_runtime_jdks[0], None
     else:
         logger.info("Allowed JDK versions are %s.", runtime_jdk_versions)
-        major, java_home = jvm.resolve_path(runtime_jdk_versions)
-        logger.info("Detected JDK with major version [%s] in [%s].", major, java_home)
-        return major, java_home
+        return detect_jdk(runtime_jdk_versions)
+
