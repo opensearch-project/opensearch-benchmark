@@ -74,4 +74,3 @@ def java_home(provision_config_instance_runtime_jdks, specified_runtime_jdk=None
     else:
         logger.info("Allowed JDK versions are %s.", runtime_jdk_versions)
         return detect_jdk(runtime_jdk_versions)
-
