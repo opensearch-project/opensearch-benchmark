@@ -167,15 +167,9 @@ class ProcessLauncher:
             telemetry.StartupTime(),
         ]
 
-        self.logger.info("Java major version: %s", java_major_version)
-        self.logger.info("Java home: %s", java_home)
-        # self.logger.info("sleeping for 30 seconds")
-        # time.sleep(300)
         t = telemetry.Telemetry(enabled_devices, devices=node_telemetry)
         env = self._prepare_env(node_name, java_home, t)
         t.on_pre_node_start(node_name)
-        self.logger.info("ENV2: [%s]", env)
-        self.logger.info("Binary path: %s", binary_path)
         node_pid = self._start_process(binary_path, env)
         self.logger.info("Successfully started node [%s] with PID [%s].", node_name, node_pid)
         node = cluster.Node(node_pid, binary_path, host_name, node_name, t)
@@ -186,7 +180,6 @@ class ProcessLauncher:
         return node
 
     def _prepare_env(self, node_name, java_home, t):
-        self.logger.info("JAVA HOME: %s", java_home)
         env = {k: v for k, v in os.environ.items() if k in self.pass_env_vars}
         if java_home:
             self._set_env(env, "PATH", os.path.join(java_home, "bin"), separator=os.pathsep, prepend=True)
@@ -217,14 +210,7 @@ class ProcessLauncher:
     @staticmethod
     def _run_subprocess(command_line, env):
         command_line_args = shlex.split(command_line)
-        logger = logging.getLogger(__name__)
-        logger.info("command_line_args: %s", command_line_args)
-        logger.info("ENV: [%s]", env)
-        # logger.info("SLEEPING FOR 30 seconds")
-        # time.sleep(30)
-        # results = subprocess.check_output(command_line_args, env=env)
-        # logger.info("RESULTS: %s", results)
-        # Run the command manually but make sure the env is the same
+
         with subprocess.Popen(command_line_args,
                               stdout=subprocess.DEVNULL,
                               stderr=subprocess.DEVNULL,
@@ -237,8 +223,6 @@ class ProcessLauncher:
 
     @staticmethod
     def _start_process(binary_path, env):
-        logger = logging.getLogger(__name__)
-        logger.info("HERE?")
         if os.name == "posix" and os.geteuid() == 0:
             raise exceptions.LaunchError("Cannot launch OpenSearch as root. Please run Benchmark as a non-root user.")
         os.chdir(binary_path)

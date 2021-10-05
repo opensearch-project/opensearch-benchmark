@@ -41,13 +41,9 @@ def java_home(provision_config_instance_runtime_jdks, specified_runtime_jdk=None
         return major, java_home
 
     logger = logging.getLogger(__name__)
-    logger.info("pci runtime jdks: %s", provision_config_instance_runtime_jdks)
-    logger.info("specified runtime jdk: %s", specified_runtime_jdk)
-    logger.info("provides bundled jdk: %s", provides_bundled_jdk)
 
     try:
         allowed_runtime_jdks = [int(v) for v in provision_config_instance_runtime_jdks.split(",")]
-        logger.info("allowed runtime jdks: %s", allowed_runtime_jdks)
 
     except ValueError:
         raise exceptions.SystemSetupError(
@@ -55,7 +51,6 @@ def java_home(provision_config_instance_runtime_jdks, specified_runtime_jdk=None
                 provision_config_instance_runtime_jdks))
 
     runtime_jdk_versions = determine_runtime_jdks()
-    logger.info("bundled in java_resolver?: %s", runtime_jdk_versions[0])
 
     if runtime_jdk_versions[0] == "bundled":
         if not provides_bundled_jdk:

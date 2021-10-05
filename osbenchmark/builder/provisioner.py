@@ -312,7 +312,6 @@ class OpenSearchInstaller:
 
     @property
     def config_source_paths(self):
-        logger = logging.getLogger(__name__)
         return self.provision_config_instance.config_paths
 
     def _data_paths(self):

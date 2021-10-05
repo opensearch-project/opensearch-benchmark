@@ -41,8 +41,6 @@ METRIC_FLUSH_INTERVAL_SECONDS = 30
 
 
 def download(cfg):
-    logger = logging.getLogger(__name__)
-    logger.info("HERE AT DOWNLOAD SECTION")
     provision_config_instance, plugins = load_provision_config(cfg, external=False)
 
     s = supplier.create(cfg, sources=False, distribution=True, provision_config_instance=provision_config_instance, plugins=plugins)
@@ -51,8 +49,6 @@ def download(cfg):
 
 
 def install(cfg):
-    logger = logging.getLogger(__name__)
-    logger.info("HERE AT INSTALL SECTION")
     root_path = paths.install_root(cfg)
     provision_config_instance, plugins = load_provision_config(cfg, external=False)
 
