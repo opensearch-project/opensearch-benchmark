@@ -77,17 +77,12 @@ class TestNetUtils:
         assert net._build_gcs_object_url(bucket_name, bucket_path) == \
                "https://storage.googleapis.com/storage/v1/b/unittest-bucket.test.me/o/path%2Fto%2Fobject?alt=media"
 
-    # def test_add_url_param_opensearch_no_kpi(self):
-    #     url = "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.2.0.tar.gz"
-    #     assert net.add_url_param_opensearch_no_kpi(url) == \
-    #            "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.2.0.tar.gz?x-elastic-no-kpi=true"
-
     def test_add_url_param_encoding_and_update(self):
-        url = "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.2.0.tar.gz?flag1=true"
+        url = "https://artifacts.opensearch.org/releases/bundle/opensearch/1.0.0/opensearch-1.0.0-darwin-x64.tar.gz?flag1=true"
         params = {"flag1": "test me", "flag2": "test@me"}
         # pylint: disable=protected-access
         assert net._add_url_param(url, params) == \
-               "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.2.0.tar.gz?flag1=test+me&flag2=test%40me"
+               "https://artifacts.opensearch.org/releases/bundle/opensearch/1.0.0/opensearch-1.0.0-darwin-x64.tar.gz?flag1=test+me&flag2=test%40me"
 
     def test_progress(self):
         progress = net.Progress("test")
