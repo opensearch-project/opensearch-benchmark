@@ -82,7 +82,8 @@ class TestNetUtils:
         params = {"flag1": "test me", "flag2": "test@me"}
         # pylint: disable=protected-access
         assert net._add_url_param(url, params) == \
-               "https://artifacts.opensearch.org/releases/bundle/opensearch/1.0.0/opensearch-1.0.0-darwin-x64.tar.gz?flag1=test+me&flag2=test%40me"
+               ("https://artifacts.opensearch.org/releases/bundle/opensearch/"\
+                   "1.0.0/opensearch-1.0.0-darwin-x64.tar.gz?flag1=test+me&flag2=test%40me")
 
     def test_progress(self):
         progress = net.Progress("test")
