@@ -783,8 +783,8 @@ class DistributionRepositoryTests(TestCase):
                 "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz",
             "runtime.jdk.bundled": "false",
             # user override
-            "release.url": "https://artifacts.opensearch\
-                .org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz",
+            "release.url":
+                "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz",
             "release.cache": "false"
         }, template_renderer=renderer)
         self.assertEqual("https://artifacts.opensearch.org/releases/bundle/opensearch/1.0.0/opensearch-1.0.0-linux-x64.tar.gz",
