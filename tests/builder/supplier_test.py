@@ -779,7 +779,8 @@ class DistributionRepositoryTests(TestCase):
     def test_release_repo_config_with_user_url(self):
         renderer = supplier.TemplateRenderer(version="1.0.0")
         repo = supplier.DistributionRepository(name="release", distribution_config={
-            "jdk.unbundled.release_url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz",
+            "jdk.unbundled.release_url":
+                "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz",
             "runtime.jdk.bundled": "false",
             # user override
             "release.url": "https://artifacts.opensearch\
