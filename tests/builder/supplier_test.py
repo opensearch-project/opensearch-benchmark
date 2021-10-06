@@ -771,27 +771,32 @@ class DistributionRepositoryTests(TestCase):
                 "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz",
             "release.cache": "true"
         }, template_renderer=renderer)
-        self.assertEqual("https://artifacts.opensearch.org/releases/bundle/opensearch/1.0.0/opensearch-1.0.0-linux-x64.tar.gz", repo.download_url)
+        self.assertEqual("https://artifacts.opensearch\
+            .org/releases/bundle/opensearch/1.0.0/opensearch-1.0.0-linux-x64.tar.gz", repo.download_url)
         self.assertEqual("opensearch-1.0.0-linux-x64.tar.gz", repo.file_name)
         self.assertTrue(repo.cache)
 
     def test_release_repo_config_with_user_url(self):
         renderer = supplier.TemplateRenderer(version="1.0.0")
         repo = supplier.DistributionRepository(name="release", distribution_config={
-            "jdk.unbundled.release_url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz",
+            "jdk.unbundled.release_url": "https://artifacts.opensearch\
+                .org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz",
             "runtime.jdk.bundled": "false",
             # user override
-            "release.url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz",
+            "release.url": "https://artifacts.opensearch\
+                .org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz",
             "release.cache": "false"
         }, template_renderer=renderer)
-        self.assertEqual("https://artifacts.opensearch.org/releases/bundle/opensearch/1.0.0/opensearch-1.0.0-linux-x64.tar.gz", repo.download_url)
+        self.assertEqual("https://artifacts.opensearch\
+            .org/releases/bundle/opensearch/1.0.0/opensearch-1.0.0-linux-x64.tar.gz", repo.download_url)
         self.assertEqual("opensearch-1.0.0-linux-x64.tar.gz", repo.file_name)
         self.assertFalse(repo.cache)
 
     def test_missing_url(self):
         renderer = supplier.TemplateRenderer(version="1.0.0")
         repo = supplier.DistributionRepository(name="miss", distribution_config={
-            "jdk.unbundled.release_url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz",
+            "jdk.unbundled.release_url": "https://artifacts.opensearch\
+                .org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz",
             "runtime.jdk.bundled": "false",
             "release.cache": "true"
         }, template_renderer=renderer)
@@ -804,7 +809,8 @@ class DistributionRepositoryTests(TestCase):
     def test_missing_cache(self):
         renderer = supplier.TemplateRenderer(version="1.0.0")
         repo = supplier.DistributionRepository(name="release", distribution_config={
-            "jdk.unbundled.release.url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz",
+            "jdk.unbundled.release.url": "https://artifacts.opensearch\
+                .org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz",
             "runtime.jdk.bundled": "false"
         }, template_renderer=renderer)
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
