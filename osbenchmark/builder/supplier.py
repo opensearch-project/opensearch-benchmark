@@ -47,7 +47,7 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
     distribution_version = cfg.opts("builder", "distribution.version", mandatory=False)
     supply_requirements = _supply_requirements(sources, distribution, plugins, revisions, distribution_version)
     build_needed = any([build for _, _, build in supply_requirements.values()])
-    os_supplier_type, os_version, _ = supply_requirements["elasticsearch"]
+    os_supplier_type, os_version, _ = supply_requirements["opensearch"]
     src_config = cfg.all_opts("source")
     suppliers = []
 
@@ -166,16 +166,16 @@ def _supply_requirements(sources, distribution, plugins, revisions, distribution
     supply_requirements = {}
 
     # can only build OpenSearch with source-related pipelines -> ignore revision in that case
-    if "elasticsearch" in revisions and sources:
-        supply_requirements["elasticsearch"] = ("source", _required_revision(revisions, "elasticsearch", "Elasticsearch"), True)
+    if "opensearch" in revisions and sources:
+        supply_requirements["opensearch"] = ("source", _required_revision(revisions, "opensearch", "OpenSearch"), True)
     else:
         # no revision given or explicitly specified that it's from a distribution -> must use a distribution
-        supply_requirements["elasticsearch"] = ("distribution", _required_version(distribution_version), False)
+        supply_requirements["opensearch"] = ("distribution", _required_version(distribution_version), False)
 
     for plugin in plugins:
         if plugin.core_plugin:
             # core plugins are entirely dependent upon OpenSearch.
-            supply_requirements[plugin.name] = supply_requirements["elasticsearch"]
+            supply_requirements[plugin.name] = supply_requirements["opensearch"]
         else:
             # allow catch-all only if we're generally building from sources. If it is mixed, the user should tell explicitly.
             if plugin.name in revisions or ("all" in revisions and sources):
@@ -301,7 +301,7 @@ class OpenSearchFileNameResolver:
 
     @property
     def artifact_key(self):
-        return "elasticsearch"
+        return "opensearch"
 
     def to_artifact_path(self, file_system_path):
         return file_system_path
@@ -386,7 +386,7 @@ class OpenSearchSourceSupplier:
             ])
 
     def add(self, binaries):
-        binaries["elasticsearch"] = self.resolve_binary()
+        binaries["opensearch"] = self.resolve_binary()
 
     def resolve_binary(self):
         try:
@@ -567,8 +567,8 @@ def _extract_revisions(revision):
     revisions = revision.split(",") if revision else []
     if len(revisions) == 1:
         r = revisions[0]
-        if r.startswith("elasticsearch:"):
-            r = r[len("elasticsearch:"):]
+        if r.startswith("opensearch:"):
+            r = r[len("opensearch:"):]
         # may as well be just a single plugin
         m = re.match(REVISION_PATTERN, r)
         if m:
@@ -577,7 +577,7 @@ def _extract_revisions(revision):
             }
         else:
             return {
-                "elasticsearch": r,
+                "opensearch": r,
                 # use a catch-all value
                 "all": r
             }
