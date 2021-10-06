@@ -208,7 +208,8 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
 
         dist_cfg = {
             "runtime.jdk.bundled": "true",
-            "jdk.bundled.release_url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz"
+            "jdk.bundled.release_url":
+                "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz"
         }
         file_resolver = supplier.OpenSearchFileNameResolver(
             distribution_config=dist_cfg,
@@ -239,7 +240,8 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
 
         dist_cfg = {
             "runtime.jdk.bundled": "true",
-            "jdk.bundled.release_url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz"
+            "jdk.bundled.release_url":
+                "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz"
         }
         file_resolver = supplier.OpenSearchFileNameResolver(
             distribution_config=dist_cfg,
@@ -280,7 +282,8 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
 
         dist_cfg = {
             "runtime.jdk.bundled": "true",
-            "jdk.bundled.release_url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz"
+            "jdk.bundled.release_url":
+                "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz"
         }
 
         cached_supplier = supplier.CachedSourceSupplier(distributions_root="/tmp",
@@ -333,7 +336,8 @@ class CachedOpenSearchSourceSupplierTests(TestCase):
 
         dist_cfg = {
             "runtime.jdk.bundled": "true",
-            "jdk.bundled.release_url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz"
+            "jdk.bundled.release_url":
+                "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz"
         }
 
         cached_supplier = supplier.CachedSourceSupplier(distributions_root="/tmp",
@@ -364,7 +368,8 @@ class OpenSearchFileNameResolverTests(TestCase):
 
         dist_cfg = {
             "runtime.jdk.bundled": "true",
-            "jdk.bundled.release_url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz"
+            "jdk.bundled.release_url":
+                "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz"
         }
 
         self.resolver = supplier.OpenSearchFileNameResolver(
@@ -611,7 +616,8 @@ class CorePluginSourceSupplierTests(TestCase):
 
 class PluginDistributionSupplierTests(TestCase):
     def test_resolve_plugin_url(self):
-        v = {"plugin_logstash_release_url": "https://artifacts.opensearch.org/logstash/logstash-oss-with-opensearch-output-plugin-{{VERSION}}-linux-x64.tar.gz"}
+        v = {"plugin_logstash_release_url":
+            "https://artifacts.opensearch.org/logstash/logstash-oss-with-opensearch-output-plugin-{{VERSION}}-linux-x64.tar.gz"}
         renderer = supplier.TemplateRenderer(version="7.13.2")
         s = supplier.PluginDistributionSupplier(repo=supplier.DistributionRepository(name="release",
                                                                                      distribution_config=v,
@@ -619,7 +625,9 @@ class PluginDistributionSupplierTests(TestCase):
                                                 plugin=provision_config.PluginDescriptor("logstash"))
         binaries = {}
         s.add(binaries)
-        self.assertDictEqual(binaries, {"logstash": "https://artifacts.opensearch.org/logstash/logstash-oss-with-opensearch-output-plugin-7.13.2-linux-x64.tar.gz"})
+        self.assertDictEqual(
+            binaries, {"logstash":
+                "https://artifacts.opensearch.org/logstash/logstash-oss-with-opensearch-output-plugin-7.13.2-linux-x64.tar.gz"})
 
 
 class CreateSupplierTests(TestCase):
