@@ -78,7 +78,6 @@ def benchmark_os(t):
 
 
 def osbenchmark_command_line_for(cfg, command_line):
-    print(f"osbenchmark {command_line} --configuration-name='{cfg}'")
     return f"osbenchmark {command_line} --configuration-name='{cfg}'"
 
 
@@ -110,7 +109,7 @@ def shell_cmd(command_line):
 
 
 def command_in_docker(command_line, python_version):
-    docker_command = f"docker run --rm -v {ROOT_DIR}:/rally_ro:ro python:{python_version} bash -c '{command_line}'"
+    docker_command = f"docker run --rm -v {ROOT_DIR}:/benchmark_ro:ro python:{python_version} bash -c '{command_line}'"
 
     return shell_cmd(docker_command)
 
@@ -175,7 +174,6 @@ class TestCluster:
                                                                      provision_config_instance=provision_config_instance,
                                                                      transport_port=transport_port))
             self.installation_id = json.loads("".join(output))["installation-id"]
-            print("INSTALLATION ID: ", self.installation_id)
         except BaseException as e:
             raise AssertionError("Failed to install OpenSearch {}.".format(distribution_version), e)
 

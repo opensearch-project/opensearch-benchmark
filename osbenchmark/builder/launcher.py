@@ -146,7 +146,6 @@ class ProcessLauncher:
         data_paths = node_configuration.data_paths
         node_telemetry_dir = os.path.join(node_configuration.node_root_path, "telemetry")
 
-        self.logger.info("About to get java_home")
         java_major_version, java_home = java_resolver.java_home(node_configuration.provision_config_instance_runtime_jdks,
                                                                 self.cfg.opts("builder", "runtime.jdk"),
                                                                 node_configuration.provision_config_instance_provides_bundled_jdk)

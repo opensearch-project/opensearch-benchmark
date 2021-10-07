@@ -53,6 +53,7 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
 
     target_os = cfg.opts("builder", "target.os", mandatory=False)
     target_arch = cfg.opts("builder", "target.arch", mandatory=False)
+
     template_renderer = TemplateRenderer(version=os_version, os_name=target_os, arch=target_arch)
 
     if build_needed:
@@ -376,7 +377,7 @@ class OpenSearchSourceSupplier:
         self.template_renderer = template_renderer
 
     def fetch(self):
-        return SourceRepository("Elasticsearch", self.remote_url, self.src_dir).fetch(self.revision)
+        return SourceRepository("OpenSearch", self.remote_url, self.src_dir).fetch(self.revision)
 
     def prepare(self):
         if self.builder:
