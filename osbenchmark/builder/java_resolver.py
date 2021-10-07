@@ -60,7 +60,7 @@ def java_home(provision_config_instance_runtime_jdks, specified_runtime_jdk=None
 
         os_check = sysstats.os_name(check_jdk=True)
         if os_check == "Windows":
-            raise exceptiosn.SystemSetupError("OpenSearch doesn't provide release artifacts for Windows currently.")
+            raise exceptions.SystemSetupError("OpenSearch doesn't provide release artifacts for Windows currently.")
         if os_check == "Darwin":
             # OpenSearch does not provide a Darwin version of OpenSearch or a MacOS JDK version
             logger.info("Using JDK set from JAVA_HOME because OS is MacOS (Darwin).")
