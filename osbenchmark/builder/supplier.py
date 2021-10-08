@@ -29,6 +29,7 @@ import os
 import re
 import shutil
 import urllib.error
+import enum
 
 from osbenchmark import exceptions, paths, PROGRAM_NAME
 from osbenchmark.exceptions import BuildError, SystemSetupError
@@ -235,6 +236,19 @@ def _prune(root_path, max_age_days):
         else:
             logger.info("Skipping [%s] (not a file).", artifact)
 
+class SupportedOS(enum.Enum):
+    # Operating systems that OpenSearch currently supports
+    default = "linux"
+    linux = "linux"
+    docker = "docker"
+    freebsd = "freebsd"
+
+    # Checks if value is in enum. If not, it will use default Linux
+    @classmethod
+    def get_os(cls, value):
+        if value not in cls._value2member_map_:
+            return cls.default.value
+        return value
 
 class TemplateRenderer:
     def __init__(self, version, os_name=None, arch=None):
@@ -242,7 +256,9 @@ class TemplateRenderer:
         if os_name is not None:
             self.os = os_name
         else:
-            self.os = sysstats.os_name().lower()
+            system_os_name = sysstats.os_name().lower()
+            self.os = SupportedOS.get_os(system_os_name)
+
         if arch is not None:
             self.arch = arch
         else:

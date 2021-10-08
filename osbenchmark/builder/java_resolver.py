@@ -58,7 +58,7 @@ def java_home(provision_config_instance_runtime_jdks, specified_runtime_jdk=None
                                               "Please specify a different runtime JDK.")
         logger.info("Using JDK bundled with OpenSearch.")
 
-        os_check = sysstats.os_name(check_jdk=True)
+        os_check = sysstats.os_name()
         if os_check == "Windows":
             raise exceptions.SystemSetupError("OpenSearch doesn't provide release artifacts for Windows currently.")
         if os_check == "Darwin":

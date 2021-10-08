@@ -72,6 +72,13 @@ export JAVA15_HOME=/Library/Java/JavaVirtualMachines/amazon-corretto-15.jdk/Cont
 export JAVA16_HOME=/Library/Java/JavaVirtualMachines/amazon-corretto-16.jdk/Contents/Home/
 ```
 
+OpenSearch currently only supports the following operating systems:
+- Linux
+- Docker
+- FreeBSD
+
+The default operating system is Linux. Therefore, unless the user's operating system is among the ones supported, the artifacts collected will be Linux-based. For MacOS users running OpenSearch, please set JAVA_HOME to one of the local JDKs you exported as the JDK bundled with OpenSearch is not compatible with MacOS and prevent the metrics store from coming up correctly during integration tests.
+
 Ensure that you are not connected to a VPN when running integration tests as VPNs can prevent the docker build from building correctly or distribution versions from downloading correctly.
 
 ## Submitting your changes for a pull request

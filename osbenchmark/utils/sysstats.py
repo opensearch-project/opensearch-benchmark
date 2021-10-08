@@ -83,13 +83,8 @@ def total_memory():
     return psutil.virtual_memory().total
 
 
-def os_name(check_jdk=False):
-    uname = platform.uname().system
-    # Darwin is the unix-like os that Apple is built on. Since there
-    # is no Darwin distribution for OpenSearch, we should use Linux
-    if not check_jdk and uname == "Darwin":
-        return "Linux"
-    return uname
+def os_name():
+    return platform.uname().system
 
 
 def os_version():

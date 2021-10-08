@@ -191,6 +191,20 @@ class TemplateRendererTests(TestCase):
         self.assertEqual("This is version 1.2.3 on linux with a x86_64 CPU.",
                          renderer.render("This is version {{VERSION}} on {{OSNAME}} with a {{ARCH}} CPU."))
 
+    @mock.patch("osbenchmark.utils.sysstats.os_name", return_value="Linux")
+    @mock.patch("osbenchmark.utils.sysstats.cpu_arch", return_value="X86_64")
+    def test_supported_os_enum_match(self, os_name, cpu_arch):
+        renderer = supplier.TemplateRenderer(version="1.2.3")
+        self.assertEqual("This is version 1.2.3 on linux with a x86_64 CPU.",
+                         renderer.render("This is version {{VERSION}} on {{OSNAME}} with a {{ARCH}} CPU."))
+
+    @mock.patch("osbenchmark.utils.sysstats.os_name", return_value="Darwin")
+    @mock.patch("osbenchmark.utils.sysstats.cpu_arch", return_value="X86_64")
+    def test_supported_os_enum_returns_default(self, os_name, cpu_arch):
+        renderer = supplier.TemplateRenderer(version="1.2.3")
+        self.assertEqual("This is version 1.2.3 on linux with a x86_64 CPU.",
+                         renderer.render("This is version {{VERSION}} on {{OSNAME}} with a {{ARCH}} CPU."))
+
 
 class CachedOpenSearchSourceSupplierTests(TestCase):
     @mock.patch("osbenchmark.utils.io.ensure_dir")
