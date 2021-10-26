@@ -72,7 +72,16 @@ export JAVA15_HOME=/Library/Java/JavaVirtualMachines/amazon-corretto-15.jdk/Cont
 export JAVA16_HOME=/Library/Java/JavaVirtualMachines/amazon-corretto-16.jdk/Contents/Home/
 ```
 
-Ensure that you are not connected to a VPN when running integration tests as VPNs can prevent the docker build from building correctly or distribution versions from downloading correctly.
+OpenSearch currently releases artifacts for the following operating systems:
+- Linux
+- Docker
+- FreeBSD
+
+If the operating system is not listed above then the artifacts used will default to Linux. 
+
+For MacOS users running OpenSearch, please set JAVA_HOME to one of the local JDKs you exported as the JDK bundled with OpenSearch is not compatible with MacOS and prevent the metrics store from coming up correctly during integration tests.
+
+If you are connected to a VPN and face Docker related when running the integration tests disconnecting from the VPN may fix this.
 
 ## Submitting your changes for a pull request
 

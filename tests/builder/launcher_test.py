@@ -244,7 +244,7 @@ class ProcessLauncherTests(TestCase):
         self.assertEqual("-XX:+ExitOnOutOfMemoryError -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints "
                          "-XX:+UnlockCommercialFeatures -XX:+FlightRecorder "
                          "-XX:FlightRecorderOptions=disk=true,maxage=0s,maxsize=0,dumponexit=true,dumponexitpath=/tmp/telemetry/profile.jfr " # pylint: disable=line-too-long
-                         "-XX:StartFlightRecording=defaultrecording=true", env["ES_JAVA_OPTS"])
+                         "-XX:StartFlightRecording=defaultrecording=true", env["OPENSEARCH_JAVA_OPTS"])
 
     def test_bundled_jdk_not_in_path(self):
         cfg = config.Config()
@@ -277,13 +277,13 @@ class ProcessLauncherTests(TestCase):
         # unmodified
         self.assertEqual(os.environ["JAVA_HOME"], env["JAVA_HOME"])
         self.assertEqual(os.environ["FOO1"], env["FOO1"])
-        self.assertEqual(env["ES_JAVA_OPTS"], "-XX:+ExitOnOutOfMemoryError")
+        self.assertEqual(env["OPENSEARCH_JAVA_OPTS"], "-XX:+ExitOnOutOfMemoryError")
 
     def test_pass_java_opts(self):
         cfg = config.Config()
         cfg.add(config.Scope.application, "system", "env.name", "test")
-        cfg.add(config.Scope.application, "system", "passenv", "ES_JAVA_OPTS")
-        os.environ["ES_JAVA_OPTS"] = "-XX:-someJunk"
+        cfg.add(config.Scope.application, "system", "passenv", "OPENSEARCH_JAVA_OPTS")
+        os.environ["OPENSEARCH_JAVA_OPTS"] = "-XX:-someJunk"
 
         proc_launcher = launcher.ProcessLauncher(cfg)
 
@@ -292,7 +292,7 @@ class ProcessLauncherTests(TestCase):
         env = proc_launcher._prepare_env(node_name="node0", java_home=None, t=t)
 
         # unmodified
-        self.assertEqual(os.environ["ES_JAVA_OPTS"], env["ES_JAVA_OPTS"])
+        self.assertEqual(os.environ["OPENSEARCH_JAVA_OPTS"], env["OPENSEARCH_JAVA_OPTS"])
 
     @mock.patch("osbenchmark.time.sleep")
     def test_pidfile_wait_test_execution(self, sleep):

@@ -185,7 +185,7 @@ class BareProvisioner:
         self.logger = logging.getLogger(__name__)
 
     def prepare(self, binary):
-        self.os_installer.install(binary["elasticsearch"])
+        self.os_installer.install(binary["opensearch"])
         # we need to immediately delete it as plugins may copy their configuration during installation.
         self.os_installer.delete_pre_bundled_configuration()
 
@@ -268,7 +268,7 @@ class OpenSearchInstaller:
 
         self.logger.info("Unzipping %s to %s", binary, self.install_dir)
         io.decompress(binary, self.install_dir)
-        self.os_home_path = glob.glob(os.path.join(self.install_dir, "elasticsearch*"))[0]
+        self.os_home_path = glob.glob(os.path.join(self.install_dir, "opensearch*"))[0]
         self.data_paths = self._data_paths()
 
     def delete_pre_bundled_configuration(self):

@@ -149,6 +149,8 @@ class ProcessLauncher:
         java_major_version, java_home = java_resolver.java_home(node_configuration.provision_config_instance_runtime_jdks,
                                                                 self.cfg.opts("builder", "runtime.jdk"),
                                                                 node_configuration.provision_config_instance_provides_bundled_jdk)
+        self.logger.info("Java major version: %s", java_major_version)
+        self.logger.info("Java home: %s", java_home)
 
         self.logger.info("Starting node [%s].", node_name)
 
@@ -181,15 +183,16 @@ class ProcessLauncher:
         if java_home:
             self._set_env(env, "PATH", os.path.join(java_home, "bin"), separator=os.pathsep, prepend=True)
             # This property is the higher priority starting in ES 7.12.0, and is the only supported java home in >=8.0
-            env["ES_JAVA_HOME"] = java_home
+            env["OPENSEARCH_JAVA_HOME"] = java_home
             # TODO remove this when ES <8.0 becomes unsupported by Benchmark
             env["JAVA_HOME"] = java_home
-        if not env.get("ES_JAVA_OPTS"):
-            env["ES_JAVA_OPTS"] = "-XX:+ExitOnOutOfMemoryError"
+            self.logger.info("JAVA HOME: %s", env["JAVA_HOME"])
+        if not env.get("OPENSEARCH_JAVA_OPTS"):
+            env["OPENSEARCH_JAVA_OPTS"] = "-XX:+ExitOnOutOfMemoryError"
 
         # we just blindly trust telemetry here...
         for v in t.instrument_candidate_java_opts():
-            self._set_env(env, "ES_JAVA_OPTS", v)
+            self._set_env(env, "OPENSEARCH_JAVA_OPTS", v)
 
         self.logger.debug("env for [%s]: %s", node_name, str(env))
         return env
@@ -214,6 +217,7 @@ class ProcessLauncher:
                               start_new_session=True) as command_line_process:
             # wait for it to finish
             command_line_process.wait()
+
         return command_line_process.returncode
 
     @staticmethod
@@ -221,7 +225,7 @@ class ProcessLauncher:
         if os.name == "posix" and os.geteuid() == 0:
             raise exceptions.LaunchError("Cannot launch OpenSearch as root. Please run Benchmark as a non-root user.")
         os.chdir(binary_path)
-        cmd = [io.escape_path(os.path.join(".", "bin", "elasticsearch"))]
+        cmd = [io.escape_path(os.path.join(".", "bin", "opensearch"))]
         cmd.extend(["-d", "-p", "pid"])
         ret = ProcessLauncher._run_subprocess(command_line=" ".join(cmd), env=env)
         if ret != 0:

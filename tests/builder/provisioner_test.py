@@ -35,7 +35,7 @@ HOME_DIR = os.path.expanduser("~")
 
 
 class BareProvisionerTests(TestCase):
-    @mock.patch("glob.glob", lambda p: ["/opt/elasticsearch-5.0.0"])
+    @mock.patch("glob.glob", lambda p: ["/opt/opensearch-1.0.0"])
     @mock.patch("osbenchmark.utils.io.decompress")
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("shutil.rmtree")
@@ -63,16 +63,16 @@ class BareProvisionerTests(TestCase):
                                         plugin_installers=[],
                                         apply_config=null_apply_config)
 
-        node_config = p.prepare({"elasticsearch": "/opt/elasticsearch-5.0.0.tar.gz"})
+        node_config = p.prepare({"opensearch": "/opt/opensearch-1.0.0.tar.gz"})
         self.assertEqual("8", node_config.provision_config_instance_runtime_jdks)
-        self.assertEqual("/opt/elasticsearch-5.0.0", node_config.binary_path)
-        self.assertEqual(["/opt/elasticsearch-5.0.0/data"], node_config.data_paths)
+        self.assertEqual("/opt/opensearch-1.0.0", node_config.binary_path)
+        self.assertEqual(["/opt/opensearch-1.0.0/data"], node_config.data_paths)
 
         self.assertEqual(1, len(apply_config_calls))
         source_root_path, target_root_path, config_vars = apply_config_calls[0]
 
         self.assertEqual(HOME_DIR + "/.benchmark/benchmarks/provision_configs/default/my-provision-config-instance", source_root_path)
-        self.assertEqual("/opt/elasticsearch-5.0.0", target_root_path)
+        self.assertEqual("/opt/opensearch-1.0.0", target_root_path)
         self.assertEqual({
             "cluster_settings": {
             },
@@ -81,7 +81,7 @@ class BareProvisionerTests(TestCase):
             "runtime.jdk.bundled": "true",
             "cluster_name": "benchmark-provisioned-cluster",
             "node_name": "benchmark-node-0",
-            "data_paths": ["/opt/elasticsearch-5.0.0/data"],
+            "data_paths": ["/opt/opensearch-1.0.0/data"],
             "log_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/logs/server",
             "heap_dump_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/heapdump",
             "node_ip": "10.17.22.23",
@@ -91,7 +91,7 @@ class BareProvisionerTests(TestCase):
             "all_node_ips": "[\"10.17.22.22\",\"10.17.22.23\"]",
             "all_node_names": "[\"benchmark-node-0\",\"benchmark-node-1\"]",
             "minimum_master_nodes": 2,
-            "install_root_path": "/opt/elasticsearch-5.0.0"
+            "install_root_path": "/opt/opensearch-1.0.0"
         }, config_vars)
 
     class NoopHookHandler:

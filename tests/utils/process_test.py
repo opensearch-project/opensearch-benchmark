@@ -78,7 +78,7 @@ class ProcessTests(TestCase):
             os.getpid(), "Python",
             ["/Python.app/Contents/MacOS/Python",
             "~/.local/bin/osbenchmark"])
-        night_benchmark_process = ProcessTests.Process(110, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/night_rally"])
+        night_benchmark_process = ProcessTests.Process(110, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/night_benchmark"])
 
         process_iter.return_value = [
             benchmark_os_1_process,
@@ -131,7 +131,7 @@ class ProcessTests(TestCase):
         own_benchmark_process = ProcessTests.Process(
             os.getpid(), "Python",
             ["/Python.app/Contents/MacOS/Python", "~/.local/bin/osbenchmark"])
-        night_benchmark_process = ProcessTests.Process(110, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/night_rally"])
+        night_benchmark_process = ProcessTests.Process(110, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/night_benchmark"])
 
         process_iter.return_value = [
             benchmark_os_1_process,

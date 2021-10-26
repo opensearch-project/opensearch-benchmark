@@ -51,15 +51,11 @@ class JavaResolverTests(TestCase):
         self.assertEqual(java_home, "/opt/jdk8")
         resolve_jvm_path.assert_called_with([8])
 
-    def test_resolves_java_home_for_bundled_jdk(self):
-        major, java_home = java_resolver.java_home("12,11,10,9,8",
-                                                   specified_runtime_jdk="bundled",
-                                                   provides_bundled_jdk=True)
-
-        # assumes most recent JDK
-        self.assertEqual(major, 12)
-        # does not set JAVA_HOME for the bundled JDK
-        self.assertEqual(java_home, None)
+    @mock.patch("osbenchmark.utils.sysstats.os_name", return_value="Windows")
+    def test_resolves_java_home_for_bundled_jdk_windows(self, os_name):
+        with self.assertRaises(exceptions.SystemSetupError) as ctx:
+            java_resolver.java_home("12,11,10,9,8", specified_runtime_jdk="bundled", provides_bundled_jdk=True)
+        self.assertEqual("OpenSearch doesn't provide release artifacts for Windows currently.", ctx.exception.args[0])
 
     def test_disallowed_bundled_jdk(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:

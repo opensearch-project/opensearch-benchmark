@@ -29,6 +29,7 @@ import os
 import re
 import shutil
 import urllib.error
+import enum
 
 from osbenchmark import exceptions, paths, PROGRAM_NAME
 from osbenchmark.exceptions import BuildError, SystemSetupError
@@ -47,12 +48,13 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
     distribution_version = cfg.opts("builder", "distribution.version", mandatory=False)
     supply_requirements = _supply_requirements(sources, distribution, plugins, revisions, distribution_version)
     build_needed = any([build for _, _, build in supply_requirements.values()])
-    os_supplier_type, os_version, _ = supply_requirements["elasticsearch"]
+    os_supplier_type, os_version, _ = supply_requirements["opensearch"]
     src_config = cfg.all_opts("source")
     suppliers = []
 
     target_os = cfg.opts("builder", "target.os", mandatory=False)
     target_arch = cfg.opts("builder", "target.arch", mandatory=False)
+
     template_renderer = TemplateRenderer(version=os_version, os_name=target_os, arch=target_arch)
 
     if build_needed:
@@ -166,16 +168,16 @@ def _supply_requirements(sources, distribution, plugins, revisions, distribution
     supply_requirements = {}
 
     # can only build OpenSearch with source-related pipelines -> ignore revision in that case
-    if "elasticsearch" in revisions and sources:
-        supply_requirements["elasticsearch"] = ("source", _required_revision(revisions, "elasticsearch", "Elasticsearch"), True)
+    if "opensearch" in revisions and sources:
+        supply_requirements["opensearch"] = ("source", _required_revision(revisions, "opensearch", "OpenSearch"), True)
     else:
         # no revision given or explicitly specified that it's from a distribution -> must use a distribution
-        supply_requirements["elasticsearch"] = ("distribution", _required_version(distribution_version), False)
+        supply_requirements["opensearch"] = ("distribution", _required_version(distribution_version), False)
 
     for plugin in plugins:
         if plugin.core_plugin:
             # core plugins are entirely dependent upon OpenSearch.
-            supply_requirements[plugin.name] = supply_requirements["elasticsearch"]
+            supply_requirements[plugin.name] = supply_requirements["opensearch"]
         else:
             # allow catch-all only if we're generally building from sources. If it is mixed, the user should tell explicitly.
             if plugin.name in revisions or ("all" in revisions and sources):
@@ -234,6 +236,19 @@ def _prune(root_path, max_age_days):
         else:
             logger.info("Skipping [%s] (not a file).", artifact)
 
+class SupportedOS(enum.Enum):
+    # Operating systems that OpenSearch currently supports
+    default = "linux"
+    linux = "linux"
+    docker = "docker"
+    freebsd = "freebsd"
+
+    # Checks if value is in enum. If not, it will use default Linux
+    @classmethod
+    def get_os(cls, value):
+        if value not in cls._value2member_map_:
+            return cls.default.value
+        return value
 
 class TemplateRenderer:
     def __init__(self, version, os_name=None, arch=None):
@@ -241,7 +256,9 @@ class TemplateRenderer:
         if os_name is not None:
             self.os = os_name
         else:
-            self.os = sysstats.os_name().lower()
+            system_os_name = sysstats.os_name().lower()
+            self.os = SupportedOS.get_os(system_os_name)
+
         if arch is not None:
             self.arch = arch
         else:
@@ -262,6 +279,8 @@ class TemplateRenderer:
 class CompositeSupplier:
     def __init__(self, suppliers):
         self.suppliers = suppliers
+        self.logger = logging.getLogger(__name__)
+        self.logger.info("Suppliers: %s", self.suppliers)
 
     def __call__(self, *args, **kwargs):
         binaries = {}
@@ -299,7 +318,7 @@ class OpenSearchFileNameResolver:
 
     @property
     def artifact_key(self):
-        return "elasticsearch"
+        return "opensearch"
 
     def to_artifact_path(self, file_system_path):
         return file_system_path
@@ -328,7 +347,7 @@ class CachedSourceSupplier:
         # Can we already resolve the artifact without fetching the source tree at all? This is the case when a specific
         # revision (instead of a meta-revision like "current") is provided and the artifact is already cached. This is
         # also needed if an external process pushes artifacts to Benchmark's cache which might have been built from a
-        # fork. In that case the provided commit hash would not be present in any case in the main ES repo.
+        # fork. In that case the provided commit hash would not be present in any case in the main OS repo.
         maybe_an_artifact = os.path.join(self.distributions_root, self.file_name)
         if os.path.exists(maybe_an_artifact):
             self.cached_path = maybe_an_artifact
@@ -374,7 +393,7 @@ class OpenSearchSourceSupplier:
         self.template_renderer = template_renderer
 
     def fetch(self):
-        return SourceRepository("Elasticsearch", self.remote_url, self.src_dir).fetch(self.revision)
+        return SourceRepository("OpenSearch", self.remote_url, self.src_dir).fetch(self.revision)
 
     def prepare(self):
         if self.builder:
@@ -384,7 +403,7 @@ class OpenSearchSourceSupplier:
             ])
 
     def add(self, binaries):
-        binaries["elasticsearch"] = self.resolve_binary()
+        binaries["opensearch"] = self.resolve_binary()
 
     def resolve_binary(self):
         try:
@@ -507,7 +526,7 @@ class OpenSearchDistributionSupplier:
 
     def fetch(self):
         io.ensure_dir(self.distributions_root)
-        download_url = net.add_url_param_opensearch_no_kpi(self.repo.download_url)
+        download_url = self.repo.download_url
         distribution_path = os.path.join(self.distributions_root, self.repo.file_name)
         self.logger.info("Resolved download URL [%s] for version [%s]", download_url, self.version)
         if not os.path.isfile(distribution_path) or not self.repo.cache:
@@ -530,7 +549,7 @@ class OpenSearchDistributionSupplier:
         pass
 
     def add(self, binaries):
-        binaries["elasticsearch"] = self.distribution_path
+        binaries["opensearch"] = self.distribution_path
 
 
 class PluginDistributionSupplier:
@@ -564,8 +583,8 @@ def _extract_revisions(revision):
     revisions = revision.split(",") if revision else []
     if len(revisions) == 1:
         r = revisions[0]
-        if r.startswith("elasticsearch:"):
-            r = r[len("elasticsearch:"):]
+        if r.startswith("opensearch:"):
+            r = r[len("opensearch:"):]
         # may as well be just a single plugin
         m = re.match(REVISION_PATTERN, r)
         if m:
@@ -574,7 +593,7 @@ def _extract_revisions(revision):
             }
         else:
             return {
-                "elasticsearch": r,
+                "opensearch": r,
                 # use a catch-all value
                 "all": r
             }
@@ -700,16 +719,19 @@ class DistributionRepository:
         self.cfg = distribution_config
         self.runtime_jdk_bundled = convert.to_bool(self.cfg.get("runtime.jdk.bundled", False))
         self.template_renderer = template_renderer
+        self.logger = logging.getLogger(__name__)
 
     @property
     def download_url(self):
         # provision_config repo
+        self.logger.info("runtime_jdk_bundled? [%s]", self.runtime_jdk_bundled)
         if self.runtime_jdk_bundled:
             default_key = "jdk.bundled.{}_url".format(self.name)
         else:
             default_key = "jdk.unbundled.{}_url".format(self.name)
         # benchmark.ini
         override_key = "{}.url".format(self.name)
+        self.logger.info("keys: [%s] and [%s]", override_key, default_key)
         return self._url_for(override_key, default_key)
 
     @property

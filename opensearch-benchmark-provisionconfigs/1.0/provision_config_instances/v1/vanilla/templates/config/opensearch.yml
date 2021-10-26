@@ -1,0 +1,109 @@
+# ======================== OpenSearch Configuration =========================
+#
+# NOTE: OpenSearch comes with reasonable defaults for most settings.
+#       Before you set out to tweak and tune the configuration, make sure you
+#       understand what are you trying to accomplish and the consequences.
+#
+# The primary way of configuring a node is via this file. This template lists
+# the most important settings you may want to configure for a production cluster.
+#
+# ---------------------------------- Cluster -----------------------------------
+#
+# Use a descriptive name for your cluster:
+#
+cluster.name: {{cluster_name}}
+#
+# ------------------------------------ Node ------------------------------------
+#
+# Use a descriptive name for the node:
+#
+node.name: {{node_name}}
+#
+# Add custom attributes to the node:
+#
+#node.attr.rack: r1
+#
+# ----------------------------------- Paths ------------------------------------
+#
+# Path to directory where to store the data (separate multiple locations by comma):
+#
+path.data: {{data_paths}}
+#
+# Path to log files:
+#
+path.logs: {{log_path}}
+#
+# ----------------------------------- Memory -----------------------------------
+#
+# Lock the memory on startup:
+#
+#bootstrap.memory_lock: true
+#
+# Make sure that the heap size is set to about half the memory available
+# on the system and that the owner of the process is allowed to use this
+# limit.
+#
+# OpenSearch performs poorly when the system is swapping the memory.
+#
+# ---------------------------------- Network -----------------------------------
+#
+# Set the bind address to a specific IP (IPv4 or IPv6):
+#
+network.host: {{network_host}}
+#
+# Set a custom port for HTTP:
+#
+http.port: {{http_port}}
+
+transport.tcp.port: {{transport_port}}
+# --------------------------------- Discovery ----------------------------------
+#
+# Pass an initial list of hosts to perform discovery when this node is started:
+# The default list of hosts is ["127.0.0.1", "[::1]"]
+#
+{%- if all_node_ips %}
+discovery.seed_hosts: {{ all_node_ips }}
+# Prevent split brain by specifying the initial master nodes.
+  {%- if all_node_names is defined %}
+cluster.initial_master_nodes: {{ all_node_names }}
+  {%- else %}
+cluster.initial_master_nodes: {{ all_node_ips }}
+  {%- endif %}
+{%- else %}
+#discovery.seed_hosts: ["host1", "host2"]
+#cluster.initial_master_nodes: ["node-name1", "node-name2"]
+{%- endif %}
+{%- if discovery_type %}
+discovery.type: {{discovery_type}}
+{%- endif %}
+#
+#
+# ---------------------------------- Gateway -----------------------------------
+#
+# Block initial recovery after a full cluster restart until N nodes are started:
+#
+#gateway.recover_after_nodes: 3
+#
+# ---------------------------------- Various -----------------------------------
+#
+# Require explicit names when deleting indices:
+#
+#action.destructive_requires_name: true
+plugins.security.disabled: true
+
+
+{%- if indexing_pressure_memory_limit is defined %}
+indexing_pressure.memory.limit: {{indexing_pressure_memory_limit}}
+{%- endif %}
+
+{# cluster settings provided from the track #}
+{%- for key, value in cluster_settings.items() %}
+{{key}}: {{value | tojson}}
+{%- endfor %}
+
+{# cluster settings provided by the user via the command line #}
+{%- if additional_cluster_settings is defined %}
+{%- for key, value in additional_cluster_settings.items() %}
+{{key}}: {{value | tojson}}
+{%- endfor %}
+{%- endif %}

@@ -64,7 +64,11 @@ def cpu_arch():
     """
     :return: The CPU architecture name.
     """
-    return platform.uname().machine
+    # Distribution link uses x64 instead of x86_64
+    architecture = platform.uname().machine
+    if architecture == "x86_64":
+        return "x64"
+    return architecture
 
 
 def disks():

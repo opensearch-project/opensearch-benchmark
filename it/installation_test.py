@@ -44,10 +44,10 @@ with open(os.path.join(ROOT_DIR, _CI_VARS), "rt") as fp:
 def test_installs_inside_venv():
     # as in the VirtualEnv Install section of install.rst
     commands = (
-        "cp -a /rally_ro /rally &&"
+        "cp -a /benchmark_ro /benchmark &&"
         "python3 -mvenv .venv &&"
         "source .venv/bin/activate &&"
-        "cd /rally &&"
+        "cd /benchmark &&"
         "python3 -m pip install --upgrade pip &&"
         "python3 -m pip install -e . &&"
         "osbenchmark list workloads"
@@ -59,8 +59,8 @@ def test_installs_inside_venv():
 def test_local_installation():
     # as in the Installing Benchmark install.rst
     commands = (
-        "cp -a /rally_ro /rally &&"
-        "cd /rally &&"
+        "cp -a /benchmark_ro /benchmark &&"
+        "cd /benchmark &&"
         "export PATH=$PATH:~/.local/bin &&"
         "python3 -m pip install --user --upgrade pip &&"
         "python3 -m pip install --user -e . &&"
