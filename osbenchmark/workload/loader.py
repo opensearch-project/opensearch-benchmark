@@ -632,10 +632,10 @@ class TemplateSource:
     """
     Prepares the fully assembled workload file from file or string.
     Doesn't render using jinja2, but embeds workload fragments referenced with
-    rally.collect(parts=...
+    benchmark.collect(parts=...
     """
 
-    collect_parts_re = re.compile(r"{{\ +?rally\.collect\(parts=\"(.+?(?=\"))\"\)\ +?}}")
+    collect_parts_re = re.compile(r"{{\ +?benchmark\.collect\(parts=\"(.+?(?=\"))\"\)\ +?}}")
 
     def __init__(self, base_path, template_file_name, source=io.FileSource, fileglobber=glob.glob):
         self.base_path = base_path
@@ -727,7 +727,7 @@ def render_template(template_source, template_vars=None, template_internal_vars=
     # place helpers dict loader first to prevent users from overriding our macros.
     env = jinja2.Environment(
         loader=jinja2.ChoiceLoader([
-            jinja2.DictLoader({"rally.helpers": "".join(macros)}),
+            jinja2.DictLoader({"benchmark.helpers": "".join(macros)}),
             jinja2.BaseLoader(),
             loader
         ])

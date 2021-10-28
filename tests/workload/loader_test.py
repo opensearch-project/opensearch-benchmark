@@ -761,7 +761,7 @@ class TemplateSource(TestCase):
     @mock.patch.object(loader.TemplateSource, "read_glob_files")
     def test_entrypoint_of_replace_includes(self, patched_read_glob, patched_dirname):
         workload = textwrap.dedent("""
-        {% import "rally.helpers" as rally with context %}
+        {% import "benchmark.helpers" as benchmark with context %}
         {
           "version": 2,
           "description": "unittest workload",
@@ -787,10 +787,10 @@ class TemplateSource(TestCase):
             }
           ],
           "operations": [
-            {{ rally.collect(parts="operations/*.json") }}
+            {{ benchmark.collect(parts="operations/*.json") }}
           ],
           "test_procedures": [
-            {{ rally.collect(parts="test_procedures/*.json") }}
+            {{ benchmark.collect(parts="test_procedures/*.json") }}
           ]
         }
         """)
@@ -805,7 +805,7 @@ class TemplateSource(TestCase):
         tmpl_src = loader.TemplateSource(base_path, template_file_name)
         # pylint: disable=trailing-whitespace
         expected_response = textwrap.dedent("""
-            {% import "rally.helpers" as rally with context %}
+            {% import "benchmark.helpers" as benchmark with context %}
             {
               "version": 2,
               "description": "unittest workload",
@@ -911,10 +911,10 @@ class TemplateRenderTests(TestCase):
                 return []
 
         template = """
-        {% import "rally.helpers" as rally %}
+        {% import "benchmark.helpers" as benchmark %}
         {
             "key1": "static value",
-            {{ rally.collect(parts="dynamic-key-*") }}
+            {{ benchmark.collect(parts="dynamic-key-*") }}
 
         }
         """
@@ -953,7 +953,7 @@ class TemplateRenderTests(TestCase):
         template = """
         {% set _clients = clients if clients is defined else 16 %}
         {% set _bulk_size = bulk_size if bulk_size is defined else 100 %}
-        {% import "rally.helpers" as rally with context %}
+        {% import "benchmark.helpers" as benchmark with context %}
         {
             "key1": "static value",
             "dkey1": {{ _clients }},
@@ -979,7 +979,7 @@ class TemplateRenderTests(TestCase):
 
 
 class CompleteWorkloadParamsTests(TestCase):
-    assembled_source = textwrap.dedent("""{% import "rally.helpers" as rally with context %}
+    assembled_source = textwrap.dedent("""{% import "benchmark.helpers" as benchmark with context %}
         "key1": "value1",
         "key2": {{ value2 | default(3) }},
         "key3": {{ value3 | default("default_value3") }}
