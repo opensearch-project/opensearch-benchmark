@@ -337,7 +337,7 @@ class PluginInstaller:
         self.logger = logging.getLogger(__name__)
 
     def install(self, os_home_path, plugin_url=None):
-        installer_binary_path = os.path.join(os_home_path, "bin", "elasticsearch-plugin")
+        installer_binary_path = os.path.join(os_home_path, "bin", "opensearch-plugin")
         if plugin_url:
             self.logger.info("Installing [%s] into [%s] from [%s]", self.plugin_name, os_home_path, plugin_url)
             install_cmd = '%s install --batch "%s"' % (installer_binary_path, plugin_url)
@@ -406,10 +406,10 @@ class DockerProvisioner:
             "cluster_name": "benchmark-provisioned-cluster",
             "node_name": self.node_name,
             # we bind-mount the directories below on the host to these ones.
-            "install_root_path": "/usr/share/elasticsearch",
-            "data_paths": ["/usr/share/elasticsearch/data"],
-            "log_path": "/var/log/elasticsearch",
-            "heap_dump_path": "/usr/share/elasticsearch/heapdump",
+            "install_root_path": "/usr/share/opensearch",
+            "data_paths": ["/usr/share/opensearch/data"],
+            "log_path": "/var/log/opensearch",
+            "heap_dump_path": "/usr/share/opensearch/heapdump",
             # Docker container needs to expose service on external interfaces
             "network_host": "0.0.0.0",
             "discovery_type": "single-node",
@@ -449,7 +449,7 @@ class DockerProvisioner:
                 for name in files:
                     source_file = os.path.join(root, name)
                     target_file = os.path.join(absolute_target_root, name)
-                    mounts[target_file] = os.path.join("/usr/share/elasticsearch", relative_root, name)
+                    mounts[target_file] = os.path.join("/usr/share/opensearch", relative_root, name)
                     if plain_text(source_file):
                         self.logger.info("Reading config template file [%s] and writing to [%s].", source_file, target_file)
                         with open(target_file, mode="a", encoding="utf-8") as f:
