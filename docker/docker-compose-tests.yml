@@ -1,4 +1,4 @@
-version: '2.2'
+version: '3'
 services:
   benchmark:
     image: opensearchproject/benchmark:${BENCHMARK_VERSION}
@@ -7,33 +7,42 @@ services:
     volumes:
       - benchmark:/benchmark/.benchmark
     networks:
-      - esnet
-    depends_on:
-      es01:
-        condition: service_healthy
-  es01:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.1.1
-    container_name: es01
+      - opensearch-net
+  opensearch-node1:
+    image: opensearchproject/opensearch:1.1.0
+    container_name: opensearch-node1
     environment:
-      - discovery.type=single-node
-      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node1
+      - discovery.seed_hosts=opensearch-node1
+      - cluster.initial_master_nodes=opensearch-node1
+      - bootstrap.memory_lock=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
     volumes:
-      - esdata1:/usr/share/elasticsearch/data
+      - opensearch-data1:/usr/share/opensearch/data
     ports:
-      - 19200:9200
+      - 9200:9200
+      - 9600:9600
     networks:
-      - esnet
+      - opensearch-net
     healthcheck:
           test: curl -f http://localhost:9200
           interval: 5s
           timeout: 2s
           retries: 10
 networks:
-  esnet:
-    name: benchmark-tests
+  opensearch-net:
 
 volumes:
-  esdata1:
+  opensearch-data1:
     driver: local
   benchmark:
     driver: local

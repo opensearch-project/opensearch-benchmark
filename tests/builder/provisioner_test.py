@@ -123,7 +123,7 @@ class NoopHookHandler:
 
 
 class OpenSearchInstallerTests(TestCase):
-    @mock.patch("glob.glob", lambda p: ["/install/elasticsearch-5.0.0-SNAPSHOT"])
+    @mock.patch("glob.glob", lambda p: ["/install/opensearch-5.0.0-SNAPSHOT"])
     @mock.patch("osbenchmark.utils.io.decompress")
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("shutil.rmtree")
@@ -140,12 +140,12 @@ class OpenSearchInstallerTests(TestCase):
                                                        node_root_dir=HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest")
 
         installer.install("/data/builds/distributions")
-        self.assertEqual(installer.os_home_path, "/install/elasticsearch-5.0.0-SNAPSHOT")
+        self.assertEqual(installer.os_home_path, "/install/opensearch-5.0.0-SNAPSHOT")
 
         self.assertEqual({
             "cluster_name": "benchmark-provisioned-cluster",
             "node_name": "benchmark-node-0",
-            "data_paths": ["/install/elasticsearch-5.0.0-SNAPSHOT/data"],
+            "data_paths": ["/install/opensearch-5.0.0-SNAPSHOT/data"],
             "log_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/logs/server",
             "heap_dump_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/heapdump",
             "node_ip": "10.17.22.23",
@@ -155,12 +155,12 @@ class OpenSearchInstallerTests(TestCase):
             "all_node_ips": "[\"10.17.22.22\",\"10.17.22.23\"]",
             "all_node_names": "[\"benchmark-node-0\",\"benchmark-node-1\"]",
             "minimum_master_nodes": 2,
-            "install_root_path": "/install/elasticsearch-5.0.0-SNAPSHOT"
+            "install_root_path": "/install/opensearch-5.0.0-SNAPSHOT"
         }, installer.variables)
 
-        self.assertEqual(installer.data_paths, ["/install/elasticsearch-5.0.0-SNAPSHOT/data"])
+        self.assertEqual(installer.data_paths, ["/install/opensearch-5.0.0-SNAPSHOT/data"])
 
-    @mock.patch("glob.glob", lambda p: ["/install/elasticsearch-5.0.0-SNAPSHOT"])
+    @mock.patch("glob.glob", lambda p: ["/install/opensearch-5.0.0-SNAPSHOT"])
     @mock.patch("osbenchmark.utils.io.decompress")
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("shutil.rmtree")
@@ -178,7 +178,7 @@ class OpenSearchInstallerTests(TestCase):
                                                        node_root_dir="~/.benchmark/benchmarks/test_executions/unittest")
 
         installer.install("/data/builds/distributions")
-        self.assertEqual(installer.os_home_path, "/install/elasticsearch-5.0.0-SNAPSHOT")
+        self.assertEqual(installer.os_home_path, "/install/opensearch-5.0.0-SNAPSHOT")
 
         self.assertEqual({
             "cluster_name": "benchmark-provisioned-cluster",
@@ -193,7 +193,7 @@ class OpenSearchInstallerTests(TestCase):
             "all_node_ips": "[\"10.17.22.22\",\"10.17.22.23\"]",
             "all_node_names": "[\"benchmark-node-0\",\"benchmark-node-1\"]",
             "minimum_master_nodes": 2,
-            "install_root_path": "/install/elasticsearch-5.0.0-SNAPSHOT"
+            "install_root_path": "/install/opensearch-5.0.0-SNAPSHOT"
         }, installer.variables)
 
         self.assertEqual(installer.data_paths, ["/tmp/some/data-path-dir"])
@@ -250,10 +250,10 @@ class PluginInstallerTests(TestCase):
                                                 java_home="/usr/local/javas/java8",
                                                 hook_handler_class=NoopHookHandler)
 
-        installer.install(os_home_path="/opt/elasticsearch")
+        installer.install(os_home_path="/opt/opensearch")
 
         installer_subprocess.assert_called_with(
-            '/opt/elasticsearch/bin/elasticsearch-plugin install --batch "unit-test-plugin"',
+            '/opt/opensearch/bin/opensearch-plugin install --batch "unit-test-plugin"',
             env={"JAVA_HOME": "/usr/local/javas/java8"})
 
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
@@ -266,10 +266,10 @@ class PluginInstallerTests(TestCase):
                                                 java_home=None,
                                                 hook_handler_class=NoopHookHandler)
 
-        installer.install(os_home_path="/opt/elasticsearch")
+        installer.install(os_home_path="/opt/opensearch")
 
         installer_subprocess.assert_called_with(
-            '/opt/elasticsearch/bin/elasticsearch-plugin install --batch "unit-test-plugin"',
+            '/opt/opensearch/bin/opensearch-plugin install --batch "unit-test-plugin"',
             env={})
 
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
@@ -283,11 +283,11 @@ class PluginInstallerTests(TestCase):
                                                 hook_handler_class=NoopHookHandler)
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            installer.install(os_home_path="/opt/elasticsearch")
+            installer.install(os_home_path="/opt/opensearch")
         self.assertEqual("Unknown plugin [unknown]", ctx.exception.args[0])
 
         installer_subprocess.assert_called_with(
-            '/opt/elasticsearch/bin/elasticsearch-plugin install --batch "unknown"',
+            '/opt/opensearch/bin/opensearch-plugin install --batch "unknown"',
             env={"JAVA_HOME": "/usr/local/javas/java8"})
 
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
@@ -301,11 +301,11 @@ class PluginInstallerTests(TestCase):
                                                 hook_handler_class=NoopHookHandler)
 
         with self.assertRaises(exceptions.SupplyError) as ctx:
-            installer.install(os_home_path="/opt/elasticsearch")
+            installer.install(os_home_path="/opt/opensearch")
         self.assertEqual("I/O error while trying to install [simple]", ctx.exception.args[0])
 
         installer_subprocess.assert_called_with(
-            '/opt/elasticsearch/bin/elasticsearch-plugin install --batch "simple"',
+            '/opt/opensearch/bin/opensearch-plugin install --batch "simple"',
             env={"JAVA_HOME": "/usr/local/javas/java8"})
 
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
@@ -319,12 +319,12 @@ class PluginInstallerTests(TestCase):
                                                 hook_handler_class=NoopHookHandler)
 
         with self.assertRaises(exceptions.BenchmarkError) as ctx:
-            installer.install(os_home_path="/opt/elasticsearch")
+            installer.install(os_home_path="/opt/opensearch")
         self.assertEqual("Unknown error while trying to install [simple] (installer return code [12987]). Please check the logs.",
                          ctx.exception.args[0])
 
         installer_subprocess.assert_called_with(
-            '/opt/elasticsearch/bin/elasticsearch-plugin install --batch "simple"',
+            '/opt/opensearch/bin/opensearch-plugin install --batch "simple"',
             env={"JAVA_HOME": "/usr/local/javas/java8"})
 
     def test_pass_plugin_properties(self):
@@ -373,6 +373,7 @@ class PluginInstallerTests(TestCase):
 
 
 class DockerProvisionerTests(TestCase):
+    maxDiff = None
     @mock.patch("uuid.uuid4")
     def test_provisioning_with_defaults(self, uuid4):
         uuid4.return_value = "9dbc682e-d32a-4669-8fbe-56fb77120dd4"
@@ -384,7 +385,7 @@ class DockerProvisionerTests(TestCase):
         benchmark_root = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "osbenchmark"))
 
         c = provision_config.ProvisionConfigInstance("unit-test-provision-config-instance", None, "/tmp", variables={
-            "docker_image": "docker.elastic.co/elasticsearch/elasticsearch-oss"
+            "docker_image": "opensearchproject/opensearch"
         })
 
         docker = provisioner.DockerProvisioner(provision_config_instance=c,
@@ -392,31 +393,31 @@ class DockerProvisionerTests(TestCase):
                                                ip="10.17.22.33",
                                                http_port=39200,
                                                node_root_dir=node_root_dir,
-                                               distribution_version="6.3.0",
+                                               distribution_version="1.1.0",
                                                benchmark_root=benchmark_root)
 
         self.assertDictEqual({
             "cluster_name": "benchmark-provisioned-cluster",
             "node_name": "benchmark-node-0",
-            "install_root_path": "/usr/share/elasticsearch",
-            "data_paths": ["/usr/share/elasticsearch/data"],
-            "log_path": "/var/log/elasticsearch",
-            "heap_dump_path": "/usr/share/elasticsearch/heapdump",
+            "install_root_path": "/usr/share/opensearch",
+            "data_paths": ["/usr/share/opensearch/data"],
+            "log_path": "/var/log/opensearch",
+            "heap_dump_path": "/usr/share/opensearch/heapdump",
             "discovery_type": "single-node",
             "network_host": "0.0.0.0",
             "http_port": "39200",
             "transport_port": "39300",
             "cluster_settings": {
             },
-            "docker_image": "docker.elastic.co/elasticsearch/elasticsearch-oss"
+            "docker_image": "opensearchproject/opensearch"
         }, docker.config_vars)
 
         self.assertDictEqual({
             "os_data_dir": data_dir,
             "os_log_dir": log_dir,
             "os_heap_dump_dir": heap_dump_dir,
-            "os_version": "6.3.0",
-            "docker_image": "docker.elastic.co/elasticsearch/elasticsearch-oss",
+            "os_version": "1.1.0",
+            "docker_image": "opensearchproject/opensearch",
             "http_port": 39200,
             "mounts": {}
         }, docker.docker_vars(mounts={}))
@@ -424,30 +425,43 @@ class DockerProvisionerTests(TestCase):
         docker_cfg = docker._render_template_from_file(docker.docker_vars(mounts={}))
 
         self.assertEqual(
-"""version: '2.2'
+"""version: '3'
 services:
-  elasticsearch1:
-    cap_add:
-      - IPC_LOCK
-    image: "docker.elastic.co/elasticsearch/elasticsearch-oss:6.3.0"
+  opensearch-node1:
+    image: opensearchproject/opensearch:1.1.0
+    container_name: opensearch-node1
     labels:
       io.benchmark.description: "opensearch-benchmark"
-    ports:
-      - 39200:39200
-      - 9300
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node1
+      - discovery.seed_hosts=opensearch-node1
+      - cluster.initial_master_nodes=opensearch-node1
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
     ulimits:
       memlock:
         soft: -1
         hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
     volumes:
-      - %s:/usr/share/elasticsearch/data
-      - %s:/var/log/elasticsearch
-      - %s:/usr/share/elasticsearch/heapdump
-    healthcheck:
-      test: nc -z 127.0.0.1 39200
-      interval: 5s
-      timeout: 2s
-      retries: 10""" % (data_dir, log_dir, heap_dump_dir), docker_cfg)
+      - %s:/usr/share/opensearch/data
+      - %s:/var/log/opensearch
+      - %s:/usr/share/opensearch/heapdump
+    ports:
+      - 39200:39200
+      - 9200:9200
+      - 9600:9600
+    networks:
+      - opensearch-net
+
+volumes:
+  opensearch-data1:
+networks:
+  opensearch-net:""" % (data_dir, log_dir, heap_dump_dir), docker_cfg)
 
     @mock.patch("uuid.uuid4")
     def test_provisioning_with_variables(self, uuid4):
@@ -460,7 +474,7 @@ services:
         benchmark_root = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "osbenchmark"))
 
         c = provision_config.ProvisionConfigInstance("unit-test-provision-config-instance", None, "/tmp", variables={
-            "docker_image": "docker.elastic.co/elasticsearch/elasticsearch",
+            "docker_image": "opensearchproject/opensearch",
             "docker_mem_limit": "256m",
             "docker_cpu_count": 2
         })
@@ -470,38 +484,51 @@ services:
                                                ip="10.17.22.33",
                                                http_port=39200,
                                                node_root_dir=node_root_dir,
-                                               distribution_version="6.3.0",
+                                               distribution_version="1.1.0",
                                                benchmark_root=benchmark_root)
 
         docker_cfg = docker._render_template_from_file(docker.docker_vars(mounts={}))
 
         self.assertEqual(
-"""version: '2.2'
+"""version: '3'
 services:
-  elasticsearch1:
-    cap_add:
-      - IPC_LOCK
-    image: "docker.elastic.co/elasticsearch/elasticsearch:6.3.0"
+  opensearch-node1:
+    image: opensearchproject/opensearch:1.1.0
+    container_name: opensearch-node1
     labels:
       io.benchmark.description: "opensearch-benchmark"
     cpu_count: 2
     mem_limit: 256m
-    ports:
-      - 39200:39200
-      - 9300
+    environment:
+      - cluster.name=opensearch-cluster
+      - node.name=opensearch-node1
+      - discovery.seed_hosts=opensearch-node1
+      - cluster.initial_master_nodes=opensearch-node1
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
     ulimits:
       memlock:
         soft: -1
         hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
     volumes:
-      - %s:/usr/share/elasticsearch/data
-      - %s:/var/log/elasticsearch
-      - %s:/usr/share/elasticsearch/heapdump
-    healthcheck:
-      test: nc -z 127.0.0.1 39200
-      interval: 5s
-      timeout: 2s
-      retries: 10""" % (data_dir, log_dir, heap_dump_dir), docker_cfg)
+      - %s:/usr/share/opensearch/data
+      - %s:/var/log/opensearch
+      - %s:/usr/share/opensearch/heapdump
+    ports:
+      - 39200:39200
+      - 9200:9200
+      - 9600:9600
+    networks:
+      - opensearch-net
+
+volumes:
+  opensearch-data1:
+networks:
+  opensearch-net:""" % (data_dir, log_dir, heap_dump_dir), docker_cfg)
 
 
 class CleanupTests(TestCase):
