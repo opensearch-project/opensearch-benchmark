@@ -38,7 +38,7 @@
     "level": "INFO"
   },
   "loggers": {
-    "elasticsearch": {
+    "opensearch": {
       "handlers": ["benchmark_log_handler"],
       "level": "WARNING",
       "propagate": false
