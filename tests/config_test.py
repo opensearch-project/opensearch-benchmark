@@ -326,7 +326,8 @@ class ConfigMigrationTests(TestCase):
                 "java8.home": "/opt/jdk/8",
             },
             "distributions": {
-                "release.url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-linux-x64.tar.gz"
+                "release.url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-"
+                               "{{VERSION}}-linux-x64.tar.gz"
             }
         }
 
