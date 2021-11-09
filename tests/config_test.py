@@ -185,7 +185,7 @@ class AutoLoadConfigTests(TestCase):
         base_cfg = config.Config(config_name="unittest", config_file_class=InMemoryConfigStore)
         base_cfg.add(config.Scope.application, "meta", "config.version", config.Config.CURRENT_CONFIG_VERSION)
         base_cfg.add(config.Scope.application, "benchmarks", "local.dataset.cache", "/base-config/data-set-cache")
-        base_cfg.add(config.Scope.application, "results_publishing", "datastore.type", "elasticsearch")
+        base_cfg.add(config.Scope.application, "results_publishing", "datastore.type", "opensearch")
         base_cfg.add(config.Scope.application, "workloads", "metrics.url", "http://github.com/org/metrics")
         base_cfg.add(config.Scope.application, "provision_configs", "private.url", "http://github.com/org/provision_configs")
         base_cfg.add(config.Scope.application, "distributions", "release.cache", False)
@@ -326,7 +326,7 @@ class ConfigMigrationTests(TestCase):
                 "java8.home": "/opt/jdk/8",
             },
             "distributions": {
-                "release.url": "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-{{VERSION}}.tar.gz"
+                "release.url": "https://artifacts.opensearch.org/releases/bundle/opensearch/{{VERSION}}/opensearch-{{VERSION}}-linux-x64.tar.gz"
             }
         }
 
