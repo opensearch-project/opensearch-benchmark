@@ -38,9 +38,9 @@ class TestNetUtils:
         expected_size = random.choice([None, random.randint(0, 1000)])
         progress_indicator = random.choice([None, "some progress indicator"])
 
-        net.download_from_bucket("s3", "s3://mybucket.elasticsearch.org/data/documents.json.bz2", "/tmp/documents.json.bz2",
+        net.download_from_bucket("s3", "s3://mybucket.opensearch.org/data/documents.json.bz2", "/tmp/documents.json.bz2",
                                  expected_size, progress_indicator)
-        download.assert_called_once_with("mybucket.elasticsearch.org", "data/documents.json.bz2",
+        download.assert_called_once_with("mybucket.opensearch.org", "data/documents.json.bz2",
                                          "/tmp/documents.json.bz2", expected_size, progress_indicator)
 
     @mock.patch("osbenchmark.utils.console.error")
@@ -50,7 +50,7 @@ class TestNetUtils:
         with pytest.raises(ImportError, match="no module named 'boto3'"):
             net.download_from_bucket("s3", "s3://mybucket/data", "/tmp/data", None, None)
         console_error.assert_called_once_with(
-            "S3 support is optional. Install it with `python -m pip install esrally[s3]`"
+            "S3 support is optional. Install it with `python -m pip install osbenchmark[s3]`"
         )
 
     @pytest.mark.parametrize("seed", range(1))
