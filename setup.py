@@ -127,7 +127,7 @@ first_unsupported_version = "{}.{}".format(supported_python_versions[-1][0], sup
 
 # we call the tool benchmark, but it will be published as osbenchmark on pypi
 setup(name="osbenchmark",
-      maintainer="Ian Hoang, Achit Ojha, Travis Benedict, Chase Engelbrecht, Phill Treddenick",
+      maintainer="Ian Hoang, Achit Ojha, Travis Benedict, Chase Engelbrecht, Govind Kamat, Phill Treddenick",
       maintainer_email="hoangia@amazon.com, achiojha@amazon.com, benedtra@amazon.com, engechas@amazon.com, govkamat@amazon.com, treddeni@amazon.com",
       version=__versionstr__,
       description="Macrobenchmarking framework for OpenSearch",
