@@ -48,7 +48,9 @@ supported_python_versions = [(3, 8), (3, 9)]
 
 ################################################################################################
 #
-# Adapt `create-notice.sh` whenever changing dependencies here.
+# Adapt `create-notice.sh` whenever changing dependencies here. Also, rerun
+# `pip install -e .` after changing dependencies to ensure that all
+# dependencies are up to date when testing in the virtual environment
 #
 # That script grabs all license files so we include them in the notice file.
 #
@@ -124,12 +126,13 @@ first_supported_version = "{}.{}".format(supported_python_versions[0][0], suppor
 first_unsupported_version = "{}.{}".format(supported_python_versions[-1][0], supported_python_versions[-1][1] + 1)
 
 # we call the tool benchmark, but it will be published as osbenchmark on pypi
-setup(name="esrally",
-      maintainer="Daniel Mitterdorfer",
-      maintainer_email="daniel.mitterdorfer@gmail.com",
+setup(name="osbenchmark",
+      maintainer="Ian Hoang, Achit Ojha, Travis Benedict, Chase Engelbrecht, Govind Kamat, Phill Treddenick",
+      maintainer_email="hoangia@amazon.com, achiojha@amazon.com, benedtra@amazon.com, engechas@amazon.com, govkamat@amazon.com, treddeni@amazon.com",
       version=__versionstr__,
       description="Macrobenchmarking framework for OpenSearch",
       long_description=long_description,
+      long_description_content_type='text/markdown',
       url="https://github.com/opensearch-project/OpenSearch-Benchmark",
       license="Apache License, Version 2.0",
       packages=find_packages(

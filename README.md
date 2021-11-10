@@ -112,7 +112,7 @@ Getting help
 How to Contribute
 -----------------
 
-See all details in the `contributor guidelines <https://github.com/opensearch-project/OpenSearch-Benchmark/blob/master/CONTRIBUTING.md>`_.
+See all details in the `contributor guidelines <https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/CONTRIBUTING.md>`_.
 
 License
 -------
