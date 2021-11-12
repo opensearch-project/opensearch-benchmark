@@ -288,7 +288,7 @@ def metrics_store(cfg, read_only=True, workload=None, test_procedure=None, provi
 
 
 def metrics_store_class(cfg):
-    if cfg.opts("results_publishing", "datastore.type") == "elasticsearch":
+    if cfg.opts("results_publishing", "datastore.type") == "opensearch":
         return OsMetricsStore
     else:
         return InMemoryMetricsStore
@@ -1004,7 +1004,7 @@ class OsMetricsStore(MetricsStore):
         return None
 
     def __str__(self):
-        return "Elasticsearch metrics store"
+        return "OpenSearch metrics store"
 
 
 class InMemoryMetricsStore(MetricsStore):
@@ -1138,7 +1138,7 @@ def test_execution_store(cfg):
     :return: A test_execution store implementation.
     """
     logger = logging.getLogger(__name__)
-    if cfg.opts("results_publishing", "datastore.type") == "elasticsearch":
+    if cfg.opts("results_publishing", "datastore.type") == "opensearch":
         logger.info("Creating OS test execution store")
         return CompositeTestExecutionStore(EsTestExecutionStore(cfg), FileTestExecutionStore(cfg))
     else:
@@ -1153,7 +1153,7 @@ def results_store(cfg):
     :return: A test_execution store implementation.
     """
     logger = logging.getLogger(__name__)
-    if cfg.opts("results_publishing", "datastore.type") == "elasticsearch":
+    if cfg.opts("results_publishing", "datastore.type") == "opensearch":
         logger.info("Creating OS results store")
         return OsResultsStore(cfg)
     else:
@@ -1164,7 +1164,7 @@ def results_store(cfg):
 def list_test_executions(cfg):
     def format_dict(d):
         if d:
-            items=sorted(d.items())
+            items = sorted(d.items())
             return ", ".join(["%s=%s" % (k, v) for k, v in items])
         else:
             return None
