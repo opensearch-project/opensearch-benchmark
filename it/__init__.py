@@ -252,7 +252,6 @@ def setup_module():
     check_prerequisites()
     install_integration_test_config()
     OS_METRICS_STORE.start()
-    build_docker_image()
 
 
 def teardown_module():
