@@ -1145,23 +1145,6 @@ class CreateDataStream(Runner):
         return "create-data-stream"
 
 
-async def set_destructive_requires_name(opensearch, value):
-    """
-    Sets `action.destructive_requires_name` to provided value
-    :return: the prior setting, if any
-    """
-    all_settings = await opensearch.cluster.get_settings(flat_settings=True)
-    # If the setting was persistent or left as default, we consider resetting later with null sufficient
-    prior_value = all_settings.get("transient").get("action.destructive_requires_name")
-    settings_body = {
-        "transient": {
-            "action.destructive_requires_name": value
-        }
-    }
-    await opensearch.cluster.put_settings(body=settings_body)
-    return prior_value
-
-
 class DeleteIndex(Runner):
     async def __call__(self, opensearch, params):
         ops = 0
@@ -1169,18 +1152,16 @@ class DeleteIndex(Runner):
         indices = mandatory(params, "indices", self)
         only_if_exists = params.get("only-if-exists", False)
         request_params = params.get("request-params", {})
-        prior_destructive_setting = await set_destructive_requires_name(opensearch, False)
-        try:
-            for index_name in indices:
-                if not only_if_exists:
-                    await opensearch.indices.delete(index=index_name, params=request_params)
-                    ops += 1
-                elif only_if_exists and await opensearch.indices.exists(index=index_name):
-                    self.logger.info("Index [%s] already exists. Deleting it.", index_name)
-                    await opensearch.indices.delete(index=index_name, params=request_params)
-                    ops += 1
-        finally:
-            await set_destructive_requires_name(opensearch, prior_destructive_setting)
+
+        for index_name in indices:
+            if not only_if_exists:
+                await opensearch.indices.delete(index=index_name, params=request_params)
+                ops += 1
+            elif only_if_exists and await opensearch.indices.exists(index=index_name):
+                self.logger.info("Index [%s] already exists. Deleting it.", index_name)
+                await opensearch.indices.delete(index=index_name, params=request_params)
+                ops += 1
+
         return {
             "weight": ops,
             "unit": "ops",
