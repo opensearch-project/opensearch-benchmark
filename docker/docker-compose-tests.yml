@@ -1,13 +1,5 @@
 version: '3'
 services:
-  benchmark:
-    image: opensearchproject/benchmark:${BENCHMARK_VERSION}
-    container_name: osbenchmark
-    command: ${TEST_COMMAND}
-    volumes:
-      - benchmark:/benchmark/.benchmark
-    networks:
-      - opensearch-net
   opensearch-node1:
     image: opensearchproject/opensearch:1.1.0
     container_name: opensearch-node1
@@ -17,7 +9,6 @@ services:
       - discovery.seed_hosts=opensearch-node1
       - cluster.initial_master_nodes=opensearch-node1
       - bootstrap.memory_lock=true
-      - DISABLE_INSTALL_DEMO_CONFIG=true
       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
     ulimits:
       memlock:
@@ -34,7 +25,7 @@ services:
     networks:
       - opensearch-net
     healthcheck:
-          test: curl -f http://localhost:9200
+          test: curl -f http://localhost:9200 -u admin:admin --insecure
           interval: 5s
           timeout: 2s
           retries: 10
@@ -43,6 +34,4 @@ networks:
 
 volumes:
   opensearch-data1:
-    driver: local
-  benchmark:
     driver: local
