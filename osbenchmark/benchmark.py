@@ -97,7 +97,7 @@ def create_arg_parser():
         preserve_install = False
 
     parser = argparse.ArgumentParser(prog=PROGRAM_NAME,
-                                     description=BANNER + "\n\n You Know, for Benchmarking OpenSearch.",
+                                     description=BANNER + "\n\n A benchmarking tool for OpenSearch",
                                      epilog="Find out more about Benchmark at {}".format(console.format.link(doc_link())),
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--version', action='version', version="%(prog)s " + version.version())
