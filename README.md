@@ -19,28 +19,30 @@ We have also put considerable effort in Benchmark to ensure that benchmarking da
 Quick Start
 -----------
 
-Benchmark is developed for Unix and is actively tested on Linux and MacOS. Benchmark supports `benchmarking OpenSearch clusters running on Windows <https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>`_ but Benchmark itself needs to be installed on machines running Unix.
+Benchmark is developed for Unix and is actively tested on Linux and MacOS. Benchmark supports [benchmarking OpenSearch clusters running on Windows](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) but Benchmark itself needs to be installed on machines running Unix.
 
 Installing Benchmark
-~~~~~~~~~~~~~~~~~~~~
+--------------------------
 
-**Note**: If you actively develop on OpenSearch, we recommend that you `install Benchmark in development mode <https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>`_ instead as OpenSearch is fast moving and Benchmark always adapts accordingly to the latest main version.
+**Note**: If you actively develop on OpenSearch, we recommend that you [install Benchmark in development mode](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) instead as OpenSearch is fast moving and Benchmark always adapts accordingly to the latest main version.
 
-Install Python 3.8+ including ``pip3``, git 1.9+ and an `appropriate JDK to run OpenSearch <https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>`_ Be sure that ``JAVA_HOME`` points to that JDK. Then run the following command, optionally prefixed by ``sudo`` if necessary::
+Install Python 3.8+ including ``pip3``, git 1.9+ and an [appropriate JDK to run OpenSearch](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) Be sure that ``JAVA_HOME`` points to that JDK. Then run the following command, optionally prefixed by ``sudo`` if necessary:
 
     pip3 install osbenchmark
 
 
-If you have any trouble or need more detailed instructions, please look in the `detailed installation guide <https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>`_.
+If you have any trouble or need more detailed instructions, please look in the [detailed installation guide](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>`).
 
 Run your first test execution
 -----------------------------
 
-Now we're ready to run our first test execution::
+Now we're ready to run our first test execution:
 
-    osbenchmark execute_test --distribution-version=1.0.0 --workload=geonames
+    osbenchmark execute_test --distribution-version=1.0.0 --workload=geonames --test-mode
 
-This will download OpenSearch 1.0.0 and run Benchmark's default workload - the `geonames workload <https://github.com/opensearch-project/opensearch-benchmark-workloads/tree/main/geonames>`_ - against it. After the test execution, a summary report is written to the command line:::
+This will download OpenSearch 1.0.0 and run Benchmark's default workload - the [geonames workload](<https://github.com/opensearch-project/opensearch-benchmark-workloads/tree/main/geonames>) - against it. 
+Note that this uses the `--test-mode` argument to only run a single instance of each operation in order to reduce the time needed for a test execution. This argument is used as a sanity check and should be removed in an actual benchmarking scenario.
+After the test execution, a summary report is written to the command line:
 
     ------------------------------------------------------
         _______             __   _____
@@ -105,14 +107,14 @@ Getting help
 ------------
 
 * Quick help: ``osbenchmark --help``
-* Look in `Benchmark's user guide <https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>`_ for more information
-* For any questions or answers, visit our `community forum <https://discuss.opendistrocommunity.dev/>`_.
-* File improvements or bug reports in our `Github repo <https://github.com/opensearch-project/OpenSearch-Benchmark/issues>`_.
+* Look in [Benchmark's user guide](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) for more information
+* For any questions or answers, visit our [community forum](<https://discuss.opendistrocommunity.dev/>).
+* File improvements or bug reports in our [Github repo](<https://github.com/opensearch-project/OpenSearch-Benchmark/issues>).
 
 How to Contribute
 -----------------
 
-See all details in the `contributor guidelines <https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/CONTRIBUTING.md>`_.
+See all details in the [contributor guidelines](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/CONTRIBUTING.md>).
 
 License
 -------
