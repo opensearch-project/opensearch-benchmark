@@ -33,11 +33,7 @@ __version__ = pkg_resources.require("osbenchmark")[0].version
 # Allow an alternative program name be set in case Benchmark is invoked a wrapper script
 PROGRAM_NAME = os.getenv("BENCHMARK_ALTERNATIVE_BINARY_NAME", os.path.basename(sys.argv[0]))
 
-if __version__.endswith("dev0"):
-    DOC_LINK = "https://opensearch.org/docs"
-else:
-    DOC_LINK = "https://opensearch.org/docs/%s" % __version__
-
+DOC_LINK = "https://opensearch.org/docs"
 
 FORUM_LINK = "https://discuss.opendistrocommunity.dev/"
 
