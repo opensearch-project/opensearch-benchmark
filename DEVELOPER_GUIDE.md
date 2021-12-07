@@ -87,7 +87,7 @@ If you are connected to a VPN and face Docker related when running the integrati
 ```
 root WARNING Unable to get address info for address xxxxyyyy (AddressFamily.AF_INET, SocketKind.SOCK_DGRAM, 17, 0): <class 'socket.gaierror'> [Errno 8] nodename nor servname provided, or not known
 ```
-- Networking issue.
+- VPN is set. Please turn off VPN.
 ```
 Cannot download OpenSearch-1.0.1
 ```
