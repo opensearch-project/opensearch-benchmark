@@ -87,12 +87,11 @@ If you are connected to a VPN and face Docker related when running the integrati
 ```
 root WARNING Unable to get address info for address xxxxyyyy (AddressFamily.AF_INET, SocketKind.SOCK_DGRAM, 17, 0): <class 'socket.gaierror'> [Errno 8] nodename nor servname provided, or not known
 ```
-- VPN is on. Disable VPN.
-
+- Networking issue.
 ```
-ERROR: Cannot download OpenSearch-1.0.1
+Cannot download OpenSearch-1.0.1
 ```
-- JAVA_HOME is not set. Please ensure you have set JAVA_HOME correctly.
+- JAVA_HOME is not correctly set.
 
 ## Submitting your changes for a pull request
 
