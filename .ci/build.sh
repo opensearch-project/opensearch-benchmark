@@ -79,7 +79,7 @@ function build_it {
   # ensure pyenv shims are added to PATH, see https://github.com/pyenv/pyenv/issues/1906
   eval "$(pyenv init --path)"
   eval "$(pyenv virtualenv-init -)"
-  pip install osbenchmark
+  pip install opensearch-benchmark
 
   make prereq
   make install

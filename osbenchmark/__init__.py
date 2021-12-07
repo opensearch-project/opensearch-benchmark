@@ -28,7 +28,7 @@ import urllib
 
 import pkg_resources
 
-__version__ = pkg_resources.require("osbenchmark")[0].version
+__version__ = pkg_resources.require("opensearch-benchmark")[0].version
 
 # Allow an alternative program name be set in case Benchmark is invoked a wrapper script
 PROGRAM_NAME = os.getenv("BENCHMARK_ALTERNATIVE_BINARY_NAME", os.path.basename(sys.argv[0]))

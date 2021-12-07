@@ -28,7 +28,7 @@ Installing Benchmark
 
 Install Python 3.8+ including ``pip3``, git 1.9+ and an [appropriate JDK to run OpenSearch](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) Be sure that ``JAVA_HOME`` points to that JDK. Then run the following command, optionally prefixed by ``sudo`` if necessary:
 
-    pip3 install osbenchmark
+    pip3 install opensearch-benchmark
 
 
 If you have any trouble or need more detailed instructions, please look in the [detailed installation guide](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>`).
@@ -38,7 +38,7 @@ Run your first test execution
 
 Now we're ready to run our first test execution:
 
-    osbenchmark execute_test --distribution-version=1.0.0 --workload=geonames --test-mode
+    opensearch-benchmark execute_test --distribution-version=1.0.0 --workload=geonames --test-mode
 
 This will download OpenSearch 1.0.0 and run Benchmark's default workload - the [geonames workload](<https://github.com/opensearch-project/opensearch-benchmark-workloads/tree/main/geonames>) - against it. 
 Note that this uses the `--test-mode` argument to only run a single instance of each operation in order to reduce the time needed for a test execution. This argument is used as a sanity check and should be removed in an actual benchmarking scenario.
@@ -106,7 +106,7 @@ After the test execution, a summary report is written to the command line:
 Getting help
 ------------
 
-* Quick help: ``osbenchmark --help``
+* Quick help: ``opensearch-benchmark --help``
 * Look in [Benchmark's user guide](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) for more information
 * For any questions or answers, visit our [community forum](<https://discuss.opendistrocommunity.dev/>).
 * File improvements or bug reports in our [Github repo](<https://github.com/opensearch-project/OpenSearch-Benchmark/issues>).
