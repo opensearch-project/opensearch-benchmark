@@ -30,7 +30,7 @@ import pkg_resources
 from osbenchmark import paths
 from osbenchmark.utils import git, io
 
-__version__ = pkg_resources.require("osbenchmark")[0].version
+__version__ = pkg_resources.require("opensearch-benchmark")[0].version
 
 __BENCHMARK_VERSION_PATTERN = re.compile(r"^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:.(.+))?$")
 
