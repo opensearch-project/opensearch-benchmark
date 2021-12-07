@@ -77,11 +77,21 @@ OpenSearch currently releases artifacts for the following operating systems:
 - Docker
 - FreeBSD
 
-If the operating system is not listed above then the artifacts used will default to Linux. 
+If the operating system is not listed above then the artifacts used will default to Linux.
 
 For MacOS users running OpenSearch, please set JAVA_HOME to one of the local JDKs you exported as the JDK bundled with OpenSearch is not compatible with MacOS and prevent the metrics store from coming up correctly during integration tests.
 
 If you are connected to a VPN and face Docker related when running the integration tests disconnecting from the VPN may fix this.
+
+### Troubleshooting
+```
+root WARNING Unable to get address info for address xxxxyyyy (AddressFamily.AF_INET, SocketKind.SOCK_DGRAM, 17, 0): <class 'socket.gaierror'> [Errno 8] nodename nor servname provided, or not known
+```
+- VPN is set. Please turn off VPN.
+```
+Cannot download OpenSearch-1.0.1
+```
+- JAVA_HOME is not correctly set.
 
 ## Submitting your changes for a pull request
 
