@@ -78,7 +78,7 @@ def benchmark_os(t):
 
 
 def osbenchmark_command_line_for(cfg, command_line):
-    return f"osbenchmark {command_line} --configuration-name='{cfg}'"
+    return f"opensearch-benchmark {command_line} --configuration-name='{cfg}'"
 
 
 def osbenchmark(cfg, command_line):
@@ -164,7 +164,7 @@ class TestCluster:
         transport_port = http_port + 100
         try:
             output = process.run_subprocess_with_output(
-                "osbenchmark install --configuration-name={cfg} --quiet --distribution-version={dist} --build-type=tar "
+                "opensearch-benchmark install --configuration-name={cfg} --quiet --distribution-version={dist} --build-type=tar "
                 "--http-port={http_port} --node={node_name} --master-nodes="
                 "{node_name} --provision-config-instance={provision_config_instance} "
                 "--seed-hosts=\"127.0.0.1:{transport_port}\"".format(cfg=self.cfg,
