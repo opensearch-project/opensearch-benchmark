@@ -85,7 +85,7 @@ For MacOS users running OpenSearch, please set JAVA_HOME to one of the local JDK
 ```
 root WARNING Unable to get address info for address xxxxyyyy (AddressFamily.AF_INET, SocketKind.SOCK_DGRAM, 17, 0): <class 'socket.gaierror'> [Errno 8] nodename nor servname provided, or not known
 ```
-- VPN may be interferring. Try turning off the VPN. If you are connected to a VPN and face Docker-related issues when running the integration tests disconnecting from the VPN may fix this.
+- VPN may be interfering. Try turning off the VPN. If you are connected to a VPN and face Docker-related issues when running the integration tests disconnecting from the VPN may fix this.
 
 ```
 Cannot download OpenSearch-1.0.1
