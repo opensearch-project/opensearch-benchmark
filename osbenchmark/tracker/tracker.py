@@ -35,7 +35,7 @@ from osbenchmark.utils import io, opts, console
 
 
 def process_template(templates_path, template_filename, template_vars, output_path):
-    env = Environment(loader=FileSystemLoader(templates_path))
+    env = Environment(loader=FileSystemLoader(templates_path), autoescape=jinja2.select_autoescape(['html', 'xml']))
     template = env.get_template(template_filename)
 
     with open(output_path, "w") as f:

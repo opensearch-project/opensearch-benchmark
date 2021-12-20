@@ -648,7 +648,7 @@ class TemplateSource:
     def load_template_from_file(self):
         loader = jinja2.FileSystemLoader(self.base_path)
         try:
-            base_workload = loader.get_source(jinja2.Environment(), self.template_file_name)
+            base_workload = loader.get_source(jinja2.Environment(autoescape=jinja2.select_autoescape(['html', 'xml'])), self.template_file_name)
         except jinja2.TemplateNotFound:
             self.logger.exception("Could not load workload from [%s].", self.template_file_name)
             raise WorkloadSyntaxError("Could not load workload from '{}'".format(self.template_file_name))
@@ -730,7 +730,8 @@ def render_template(template_source, template_vars=None, template_internal_vars=
             jinja2.DictLoader({"benchmark.helpers": "".join(macros)}),
             jinja2.BaseLoader(),
             loader
-        ])
+        ]),
+        autoescape=jinja2.select_autoescape(['html', 'xml'])
     )
 
     if template_vars:
@@ -747,7 +748,7 @@ def render_template(template_source, template_vars=None, template_internal_vars=
 
 
 def register_all_params_in_workload(assembled_source, complete_workload_params=None):
-    j2env = jinja2.Environment()
+    j2env = jinja2.Environment(autoescape=jinja2.select_autoescape(['html', 'xml']))
 
     # we don't need the following j2 filters/macros but we define them anyway to prevent parsing failures
     internal_template_vars = default_internal_template_vars()
