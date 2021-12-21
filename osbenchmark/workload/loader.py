@@ -648,7 +648,9 @@ class TemplateSource:
     def load_template_from_file(self):
         loader = jinja2.FileSystemLoader(self.base_path)
         try:
-            base_workload = loader.get_source(jinja2.Environment(autoescape=jinja2.select_autoescape(['html', 'xml'])), self.template_file_name)
+            base_workload = loader.get_source(jinja2.Environment(
+                autoescape=jinja2.select_autoescape(['html', 'xml'])),
+                self.template_file_name)
         except jinja2.TemplateNotFound:
             self.logger.exception("Could not load workload from [%s].", self.template_file_name)
             raise WorkloadSyntaxError("Could not load workload from '{}'".format(self.template_file_name))

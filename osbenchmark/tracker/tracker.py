@@ -25,6 +25,7 @@
 import logging
 import os
 
+import jinja2
 from elasticsearch import ElasticsearchException
 from jinja2 import Environment, FileSystemLoader
 
