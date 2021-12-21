@@ -153,8 +153,8 @@ def cleanup(preserve, install_dir, data_paths):
 def _apply_config(source_root_path, target_root_path, config_vars):
     logger = logging.getLogger(__name__)
     for root, _, files in os.walk(source_root_path):
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader(root))
 
+        env = jinja2.Environment(loader=jinja2.FileSystemLoader(root), autoescape=jinja2.select_autoescape(['html', 'xml']))
         relative_root = root[len(source_root_path) + 1:]
         absolute_target_root = os.path.join(target_root_path, relative_root)
         io.ensure_dir(absolute_target_root)
@@ -440,7 +440,7 @@ class DockerProvisioner:
 
         for provision_config_instance_config_path in self.provision_config_instance.config_paths:
             for root, _, files in os.walk(provision_config_instance_config_path):
-                env = jinja2.Environment(loader=jinja2.FileSystemLoader(root))
+                env = jinja2.Environment(loader=jinja2.FileSystemLoader(root), autoescape=jinja2.select_autoescape(['html', 'xml']))
 
                 relative_root = root[len(provision_config_instance_config_path) + 1:]
                 absolute_target_root = os.path.join(self.binary_path, relative_root)
@@ -488,7 +488,7 @@ class DockerProvisioner:
 
     def _render_template(self, loader, template_name, variables):
         try:
-            env = jinja2.Environment(loader=loader)
+            env = jinja2.Environment(loader=loader, autoescape=jinja2.select_autoescape(['html', 'xml']))
             for k, v in variables.items():
                 env.globals[k] = v
             template = env.get_template(template_name)
