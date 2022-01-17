@@ -1,0 +1,59 @@
+# Creates 2 single node Opensearch cluster(one leader and one follower). Leader cluster is used for ingesting the data which is then
+# replicated  to the follower cluster.
+version: '3'
+services:
+  leader-cluster:
+    image: opensearchproject/opensearch:latest
+    container_name: leader-cluster
+    environment:
+      - cluster.name=leader-cluster
+      - node.name=leader-node
+      - discovery.seed_hosts=leader-node
+      - cluster.initial_master_nodes=leader-node
+      - bootstrap.memory_lock=true # along with the memlock settings below, disables swapping
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m" # minimum and maximum Java heap size, recommend setting both to 50% of system RAM
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536 # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
+        hard: 65536
+    volumes:
+      - leader-node-volume:/usr/share/opensearch/data
+    ports:
+      - 9200:9200
+      - 9300:9300 # required for Performance Analyzer
+    networks:
+      - opensearch-net
+  follower-cluster:
+    image: opensearchproject/opensearch:latest
+    container_name: follower-cluster
+    environment:
+      - cluster.name=follower-cluster
+      - node.name=follower-node
+      - discovery.seed_hosts=follower-node
+      - cluster.initial_master_nodes=follower-node
+      - bootstrap.memory_lock=true # along with the memlock settings below, disables swapping
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m" # minimum and maximum Java heap size, recommend setting both to 50% of system RAM
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536 # maximum number of open files for the OpenSearch user, set to at least 65536 on modern systems
+        hard: 65536
+    volumes:
+      - follower-node-volume:/usr/share/opensearch/data
+    ports:
+      - 9201:9200
+      - 9301:9300 # required for Performance Analyzer
+    networks:
+      - opensearch-net
+
+volumes:
+  leader-node-volume:
+  follower-node-volume:
+
+networks:
+  opensearch-net:

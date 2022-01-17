@@ -27,14 +27,14 @@ import logging
 import fnmatch
 import os
 import threading
-
+from collections import deque
+import elasticsearch
 import tabulate
 
 from osbenchmark import metrics, time, exceptions
 from osbenchmark.metrics import MetaInfoScope
 from osbenchmark.utils import io, sysstats, console, opts, process
 from osbenchmark.utils.versions import components
-
 
 def list_telemetry():
     console.println("Available telemetry devices:\n")
@@ -318,12 +318,12 @@ class CcrStats(TelemetryDevice):
     internal = False
     command = "ccr-stats"
     human_name = "CCR Stats"
-    help = "Regularly samples Cross Cluster Replication (CCR) related stats"
+    help = ("Regularly samples Cross Cluster Replication (CCR) leader and follower(s) checkpoint at index level"
+            "and calculates replication lag")
 
     """
     Gathers CCR stats on a cluster level
     """
-
     def __init__(self, telemetry_params, clients, metrics_store):
         """
         :param telemetry_params: The configuration object for telemetry_params.
@@ -337,7 +337,6 @@ class CcrStats(TelemetryDevice):
         :param metrics_store: The configured metrics store we write to.
         """
         super().__init__()
-
         self.telemetry_params = telemetry_params
         self.clients = clients
         self.sample_interval = telemetry_params.get("ccr-stats-sample-interval", 1)
@@ -346,6 +345,7 @@ class CcrStats(TelemetryDevice):
                 "The telemetry parameter 'ccr-stats-sample-interval' must be greater than zero but was {}.".format(self.sample_interval))
         self.specified_cluster_names = self.clients.keys()
         self.indices_per_cluster = self.telemetry_params.get("ccr-stats-indices", False)
+        self.max_replication_lag_seconds = self.telemetry_params.get("ccr-max-replication-lag-seconds", 60*60*60)
         if self.indices_per_cluster:
             for cluster_name in self.indices_per_cluster.keys():
                 if cluster_name not in clients:
@@ -362,6 +362,7 @@ class CcrStats(TelemetryDevice):
         recorder = []
         for cluster_name in self.specified_cluster_names:
             recorder = CcrStatsRecorder(cluster_name, self.clients[cluster_name], self.metrics_store, self.sample_interval,
+                                        self.max_replication_lag_seconds,
                                         self.indices_per_cluster[cluster_name] if self.indices_per_cluster else None)
             sampler = SamplerThread(recorder)
             self.samplers.append(sampler)
@@ -380,7 +381,7 @@ class CcrStatsRecorder:
     Collects and pushes CCR stats for the specified cluster to the metric store.
     """
 
-    def __init__(self, cluster_name, client, metrics_store, sample_interval, indices=None):
+    def __init__(self, cluster_name, client, metrics_store, sample_interval, max_replication_lag_seconds, indices=None):
         """
         :param cluster_name: The cluster_name that the client connects to, as specified in target.hosts.
         :param client: The OpenSearch client for this cluster.
@@ -395,6 +396,9 @@ class CcrStatsRecorder:
         self.sample_interval= sample_interval
         self.indices = indices
         self.logger = logging.getLogger(__name__)
+        self.leader_checkpoints = dict()
+        for index in self.indices:
+            self.leader_checkpoints[index] = deque(maxlen = int(max_replication_lag_seconds/sample_interval))
 
     def __str__(self):
         return "ccr stats"
@@ -403,54 +407,80 @@ class CcrStatsRecorder:
         """
         Collect CCR stats for indexes (optionally) specified in telemetry parameters and push to metrics store.
         """
+        if self.cluster_name == "default":
+            self.log_leader_stats()
+        else:
+            self.log_ccr_lag_per_index()
+            self.log_follower_stats()
 
-        # ES returns all stats values in bytes or ms via "human: false"
-
-        # pylint: disable=import-outside-toplevel
-        import elasticsearch
-
+    def log_leader_stats(self):
         try:
-            ccr_stats_api_endpoint = "/_ccr/stats"
-            filter_path = "follow_stats"
-            stats = self.client.transport.perform_request("GET", ccr_stats_api_endpoint, params={"human": "false",
-                                                                                                 "filter_path": filter_path})
+            stats = self.client.transport.perform_request("GET", "/_plugins/_replication/leader_stats")
+            self.record_cluster_level_stats(stats)
         except elasticsearch.TransportError:
-            msg = "A transport error occurred while collecting CCR stats from the endpoint [{}?filter_path={}] on " \
-                  "cluster [{}]".format(ccr_stats_api_endpoint, filter_path, self.cluster_name)
+            msg = "A transport error occurred while collecting CCR leader stats"
             self.logger.exception(msg)
             raise exceptions.BenchmarkError(msg)
 
-        if filter_path in stats and "indices" in stats[filter_path]:
-            for indices in stats[filter_path]["indices"]:
-                try:
-                    if self.indices and indices["index"] not in self.indices:
-                        # Skip metrics for indices not part of user supplied whitelist (ccr-stats-indices) in telemetry params.
-                        continue
-                    self.record_stats_per_index(indices["index"], indices["shards"])
-                except KeyError:
-                    self.logger.warning(
-                        "The 'indices' key in %s does not contain an 'index' or 'shards' key "
-                        "Maybe the output format of the %s endpoint has changed. Skipping.", ccr_stats_api_endpoint, ccr_stats_api_endpoint
-                    )
+    def log_follower_stats(self):
+        try:
+            stats = self.client.transport.perform_request("GET", "/_plugins/_replication/follower_stats")
+            self.record_cluster_level_stats(stats)
+        except elasticsearch.TransportError:
+            msg = "A transport error occurred while collecting follower stats for remote cluster: {}".format(self.cluster_name)
+            self.logger.exception(msg)
+            raise exceptions.BenchmarkError(msg)
+
+
+    def log_ccr_lag_per_index(self):
+        for index in self.indices:
+            try:
+                stats = self.client.transport.perform_request("GET", "/_plugins/_replication/" + index + "/_status")
+                if stats["status"] == "SYNCING":
+                    self.record_stats_per_index(index, stats)
+                else:
+                    self.logger.info("CCR Status is not syncing. Ignoring for now!")
+            except elasticsearch.TransportError:
+                msg = "A transport error occurred while collecting CCR stats for remote cluster: {}".format(self.cluster_name)
+                self.logger.exception(msg)
+                raise exceptions.BenchmarkError(msg)
 
     def record_stats_per_index(self, name, stats):
         """
         :param name: The index name.
         :param stats: A dict with returned CCR stats for the index.
         """
+        doc = {
+            "name": "ccr-status",
+            "index": name,
+            "leader_checkpoint": stats["syncing_details"]["leader_checkpoint"],
+            "follower_checkpoint": stats["syncing_details"]["follower_checkpoint"],
+            "replication_lag": self.calculate_lag(name, stats["syncing_details"]["leader_checkpoint"],
+                                    stats["syncing_details"]["follower_checkpoint"])
+        }
+        index_metadata = {
+            "cluster": self.cluster_name,
+            "index": name
+        }
+        self.metrics_store.put_doc(doc, level=MetaInfoScope.cluster, meta_data=index_metadata)
 
-        for shard_stats in stats:
-            if "shard_id" in shard_stats:
-                doc = {
-                    "name": "ccr-stats",
-                    "shard": shard_stats
-                }
-                shard_metadata = {
-                    "cluster": self.cluster_name,
-                    "index": name
-                }
+    def record_cluster_level_stats(self, data):
+        metadata = {
+            "cluster": self.cluster_name,
+        }
+        self.metrics_store.put_doc(data, level=MetaInfoScope.cluster, meta_data=metadata)
 
-                self.metrics_store.put_doc(doc, level=MetaInfoScope.cluster, meta_data=shard_metadata)
+    def calculate_lag(self, index, leader_checkpoint, follower_checkpoint):
+        leader_checkpoint_queue = self.leader_checkpoints[index]
+
+        while(leader_checkpoint_queue and leader_checkpoint_queue[0] <= follower_checkpoint):
+            leader_checkpoint_queue.popleft()
+
+        if leader_checkpoint > follower_checkpoint:
+            leader_checkpoint_queue.append(leader_checkpoint)
+        return len(leader_checkpoint_queue) * self.sample_interval
+
+
 
 
 class RecoveryStats(TelemetryDevice):
@@ -551,9 +581,6 @@ class RecoveryStatsRecorder:
         """
         Collect recovery stats for indexes (optionally) specified in telemetry parameters and push to metrics store.
         """
-        # pylint: disable=import-outside-toplevel
-        import elasticsearch
-
         try:
             stats = self.client.indices.recovery(index=self.indices, active_only=True, detailed=False)
         except elasticsearch.TransportError:
@@ -751,8 +778,6 @@ class NodeStatsRecorder:
         return self.flatten_stats_fields(prefix="indexing_pressure", stats=node_stats["indexing_pressure"])
 
     def sample(self):
-        # pylint: disable=import-outside-toplevel
-        import elasticsearch
         try:
             stats = self.client.nodes.stats(metric="_all")
         except elasticsearch.TransportError:
@@ -862,10 +887,6 @@ class TransformStatsRecorder:
 
     def _record(self, prefix=""):
         # ES returns all stats values in bytes or ms via "human: false"
-
-        # pylint: disable=import-outside-toplevel
-        import elasticsearch
-
         try:
             stats = self.client.transform.get_transform_stats("_all")
 
@@ -1062,9 +1083,6 @@ class SearchableSnapshotsStatsRecorder:
         Collect searchable snapshots stats for indexes (optionally) specified in telemetry parameters
         and push to metrics store.
         """
-        # pylint: disable=import-outside-toplevel
-        import elasticsearch
-
         try:
             stats_api_endpoint = "/_searchable_snapshots/stats"
             level = "indices" if self.indices else "cluster"
@@ -1410,8 +1428,6 @@ class JvmStatsSummary(InternalTelemetryDevice):
     def jvm_stats(self):
         self.logger.debug("Gathering JVM stats")
         jvm_stats = {}
-        # pylint: disable=import-outside-toplevel
-        import elasticsearch
         try:
             stats = self.client.nodes.stats(metric="_all")
         except elasticsearch.TransportError:
@@ -1575,8 +1591,6 @@ class MlBucketProcessingTime(InternalTelemetryDevice):
         self.metrics_store = metrics_store
 
     def on_benchmark_stop(self):
-        # pylint: disable=import-outside-toplevel
-        import elasticsearch
         try:
             results = self.client.search(index=".ml-anomalies-*", body={
                 "size": 0,
