@@ -19,7 +19,7 @@ We have also put considerable effort in Benchmark to ensure that benchmarking da
 Quick Start
 -----------
 
-Benchmark is developed for Unix and is actively tested on Linux and MacOS. Benchmark supports [benchmarking OpenSearch clusters running on Windows](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) but Benchmark itself needs to be installed on machines running Unix.
+Benchmark is developed for Unix and is actively tested on Linux. Benchmark supports [benchmarking OpenSearch clusters running on Windows](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) but Benchmark itself needs to be installed on machines running Unix.
 
 Installing Benchmark
 --------------------------
