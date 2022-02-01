@@ -103,7 +103,7 @@ class WorkerCoordinatorTests(TestCase):
         self.cfg.add(config.Scope.application, "workload", "params", {})
         self.cfg.add(config.Scope.application, "workload", "test.mode.enabled", True)
         self.cfg.add(config.Scope.application, "telemetry", "devices", [])
-        self.cfg.add(config.Scope.application, "telemetry", "params", {})
+        self.cfg.add(config.Scope.application, "telemetry", "params", {"ccr-stats-indices": {"default": ["leader_index"]}})
         self.cfg.add(config.Scope.application, "builder", "provision_config_instance.names", ["default"])
         self.cfg.add(config.Scope.application, "builder", "skip.rest.api.check", True)
         self.cfg.add(config.Scope.application, "client", "hosts",
