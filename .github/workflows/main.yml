@@ -12,6 +12,17 @@ jobs:
         run: bash .ci/build.sh build
         env:
           BENCHMARK_HOME: env.GITHUB_WORKSPACE
+  Unit-Tests-MacOS:
+    runs-on: macos-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+      - name: Clone pyenv
+        run: git clone https://github.com/pyenv/pyenv.git ~/.pyenv
+      - name: Run the CI build script
+        run: bash .ci/build.sh build
+        env:
+          BENCHMARK_HOME: env.GITHUB_WORKSPACE
   DCO-Check:
     runs-on: ubuntu-latest
     steps:
