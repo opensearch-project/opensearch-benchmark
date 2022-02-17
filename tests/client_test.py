@@ -31,6 +31,7 @@ from copy import deepcopy
 from unittest import TestCase, mock
 
 import elasticsearch
+import pytest
 import urllib3.exceptions
 
 from osbenchmark import client, exceptions, doc_link
@@ -44,7 +45,7 @@ class OsClientFactoryTests(TestCase):
     def test_create_http_connection(self):
         hosts = [{"host": "127.0.0.1", "port": 9200}]
         client_options = {}
-        # make a copy so we can verify later that the factory did not modify it
+        # make a copy, so we can verify later that the factory did not modify it
         original_client_options = dict(client_options)
 
         f = client.OsClientFactory(hosts, client_options)
@@ -64,7 +65,7 @@ class OsClientFactoryTests(TestCase):
             "verify_certs": True,
             "http_auth": ("user", "password")
         }
-        # make a copy so we can verify later that the factory did not modify it
+        # make a copy, so we can verify later that the factory did not modify it
         original_client_options = deepcopy(client_options)
 
         logger = logging.getLogger("osbenchmark.client")
@@ -102,7 +103,7 @@ class OsClientFactoryTests(TestCase):
             "client_cert": os.path.join(OsClientFactoryTests.cwd, "utils/resources/certs/client.crt"),
             "client_key": os.path.join(OsClientFactoryTests.cwd, "utils/resources/certs/client.key")
         }
-        # make a copy so we can verify later that the factory did not modify it
+        # make a copy, so we can verify later that the factory did not modify it
         original_client_options = deepcopy(client_options)
 
         logger = logging.getLogger("osbenchmark.client")
@@ -289,6 +290,7 @@ class OsClientFactoryTests(TestCase):
 
 
 class RequestContextManagerTests(TestCase):
+    @pytest.mark.skip(reason="latency is system-dependent")
     @run_async
     async def test_propagates_nested_context(self):
         test_client = client.RequestContextHolder()
