@@ -70,8 +70,9 @@ install_requires = [
     # License: MIT
     "jsonschema==3.1.1",
     # License: BSD
-    # transitive dependency Markupsafe: BSD
     "Jinja2==2.11.3",
+    # License: BSD
+    "markupsafe==2.0.1",
     # License: MIT
     "thespian==3.10.1",
     # recommended library for thespian to identify actors more easily with `ps`
