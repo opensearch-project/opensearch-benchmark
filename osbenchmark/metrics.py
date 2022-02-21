@@ -52,12 +52,14 @@ class OsClient:
         self._client = client
         self.logger = logging.getLogger(__name__)
         self._cluster_version = cluster_version
+        self._cluster_distribution = None
 
     # TODO #653: Remove version-specific support for metrics stores before 7.0.0.
     def probe_version(self):
         info = self.guarded(self._client.info)
         try:
             self._cluster_version = versions.components(info["version"]["number"])
+            self._cluster_distribution = info["version"]["distribution"]
         except BaseException:
             msg = "Could not determine version of metrics cluster"
             self.logger.exception(msg)
@@ -65,7 +67,8 @@ class OsClient:
 
     def put_template(self, name, template):
         # TODO #653: Remove version-specific support for metrics stores before 7.0.0 (also adjust template)
-        if self._cluster_version[0] > 6:
+        if (self._cluster_version[0] > 6 and self._cluster_distribution == 'elasticsearch') or \
+                self._cluster_distribution == 'opensearch':
             return self.guarded(self._client.indices.put_template, name=name, body=template, params={
                 # allows to include the type name although it is not allowed anymore by default
                 "include_type_name": "true"

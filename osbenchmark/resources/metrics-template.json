@@ -1,5 +1,7 @@
 {
-  "index_patterns": ["benchmark-metrics-*"],
+  "index_patterns": [
+    "benchmark-metrics-*"
+  ],
   "settings": {
     "index": {
       "refresh_interval": "5s",
@@ -7,88 +9,90 @@
     }
   },
   "mappings": {
-    "date_detection": false,
-    "dynamic_templates": [
-      {
-        "strings": {
-          "match": "*",
-          "match_mapping_type": "string",
-          "mapping": {
-            "type": "keyword"
+    "_doc": {
+      "date_detection": false,
+      "dynamic_templates": [
+        {
+          "strings": {
+            "match": "*",
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword"
+            }
           }
         }
-      }
-    ],
-    "_source": {
-      "enabled": true
-    },
-    "properties": {
-      "@timestamp": {
-        "type": "date",
-        "format": "epoch_millis"
+      ],
+      "_source": {
+        "enabled": true
       },
-      "relative-time-ms": {
-        "type": "float"
-      },
-      "test-execution-id": {
-        "type": "keyword"
-      },
-      "test-execution-timestamp": {
-        "type": "date",
-        "format": "basic_date_time_no_millis",
-        "fields": {
-          "raw": {
-            "type": "keyword"
+      "properties": {
+        "@timestamp": {
+          "type": "date",
+          "format": "epoch_millis"
+        },
+        "relative-time-ms": {
+          "type": "float"
+        },
+        "test-execution-id": {
+          "type": "keyword"
+        },
+        "test-execution-timestamp": {
+          "type": "date",
+          "format": "basic_date_time_no_millis",
+          "fields": {
+            "raw": {
+              "type": "keyword"
+            }
           }
+        },
+        "environment": {
+          "type": "keyword"
+        },
+        "workload": {
+          "type": "keyword"
+        },
+        "test_procedure": {
+          "type": "keyword"
+        },
+        "provision-config-instance": {
+          "type": "keyword"
+        },
+        "name": {
+          "type": "keyword"
+        },
+        "value": {
+          "type": "float"
+        },
+        "min": {
+          "type": "float"
+        },
+        "max": {
+          "type": "float"
+        },
+        "mean": {
+          "type": "float"
+        },
+        "median": {
+          "type": "float"
+        },
+        "unit": {
+          "type": "keyword"
+        },
+        "sample-type": {
+          "type": "keyword"
+        },
+        "task": {
+          "type": "keyword"
+        },
+        "operation": {
+          "type": "keyword"
+        },
+        "operation-type": {
+          "type": "keyword"
+        },
+        "job": {
+          "type": "keyword"
         }
-      },
-      "environment": {
-        "type": "keyword"
-      },
-      "workload": {
-        "type": "keyword"
-      },
-      "test_procedure": {
-        "type": "keyword"
-      },
-      "provision-config-instance": {
-        "type": "keyword"
-      },
-      "name": {
-        "type": "keyword"
-      },
-      "value": {
-        "type": "float"
-      },
-      "min": {
-        "type": "float"
-      },
-      "max": {
-        "type": "float"
-      },
-      "mean": {
-        "type": "float"
-      },
-      "median": {
-        "type": "float"
-      },
-      "unit": {
-        "type": "keyword"
-      },
-      "sample-type": {
-        "type": "keyword"
-      },
-      "task": {
-        "type": "keyword"
-      },
-      "operation": {
-        "type": "keyword"
-      },
-      "operation-type": {
-        "type": "keyword"
-      },
-      "job": {
-        "type": "keyword"
       }
     }
   }
