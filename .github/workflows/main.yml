@@ -2,7 +2,12 @@ name: CI Actions
 on: [pull_request]
 jobs:
   Unit-Tests:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2

@@ -32,6 +32,7 @@ from datetime import datetime
 from unittest import TestCase
 
 import elasticsearch
+import pytest
 
 from osbenchmark import metrics, workload, exceptions, config
 from osbenchmark.worker_coordinator import worker_coordinator, runner, scheduler
@@ -1640,6 +1641,7 @@ class AsyncExecutorTests(TestCase):
 
 
 class AsyncProfilerTests(TestCase):
+    @pytest.mark.skip(reason="latency is system-dependent")
     @run_async
     async def test_profiler_is_a_transparent_wrapper(self):
         async def f(x):

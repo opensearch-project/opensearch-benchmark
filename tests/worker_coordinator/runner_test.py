@@ -30,6 +30,7 @@ import unittest.mock as mock
 from unittest import TestCase
 
 import elasticsearch
+import pytest
 
 from osbenchmark import client, exceptions
 from osbenchmark.worker_coordinator import runner
@@ -4996,10 +4997,11 @@ class CompositeTests(TestCase):
             "call-after-stream-cd"
         ], self.call_recorder_runner.calls)
 
+    @pytest.mark.skip(reason="latency is system-dependent")
     @run_async
     async def test_adds_request_timings(self):
         # We only need the request context holder functionality but not any calls to Elasticsearch.
-        # Therefore we can use the the request context holder as a substitute and get proper timing info.
+        # Therefore, we can use the request context holder as a substitute and get proper timing info.
         opensearch = client.RequestContextHolder()
 
         params = {
@@ -5146,6 +5148,7 @@ class CompositeTests(TestCase):
         self.assertEqual("Unsupported operation-type [bulk]. Use one of [open-point-in-time, close-point-in-time, "
                          "search, raw-request, sleep, submit-async-search, get-async-search, delete-async-search].",
                          ctx.exception.args[0])
+
 
 class RequestTimingTests(TestCase):
     class StaticRequestTiming:

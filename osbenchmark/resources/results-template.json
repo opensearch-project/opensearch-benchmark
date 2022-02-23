@@ -1,5 +1,7 @@
 {
-  "index_patterns": ["benchmark-results-*"],
+  "index_patterns": [
+    "benchmark-results-*"
+  ],
   "settings": {
     "index": {
       "refresh_interval": "5s",

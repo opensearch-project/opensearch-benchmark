@@ -25,6 +25,8 @@
 import time
 from unittest import TestCase
 
+import pytest
+
 import osbenchmark.time
 
 
@@ -44,6 +46,7 @@ class TimeTests(TestCase):
         total_time = stop_watch.total_time()
         self.assertLessEqual(prev_split_time, total_time)
 
+    @pytest.mark.skip(reason="latency is system-dependent")
     def test_total_time_roughly_in_expected_range(self):
         wait_period_seconds = 0.05
         acceptable_delta_seconds = 0.03
@@ -58,6 +61,7 @@ class TimeTests(TestCase):
         self.assertGreaterEqual(interval, wait_period_seconds - acceptable_delta_seconds)
         self.assertLessEqual(interval, wait_period_seconds + acceptable_delta_seconds)
 
+    @pytest.mark.skip(reason="latency is system-dependent")
     def test_millis_conversion_roughly_in_expected_range(self):
         wait_period_millis = 50
         acceptable_delta_millis = 30

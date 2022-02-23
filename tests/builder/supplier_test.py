@@ -798,7 +798,8 @@ class DistributionRepositoryTests(TestCase):
         self.assertEqual("opensearch-1.0.0-linux-x64.tar.gz", repo.file_name)
         self.assertTrue(repo.cache)
 
-    def test_release_repo_config_with_user_url(self):
+    @mock.patch("osbenchmark.utils.sysstats.cpu_arch", return_value="x64")
+    def test_release_repo_config_with_user_url(self, cpu_arch):
         renderer = supplier.TemplateRenderer(version="1.0.0")
         repo = supplier.DistributionRepository(name="release", distribution_config={
             "jdk.unbundled.release_url":
