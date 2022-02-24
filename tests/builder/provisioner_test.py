@@ -436,7 +436,6 @@ services:
       - cluster.name=opensearch-cluster
       - node.name=opensearch-node1
       - discovery.seed_hosts=opensearch-node1
-      - cluster.initial_master_nodes=opensearch-node1
       - DISABLE_INSTALL_DEMO_CONFIG=true
       - bootstrap.memory_lock=true
       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
@@ -457,6 +456,11 @@ services:
       - 9600:9600
     networks:
       - opensearch-net
+    healthcheck:
+          test: curl -f http://localhost:39200 -u admin:admin --insecure
+          interval: 5s
+          timeout: 2s
+          retries: 10
 
 volumes:
   opensearch-data1:
@@ -503,7 +507,6 @@ services:
       - cluster.name=opensearch-cluster
       - node.name=opensearch-node1
       - discovery.seed_hosts=opensearch-node1
-      - cluster.initial_master_nodes=opensearch-node1
       - DISABLE_INSTALL_DEMO_CONFIG=true
       - bootstrap.memory_lock=true
       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
@@ -524,6 +527,11 @@ services:
       - 9600:9600
     networks:
       - opensearch-net
+    healthcheck:
+          test: curl -f http://localhost:39200 -u admin:admin --insecure
+          interval: 5s
+          timeout: 2s
+          retries: 10
 
 volumes:
   opensearch-data1:
