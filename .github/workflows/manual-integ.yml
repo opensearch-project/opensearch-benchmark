@@ -1,7 +1,12 @@
 name: Integ Actions
-on: [workflow_dispatch]
+on: [workflow_dispatch, pull_request]
 jobs:
   Integration-Tests:
+    strategy:
+      matrix:
+        python-version:
+          - Python_3.8
+          - Python_3.9
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
@@ -23,7 +28,12 @@ jobs:
         with:
           distribution: 'adopt'
           java-version: '15'
+      - name: Install JDK 16
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'adopt'
+          java-version: '16'
       - name: Run the CI build_it script
-        run: bash .ci/build.sh build_it
+        run: bash .ci/build.sh build_it ${{ matrix.python-version }}
         env:
           BENCHMARK_HOME: env.GITHUB_WORKSPACE

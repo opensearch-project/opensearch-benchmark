@@ -67,12 +67,13 @@ function build_it {
   export PATH="$HOME/.pyenv/bin:$PATH"
   export TERM=dumb
   export LC_ALL=en_US.UTF-8
-  export BENCHMARK_HOME=$WORKSPACE
+  export BENCHMARK_HOME="$GITHUB_WORKSPACE"
   export JAVA_PATH="/opt/hostedtoolcache/Java_Adopt_jdk"
   export JAVA_HOME="$JAVA_PATH/15.0.2-7/x64"
   export JAVA8_HOME="$JAVA_PATH/8.0.292-1/x64"
   export JAVA11_HOME="$JAVA_PATH/11.0.11-9/x64"
   export JAVA15_HOME="$JAVA_PATH/15.0.2-7/x64"
+  export JAVA16_HOME="$JAVA_PATH/16.0.2-7/x64"
 
   update_pyenv
   eval "$(pyenv init -)"
@@ -80,11 +81,17 @@ function build_it {
   eval "$(pyenv init --path)"
   eval "$(pyenv virtualenv-init -)"
   pip install opensearch-benchmark
+  docker pull datadog/squid:latest
 
   make prereq
   make install
   make precommit
-  make it
+
+  if [[ "$1" == "Python_3.8" ]]; then
+    make it38
+  elif [[ "$1" == "Python_3.9" ]]; then
+    make it39
+  fi
 }
 
 function license-scan {
@@ -118,7 +125,7 @@ function archive {
 }
 
 if declare -F "$1" > /dev/null; then
-    $1
+    $1 $2
     exit
 else
     echo "Please specify a function to run"
