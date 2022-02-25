@@ -125,7 +125,11 @@ function archive {
 }
 
 if declare -F "$1" > /dev/null; then
-    $1 $2
+    if [ -n "$2" ]; then
+      $1 $2
+    else
+      $1
+    fi 
     exit
 else
     echo "Please specify a function to run"
