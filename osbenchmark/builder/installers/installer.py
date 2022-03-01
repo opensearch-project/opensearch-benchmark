@@ -6,22 +6,22 @@ class Installer:
     def __init__(self, executor):
         self.executor = executor
 
-    """
-    Executes the necessary logic to prepare and install OpenSearch and any request Plugins on a cluster host
-    
-    ;param host: A Host object defining the host on which to install the data
-    ;param binaries: A map of components to install to their paths on the host
-    ;return node_configurations: A list of NodeConfiguration objects detailing the installation data of the nodes on the host
-    """
     def install(self, host, binaries):
+        """
+        Executes the necessary logic to prepare and install OpenSearch and any request Plugins on a cluster host
+
+        ;param host: A Host object defining the host on which to install the data
+        ;param binaries: A map of components to install to their paths on the host
+        ;return node_configurations: A list of NodeConfiguration objects detailing the installation data of the nodes on the host
+        """
         raise NotImplementedError
 
-    """
-    Removes the data that was downloaded, installed, and created on a given host during the test execution
-    
-    ;param host: A Host object defining the host on which to remove the data
-    ;param node_configurations: A list of NodeConfiguration objects detailing the installation data of the nodes on the host
-    ;return None
-    """
     def cleanup(self, host, node_configurations):
+        """
+        Removes the data that was downloaded, installed, and created on a given host during the test execution
+
+        ;param host: A Host object defining the host on which to remove the data
+        ;param node_configurations: A list of NodeConfiguration objects detailing the installation data of the nodes on the host
+        ;return None
+        """
         raise NotImplementedError

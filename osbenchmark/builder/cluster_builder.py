@@ -9,19 +9,19 @@ class ClusterBuilder:
         self.installer = installer
         self.launcher = launcher
 
-    """
-    Creates a cluster using the builder subcomponents
-    
-    ;return cluster: A Cluster object defining the cluster that was created
-    """
     def create_cluster(self):
+        """
+        Creates a cluster using the builder subcomponents
+
+        ;return cluster: A Cluster object defining the cluster that was created
+        """
         raise NotImplementedError
 
-    """
-    Deletes a cluster using the builder subcomponents
-    
-    ;param cluster: A Cluster object defining the cluster to be deleted
-    ;return None
-    """
     def delete_cluster(self, cluster):
+        """
+        Deletes a cluster using the builder subcomponents
+
+        ;param cluster: A Cluster object defining the cluster to be deleted
+        ;return None
+        """
         raise NotImplementedError
