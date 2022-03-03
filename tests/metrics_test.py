@@ -34,7 +34,7 @@ import unittest.mock as mock
 import uuid
 from unittest import TestCase
 
-import elasticsearch.exceptions
+import opensearchpy.exceptions
 
 from osbenchmark import config, metrics, workload, exceptions, paths
 from osbenchmark.metrics import GlobalStatsCalculator
@@ -110,7 +110,7 @@ class TransportErrors:
     @property
     def side_effects(self):
         side_effect_list = [
-            elasticsearch.exceptions.TransportError(rnd_code, TransportErrors.err_return_codes[rnd_code])
+            opensearchpy.exceptions.TransportError(rnd_code, TransportErrors.err_return_codes[rnd_code])
             for rnd_code in self.rnd_err_codes
         ]
         side_effect_list.append("success")
@@ -187,7 +187,7 @@ class OsClientTests(TestCase):
 
     def test_raises_sytem_setup_error_on_connection_problems(self):
         def raise_connection_error():
-            raise elasticsearch.exceptions.ConnectionError("unit-test")
+            raise opensearchpy.exceptions.ConnectionError("unit-test")
 
         client = metrics.OsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9200"}]))
 
@@ -199,7 +199,7 @@ class OsClientTests(TestCase):
 
     def test_raises_sytem_setup_error_on_authentication_problems(self):
         def raise_authentication_error():
-            raise elasticsearch.exceptions.AuthenticationException("unit-test")
+            raise opensearchpy.exceptions.AuthenticationException("unit-test")
 
         client = metrics.OsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
 
@@ -211,7 +211,7 @@ class OsClientTests(TestCase):
 
     def test_raises_sytem_setup_error_on_authorization_problems(self):
         def raise_authorization_error():
-            raise elasticsearch.exceptions.AuthorizationException("unit-test")
+            raise opensearchpy.exceptions.AuthorizationException("unit-test")
 
         client = metrics.OsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
 
@@ -224,7 +224,7 @@ class OsClientTests(TestCase):
 
     def test_raises_benchmark_error_on_unknown_problems(self):
         def raise_unknown_error():
-            raise elasticsearch.exceptions.SerializationError("unit-test")
+            raise opensearchpy.exceptions.SerializationError("unit-test")
 
         client = metrics.OsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
 
@@ -282,7 +282,7 @@ class OsClientTests(TestCase):
     @mock.patch("osbenchmark.time.sleep")
     def test_fails_after_too_many_errors(self, mocked_sleep):
         def random_transport_error(rnd_resp_code):
-            raise elasticsearch.exceptions.TransportError(rnd_resp_code, TransportErrors.err_return_codes[rnd_resp_code])
+            raise opensearchpy.exceptions.TransportError(rnd_resp_code, TransportErrors.err_return_codes[rnd_resp_code])
 
         client = metrics.OsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
         rnd_code = random.choice(list(TransportErrors.err_return_codes))

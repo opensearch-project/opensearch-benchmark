@@ -104,11 +104,11 @@ class OsClient:
     def bulk_index(self, index, doc_type, items):
         # TODO #653: Remove version-specific support for metrics stores before 7.0.0.
         # pylint: disable=import-outside-toplevel
-        import elasticsearch.helpers
+        import opensearchpy.helpers
         if self._cluster_version[0] > 6:
-            self.guarded(elasticsearch.helpers.bulk, self._client, items, index=index, chunk_size=5000)
+            self.guarded(opensearchpy.helpers.bulk, self._client, items, index=index, chunk_size=5000)
         else:
-            self.guarded(elasticsearch.helpers.bulk, self._client, items, index=index, doc_type=doc_type, chunk_size=5000)
+            self.guarded(opensearchpy.helpers.bulk, self._client, items, index=index, doc_type=doc_type, chunk_size=5000)
 
     def index(self, index, doc_type, item, id=None):
         doc = {
@@ -123,7 +123,7 @@ class OsClient:
 
     def guarded(self, target, *args, **kwargs):
         # pylint: disable=import-outside-toplevel
-        import elasticsearch
+        import opensearchpy
         max_execution_count = 11
         execution_count = 0
 
@@ -133,7 +133,7 @@ class OsClient:
 
             try:
                 return target(*args, **kwargs)
-            except elasticsearch.exceptions.AuthenticationException:
+            except opensearchpy.exceptions.AuthenticationException:
                 # we know that it is just one host (see OsClientFactory)
                 node = self._client.transport.hosts[0]
                 msg = "The configured user could not authenticate against your OpenSearch metrics store running on host [%s] at " \
@@ -141,7 +141,7 @@ class OsClient:
                       (node["host"], node["port"], config.ConfigFile().location)
                 self.logger.exception(msg)
                 raise exceptions.SystemSetupError(msg)
-            except elasticsearch.exceptions.AuthorizationException:
+            except opensearchpy.exceptions.AuthorizationException:
                 node = self._client.transport.hosts[0]
                 msg = "The configured user does not have enough privileges to run the operation [%s] against your OpenSearch metrics " \
                       "store running on host [%s] at port [%s]. Please specify a user with enough " \
@@ -149,7 +149,7 @@ class OsClient:
                       (target.__name__, node["host"], node["port"], config.ConfigFile().location)
                 self.logger.exception(msg)
                 raise exceptions.SystemSetupError(msg)
-            except elasticsearch.exceptions.ConnectionTimeout:
+            except opensearchpy.exceptions.ConnectionTimeout:
                 if execution_count < max_execution_count:
                     self.logger.debug("Connection timeout in attempt [%d/%d].", execution_count, max_execution_count)
                     time.sleep(time_to_sleep)
@@ -160,13 +160,13 @@ class OsClient:
                     msg = "A connection timeout occurred while running the operation [%s] against your OpenSearch metrics store on " \
                           "host [%s] at port [%s]." % (operation, node["host"], node["port"])
                     raise exceptions.BenchmarkError(msg)
-            except elasticsearch.exceptions.ConnectionError:
+            except opensearchpy.exceptions.ConnectionError:
                 node = self._client.transport.hosts[0]
                 msg = "Could not connect to your OpenSearch metrics store. Please check that it is running on host [%s] at port [%s]" \
                       " or fix the configuration in [%s]." % (node["host"], node["port"], config.ConfigFile().location)
                 self.logger.exception(msg)
                 raise exceptions.SystemSetupError(msg)
-            except elasticsearch.TransportError as e:
+            except opensearchpy.TransportError as e:
                 if e.status_code in (502, 503, 504, 429) and execution_count < max_execution_count:
                     self.logger.debug("%s (code: %d) in attempt [%d/%d]. Sleeping for [%f] seconds.",
                                       responses[e.status_code], e.status_code, execution_count, max_execution_count, time_to_sleep)
@@ -178,7 +178,7 @@ class OsClient:
                     self.logger.exception(msg)
                     raise exceptions.BenchmarkError(msg)
 
-            except elasticsearch.exceptions.ElasticsearchException:
+            except opensearchpy.exceptions.OpenSearchException:
                 node = self._client.transport.hosts[0]
                 msg = "An unknown error occurred while running the operation [%s] against your OpenSearch metrics store on host [%s] " \
                       "at port [%s]." % (target.__name__, node["host"], node["port"])

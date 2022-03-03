@@ -12,7 +12,7 @@ import logging
 from typing import Optional, List
 
 import aiohttp
-import elasticsearch
+import opensearchpy
 from aiohttp import RequestInfo, BaseConnector
 from aiohttp.client_proto import ResponseHandler
 from aiohttp.helpers import BaseTimerContext
@@ -153,7 +153,7 @@ class ResponseMatcher:
                 return body
 
 
-class AIOHttpConnection(elasticsearch.AIOHttpConnection):
+class AIOHttpConnection(opensearchpy.AIOHttpConnection):
     def __init__(self,
                  host="localhost",
                  port=None,

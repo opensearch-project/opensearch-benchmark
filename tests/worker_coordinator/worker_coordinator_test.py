@@ -31,7 +31,7 @@ import unittest.mock as mock
 from datetime import datetime
 from unittest import TestCase
 
-import elasticsearch
+import opensearchpy
 import pytest
 
 from osbenchmark import metrics, workload, exceptions, config
@@ -82,7 +82,7 @@ class WorkerCoordinatorTests(TestCase):
         PATCHER = None
 
         def __init__(self, *args, **kwargs):
-            WorkerCoordinatorTests.StaticClientFactory.PATCHER = mock.patch("elasticsearch.Elasticsearch")
+            WorkerCoordinatorTests.StaticClientFactory.PATCHER = mock.patch("opensearchpy.OpenSearch")
             self.opensearch = WorkerCoordinatorTests.StaticClientFactory.PATCHER.start()
             self.opensearch.indices.stats.return_value = {"mocked": True}
 
@@ -1149,7 +1149,7 @@ class AsyncExecutorTests(TestCase):
         runner.register_runner("unit-test-recovery", self.runner_with_progress, async_runner=True)
         runner.register_runner("override-throughput", self.runner_overriding_throughput, async_runner=True)
 
-    @mock.patch("elasticsearch.Elasticsearch")
+    @mock.patch("opensearchpy.OpenSearch")
     @run_async
     async def test_execute_schedule_in_throughput_mode(self, opensearch):
         task_start = time.perf_counter()
@@ -1214,7 +1214,7 @@ class AsyncExecutorTests(TestCase):
             self.assertEqual(1, sample.total_ops)
             self.assertEqual("docs", sample.total_ops_unit)
 
-    @mock.patch("elasticsearch.Elasticsearch")
+    @mock.patch("opensearchpy.OpenSearch")
     @run_async
     async def test_execute_schedule_with_progress_determined_by_runner(self, opensearch):
         task_start = time.perf_counter()
@@ -1273,7 +1273,7 @@ class AsyncExecutorTests(TestCase):
             self.assertEqual(1, sample.total_ops)
             self.assertEqual("ops", sample.total_ops_unit)
 
-    @mock.patch("elasticsearch.Elasticsearch")
+    @mock.patch("opensearchpy.OpenSearch")
     @run_async
     async def test_execute_schedule_runner_overrides_times(self, opensearch):
         task_start = time.perf_counter()
@@ -1327,7 +1327,7 @@ class AsyncExecutorTests(TestCase):
         self.assertIsNotNone(sample.service_time)
         self.assertIsNotNone(sample.time_period)
 
-    @mock.patch("elasticsearch.Elasticsearch")
+    @mock.patch("opensearchpy.OpenSearch")
     @run_async
     async def test_execute_schedule_throughput_throttled(self, opensearch):
         def perform_request(*args, **kwargs):
@@ -1390,7 +1390,7 @@ class AsyncExecutorTests(TestCase):
                             msg="Expected sample size to be between %d and %d but was %d" % (lower_bound, upper_bound, sample_size))
             self.assertTrue(complete.is_set(), "Executor should auto-complete a task that terminates its parent")
 
-    @mock.patch("elasticsearch.Elasticsearch")
+    @mock.patch("opensearchpy.OpenSearch")
     @run_async
     async def test_cancel_execute_schedule(self, opensearch):
         opensearch.init_request_context.return_value = {
@@ -1442,7 +1442,7 @@ class AsyncExecutorTests(TestCase):
             sample_size = len(samples)
             self.assertEqual(0, sample_size)
 
-    @mock.patch("elasticsearch.Elasticsearch")
+    @mock.patch("opensearchpy.OpenSearch")
     @run_async
     async def test_execute_schedule_aborts_on_error(self, opensearch):
         class ExpectedUnitTestException(Exception):
@@ -1557,7 +1557,7 @@ class AsyncExecutorTests(TestCase):
                 opensearch = None
                 params = None
                 # ES client uses pseudo-status "N/A" in this case...
-                runner = mock.Mock(side_effect=as_future(exception=elasticsearch.ConnectionError("N/A", "no route to host", None)))
+                runner = mock.Mock(side_effect=as_future(exception=opensearchpy.ConnectionError("N/A", "no route to host", None)))
 
                 with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
                     await worker_coordinator.execute_single(self.context_managed(runner), opensearch, params, on_error=on_error)
@@ -1570,7 +1570,7 @@ class AsyncExecutorTests(TestCase):
         opensearch = None
         params = None
         runner = mock.Mock(side_effect=
-                           as_future(exception=elasticsearch.NotFoundError(404, "not found", "the requested document could not be found")))
+                           as_future(exception=opensearchpy.NotFoundError(404, "not found", "the requested document could not be found")))
 
         with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
             await worker_coordinator.execute_single(self.context_managed(runner), opensearch, params, on_error="abort")
@@ -1584,7 +1584,7 @@ class AsyncExecutorTests(TestCase):
         opensearch = None
         params = None
         runner = mock.Mock(side_effect=
-                           as_future(exception=elasticsearch.NotFoundError(404, "not found", "the requested document could not be found")))
+                           as_future(exception=opensearchpy.NotFoundError(404, "not found", "the requested document could not be found")))
 
         ops, unit, request_meta_data = await worker_coordinator.execute_single(
             self.context_managed(runner), opensearch, params, on_error="continue")
@@ -1603,7 +1603,7 @@ class AsyncExecutorTests(TestCase):
         opensearch = None
         params = None
         runner = mock.Mock(side_effect=
-                           as_future(exception=elasticsearch.NotFoundError(413, b"", b"")))
+                           as_future(exception=opensearchpy.NotFoundError(413, b"", b"")))
 
         ops, unit, request_meta_data = await worker_coordinator.execute_single(
             self.context_managed(runner), opensearch, params, on_error="continue")

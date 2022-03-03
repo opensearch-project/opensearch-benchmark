@@ -31,7 +31,7 @@ from datetime import datetime
 from unittest import TestCase, mock
 from unittest.mock import mock_open
 
-import elasticsearch
+import opensearchpy
 import psutil
 
 from osbenchmark import config, exceptions, telemetry
@@ -87,7 +87,7 @@ class MockClient:
 
     def info(self):
         if self.client_options.get("raise-error-on-info", False):
-            raise elasticsearch.TransportError(401, "Unauthorized")
+            raise opensearchpy.TransportError(401, "Unauthorized")
         return self._info
 
     def search(self, *args, **kwargs):

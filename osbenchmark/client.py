@@ -218,17 +218,17 @@ class OsClientFactory:
 
     def create(self):
         # pylint: disable=import-outside-toplevel
-        import elasticsearch
-        return elasticsearch.Elasticsearch(hosts=self.hosts, ssl_context=self.ssl_context, **self.client_options)
+        import opensearchpy
+        return opensearchpy.OpenSearch(hosts=self.hosts, ssl_context=self.ssl_context, **self.client_options)
 
     def create_async(self):
         # pylint: disable=import-outside-toplevel
-        import elasticsearch
+        import opensearchpy
         import osbenchmark.async_connection
         import io
         import aiohttp
 
-        from elasticsearch.serializer import JSONSerializer
+        from opensearchpy.serializer import JSONSerializer
 
         class LazyJSONSerializer(JSONSerializer):
             def loads(self, s):
@@ -254,7 +254,7 @@ class OsClientFactory:
         self.client_options["serializer"] = LazyJSONSerializer()
         self.client_options["trace_config"] = trace_config
 
-        class BenchmarkAsyncOpenSearch(elasticsearch.AsyncElasticsearch, RequestContextHolder):
+        class BenchmarkAsyncOpenSearch(opensearchpy.AsyncOpenSearch, RequestContextHolder):
             pass
 
         return BenchmarkAsyncOpenSearch(hosts=self.hosts,
@@ -279,20 +279,20 @@ def wait_for_rest_layer(opensearch, max_attempts=40):
     for attempt in range(max_attempts):
         logger.debug("REST API is available after %s attempts", attempt)
         # pylint: disable=import-outside-toplevel
-        import elasticsearch
+        import opensearchpy
         try:
             # see also WaitForHttpResource in OpenSearch tests. Contrary to the ES tests we consider the API also
             # available when the cluster status is RED (as long as all required nodes are present)
             opensearch.cluster.health(wait_for_nodes=">={}".format(expected_node_count))
             logger.info("REST API is available for >= [%s] nodes after [%s] attempts.", expected_node_count, attempt)
             return True
-        except elasticsearch.ConnectionError as e:
+        except opensearchpy.ConnectionError as e:
             if "SSL: UNKNOWN_PROTOCOL" in str(e):
                 raise exceptions.SystemSetupError("Could not connect to cluster via https. Is this an https endpoint?", e)
             else:
                 logger.debug("Got connection error on attempt [%s]. Sleeping...", attempt)
                 time.sleep(3)
-        except elasticsearch.TransportError as e:
+        except opensearchpy.TransportError as e:
             # cluster block, our wait condition is not reached
             if e.status_code in (503, 401, 408):
                 logger.debug("Got status code [%s] on attempt [%s]. Sleeping...", e.status_code, attempt)
