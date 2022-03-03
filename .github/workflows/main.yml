@@ -17,13 +17,3 @@ jobs:
         run: bash .ci/build.sh build
         env:
           BENCHMARK_HOME: env.GITHUB_WORKSPACE
-  DCO-Check:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository code with full commit history
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Run signoff check script
-        run: bash .ci/signoff-check.sh ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
