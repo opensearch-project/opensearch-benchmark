@@ -84,7 +84,7 @@ def test_index_setting_parameters():
     update_index_setting_parameters(settings)
 
 
-@mock.patch("elasticsearch.Elasticsearch")
+@mock.patch("opensearchpy.OpenSearch")
 def test_extract_index_create(client):
     client.indices.get.return_value = {
         "osmgeopoints": {

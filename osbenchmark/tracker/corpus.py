@@ -76,7 +76,7 @@ def extract(client, output_path, index):
 
 def dump_documents(client, index, out_path, total_docs, progress_message_suffix=""):
     # pylint: disable=import-outside-toplevel
-    from elasticsearch import helpers
+    from opensearchpy import helpers
 
     logger = logging.getLogger(__name__)
     freq = max(1, total_docs // 1000)

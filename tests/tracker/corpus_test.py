@@ -33,7 +33,7 @@ def serialize_doc(doc):
 
 
 @mock.patch("builtins.open", new_callable=mock.mock_open)
-@mock.patch("elasticsearch.Elasticsearch")
+@mock.patch("opensearchpy.OpenSearch")
 def test_extract(client, mo):
     doc = {
         "field1": "stuff",

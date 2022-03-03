@@ -25,7 +25,7 @@
 import logging
 import os
 
-from elasticsearch import ElasticsearchException
+from opensearchpy import OpenSearchException
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from osbenchmark import PROGRAM_NAME
@@ -50,7 +50,7 @@ def extract_mappings_and_corpora(client, output_path, indices_to_extract):
     for index_name in indices_to_extract:
         try:
             indices += index.extract(client, output_path, index_name)
-        except ElasticsearchException:
+        except OpenSearchException:
             logging.getLogger(__name__).exception("Failed to extract index [%s]", index_name)
 
     # That list only contains valid indices (with index patterns already resolved)

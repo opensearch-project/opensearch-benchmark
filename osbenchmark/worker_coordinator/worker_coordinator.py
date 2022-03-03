@@ -1642,7 +1642,7 @@ async def execute_single(runner, opensearch, params, on_error):
     :return: a triple of: total number of operations, unit of operations, a dict of request meta data (may be None).
     """
     # pylint: disable=import-outside-toplevel
-    import elasticsearch
+    import opensearchpy
     fatal_error = False
     try:
         async with runner:
@@ -1660,10 +1660,10 @@ async def execute_single(runner, opensearch, params, on_error):
             total_ops = 1
             total_ops_unit = "ops"
             request_meta_data = {"success": True}
-    except elasticsearch.TransportError as e:
+    except opensearchpy.TransportError as e:
         # we *specifically* want to distinguish connection refused (a node died?) from connection timeouts
         # pylint: disable=unidiomatic-typecheck
-        if type(e) is elasticsearch.ConnectionError:
+        if type(e) is opensearchpy.ConnectionError:
             fatal_error = True
 
         total_ops = 0
@@ -1676,7 +1676,7 @@ async def execute_single(runner, opensearch, params, on_error):
         if isinstance(e.status_code, int):
             request_meta_data["http-status"] = e.status_code
         # connection timeout errors don't provide a helpful description
-        if isinstance(e, elasticsearch.ConnectionTimeout):
+        if isinstance(e, opensearchpy.ConnectionTimeout):
             request_meta_data["error-description"] = "network connection timed out"
         elif e.info:
             request_meta_data["error-description"] = f"{e.error} ({e.info})"
