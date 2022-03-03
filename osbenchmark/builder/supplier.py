@@ -263,6 +263,9 @@ class TemplateRenderer:
             self.arch = arch
         else:
             self.arch = sysstats.cpu_arch().lower()
+            # OpenSearch uses arm64 for the 64b Arm binary name
+            if self.arch == "aarch64":
+                self.arch = "arm64"
 
     def render(self, template):
         substitutions = {
