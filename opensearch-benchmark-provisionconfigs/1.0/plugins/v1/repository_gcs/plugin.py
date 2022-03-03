@@ -36,7 +36,7 @@ def resolve_binary(install_root, binary_name):
 
 
 def resolve_keystore_config(install_root):
-    return os.path.join(install_root, "config", "elasticsearch.keystore")
+    return os.path.join(install_root, "config", "opensearch.keystore")
 
 
 def create_keystore(install_root, keystore_binary, env):
@@ -65,7 +65,7 @@ def configure_keystore(config_names, variables, **kwargs):
         logger.warning("Skipping keystore configuration for repository-gcs as plugin-params %s were not supplied", keystore_params)
         return False
 
-    keystore_binary_filename = "elasticsearch-keystore"
+    keystore_binary_filename = "opensearch-keystore"
     install_root = variables["install_root_path"]
     keystore_binary = resolve_binary(install_root, keystore_binary_filename)
     env = kwargs.get("env")

@@ -31,7 +31,7 @@ from collections import namedtuple
 from unittest import TestCase
 from unittest.mock import call
 
-import elasticsearch
+import opensearchpy
 import pytest
 
 from osbenchmark import config, metrics, exceptions, telemetry
@@ -156,14 +156,14 @@ class ResponseSupplier:
 
 class TransportErrorSupplier:
     def __call__(self, *args, **kwargs):
-        raise elasticsearch.TransportError
+        raise opensearchpy.TransportError
 
 
 raiseTransportError = TransportErrorSupplier()
 
 
 class TransportClient:
-    def __init__(self, responses=None, force_error=False, error=elasticsearch.TransportError):
+    def __init__(self, responses=None, force_error=False, error=opensearchpy.TransportError):
         self._responses = responses
         self._force_error = force_error
         self._error = error
@@ -271,7 +271,7 @@ class HeapdumpTests(TestCase):
 
 
 class SegmentStatsTests(TestCase):
-    @mock.patch("elasticsearch.Elasticsearch")
+    @mock.patch("opensearchpy.OpenSearch")
     @mock.patch("builtins.open", new_callable=mock.mock_open)
     def test_generates_log_file(self, file_mock, opensearch):
 
@@ -1301,7 +1301,7 @@ class TestSearchableSnapshotsStats:
         metrics_store = metrics.OsMetricsStore(cfg)
         client = Client(transport_client=TransportClient(
             force_error=True,
-            error=elasticsearch.NotFoundError(
+            error=opensearchpy.NotFoundError(
                 "",
                 "",
                 {"error": {"reason": "No searchable snapshots indices found"}})
@@ -3223,9 +3223,9 @@ class IndexStatsTests(TestCase):
 
 class MlBucketProcessingTimeTests(TestCase):
     @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
-    @mock.patch("elasticsearch.Elasticsearch")
+    @mock.patch("opensearchpy.OpenSearch")
     def test_error_on_retrieval_does_not_store_metrics(self, opensearch, metrics_store_put_doc):
-        opensearch.search.side_effect = elasticsearch.TransportError("unit test error")
+        opensearch.search.side_effect = opensearchpy.TransportError("unit test error")
         cfg = create_config()
         metrics_store = metrics.OsMetricsStore(cfg)
         device = telemetry.MlBucketProcessingTime(opensearch, metrics_store)
@@ -3235,7 +3235,7 @@ class MlBucketProcessingTimeTests(TestCase):
         self.assertEqual(0, metrics_store_put_doc.call_count)
 
     @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
-    @mock.patch("elasticsearch.Elasticsearch")
+    @mock.patch("opensearchpy.OpenSearch")
     def test_empty_result_does_not_store_metrics(self, opensearch, metrics_store_put_doc):
         opensearch.search.return_value = {
             "aggregations": {
@@ -3253,7 +3253,7 @@ class MlBucketProcessingTimeTests(TestCase):
         self.assertEqual(0, metrics_store_put_doc.call_count)
 
     @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
-    @mock.patch("elasticsearch.Elasticsearch")
+    @mock.patch("opensearchpy.OpenSearch")
     def test_result_is_stored(self, opensearch, metrics_store_put_doc):
         opensearch.search.return_value = {
             "aggregations": {
