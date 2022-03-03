@@ -1642,7 +1642,7 @@ async def execute_single(runner, opensearch, params, on_error):
     :return: a triple of: total number of operations, unit of operations, a dict of request meta data (may be None).
     """
     # pylint: disable=import-outside-toplevel
-    import elasticsearch
+    import opensearchpy
     fatal_error = False
     try:
         async with runner:

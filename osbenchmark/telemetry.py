@@ -28,7 +28,7 @@ import fnmatch
 import os
 import threading
 from collections import deque
-import elasticsearch
+import opensearchpy
 import tabulate
 
 from osbenchmark import metrics, time, exceptions

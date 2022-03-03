@@ -29,7 +29,7 @@ import random
 import unittest.mock as mock
 from unittest import TestCase
 
-import elasticsearch
+import opensearchpy
 import pytest
 
 from osbenchmark import client, exceptions

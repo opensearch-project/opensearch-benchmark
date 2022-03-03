@@ -12,7 +12,7 @@ import logging
 from typing import Optional, List
 
 import aiohttp
-import elasticsearch
+import opensearchpy
 from aiohttp import RequestInfo, BaseConnector
 from aiohttp.client_proto import ResponseHandler
 from aiohttp.helpers import BaseTimerContext

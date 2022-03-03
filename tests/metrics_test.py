@@ -34,7 +34,7 @@ import unittest.mock as mock
 import uuid
 from unittest import TestCase
 
-import elasticsearch.exceptions
+import opensearchpy.exceptions
 
 from osbenchmark import config, metrics, workload, exceptions, paths
 from osbenchmark.metrics import GlobalStatsCalculator

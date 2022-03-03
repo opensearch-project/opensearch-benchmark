@@ -104,11 +104,11 @@ class OsClient:
     def bulk_index(self, index, doc_type, items):
         # TODO #653: Remove version-specific support for metrics stores before 7.0.0.
         # pylint: disable=import-outside-toplevel
-        import elasticsearch.helpers
+        import opensearchpy.helpers
         if self._cluster_version[0] > 6:
-            self.guarded(elasticsearch.helpers.bulk, self._client, items, index=index, chunk_size=5000)
+            self.guarded(opensearchpy.helpers.bulk, self._client, items, index=index, chunk_size=5000)
         else:
-            self.guarded(elasticsearch.helpers.bulk, self._client, items, index=index, doc_type=doc_type, chunk_size=5000)
+            self.guarded(opensearchpy.helpers.bulk, self._client, items, index=index, doc_type=doc_type, chunk_size=5000)
 
     def index(self, index, doc_type, item, id=None):
         doc = {
@@ -123,7 +123,7 @@ class OsClient:
 
     def guarded(self, target, *args, **kwargs):
         # pylint: disable=import-outside-toplevel
-        import elasticsearch
+        import opensearchpy
         max_execution_count = 11
         execution_count = 0
 
@@ -133,7 +133,7 @@ class OsClient:
 
             try:
                 return target(*args, **kwargs)
-            except elasticsearch.exceptions.AuthenticationException:
+            except opensearchpy.exceptions.AuthenticationException:
                 # we know that it is just one host (see OsClientFactory)
                 node = self._client.transport.hosts[0]
                 msg = "The configured user could not authenticate against your OpenSearch metrics store running on host [%s] at " \
@@ -141,7 +141,7 @@ class OsClient:
                       (node["host"], node["port"], config.ConfigFile().location)
                 self.logger.exception(msg)
                 raise exceptions.SystemSetupError(msg)
-            except elasticsearch.exceptions.AuthorizationException:
+            except opensearchpy.exceptions.AuthorizationException:
                 node = self._client.transport.hosts[0]
                 msg = "The configured user does not have enough privileges to run the operation [%s] against your OpenSearch metrics " \
                       "store running on host [%s] at port [%s]. Please specify a user with enough " \
@@ -149,7 +149,7 @@ class OsClient:
                       (target.__name__, node["host"], node["port"], config.ConfigFile().location)
                 self.logger.exception(msg)
                 raise exceptions.SystemSetupError(msg)
-            except elasticsearch.exceptions.ConnectionTimeout:
+            except opensearchpy.exceptions.ConnectionTimeout:
                 if execution_count < max_execution_count:
                     self.logger.debug("Connection timeout in attempt [%d/%d].", execution_count, max_execution_count)
                     time.sleep(time_to_sleep)

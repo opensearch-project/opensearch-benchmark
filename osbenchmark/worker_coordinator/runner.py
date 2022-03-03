@@ -628,7 +628,7 @@ class ForceMerge(Runner):
 
     async def __call__(self, opensearch, params):
         # pylint: disable=import-outside-toplevel
-        import elasticsearch
+        import opensearchpy
         max_num_segments = params.get("max-num-segments")
         mode = params.get("mode")
         merge_params = self._default_kw_params(params)
@@ -639,7 +639,7 @@ class ForceMerge(Runner):
             try:
                 await opensearch.indices.forcemerge(**merge_params)
                 complete = True
-            except elasticsearch.ConnectionTimeout:
+            except opensearchpy.ConnectionTimeout:
                 pass
             while not complete:
                 await asyncio.sleep(params.get("poll-period"))
@@ -1224,7 +1224,7 @@ class DeleteComponentTemplate(Runner):
 
         async def _exists(name):
             # pylint: disable=import-outside-toplevel
-            from elasticsearch.client import _make_path
+            from opensearchpy.client import _make_path
             # currently not supported by client and hence custom request
             return await opensearch.transport.perform_request(
                 "HEAD", _make_path("_component_template", name)
@@ -2063,7 +2063,7 @@ class Retry(Runner, Delegator):
 
     async def __call__(self, opensearch, params):
         # pylint: disable=import-outside-toplevel
-        import elasticsearch
+        import opensearchpy
         import socket
 
         retry_until_success = params.get("retry-until-success", self.retry_until_success)

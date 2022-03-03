@@ -30,7 +30,7 @@ import ssl
 from copy import deepcopy
 from unittest import TestCase, mock
 
-import elasticsearch
+import opensearchpy
 import pytest
 import urllib3.exceptions
 

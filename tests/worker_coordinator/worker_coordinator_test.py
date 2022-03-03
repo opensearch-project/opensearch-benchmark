@@ -31,7 +31,7 @@ import unittest.mock as mock
 from datetime import datetime
 from unittest import TestCase
 
-import elasticsearch
+import opensearchpy
 import pytest
 
 from osbenchmark import metrics, workload, exceptions, config
