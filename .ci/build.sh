@@ -40,7 +40,6 @@ function build {
   set +u
 
   export PATH="$HOME/.pyenv/bin:$PATH"
-  export TERM=dumb
   export LC_ALL=en_US.UTF-8
   update_pyenv
   eval "$(pyenv init -)"
@@ -65,7 +64,6 @@ function build_it {
   set +u
 
   export PATH="$HOME/.pyenv/bin:$PATH"
-  export TERM=dumb
   export LC_ALL=en_US.UTF-8
   export BENCHMARK_HOME="$GITHUB_WORKSPACE"
   export JAVA_PATH="/opt/hostedtoolcache/Java_Adopt_jdk"

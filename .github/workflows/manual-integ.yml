@@ -4,10 +4,13 @@ jobs:
   Integration-Tests:
     strategy:
       matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
         python-version:
           - Python_3.8
           - Python_3.9
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
@@ -37,3 +40,5 @@ jobs:
         run: bash .ci/build.sh build_it ${{ matrix.python-version }}
         env:
           BENCHMARK_HOME: env.GITHUB_WORKSPACE
+      - name: Debugging with tmate
+        uses: mxschmitt/action-tmate@v3.11
