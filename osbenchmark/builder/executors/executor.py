@@ -37,4 +37,4 @@ class Executor:
         try:
             self.executor.copy(host, source, destination, kwargs)
         except Exception as e:
-            raise ExecutorError("Copying \"{}\" to \"{}\" failed on host \"{}\"", e)
+            raise ExecutorError("Copying \"{}\" to \"{}\" failed on host \"{}\"".format(source, destination, host), e)

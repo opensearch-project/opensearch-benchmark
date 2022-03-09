@@ -2,6 +2,7 @@ import unittest.mock as mock
 from unittest import TestCase
 
 from osbenchmark.builder.executors.shell_executor import ShellExecutor
+from osbenchmark.exceptions import ExecutorError
 
 
 class ShellExecutorTests(TestCase):
@@ -21,14 +22,13 @@ class ShellExecutorTests(TestCase):
     def test_command_with_logging_success(self, run_subprocess_with_logging):
         run_subprocess_with_logging.return_value = 0
 
-        output = self.executor.execute(self.host, self.command)
-        self.assertEqual(output, None)
+        self.executor.execute(self.host, self.command)
 
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     def test_command_with_logging_failure(self, run_subprocess_with_logging):
         run_subprocess_with_logging.return_value = 86
 
-        with self.assertRaises(Exception):
+        with self.assertRaises(ExecutorError):
             self.executor.execute(self.host, self.command)
 
     @mock.patch("shutil.copy")
@@ -36,9 +36,4 @@ class ShellExecutorTests(TestCase):
         source = "/path/to/src"
         dest = "/path/to/dest"
 
-        output = self.executor.copy(self.host, source, dest)
-        self.assertEqual(output, None)
-
-
-
-
+        self.executor.copy(self.host, source, dest)
