@@ -2,7 +2,6 @@ import shutil
 import subprocess
 
 from osbenchmark.builder.executors.executor import Executor
-from osbenchmark.exceptions import ExecutorError
 from osbenchmark.utils import process
 
 
@@ -15,7 +14,7 @@ class ShellExecutor(Executor):
             if process.run_subprocess_with_logging(command, stdout=stdout, stderr=stderr, env=env, detach=detach):
                 msg = "Command: \"{}\" returned a non-zero exit code".format(command)
                 self.logger.error(msg)
-                raise ExecutorError(msg)
+                raise Exception(msg)
 
-    def copy(self, host, source, destination):
+    def copy(self, host, source, destination, **kwargs):
         shutil.copy(source, destination)
