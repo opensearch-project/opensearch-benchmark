@@ -39,22 +39,22 @@ class DockerLauncher(Launcher):
         except ExecutorError as e:
             raise LaunchError("Exception starting OpenSearch Docker container", e)
 
-        container_id = self._get_container_id(binary_path)
-        self._wait_for_healthy_running_container(container_id, DockerLauncher.PROCESS_WAIT_TIMEOUT_SECONDS)
+        container_id = self._get_container_id(host, binary_path)
+        self._wait_for_healthy_running_container(host, container_id, DockerLauncher.PROCESS_WAIT_TIMEOUT_SECONDS)
 
     def _docker_compose(self, compose_config, cmd):
         return "docker-compose -f {} {}".format(os.path.join(compose_config, "docker-compose.yml"), cmd)
 
-    def _get_container_id(self, compose_config):
+    def _get_container_id(self, host, compose_config):
         compose_ps_cmd = self._docker_compose(compose_config, "ps -q")
-        return self.executor.execute(compose_ps_cmd, ouput=True)[0]
+        return self.executor.execute(host, compose_ps_cmd, output=True)[0]
 
-    def _wait_for_healthy_running_container(self, container_id, timeout):
+    def _wait_for_healthy_running_container(self, host, container_id, timeout):
         cmd = 'docker ps -a --filter "id={}" --filter "status=running" --filter "health=healthy" -q'.format(container_id)
         stop_watch = self.clock.stop_watch()
         stop_watch.start()
         while stop_watch.split_time() < timeout:
-            containers = self.executor.execute(cmd, ouput=True)
+            containers = self.executor.execute(host, cmd, output=True)
             if len(containers) > 0:
                 return
             time.sleep(0.5)
