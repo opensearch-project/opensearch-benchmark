@@ -1,17 +1,30 @@
-"""
-Executors are used to run shell commands on the cluster hosts. Implementations of this class will use various
-technologies to interface with the hosts of a cluster.
-"""
-class Executor:
-    def __init__(self):
-        pass
+import logging
 
-    def execute(self, host, commands):
+
+class Executor:
+    """
+    Executors are used to run shell commands on the cluster hosts. Implementations of this class will use various
+    technologies to interface with the hosts of a cluster.
+    """
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+
+    def execute(self, host, command):
         """
         Executes a list of commands against the provided host
 
         ;param host: A Host object defining the host on which to execute the commands
-        ;param commands: A list of strings defining shell commands
-        ;return return_code: The return code of the execution
+        ;param command: A shell command as a string
+        ;return output: The output of the command
         """
         raise NotImplementedError
+
+    def copy(self, host, source, destination):
+        """
+        Copies the specified source to the destination on the given host
+
+        ;param host: A Host object defining the host on which to execute the commands
+        ;param source: The source file to copy
+        ;param destination: The destination to copy to
+        ;return None
+        """
