@@ -46,6 +46,12 @@ class LaunchError(BenchmarkError):
     """
 
 
+class ExecutorError(BenchmarkError):
+    """
+    Thrown whenever there was a problem executing a builder command
+    """
+
+
 class SystemSetupError(BenchmarkError):
     """
     Thrown when a user did something wrong, e.g. the metrics store is not started or required software is not installed
