@@ -7,7 +7,7 @@ from osbenchmark.exceptions import ExecutorError
 
 class ShellExecutorTests(TestCase):
     def setUp(self):
-        self.executor = ShellExecutor(None)
+        self.executor = ShellExecutor()
         self.host = None
         self.command = None
 

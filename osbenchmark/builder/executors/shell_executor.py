@@ -15,5 +15,5 @@ class ShellExecutor(Executor):
             if process.run_subprocess_with_logging(command, stdout=stdout, stderr=stderr, env=env, detach=detach):
                 raise ExecutorError("Command: \"{}\" returned a non-zero exit code".format(command))
 
-    def copy(self, host, source, destination, **kwargs):
+    def copy(self, host, source, destination):
         shutil.copy(source, destination)

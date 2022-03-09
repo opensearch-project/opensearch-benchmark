@@ -1,17 +1,17 @@
 import unittest.mock as mock
 from unittest import TestCase
 
-from osbenchmark.builder.executors.executor import Executor
+from osbenchmark.builder.executors.executor_decorator import ExecutorWithExceptionHandling
 from osbenchmark.exceptions import ExecutorError
 
 
-class ExecutorTests(TestCase):
+class ExecutorWithExceptionHandlingTests(TestCase):
     def setUp(self):
         self.executor_impl = mock.Mock()
         self.executor_impl.execute.return_value = None
         self.executor_impl.copy.return_value = None
 
-        self.executor = Executor(self.executor_impl)
+        self.executor = ExecutorWithExceptionHandling(self.executor_impl)
         self.host = None
         self.command = None
         self.source = "/path/to/source"
