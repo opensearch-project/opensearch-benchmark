@@ -1,7 +1,7 @@
 import unittest.mock as mock
 from unittest import TestCase
 
-from osbenchmark.builder.executors.executor_decorator import ExecutorWithExceptionHandling
+from osbenchmark.builder.executors.exception_handling_executor import ExceptionHandlingExecutor
 from osbenchmark.exceptions import ExecutorError
 
 
@@ -11,7 +11,7 @@ class ExecutorWithExceptionHandlingTests(TestCase):
         self.executor_impl.execute.return_value = None
         self.executor_impl.copy.return_value = None
 
-        self.executor = ExecutorWithExceptionHandling(self.executor_impl)
+        self.executor = ExceptionHandlingExecutor(self.executor_impl)
         self.host = None
         self.command = None
         self.source = "/path/to/source"

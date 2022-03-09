@@ -2,7 +2,7 @@ from osbenchmark.builder.executors.executor import Executor
 from osbenchmark.exceptions import ExecutorError
 
 
-class ExecutorWithExceptionHandling(Executor):
+class ExceptionHandlingExecutor(Executor):
     def __init__(self, executor):
         super().__init__()
         self.executor = executor

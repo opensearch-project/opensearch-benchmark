@@ -30,10 +30,3 @@ class ShellExecutorTests(TestCase):
 
         with self.assertRaises(ExecutorError):
             self.executor.execute(self.host, self.command)
-
-    @mock.patch("shutil.copy")
-    def test_copy(self, shutil_copy):
-        source = "/path/to/src"
-        dest = "/path/to/dest"
-
-        self.executor.copy(self.host, source, dest)
