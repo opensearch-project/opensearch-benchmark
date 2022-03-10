@@ -68,7 +68,8 @@ def exit_status_as_bool(runnable, quiet=False):
         return False
 
 
-def run_subprocess_with_logging(command_line, header=None, level=logging.INFO, stdin=None, env=None, detach=False):
+def run_subprocess_with_logging(command_line, header=None, level=logging.INFO, stdin=None, stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT, env=None, detach=False):
     """
     Runs the provided command line in a subprocess. All output will be captured by a logger.
 
@@ -77,6 +78,10 @@ def run_subprocess_with_logging(command_line, header=None, level=logging.INFO, s
     :param level: The log level to use for output (default: logging.INFO).
     :param stdin: The stdout object returned by subprocess.Popen(stdout=PIPE) allowing chaining of shell operations with pipes
       (default: None).
+    ;param stdout: The form that the stdout of Popen will take. If this argument is of type PIPE, the output of the command
+      will be returned as a stream.
+    ;param stderr: The form that the stderr of Popen will take. If this argument is  of type PIPE, the output of the command
+      will be returned as a stream.
     :param env: Use specific environment variables (default: None).
     :param detach: Whether to detach this process from its parent process (default: False).
     :return: The process exit code as an int.
@@ -90,8 +95,8 @@ def run_subprocess_with_logging(command_line, header=None, level=logging.INFO, s
 
     # pylint: disable=subprocess-popen-preexec-fn
     with subprocess.Popen(command_line_args,
-                          stdout=subprocess.PIPE,
-                          stderr=subprocess.STDOUT,
+                          stdout=stdout,
+                          stderr=stderr,
                           universal_newlines=True,
                           env=env,
                           stdin=stdin if stdin else None,
