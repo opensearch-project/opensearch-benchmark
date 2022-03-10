@@ -1,17 +1,17 @@
 import unittest.mock as mock
 from unittest import TestCase
 
-from osbenchmark.builder.executors.exception_handling_executor import ExceptionHandlingExecutor
+from osbenchmark.builder.executors.exception_handling_shell_executor import ExceptionHandlingShellExecutor
 from osbenchmark.exceptions import ExecutorError
 
 
-class ExecutorWithExceptionHandlingTests(TestCase):
+class ExceptionHandlingShellExecutorTests(TestCase):
     def setUp(self):
         self.executor_impl = mock.Mock()
         self.executor_impl.execute.return_value = None
         self.executor_impl.copy.return_value = None
 
-        self.executor = ExceptionHandlingExecutor(self.executor_impl)
+        self.executor = ExceptionHandlingShellExecutor(self.executor_impl)
         self.host = None
         self.command = None
         self.source = "/path/to/source"
@@ -25,12 +25,3 @@ class ExecutorWithExceptionHandlingTests(TestCase):
 
         with self.assertRaises(ExecutorError):
             self.executor.execute(self.host, self.command)
-
-    def test_success_copying(self):
-        self.executor.copy(self.host, self.source, self.destination)
-
-    def test_failure_copying(self):
-        self.executor_impl.copy.side_effect = Exception("error")
-
-        with self.assertRaises(ExecutorError):
-            self.executor.copy(self.host, self.source, self.destination)

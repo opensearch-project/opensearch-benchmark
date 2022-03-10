@@ -1,13 +1,13 @@
 import unittest.mock as mock
 from unittest import TestCase
 
-from osbenchmark.builder.executors.shell_executor import ShellExecutor
+from osbenchmark.builder.executors.local_shell_executor import LocalShellExecutor
 from osbenchmark.exceptions import ExecutorError
 
 
-class ShellExecutorTests(TestCase):
+class LocalShellExecutorTests(TestCase):
     def setUp(self):
-        self.executor = ShellExecutor()
+        self.executor = LocalShellExecutor()
         self.host = None
         self.command = None
 
