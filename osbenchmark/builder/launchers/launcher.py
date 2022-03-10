@@ -2,8 +2,8 @@ class Launcher:
     """
     Launchers are used to start and stop OpenSearch on the nodes in a self-managed cluster.
     """
-    def __init__(self, executor):
-        self.executor = executor
+    def __init__(self, shell_executor):
+        self.shell_executor = shell_executor
 
     def start(self, host, node_configurations):
         """

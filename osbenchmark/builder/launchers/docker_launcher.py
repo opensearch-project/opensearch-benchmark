@@ -11,8 +11,8 @@ class DockerLauncher(Launcher):
     # May download a Docker image and that can take some time
     PROCESS_WAIT_TIMEOUT_SECONDS = 10 * 60
 
-    def __init__(self, pci, executor, clock=time.Clock):
-        super().__init__(executor)
+    def __init__(self, pci, shell_executor, clock=time.Clock):
+        super().__init__(shell_executor)
         self.logger = logging.getLogger(__name__)
         self.clock = clock
 
@@ -37,7 +37,7 @@ class DockerLauncher(Launcher):
         compose_cmd = self._docker_compose(binary_path, "up -d")
 
         try:
-            self.executor.execute(host, compose_cmd)
+            self.shell_executor.execute(host, compose_cmd)
         except ExecutorError as e:
             raise LaunchError("Exception starting OpenSearch Docker container", e)
 
@@ -49,14 +49,14 @@ class DockerLauncher(Launcher):
 
     def _get_container_id(self, host, compose_config):
         compose_ps_cmd = self._docker_compose(compose_config, "ps -q")
-        return self.executor.execute(host, compose_ps_cmd, output=True)[0]
+        return self.shell_executor.execute(host, compose_ps_cmd, output=True)[0]
 
     def _wait_for_healthy_running_container(self, host, container_id, timeout):
         cmd = 'docker ps -a --filter "id={}" --filter "status=running" --filter "health=healthy" -q'.format(container_id)
         stop_watch = self.clock.stop_watch()
         stop_watch.start()
         while stop_watch.split_time() < timeout:
-            containers = self.executor.execute(host, cmd, output=True)
+            containers = self.shell_executor.execute(host, cmd, output=True)
             if len(containers) > 0:
                 return
             time.sleep(0.5)
@@ -71,7 +71,7 @@ class DockerLauncher(Launcher):
             if metrics_store:
                 telemetry.add_metadata_for_node(metrics_store, node.node_name, node.host_name)
             node.telemetry.detach_from_node(node, running=True)
-            self.executor.execute(host, self._docker_compose(node.binary_path, "down"))
+            self.shell_executor.execute(host, self._docker_compose(node.binary_path, "down"))
             node.telemetry.detach_from_node(node, running=False)
             if metrics_store:
                 node.telemetry.store_system_metrics(node, metrics_store)

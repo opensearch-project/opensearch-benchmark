@@ -14,10 +14,10 @@ from osbenchmark.metrics import InMemoryMetricsStore
 
 class DockerLauncherTests(TestCase):
     def setUp(self):
-        self.executor = Mock()
+        self.shell_executor = Mock()
         stop_watch = IterationBasedStopWatch(max_iterations=2)
         clock = TestClock(stop_watch=stop_watch)
-        self.launcher = DockerLauncher(None, self.executor, clock=clock)
+        self.launcher = DockerLauncher(None, self.shell_executor, clock=clock)
 
         self.host = None
         self.node_config = NodeConfiguration(build_type="docker",
@@ -30,7 +30,7 @@ class DockerLauncherTests(TestCase):
     def test_starts_container_successfully(self):
         # [Start container (from docker-compose up), Docker container id (from docker-compose ps),
         # Docker container id (from docker ps --filter ...)]
-        self.executor.execute.side_effect = [None, ["de604d0d"], ["de604d0d"]]
+        self.shell_executor.execute.side_effect = [None, ["de604d0d"], ["de604d0d"]]
 
         nodes = self.launcher.start(self.host, [self.node_config])
         self.assertEqual(1, len(nodes))
@@ -42,7 +42,7 @@ class DockerLauncherTests(TestCase):
         self.assertEqual("testnode", node.node_name)
         self.assertIsNotNone(node.telemetry)
 
-        self.executor.execute.assert_has_calls([
+        self.shell_executor.execute.assert_has_calls([
             mock.call(self.host, "docker-compose -f /bin/docker-compose.yml up -d"),
             mock.call(self.host, "docker-compose -f /bin/docker-compose.yml ps -q", output=True),
             mock.call(self.host, 'docker ps -a --filter "id=de604d0d" --filter "status=running" --filter "health=healthy" -q', output=True)
@@ -52,7 +52,7 @@ class DockerLauncherTests(TestCase):
     def test_container_not_started(self, sleep):
         # [Start container (from docker-compose up), Docker container id (from docker-compose ps),
         # but NO Docker container id (from docker ps --filter...) twice
-        self.executor.execute.side_effect = [None, ["de604d0d"], [], []]
+        self.shell_executor.execute.side_effect = [None, ["de604d0d"], [], []]
 
         with self.assertRaisesRegex(LaunchError, "No healthy running container after 600 seconds!"):
             self.launcher.start(self.host, [self.node_config])
@@ -65,7 +65,7 @@ class DockerLauncherTests(TestCase):
         self.launcher.stop(self.host, nodes, metrics_store=metrics_store)
 
         add_metadata_for_node.assert_called_once_with(metrics_store, "testnode", "127.0.0.1")
-        self.executor.execute.assert_called_once_with(self.host, "docker-compose -f /bin/docker-compose.yml down")
+        self.shell_executor.execute.assert_called_once_with(self.host, "docker-compose -f /bin/docker-compose.yml down")
 
     @mock.patch("osbenchmark.telemetry.add_metadata_for_node")
     def test_stops_container_when_no_metrics_store_is_provided(self, add_metadata_for_node):
@@ -75,7 +75,7 @@ class DockerLauncherTests(TestCase):
         self.launcher.stop(self.host, nodes, metrics_store=metrics_store)
 
         self.assertEqual(0, add_metadata_for_node.call_count)
-        self.executor.execute.assert_called_once_with(self.host, "docker-compose -f /bin/docker-compose.yml down")
+        self.shell_executor.execute.assert_called_once_with(self.host, "docker-compose -f /bin/docker-compose.yml down")
 
 
 class IterationBasedStopWatch:
