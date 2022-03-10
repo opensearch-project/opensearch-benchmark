@@ -1,13 +1,9 @@
-import logging
-
-
 class Launcher:
     """
     Launchers are used to start and stop OpenSearch on the nodes in a self-managed cluster.
     """
     def __init__(self, executor):
         self.executor = executor
-        self.logger = logging.getLogger(__name__)
 
     def start(self, host, node_configurations):
         """

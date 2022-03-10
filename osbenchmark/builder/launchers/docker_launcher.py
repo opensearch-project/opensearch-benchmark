@@ -1,3 +1,4 @@
+import logging
 import os
 
 from osbenchmark import time, telemetry
@@ -12,6 +13,7 @@ class DockerLauncher(Launcher):
 
     def __init__(self, pci, executor, clock=time.Clock):
         super().__init__(executor)
+        self.logger = logging.getLogger(__name__)
         self.clock = clock
 
     def start(self, host, node_configurations):
