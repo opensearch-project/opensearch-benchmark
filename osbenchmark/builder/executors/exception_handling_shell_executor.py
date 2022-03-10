@@ -8,6 +8,6 @@ class ExceptionHandlingShellExecutor(ShellExecutor):
 
     def execute(self, host, command, **kwargs):
         try:
-            self.executor.execute(host, command, kwargs)
+            return self.executor.execute(host, command, kwargs)
         except Exception as e:
             raise ExecutorError("Command \"{}\" on host \"{}\" failed to execute".format(command, host), e)
