@@ -7,13 +7,13 @@ class PeriodicWaiter:
         self.poll_timeout = poll_timeout
         self.clock = clock
 
-    def wait(self, poll_function, **poll_arguments):
+    def wait(self, poll_function, *poll_function_args, **poll_function_kwargs):
         stop_watch = self.clock.stop_watch()
         stop_watch.start()
-        while stop_watch.split_time() < self.poll_timeout:
-            if poll_function(**poll_arguments):
-                return
 
-            time.sleep(self.poll_timeout)
+        while stop_watch.split_time() < self.poll_timeout:
+            if poll_function(*poll_function_args, **poll_function_kwargs):
+                return
+            time.sleep(self.poll_interval)
 
         raise TimeoutError

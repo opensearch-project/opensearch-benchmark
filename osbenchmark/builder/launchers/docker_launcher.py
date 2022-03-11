@@ -56,7 +56,7 @@ class DockerLauncher(Launcher):
         return self.shell_executor.execute(host, compose_ps_cmd, output=True)[0]
 
     def _wait_for_healthy_running_container(self, host, container_id):
-        self.waiter.wait(self._is_container_healthy, host=host, container_id=container_id)
+        self.waiter.wait(self._is_container_healthy, host, container_id)
 
     def _is_container_healthy(self, host, container_id):
         cmd = 'docker ps -a --filter "id={}" --filter "status=running" --filter "health=healthy" -q'.format(container_id)
