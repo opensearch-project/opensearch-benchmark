@@ -15,13 +15,12 @@ class Launcher:
         """
         raise NotImplementedError
 
-    def stop(self, host, nodes, metrics_store):
+    def stop(self, host, nodes):
         """
         Stops the OpenSearch nodes on a given host
 
         ;param host: A Host object defining the host on which to stop the nodes
         ;param nodes: A list of Node objects defining the nodes running on a host
-        ;param metrics_store: A reference to the metrics store, used for collecting telemetry data before stopping the nodes
         ;return nodes: A list of Node objects representing OpenSearch nodes that were successfully stopped on the host
         """
         raise NotImplementedError

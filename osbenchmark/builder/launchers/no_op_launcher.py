@@ -5,5 +5,5 @@ class NoOpLauncher(Launcher):
     def start(self, host, node_configurations):
         pass
 
-    def stop(self, host, nodes, metrics_store):
+    def stop(self, host, nodes):
         pass
