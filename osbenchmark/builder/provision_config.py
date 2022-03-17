@@ -30,6 +30,8 @@ from enum import Enum
 import tabulate
 
 from osbenchmark import exceptions, PROGRAM_NAME
+from osbenchmark.builder.models.flavors import Flavor
+from osbenchmark.builder.models.providers import Provider
 from osbenchmark.utils import console, repo, io, modules
 
 PROVISION_CONFIG_FORMAT_VERSION = 1
@@ -92,7 +94,7 @@ def load_provision_config_instance(repo, name, provision_config_instance_params=
     variables.update(all_config_base_vars)
     variables.update(all_provision_config_instance_vars)
 
-    return ProvisionConfigInstance(name, root_path, all_config_paths, variables)
+    return ProvisionConfigInstance(name, root_path, all_config_paths, variables=variables)
 
 
 def list_plugins(cfg):
@@ -248,13 +250,15 @@ class ProvisionConfigInstance:
     # name of the initial Python file to load for provision_config_instances.
     entry_point = "config"
 
-    def __init__(self, names, root_path, config_paths, variables=None):
+    def __init__(self, names, root_path, config_paths, provider=Provider.LOCAL, flavor=Flavor.SELF_MANAGED, variables=None):
         """
         Creates new settings for a benchmark candidate.
 
         :param names: Descriptive name(s) for this provision_config_instance.
         :param root_path: The root path from which bootstrap hooks should be loaded if any. May be ``None``.
         :param config_paths: A non-empty list of paths where the raw config can be found.
+        ;param provider: The infrastructure provider for the cluster
+        ;param flavor: The flavor of cluster to be provisioned
         :param variables: A dict containing variable definitions that need to be replaced.
         """
         if variables is None:
@@ -264,6 +268,8 @@ class ProvisionConfigInstance:
         else:
             self.names = names
         self.root_path = root_path
+        self.provider = provider
+        self.flavor = flavor
         self.config_paths = config_paths
         self.variables = variables
 
