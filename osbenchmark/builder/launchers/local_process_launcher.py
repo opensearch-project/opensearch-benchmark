@@ -34,7 +34,7 @@ class LocalProcessLauncher(Launcher):
         binary_path = node_configuration.binary_path
 
         java_major_version, java_home = java_resolver.java_home(node_configuration.provision_config_instance_runtime_jdks,
-                                                                self.pci.variables["builder"]["runtime"]["jdk"],
+                                                                self.pci.variables["system"]["runtime"]["jdk"],
                                                                 node_configuration.provision_config_instance_provides_bundled_jdk)
         self.logger.info("Java major version: %s", java_major_version)
         self.logger.info("Java home: %s", java_home)
@@ -104,8 +104,7 @@ class LocalProcessLauncher(Launcher):
         if os.name == "posix" and os.geteuid() == 0:
             raise LaunchError("Cannot launch OpenSearch as root. Please run Benchmark as a non-root user.")
 
-        os.chdir(binary_path)
-        cmd = [io.escape_path(os.path.join(".", "bin", "opensearch"))]
+        cmd = [io.escape_path(os.path.join(binary_path, "bin", "opensearch"))]
         cmd.extend(["-d", "-p", "pid"])
 
         self.shell_executor.execute(host, " ".join(cmd), env=env, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, detach=True)
@@ -121,7 +120,7 @@ class LocalProcessLauncher(Launcher):
     def _is_pid_file_available(self, pid_file_name):
         try:
             pid = self._get_pid_from_file(pid_file_name)
-            return pid
+            return pid != 0
         except (FileNotFoundError, EOFError):
             self.logger.info("PID file %s is not ready", pid_file_name)
             return False
@@ -152,7 +151,7 @@ class LocalProcessLauncher(Launcher):
         opensearch_process = self._get_opensearch_process(node)
         if opensearch_process:
             node.telemetry.detach_from_node(node, running=True)
-            node_stopped = self._stop_process(opensearch_process)
+            node_stopped = self._stop_process(opensearch_process, node)
             node.telemetry.detach_from_node(node, running=False)
         # store system metrics in any case (telemetry devices may derive system metrics while the node is running)
         if self.metrics_store:
