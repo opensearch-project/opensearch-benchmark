@@ -399,6 +399,7 @@ def splitext(file_name):
     else:
         return os.path.splitext(file_name)
 
+
 def plain_text(file):
     _, ext = splitext(file)
     return ext in [".ini", ".txt", ".json", ".yml", ".yaml", ".options", ".properties"]

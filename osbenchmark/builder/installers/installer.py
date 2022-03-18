@@ -1,8 +1,15 @@
-"""
-Installers are invoked to prepare the OpenSearch and Plugin data that exists on a host so that an OpenSearch cluster
-can be started.
-"""
+import jinja2
+
+from osbenchmark.exceptions import InvalidSyntax, SystemSetupError
+from osbenchmark.utils import io
+
+
 class Installer:
+    """
+    Installers are invoked to prepare the OpenSearch and Plugin data that exists on a host so that an OpenSearch cluster
+    can be started.
+    """
+
     def __init__(self, executor):
         self.executor = executor
 
@@ -25,3 +32,13 @@ class Installer:
         ;return None
         """
         raise NotImplementedError
+
+    def _render_template(self, env, variables, file_name):
+        try:
+            template = env.get_template(io.basename(file_name))
+            # force a new line at the end. Jinja seems to remove it.
+            return template.render(variables) + "\n"
+        except jinja2.exceptions.TemplateSyntaxError as e:
+            raise InvalidSyntax("%s in %s" % (str(e), file_name))
+        except BaseException as e:
+            raise SystemSetupError("%s in %s" % (str(e), file_name))
