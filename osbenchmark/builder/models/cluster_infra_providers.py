@@ -1,6 +1,6 @@
 from enum import Enum
 
 
-class Provider(str, Enum):
+class ClusterInfraProvider(str, Enum):
     LOCAL = "local"
     AWS = "aws"

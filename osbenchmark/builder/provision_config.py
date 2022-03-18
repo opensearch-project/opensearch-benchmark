@@ -30,8 +30,8 @@ from enum import Enum
 import tabulate
 
 from osbenchmark import exceptions, PROGRAM_NAME
-from osbenchmark.builder.models.flavors import Flavor
-from osbenchmark.builder.models.providers import Provider
+from osbenchmark.builder.models.cluster_flavors import ClusterFlavor
+from osbenchmark.builder.models.cluster_infra_providers import ClusterInfraProvider
 from osbenchmark.utils import console, repo, io, modules
 
 PROVISION_CONFIG_FORMAT_VERSION = 1
@@ -250,7 +250,8 @@ class ProvisionConfigInstance:
     # name of the initial Python file to load for provision_config_instances.
     entry_point = "config"
 
-    def __init__(self, names, root_path, config_paths, provider=Provider.LOCAL, flavor=Flavor.SELF_MANAGED, variables=None):
+    def __init__(self, names, root_path, config_paths, provider=ClusterInfraProvider.LOCAL,
+                 flavor=ClusterFlavor.SELF_MANAGED, variables=None):
         """
         Creates new settings for a benchmark candidate.
 
