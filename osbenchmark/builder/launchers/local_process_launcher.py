@@ -85,8 +85,8 @@ class LocalProcessLauncher(Launcher):
             env["OPENSEARCH_JAVA_OPTS"] = "-XX:+ExitOnOutOfMemoryError"
 
         # we just blindly trust telemetry here...
-        for v in telemetry.instrument_candidate_java_opts():
-            self._set_env(env, "OPENSEARCH_JAVA_OPTS", v)
+        for jvm_option in telemetry.instrument_candidate_java_opts():
+            self._set_env(env, "OPENSEARCH_JAVA_OPTS", jvm_option)
 
         self.logger.debug("env for [%s]: %s", node_name, str(env))
         return env
