@@ -5,47 +5,36 @@ import uuid
 import jinja2
 from jinja2 import select_autoescape
 
+from osbenchmark import paths
 from osbenchmark.builder.installers.installer import Installer
+from osbenchmark.builder.provisioner import NodeConfiguration
+from osbenchmark.utils import convert, io
 
 
 class DockerInstaller(Installer):
-    def __init__(self, pci, executor, node_name, ip, http_port, node_root_dir, distribution_version, benchmark_root, ):
+    def __init__(self, pci, executor, node_name, ip, http_port, node_root_dir):
         super().__init__(executor)
         self.logger = logging.getLogger(__name__)
         self.pci = pci
 
+        #What to do about node info?
         self.node_name = node_name
         self.node_ip = ip
         self.http_port = http_port
         self.node_root_dir = node_root_dir
         self.node_log_dir = os.path.join(node_root_dir, "logs", "server")
         self.heap_dump_dir = os.path.join(node_root_dir, "heapdump")
-        self.distribution_version = distribution_version
-        self.benchmark_root = benchmark_root
         self.binary_path = os.path.join(node_root_dir, "install")
         # use a random subdirectory to isolate multiple runs because an external (non-root) user cannot clean it up.
         self.data_paths = [os.path.join(node_root_dir, "data", str(uuid.uuid4()))]
 
-
-        provisioner_defaults = {
-            "cluster_name": "benchmark-provisioned-cluster",
-            "node_name": self.node_name,
-            # we bind-mount the directories below on the host to these ones.
-            "install_root_path": "/usr/share/opensearch",
-            "data_paths": ["/usr/share/opensearch/data"],
-            "log_path": "/var/log/opensearch",
-            "heap_dump_path": "/usr/share/opensearch/heapdump",
-            # Docker container needs to expose service on external interfaces
-            "network_host": "0.0.0.0",
-            "discovery_type": "single-node",
-            "http_port": str(self.http_port),
-            "transport_port": str(self.http_port + 100),
-            "cluster_settings": {}
-        }
-
-        self.config_vars = {}
-        self.config_vars.update(self.provision_config_instance.variables)
-        self.config_vars.update(provisioner_defaults)
+        # How to handle this for remote machines??
+        self.node_root_dir = node_root_dir
+        self.node_log_dir = os.path.join(node_root_dir, "logs", "server")
+        self.heap_dump_dir = os.path.join(node_root_dir, "heapdump")
+        self.binary_path = os.path.join(node_root_dir, "install")
+        # use a random subdirectory to isolate multiple runs because an external (non-root) user cannot clean it up.
+        self.data_paths = [os.path.join(node_root_dir, "data", str(uuid.uuid4()))]
 
     def install(self, host, binaries):
         self._prepare(host)
@@ -142,7 +131,7 @@ class DockerInstaller(Installer):
             variables[key] = self.pci.variables["origin"]["docker"][key]
 
     def _render_template_from_docker_file(self, variables):
-        compose_file = os.path.join(self.benchmark_root, "resources", "docker-compose.yml.j2")
+        compose_file = os.path.join(paths.benchmark_root(), "resources", "docker-compose.yml.j2")
         env = jinja2.Environment(loader=jinja2.FileSystemLoader(io.dirname(compose_file)), autoescape=select_autoescape(['html', 'xml']))
         return self._render_template(env, variables, compose_file)
 

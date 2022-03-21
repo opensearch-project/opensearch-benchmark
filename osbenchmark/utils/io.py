@@ -400,7 +400,7 @@ def splitext(file_name):
         return os.path.splitext(file_name)
 
 
-def plain_text(file):
+def is_plain_text(file):
     _, ext = splitext(file)
     return ext in [".ini", ".txt", ".json", ".yml", ".yaml", ".options", ".properties"]
 
