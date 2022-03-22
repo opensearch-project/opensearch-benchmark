@@ -6,6 +6,8 @@ from osbenchmark.telemetry import Telemetry
 
 @dataclass
 class Node:
+    """A representation of a node within a host"""
+
     name: str
     port: int
     pid: int
