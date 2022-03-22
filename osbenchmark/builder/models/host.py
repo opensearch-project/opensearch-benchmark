@@ -8,7 +8,7 @@ class Host:
     """A representation of a host within a cluster"""
 
     name: str
-    ip: str
+    address: str
     metadata: dict
     node_count: int
     node: Node
