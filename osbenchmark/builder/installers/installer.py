@@ -23,12 +23,11 @@ class Installer:
         """
         raise NotImplementedError
 
-    def cleanup(self, host, node_configurations):
+    def cleanup(self, host):
         """
         Removes the data that was downloaded, installed, and created on a given host during the test execution
 
         ;param host: A Host object defining the host on which to remove the data
-        ;param node_configurations: A list of NodeConfiguration objects detailing the installation data of the nodes on the host
         ;return None
         """
         raise NotImplementedError
