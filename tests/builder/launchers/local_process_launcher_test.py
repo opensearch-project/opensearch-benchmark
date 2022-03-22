@@ -32,9 +32,10 @@ class LocalProcessLauncherTests(TestCase):
                 "params": None
             }
         }
-        self.pci = ProvisionConfigInstance("fake_pci", "/path/to/root", ["/path/to/config"], variables=self.variables)
+        self.provision_config_instance = ProvisionConfigInstance("fake_provision_config_instance", "/path/to/root",
+                                                                 ["/path/to/config"], variables=self.variables)
 
-        self.launcher = LocalProcessLauncher(self.pci, self.shell_executor, self.metrics_store)
+        self.launcher = LocalProcessLauncher(self.provision_config_instance, self.shell_executor, self.metrics_store)
         self.launcher.waiter = Mock()
         self.host = None
         self.path = "fake"
@@ -111,7 +112,7 @@ class LocalProcessLauncherTests(TestCase):
         self.assertIsNone(env.get("JAVA_HOME"))
 
     def test_pass_env_vars(self):
-        self.pci.variables["system"]["env"]["passenv"] = "JAVA_HOME,FOO1"
+        self.provision_config_instance.variables["system"]["env"]["passenv"] = "JAVA_HOME,FOO1"
 
         os.environ["JAVA_HOME"] = "/path/to/java"
         os.environ["FOO1"] = "BAR1"
@@ -126,7 +127,7 @@ class LocalProcessLauncherTests(TestCase):
         self.assertEqual(env["OPENSEARCH_JAVA_OPTS"], "-XX:+ExitOnOutOfMemoryError")
 
     def test_pass_java_opts(self):
-        self.pci.variables["system"]["env"]["passenv"] = "OPENSEARCH_JAVA_OPTS"
+        self.provision_config_instance.variables["system"]["env"]["passenv"] = "OPENSEARCH_JAVA_OPTS"
 
         os.environ["OPENSEARCH_JAVA_OPTS"] = "-XX:-someJunk"
 
