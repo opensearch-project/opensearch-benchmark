@@ -18,9 +18,6 @@ class DockerInstaller(Installer):
         self.provision_config_instance = provision_config_instance
 
     def install(self, host, binaries):
-        return self._prepare(host)
-
-    def _prepare(self, host):
         node = self._create_node()
         self._prepare_node(host, node)
 
