@@ -19,7 +19,7 @@ class Installer:
 
         ;param host: A Host object defining the host on which to install the data
         ;param binaries: A map of components to install to their paths on the host
-        ;return node_configurations: A list of NodeConfiguration objects detailing the installation data of the nodes on the host
+        ;return node: A Node object detailing the installation data of the node on the host
         """
         raise NotImplementedError
 
