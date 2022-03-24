@@ -56,11 +56,6 @@ class DockerInstaller(Installer):
             f.write(docker_cfg)
         self.executor.execute(host, "cp {0} {0}".format(docker_compose_file))
 
-    def _create_directory(self, host, directory):
-        # Create directory locally and on the host
-        io.ensure_dir(directory)
-        self.executor.execute(host, "mkdir -m 0777 -p " + directory)
-
     def _prepare_mounts(self, host, node):
         mounts = {}
         for provision_config_instance_config_path in self.provision_config_instance.config_paths:

@@ -48,3 +48,8 @@ class Installer:
             return
 
         self.executor.execute(host, "rm -r " + path)
+
+    def _create_directory(self, host, directory):
+        # Create directory locally and on the host
+        io.ensure_dir(directory)
+        self.executor.execute(host, "mkdir -m 0777 -p " + directory)
