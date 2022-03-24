@@ -57,6 +57,8 @@ class DockerInstaller(Installer):
         self.executor.execute(host, "cp {0} {0}".format(docker_compose_file))
 
     def _create_directory(self, host, directory):
+        # Create directory locally and on the host
+        io.ensure_dir(directory)
         self.executor.execute(host, "mkdir -m 0777 -p " + directory)
 
     def _prepare_mounts(self, host, node):
@@ -80,8 +82,6 @@ class DockerInstaller(Installer):
         relative_root = root[len(config_path) + 1:]
         absolute_target_root = os.path.join(node.binary_path, relative_root)
 
-        # Create directory locally and on the host
-        io.ensure_dir(absolute_target_root)
         self._create_directory(host, absolute_target_root)
 
         config_path_file_mounts = {}
@@ -166,4 +166,4 @@ class DockerInstaller(Installer):
         self._delete_path(host, host.node.binary_path)
 
     def _delete_path(self, host, path):
-        self.executor.execute(host, "rm -rf " + path)
+        self.executor.execute(host, "rm -r " + path)
