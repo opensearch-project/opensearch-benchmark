@@ -5,11 +5,11 @@ from osbenchmark.exceptions import SystemSetupError
 from osbenchmark.utils import io
 
 
-class JvmResolver:
+class JdkResolver:
     def __init__(self, executor):
         self.executor = executor
 
-    def resolve_path(self, host, majors):
+    def resolve_jdk_path(self, host, majors):
         """
         Resolves the path to the JDK with the provided major version(s). It checks the versions in the same order specified in ``majors``
         and will return the first match. To achieve this, it first checks the major version x in the environment variable ``JAVAx_HOME``
@@ -17,16 +17,16 @@ class JvmResolver:
 
         If no appropriate version is found, a ``SystemSetupError`` is raised.
 
-        :param host: The host on which to resolve the JVM path
+        :param host: The host on which to resolve the JDK path
         :param majors: Either a list of major versions to check or a single version as an ``int``.
         :return: A tuple of (major version, path to Java home directory).
         """
         if isinstance(majors, int):
-            return majors, self._resolve_path(host, [majors])
+            return majors, self._resolve_jdk_path(host, [majors])
         else:
-            return majors, self._resolve_path(host, majors)
+            return majors, self._resolve_jdk_path(host, majors)
 
-    def _resolve_path(self, host, majors):
+    def _resolve_jdk_path(self, host, majors):
         """
         Resolves the path to a JDK with one of the provided major versions.
 
@@ -65,10 +65,10 @@ class JvmResolver:
 
     def _major_version(self, host, java_home):
         """
-        Determines the major version number of JVM available at the provided JAVA_HOME directory.
+        Determines the major version number of JDK available at the provided JAVA_HOME directory.
 
         :param java_home: The JAVA_HOME directory to check.
-        :return: An int, representing the major version number of the JVM available at ``java_home``.
+        :return: An int, representing the major version number of the JDK available at ``java_home``.
         """
         version = self._system_property(host, java_home, "java.vm.specification.version")
         # are we under the "old" (pre Java 9) or the new (Java 9+) version scheme?
