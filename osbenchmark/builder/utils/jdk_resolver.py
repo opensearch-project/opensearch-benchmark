@@ -6,6 +6,8 @@ from osbenchmark.utils import io
 
 
 class JdkResolver:
+    SYS_PROP_REGEX = r".*%s.*=\s?(.*)"
+
     def __init__(self, executor):
         self.executor = executor
 
@@ -80,7 +82,7 @@ class JdkResolver:
     def _system_property(self, host, java_home, system_property_name):
         lines = self.executor.execute(host, "{} -XshowSettings:properties -version".format(self._java(java_home)), output=True)
         # matches e.g. "    java.runtime.version = 1.8.0_121-b13" and captures "1.8.0_121-b13"
-        sys_prop_pattern = re.compile(r".*%s.*=\s?(.*)" % system_property_name)
+        sys_prop_pattern = re.compile(JdkResolver.SYS_PROP_REGEX % system_property_name)
         for line in lines:
             m = sys_prop_pattern.match(line)
             if m:
