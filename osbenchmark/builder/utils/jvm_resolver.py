@@ -41,7 +41,8 @@ class JvmResolver:
         resolved_major_to_java_home_path = {}
         for java_home_env_var_name in java_home_env_var_names:
             if java_home_env_var_name in defined_env_vars:
-                major_to_java_home_path = self._resolve_major_from_java_home(host, defined_env_vars[java_home_env_var_name])
+                major_to_java_home_path = self._resolve_major_from_java_home(host, java_home_env_var_name,
+                                                                             defined_env_vars[java_home_env_var_name])
                 if major_to_java_home_path:
                     resolved_major_to_java_home_path.update(major_to_java_home_path)
 
@@ -56,8 +57,11 @@ class JvmResolver:
         env_vars_as_strings = self.executor.execute(host, "printenv", output=True)
         return dict(env_var_as_string.split("=") for env_var_as_string in env_vars_as_strings)
 
-    def _resolve_major_from_java_home(self, host, java_home):
-        return {self._major_version(host, java_home): java_home} if java_home else None
+    def _resolve_major_from_java_home(self, host, java_home_env_var_name, java_home_env_var_value):
+        if java_home_env_var_value:
+            major_version = self._major_version(host, java_home_env_var_value)
+            if java_home_env_var_name == "JAVA_HOME" or java_home_env_var_name == "JAVA{}_HOME".format(major_version):
+                return {major_version: java_home_env_var_value}
 
     def _major_version(self, host, java_home):
         """

@@ -55,3 +55,10 @@ class JvmResolverTests(TestCase):
 
         with self.assertRaises(SystemSetupError):
             self.jvm_helper.resolve_path(self.host, 10)
+
+    def test_version_does_not_match_env_var_name(self):
+        # printenv, $JAVA_HOME -XshowSettings:properties -version
+        self.executor.execute.side_effect = [["JAVA8_HOME=/fake/path"], ["java.vm.specification.version = 9"]]
+
+        with self.assertRaises(SystemSetupError):
+            self.jvm_helper.resolve_path(self.host, 8)
