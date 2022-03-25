@@ -400,6 +400,11 @@ def splitext(file_name):
         return os.path.splitext(file_name)
 
 
+def is_plain_text(file):
+    _, ext = splitext(file)
+    return ext in [".ini", ".txt", ".json", ".yml", ".yaml", ".options", ".properties"]
+
+
 def has_extension(file_name, extension):
     """
     Checks whether the given file name has the given extension.
