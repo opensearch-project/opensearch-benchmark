@@ -41,3 +41,10 @@ class Installer:
             raise InvalidSyntax("%s in %s" % (str(e), file_name))
         except BaseException as e:
             raise SystemSetupError("%s in %s" % (str(e), file_name))
+
+    def _delete_path(self, host, path):
+        path_block_list = ["", "*", "/", None]
+        if path in path_block_list:
+            return
+
+        self.executor.execute(host, "rm -r " + path)

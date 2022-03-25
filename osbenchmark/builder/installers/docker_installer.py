@@ -164,6 +164,3 @@ class DockerInstaller(Installer):
             self._delete_path(host, data_path)
 
         self._delete_path(host, host.node.binary_path)
-
-    def _delete_path(self, host, path):
-        self.executor.execute(host, "rm -r " + path)
