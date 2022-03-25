@@ -1,15 +1,15 @@
 from unittest import TestCase
 from unittest.mock import Mock
 
-from osbenchmark.builder.utils.jvm_helper import JvmHelper
+from osbenchmark.builder.utils.jvm_resolver import JvmResolver
 from osbenchmark.exceptions import SystemSetupError
 
 
-class JvmHelperTests(TestCase):
+class JvmResolverTests(TestCase):
     def setUp(self):
         self.host = None
         self.executor = Mock()
-        self.jvm_helper = JvmHelper(self.executor)
+        self.jvm_helper = JvmResolver(self.executor)
 
     def test_success_pre_java_9(self):
         # printenv, $JAVA_HOME -XshowSettings:properties -version

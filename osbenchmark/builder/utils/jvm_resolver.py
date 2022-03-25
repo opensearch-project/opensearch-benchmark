@@ -5,7 +5,7 @@ from osbenchmark.exceptions import SystemSetupError
 from osbenchmark.utils import io
 
 
-class JvmHelper:
+class JvmResolver:
     def __init__(self, executor):
         self.executor = executor
 
