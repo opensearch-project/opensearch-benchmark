@@ -110,11 +110,10 @@ def run_subprocess_with_logging(command_line, header=None, level=logging.INFO, s
 
 
 def is_benchmark_process(p):
-    return p.name() == "osbenchmark" or \
-           p.name() == "benchmark" or \
+    return p.name() == "opensearch-benchmark" or \
            (p.name().lower().startswith("python")
-            and any("osbenchmark" in e for e in p.cmdline())
-            and not any("osbenchmarkd" in e for e in p.cmdline()))
+            and any("opensearch-benchmark" in e for e in p.cmdline())
+            and not any("opensearch-benchmarkd" in e for e in p.cmdline()))
 
 
 def find_all_other_benchmark_processes():
@@ -127,7 +126,7 @@ def kill_all(predicate):
     def kill(p):
         logging.getLogger(__name__).info("Killing lingering process with PID [%s] and command line [%s].", p.pid, p.cmdline())
         p.kill()
-        # wait until process has terminated, at most 3 seconds. Otherwise we might run into TestExecution conditions with actor system
+        # wait until process has terminated, at most 3 seconds. Otherwise we might run into race conditions with actor system
         # sockets that are still open.
         for _ in range(3):
             try:
@@ -135,7 +134,6 @@ def kill_all(predicate):
                 time.sleep(1)
             except psutil.NoSuchProcess:
                 break
-
     for_all_other_processes(predicate, kill)
 
 
@@ -151,11 +149,4 @@ def for_all_other_processes(predicate, action):
 
 
 def kill_running_benchmark_instances():
-    def benchmark_process(p):
-        return p.name() == "osbenchmark" or \
-               p.name() == "benchmark" or \
-               (p.name().lower().startswith("python")
-                and any("osbenchmark" in e for e in p.cmdline())
-                and not any("osbenchmarkd" in e for e in p.cmdline()))
-
-    kill_all(benchmark_process)
+    kill_all(is_benchmark_process)
