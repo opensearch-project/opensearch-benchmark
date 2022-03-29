@@ -1,3 +1,5 @@
+# pylint: disable=protected-access
+
 import os
 from unittest import TestCase, mock
 from unittest.mock import Mock

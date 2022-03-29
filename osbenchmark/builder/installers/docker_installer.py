@@ -8,7 +8,7 @@ from jinja2 import select_autoescape
 from osbenchmark import paths
 from osbenchmark.builder.installers.installer import Installer
 from osbenchmark.builder.models.node import Node
-from osbenchmark.utils import io, console
+from osbenchmark.utils import io
 
 
 class DockerInstaller(Installer):

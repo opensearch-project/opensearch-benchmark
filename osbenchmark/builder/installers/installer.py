@@ -104,5 +104,3 @@ class Installer:
             return
 
         self.executor.execute(host, "rm -r " + path)
-
-
