@@ -71,7 +71,8 @@ class ProcessTests(TestCase):
         other_process = ProcessTests.Process(104, "init", ["/usr/sbin/init"])
         benchmark_process_p = ProcessTests.Process(105, "python3", ["/usr/bin/python3", "~/.local/bin/opensearch-benchmark"])
         benchmark_process_e = ProcessTests.Process(107, "opensearch-benchmark", ["/usr/bin/python3", "~/.local/bin/opensearch-benchmark"])
-        benchmark_process_mac = ProcessTests.Process(108, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/opensearch-benchmark"])
+        benchmark_process_mac = ProcessTests.Process(108, "Python", ["/Python.app/Contents/MacOS/Python",
+                                                                     "~/.local/bin/opensearch-benchmark"])
         # fake own process by determining our pid
         own_benchmark_process = ProcessTests.Process(
             os.getpid(), "Python",
@@ -123,7 +124,8 @@ class ProcessTests(TestCase):
         other_process = ProcessTests.Process(104, "init", ["/usr/sbin/init"])
         benchmark_process_p = ProcessTests.Process(105, "python3", ["/usr/bin/python3", "~/.local/bin/opensearch-benchmark"])
         benchmark_process_e = ProcessTests.Process(107, "opensearch-benchmark", ["/usr/bin/python3", "~/.local/bin/opensearch-benchmark"])
-        benchmark_process_mac = ProcessTests.Process(108, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/opensearch-benchmark"])
+        benchmark_process_mac = ProcessTests.Process(108, "Python", ["/Python.app/Contents/MacOS/Python",
+                                                                     "~/.local/bin/opensearch-benchmark"])
         # fake own process by determining our pid
         own_benchmark_process = ProcessTests.Process(
             os.getpid(), "Python",
