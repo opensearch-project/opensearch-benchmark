@@ -13,11 +13,11 @@ from osbenchmark.utils import io, console
 
 class DockerInstaller(Installer):
     def __init__(self, provision_config_instance, executor):
-        super().__init__(executor)
         self.logger = logging.getLogger(__name__)
+        super().__init__(executor, self.logger)
         self.provision_config_instance = provision_config_instance
 
-    def install(self, host, binaries):
+    def install(self, host, binaries, all_node_ips):
         node = self._create_node()
         self._prepare_node(host, node)
 
@@ -57,50 +57,8 @@ class DockerInstaller(Installer):
         self.executor.execute(host, "cp {0} {0}".format(docker_compose_file))
 
     def _prepare_mounts(self, host, node):
-        mounts = {}
-        for provision_config_instance_config_path in self.provision_config_instance.config_paths:
-            mounts.update(self._prepare_mounts_from_config_path(host, node, provision_config_instance_config_path))
-
-        return mounts
-
-    def _prepare_mounts_from_config_path(self, host, node, config_path):
-        config_path_mounts = {}
-        for root, _, files in os.walk(config_path):
-            config_path_mounts.update(self._prepare_mounts_from_config_path_root(host, node, config_path, root, files))
-
-        return config_path_mounts
-
-    def _prepare_mounts_from_config_path_root(self, host, node, config_path, root, files):
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader(root),
-                                 autoescape=select_autoescape(['html', 'xml']))
-
-        relative_root = root[len(config_path) + 1:]
-        absolute_target_root = os.path.join(node.binary_path, relative_root)
-
-        self._create_directory(host, absolute_target_root)
-
-        config_path_file_mounts = {}
-        for file_name in files:
-            config_path_file_mounts[file_name] = self._prepare_mount(host, node, root, env, relative_root, absolute_target_root, file_name)
-
-        return config_path_file_mounts
-
-    def _prepare_mount(self, host, node, root, env, relative_root, absolute_target_root, file_name):
-        source_file = os.path.join(root, file_name)
-        target_file = os.path.join(absolute_target_root, file_name)
-        if io.is_plain_text(source_file):
-            config_vars = self._get_config_vars(node)
-
-            self.logger.info("Reading config template file [%s] and writing to [%s].", source_file, target_file)
-            with open(target_file, mode="a", encoding="utf-8") as f:
-                f.write(self._render_template(env, config_vars, source_file))
-
-            self.executor.execute(host, "cp {0} {0}".format(target_file))
-        else:
-            self.logger.info("Treating [%s] as binary and copying as is to [%s].", source_file, target_file)
-            self.executor.execute(host, "cp {} {}".format(source_file, target_file))
-
-        return os.path.join("/usr/share/opensearch", relative_root, file_name)
+        config_vars = self._get_config_vars(node)
+        return self._apply_configs(host, node, self.provision_config_instance.config_paths, config_vars)
 
     def _get_config_vars(self, node):
         provisioner_defaults = {
@@ -149,13 +107,4 @@ class DockerInstaller(Installer):
         return self._render_template(env, variables, compose_file)
 
     def cleanup(self, host):
-        if self.provision_config_instance.variables["preserve_install"]:
-            console.info("Preserving benchmark candidate installation.", logger=self.logger)
-            return
-
-        self.logger.info("Wiping benchmark candidate installation at [%s].", host.node.binary_path)
-
-        for data_path in host.node.data_paths:
-            self._delete_path(host, data_path)
-
-        self._delete_path(host, host.node.binary_path)
+        self._cleanup(host, self.provision_config_instance.variables["preserve_install"])

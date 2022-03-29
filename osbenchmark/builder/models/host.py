@@ -10,5 +10,4 @@ class Host:
     name: str
     address: str
     metadata: dict
-    node_count: int
     node: Node
