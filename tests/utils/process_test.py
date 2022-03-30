@@ -69,15 +69,15 @@ class ProcessTests(TestCase):
                                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         random_python = ProcessTests.Process(103, "python3", ["/some/django/app"])
         other_process = ProcessTests.Process(104, "init", ["/usr/sbin/init"])
-        benchmark_process_p = ProcessTests.Process(105, "python3", ["/usr/bin/python3", "~/.local/bin/osbenchmark"])
-        benchmark_process_r = ProcessTests.Process(106, "benchmark", ["/usr/bin/python3", "~/.local/bin/osbenchmark"])
-        benchmark_process_e = ProcessTests.Process(107, "osbenchmark", ["/usr/bin/python3", "~/.local/bin/osbenchmark"])
-        benchmark_process_mac = ProcessTests.Process(108, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/osbenchmark"])
+        benchmark_process_p = ProcessTests.Process(105, "python3", ["/usr/bin/python3", "~/.local/bin/opensearch-benchmark"])
+        benchmark_process_e = ProcessTests.Process(107, "opensearch-benchmark", ["/usr/bin/python3", "~/.local/bin/opensearch-benchmark"])
+        benchmark_process_mac = ProcessTests.Process(108, "Python", ["/Python.app/Contents/MacOS/Python",
+                                                                     "~/.local/bin/opensearch-benchmark"])
         # fake own process by determining our pid
         own_benchmark_process = ProcessTests.Process(
             os.getpid(), "Python",
             ["/Python.app/Contents/MacOS/Python",
-            "~/.local/bin/osbenchmark"])
+            "~/.local/bin/opensearch-benchmark"])
         night_benchmark_process = ProcessTests.Process(110, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/night_benchmark"])
 
         process_iter.return_value = [
@@ -87,14 +87,13 @@ class ProcessTests(TestCase):
             random_python,
             other_process,
             benchmark_process_p,
-            benchmark_process_r,
             benchmark_process_e,
             benchmark_process_mac,
             own_benchmark_process,
             night_benchmark_process,
         ]
 
-        self.assertEqual([benchmark_process_p, benchmark_process_r, benchmark_process_e, benchmark_process_mac],
+        self.assertEqual([benchmark_process_p, benchmark_process_e, benchmark_process_mac],
                          process.find_all_other_benchmark_processes())
 
     @mock.patch("psutil.process_iter")
@@ -123,14 +122,14 @@ class ProcessTests(TestCase):
                                                                    "org.elasticsearch.bootstrap.Elasticsearch"])
         random_python = ProcessTests.Process(103, "python3", ["/some/django/app"])
         other_process = ProcessTests.Process(104, "init", ["/usr/sbin/init"])
-        benchmark_process_p = ProcessTests.Process(105, "python3", ["/usr/bin/python3", "~/.local/bin/osbenchmark"])
-        benchmark_process_r = ProcessTests.Process(106, "benchmark", ["/usr/bin/python3", "~/.local/bin/osbenchmark"])
-        benchmark_process_e = ProcessTests.Process(107, "osbenchmark", ["/usr/bin/python3", "~/.local/bin/osbenchmark"])
-        benchmark_process_mac = ProcessTests.Process(108, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/osbenchmark"])
+        benchmark_process_p = ProcessTests.Process(105, "python3", ["/usr/bin/python3", "~/.local/bin/opensearch-benchmark"])
+        benchmark_process_e = ProcessTests.Process(107, "opensearch-benchmark", ["/usr/bin/python3", "~/.local/bin/opensearch-benchmark"])
+        benchmark_process_mac = ProcessTests.Process(108, "Python", ["/Python.app/Contents/MacOS/Python",
+                                                                     "~/.local/bin/opensearch-benchmark"])
         # fake own process by determining our pid
         own_benchmark_process = ProcessTests.Process(
             os.getpid(), "Python",
-            ["/Python.app/Contents/MacOS/Python", "~/.local/bin/osbenchmark"])
+            ["/Python.app/Contents/MacOS/Python", "~/.local/bin/opensearch-benchmark"])
         night_benchmark_process = ProcessTests.Process(110, "Python", ["/Python.app/Contents/MacOS/Python", "~/.local/bin/night_benchmark"])
 
         process_iter.return_value = [
@@ -140,7 +139,6 @@ class ProcessTests(TestCase):
             random_python,
             other_process,
             benchmark_process_p,
-            benchmark_process_r,
             benchmark_process_e,
             benchmark_process_mac,
             own_benchmark_process,
@@ -155,7 +153,6 @@ class ProcessTests(TestCase):
         self.assertFalse(random_python.killed)
         self.assertFalse(other_process.killed)
         self.assertTrue(benchmark_process_p.killed)
-        self.assertTrue(benchmark_process_r.killed)
         self.assertTrue(benchmark_process_e.killed)
         self.assertTrue(benchmark_process_mac.killed)
         self.assertFalse(own_benchmark_process.killed)
