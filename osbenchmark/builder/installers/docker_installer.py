@@ -34,26 +34,26 @@ class DockerInstaller(Installer):
         node_root_dir = os.path.join(self.provision_config_instance.variables["test_execution_root"], node_name)
         node_data_paths = [os.path.join(node_root_dir, "data", str(uuid.uuid4()))]
         node_binary_path = os.path.join(node_root_dir, "install")
+        node_log_dir = os.path.join(node_root_dir, "logs", "server")
+        node_heap_dump_dir = os.path.join(node_root_dir, "heapdump")
 
         return Node(name=node_name,
                     port=node_port,
                     pid=None,
                     root_dir=node_root_dir,
                     binary_path=node_binary_path,
+                    log_path=node_log_dir,
+                    heap_dump_path=node_heap_dump_dir,
                     data_paths=node_data_paths,
                     telemetry=None)
 
     def _prepare_node(self, host, node):
-        node_log_dir = os.path.join(node.root_dir, "logs", "server")
-        node_heap_dump_dir = os.path.join(node.root_dir, "heapdump")
-
-        directories_to_create = [node.binary_path, node_log_dir, node_heap_dump_dir, node.data_paths[0]]
+        directories_to_create = [node.binary_path, node.log_path, node.heap_dump_path, node.data_paths[0]]
         for directory_to_create in directories_to_create:
             self.path_manager.create_path(host, directory_to_create)
 
         mounts = self._prepare_mounts(host, node)
-        docker_cfg = self._render_template_from_docker_file(self._get_docker_vars(node, node_log_dir,
-                                                                                  node_heap_dump_dir, mounts))
+        docker_cfg = self._render_template_from_docker_file(self._get_docker_vars(node, mounts))
         self.logger.info("Installing Docker container with configuration:\n%s", docker_cfg)
 
         docker_compose_file = os.path.join(node.binary_path, "docker-compose.yml")
@@ -88,14 +88,14 @@ class DockerInstaller(Installer):
 
         return config_vars
 
-    def _get_docker_vars(self, node, log_dir, heap_dump_dir, mounts):
+    def _get_docker_vars(self, node, mounts):
         docker_vars = {
             "os_version": self.provision_config_instance.variables["origin"]["distribution"]["version"],
             "docker_image": self.provision_config_instance.variables["origin"]["docker"]["docker_image"],
             "http_port": node.port,
             "os_data_dir": node.data_paths[0],
-            "os_log_dir": log_dir,
-            "os_heap_dump_dir": heap_dump_dir,
+            "os_log_dir": node.log_path,
+            "os_heap_dump_dir": node.heap_dump_path,
             "mounts": mounts
         }
         self._add_if_defined_for_provision_config_instance(docker_vars, "docker_mem_limit")

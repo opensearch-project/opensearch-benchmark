@@ -37,29 +37,29 @@ class OpenSearchInstaller(Installer):
         node_port = int(self.provision_config_instance.variables["node"]["port"])
         node_root_dir = os.path.join(self.provision_config_instance.variables["test_execution_root"], node_name)
         node_binary_path = os.path.join(node_root_dir, "install")
+        node_log_dir = os.path.join(node_root_dir, "logs", "server")
+        node_heap_dump_dir = os.path.join(node_root_dir, "heapdump")
 
         return Node(name=node_name,
                     port=node_port,
                     pid=None,
                     root_dir=node_root_dir,
                     binary_path=node_binary_path,
+                    log_path=node_log_dir,
+                    heap_dump_path=node_heap_dump_dir,
                     data_paths=None,
                     telemetry=None)
 
     def _prepare_node(self, host, node, binary, all_node_ips):
-        node_log_dir = os.path.join(node.root_dir, "logs", "server")
-        node_heap_dump_dir = os.path.join(node.root_dir, "heapdump")
-
-        self._prepare_directories(host, node, node_log_dir, node_heap_dump_dir)
+        self._prepare_directories(host, node)
         self._extract_opensearch(host, node, binary)
         self._update_node_binary_path(node)
         self._set_node_data_paths(node)
         # we need to immediately delete the prebundled config files as plugins may copy their configuration during installation.
         self._delete_prebundled_config_files(host, node)
-        self._prepare_config_files(host, node, node_log_dir, node_heap_dump_dir, all_node_ips)
 
-    def _prepare_directories(self, host, node, node_log_dir, node_heap_dump_dir):
-        directories_to_create = [node.binary_path, node_log_dir, node_heap_dump_dir]
+    def _prepare_directories(self, host, node):
+        directories_to_create = [node.binary_path, node.log_path, node.heap_dump_path]
         for directory_to_create in directories_to_create:
             self.path_manager.create_path(host, directory_to_create)
 
@@ -78,17 +78,13 @@ class OpenSearchInstaller(Installer):
         self.logger.info("Deleting pre-bundled OpenSearch configuration at [%s]", config_path)
         self.path_manager.delete_path(host, config_path)
 
-    def _prepare_config_files(self, host, node, log_dir, heap_dump_dir, all_node_ips):
-        config_vars = self._get_config_vars(host, node, log_dir, heap_dump_dir, all_node_ips)
-        self.config_applier.apply_configs(host, node, self.provision_config_instance.config_paths, config_vars)
-
-    def _get_config_vars(self, host, node, log_dir, heap_dump_dir, all_node_ips):
+    def get_config_vars(self, host, node, all_node_ips):
         provisioner_defaults = {
             "cluster_name": self.provision_config_instance.variables["cluster_name"],
             "node_name": node.name,
             "data_paths": node.data_paths[0],
-            "log_path": log_dir,
-            "heap_dump_path": heap_dump_dir,
+            "log_path": node.log_path,
+            "heap_dump_path": node.heap_dump_path,
             # this is the node's IP address as specified by the user when invoking Benchmark
             "node_ip": host.address,
             # this is the IP address that the node will be bound to. Benchmark will bind to the node's IP address (but not to 0.0.0.0). The

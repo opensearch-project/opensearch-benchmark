@@ -9,7 +9,7 @@ from osbenchmark.builder.utils.host_cleaner import HostCleaner
 class HostCleanerTest(TestCase):
     def setUp(self):
         self.node = Node(binary_path="/fake", data_paths=["/fake1", "/fake2"],
-                         name=None, pid=None, telemetry=None, port=None, root_dir=None)
+                         name=None, pid=None, telemetry=None, port=None, root_dir=None, log_path=None, heap_dump_path=None)
         self.host = Host(address="fake", name="fake", metadata={}, node=self.node)
 
         self.path_manager = Mock()

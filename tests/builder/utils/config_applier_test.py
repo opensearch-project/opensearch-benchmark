@@ -8,7 +8,7 @@ from osbenchmark.builder.utils.config_applier import ConfigApplier
 class ConfigApplierTest(TestCase):
     def setUp(self):
         self.node = Node(binary_path="/fake_binary_path", data_paths=["/fake1", "/fake2"],
-                         name=None, pid=None, telemetry=None, port=None, root_dir=None)
+                         name=None, pid=None, telemetry=None, port=None, root_dir=None, log_path=None, heap_dump_path=None)
         self.host = None
         self.config_paths = ["/fake_config_path"]
         self.config_vars = {}

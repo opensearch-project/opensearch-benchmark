@@ -59,14 +59,14 @@ class OpenSearchInstallerTests(TestCase):
         uuid.return_value = self.node_id
 
         node = self.installer.install(self.host, self.binaries, self.all_node_ips)
-        config_vars = self.installer._get_config_vars(self.host, node, "abc", "def", self.all_node_ips)
+        config_vars = self.installer.get_config_vars(self.host, node, self.all_node_ips)
 
         self.assertEqual({
             "cluster_name": self.cluster_name,
             "node_name": self.node_id,
             "data_paths": os.path.join(self.test_execution_root, self.node_id, "install/opensearch*/data"),
-            "log_path": "abc",
-            "heap_dump_path": "def",
+            "log_path": os.path.join(self.test_execution_root, self.node_id, "logs", "server"),
+            "heap_dump_path": os.path.join(self.test_execution_root, self.node_id, "heapdump"),
             "node_ip": "10.17.22.23",
             "network_host": "10.17.22.23",
             "http_port": "9200",
