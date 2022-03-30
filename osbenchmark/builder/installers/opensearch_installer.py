@@ -57,6 +57,7 @@ class OpenSearchInstaller(Installer):
         self._set_node_data_paths(node)
         # we need to immediately delete the prebundled config files as plugins may copy their configuration during installation.
         self._delete_prebundled_config_files(host, node)
+        self._prepare_config_files(host, node, all_node_ips)
 
     def _prepare_directories(self, host, node):
         directories_to_create = [node.binary_path, node.log_path, node.heap_dump_path]
@@ -77,6 +78,10 @@ class OpenSearchInstaller(Installer):
         config_path = os.path.join(node.binary_path, "config")
         self.logger.info("Deleting pre-bundled OpenSearch configuration at [%s]", config_path)
         self.path_manager.delete_path(host, config_path)
+
+    def _prepare_config_files(self, host, node, all_node_ips):
+        config_vars = self.get_config_vars(host, node, all_node_ips)
+        self.config_applier.apply_configs(host, node, self.provision_config_instance.config_paths, config_vars)
 
     def get_config_vars(self, host, node, all_node_ips):
         provisioner_defaults = {
