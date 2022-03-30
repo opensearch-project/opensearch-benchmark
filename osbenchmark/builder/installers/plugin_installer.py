@@ -36,6 +36,7 @@ class PluginInstaller(Installer):
             return '%s install --batch "%s"' % (installer_binary_path, self.plugin.name)
 
     def get_config_vars(self):
+        return self.plugin.variables
 
     def invoke_install_hook(self, phase, variables, env):
         self.hook_handler.invoke(phase.name, variables=variables, env=env)
