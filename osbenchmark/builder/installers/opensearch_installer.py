@@ -5,18 +5,26 @@ import uuid
 from osbenchmark.builder.installers.installer import Installer
 from osbenchmark.builder.models.node import Node
 from osbenchmark.builder.provision_config import BootstrapHookHandler
+from osbenchmark.builder.utils.config_applier import ConfigApplier
+from osbenchmark.builder.utils.host_cleaner import HostCleaner
+from osbenchmark.builder.utils.path_manager import PathManager
+from osbenchmark.builder.utils.template_renderer import TemplateRenderer
 
 
 class OpenSearchInstaller(Installer):
     OPENSEARCH_BINARY_KEY = "opensearch"
 
     def __init__(self, provision_config_instance, executor, hook_handler_class=BootstrapHookHandler):
+        super().__init__(executor)
         self.logger = logging.getLogger(__name__)
-        super().__init__(executor, self.logger)
         self.provision_config_instance = provision_config_instance
         self.hook_handler = hook_handler_class(self.provision_config_instance)
         if self.hook_handler.can_load():
             self.hook_handler.load()
+        self.template_renderer = TemplateRenderer()
+        self.path_manager = PathManager(executor)
+        self.config_applier = ConfigApplier(executor, self.template_renderer, self.path_manager)
+        self.host_cleaner = HostCleaner(self.path_manager)
 
     def install(self, host, binaries, all_node_ips):
         node = self._create_node()
@@ -53,7 +61,7 @@ class OpenSearchInstaller(Installer):
     def _prepare_directories(self, host, node, node_log_dir, node_heap_dump_dir):
         directories_to_create = [node.binary_path, node_log_dir, node_heap_dump_dir]
         for directory_to_create in directories_to_create:
-            self._create_directory(host, directory_to_create)
+            self.path_manager.create_path(host, directory_to_create)
 
     def _extract_opensearch(self, host, node, binary):
         self.logger.info("Unzipping %s to %s", binary, node.binary_path)
@@ -68,11 +76,11 @@ class OpenSearchInstaller(Installer):
     def _delete_prebundled_config_files(self, host, node):
         config_path = os.path.join(node.binary_path, "config")
         self.logger.info("Deleting pre-bundled OpenSearch configuration at [%s]", config_path)
-        self._delete_path(host, config_path)
+        self.path_manager.delete_path(host, config_path)
 
     def _prepare_config_files(self, host, node, log_dir, heap_dump_dir, all_node_ips):
         config_vars = self._get_config_vars(host, node, log_dir, heap_dump_dir, all_node_ips)
-        self._apply_configs(host, node, self.provision_config_instance.config_paths, config_vars)
+        self.config_applier.apply_configs(host, node, self.provision_config_instance.config_paths, config_vars)
 
     def _get_config_vars(self, host, node, log_dir, heap_dump_dir, all_node_ips):
         provisioner_defaults = {
@@ -101,4 +109,4 @@ class OpenSearchInstaller(Installer):
         self.hook_handler.invoke(phase.name, variables=variables, env=env)
 
     def cleanup(self, host):
-        self._cleanup(host, self.provision_config_instance.variables["preserve_install"])
+        self.host_cleaner.cleanup(host, self.provision_config_instance.variables["preserve_install"])

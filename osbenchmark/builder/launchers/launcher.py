@@ -1,10 +1,14 @@
-class Launcher:
+from abc import ABC, abstractmethod
+
+
+class Launcher(ABC):
     """
     Launchers are used to start and stop OpenSearch on the nodes in a self-managed cluster.
     """
     def __init__(self, shell_executor):
         self.shell_executor = shell_executor
 
+    @abstractmethod
     def start(self, host, node_configurations):
         """
         Starts the OpenSearch nodes on a given host
@@ -15,6 +19,7 @@ class Launcher:
         """
         raise NotImplementedError
 
+    @abstractmethod
     def stop(self, host, nodes):
         """
         Stops the OpenSearch nodes on a given host

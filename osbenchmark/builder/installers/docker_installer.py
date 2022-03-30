@@ -2,20 +2,25 @@ import logging
 import os
 import uuid
 
-import jinja2
-from jinja2 import select_autoescape
-
 from osbenchmark import paths
 from osbenchmark.builder.installers.installer import Installer
 from osbenchmark.builder.models.node import Node
+from osbenchmark.builder.utils.config_applier import ConfigApplier
+from osbenchmark.builder.utils.host_cleaner import HostCleaner
+from osbenchmark.builder.utils.path_manager import PathManager
+from osbenchmark.builder.utils.template_renderer import TemplateRenderer
 from osbenchmark.utils import io
 
 
 class DockerInstaller(Installer):
     def __init__(self, provision_config_instance, executor):
+        super().__init__(executor)
         self.logger = logging.getLogger(__name__)
-        super().__init__(executor, self.logger)
         self.provision_config_instance = provision_config_instance
+        self.template_renderer = TemplateRenderer()
+        self.path_manager = PathManager(executor)
+        self.config_applier = ConfigApplier(executor, self.template_renderer, self.path_manager)
+        self.host_cleaner = HostCleaner(self.path_manager)
 
     def install(self, host, binaries, all_node_ips):
         node = self._create_node()
@@ -44,7 +49,7 @@ class DockerInstaller(Installer):
 
         directories_to_create = [node.binary_path, node_log_dir, node_heap_dump_dir, node.data_paths[0]]
         for directory_to_create in directories_to_create:
-            self._create_directory(host, directory_to_create)
+            self.path_manager.create_path(host, directory_to_create)
 
         mounts = self._prepare_mounts(host, node)
         docker_cfg = self._render_template_from_docker_file(self._get_docker_vars(node, node_log_dir,
@@ -58,7 +63,7 @@ class DockerInstaller(Installer):
 
     def _prepare_mounts(self, host, node):
         config_vars = self._get_config_vars(node)
-        return self._apply_configs(host, node, self.provision_config_instance.config_paths, config_vars)
+        return self.config_applier.apply_configs(host, node, self.provision_config_instance.config_paths, config_vars)
 
     def _get_config_vars(self, node):
         provisioner_defaults = {
@@ -103,8 +108,7 @@ class DockerInstaller(Installer):
 
     def _render_template_from_docker_file(self, variables):
         compose_file = os.path.join(paths.benchmark_root(), "resources", "docker-compose.yml.j2")
-        env = jinja2.Environment(loader=jinja2.FileSystemLoader(io.dirname(compose_file)), autoescape=select_autoescape(['html', 'xml']))
-        return self._render_template(env, variables, compose_file)
+        return self.template_renderer.render_template(io.dirname(compose_file), variables, compose_file)
 
     def cleanup(self, host):
-        self._cleanup(host, self.provision_config_instance.variables["preserve_install"])
+        self.host_cleaner.cleanup(host, self.provision_config_instance.variables["preserve_install"])

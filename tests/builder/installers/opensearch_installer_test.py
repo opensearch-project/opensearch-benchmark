@@ -6,7 +6,6 @@ from unittest.mock import Mock
 
 from osbenchmark.builder.installers.opensearch_installer import OpenSearchInstaller
 from osbenchmark.builder.models.host import Host
-from osbenchmark.builder.models.node import Node
 from osbenchmark.builder.provision_config import ProvisionConfigInstance
 
 
@@ -37,16 +36,13 @@ class OpenSearchInstallerTests(TestCase):
             }
         )
         self.installer = OpenSearchInstaller(self.provision_config_instance, self.executor, self.hook_handler_class)
+        self.installer.path_manager = Mock()
+        self.installer.config_applier = Mock()
 
-    @mock.patch("os.walk")
-    @mock.patch("osbenchmark.utils.io.is_plain_text")
-    @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("uuid.uuid4")
-    def test_install(self, uuid, ensure_dir, is_plain_text, os_walk):
-        # Create directory x 3, extract OpenSearch binary, delete prebundled config, create directory, copy file
-        self.executor.execute.side_effect = [None, None, None, None, None, None, None]
-        is_plain_text.return_value = False
-        os_walk.return_value = [("fake", "fake", ["fake"])]
+    def test_install(self, uuid):
+        # extract OpenSearch binary
+        self.executor.execute.side_effect = [None]
         uuid.return_value = self.node_id
 
         node = self.installer.install(self.host, self.binaries, self.all_node_ips)
@@ -56,15 +52,10 @@ class OpenSearchInstallerTests(TestCase):
         self.assertEqual(node.root_dir, os.path.join(self.test_execution_root, self.node_id))
         self.assertEqual(node.name, self.node_id)
 
-    @mock.patch("os.walk")
-    @mock.patch("osbenchmark.utils.io.is_plain_text")
-    @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("uuid.uuid4")
-    def test_config_vars(self, uuid, ensure_dir, is_plain_text, os_walk):
-        # Create directory x 3, extract OpenSearch binary, delete prebundled config, create directory, copy file
-        self.executor.execute.side_effect = [None, None, None, None, None, None, None]
-        is_plain_text.return_value = False
-        os_walk.return_value = [("fake", "fake", ["fake"])]
+    def test_config_vars(self, uuid):
+        # extract OpenSearch binary
+        self.executor.execute.side_effect = [None]
         uuid.return_value = self.node_id
 
         node = self.installer.install(self.host, self.binaries, self.all_node_ips)
@@ -87,26 +78,3 @@ class OpenSearchInstallerTests(TestCase):
             "test_execution_root": self.test_execution_root,
             "preserve_install": False
         }, config_vars)
-
-    def test_cleanup(self):
-        self.executor.execute.return_value = None
-
-        self.host.node = Node(binary_path="/fake", data_paths=["/fake1", "/fake2"],
-                              name=None, pid=None, telemetry=None, port=None, root_dir=None)
-        self.installer.cleanup(self.host)
-
-        self.executor.execute.assert_has_calls([
-            mock.call(self.host, "rm -r /fake1"),
-            mock.call(self.host, "rm -r /fake2"),
-            mock.call(self.host, "rm -r /fake")
-        ])
-
-    def test_cleanup_preserve_install(self):
-        self.executor.execute.return_value = None
-
-        self.provision_config_instance.variables["preserve_install"] = True
-        self.host.node = Node(binary_path="/fake", data_paths=["/fake1", "/fake2"],
-                              name=None, pid=None, telemetry=None, port=None, root_dir=None)
-        self.installer.cleanup(self.host)
-
-        self.executor.execute.assert_has_calls([])
