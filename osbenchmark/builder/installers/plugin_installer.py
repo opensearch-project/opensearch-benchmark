@@ -20,9 +20,13 @@ class PluginInstaller(Installer):
         self.path_manager = PathManager(executor)
         self.config_applier = ConfigApplier(executor, self.template_renderer, self.path_manager)
 
-    def install(self, host, binaries, all_node_ips):
+    def install(self, host, binaries, all_node_ips, config_vars=None):
         install_cmd = self._get_install_command(host, binaries)
         self.executor.execute(host, install_cmd)
+
+        if not config_vars:
+            config_vars = self.get_config_vars()
+        self.config_applier.apply_configs(host, host.node, self.plugin.config_paths, config_vars)
 
     def _get_install_command(self, host, binaries):
         installer_binary_path = os.path.join(host.node.binary_path, "bin", "opensearch-plugin")

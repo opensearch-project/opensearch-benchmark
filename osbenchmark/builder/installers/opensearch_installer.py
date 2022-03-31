@@ -26,9 +26,9 @@ class OpenSearchInstaller(Installer):
         self.config_applier = ConfigApplier(executor, self.template_renderer, self.path_manager)
         self.host_cleaner = HostCleaner(self.path_manager)
 
-    def install(self, host, binaries, all_node_ips):
+    def install(self, host, binaries, all_node_ips, config_vars=None):
         node = self._create_node()
-        self._prepare_node(host, node, binaries[OpenSearchInstaller.OPENSEARCH_BINARY_KEY], all_node_ips)
+        self._prepare_node(host, node, binaries[OpenSearchInstaller.OPENSEARCH_BINARY_KEY], all_node_ips, config_vars)
 
         return node
 
@@ -50,14 +50,14 @@ class OpenSearchInstaller(Installer):
                     data_paths=None,
                     telemetry=None)
 
-    def _prepare_node(self, host, node, binary, all_node_ips):
+    def _prepare_node(self, host, node, binary, all_node_ips, config_vars):
         self._prepare_directories(host, node)
         self._extract_opensearch(host, node, binary)
         self._update_node_binary_path(node)
         self._set_node_data_paths(node)
         # we need to immediately delete the prebundled config files as plugins may copy their configuration during installation.
         self._delete_prebundled_config_files(host, node)
-        self._prepare_config_files(host, node, all_node_ips)
+        self._prepare_config_files(host, node, all_node_ips, config_vars)
 
     def _prepare_directories(self, host, node):
         directories_to_create = [node.binary_path, node.log_path, node.heap_dump_path]
@@ -79,12 +79,13 @@ class OpenSearchInstaller(Installer):
         self.logger.info("Deleting pre-bundled OpenSearch configuration at [%s]", config_path)
         self.path_manager.delete_path(host, config_path)
 
-    def _prepare_config_files(self, host, node, all_node_ips):
-        config_vars = self.get_config_vars(host, node, all_node_ips)
+    def _prepare_config_files(self, host, node, all_node_ips, config_vars):
+        if not config_vars:
+            config_vars = self.get_config_vars(host, node, all_node_ips)
         self.config_applier.apply_configs(host, node, self.provision_config_instance.config_paths, config_vars)
 
     def get_config_vars(self, host, node, all_node_ips):
-        provisioner_defaults = {
+        installer_defaults = {
             "cluster_name": self.provision_config_instance.variables["cluster_name"],
             "node_name": node.name,
             "data_paths": node.data_paths[0],
@@ -103,7 +104,7 @@ class OpenSearchInstaller(Installer):
         }
         config_vars = {}
         config_vars.update(self.provision_config_instance.variables)
-        config_vars.update(provisioner_defaults)
+        config_vars.update(installer_defaults)
         return config_vars
 
     def invoke_install_hook(self, phase, variables, env):
