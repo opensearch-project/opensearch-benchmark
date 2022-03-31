@@ -13,5 +13,7 @@ class Node:
     pid: int
     root_dir: str
     binary_path: str
+    log_path: str
+    heap_dump_path: str
     data_paths: List[str]
     telemetry: Telemetry

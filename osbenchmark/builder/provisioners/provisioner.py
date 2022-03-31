@@ -1,10 +1,14 @@
-"""
-Provisioners are used to create and destroy any infrastructure required to construct a cluster.
-"""
-class Provisioner:
+from abc import ABC, abstractmethod
+
+
+class Provisioner(ABC):
+    """
+    Provisioners are used to create and destroy any infrastructure required to construct a cluster.
+    """
     def __init__(self):
         pass
 
+    @abstractmethod
     def provision_infrastructure(self):
         """
         Provisions the necessary infrastructure for creating a cluster
@@ -13,6 +17,7 @@ class Provisioner:
         """
         raise NotImplementedError
 
+    @abstractmethod
     def tear_down_infrastructure(self, cluster):
         """
         Destroys the infrastructure created for a given cluster

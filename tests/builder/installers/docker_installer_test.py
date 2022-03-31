@@ -72,7 +72,7 @@ class DockerProvisionerTests(TestCase):
             "docker_image": "opensearchproject/opensearch"
         }, self.installer._get_config_vars(node))
 
-        docker_vars = self.installer._get_docker_vars(node, self.node_log_dir, self.node_heap_dump_dir, mounts={})
+        docker_vars = self.installer._get_docker_vars(node, mounts={})
         self.assertDictEqual({
             "os_data_dir": self.node_data_dir,
             "os_log_dir": self.node_log_dir,
@@ -141,7 +141,7 @@ networks:
 
         node = self.installer._create_node()
 
-        docker_vars = self.installer._get_docker_vars(node, self.node_log_dir, self.node_heap_dump_dir, mounts={})
+        docker_vars = self.installer._get_docker_vars(node, mounts={})
         docker_cfg = self.installer._render_template_from_docker_file(docker_vars)
 
         self.assertEqual(
