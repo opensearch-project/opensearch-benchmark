@@ -26,6 +26,7 @@ class OpenSearchInstaller(Installer):
         self.config_applier = ConfigApplier(executor, self.template_renderer, self.path_manager)
         self.host_cleaner = HostCleaner(self.path_manager)
 
+    # pylint: disable=arguments-differ
     def install(self, host, binaries, all_node_ips, config_vars=None):
         node = self._create_node()
         self._prepare_node(host, node, binaries[OpenSearchInstaller.OPENSEARCH_BINARY_KEY], all_node_ips, config_vars)

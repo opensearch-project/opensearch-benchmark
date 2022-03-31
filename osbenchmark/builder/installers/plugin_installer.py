@@ -20,6 +20,7 @@ class PluginInstaller(Installer):
         self.path_manager = PathManager(executor)
         self.config_applier = ConfigApplier(executor, self.template_renderer, self.path_manager)
 
+    # pylint: disable=arguments-differ
     def install(self, host, binaries, all_node_ips, config_vars=None):
         install_cmd = self._get_install_command(host, binaries)
         self.executor.execute(host, install_cmd)
