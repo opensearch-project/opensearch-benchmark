@@ -31,7 +31,7 @@ Install Python 3.8+ including ``pip3``, git 1.9+ and an [appropriate JDK to run 
     pip3 install opensearch-benchmark
 
 
-If you have any trouble or need more detailed instructions, please look in the [detailed installation guide](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>`).
+If you have any trouble or need more detailed instructions, please look in the [detailed installation guide](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>).
 
 Run your first test execution
 -----------------------------
