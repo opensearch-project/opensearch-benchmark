@@ -31,6 +31,12 @@ class PluginPreparer(Preparer):
     def get_config_vars(self, host, node, all_node_ips):
         return self.plugin.variables
 
+    def get_plugin_name(self):
+        return self.plugin.name
+
+    def get_config_paths(self):
+        return self.plugin.config_paths
+
     def invoke_install_hook(self, host, phase, variables, env):
         self.hook_handler.invoke(phase.name, variables=variables, env=env)
 

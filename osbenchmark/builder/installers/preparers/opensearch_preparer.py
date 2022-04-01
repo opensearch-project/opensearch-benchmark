@@ -96,6 +96,9 @@ class OpenSearchPreparer(Preparer):
         config_vars.update(installer_defaults)
         return config_vars
 
+    def get_config_paths(self):
+        return self.provision_config_instance.config_paths
+
     def invoke_install_hook(self, host, phase, variables, env):
         self.hook_handler.invoke(phase.name, variables=variables, env=env)
 

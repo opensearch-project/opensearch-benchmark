@@ -33,6 +33,13 @@ class Preparer(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_config_paths(self):
+        """
+        Returns the config paths list
+        """
+        raise NotImplementedError
+
+    @abstractmethod
     def invoke_install_hook(self, host, phase, variables, env):
         """
         Invokes the associated install hook
