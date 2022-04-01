@@ -1,33 +1,21 @@
 import logging
 import os
 
-from osbenchmark.builder.installers.installer import Installer
-from osbenchmark.builder.provision_config import BootstrapHookHandler
-from osbenchmark.builder.utils.config_applier import ConfigApplier
-from osbenchmark.builder.utils.path_manager import PathManager
-from osbenchmark.builder.utils.template_renderer import TemplateRenderer
+from osbenchmark.builder.installers.preparers.preparer import Preparer
 
 
-class PluginInstaller(Installer):
-    def __init__(self, plugin, executor, hook_handler_class=BootstrapHookHandler):
+class PluginPreparer(Preparer):
+    def __init__(self, plugin, executor, hook_handler_class):
         super().__init__(executor)
         self.logger = logging.getLogger(__name__)
         self.plugin = plugin
         self.hook_handler = hook_handler_class(self.plugin)
         if self.hook_handler.can_load():
             self.hook_handler.load()
-        self.template_renderer = TemplateRenderer()
-        self.path_manager = PathManager(executor)
-        self.config_applier = ConfigApplier(executor, self.template_renderer, self.path_manager)
 
-    # pylint: disable=arguments-differ
-    def install(self, host, binaries, all_node_ips, config_vars=None):
+    def prepare(self, host, binaries):
         install_cmd = self._get_install_command(host, binaries)
         self.executor.execute(host, install_cmd)
-
-        if not config_vars:
-            config_vars = self.get_config_vars()
-        self.config_applier.apply_configs(host, host.node, self.plugin.config_paths, config_vars)
 
     def _get_install_command(self, host, binaries):
         installer_binary_path = os.path.join(host.node.binary_path, "bin", "opensearch-plugin")
@@ -40,10 +28,10 @@ class PluginInstaller(Installer):
             self.logger.info("Installing [%s] into [%s]", self.plugin.name, host.node.binary_path)
             return '%s install --batch "%s"' % (installer_binary_path, self.plugin.name)
 
-    def get_config_vars(self):
+    def get_config_vars(self, host, node, all_node_ips):
         return self.plugin.variables
 
-    def invoke_install_hook(self, phase, variables, env):
+    def invoke_install_hook(self, host, phase, variables, env):
         self.hook_handler.invoke(phase.name, variables=variables, env=env)
 
     def cleanup(self, host):
