@@ -32,7 +32,7 @@ class ConfigApplierTest(TestCase):
         self.path_manager.create_path.assert_has_calls([
             mock.call(self.host, "/fake_binary_path/sub_fake_config_path")
         ])
-        self.template_renderer.render_template.assert_has_calls([])
+        self.template_renderer.render_template_file.assert_has_calls([])
         self.executor.execute.assert_has_calls([
             mock.call(self.host, "cp /fake_config_path/sub_fake_config_path/fake_file /fake_binary_path/sub_fake_config_path/fake_file")
         ])
@@ -52,7 +52,7 @@ class ConfigApplierTest(TestCase):
             self.path_manager.create_path.assert_has_calls([
                 mock.call(self.host, "/fake_binary_path/sub_fake_config_path")
             ])
-            self.template_renderer.render_template.assert_has_calls([
+            self.template_renderer.render_template_file.assert_has_calls([
                 mock.call("/fake_config_path/sub_fake_config_path", self.config_vars, "/fake_config_path/sub_fake_config_path/fake_file")
             ])
             self.executor.execute.assert_has_calls([

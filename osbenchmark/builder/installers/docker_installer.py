@@ -108,7 +108,7 @@ class DockerInstaller(Installer):
 
     def _render_template_from_docker_file(self, variables):
         compose_file = os.path.join(paths.benchmark_root(), "resources", "docker-compose.yml.j2")
-        return self.template_renderer.render_template(io.dirname(compose_file), variables, compose_file)
+        return self.template_renderer.render_template_file(io.dirname(compose_file), variables, compose_file)
 
     def cleanup(self, host):
         self.host_cleaner.cleanup(host, self.provision_config_instance.variables["preserve_install"])

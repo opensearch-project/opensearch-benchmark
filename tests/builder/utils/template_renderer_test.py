@@ -20,14 +20,14 @@ class TemplateRendererTest(TestCase):
         get_template.return_value = template
         template.render.return_value = "template as string"
 
-        self.template_renderer.render_template(self.root_path, self.variables, self.file_name)
+        self.template_renderer.render_template_file(self.root_path, self.variables, self.file_name)
 
     @mock.patch('jinja2.Environment.get_template')
     def test_template_syntax_error(self, get_template):
         get_template.side_effect = TemplateSyntaxError("fake", 12)
 
         with self.assertRaises(InvalidSyntax):
-            self.template_renderer.render_template(self.root_path, self.variables, self.file_name)
+            self.template_renderer.render_template_file(self.root_path, self.variables, self.file_name)
 
     @mock.patch('jinja2.Environment.get_template')
     def test_unknown_error(self, get_template):
@@ -36,4 +36,4 @@ class TemplateRendererTest(TestCase):
         template.render.side_effect = RuntimeError()
 
         with self.assertRaises(SystemSetupError):
-            self.template_renderer.render_template(self.root_path, self.variables, self.file_name)
+            self.template_renderer.render_template_file(self.root_path, self.variables, self.file_name)

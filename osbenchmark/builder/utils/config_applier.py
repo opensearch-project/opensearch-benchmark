@@ -34,7 +34,7 @@ class ConfigApplier:
                 if io.is_plain_text(source_file):
                     self.logger.info("Reading config template file [%s] and writing to [%s].", source_file, target_file)
                     with open(target_file, mode="a", encoding="utf-8") as f:
-                        f.write(self.template_renderer.render_template(root, config_vars, source_file))
+                        f.write(self.template_renderer.render_template_file(root, config_vars, source_file))
 
                     self.executor.execute(host, "cp {0} {0}".format(target_file))
                 else:
