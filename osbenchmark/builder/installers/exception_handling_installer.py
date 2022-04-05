@@ -11,10 +11,10 @@ class ExceptionHandlingInstaller(Installer):
         try:
             return self.installer.install(host, binaries, all_node_ips)
         except Exception as e:
-            raise InstallError("Installing node on host \"{}\" failed".format(host), e)
+            raise InstallError(f"Installing node on host \"{host}\" failed", e)
 
     def cleanup(self, host):
         try:
             return self.installer.cleanup(host)
         except Exception as e:
-            raise InstallError("Cleaning up install data on host \"{}\" failed".format(host), e)
+            raise InstallError(f"Cleaning up install data on host \"{host}\" failed", e)
