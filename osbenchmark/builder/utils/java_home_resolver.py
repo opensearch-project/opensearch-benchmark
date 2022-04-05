@@ -10,33 +10,23 @@ class JavaHomeResolver:
         self.executor = executor
         self.jdk_resolver = JdkResolver(executor)
 
-    def resolve_java_home(self, host, provision_config_instance_runtime_jdks, specified_runtime_jdk=None,
-                          provides_bundled_jdk=False):
+    def resolve_java_home(self, host, provision_config_instance):
+        is_runtime_jdk_bundled = provision_config_instance.variables["system"]["runtime"]["jdk"]["bundled"]
+        runtime_jdks = provision_config_instance.variables["system"]["runtime"]["jdk"]["version"]
+
         try:
-            allowed_runtime_jdks = [int(v) for v in provision_config_instance_runtime_jdks.split(",")]
+            allowed_runtime_jdks = [int(v) for v in runtime_jdks.split(",")]
         except ValueError:
             raise SystemSetupError("ProvisionConfigInstance variable key \"runtime.jdk\" is invalid: \"{}\" (must be int)"
-                                   .format(provision_config_instance_runtime_jdks))
+                                   .format(runtime_jdks))
 
-        runtime_jdk_versions = self._determine_runtime_jdks(specified_runtime_jdk, allowed_runtime_jdks)
-
-        if runtime_jdk_versions[0] == "bundled":
-            return self._handle_bundled_jdk(host, allowed_runtime_jdks, provides_bundled_jdk)
+        if is_runtime_jdk_bundled:
+            return self._handle_bundled_jdk(host, allowed_runtime_jdks)
         else:
-            self.logger.info("Allowed JDK versions are %s.", runtime_jdk_versions)
-            return self._detect_jdk(host, runtime_jdk_versions)
+            self.logger.info("Allowed JDK versions are %s.", allowed_runtime_jdks)
+            return self._detect_jdk(host, allowed_runtime_jdks)
 
-    def _determine_runtime_jdks(self, specified_runtime_jdk, allowed_runtime_jdks):
-        if specified_runtime_jdk:
-            return [specified_runtime_jdk]
-        else:
-            return allowed_runtime_jdks
-
-    def _handle_bundled_jdk(self, host, allowed_runtime_jdks, provides_bundled_jdk):
-        if not provides_bundled_jdk:
-            raise SystemSetupError(
-                "This OpenSearch version does not contain a bundled JDK. Please specify a different runtime JDK.")
-
+    def _handle_bundled_jdk(self, host, allowed_runtime_jdks):
         self.logger.info("Using JDK bundled with OpenSearch.")
         os_check = self.executor.execute(host, "uname", output=True)[0]
         if os_check == "Windows":
