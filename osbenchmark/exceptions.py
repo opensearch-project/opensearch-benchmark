@@ -45,6 +45,11 @@ class LaunchError(BenchmarkError):
     Thrown whenever there was a problem launching the benchmark candidate
     """
 
+class InstallError(BenchmarkError):
+    """
+    Thrown whenever there was a problem installing the benchmark candidate
+    """
+
 
 class ExecutorError(BenchmarkError):
     """
