@@ -1,3 +1,4 @@
+from osbenchmark.exceptions import ExecutorError
 from osbenchmark.utils import io
 
 
@@ -9,6 +10,13 @@ class PathManager:
         if create_locally:
             io.ensure_dir(path)
         self.executor.execute(host, "mkdir -m 0777 -p " + path)
+
+    def is_path_present(self, host, path):
+        try:
+            self.executor.execute(host, f"test -e {path}")
+            return True
+        except ExecutorError:
+            return False
 
     def delete_path(self, host, path):
         path_block_list = ["", "*", "/", None]
