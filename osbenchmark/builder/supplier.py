@@ -657,6 +657,7 @@ class SourceRepository:
         else:
             self.logger.info("Checking out local revision [%s] for %s.", revision, self.name)
             git.checkout(self.src_dir, revision)
+
         if git.is_working_copy(self.src_dir):
             git_revision = git.head_revision(self.src_dir)
             self.logger.info("User-specified revision [%s] for [%s] results in git revision [%s]", revision, self.name, git_revision)
