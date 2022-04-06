@@ -2,6 +2,7 @@ from unittest import TestCase, mock
 from unittest.mock import Mock
 
 from osbenchmark.builder.utils.path_manager import PathManager
+from osbenchmark.exceptions import ExecutorError
 
 
 class PathManagerTest(TestCase):
@@ -43,3 +44,15 @@ class PathManagerTest(TestCase):
         self.path_manager.delete_path(self.host, "/")
 
         self.executor.execute.assert_has_calls([])
+
+    def test_path_is_present(self):
+        self.executor.execute.return_value = None
+
+        is_path_present = self.path_manager.is_path_present(self.host, self.path)
+        self.assertEqual(is_path_present, True)
+
+    def test_path_is_not_present(self):
+        self.executor.execute.side_effect = ExecutorError("fake")
+
+        is_path_present = self.path_manager.is_path_present(self.host, self.path)
+        self.assertEqual(is_path_present, False)
