@@ -19,7 +19,7 @@ class RepositoryUrlProvider:
             url_template = self._get_value_from_dot_notation_key(config_variables, key)
         except TypeError:
             if mandatory:
-                raise SystemSetupError("Config key [{}] is not defined.".format(key))
+                raise SystemSetupError(f"Config key [{key}] is not defined.")
             else:
                 return None
         return self.template_renderer.render_template_string(url_template, self._get_url_template_variables(host, config_variables))

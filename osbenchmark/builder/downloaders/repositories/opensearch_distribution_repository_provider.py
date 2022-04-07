@@ -17,9 +17,9 @@ class OpenSearchDistributionRepositoryProvider:
 
         self.logger.info("runtime_jdk_bundled? [%s]", is_runtime_jdk_bundled)
         if is_runtime_jdk_bundled:
-            url_key = "distribution.jdk.bundled.{}_url".format(distribution_repository)
+            url_key = f"distribution.jdk.bundled.{distribution_repository}_url"
         else:
-            url_key = "distribution.jdk.unbundled.{}_url".format(distribution_repository)
+            url_key = f"distribution.jdk.unbundled.{distribution_repository}_url"
 
         self.logger.info("key: [%s]", url_key)
         return self.repository_url_provider.render_url_for_key(host, self.provision_config_instance.variables, url_key)

@@ -60,7 +60,7 @@ class OpenSearchPreparer(Preparer):
 
     def _extract_opensearch(self, host, node, binary):
         self.logger.info("Unzipping %s to %s", binary, node.binary_path)
-        self.executor.execute(host, "tar -xzvf {} --directory {}".format(binary, node.binary_path))
+        self.executor.execute(host, f"tar -xzvf {binary} --directory {node.binary_path}")
 
     def _update_node_binary_path(self, node):
         node.binary_path = os.path.join(node.binary_path, "opensearch*")

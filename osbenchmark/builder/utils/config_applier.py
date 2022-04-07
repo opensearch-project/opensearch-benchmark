@@ -36,9 +36,9 @@ class ConfigApplier:
                     with open(target_file, mode="a", encoding="utf-8") as f:
                         f.write(self.template_renderer.render_template_file(root, config_vars, source_file))
 
-                    self.executor.execute(host, "cp {0} {0}".format(target_file))
+                    self.executor.execute(host, f"cp {target_file} {target_file}")
                 else:
                     self.logger.info("Treating [%s] as binary and copying as is to [%s].", source_file, target_file)
-                    self.executor.execute(host, "cp {} {}".format(source_file, target_file))
+                    self.executor.execute(host, f"cp {source_file} {target_file}")
 
         return mounts

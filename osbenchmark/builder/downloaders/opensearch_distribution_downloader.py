@@ -47,7 +47,7 @@ class OpenSearchDistributionDownloader(Downloader):
 
     def _is_binary_present(self, host, distribution_path):
         try:
-            self.executor.execute(host, "test -f {}".format(distribution_path))
+            self.executor.execute(host, f"test -f {distribution_path}")
             return True
         except ExecutorError:
             return False
@@ -57,7 +57,7 @@ class OpenSearchDistributionDownloader(Downloader):
         self.logger.info("Starting download of OpenSearch [%s]", opensearch_version)
 
         try:
-            self.executor.execute(host, "curl -o {} {}".format(distribution_path, download_url))
+            self.executor.execute(host, f"curl -o {distribution_path} {download_url}")
         except ExecutorError as e:
             self.logger.exception("Exception downloading OpenSearch distribution for version [%s] from [%s].",
                                   opensearch_version, download_url)

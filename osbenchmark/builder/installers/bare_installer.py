@@ -67,7 +67,7 @@ class BareInstaller(Installer):
     def _get_node(self, preparer_to_node):
         nodes_list = list(filter(lambda node: node is not None, preparer_to_node.values()))
 
-        assert len(nodes_list) == 1, "Exactly one node must be provisioned per host, but found nodes: {}".format(nodes_list)
+        assert len(nodes_list) == 1, f"Exactly one node must be provisioned per host, but found nodes: {nodes_list}"
 
         return nodes_list[0]
 

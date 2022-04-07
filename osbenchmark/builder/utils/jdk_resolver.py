@@ -37,7 +37,7 @@ class JdkResolver:
         """
 
         defined_env_vars = self._get_defined_env_vars(host)
-        java_home_env_var_names = ["JAVA{}_HOME".format(major) for major in majors]
+        java_home_env_var_names = [f"JAVA{major}_HOME" for major in majors]
         java_home_env_var_names.append("JAVA_HOME")
 
         resolved_major_to_java_home_path = {}
@@ -52,8 +52,8 @@ class JdkResolver:
             if major in resolved_major_to_java_home_path:
                 return resolved_major_to_java_home_path[major]
 
-        raise SystemSetupError("Install a JDK with one of the versions {} and point to it with one of {}."
-                                          .format(majors, self._checked_env_vars(majors)))
+        checked_env_vars = self._checked_env_vars(majors)
+        raise SystemSetupError(f"Install a JDK with one of the versions {majors} and point to it with one of {checked_env_vars}.")
 
     def _get_defined_env_vars(self, host):
         env_vars_as_strings = self.executor.execute(host, "printenv", output=True)
@@ -62,7 +62,7 @@ class JdkResolver:
     def _resolve_major_from_java_home(self, host, java_home_env_var_name, java_home_env_var_value):
         if java_home_env_var_value:
             major_version = self._major_version(host, java_home_env_var_value)
-            if java_home_env_var_name == "JAVA_HOME" or java_home_env_var_name == "JAVA{}_HOME".format(major_version):
+            if java_home_env_var_name in ("JAVA_HOME", f"JAVA{major_version}_HOME"):
                 return {major_version: java_home_env_var_value}
 
     def _major_version(self, host, java_home):
@@ -80,7 +80,7 @@ class JdkResolver:
             return int(version)
 
     def _system_property(self, host, java_home, system_property_name):
-        lines = self.executor.execute(host, "{} -XshowSettings:properties -version".format(self._java(java_home)), output=True)
+        lines = self.executor.execute(host, f"{self._java(java_home)} -XshowSettings:properties -version", output=True)
         # matches e.g. "    java.runtime.version = 1.8.0_121-b13" and captures "1.8.0_121-b13"
         sys_prop_pattern = re.compile(JdkResolver.SYS_PROP_REGEX % system_property_name)
         for line in lines:
@@ -100,6 +100,6 @@ class JdkResolver:
         :param majors: A list of major versions.
         :return: A list of checked environment variables.
         """
-        checked = ["JAVA{}_HOME".format(major) for major in majors]
+        checked = [f"JAVA{major}_HOME" for major in majors]
         checked.append("JAVA_HOME")
         return checked
