@@ -18,7 +18,7 @@ class SourceBuilderTest(TestCase):
         self.source_builder = SourceBuilder(self.executor, self.os_src_dir, self.build_jdk, self.log_dir)
         self.source_builder.path_manager = Mock()
         self.source_builder.jdk_resolver = Mock()
-        self.source_builder.jdk_resolver.resolve_jdk_path.return_value = "/path/to/jdk"
+        self.source_builder.jdk_resolver.resolve_jdk_path.return_value = (13, "/path/to/jdk")
 
     def test_build(self):
         self.source_builder.build(self.host, self.build_command)
