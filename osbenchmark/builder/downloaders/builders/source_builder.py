@@ -30,7 +30,7 @@ class SourceBuilder:
         self.path_manager.create_path(host, self.log_directory, create_locally=False)
         log_file = os.path.join(self.log_directory, "build.log")
 
-        jdk_path = self.jdk_resolver.resolve_jdk_path(host, self.build_jdk)
+        _, jdk_path = self.jdk_resolver.resolve_jdk_path(host, self.build_jdk)
         self.executor.execute(host, f"export JAVA_HOME={jdk_path}")
 
         self.logger.info("Running build command [%s]", build_command)
