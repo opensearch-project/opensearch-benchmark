@@ -15,11 +15,11 @@ class SourceBinaryBuilderTest(TestCase):
         self.jdk_resolver = Mock()
 
         self.os_src_dir = "/fake/src/dir"
-        self.build_jdk = 13
+        self.build_jdk_version = 13
         self.log_dir = "/benchmark/logs"
 
         self.source_binary_builder = SourceBinaryBuilder(self.executor, self.path_manager, self.jdk_resolver,
-                                                         self.os_src_dir, self.build_jdk, self.log_dir)
+                                                         self.os_src_dir, self.build_jdk_version, self.log_dir)
 
         self.jdk_resolver.resolve_jdk_path.return_value = (13, "/path/to/jdk")
 
