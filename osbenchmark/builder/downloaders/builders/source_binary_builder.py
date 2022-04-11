@@ -1,26 +1,22 @@
 import logging
 import os
 
-from osbenchmark.builder.utils.jdk_resolver import JdkResolver
-from osbenchmark.builder.utils.path_manager import PathManager
+from osbenchmark.builder.downloaders.builders.binary_builder import BinaryBuilder
 from osbenchmark.exceptions import ExecutorError, BuildError
 
 
-class SourceBuilder:
-    def __init__(self, executor, source_directory, build_jdk, log_directory):
+class SourceBinaryBuilder(BinaryBuilder):
+    def __init__(self, executor, path_manager, jdk_resolver, source_directory, build_jdk, log_directory):
         self.logger = logging.getLogger(__name__)
         self.executor = executor
-        self.path_manager = PathManager(executor)
-        self.jdk_resolver = JdkResolver(executor)
+        self.path_manager = path_manager
+        self.jdk_resolver = jdk_resolver
 
         self.source_directory = source_directory
         self.build_jdk = build_jdk
         self.log_directory = log_directory
 
     def build(self, host, build_commands, override_source_directory=None):
-        if isinstance(build_commands, str):
-            build_commands = [build_commands]
-
         for build_command in build_commands:
             self._run_build_command(host, build_command, override_source_directory)
 

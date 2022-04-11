@@ -10,12 +10,13 @@ class CorePluginSourceDownloaderTest(TestCase):
         self.host = None
 
         self.executor = Mock()
+        self.source_repository_provider = Mock()
         self.plugin = PluginDescriptor(name="my-plugin")
         self.builder = Mock()
         self.opensearch_source_dir = "/fake/path"
 
-        self.source_downloader = CorePluginSourceDownloader(self.plugin, self.executor, self.builder, self.opensearch_source_dir)
-        self.source_downloader.source_repository_provider = Mock()
+        self.source_downloader = CorePluginSourceDownloader(self.plugin, self.executor, self.source_repository_provider,
+                                                            self.builder, self.opensearch_source_dir)
 
     def test_download(self):
         plugin_binary = self.source_downloader.download(self.host)
