@@ -11,10 +11,10 @@ class ExceptionHandlingLauncher(Launcher):
         try:
             return self.launcher.start(host, node_configurations)
         except Exception as e:
-            raise LaunchError("Starting node(s) on host \"{}\" failed".format(host), e)
+            raise LaunchError(f"Starting node(s) on host \"{host}\" failed", e)
 
     def stop(self, host, nodes):
         try:
             return self.launcher.stop(host, nodes)
         except Exception as e:
-            raise LaunchError("Stopping node(s) on host \"{}\" failed".format(host), e)
+            raise LaunchError(f"Stopping node(s) on host \"{host}\" failed", e)

@@ -12,4 +12,4 @@ class LocalShellExecutor(ShellExecutor):
             return process.run_subprocess_with_output(command)
         else:
             if process.run_subprocess_with_logging(command, stdout=stdout, stderr=stderr, env=env, detach=detach):
-                raise ExecutorError("Command: \"{}\" returned a non-zero exit code".format(command))
+                raise ExecutorError(f"Command: \"{command}\" returned a non-zero exit code")

@@ -59,7 +59,7 @@ class DockerInstaller(Installer):
         docker_compose_file = os.path.join(node.binary_path, "docker-compose.yml")
         with open(docker_compose_file, mode="wt", encoding="utf-8") as f:
             f.write(docker_cfg)
-        self.executor.execute(host, "cp {0} {0}".format(docker_compose_file))
+        self.executor.execute(host, f"cp {docker_compose_file} {docker_compose_file}")
 
     def _prepare_mounts(self, host, node):
         config_vars = self._get_config_vars(node)

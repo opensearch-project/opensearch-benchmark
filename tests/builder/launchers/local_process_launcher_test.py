@@ -54,7 +54,7 @@ class LocalProcessLauncherTests(TestCase):
                                                   provision_config_instance_runtime_jdks="12,11",
                                                   provision_config_instance_provides_bundled_jdk=True,
                                                   ip="127.0.0.1",
-                                                  node_name="testnode-{}".format(node),
+                                                  node_name=f"testnode-{node}",
                                                   node_root_path="/tmp",
                                                   binary_path="/tmp",
                                                   data_paths="/tmp"))

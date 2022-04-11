@@ -46,7 +46,7 @@ class DockerLauncher(Launcher):
     def _docker_compose(self, compose_config, cmd):
         docker_compose_file = self._get_docker_compose_file(compose_config)
 
-        return "docker-compose -f {} {}".format(docker_compose_file, cmd)
+        return f"docker-compose -f {docker_compose_file} {cmd}"
 
     def _get_docker_compose_file(self, compose_config):
         return os.path.join(compose_config, "docker-compose.yml")
@@ -59,7 +59,7 @@ class DockerLauncher(Launcher):
         self.waiter.wait(self._is_container_healthy, host, container_id)
 
     def _is_container_healthy(self, host, container_id):
-        cmd = 'docker ps -a --filter "id={}" --filter "status=running" --filter "health=healthy" -q'.format(container_id)
+        cmd = f'docker ps -a --filter "id={container_id}" --filter "status=running" --filter "health=healthy" -q'
         containers = self.shell_executor.execute(host, cmd, output=True)
         return len(containers) > 0
 

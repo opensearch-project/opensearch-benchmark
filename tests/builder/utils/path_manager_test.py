@@ -21,7 +21,7 @@ class PathManagerTest(TestCase):
             mock.call(self.path)
         ])
         self.executor.execute.assert_has_calls([
-            mock.call(self.host, "mkdir -m 0777 -p {}".format(self.path))
+            mock.call(self.host, f"mkdir -m 0777 -p {self.path}")
         ])
 
     @mock.patch('osbenchmark.utils.io.ensure_dir')
@@ -30,14 +30,14 @@ class PathManagerTest(TestCase):
 
         ensure_dir.assert_has_calls([])
         self.executor.execute.assert_has_calls([
-            mock.call(self.host, "mkdir -m 0777 -p {}".format(self.path))
+            mock.call(self.host, f"mkdir -m 0777 -p {self.path}")
         ])
 
     def test_delete_valid_path(self):
         self.path_manager.delete_path(self.host, self.path)
 
         self.executor.execute.assert_has_calls([
-            mock.call(self.host, "rm -r {}".format(self.path))
+            mock.call(self.host, f"rm -r {self.path}")
         ])
 
     def test_delete_invalid_path(self):
