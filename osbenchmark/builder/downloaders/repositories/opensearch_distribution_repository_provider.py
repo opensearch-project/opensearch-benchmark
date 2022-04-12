@@ -1,15 +1,13 @@
 import logging
 
-from osbenchmark.builder.downloaders.repositories.repository_url_provider import RepositoryUrlProvider
 from osbenchmark.utils import convert
 
 
 class OpenSearchDistributionRepositoryProvider:
-    def __init__(self, provision_config_instance, executor):
+    def __init__(self, provision_config_instance, repository_url_provider):
         self.logger = logging.getLogger(__name__)
         self.provision_config_instance = provision_config_instance
-        self.executor = executor
-        self.repository_url_provider = RepositoryUrlProvider(executor)
+        self.repository_url_provider = repository_url_provider
 
     def get_download_url(self, host):
         is_runtime_jdk_bundled = self.provision_config_instance.variables["system"]["runtime"]["jdk"]["bundled"]

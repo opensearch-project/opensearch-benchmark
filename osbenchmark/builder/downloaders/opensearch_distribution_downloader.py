@@ -2,25 +2,21 @@ import logging
 import os.path
 
 from osbenchmark.builder.downloaders.downloader import Downloader
-from osbenchmark.builder.downloaders.repositories.opensearch_distribution_repository_provider import \
-    OpenSearchDistributionRepositoryProvider
-from osbenchmark.builder.utils.path_manager import PathManager
+from osbenchmark.builder.utils.binary_keys import BinaryKeys
 from osbenchmark.exceptions import ExecutorError
 
 
 class OpenSearchDistributionDownloader(Downloader):
-    BINARY_KEY = "opensearch"
-
-    def __init__(self, provision_config_instance, executor):
+    def __init__(self, provision_config_instance, executor, path_manager, distribution_repository_provider):
         super().__init__(executor)
         self.logger = logging.getLogger(__name__)
         self.provision_config_instance = provision_config_instance
-        self.path_manager = PathManager(executor)
-        self.distribution_repository_provider = OpenSearchDistributionRepositoryProvider(provision_config_instance, executor)
+        self.path_manager = path_manager
+        self.distribution_repository_provider = distribution_repository_provider
 
     def download(self, host):
         binary_path = self._fetch_binary(host)
-        return {OpenSearchDistributionDownloader.BINARY_KEY: binary_path}
+        return {BinaryKeys.OPENSEARCH: binary_path}
 
     def _fetch_binary(self, host):
         download_url = self.distribution_repository_provider.get_download_url(host)

@@ -4,13 +4,12 @@ import uuid
 
 from osbenchmark.builder.installers.preparers.preparer import Preparer
 from osbenchmark.builder.models.node import Node
+from osbenchmark.builder.utils.binary_keys import BinaryKeys
 from osbenchmark.builder.utils.host_cleaner import HostCleaner
 from osbenchmark.builder.utils.path_manager import PathManager
 
 
 class OpenSearchPreparer(Preparer):
-    OPENSEARCH_BINARY_KEY = "opensearch"
-
     def __init__(self, provision_config_instance, executor, hook_handler_class):
         super().__init__(executor)
         self.logger = logging.getLogger(__name__)
@@ -23,7 +22,7 @@ class OpenSearchPreparer(Preparer):
 
     def prepare(self, host, binaries):
         node = self._create_node()
-        self._prepare_node(host, node, binaries[OpenSearchPreparer.OPENSEARCH_BINARY_KEY])
+        self._prepare_node(host, node, binaries[BinaryKeys.OPENSEARCH])
 
         return node
 

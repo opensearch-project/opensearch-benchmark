@@ -1,10 +1,7 @@
-from osbenchmark.builder.downloaders.repositories.repository_url_provider import RepositoryUrlProvider
-
-
 class PluginDistributionRepositoryProvider:
-    def __init__(self, plugin, executor):
+    def __init__(self, plugin, repository_url_provider):
         self.plugin = plugin
-        self.repository_url_provider = RepositoryUrlProvider(executor)
+        self.repository_url_provider = repository_url_provider
 
     def get_download_url(self, host):
         distribution_repository = self.plugin.variables["distribution"]["repository"]

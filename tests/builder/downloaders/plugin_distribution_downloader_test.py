@@ -12,8 +12,8 @@ class PluginDistributionDownloaderTest(TestCase):
         self.executor = Mock()
         self.plugin = PluginDescriptor(name="my plugin")
 
-        self.plugin_distro_downloader = PluginDistributionDownloader(self.plugin, self.executor)
-        self.plugin_distro_downloader.distribution_repository_provider = Mock()
+        self.distribution_repository_provider = Mock()
+        self.plugin_distro_downloader = PluginDistributionDownloader(self.plugin, self.executor, self.distribution_repository_provider)
 
     def test_plugin_url_exists(self):
         self.plugin_distro_downloader.distribution_repository_provider.get_download_url.return_value = "https://fake"
