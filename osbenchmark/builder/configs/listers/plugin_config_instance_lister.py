@@ -13,7 +13,7 @@ class PluginConfigInstanceLister:
 
     def list_plugin_config_instances(self):
         plugin_config_instances = []
-        for config_format_version in ConfigInstanceTypes.PLUGIN.supported_versions:
+        for config_format_version in ConfigInstanceTypes.PLUGIN.supported_config_format_versions:
             plugins_root_directory = self.config_path_resolver.resolve_config_path(ConfigInstanceTypes.PLUGIN.config_type,
                                                                                    config_format_version)
 
