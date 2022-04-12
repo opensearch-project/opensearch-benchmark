@@ -26,8 +26,8 @@ class OpenSearchSourceDownloader(Downloader):
         return {BinaryKeys.OPENSEARCH: self._get_zip_path(opensearch_source_path, artifact_variables)}
 
     def _get_opensearch_source_path(self):
-        node_root_dir = self.provision_config_instance.variables["node"]["src"]["root"]["dir"]
-        opensearch_source_subdir = self.provision_config_instance.variables["source"]["opensearch"]["src"]["subdir"]
+        node_root_dir = self.provision_config_instance.variables["source"]["root"]["dir"]
+        opensearch_source_subdir = self.provision_config_instance.variables["source"]["opensearch"]["subdir"]
         return os.path.join(node_root_dir, opensearch_source_subdir)
 
     def _fetch(self, host, opensearch_source_path):
