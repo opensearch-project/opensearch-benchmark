@@ -1,14 +1,12 @@
 import logging
 import os
 
-from osbenchmark.builder.configs.config_format_version_constants import SUPPORTED_PLUGIN_CONFIG_FORMAT_VERSIONS
+from osbenchmark.builder.configs.config_format_version_constants import SUPPORTED_PLUGIN_CONFIG_FORMAT_VERSIONS, PLUGIN_CONFIG_TYPE
 from osbenchmark.builder.models.plugin_config_instance import PluginConfigInstance
 from osbenchmark.utils import io
 
 
 class PluginConfigInstanceLister:
-    CONFIG_TYPE = "plugins"
-
     def __init__(self, config_path_resolver):
         self.logger = logging.getLogger(__name__)
         self.config_path_resolver = config_path_resolver
@@ -16,15 +14,16 @@ class PluginConfigInstanceLister:
     def list_plugin_config_instances(self):
         plugin_config_instances = []
         for config_format_version in SUPPORTED_PLUGIN_CONFIG_FORMAT_VERSIONS:
-            plugin_config_instances += self._list_core_plugins_for_format_version(config_format_version) + \
-                                       self._list_configured_plugins_for_format_version(config_format_version)
+            plugins_root_directory = self.config_path_resolver.resolve_config_path(PLUGIN_CONFIG_TYPE, config_format_version)
+
+            plugin_config_instances += self._list_core_plugins_for_format_version(plugins_root_directory, config_format_version)
+            plugin_config_instances += self._list_configured_plugins_for_format_version(plugins_root_directory, config_format_version)
 
         return sorted(plugin_config_instances,
                       key=lambda plugin_config_instance: (plugin_config_instance.format_version, plugin_config_instance.name))
 
-    def _list_core_plugins_for_format_version(self, config_format_version):
-        plugins_directory = self.config_path_resolver.resolve_config_path(PluginConfigInstanceLister.CONFIG_TYPE, config_format_version)
-        core_plugins_path = os.path.join(plugins_directory, "core-plugins.txt")
+    def _list_core_plugins_for_format_version(self, config_format_version, plugins_root_directory):
+        core_plugins_path = os.path.join(plugins_root_directory, "core-plugins.txt")
 
         return self._parse_core_plugins(core_plugins_path, config_format_version) if os.path.exists(core_plugins_path) else []
 
@@ -34,13 +33,12 @@ class PluginConfigInstanceLister:
                                          format_version=f"v{config_format_version}",
                                          is_core_plugin=True) for line in core_plugins_file if not line.startswith("#")]
 
-    def _list_configured_plugins_for_format_version(self, config_format_version):
+    def _list_configured_plugins_for_format_version(self, plugins_root_directory, config_format_version):
         configured_plugins = []
-        plugin_root_directory = self.config_path_resolver.resolve_config_path(PluginConfigInstanceLister.CONFIG_TYPE, config_format_version)
 
         # each directory is a plugin, each .ini is a config (just go one level deep)
-        for plugin_directory in os.listdir(plugin_root_directory):
-            plugin_path = os.path.join(plugin_root_directory, plugin_directory)
+        for plugin_directory in os.listdir(plugins_root_directory):
+            plugin_path = os.path.join(plugins_root_directory, plugin_directory)
             if os.path.isdir(plugin_path):
                 configured_plugins += self._parse_plugins_in_directory(plugin_path, plugin_directory, config_format_version)
 
