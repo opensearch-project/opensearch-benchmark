@@ -20,8 +20,9 @@ class PluginConfigInstanceLister:
             plugin_config_instances += self._list_core_plugins(plugins_root_directory, config_format_version)
             plugin_config_instances += self._list_configured_plugins(plugins_root_directory, config_format_version)
 
-        return sorted(plugin_config_instances,
-                      key=lambda plugin_config_instance: (plugin_config_instance.format_version, plugin_config_instance.name))
+        return sorted(plugin_config_instances, key=lambda plugin_config_instance: (
+            plugin_config_instance.format_version, plugin_config_instance.name,
+            plugin_config_instance.config_names[0] if plugin_config_instance.config_names else None))
 
     def _list_core_plugins(self, plugins_root_directory, config_format_version):
         core_plugins_path = os.path.join(plugins_root_directory, "core-plugins.txt")
