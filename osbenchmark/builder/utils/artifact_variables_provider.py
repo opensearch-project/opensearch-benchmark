@@ -1,7 +1,4 @@
-ARCH_MAPPINGS = {
-    "x86_64": "x64",
-    "aarch64": "arm64"
-}
+from osbenchmark.builder.models.architecture_types import ArchitectureTypes
 
 
 class ArtifactVariablesProvider:
@@ -21,4 +18,4 @@ class ArtifactVariablesProvider:
 
     def _get_arch(self, host):
         arch = self.executor.execute(host, "uname -m", output=True)[0]
-        return ARCH_MAPPINGS[arch.lower()]
+        return ArchitectureTypes.get_from_hardware_name(arch.lower()).opensearch_name
