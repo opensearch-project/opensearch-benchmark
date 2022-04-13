@@ -10,7 +10,8 @@ class PluginConfigInstance:
     """
     Creates new settings for a plugin attached to a benchmark candidate.
 
-    :param names: Descriptive name for this plugin_config_instance.
+    :param name: Descriptive name for this plugin_config_instance.
+    :param format_version: The plugin_config_instance format version
     :param is_core_plugin: A boolean dictating if the plugin is a core plugin.
     :param config_names: A list of config folder names where the raw config can be found. May be ``None``.
     :param root_path: The root path from which bootstrap hooks should be loaded if any. May be ``None``.
@@ -18,6 +19,7 @@ class PluginConfigInstance:
     :param variables: A dict containing variable definitions that need to be replaced.
     """
     name: str
+    format_version: str
     is_core_plugin: bool = False
     config_names: List[str] = None
     root_path: str = None
