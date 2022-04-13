@@ -6,6 +6,7 @@ from osbenchmark.builder.installers.preparers.opensearch_preparer import OpenSea
 from osbenchmark.builder.models.host import Host
 from osbenchmark.builder.models.node import Node
 from osbenchmark.builder.provision_config import ProvisionConfigInstance
+from osbenchmark.builder.utils.binary_keys import BinaryKeys
 
 
 class OpenSearchPreparerTests(TestCase):
@@ -15,7 +16,7 @@ class OpenSearchPreparerTests(TestCase):
                          name=self.node_id, pid=None, telemetry=None, port=9200, root_dir=None,
                          log_path="/fake/logpath", heap_dump_path="/fake/heap")
         self.host = Host(name="fake", address="10.17.22.23", metadata={}, node=None)
-        self.binaries = {OpenSearchPreparer.OPENSEARCH_BINARY_KEY: "/data/builds/distributions"}
+        self.binaries = {BinaryKeys.OPENSEARCH: "/data/builds/distributions"}
         self.all_node_ips = ["10.17.22.22", "10.17.22.23"]
 
         self.test_execution_root = "fake_root"

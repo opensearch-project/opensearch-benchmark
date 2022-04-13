@@ -22,9 +22,11 @@ class OpenSearchDistributionDownloaderTest(TestCase):
             }
         })
 
-        self.os_distro_downloader = OpenSearchDistributionDownloader(self.provision_config_instance, self.executor)
-        self.os_distro_downloader.path_manager = Mock()
-        self.os_distro_downloader.distribution_repository_provider = Mock()
+        self.path_manager = Mock()
+        self.distribution_repository_provider = Mock()
+        self.os_distro_downloader = OpenSearchDistributionDownloader(self.provision_config_instance, self.executor, self.path_manager,
+                                                                     self.distribution_repository_provider)
+
 
         self.os_distro_downloader.distribution_repository_provider.get_download_url.return_value = "https://fake/download.tar.gz"
         self.os_distro_downloader.distribution_repository_provider.get_file_name_from_download_url.return_value = "my-distro"

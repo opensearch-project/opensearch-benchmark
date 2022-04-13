@@ -8,8 +8,6 @@ from osbenchmark.builder.provision_config import ProvisionConfigInstance
 
 class OpenSearchDistributionRepositoryProviderTest(TestCase):
     def setUp(self):
-        self.executor = Mock()
-
         self.host = None
         self.provision_config_instance = ProvisionConfigInstance(names=None, config_paths=None, root_path=None, variables={
             "system": {
@@ -26,8 +24,10 @@ class OpenSearchDistributionRepositoryProviderTest(TestCase):
                 }
             }
         })
-        self.os_distro_repo_provider = OpenSearchDistributionRepositoryProvider(self.provision_config_instance, self.executor)
-        self.os_distro_repo_provider.repository_url_provider = Mock()
+        self.repository_url_provider = Mock()
+        self.os_distro_repo_provider = OpenSearchDistributionRepositoryProvider(self.provision_config_instance,
+                                                                                self.repository_url_provider)
+
 
     def test_get_url_bundled_jdk(self):
         self.os_distro_repo_provider.get_download_url(self.host)

@@ -8,12 +8,11 @@ from osbenchmark.builder.provision_config import PluginDescriptor
 
 class PluginDistributionRepositoryProviderTest(TestCase):
     def setUp(self):
-        self.executor = Mock()
-
         self.host = None
         self.plugin = PluginDescriptor(name="my-plugin", variables={"distribution": {"repository": "release"}})
-        self.plugin_distro_repo_provider = PluginDistributionRepositoryProvider(self.plugin, self.executor)
-        self.plugin_distro_repo_provider.repository_url_provider = Mock()
+        self.repository_url_provider = Mock()
+        self.plugin_distro_repo_provider = PluginDistributionRepositoryProvider(self.plugin, self.repository_url_provider)
+
 
     def test_get_plugin_url(self):
         self.plugin_distro_repo_provider.get_download_url(self.host)

@@ -1,4 +1,4 @@
-from unittest import TestCase
+from unittest import TestCase, mock
 from unittest.mock import Mock
 
 from osbenchmark.builder.downloaders.repositories.repository_url_provider import RepositoryUrlProvider
@@ -7,7 +7,8 @@ from osbenchmark.exceptions import SystemSetupError
 
 class RepositoryUrlProviderTest(TestCase):
     def setUp(self):
-        self.executor = Mock()
+        self.template_renderer = Mock()
+        self.artifact_variables_provider = Mock()
 
         self.host = None
         self.variables = {
@@ -20,19 +21,18 @@ class RepositoryUrlProviderTest(TestCase):
         }
         self.url_key = "fake.url"
 
-        self.repo_url_provider = RepositoryUrlProvider(self.executor)
+        self.repo_url_provider = RepositoryUrlProvider(self.template_renderer, self.artifact_variables_provider)
 
-    def test_get_url_aarch64(self):
-        self.executor.execute.side_effect = [["Linux"], ["aarch64"]]
+    def test_get_url(self):
+        self.artifact_variables_provider.get_artifact_variables.return_value = {"fake": "vars"}
 
-        url = self.repo_url_provider.render_url_for_key(self.host, self.variables, self.url_key)
-        self.assertEqual(url, "opensearch/1.2.3/opensearch-1.2.3-linux-arm64.tar.gz")
-
-    def test_get_url_x86(self):
-        self.executor.execute.side_effect = [["Linux"], ["x86_64"]]
-
-        url = self.repo_url_provider.render_url_for_key(self.host, self.variables, self.url_key)
-        self.assertEqual(url, "opensearch/1.2.3/opensearch-1.2.3-linux-x64.tar.gz")
+        self.repo_url_provider.render_url_for_key(self.host, self.variables, self.url_key)
+        self.artifact_variables_provider.get_artifact_variables.assert_has_calls([
+            mock.call(self.host, "1.2.3")
+        ])
+        self.template_renderer.render_template_string.assert_has_calls([
+            mock.call("opensearch/{{VERSION}}/opensearch-{{VERSION}}-{{OSNAME}}-{{ARCH}}.tar.gz", {"fake": "vars"})
+        ])
 
     def test_no_url_template_found(self):
         with self.assertRaises(SystemSetupError):
