@@ -27,6 +27,7 @@ import glob
 import json
 import logging
 import math
+import opensearchpy.helpers
 import os
 import pickle
 import random
@@ -54,7 +55,6 @@ class OsClient:
         self._cluster_version = cluster_version
         self._cluster_distribution = None
 
-    # TODO #653: Remove version-specific support for metrics stores before 7.0.0.
     def probe_version(self):
         info = self.guarded(self._client.info)
         try:
@@ -72,15 +72,7 @@ class OsClient:
             self._cluster_distribution = "elasticsearch"
 
     def put_template(self, name, template):
-        # TODO #653: Remove version-specific support for metrics stores before 7.0.0 (also adjust template)
-        if (self._cluster_version[0] > 6 and self._cluster_distribution == "elasticsearch") or \
-                self._cluster_distribution == "opensearch":
-            return self.guarded(self._client.indices.put_template, name=name, body=template, params={
-                # allows to include the type name although it is not allowed anymore by default
-                "include_type_name": "true"
-            })
-        else:
-            return self.guarded(self._client.indices.put_template, name=name, body=template)
+        return self.guarded(self._client.indices.put_template, name=name, body=template)
 
     def template_exists(self, name):
         return self.guarded(self._client.indices.exists_template, name)
@@ -102,13 +94,7 @@ class OsClient:
         return self.guarded(self._client.indices.refresh, index=index)
 
     def bulk_index(self, index, doc_type, items):
-        # TODO #653: Remove version-specific support for metrics stores before 7.0.0.
-        # pylint: disable=import-outside-toplevel
-        import opensearchpy.helpers
-        if self._cluster_version[0] > 6:
-            self.guarded(opensearchpy.helpers.bulk, self._client, items, index=index, chunk_size=5000)
-        else:
-            self.guarded(opensearchpy.helpers.bulk, self._client, items, index=index, doc_type=doc_type, chunk_size=5000)
+        self.guarded(opensearchpy.helpers.bulk, self._client, items, index=index, chunk_size=5000)
 
     def index(self, index, doc_type, item, id=None):
         doc = {
