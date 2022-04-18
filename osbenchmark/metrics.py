@@ -27,7 +27,6 @@ import glob
 import json
 import logging
 import math
-import opensearchpy.helpers
 import os
 import pickle
 import random
@@ -37,7 +36,7 @@ import time
 import zlib
 from enum import Enum, IntEnum
 from http.client import responses
-
+import opensearchpy.helpers
 import tabulate
 
 from osbenchmark import client, time, exceptions, config, version, paths
