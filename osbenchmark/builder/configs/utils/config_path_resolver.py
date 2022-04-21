@@ -34,5 +34,5 @@ class ConfigPathResolver:
                 default_directory, provision_configs_dir,
                 repo_name, "provision_configs", offline)
 
-            current_provision_config_repo.setRepository(repo_revision, distribution_version, self.cfg)
+            current_provision_config_repo.set_provision_configs_dir(repo_revision, distribution_version, self.cfg)
             return current_provision_config_repo.repo_dir

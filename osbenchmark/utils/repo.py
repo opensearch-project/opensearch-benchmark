@@ -62,17 +62,6 @@ class BenchmarkRepository:
                     raise exceptions.SystemSetupError("[{src}] must be a git repository.\n\nPlease run:\ngit -C {src} init"
                                                       .format(src=self.repo_dir))
 
-    def setRepository(self, repo_revision, distribution_version, cfg):
-        if self.directory == BenchmarkRepository.default:
-            self.useOpensearchBenchmarkProvisionConfigs(distribution_version)
-        elif repo_revision:
-            self.checkout(repo_revision)
-        else:
-            self.update(distribution_version)
-            cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", self.revision)
-
-        return cfg
-
     def update(self, distribution_version):
         try:
             if self.remote:
@@ -132,18 +121,29 @@ class BenchmarkRepository:
         self.logger.info("Checking out revision [%s] in [%s].", revision, self.repo_dir)
         git.checkout(self.repo_dir, revision)
 
-    def useOpensearchBenchmarkProvisionConfigs(self, distribution_version):
-        self.logger.info("Using default-provision-config directory within repository")
-        root_dir = os.getcwd().split("/osbenchmark")[0]
-        provisionconfigs_path = os.path.join(root_dir, "opensearch-benchmark-provisionconfigs")
+    def set_provision_configs_dir(self, repo_revision, distribution_version, cfg):
+        if self.directory == BenchmarkRepository.default:
+            self._use_default_provision_configs_dir(distribution_version, cfg)
+        elif repo_revision:
+            self.checkout(repo_revision)
+        else:
+            self.update(distribution_version)
+            cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", self.revision)
 
-        branch_version = self.selectBranchVersion(distribution_version, provisionconfigs_path)
+        return cfg
+
+    def _use_default_provision_configs_dir(self, distribution_version, cfg):
+        self.logger.info("Using default-provision-config directory within repository")
+        root_dir = cfg.opts("node", "benchmark.root")
+        provision_configs_path = os.path.join(root_dir, "resources/provision_configs")
+
+        branch_version = self._select_branch_version(distribution_version, provision_configs_path)
 
         # Include selected branch
-        self.repo_dir = os.path.join(root_dir, f"opensearch-benchmark-provisionconfigs/{branch_version}")
+        self.repo_dir = os.path.join(provision_configs_path, branch_version)
 
-    def selectBranchVersion(self, distribution_version, pc_path):
-        # Branches have been moved into opensearch-benchmark-provisionconfigs
+    def _select_branch_version(self, distribution_version, pc_path):
+        # Branches have been moved into resources/provision_configs
         branches = [b for b in os.listdir(pc_path) if os.path.isdir(os.path.join(pc_path, b)) and b != "main"]
         branches.sort(key=lambda b: list(map(int, b.split('.'))), reverse=True)
         self.logger.info("branches: %s", branches)
