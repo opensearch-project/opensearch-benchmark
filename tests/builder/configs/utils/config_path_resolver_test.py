@@ -24,7 +24,7 @@ class ConfigPathResolverTest(TestCase):
 
     @mock.patch('osbenchmark.utils.git.fetch')
     @mock.patch('osbenchmark.utils.repo.BenchmarkRepository')
-    @mock.patch('osbenchmark.utils.repo.BenchmarkRepository.setRepository')
+    @mock.patch('osbenchmark.utils.repo.BenchmarkRepository.set_provision_configs_dir')
     @mock.patch('os.path.exists')
     def test_provision_config_path_not_defined(self, path_exists, set_repo, benchmark_repo, git_fetch):
         path_exists.return_value = True
