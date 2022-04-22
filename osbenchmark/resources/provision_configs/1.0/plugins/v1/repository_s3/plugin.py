@@ -25,7 +25,6 @@
 
 import logging
 import os
-import shlex
 import subprocess
 
 from osbenchmark.utils import process
