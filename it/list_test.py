@@ -45,7 +45,7 @@ def test_list_opensearch_plugins(cfg):
 def test_list_workloads(cfg):
     assert it.osbenchmark(cfg, "list workloads") == 0
     assert it.osbenchmark(cfg, "list workloads --workload-repository=default "
-                           "--workload-revision=b28c9615d576bcc4beeb6725f4c95ed602b76638") == 0
+                           "--workload-revision=cba4e45dda37ac03abbd3c9dd4532475dac355e9") == 0
 
 
 @it.benchmark_in_mem
