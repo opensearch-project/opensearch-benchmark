@@ -103,7 +103,7 @@ Once your changes and tests are ready to submit for review:
 
 2. Sign the Developer Certificate of Origin
 
-    Please make sure you have signed DCO certificate. Include the `--signoff` argument as part of your `git commit`
+    Please make sure you have signed the DCO certificate. Include the `--signoff` argument as part of your `git commit`
 
 3. Rebase your changes
 
@@ -114,7 +114,7 @@ Once your changes and tests are ready to submit for review:
     Push your local changes to your forked copy of the repository and [submit a pull request](https://help.github.com/articles/using-pull-requests). In the pull request, choose a title which sums up the changes that you have made, and in the body provide more details about what your changes do. Also mention the number of the issue where discussion has taken place, eg "Closes #123".
 
 ## Developing Breaking Changes
-Breaking changes should not be directly added to the `main` branch. These should be developed in their own feature branch. Prior to a new release this feature branch should rebase onto the latest changes from `main`. `main` can then `pull` or `cherry-pick` the breaking changes from the feature branch.
+Breaking changes should not be directly added to the `main` branch. These should be developed in their own feature branch. Prior to a new release this feature branch should be rebased onto the latest changes from `main`. `main` can then `pull` or `cherry-pick` the breaking changes from the feature branch.
 
 ## Misc
 
