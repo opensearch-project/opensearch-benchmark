@@ -23,7 +23,7 @@
 # under the License.
 
 from unittest import mock
-from osbenchmark.tracker.index import filter_ephemeral_index_settings, extract_index_mapping_and_settings, update_index_setting_parameters
+from osbenchmark.workload_processor.index import filter_ephemeral_index_settings, extract_index_mapping_and_settings, update_index_setting_parameters
 
 
 def test_index_setting_filter():

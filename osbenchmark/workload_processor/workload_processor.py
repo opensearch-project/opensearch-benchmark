@@ -30,7 +30,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from osbenchmark import PROGRAM_NAME
 from osbenchmark.client import OsClientFactory
-from osbenchmark.tracker import corpus, index
+from osbenchmark.workload_processor import corpus, index
 from osbenchmark.utils import io, opts, console
 
 
