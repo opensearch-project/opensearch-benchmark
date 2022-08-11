@@ -23,7 +23,7 @@
 # under the License.
 
 from unittest import mock
-from osbenchmark.workload_processor.index import (
+from osbenchmark.workload_generator.index import (
     filter_ephemeral_index_settings,
     extract_index_mapping_and_settings,
     update_index_setting_parameters)

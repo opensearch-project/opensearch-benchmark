@@ -25,7 +25,7 @@ import json
 from unittest import mock
 from unittest.mock import call
 
-from osbenchmark.workload_processor import corpus
+from osbenchmark.workload_generator import corpus
 
 
 def serialize_doc(doc):
