@@ -581,8 +581,9 @@ class OperationType(Enum):
     DeleteAsyncSearch = 11
     PaginatedSearch = 12
     ScrollSearch = 13
-    OpenPointInTime = 14
-    ClosePointInTime = 15
+    CreatePointInTime = 14
+    DeletePointInTime = 15
+    GetPointInTime = 16
 
     # administrative actions
     ForceMerge = 1001
@@ -703,10 +704,12 @@ class OperationType(Enum):
             return OperationType.GetAsyncSearch
         elif v == "delete-async-search":
             return OperationType.DeleteAsyncSearch
-        elif v == "open-point-in-time":
-            return OperationType.OpenPointInTime
-        elif v == "close-point-in-time":
-            return OperationType.ClosePointInTime
+        elif v == "create-point-in-time":
+            return OperationType.CreatePointInTime
+        elif v == "delete-point-in-time":
+            return OperationType.DeletePointInTime
+        elif v == "get-point-in-time":
+            return OperationType.GetPointInTime
         else:
             raise KeyError(f"No enum value for [{v}]")
 
