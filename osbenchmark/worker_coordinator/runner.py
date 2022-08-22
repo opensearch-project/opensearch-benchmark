@@ -63,7 +63,7 @@ def register_default_runners():
     register_runner(workload.OperationType.DeleteAsyncSearch, DeleteAsyncSearch(), async_runner=True)
     register_runner(workload.OperationType.CreatePointInTime, CreatePointInTime(), async_runner=True)
     register_runner(workload.OperationType.DeletePointInTime, DeletePointInTime(), async_runner=True)
-    register_runner(workload.OperationType.GetPointInTime, GetPointInTime(), async_runner=True)
+    register_runner(workload.OperationType.ListAllPointInTime, ListAllPointInTime(), async_runner=True)
 
     # This is an administrative operation but there is no need for a retry here as we don't issue a request
     register_runner(workload.OperationType.Sleep, Sleep(), async_runner=True)
@@ -1879,13 +1879,13 @@ class DeletePointInTime(Runner):
         return "delete-point-in-time"
 
 
-class GetPointInTime(Runner):
+class ListAllPointInTime(Runner):
     async def __call__(self, opensearch, params):
         request_params = params.get("request-params", {})
-        await opensearch.get_point_in_time(params=request_params, headers=None)
+        await opensearch.list_all_point_in_time(params=request_params, headers=None)
 
     def __repr__(self, *args, **kwargs):
-        return "get-point-in-time"
+        return "list-all-point-in-time"
 
 
 class CompositeContext:
@@ -1939,7 +1939,7 @@ class Composite(Runner):
         self.supported_op_types = [
             "create-point-in-time",
             "delete-point-in-time",
-            "get-point-in-time",
+            "list-all-point-in-time",
             "search",
             "paginated-search",
             "raw-request",

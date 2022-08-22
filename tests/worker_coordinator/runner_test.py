@@ -4393,7 +4393,7 @@ class DeleteAsyncSearchTests(TestCase):
         ])
 
 
-class OpenPointInTimeTests(TestCase):
+class CreatePointInTimeTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
     async def test_creates_point_in_time(self, opensearch):
@@ -4403,9 +4403,9 @@ class OpenPointInTimeTests(TestCase):
             "index": "test-index"
         }
 
-        opensearch.open_point_in_time.return_value = as_future({"id": pit_id})
+        opensearch.create_point_in_time.return_value = as_future({"id": pit_id})
 
-        r = runner.OpenPointInTime()
+        r = runner.CreatePointInTime()
         async with runner.CompositeContext():
             await r(opensearch, params)
             self.assertEqual(pit_id, runner.CompositeContext.get("open-pit-test"))
@@ -4419,30 +4419,69 @@ class OpenPointInTimeTests(TestCase):
             "index": "test-index"
         }
 
-        opensearch.open_point_in_time.return_value = as_future({"id": pit_id})
+        opensearch.create_point_in_time.return_value = as_future({"id": pit_id})
 
-        r = runner.OpenPointInTime()
+        r = runner.CreatePointInTime()
         with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
             await r(opensearch, params)
 
         self.assertEqual("This operation is only allowed inside a composite operation.", ctx.exception.args[0])
 
-class ClosePointInTimeTests(TestCase):
+class DeletePointInTimeTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_closes_point_in_time(self, opensearch):
+    async def test_delete_point_in_time(self, opensearch):
         pit_id = "0123456789abcdef"
         params = {
             "name": "close-pit-test",
             "with-point-in-time-from": "open-pit-task1",
         }
-        opensearch.close_point_in_time.return_value=(as_future())
-        r = runner.ClosePointInTime()
+        opensearch.delete_point_in_time.return_value=(as_future())
+        r = runner.DeletePointInTime()
         async with runner.CompositeContext():
             runner.CompositeContext.put("open-pit-task1", pit_id)
             await r(opensearch, params)
 
-        opensearch.close_point_in_time.assert_called_once_with(body={"id": "0123456789abcdef"}, params={}, headers=None)
+        opensearch.delete_point_in_time.assert_called_once_with(body={"pit_id": ["0123456789abcdef"]}, params={}, headers=None)
+
+class ListAllPointInTimeTests(TestCase):
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_get_all_point_in_time(self, opensearch):
+        pit_id = "0123456789abcdef"
+        params = {}
+        opensearch.list_all_point_in_time.return_value = as_future({
+            "pits": [
+                {
+                    "pitId": pit_id,
+                    "keepAlive": 60000
+                }
+            ]
+        })
+
+        r = runner.ListAllPointInTime()
+        await r(opensearch, params)
+        opensearch.list_all_point_in_time.assert_called_once()
+
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_get_all_point_in_time_in_composite(self, opensearch):
+        pit_id = "0123456789abcdef"
+        params = {}
+        opensearch.list_all_point_in_time.return_value = as_future({
+            "pits": [
+                {
+                    "pitId": pit_id,
+                    "keepAlive": 60000
+                }
+            ]
+        })
+
+        r = runner.ListAllPointInTime()
+        async with runner.CompositeContext():
+            await r(opensearch, params)
+
+        opensearch.list_all_point_in_time.assert_called_once()
 
 
 class QueryWithSearchAfterScrollTests(TestCase):
@@ -5145,8 +5184,9 @@ class CompositeTests(TestCase):
         with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
             await r(opensearch, params)
 
-        self.assertEqual("Unsupported operation-type [bulk]. Use one of [open-point-in-time, close-point-in-time, "
-                         "search, raw-request, sleep, submit-async-search, get-async-search, delete-async-search].",
+        self.assertEqual("Unsupported operation-type [bulk]. Use one of [create-point-in-time, delete-point-in-time,"
+                         " list-all-point-in-time, search, paginated-search, raw-request, sleep, submit-async-search,"
+                         " get-async-search, delete-async-search].",
                          ctx.exception.args[0])
 
 

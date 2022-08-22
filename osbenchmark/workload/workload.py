@@ -583,7 +583,7 @@ class OperationType(Enum):
     ScrollSearch = 13
     CreatePointInTime = 14
     DeletePointInTime = 15
-    GetPointInTime = 16
+    ListAllPointInTime = 16
 
     # administrative actions
     ForceMerge = 1001
@@ -708,8 +708,8 @@ class OperationType(Enum):
             return OperationType.CreatePointInTime
         elif v == "delete-point-in-time":
             return OperationType.DeletePointInTime
-        elif v == "get-point-in-time":
-            return OperationType.GetPointInTime
+        elif v == "list-all-point-in-time":
+            return OperationType.ListAllPointInTime
         else:
             raise KeyError(f"No enum value for [{v}]")
 
