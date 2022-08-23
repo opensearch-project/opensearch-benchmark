@@ -1866,14 +1866,17 @@ class CreatePointInTime(Runner):
 
 class DeletePointInTime(Runner):
     async def __call__(self, opensearch, params):
-        pit_op = mandatory(params, "with-point-in-time-from", self)
-        pit_id = CompositeContext.get(pit_op)
+        pit_op = params.get("with-point-in-time-from", None)
         request_params = params.get("request-params", {})
-        body = {
-            "pit_id": [pit_id]
-        }
-        await opensearch.delete_point_in_time(body=body, params=request_params, headers=None)
-        CompositeContext.remove(pit_op)
+        if pit_op is None:
+            await opensearch.delete_point_in_time(all="_all", params=request_params)
+        else:
+            pit_id = CompositeContext.get(pit_op)
+            body = {
+                "pit_id": [pit_id]
+            }
+            await opensearch.delete_point_in_time(body=body, params=request_params, headers=None)
+            CompositeContext.remove(pit_op)
 
     def __repr__(self, *args, **kwargs):
         return "delete-point-in-time"
