@@ -4403,7 +4403,7 @@ class CreatePointInTimeTests(TestCase):
             "index": "test-index"
         }
 
-        opensearch.create_point_in_time.return_value = as_future({"id": pit_id})
+        opensearch.create_point_in_time.return_value = as_future({"pit_id": pit_id})
 
         r = runner.CreatePointInTime()
         async with runner.CompositeContext():
@@ -4419,7 +4419,7 @@ class CreatePointInTimeTests(TestCase):
             "index": "test-index"
         }
 
-        opensearch.create_point_in_time.return_value = as_future({"id": pit_id})
+        opensearch.create_point_in_time.return_value = as_future({"pit_id": pit_id})
 
         r = runner.CreatePointInTime()
         with self.assertRaises(exceptions.BenchmarkAssertionError) as ctx:
@@ -4443,6 +4443,17 @@ class DeletePointInTimeTests(TestCase):
             await r(opensearch, params)
 
         opensearch.delete_point_in_time.assert_called_once_with(body={"pit_id": ["0123456789abcdef"]}, params={}, headers=None)
+
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_delete_point_in_time_without_context(self, opensearch):
+        params = {
+            "name": "close-pit-test",
+        }
+        opensearch.delete_point_in_time.return_value=(as_future())
+        r = runner.DeletePointInTime()
+        await r(opensearch, params)
+        opensearch.delete_point_in_time.assert_called_once_with(body=None, all=True, params={}, headers=None)
 
 class ListAllPointInTimeTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
