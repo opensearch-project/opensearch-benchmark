@@ -1869,7 +1869,7 @@ class DeletePointInTime(Runner):
         pit_op = params.get("with-point-in-time-from", None)
         request_params = params.get("request-params", {})
         if pit_op is None:
-            await opensearch.delete_point_in_time(all=True, params=request_params)
+            await opensearch.delete_point_in_time(body=None, all=True, params=request_params, headers=None)
         else:
             pit_id = CompositeContext.get(pit_op)
             body = {
