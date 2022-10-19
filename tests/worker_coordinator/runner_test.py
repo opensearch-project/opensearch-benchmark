@@ -4464,7 +4464,7 @@ class ListAllPointInTimeTests(TestCase):
         opensearch.list_all_point_in_time.return_value = as_future({
             "pits": [
                 {
-                    "pitId": pit_id,
+                    "pit_id": pit_id,
                     "keepAlive": 60000
                 }
             ]
@@ -4482,7 +4482,7 @@ class ListAllPointInTimeTests(TestCase):
         opensearch.list_all_point_in_time.return_value = as_future({
             "pits": [
                 {
-                    "pitId": pit_id,
+                    "pit_id": pit_id,
                     "keepAlive": 60000
                 }
             ]
