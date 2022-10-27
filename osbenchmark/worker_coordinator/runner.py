@@ -61,8 +61,9 @@ def register_default_runners():
     register_runner(workload.OperationType.SubmitAsyncSearch, SubmitAsyncSearch(), async_runner=True)
     register_runner(workload.OperationType.GetAsyncSearch, Retry(GetAsyncSearch(), retry_until_success=True), async_runner=True)
     register_runner(workload.OperationType.DeleteAsyncSearch, DeleteAsyncSearch(), async_runner=True)
-    register_runner(workload.OperationType.OpenPointInTime, OpenPointInTime(), async_runner=True)
-    register_runner(workload.OperationType.ClosePointInTime, ClosePointInTime(), async_runner=True)
+    register_runner(workload.OperationType.CreatePointInTime, CreatePointInTime(), async_runner=True)
+    register_runner(workload.OperationType.DeletePointInTime, DeletePointInTime(), async_runner=True)
+    register_runner(workload.OperationType.ListAllPointInTime, ListAllPointInTime(), async_runner=True)
 
     # This is an administrative operation but there is no need for a retry here as we don't issue a request
     register_runner(workload.OperationType.Sleep, Sleep(), async_runner=True)
@@ -1848,32 +1849,46 @@ class DeleteAsyncSearch(Runner):
         return "delete-async-search"
 
 
-class OpenPointInTime(Runner):
+class CreatePointInTime(Runner):
     async def __call__(self, opensearch, params):
         op_name = mandatory(params, "name", self)
         index = mandatory(params, "index", self)
         keep_alive = params.get("keep-alive", "1m")
-        response = await opensearch.open_point_in_time(index=index,
-                                         params=params.get("request-params"),
-                                         keep_alive=keep_alive)
-        id = response.get("id")
+        response = await opensearch.create_point_in_time(index=index,
+                                                         params=params.get("request-params"),
+                                                         keep_alive=keep_alive)
+        id = response.get("pit_id")
         CompositeContext.put(op_name, id)
 
     def __repr__(self, *args, **kwargs):
-        return "open-point-in-time"
+        return "create-point-in-time"
 
 
-class ClosePointInTime(Runner):
+class DeletePointInTime(Runner):
     async def __call__(self, opensearch, params):
-        pit_op = mandatory(params, "with-point-in-time-from", self)
-        pit_id = CompositeContext.get(pit_op)
+        pit_op = params.get("with-point-in-time-from", None)
         request_params = params.get("request-params", {})
-        body = {"id": pit_id}
-        await opensearch.close_point_in_time(body=body, params=request_params, headers=None)
-        CompositeContext.remove(pit_op)
+        if pit_op is None:
+            await opensearch.delete_point_in_time(body=None, all=True, params=request_params, headers=None)
+        else:
+            pit_id = CompositeContext.get(pit_op)
+            body = {
+                "pit_id": [pit_id]
+            }
+            await opensearch.delete_point_in_time(body=body, params=request_params, headers=None)
+            CompositeContext.remove(pit_op)
 
     def __repr__(self, *args, **kwargs):
-        return "close-point-in-time"
+        return "delete-point-in-time"
+
+
+class ListAllPointInTime(Runner):
+    async def __call__(self, opensearch, params):
+        request_params = params.get("request-params", {})
+        await opensearch.list_all_point_in_time(params=request_params, headers=None)
+
+    def __repr__(self, *args, **kwargs):
+        return "list-all-point-in-time"
 
 
 class CompositeContext:
@@ -1925,9 +1940,11 @@ class Composite(Runner):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.supported_op_types = [
-            "open-point-in-time",
-            "close-point-in-time",
+            "create-point-in-time",
+            "delete-point-in-time",
+            "list-all-point-in-time",
             "search",
+            "paginated-search",
             "raw-request",
             "sleep",
             "submit-async-search",
