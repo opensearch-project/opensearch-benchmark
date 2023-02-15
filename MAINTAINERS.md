@@ -7,8 +7,4 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 | Maintainer        | GitHub ID                                             | Affiliation |
 | ----------------- | ----------------------------------------------------- | ----------- |
 | Ian Hoang         | [ianhoang](https://github.com/ianhoang)               | Amazon      |
-| Achit Ojha        | [achitojha](https://github.com/achitojha)             | Amazon      |
-| Travis Benedict   | [travisbenedict](https://github.com/travisbenedict)   | Amazon      |
-| Chase Engelbrecht | [engechas](https://github.com/engechas)               | Amazon      |
 | Govind Kamat      | [gkamat](https://github.com/gkamat)                   | Amazon      |
-| Phill Treddenick  | [treddeni-amazon](https://github.com/treddeni-amazon) | Amazon      |
