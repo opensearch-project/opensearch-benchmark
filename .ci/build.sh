@@ -55,6 +55,7 @@ function build {
 }
 
 function build_it {
+  echo "Hello World!!"
   export THESPLOG_FILE="${THESPLOG_FILE:-${BENCHMARK_HOME}/.benchmark/logs/actor-system-internal.log}"
   # this value is in bytes, the default is 50kB. We increase it to 200kiB.
   export THESPLOG_FILE_MAXSIZE=${THESPLOG_FILE_MAXSIZE:-204800}
@@ -80,16 +81,17 @@ function build_it {
   # ensure pyenv shims are added to PATH, see https://github.com/pyenv/pyenv/issues/1906
   eval "$(pyenv init --path)"
   eval "$(pyenv virtualenv-init -)"
-  pip install opensearch-benchmark
-  docker pull datadog/squid:latest
+  python3 --version
+  python3 -m pip install opensearch-benchmark
+  docker pull ubuntu/squid:latest
 
   make prereq
   make install
   make precommit
 
-  if [[ "$1" == "Python_3.8" ]]; then
+  if [[ "$1" == "3.8" ]]; then
     make it38
-  elif [[ "$1" == "Python_3.9" ]]; then
+  elif [[ "$1" == "3.9" ]]; then
     make it39
   fi
 }
