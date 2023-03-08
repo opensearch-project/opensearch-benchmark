@@ -105,7 +105,7 @@ s3_require = [
 
 tests_require = [
     "ujson",
-    "pytest==5.4.0",
+    "pytest==7.2.2",
     "pytest-benchmark==3.2.2",
     "pytest-asyncio==0.14.0"
 ]
