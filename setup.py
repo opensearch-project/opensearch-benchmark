@@ -44,7 +44,7 @@ __versionstr__ = raw_version
 long_description = str_from_file("README.md")
 
 # tuples of (major, minor) of supported Python versions ordered from lowest to highest
-supported_python_versions = [(3, 8), (3, 9)]
+supported_python_versions = [(3, 8), (3, 9), (3, 10), (3, 11)]
 
 ################################################################################################
 #
@@ -66,7 +66,7 @@ install_requires = [
     # License: MIT
     "py-cpuinfo==7.0.0",
     # License: MIT
-    "tabulate==0.8.7",
+    "tabulate==0.9.0",
     # License: MIT
     "jsonschema==3.1.1",
     # License: BSD
@@ -81,7 +81,7 @@ install_requires = [
     # License: MPL 2.0
     "certifi",
     # License: Apache 2.0
-    "yappi==1.2.3",
+    "yappi==1.4.0",
     # License: BSD
     "ijson==2.6.1",
     # License: Apache 2.0
@@ -89,7 +89,9 @@ install_requires = [
     #   google-crc32c: Apache 2.0
     "google-resumable-media==1.1.0",
     # License: Apache 2.0
-    "google-auth==1.22.1"
+    "google-auth==1.22.1",
+    # License: MIT
+    "wheel==0.38.4"
 ]
 
 s3_require = [
@@ -113,7 +115,7 @@ develop_require = [
     "tox==3.14.0",
     "coverage==5.5",
     "twine==1.15.0",
-    "wheel==0.33.6",
+    "wheel==0.38.4",
     "github3.py==1.3.0",
     "pylint==2.6.0",
     "pylint-quotes==0.2.1"

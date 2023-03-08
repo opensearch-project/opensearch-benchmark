@@ -55,7 +55,6 @@ function build {
 }
 
 function build_it {
-  echo "Hello World!!"
   export THESPLOG_FILE="${THESPLOG_FILE:-${BENCHMARK_HOME}/.benchmark/logs/actor-system-internal.log}"
   # this value is in bytes, the default is 50kB. We increase it to 200kiB.
   export THESPLOG_FILE_MAXSIZE=${THESPLOG_FILE_MAXSIZE:-204800}
