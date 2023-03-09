@@ -23,6 +23,8 @@ PY_BIN = python3
 PIP_WRAPPER = $(PY_BIN) -m pip
 export PY38 = $(shell jq -r '.python_versions.PY38' .ci/variables.json)
 export PY39 = $(shell jq -r '.python_versions.PY39' .ci/variables.json)
+export PY310 = $(shell jq -r '.python_versions.PY310' .ci/variables.json)
+export PY311 = $(shell jq -r '.python_versions.PY311' .ci/variables.json)
 VENV_NAME ?= .venv
 VENV_ACTIVATE_FILE = $(VENV_NAME)/bin/activate
 VENV_ACTIVATE = . $(VENV_ACTIVATE_FILE)
@@ -35,6 +37,8 @@ VE_MISSING_HELP = "\033[0;31mIMPORTANT\033[0m: Couldn't find $(PWD)/$(VENV_NAME)
 prereq:
 	pyenv install --skip-existing $(PY38)
 	pyenv install --skip-existing $(PY39)
+	pyenv install --skip-existing $(PY310)
+	pyenv install --skip-existing $(PY311)
 	pyenv local $(PY38)
 	@# Ensure all Python versions are registered for this project
 	@ jq -r '.python_versions | [.[] | tostring] | join("\n")' .ci/variables.json > .python-version
