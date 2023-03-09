@@ -6,5 +6,5 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 
 | Maintainer        | GitHub ID                                             | Affiliation |
 | ----------------- | ----------------------------------------------------- | ----------- |
-| Ian Hoang         | [ianhoang](https://github.com/ianhoang)               | Amazon      |
+| Ian Hoang         | [IanHoang](https://github.com/IanHoang)               | Amazon      |
 | Govind Kamat      | [gkamat](https://github.com/gkamat)                   | Amazon      |
