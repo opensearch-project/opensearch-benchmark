@@ -5,10 +5,15 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - Python_3.8
-          - Python_3.9
+          - "3.8"
+          - "3.9"
+          - "3.10"
+          - "3.11"
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
       - name: Check out repository code
         uses: actions/checkout@v2
       - name: Clone pyenv
