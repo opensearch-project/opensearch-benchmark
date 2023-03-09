@@ -80,7 +80,10 @@ function build_it {
   # ensure pyenv shims are added to PATH, see https://github.com/pyenv/pyenv/issues/1906
   eval "$(pyenv init --path)"
   eval "$(pyenv virtualenv-init -)"
-  python3 --version
+
+  python3_version=`python3 --version`
+  echo "Python3 version is ... $python3_version"
+
   python3 -m pip install opensearch-benchmark
   docker pull ubuntu/squid:latest
 
