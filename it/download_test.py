@@ -33,4 +33,4 @@ def test_download_distribution(cfg):
 
 @it.random_benchmark_config
 def test_does_not_download_unsupported_distribution(cfg):
-    assert it.osbenchmark(cfg, "download --distribution-version=\"1.7.6\" --quiet") != 0
+    assert it.osbenchmark(cfg, "download --distribution-version=\"1.3.8\" --quiet") != 0
