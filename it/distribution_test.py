@@ -50,5 +50,5 @@ def test_docker_distribution(cfg):
 def test_does_not_benchmark_unsupported_distribution(cfg):
     port = 19200
     it.wait_until_port_is_free(port_number=port)
-    assert it.execute_test(cfg, f"--distribution-version=\"1.7.6\" --workload=\"{it.WORKLOADS[0]}\" "
+    assert it.execute_test(cfg, f"--distribution-version=\"1.3.8\" --workload=\"{it.WORKLOADS[0]}\" "
                         f"--target-hosts=127.0.0.1:{port} --test-mode --provision-config-instance=4gheap") != 0

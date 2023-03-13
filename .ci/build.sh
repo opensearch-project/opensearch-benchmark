@@ -68,12 +68,6 @@ function build_it {
   export TERM=dumb
   export LC_ALL=en_US.UTF-8
   export BENCHMARK_HOME="$GITHUB_WORKSPACE"
-  export JAVA_PATH="/opt/hostedtoolcache/Java_Adopt_jdk"
-  export JAVA_HOME="$JAVA_PATH/15.0.2-7/x64"
-  export JAVA8_HOME="$JAVA_PATH/8.0.292-1/x64"
-  export JAVA11_HOME="$JAVA_PATH/11.0.11-9/x64"
-  export JAVA15_HOME="$JAVA_PATH/15.0.2-7/x64"
-  export JAVA16_HOME="$JAVA_PATH/16.0.2-7/x64"
 
   update_pyenv
   eval "$(pyenv init -)"
@@ -95,6 +89,10 @@ function build_it {
     make it38
   elif [[ "$1" == "3.9" ]]; then
     make it39
+  elif [[ "$1" == "3.10" ]]; then
+    make it310
+  elif [[ "$1" == "3.11" ]]; then
+    make it311
   fi
 }
 
