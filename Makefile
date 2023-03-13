@@ -107,16 +107,24 @@ precommit: lint
 it: check-venv python-caches-clean tox-env-clean
 	. $(VENV_ACTIVATE_FILE); tox
 
-it38: check-venv python-caches-clean tox-env-clean
+it38:
+	pyenv local $(PY38)
+	check-venv python-caches-clean tox-env-clean
 	. $(VENV_ACTIVATE_FILE); tox -e py38
 
-it39: check-venv python-caches-clean tox-env-clean
+it39:
+	pyenv local $(PY39)
+	check-venv python-caches-clean tox-env-clean
 	. $(VENV_ACTIVATE_FILE); tox -e py39
 
-it310: check-venv python-caches-clean tox-env-clean
+it310:
+	pyenv local $(PY310)
+	check-venv python-caches-clean tox-env-clean
 	. $(VENV_ACTIVATE_FILE); tox -e py310
 
-it311: check-venv python-caches-clean tox-env-clean
+it311:
+	pyenv local $(PY311)
+	check-venv python-caches-clean tox-env-clean
 	. $(VENV_ACTIVATE_FILE); tox -e py311
 
 benchmark: check-venv
