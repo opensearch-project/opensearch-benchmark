@@ -116,19 +116,15 @@ it: check-venv python-caches-clean tox-env-clean
 	. $(VENV_ACTIVATE_FILE); tox
 
 it38: check-venv python-caches-clean tox-env-clean
-	pyenv local $(PY38)
 	. $(VENV_ACTIVATE_FILE); tox -e py38
 
 it39: check-venv python-caches-clean tox-env-clean
-	pyenv local $(PY39)
 	. $(VENV_ACTIVATE_FILE); tox -e py39
 
 it310: check-venv python-caches-clean tox-env-clean
-	pyenv local $(PY310)
 	. $(VENV_ACTIVATE_FILE); tox -e py310
 
 it311: check-venv python-caches-clean tox-env-clean
-	pyenv local $(PY311)
 	. $(VENV_ACTIVATE_FILE); tox -e py311
 
 benchmark: check-venv
