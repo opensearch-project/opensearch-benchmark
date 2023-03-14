@@ -19,12 +19,17 @@ SHELL = /bin/bash
 # We assume an active virtualenv for development
 PYENV_REGEX = .pyenv/shims
 PY_BIN = python3
+PY_PREFIX = python
 # https://github.com/pypa/pip/issues/5599
 PIP_WRAPPER = $(PY_BIN) -m pip
 export PY38 = $(shell jq -r '.python_versions.PY38' .ci/variables.json)
+export PY38_BIN = $(PY_PREFIX)$(shell cut -d '.'  -f 1,2 <<< $(PY38))
 export PY39 = $(shell jq -r '.python_versions.PY39' .ci/variables.json)
+export PY39_BIN = $(PY_PREFIX)$(shell cut -d '.'  -f 1,2 <<< $(PY39))
 export PY310 = $(shell jq -r '.python_versions.PY310' .ci/variables.json)
+export PY310_BIN = $(PY_PREFIX)$(shell cut -d '.'  -f 1,2 <<< $(PY310))
 export PY311 = $(shell jq -r '.python_versions.PY311' .ci/variables.json)
+export PY311_BIN = $(PY_PREFIX)$(shell cut -d '.'  -f 1,2 <<< $(PY311))
 VENV_NAME ?= .venv
 VENV_ACTIVATE_FILE = $(VENV_NAME)/bin/activate
 VENV_ACTIVATE = . $(VENV_ACTIVATE_FILE)
@@ -50,7 +55,10 @@ venv-create:
 		exit 1; \
 	fi;
 	@if [[ ! -f $(VENV_ACTIVATE_FILE) ]]; then \
-		eval "$$(pyenv init -)" && eval "$$(pyenv init --path)" && $(PY_BIN) -mvenv $(VENV_NAME); \
+		eval "$$(pyenv init -)" && eval "$$(pyenv init --path)" && $(PY38_BIN) -mvenv $(VENV_NAME); \
+		eval "$$(pyenv init -)" && eval "$$(pyenv init --path)" && $(PY39_BIN) -mvenv $(VENV_NAME); \
+		eval "$$(pyenv init -)" && eval "$$(pyenv init --path)" && $(PY310_BIN) -mvenv $(VENV_NAME); \
+		eval "$$(pyenv init -)" && eval "$$(pyenv init --path)" && $(PY311_BIN) -mvenv $(VENV_NAME); \
 		printf "Created python3 venv under $(PWD)/$(VENV_NAME).\n"; \
 	fi;
 
