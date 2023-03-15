@@ -61,6 +61,3 @@ git tag <NEW MAJOR.MINOR.PATCH VERSION> main
 # Push Tag
 git push origin <NEW MAJOR.MINOR.PATCH VERSION>
 ```
-
-
-
