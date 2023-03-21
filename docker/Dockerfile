@@ -61,9 +61,7 @@ ENV PATH=/opensearch-benchmark/venv/bin:$PATH
 LABEL org.label-schema.schema-version="1.0" \
   org.label-schema.vendor="OpenSearch-Project" \
   org.label-schema.name="opensearch-benchmark" \
-  org.label-schema.version="${BENCHMARK_VERSION}" \
   org.label-schema.url="https://opensearch.org/docs" \
   org.label-schema.vcs-url="https://github.com/opensearch-project/OpenSearch-Benchmark" \
-  license="${BENCHMARK_LICENSE}"
 
 VOLUME ["/opensearch-benchmark/.benchmark"]
