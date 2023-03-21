@@ -39,4 +39,4 @@ jobs:
           file: docker/Dockerfile
           context: "{{defaultContext}}:."
           push: true
-          tags: ianstein/opensearch-benchmark:latest,ianstein/opensearch-benchmark:0.2.0
+          tags: opensearchstaging/opensearch-benchmark:latest,opensearchstaging/opensearch-benchmark:0.2.0
