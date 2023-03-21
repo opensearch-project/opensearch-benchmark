@@ -1,4 +1,4 @@
-name: Push OpenSearch Benchmark Docker Image
+name: Publish OpenSearch Benchmark Docker Image
 on:
   push:
     branches:
