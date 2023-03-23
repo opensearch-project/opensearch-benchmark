@@ -126,3 +126,5 @@ git clone https://github.com/awslabs/git-secrets.git
 cd git-secrets
 make install
 ```
+### Adding New Major and Minor Python Versions to OpenSearch-Benchmark
+To streamline the process, please refer to [this guide](./PYTHON_SUPPORT_GUIDE.md)
