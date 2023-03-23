@@ -23,8 +23,7 @@ ENV PATH="/opensearch-benchmark/venv/bin:$PATH"
 
 WORKDIR /opensearch-benchmark
 # Wipe away any lingering caches, copied over from the local machine
-RUN find /opensearch-benchmark -name "__pycache__" -exec rm -rf -- \{\} \; 2>/dev/null || true
-RUN find /opensearch-benchmark -name ".pyc" -exec rm -rf -- \{\} \; 2>/dev/null || true
+RUN find ./opensearch-benchmark -name '__pycache__' -o -name '*.pyc' | xargs rm -f
 RUN python3 -m pip install --upgrade pip setuptools wheel
 RUN python3 -m pip install /opensearch-benchmark
 
@@ -62,6 +61,6 @@ LABEL org.label-schema.schema-version="1.0" \
   org.label-schema.vendor="OpenSearch-Project" \
   org.label-schema.name="opensearch-benchmark" \
   org.label-schema.url="https://opensearch.org/docs" \
-  org.label-schema.vcs-url="https://github.com/opensearch-project/OpenSearch-Benchmark" \
+  org.label-schema.vcs-url="https://github.com/opensearch-project/OpenSearch-Benchmark"
 
 VOLUME ["/opensearch-benchmark/.benchmark"]
