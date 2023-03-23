@@ -1,0 +1,17 @@
+---
+name: dockerfile-lint
+
+on:
+  pull_request:
+    paths:
+      - 'docker/**'
+
+jobs:
+  test_docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: jbergstroem/hadolint-gh-action@v1
+        with:
+          dockerfile: 'docker/*Dockerfile'
+          annotate: false
