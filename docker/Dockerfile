@@ -23,8 +23,7 @@ ENV PATH="/opensearch-benchmark/venv/bin:$PATH"
 
 WORKDIR /opensearch-benchmark
 # Wipe away any lingering caches, copied over from the local machine
-RUN find /opensearch-benchmark -name "__pycache__" -exec rm -rf -- \{\} \; 2>/dev/null || true
-RUN find /opensearch-benchmark -name ".pyc" -exec rm -rf -- \{\} \; 2>/dev/null || true
+RUN find ./opensearch-benchmark -name '__pycache__' -o -name '*.pyc' | xargs rm -f
 RUN python3 -m pip install --upgrade pip setuptools wheel
 RUN python3 -m pip install /opensearch-benchmark
 
@@ -35,8 +34,7 @@ RUN python3 -m pip install /opensearch-benchmark
 ################################################################################
 
 FROM python:3.11.2-slim
-ARG BENCHMARK_VERSION
-ARG BENCHMARK_LICENSE
+ARG VERSION
 ENV BENCHMARK_RUNNING_IN_DOCKER True
 
 RUN apt-get -y update && \
@@ -61,7 +59,11 @@ ENV PATH=/opensearch-benchmark/venv/bin:$PATH
 LABEL org.label-schema.schema-version="1.0" \
   org.label-schema.vendor="OpenSearch-Project" \
   org.label-schema.name="opensearch-benchmark" \
-  org.label-schema.url="https://opensearch.org/docs" \
-  org.label-schema.vcs-url="https://github.com/opensearch-project/OpenSearch-Benchmark" \
+  org.label-schema.url="https://opensearch.org/" \
+  org.label-schema.version=“0.2.0” \
+  org.label-schema.license=“Apache-2.0” \
+  org.label-schema.description=“A community driven, open source project to run performance tests for OpenSearch” \
+  org.label-schema.build-date=“2023-03-23T20:00:00Z”
+  org.label-schema.vcs-url="https://github.com/opensearch-project/OpenSearch-Benchmark"
 
 VOLUME ["/opensearch-benchmark/.benchmark"]

@@ -2,10 +2,10 @@
 
 This Docker image allows users to spin up a Docker container preloaded with essential dependencies and get started with OpenSearch Benchmark faster.
 
-# Running OpenSearch Benchmark Image
-**Prerequisite:** Ensure that Docker is installed in the command line.
+# Running the OpenSearch Benchmark Image
+**Prerequisite:** Ensure that Docker is installed. If not, refer to [this guide to download Docker Desktop](https://docs.docker.com/get-docker/) or [this guide to download Docker Engine](https://docs.docker.com/engine/install/).
 1. Run the command `docker pull opensearchproject/opensearch-benchmark`. Docker will pull in the image on your host
-2. To run the image to start a container, run the command `docker run opensearchproject/opensearch-benchmark`
+2. To run the image and start a Docker container, run the command `docker run opensearchproject/opensearch-benchmark`
 
 # Building a Copy of OpenSearch Benchmark Image
 1. Git clone OpenSearch Benchmark Github repository
