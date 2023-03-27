@@ -102,6 +102,10 @@ def create_arg_parser():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--version', action='version', version="%(prog)s " + version.version())
 
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
+
     subparsers = parser.add_subparsers(
         title="subcommands",
         dest="subcommand",
