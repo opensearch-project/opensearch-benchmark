@@ -119,7 +119,7 @@ def current_branch(src_dir):
 def branches(src_dir, remote=True):
     clean_src = io.escape_path(src_dir)
     if remote:
-        # alternatively: git for-each-ref refs/remotes/ --format='%(refname:short)'
+        # Because compatability issues with Git 2.40.0+, updated --format='%(refname:short) to --format='%(refname)
         return _cleanup_remote_branch_names(process.run_subprocess_with_output(
                 "git -C {src} for-each-ref refs/remotes/ --format='%(refname)'".format(src=clean_src)))
     else:
