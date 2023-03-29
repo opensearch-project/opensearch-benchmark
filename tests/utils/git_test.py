@@ -179,7 +179,7 @@ class GitTests(TestCase):
                                        "  origin/5.0.0-alpha1",
                                        "  origin/5"]
         self.assertEqual(["main", "5.0.0-alpha1", "5"], git.branches("/src", remote=True))
-        run_subprocess.assert_called_with("git -C /src for-each-ref refs/remotes/ --format='%(refname:short)'")
+        run_subprocess.assert_called_with("git -C /src for-each-ref refs/remotes/ --format='%(refname)'")
 
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_output")
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
