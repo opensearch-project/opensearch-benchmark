@@ -121,7 +121,7 @@ def branches(src_dir, remote=True):
     if remote:
         # alternatively: git for-each-ref refs/remotes/ --format='%(refname:short)'
         return _cleanup_remote_branch_names(process.run_subprocess_with_output(
-                "git -C {src} for-each-ref refs/remotes/ --format='%(refname:short)'".format(src=clean_src)))
+                "git -C {src} for-each-ref refs/remotes/ --format='%(refname)'".format(src=clean_src)))
     else:
         return _cleanup_local_branch_names(
                 process.run_subprocess_with_output(
@@ -134,7 +134,7 @@ def tags(src_dir):
 
 
 def _cleanup_remote_branch_names(branch_names):
-    return [(b[b.index("/") + 1:]).strip() for b in branch_names if not b.endswith("/HEAD")]
+    return [(b[b.rindex("/") + 1:]).strip() for b in branch_names if not b.endswith("/HEAD")]
 
 
 def _cleanup_local_branch_names(branch_names):
