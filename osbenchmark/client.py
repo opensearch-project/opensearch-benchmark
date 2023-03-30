@@ -129,7 +129,7 @@ class OsClientFactory:
             masked_client_options["basic_auth_password"] = "*****"
         if "http_auth" in masked_client_options:
             masked_client_options["http_auth"] = (masked_client_options["http_auth"][0], "*****")
-        self.logger.info("Creating ES client connected to %s with options [%s]", hosts, masked_client_options)
+        self.logger.info("Creating OpenSearch client connected to %s with options [%s]", hosts, masked_client_options)
 
         # we're using an SSL context now and it is not allowed to have use_ssl present in client options anymore
         if self.client_options.pop("use_ssl", False):
