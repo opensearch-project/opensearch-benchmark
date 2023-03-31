@@ -5,8 +5,9 @@ This Docker image allows users to spin up a Docker container preloaded with esse
 # Running the OpenSearch Benchmark Image
 **Prerequisite:** Ensure that Docker is installed. If not, refer to [this guide to download Docker Desktop](https://docs.docker.com/get-docker/) or [this guide to download Docker Engine](https://docs.docker.com/engine/install/).
 1. Run the command `docker pull opensearchproject/opensearch-benchmark`. Docker will pull in the image on your host
-2. To run the image and start a Docker container, run the command `docker run --entrypoint bash opensearchproject/opensearch-benchmark:latest -c "opensearch-benchmark -h"`. This will print the help screen and terminate the container. If you'd like to run it against a target OpenSearch cluster, replace `opensearch-benchmark -h` with the appropriate OSB command and arguments.
-    - A simpler alternative would be to run `docker run -it opensearchproject/opensearch-benchmark /bin/sh`, which would place you into a shell to interact with the container. Now, you can invoke `opensearch-benchmark` with any desired subcommands or options. When you are finished, invoke exit command to terminate the container.
+2. To run the image and start a Docker container, run the command `docker run --entrypoint bash opensearchproject/opensearch-benchmark:latest -c "opensearch-benchmark -h"`. This will print the help screen and terminate the container. If you'd like to run the image with a different OSB command, replace `opensearch-benchmark -h` with your preferred OSB command and arguments.
+    - A simpler alternative would be to run `docker run opensearchproject/opensearch-benchmark opensearch-benchmark -h`.
+    - To run in interactive mode, run `docker run -it opensearchproject/opensearch-benchmark /bin/sh`. This would place you into a shell to interact with the container where you can invoke `opensearch-benchmark` with any desired subcommands or options. When you are finished, invoke exit command to terminate the container.
 
 
 # Building a Copy of OpenSearch Benchmark Image
