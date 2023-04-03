@@ -4,8 +4,17 @@ This Docker image allows users to spin up a Docker container preloaded with esse
 
 # Running the OpenSearch Benchmark Image
 **Prerequisite:** Ensure that Docker is installed. If not, refer to [this guide to download Docker Desktop](https://docs.docker.com/get-docker/) or [this guide to download Docker Engine](https://docs.docker.com/engine/install/).
-1. Run the command `docker pull opensearchproject/opensearch-benchmark`. Docker will pull in the image on your host
-2. To run the image and start a Docker container, run the command `docker run opensearchproject/opensearch-benchmark`
+
+To run the image in a Docker container, invoke one of the following command lines:
+```
+docker run --entrypoint bash opensearchproject/opensearch-benchmark:latest -c "opensearch-benchmark [ARGS]"
+OR
+docker run opensearchproject/opensearch-benchmark opensearch-benchmark [ARGS]
+```
+
+For instance, using `-h` for the arguments will print the OSB help information. Once the OSB process completes, the Docker container is automatically terminated.
+
+To run in interactive mode, run docker run `-it opensearchproject/opensearch-benchmark /bin/sh`. This will place you into a shell to interact with the container where you can invoke opensearch-benchmark with any desired subcommands or options. When you are finished, exit from the shell to terminate the container.
 
 # Building a Copy of OpenSearch Benchmark Image
 1. Git clone OpenSearch Benchmark Github repository

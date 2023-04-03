@@ -614,7 +614,7 @@ class NodeStats(TelemetryDevice):
     warning = """You have enabled the node-stats telemetry device with OpenSearch < 1.1.0. Requests to the
           _nodes/stats OpenSearch endpoint trigger additional refreshes and WILL SKEW results.
     """
-    opensearch_distribution = "opensearch"
+    opensearch_distribution_name = "opensearch"
 
     def __init__(self, telemetry_params, clients, metrics_store):
         super().__init__()
@@ -630,7 +630,7 @@ class NodeStats(TelemetryDevice):
         distribution_version = default_client.info()["version"]["number"]
         major, minor = components(distribution_version)[:2]
 
-        if distribution_name != NodeStats.opensearch_distribution and (major < 7 or (major == 7 and minor < 2)):
+        if distribution_name != NodeStats.opensearch_distribution_name and (major < 7 or (major == 7 and minor < 2)):
             console.warn(NodeStats.warning, logger=self.logger)
 
         for cluster_name in self.specified_cluster_names:
