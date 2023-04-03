@@ -16,9 +16,6 @@ For instance, using `-h` for the arguments will print the OSB help information. 
 
 To run in interactive mode, run docker run `-it opensearchproject/opensearch-benchmark /bin/sh`. This will place you into a shell to interact with the container where you can invoke opensearch-benchmark with any desired subcommands or options. When you are finished, exit from the shell to terminate the container.
 
-
-
-
 # Building a Copy of OpenSearch Benchmark Image
 1. Git clone OpenSearch Benchmark Github repository
 2. Make changes locally
