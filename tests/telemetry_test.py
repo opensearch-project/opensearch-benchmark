@@ -1410,7 +1410,7 @@ class NodeStatsTests(TestCase):
     @mock.patch("osbenchmark.telemetry.NodeStatsRecorder", mock.Mock())
     @mock.patch("osbenchmark.telemetry.SamplerThread", mock.Mock())
     def test_prints_warning_using_node_stats(self):
-        clients = {"default": Client(info={"version": {"number": "7.1.0"}})}
+        clients = {"default": Client(info={"version": {"distribution": "elasticsearch", "number": "7.1.0"}})}
         cfg = create_config()
         metrics_store = metrics.OsMetricsStore(cfg)
         telemetry_params = {
@@ -1428,7 +1428,7 @@ class NodeStatsTests(TestCase):
     @mock.patch("osbenchmark.telemetry.NodeStatsRecorder", mock.Mock())
     @mock.patch("osbenchmark.telemetry.SamplerThread", mock.Mock())
     def test_no_warning_using_node_stats_after_version(self):
-        clients = {"default": Client(info={"version": {"number": "7.2.0"}})}
+        clients = {"default": Client(info={"version": {"distribution": "elasticsearch", "number": "7.2.0"}})}
         cfg = create_config()
         metrics_store = metrics.OsMetricsStore(cfg)
         telemetry_params = {
