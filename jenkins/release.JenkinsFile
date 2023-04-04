@@ -9,4 +9,23 @@ standardReleasePipelineWithGenericTrigger(
     downloadReleaseAsset: true,
     publishRelease: true) {
         publishToPyPi(credentialId: 'jenkins-opensearch-benchmark-pypi-credentials')
+        dockerBuild: {
+            build job: 'docker-build',
+            parameters: [
+                string(name: 'DOCKER_BUILD_GIT_REPOSITORY', value: 'https://github.com/opensearch-project/opensearch-build'),
+                string(name: 'DOCKER_BUILD_GIT_REPOSITORY_REFERENCE', value: 'main'),
+                string(name: 'DOCKER_BUILD_SCRIPT_WITH_COMMANDS', value: [
+                        'su $(id -un 1000) -c "cd docker/ci',
+                        'git clone https://github.com/opensearch-project/opensearch-benchmark opensearch-benchmark',
+                        'cp -a opensearch-benchmark/* ./',
+                        [
+                            'bash',
+                            'build-image-multi-arch.sh',
+                            '-r opensearch-benchmark',
+                            '-v $(cat version.txt)',
+                            '-f docker/Dockerfile"'
+                        ].join(' ')
+                    ].join(' && ')),
+            ]
+        }
     }
