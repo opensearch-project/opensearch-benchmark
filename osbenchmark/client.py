@@ -28,6 +28,7 @@ import time
 
 import certifi
 import urllib3
+from urllib3.util.ssl_ import is_ipaddress
 
 from osbenchmark import exceptions, doc_link
 from osbenchmark.utils import console, convert
@@ -138,16 +139,14 @@ class OsClientFactory:
             self.logger.info("SSL support: on")
             self.client_options["scheme"] = "https"
 
-            # ssl.Purpose.CLIENT_AUTH allows presenting client certs and can only be enabled during instantiation
-            # but can be disabled via the verify_mode property later on.
-            self.ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH,
+            self.ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH,
                                                           cafile=self.client_options.pop("ca_certs", certifi.where()))
 
             if not self.client_options.pop("verify_certs", True):
                 self.logger.info("SSL certificate verification: off")
                 # order matters to avoid ValueError: check_hostname needs a SSL context with either CERT_OPTIONAL or CERT_REQUIRED
-                self.ssl_context.verify_mode = ssl.CERT_NONE
                 self.ssl_context.check_hostname = False
+                self.ssl_context.verify_mode = ssl.CERT_NONE
 
                 self.logger.warning("User has enabled SSL but disabled certificate verification. This is dangerous but may be ok for a "
                                     "benchmark. Disabling urllib warnings now to avoid a logging storm. "
@@ -156,8 +155,9 @@ class OsClientFactory:
                 # advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#ssl-warnings"
                 urllib3.disable_warnings()
             else:
+                # check_hostname should be False if any host is an IP address
+                self.ssl_context.check_hostname = self._has_only_hostnames(hosts)
                 self.ssl_context.verify_mode=ssl.CERT_REQUIRED
-                self.ssl_context.check_hostname = True
                 self.logger.info("SSL certificate verification: on")
 
             # When using SSL_context, all SSL related kwargs in client options get ignored
@@ -209,6 +209,20 @@ class OsClientFactory:
 
         if self._is_set(self.client_options, "enable_cleanup_closed"):
             self.client_options["enable_cleanup_closed"] = convert.to_bool(self.client_options.pop("enable_cleanup_closed"))
+
+    @staticmethod
+    def _has_only_hostnames(hosts):
+        has_ip, has_hostname = False, False
+        for host in hosts:
+            if is_ipaddress(host["host"]):
+                has_ip = True
+            else:
+                has_hostname = True
+
+        if has_ip and has_hostname:
+            raise exceptions.SystemSetupError("Could not verify certs since both IP addresses and hostnames were provided. Please ensure one or the other is used.")
+
+        return has_hostname
 
     def _is_set(self, client_opts, k):
         try:
