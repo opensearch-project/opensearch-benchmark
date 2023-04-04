@@ -27,7 +27,7 @@ Installing OpenSearch Benchmark
 
 **Note**: If you actively develop on OpenSearch, we recommend that you [install OpenSearch Benchmark in development mode](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) instead as OpenSearch is fast moving and OpenSearch Benchmark always adapts accordingly to the latest main version.
 
-Install Python 3.8+ including ``pip3``, git 1.9+ and an [appropriate JDK to run OpenSearch](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) Be sure that ``JAVA_HOME`` points to that JDK. Then run the following command, optionally prefixed by ``sudo`` if necessary:
+Install Python 3.8+ including ``pip3``, git 1.9+ and an [appropriate JDK to run OpenSearch](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) Be sure that ``JAVA_HOME`` points to that JDK and that the corresponding Java executable in ``$JAVA_HOME/bin`` is picked up via your PATH environment variable. Then run the following command, optionally prefixed by ``sudo`` if necessary:
 
     python3 -m pip install opensearch-benchmark
 
