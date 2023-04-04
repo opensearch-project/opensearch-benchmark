@@ -15,7 +15,7 @@ If you are looking to performance test OpenSearch, then OpenSearch Benchmark is 
 * Comparing performance results
 * Creating customized workloads
 
-We have also put considerable effort in OpenSearch Benchmark to ensure that benchmarking data are reproducible.
+We have also put considerable effort into OpenSearch Benchmark to ensure that benchmarking data are reproducible.
 
 Quick Start
 -----------
