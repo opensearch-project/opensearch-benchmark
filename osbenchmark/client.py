@@ -220,7 +220,8 @@ class OsClientFactory:
                 has_hostname = True
 
         if has_ip and has_hostname:
-            raise exceptions.SystemSetupError("Could not verify certs since both IP addresses and hostnames were provided. Please ensure one or the other is used.")
+            raise exceptions.SystemSetupError("Could not verify certs since both IP addresses \
+                 and hostnames were provided. Please ensure one or the other is used.")
 
         return has_hostname
 
