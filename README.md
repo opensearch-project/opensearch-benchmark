@@ -1,34 +1,35 @@
-Benchmark
-=========
+OpenSearch Benchmark
+====================
 
-Benchmark is the macrobenchmarking framework for OpenSearch
+OpenSearch Benchmark is the macrobenchmarking framework for OpenSearch.
 
-What is Benchmark?
-------------------
+What is OpenSearch Benchmark?
+-----------------------------
 
-You want to benchmark OpenSearch? Then Benchmark is for you. It can help you with the following tasks:
+If you are looking to performance test OpenSearch, then OpenSearch Benchmark is for you. It can help you with the following tasks:
 
-* Setup and teardown of an OpenSearch cluster for benchmarking
-* Management of benchmark data and specifications even across OpenSearch versions
-* Running benchmarks and recording results
-* Finding performance problems by attaching so-called telemetry devices
+* Running performance benchmarks and recording results
+* Setting up and tearing down OpenSearch clusters for benchmarking
+* Managing benchmark data and specifications across OpenSearch versions
+* Discovering performance problems by attaching so-called telemetry devices
 * Comparing performance results
+* Creating customized workloads
 
-We have also put considerable effort in Benchmark to ensure that benchmarking data are reproducible.
+We have also put considerable effort into OpenSearch Benchmark to ensure that benchmarking data are reproducible.
 
 Quick Start
 -----------
 
-Benchmark is developed for Unix and is actively tested on Linux and MacOS. Benchmark supports [benchmarking OpenSearch clusters running on Windows](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) but Benchmark itself needs to be installed on machines running Unix.
+OpenSearch Benchmark is developed for Unix and is actively tested on Linux, Ubuntu, and MacOS. OpenSearch Benchmark supports [benchmarking OpenSearch clusters running on Windows](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) but OpenSearch Benchmark itself needs to be installed on machines running Unix.
 
-Installing Benchmark
---------------------------
+Installing OpenSearch Benchmark
+-------------------------------
 
-**Note**: If you actively develop on OpenSearch, we recommend that you [install Benchmark in development mode](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) instead as OpenSearch is fast moving and Benchmark always adapts accordingly to the latest main version.
+**Note**: If you actively develop on OpenSearch, we recommend that you [install OpenSearch Benchmark in development mode](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) instead as OpenSearch is fast moving and OpenSearch Benchmark always adapts accordingly to the latest main version.
 
-Install Python 3.8+ including ``pip3``, git 1.9+ and an [appropriate JDK to run OpenSearch](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) Be sure that ``JAVA_HOME`` points to that JDK. Then run the following command, optionally prefixed by ``sudo`` if necessary:
+Install Python 3.8+ including ``pip3``, git 1.9+ and an [appropriate JDK to run OpenSearch](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) Be sure that ``JAVA_HOME`` points to that JDK and that the corresponding Java executable in ``$JAVA_HOME/bin`` is picked up via your PATH environment variable. Then run the following command, optionally prefixed by ``sudo`` if necessary:
 
-    pip3 install opensearch-benchmark
+    python3 -m pip install opensearch-benchmark
 
 
 If you have any trouble or need more detailed instructions, please look in the [detailed installation guide](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>).
@@ -40,7 +41,7 @@ Now we're ready to run our first test execution:
 
     opensearch-benchmark execute_test --distribution-version=1.0.0 --workload=geonames --test-mode
 
-This will download OpenSearch 1.0.0 and run Benchmark's default workload - the [geonames workload](<https://github.com/opensearch-project/opensearch-benchmark-workloads/tree/main/geonames>) - against it. 
+This will download OpenSearch 1.0.0 and run one of OpenSearch Benchmark's official workloads - the [geonames workload](<https://github.com/opensearch-project/opensearch-benchmark-workloads/tree/main/geonames>) - against it.
 Note that this uses the `--test-mode` argument to only run a single instance of each operation in order to reduce the time needed for a test execution. This argument is used as a sanity check and should be removed in an actual benchmarking scenario.
 After the test execution, a summary report is written to the command line:
 
@@ -107,7 +108,7 @@ Getting help
 ------------
 
 * Quick help: ``opensearch-benchmark --help``
-* Look in [Benchmark's user guide](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) for more information
+* Look in [OpenSearch Benchmark's user guide](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) for more information
 * For any questions or answers, visit our [community forum](<https://discuss.opendistrocommunity.dev/>).
 * File improvements or bug reports in our [Github repo](<https://github.com/opensearch-project/OpenSearch-Benchmark/issues>).
 
