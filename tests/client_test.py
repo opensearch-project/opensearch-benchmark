@@ -298,7 +298,7 @@ class OsClientFactoryTests(TestCase):
 
         with pytest.raises(
             exceptions.SystemSetupError,
-            match="Could not verify certs since both IP addresses and hostnames were provided. Please ensure one or the other is used.",
+            match="Can't verify certs since both IP addresses and hostnames were found.",
         ):
             client.OsClientFactory(hosts, client_options)
 
