@@ -16,8 +16,8 @@ To run in interactive mode, run docker run `-it opensearchproject/opensearch-ben
 
 **Minor Bug in OSB v0.2.0:** For OSB version 0.2.0 on Dockerhub and Pypi, running opensearch-benchmark without any subcommands will result in a failure. See the following for examples:
 
+Ran opensearch-benchmark docker image with tag 0.2.0 without any args
 ```
-# Running opensearch-benchmark docker image without any args
 $ docker run opensearchproject/opensearch-benchmark opensearch-benchmark
 Traceback (most recent call last):
   File "/opensearch-benchmark/venv/bin/opensearch-benchmark", line 8, in <module>
@@ -27,8 +27,10 @@ Traceback (most recent call last):
     console.init(quiet=args.quiet)
                        ^^^^^^^^^^
 AttributeError: 'Namespace' object has no attribute 'quiet'
+```
 
-# After installing Pypi version 0.2.0 and running opensearch-benchmark without any args
+Installed OSB Pypi version 0.2.0 and ran opensearch-benchmark without any args
+```
 $ opensearch-benchmark
 Traceback (most recent call last):
   File "/home/ec2-user/.local/bin/opensearch-benchmark", line 8, in <module>
@@ -37,7 +39,6 @@ Traceback (most recent call last):
     console.init(quiet=args.quiet)
 AttributeError: 'Namespace' object has no attribute 'quiet'
 ```
-
 This has been resolved in [issue #237](https://github.com/opensearch-project/opensearch-benchmark/issues/237). This fix will be incorporated into versions after 0.2.0.
 
 # Building a Copy of OpenSearch Benchmark Image
