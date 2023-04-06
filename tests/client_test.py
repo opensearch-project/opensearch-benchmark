@@ -314,6 +314,19 @@ class OsClientFactoryTests(TestCase):
         assert f.ssl_context.check_hostname is True
         assert f.ssl_context.verify_mode == ssl.CERT_REQUIRED
 
+    def test_check_hostname_set_to_false_when_ssl_encounters_both_ips_and_hostnames(self):
+        hosts = [{"host": "localhost", "port": 9200}, {"host": "127.0.0.1", "port": 9200}]
+        client_options = {
+            "use_ssl": True,
+            "verify_certs": True,
+            "http_auth": ("user", "password"),
+        }
+
+        f = client.OsClientFactory(hosts, client_options)
+        assert f.hosts == hosts
+        assert f.ssl_context.check_hostname is False
+        assert f.ssl_context.verify_mode == ssl.CERT_REQUIRED
+
 class RequestContextManagerTests(TestCase):
     @pytest.mark.skip(reason="latency is system-dependent")
     @run_async
