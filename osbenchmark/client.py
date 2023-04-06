@@ -223,9 +223,9 @@ class OsClientFactory:
                 has_hostname = True
 
         if has_ip and has_hostname:
-            logger.warning("Although certificate verification is enabled, "
+            console.warn("Although certificate verification is enabled, "
                 "peer hostnames will not be matched since the host list is a mix "
-                "of names and IP addresses")
+                "of names and IP addresses", logger=logger)
             return False
 
         return has_hostname
