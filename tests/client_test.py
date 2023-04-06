@@ -43,7 +43,7 @@ class OsClientFactoryTests(TestCase):
     cwd = os.path.dirname(__file__)
 
     def test_create_http_connection(self):
-        hosts = [{"host": "127.0.0.1", "port": 9200}]
+        hosts = [{"host": "localhost", "port": 9200}]
         client_options = {}
         # make a copy, so we can verify later that the factory did not modify it
         original_client_options = dict(client_options)
@@ -59,7 +59,7 @@ class OsClientFactoryTests(TestCase):
 
     @mock.patch.object(ssl.SSLContext, "load_cert_chain")
     def test_create_https_connection_verify_server(self, mocked_load_cert_chain):
-        hosts = [{"host": "127.0.0.1", "port": 9200}]
+        hosts = [{"host": "localhost", "port": 9200}]
         client_options = {
             "use_ssl": True,
             "verify_certs": True,
@@ -94,7 +94,7 @@ class OsClientFactoryTests(TestCase):
 
     @mock.patch.object(ssl.SSLContext, "load_cert_chain")
     def test_create_https_connection_verify_self_signed_server_and_client_certificate(self, mocked_load_cert_chain):
-        hosts = [{"host": "127.0.0.1", "port": 9200}]
+        hosts = [{"host": "localhost", "port": 9200}]
         client_options = {
             "use_ssl": True,
             "verify_certs": True,
@@ -136,7 +136,7 @@ class OsClientFactoryTests(TestCase):
 
     @mock.patch.object(ssl.SSLContext, "load_cert_chain")
     def test_create_https_connection_only_verify_self_signed_server_certificate(self, mocked_load_cert_chain):
-        hosts = [{"host": "127.0.0.1", "port": 9200}]
+        hosts = [{"host": "localhost", "port": 9200}]
         client_options = {
             "use_ssl": True,
             "verify_certs": True,
@@ -170,7 +170,7 @@ class OsClientFactoryTests(TestCase):
         self.assertDictEqual(original_client_options, client_options)
 
     def test_raises_error_when_only_one_of_client_cert_and_client_key_defined(self):
-        hosts = [{"host": "127.0.0.1", "port": 9200}]
+        hosts = [{"host": "localhost", "port": 9200}]
         client_options = {
             "use_ssl": True,
             "verify_certs": True,
@@ -211,7 +211,7 @@ class OsClientFactoryTests(TestCase):
 
     @mock.patch.object(ssl.SSLContext, "load_cert_chain")
     def test_create_https_connection_unverified_certificate(self, mocked_load_cert_chain):
-        hosts = [{"host": "127.0.0.1", "port": 9200}]
+        hosts = [{"host": "localhost", "port": 9200}]
         client_options = {
             "use_ssl": True,
             "verify_certs": False,
@@ -248,7 +248,7 @@ class OsClientFactoryTests(TestCase):
 
     @mock.patch.object(ssl.SSLContext, "load_cert_chain")
     def test_create_https_connection_unverified_certificate_present_client_certificates(self, mocked_load_cert_chain):
-        hosts = [{"host": "127.0.0.1", "port": 9200}]
+        hosts = [{"host": "localhost", "port": 9200}]
         client_options = {
             "use_ssl": True,
             "verify_certs": False,
@@ -288,6 +288,44 @@ class OsClientFactoryTests(TestCase):
 
         self.assertDictEqual(original_client_options, client_options)
 
+    def test_check_hostname_set_to_false_when_ssl_encounters_ips_only(self):
+        hosts = [{"host": "127.0.0.1", "port": 9200}]
+        client_options = {
+            "use_ssl": True,
+            "verify_certs": True,
+            "http_auth": ("user", "password"),
+        }
+
+        f = client.OsClientFactory(hosts, client_options)
+        assert f.hosts == hosts
+        assert f.ssl_context.check_hostname is False
+        assert f.ssl_context.verify_mode == ssl.CERT_REQUIRED
+
+    def test_check_hostname_set_to_true_when_ssl_encounters_hostnames_only(self):
+        hosts = [{"host": "localhost", "port": 9200}]
+        client_options = {
+            "use_ssl": True,
+            "verify_certs": True,
+            "http_auth": ("user", "password"),
+        }
+
+        f = client.OsClientFactory(hosts, client_options)
+        assert f.hosts == hosts
+        assert f.ssl_context.check_hostname is True
+        assert f.ssl_context.verify_mode == ssl.CERT_REQUIRED
+
+    def test_check_hostname_set_to_false_when_ssl_encounters_both_ips_and_hostnames(self):
+        hosts = [{"host": "localhost", "port": 9200}, {"host": "127.0.0.1", "port": 9200}]
+        client_options = {
+            "use_ssl": True,
+            "verify_certs": True,
+            "http_auth": ("user", "password"),
+        }
+
+        f = client.OsClientFactory(hosts, client_options)
+        assert f.hosts == hosts
+        assert f.ssl_context.check_hostname is False
+        assert f.ssl_context.verify_mode == ssl.CERT_REQUIRED
 
 class RequestContextManagerTests(TestCase):
     @pytest.mark.skip(reason="latency is system-dependent")
