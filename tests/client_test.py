@@ -288,21 +288,7 @@ class OsClientFactoryTests(TestCase):
 
         self.assertDictEqual(original_client_options, client_options)
 
-    def test_raise_error_when_ssl_encounter_both_ip_and_hostname(self):
-        hosts = [{"host": "127.0.0.1", "port": 9200}, {"host": "localhost", "port": 9200}]
-        client_options = {
-            "use_ssl": True,
-            "verify_certs": True,
-            "http_auth": ("user", "password"),
-        }
-
-        with pytest.raises(
-            exceptions.SystemSetupError,
-            match="Can't verify certs since both IP addresses and hostnames were found.",
-        ):
-            client.OsClientFactory(hosts, client_options)
-
-    def test_check_hostname_set_to_false_when_ssl_encounter_ip(self):
+    def test_check_hostname_set_to_false_when_ssl_encounters_ips_only(self):
         hosts = [{"host": "127.0.0.1", "port": 9200}]
         client_options = {
             "use_ssl": True,
@@ -313,6 +299,19 @@ class OsClientFactoryTests(TestCase):
         f = client.OsClientFactory(hosts, client_options)
         assert f.hosts == hosts
         assert f.ssl_context.check_hostname is False
+        assert f.ssl_context.verify_mode == ssl.CERT_REQUIRED
+
+    def test_check_hostname_set_to_true_when_ssl_encounters_hostnames_only(self):
+        hosts = [{"host": "localhost", "port": 9200}]
+        client_options = {
+            "use_ssl": True,
+            "verify_certs": True,
+            "http_auth": ("user", "password"),
+        }
+
+        f = client.OsClientFactory(hosts, client_options)
+        assert f.hosts == hosts
+        assert f.ssl_context.check_hostname is True
         assert f.ssl_context.verify_mode == ssl.CERT_REQUIRED
 
 class RequestContextManagerTests(TestCase):

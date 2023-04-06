@@ -155,7 +155,9 @@ class OsClientFactory:
                 # advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#ssl-warnings"
                 urllib3.disable_warnings()
             else:
-                # check_hostname should be False if any host is an IP address
+                # The peer's hostname can be matched if only a hostname is provided.
+                # In other words, hostname checking is disabled if an IP address is
+                # found in the host lists.
                 self.ssl_context.check_hostname = self._has_only_hostnames(hosts)
                 self.ssl_context.verify_mode=ssl.CERT_REQUIRED
                 self.logger.info("SSL certificate verification: on")
@@ -212,6 +214,7 @@ class OsClientFactory:
 
     @staticmethod
     def _has_only_hostnames(hosts):
+        logger = logging.getLogger(__name__)
         has_ip, has_hostname = False, False
         for host in hosts:
             if is_ipaddress(host["host"]):
@@ -220,7 +223,8 @@ class OsClientFactory:
                 has_hostname = True
 
         if has_ip and has_hostname:
-            raise exceptions.SystemSetupError("Can't verify certs since both IP addresses and hostnames were found.")
+            logger.warning("Although certificate verification is enabled, peer hostnames will not be matched since the host list is a mix of names and IP addresses")
+            return False
 
         return has_hostname
 
