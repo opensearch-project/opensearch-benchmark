@@ -5,16 +5,41 @@ This Docker image allows users to spin up a Docker container preloaded with esse
 # Running the OpenSearch Benchmark Image
 **Prerequisite:** Ensure that Docker is installed. If not, refer to [this guide to download Docker Desktop](https://docs.docker.com/get-docker/) or [this guide to download Docker Engine](https://docs.docker.com/engine/install/).
 
-To run the image in a Docker container, invoke one of the following command lines:
+To run the image in a Docker container, invoke the following command:
 ```
-docker run --entrypoint bash opensearchproject/opensearch-benchmark:latest -c "opensearch-benchmark [ARGS]"
-OR
 docker run opensearchproject/opensearch-benchmark opensearch-benchmark [ARGS]
 ```
 
 For instance, using `-h` for the arguments will print the OSB help information. Once the OSB process completes, the Docker container is automatically terminated.
 
 To run in interactive mode, run docker run `-it opensearchproject/opensearch-benchmark /bin/sh`. This will place you into a shell to interact with the container where you can invoke opensearch-benchmark with any desired subcommands or options. When you are finished, exit from the shell to terminate the container.
+
+**Minor Bug in OSB v0.2.0:** For OSB version 0.2.0 on Dockerhub and Pypi, running opensearch-benchmark without any subcommands will result in a failure. See the following for examples:
+
+Ran opensearch-benchmark docker image with tag 0.2.0 without any args
+```
+$ docker run opensearchproject/opensearch-benchmark opensearch-benchmark
+Traceback (most recent call last):
+  File "/opensearch-benchmark/venv/bin/opensearch-benchmark", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/opensearch-benchmark/venv/lib/python3.11/site-packages/osbenchmark/benchmark.py", line 949, in main
+    console.init(quiet=args.quiet)
+                       ^^^^^^^^^^
+AttributeError: 'Namespace' object has no attribute 'quiet'
+```
+
+Installed OSB Pypi version 0.2.0 and ran opensearch-benchmark without any args
+```
+$ opensearch-benchmark
+Traceback (most recent call last):
+  File "/home/ec2-user/.local/bin/opensearch-benchmark", line 8, in <module>
+    sys.exit(main())
+  File "/home/ec2-user/.local/lib/python3.9/site-packages/osbenchmark/benchmark.py", line 949, in main
+    console.init(quiet=args.quiet)
+AttributeError: 'Namespace' object has no attribute 'quiet'
+```
+This has been resolved in [issue #237](https://github.com/opensearch-project/opensearch-benchmark/issues/237). This fix will be incorporated into versions after 0.2.0.
 
 # Building a Copy of OpenSearch Benchmark Image
 1. Git clone OpenSearch Benchmark Github repository
