@@ -7,7 +7,7 @@ This Docker image allows users to spin up a Docker container preloaded with esse
 
 To run the image in a Docker container, invoke the following command:
 ```
-docker run opensearchproject/opensearch-benchmark opensearch-benchmark [ARGS]
+docker run opensearchproject/opensearch-benchmark [ARGS]
 ```
 
 For instance, using `-h` for the arguments will print the OSB help information. Once the OSB process completes, the Docker container is automatically terminated.
