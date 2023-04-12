@@ -12,7 +12,7 @@ docker run opensearchproject/opensearch-benchmark [OSB ARGS]
 
 For instance, using `-h` for the arguments will print the OSB help information. Once the OSB process completes, the Docker container is automatically terminated.
 
-To run in interactive mode, run `docker run -it opensearchproject/opensearch-benchmark /bin/sh`. This will place you into a shell to interact with the container where you can invoke opensearch-benchmark with any desired subcommands or options. When you are finished, exit from the shell to terminate the container.
+To run in interactive mode, run `docker run --entrypoint bash -it opensearchproject/opensearch-benchmark -c /bin/sh`. This will place you into a shell to interact with the container where you can invoke opensearch-benchmark with any desired subcommands or options. When you are finished, exit from the shell to terminate the container.
 
 ### Minor Bug found in OSB 0.2.0 on Dockerhub and Pypi
 For OSB version 0.2.0 on Dockerhub and Pypi, running opensearch-benchmark without any arguments will result in a failure. See the following for examples:
