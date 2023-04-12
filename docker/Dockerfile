@@ -68,4 +68,4 @@ LABEL org.label-schema.schema-version="1.0" \
 
 VOLUME ["/opensearch-benchmark/.benchmark"]
 
-ENTRYPOINT [ "opensearch-benchmark", "--help" ]
+ENTRYPOINT [ "opensearch-benchmark" ]
