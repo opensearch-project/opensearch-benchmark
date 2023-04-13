@@ -22,7 +22,7 @@ standardReleasePipelineWithGenericTrigger(
                 'cd docker/ci',
                 [
                     'bash',
-                    'build-image-single-arch.sh',
+                    'build-image-multi-arch.sh',
                     '-r opensearch-benchmark',
                     '-v $(cat version.txt)',
                     '-f docker/Dockerfile'
