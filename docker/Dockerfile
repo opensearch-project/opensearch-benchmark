@@ -34,7 +34,7 @@ RUN python3 -m pip install /opensearch-benchmark
 ################################################################################
 
 FROM python:3.11.2-slim
-ARG VERSION
+
 ENV BENCHMARK_RUNNING_IN_DOCKER True
 
 RUN apt-get -y update && \
@@ -56,14 +56,17 @@ USER 1000
 
 ENV PATH=/opensearch-benchmark/venv/bin:$PATH
 
+ARG VERSION
+ARG BUILD_DATE
+
 LABEL org.label-schema.schema-version="1.0" \
   org.label-schema.vendor="OpenSearch-Project" \
   org.label-schema.name="opensearch-benchmark" \
   org.label-schema.url="https://opensearch.org/" \
-  org.label-schema.version="0.2.0" \
+  org.label-schema.version="$VERSION" \
   org.label-schema.license="Apache-2.0" \
   org.label-schema.description="A community driven, open source project to run performance tests for OpenSearch" \
-  org.label-schema.build-date="2023-03-23T20:00:00Z" \
+  org.label-schema.build-date="$BUILD_DATE" \
   org.label-schema.vcs-url="https://github.com/opensearch-project/OpenSearch-Benchmark"
 
 VOLUME ["/opensearch-benchmark/.benchmark"]
