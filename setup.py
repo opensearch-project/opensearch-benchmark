@@ -129,8 +129,8 @@ first_supported_version = "{}.{}".format(supported_python_versions[0][0], suppor
 first_unsupported_version = "{}.{}".format(supported_python_versions[-1][0], supported_python_versions[-1][1] + 1)
 
 setup(name="opensearch-benchmark",
-      maintainer="Ian Hoang, Achit Ojha, Travis Benedict, Chase Engelbrecht, Govind Kamat, Phill Treddenick",
-      maintainer_email="hoangia@amazon.com, achiojha@amazon.com, benedtra@amazon.com, engechas@amazon.com, govkamat@amazon.com, treddeni@amazon.com",
+      maintainer="Ian Hoang, Govind Kamat",
+      maintainer_email="hoangia@amazon.com, govkamat@amazon.com",
       version=__versionstr__,
       description="Macrobenchmarking framework for OpenSearch",
       long_description=long_description,
@@ -170,7 +170,7 @@ setup(name="opensearch-benchmark",
           ],
       },
       classifiers=[
-          "Topic :: System :: Benchmark",
+          "Topic :: System :: OpenSearch-Benchmark",
           "Development Status :: 5 - Production/Stable",
           "License :: OSI Approved :: Apache Software License",
           "Intended Audience :: Developers",
