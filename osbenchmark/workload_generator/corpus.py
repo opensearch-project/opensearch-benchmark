@@ -26,7 +26,6 @@ import bz2
 import json
 import logging
 import os
-import time
 
 from osbenchmark.utils import console
 
@@ -90,7 +89,6 @@ def dump_documents(client, index, out_path, total_docs, for_test_mode=False, pro
             logger.info("Dumping corpus for index [%s] to [%s].", index, out_path)
             query = {"query": {"match_all": {}}}
             for n, doc in enumerate(helpers.scan(client, query=query, index=index)):
-                logger.info("n [%s], doc [%s]", n, doc)
                 if n > total_docs:
                     break
                 data = (json.dumps(doc["_source"], separators=(",", ":")) + "\n").encode("utf-8")
