@@ -26,6 +26,7 @@ import bz2
 import json
 import logging
 import os
+import time
 
 from osbenchmark.utils import console
 
@@ -66,7 +67,7 @@ def extract(client, output_path, index):
     if total_docs > 0:
         logger.info("[%d] total docs in index [%s].", total_docs, index)
         docs_path = get_doc_outpath(output_path, index)
-        dump_documents(client, index, get_doc_outpath(output_path, index, "-1k"), min(total_docs, 1000), " for test mode")
+        dump_documents(client, index, get_doc_outpath(output_path, index, "-1k"), min(total_docs, 999), True, " for test mode")
         dump_documents(client, index, docs_path, total_docs)
         return template_vars(index, docs_path, total_docs)
     else:
@@ -74,7 +75,7 @@ def extract(client, output_path, index):
         return None
 
 
-def dump_documents(client, index, out_path, total_docs, progress_message_suffix=""):
+def dump_documents(client, index, out_path, total_docs, for_test_mode=False, progress_message_suffix=""):
     # pylint: disable=import-outside-toplevel
     from opensearchpy import helpers
 
@@ -89,6 +90,7 @@ def dump_documents(client, index, out_path, total_docs, progress_message_suffix=
             logger.info("Dumping corpus for index [%s] to [%s].", index, out_path)
             query = {"query": {"match_all": {}}}
             for n, doc in enumerate(helpers.scan(client, query=query, index=index)):
+                logger.info("n [%s], doc [%s]", n, doc)
                 if n > total_docs:
                     break
                 data = (json.dumps(doc["_source"], separators=(",", ":")) + "\n").encode("utf-8")
@@ -96,7 +98,10 @@ def dump_documents(client, index, out_path, total_docs, progress_message_suffix=
                 outfile.write(data)
                 comp_outfile.write(compressor.compress(data))
 
-                render_progress(progress, progress_message_suffix, index, n + 1, total_docs, freq)
+                if for_test_mode:
+                    render_progress(progress, progress_message_suffix, index, n + 1, total_docs + 1, freq)
+                else:
+                    render_progress(progress, progress_message_suffix, index, n + 1, total_docs, freq)
 
             comp_outfile.write(compressor.flush())
     progress.finish()
