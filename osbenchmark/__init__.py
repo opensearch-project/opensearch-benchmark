@@ -35,7 +35,7 @@ PROGRAM_NAME = os.getenv("BENCHMARK_ALTERNATIVE_BINARY_NAME", os.path.basename(s
 
 DOC_LINK = "https://opensearch.org/docs"
 
-FORUM_LINK = "https://discuss.opendistrocommunity.dev/"
+FORUM_LINK = "https://forum.opensearch.org/"
 
 BANNER = r"""
    ____                  _____                      __       ____                  __                         __
