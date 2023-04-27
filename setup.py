@@ -170,7 +170,7 @@ setup(name="opensearch-benchmark",
           ],
       },
       classifiers=[
-          "Topic :: System :: OpenSearch-Benchmark",
+          "Topic :: System :: OSB",
           "Development Status :: 5 - Production/Stable",
           "License :: OSI Approved :: Apache Software License",
           "Intended Audience :: Developers",
