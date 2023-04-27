@@ -169,6 +169,7 @@ setup(name="opensearch-benchmark",
               "opensearch-benchmarkd=osbenchmark.benchmarkd:main"
           ],
       },
+      scripts=['scripts/expand-data-corpus.py'],
       classifiers=[
           "Topic :: System :: Benchmark",
           "Development Status :: 5 - Production/Stable",
