@@ -859,7 +859,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "system", "install.id", args.installation_id)
             builder.stop(cfg)
         elif sub_command == "execute-test":
-            # As the execute_test command is doing more work than necessary at the moment, we duplicate several parameters
+            # As the execute-test command is doing more work than necessary at the moment, we duplicate several parameters
             # in this section that actually belong to dedicated subcommands (like install, start or stop). Over time
             # these duplicated parameters will vanish as we move towards dedicated subcommands and use "execute-test" only
             # to run the actual benchmark (i.e. generating load).

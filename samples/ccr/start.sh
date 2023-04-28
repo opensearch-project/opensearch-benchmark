@@ -31,7 +31,7 @@ done
 echo
 
 # Configure the seed nodes on follower cluster
-# TODO: Update the seed node to private IP. 
+# TODO: Update the seed node to private IP.
 echo "Configure remotes on follower"
 curl -o /dev/null -H 'Content-Type: application/json' -k -u admin:admin -X PUT https://localhost:9201/_cluster/settings -d @- <<-EOF
     {
@@ -147,4 +147,4 @@ EOF
 
 
 # Start OpenSearch Benchmark
-opensearch-benchmark execute_test --configuration-name=metricstore --workload=geonames --target-hosts=./ccr-target-hosts.json --pipeline=benchmark-only --workload-params="number_of_replicas:1" --client-options=./ccr-client-options.json --kill-running-processes --telemetry="ccr-stats" --telemetry-params=./ccr-telemetry-param.json
+opensearch-benchmark execute-test --configuration-name=metricstore --workload=geonames --target-hosts=./ccr-target-hosts.json --pipeline=benchmark-only --workload-params="number_of_replicas:1" --client-options=./ccr-client-options.json --kill-running-processes --telemetry="ccr-stats" --telemetry-params=./ccr-telemetry-param.json
