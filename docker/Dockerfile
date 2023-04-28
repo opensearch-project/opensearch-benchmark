@@ -17,6 +17,7 @@ COPY ./version.txt /opensearch-benchmark/
 COPY ./README.md /opensearch-benchmark/
 COPY ./MANIFEST.in /opensearch-benchmark/
 COPY ./osbenchmark/ /opensearch-benchmark/osbenchmark/
+COPY ./scripts/ /opensearch-benchmark/scripts/
 
 RUN python3 -m venv /opensearch-benchmark/venv
 ENV PATH="/opensearch-benchmark/venv/bin:$PATH"
