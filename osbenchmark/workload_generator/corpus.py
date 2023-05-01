@@ -50,7 +50,7 @@ def get_doc_outpath(outdir, name, suffix=""):
     return os.path.join(outdir, f"{name}-documents{suffix}.json")
 
 
-def extract(client, output_path, index):
+def extract(client, output_path, index, total_docs_requested=None):
     """
     Scroll an index with a match-all query, dumping document source to ``outdir/documents.json``.
 
@@ -62,7 +62,14 @@ def extract(client, output_path, index):
 
     logger = logging.getLogger(__name__)
 
-    total_docs = client.count(index=index)["count"]
+    total_docs_found = client.count(index=index)["count"]
+    if total_docs_requested is None:
+        # If none, just use all documents found
+        total_docs_requested = total_docs_found
+
+    # If total_docs_requested is >= than total_docs_found, it will just use total_docs_found. Other wise, use total_docs_requested
+    total_docs = min(total_docs_requested, total_docs_found)
+
     if total_docs > 0:
         logger.info("[%d] total docs in index [%s].", total_docs, index)
         docs_path = get_doc_outpath(output_path, index)

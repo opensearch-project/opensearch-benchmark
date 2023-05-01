@@ -43,9 +43,11 @@ def process_template(templates_path, template_filename, template_vars, output_pa
         f.write(template.render(template_vars))
 
 
-def extract_mappings_and_corpora(client, output_path, indices_to_extract):
+def extract_mappings_and_corpora(client, output_path, indices_to_extract, total_docs_requested):
     indices = []
     corpora = []
+    docs_were_requested = True if total_docs_requested else False
+
     # first extract index metadata (which is cheap) and defer extracting data to reduce the potential for
     # errors due to invalid index names late in the process.
     for index_name in indices_to_extract:
@@ -55,10 +57,13 @@ def extract_mappings_and_corpora(client, output_path, indices_to_extract):
             logging.getLogger(__name__).exception("Failed to extract index [%s]", index_name)
 
     # That list only contains valid indices (with index patterns already resolved)
-    for i in indices:
-        c = corpus.extract(client, output_path, i["name"])
-        if c:
-            corpora.append(c)
+    for count, idx in enumerate(indices):
+        try:
+            c = corpus.extract(client, output_path, idx["name"], int(total_docs_requested[count]) if docs_were_requested else None)
+            if c:
+                corpora.append(c)
+        except IndexError:
+            raise exceptions.SystemSetupError("--total-docs missing document counts for corresponding indices.")
 
     return indices, corpora
 
@@ -87,6 +92,7 @@ def create_workload(cfg):
     unprocessed_custom_queries = cfg.opts("workload", "custom_queries")
 
     custom_queries = process_custom_queries(unprocessed_custom_queries)
+    total_docs = cfg.opts("generator", "total_docs")
 
     logger.info("Creating workload [%s] matching indices [%s]", workload_name, indices)
 
@@ -99,7 +105,8 @@ def create_workload(cfg):
     output_path = os.path.abspath(os.path.join(io.normalize_path(root_path), workload_name))
     io.ensure_dir(output_path)
 
-    indices, corpora = extract_mappings_and_corpora(client, output_path, indices)
+    indices, corpora = extract_mappings_and_corpora(client, output_path, indices, total_docs)
+
     if len(indices) == 0:
         raise RuntimeError("Failed to extract any indices for workload!")
 
