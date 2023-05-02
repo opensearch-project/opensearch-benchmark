@@ -42,11 +42,23 @@ def process_template(templates_path, template_filename, template_vars, output_pa
     with open(output_path, "w") as f:
         f.write(template.render(template_vars))
 
+def check_if_indices_and_total_docs_match(indices, total_docs, docs_were_requested):
+    '''
+    if --total-docs were provided, the input length needs to be match indices.
+
+    Valid examples: --indices=movies,actors --total-docs=1000,2000
+    Invalid examples: --indices=movies,actors --total-docs=1000 OR
+    --indices=movies --total-docs=1000,2000
+    '''
+    if docs_were_requested and len(indices) != len(total_docs):
+        raise exceptions.SystemSetupError("Both --indices and --total-docs were provided but missing corresponding indices or total docs.")
 
 def extract_mappings_and_corpora(client, output_path, indices_to_extract, total_docs_requested):
     indices = []
     corpora = []
-    docs_were_requested = True if total_docs_requested else False
+    docs_were_requested = total_docs_requested is not None and len(total_docs_requested) > 0
+
+    check_if_indices_and_total_docs_match(indices_to_extract, total_docs_requested, docs_were_requested)
 
     # first extract index metadata (which is cheap) and defer extracting data to reduce the potential for
     # errors due to invalid index names late in the process.
@@ -58,12 +70,9 @@ def extract_mappings_and_corpora(client, output_path, indices_to_extract, total_
 
     # That list only contains valid indices (with index patterns already resolved)
     for count, idx in enumerate(indices):
-        try:
-            c = corpus.extract(client, output_path, idx["name"], int(total_docs_requested[count]) if docs_were_requested else None)
-            if c:
-                corpora.append(c)
-        except IndexError:
-            raise exceptions.SystemSetupError("--total-docs missing document counts for corresponding indices.")
+        c = corpus.extract(client, output_path, idx["name"], int(total_docs_requested[count]) if docs_were_requested else None)
+        if c:
+            corpora.append(c)
 
     return indices, corpora
 
