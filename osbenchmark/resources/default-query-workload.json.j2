@@ -1,0 +1,15 @@
+{% extends "base-workload.json.j2" %}
+
+{% block queries %}
+    {
+      "operation": {
+        "operation-type": "search",
+        "body": {
+          "query": {
+            "match_all": {}
+          }
+        }
+      },{% raw %}
+      "clients": {{search_clients | default(8)}}{% endraw %}
+    }
+{%- endblock %}

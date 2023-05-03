@@ -113,7 +113,7 @@ def create_workload(cfg):
     if custom_queries:
         process_template(templates_path, "custom-query-workload.json.j2", template_vars, workload_path)
     else:
-        process_template(templates_path, "workload.json.j2", template_vars, workload_path)
+        process_template(templates_path, "default-query-workload.json.j2", template_vars, workload_path)
 
     console.println("")
     console.info(f"Workload {workload_name} has been created. Run it with: {PROGRAM_NAME} --workload-path={output_path}")
