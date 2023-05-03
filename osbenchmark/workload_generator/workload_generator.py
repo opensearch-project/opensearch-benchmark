@@ -24,6 +24,7 @@
 
 import logging
 import os
+import json
 
 from opensearchpy import OpenSearchException
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -61,6 +62,13 @@ def extract_mappings_and_corpora(client, output_path, indices_to_extract):
 
     return indices, corpora
 
+def process_custom_queries(custom_queries):
+    with custom_queries as queries:
+        logger = logging.getLogger(__name__)
+        data = json.load(queries)
+        logger.info("DATA: %s", data)
+
+    return data
 
 def create_workload(cfg):
     logger = logging.getLogger(__name__)
@@ -70,6 +78,10 @@ def create_workload(cfg):
     root_path = cfg.opts("generator", "output.path")
     target_hosts = cfg.opts("client", "hosts")
     client_options = cfg.opts("client", "options")
+    unprocessed_custom_queries = cfg.opts("workload", "custom_queries")
+
+    custom_queries = process_custom_queries(unprocessed_custom_queries)
+    logger.info("Custom Queries: %s", type(custom_queries))
 
     logger.info("Creating workload [%s] matching indices [%s]", workload_name, indices)
 
@@ -89,12 +101,20 @@ def create_workload(cfg):
     template_vars = {
         "workload_name": workload_name,
         "indices": indices,
-        "corpora": corpora
+        "corpora": corpora,
+        "custom_queries": custom_queries
     }
+
+    logger.info("Template Vars: %s", template_vars)
 
     workload_path = os.path.join(output_path, "workload.json")
     templates_path = os.path.join(cfg.opts("node", "benchmark.root"), "resources")
-    process_template(templates_path, "workload.json.j2", template_vars, workload_path)
+
+    if custom_queries:
+        logger.info("HERE IN CUSTOM QUERIES")
+        process_template(templates_path, "custom-query-workload.json.j2", template_vars, workload_path)
+    else:
+        process_template(templates_path, "workload.json.j2", template_vars, workload_path)
 
     console.println("")
     console.info(f"Workload {workload_name} has been created. Run it with: {PROGRAM_NAME} --workload-path={output_path}")
