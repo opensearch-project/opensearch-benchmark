@@ -50,6 +50,7 @@
         "ingest-percentage": {{ingest_percentage | default(100)}}
       },
       "clients": {{bulk_indexing_clients | default(8)}}
-    }
-  ]{% endraw %}
+    },{% endraw -%}
+    {% block queries %}{% endblock %}
+  ]
 }

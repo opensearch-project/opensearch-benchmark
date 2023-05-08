@@ -176,6 +176,11 @@ def create_arg_parser():
         "--output-path",
         default=os.path.join(os.getcwd(), "workloads"),
         help="Workload output directory (default: workloads/)")
+    create_workload_parser.add_argument(
+        "--custom-queries",
+        type=argparse.FileType('r'),
+        help="Input JSON file to use containing custom workload queries that override the default match_all query"
+    )
 
     generate_parser = subparsers.add_parser("generate", help="Generate artifacts")
     generate_parser.add_argument(
@@ -904,6 +909,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "generator", "indices", args.indices)
             cfg.add(config.Scope.applicationOverride, "generator", "output.path", args.output_path)
             cfg.add(config.Scope.applicationOverride, "workload", "workload.name", args.workload)
+            cfg.add(config.Scope.applicationOverride, "workload", "custom_queries", args.custom_queries)
             configure_connection_params(arg_parser, args, cfg)
 
             workload_generator.create_workload(cfg)
