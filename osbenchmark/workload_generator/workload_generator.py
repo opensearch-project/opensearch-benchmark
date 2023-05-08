@@ -29,7 +29,7 @@ import json
 from opensearchpy import OpenSearchException
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from osbenchmark import PROGRAM_NAME
+from osbenchmark import PROGRAM_NAME, exceptions
 from osbenchmark.client import OsClientFactory
 from osbenchmark.workload_generator import corpus, index
 from osbenchmark.utils import io, opts, console
@@ -67,7 +67,12 @@ def process_custom_queries(custom_queries):
         return []
 
     with custom_queries as queries:
-        data = json.load(queries)
+        try:
+            data = json.load(queries)
+            if isinstance(data, dict):
+                data = [data]
+        except ValueError as err:
+            raise exceptions.SystemSetupError(f"Ensure JSON schema is valid and queries are contained in a list: {err}")
 
     return data
 

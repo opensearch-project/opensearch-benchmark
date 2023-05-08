@@ -103,6 +103,9 @@ After the test execution, a summary report is written to the command line:
     [INFO] SUCCESS (took 2634 seconds)
     ----------------------------------
 
+Creating Your Own Workloads
+---------------------------
+For more information on how users can create their own workloads, see [the Create Workload Guide](./CREATE_WORKLOAD_GUIDE.md)
 
 Getting help
 ------------
