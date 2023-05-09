@@ -51,7 +51,7 @@ def check_if_indices_and_number_of_docs_match(indices, number_of_docs, docs_were
     --indices=movies --number-of-docs=1000,2000
     '''
     if docs_were_requested and len(indices) != len(number_of_docs):
-        raise exceptions.SystemSetupError("Both --indices and --number-of-docs were provided but missing corresponding indices or total docs.")
+        raise exceptions.SystemSetupError("Both --indices and --number-of-docs were provided but missing indices or docs.")
 
 def extract_mappings_and_corpora(client, output_path, indices_to_extract, number_of_docs_requested):
     indices = []
@@ -98,10 +98,10 @@ def create_workload(cfg):
     root_path = cfg.opts("generator", "output.path")
     target_hosts = cfg.opts("client", "hosts")
     client_options = cfg.opts("client", "options")
+    number_of_docs = cfg.opts("generator", "number_of_docs")
     unprocessed_custom_queries = cfg.opts("workload", "custom_queries")
 
     custom_queries = process_custom_queries(unprocessed_custom_queries)
-    number_of_docs = cfg.opts("generator", "number_of_docs")
 
     logger.info("Creating workload [%s] matching indices [%s]", workload_name, indices)
 
