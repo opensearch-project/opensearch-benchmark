@@ -24,6 +24,7 @@
 
 import difflib
 import json
+import argparse
 
 from osbenchmark.utils import io
 
@@ -35,7 +36,6 @@ def csv_to_list(csv):
         return []
     else:
         return [e.strip() for e in csv.split(",")]
-
 
 def to_bool(v):
     if v is None:
@@ -116,6 +116,24 @@ def make_list_of_close_matches(word_list, all_possibilities):
             close_matches.append(matched_word[0])
 
     return close_matches
+
+class StoreKeyPairAsDict(argparse.Action):
+     """
+     Custom Argparse action that allows users to pass in a key:value pairs after specifying a parameter.
+     Used as action for --number-of-docs parameter for create-workload subcommand.
+     """
+     def __init__(self, option_strings, dest, nargs=None, **kwargs):
+         self._nargs = nargs
+         super(StoreKeyPairAsDict, self).__init__(option_strings, dest, nargs=nargs, **kwargs)
+
+     def __call__(self, parser, namespace, values, option_string=None):
+         my_dict = {}
+         for kv in values:
+             k,v = kv.split(":")
+             my_dict[k] = v
+         setattr(namespace, self.dest, my_dict)
+
+         return my_dict
 
 
 class ConnectOptions:

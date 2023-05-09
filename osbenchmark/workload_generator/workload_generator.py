@@ -44,14 +44,12 @@ def process_template(templates_path, template_filename, template_vars, output_pa
 
 def check_if_indices_and_number_of_docs_match(indices, number_of_docs, docs_were_requested):
     '''
-    if --number-of-docs were provided, the input length needs to be match indices.
-
-    Valid examples: --indices=movies,actors --number-of-docs=1000,2000
-    Invalid examples: --indices=movies,actors --number-of-docs=1000 OR
-    --indices=movies --number-of-docs=1000,2000
+    if key(s) and value(s) were provided to --number-of-docs,
+    the number of pairs need to be less than or equal to number of indices
     '''
-    if docs_were_requested and len(indices) != len(number_of_docs):
-        raise exceptions.SystemSetupError("Both --indices and --number-of-docs were provided but missing indices or docs.")
+    if docs_were_requested and len(indices) < len(number_of_docs):
+        raise exceptions.SystemSetupError(f"Number of key:value pairs exceeds number of indices mentioned in --indices. "
+                                          f"Ensure it is less than or equal to.")
 
 def extract_mappings_and_corpora(client, output_path, indices_to_extract, number_of_docs_requested):
     indices = []
@@ -69,8 +67,10 @@ def extract_mappings_and_corpora(client, output_path, indices_to_extract, number
             logging.getLogger(__name__).exception("Failed to extract index [%s]", index_name)
 
     # That list only contains valid indices (with index patterns already resolved)
-    for count, idx in enumerate(indices):
-        c = corpus.extract(client, output_path, idx["name"], int(number_of_docs_requested[count]) if docs_were_requested else None)
+    for i in indices:
+        docs_to_extract = number_of_docs_requested.get(i["name"], None) if docs_were_requested else None
+        docs_to_extract = int(docs_to_extract) if docs_to_extract is not None else docs_to_extract
+        c = corpus.extract(client, output_path, i["name"], docs_to_extract)
         if c:
             corpora.append(c)
 

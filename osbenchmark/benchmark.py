@@ -182,8 +182,10 @@ def create_arg_parser():
         help="Input JSON file to use containing custom workload queries that override the default match_all query")
     create_workload_parser.add_argument(
         "--number-of-docs",
-        type=opts.csv_to_list,
-        help="Comma-separated list of doc counts for each index specified in indices parameter. Ensure that order is preserved.")
+        action=opts.StoreKeyPairAsDict,
+        nargs='+',
+        metavar="KEY:VAL",
+        help="Map of index name and doc count to extract. Ensure that index name in key field exists in --indices parameter.")
 
     generate_parser = subparsers.add_parser("generate", help="Generate artifacts")
     generate_parser.add_argument(
