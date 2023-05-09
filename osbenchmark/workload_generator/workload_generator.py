@@ -42,23 +42,23 @@ def process_template(templates_path, template_filename, template_vars, output_pa
     with open(output_path, "w") as f:
         f.write(template.render(template_vars))
 
-def check_if_indices_and_total_docs_match(indices, total_docs, docs_were_requested):
+def check_if_indices_and_number_of_docs_match(indices, number_of_docs, docs_were_requested):
     '''
-    if --total-docs were provided, the input length needs to be match indices.
+    if --number-of-docs were provided, the input length needs to be match indices.
 
-    Valid examples: --indices=movies,actors --total-docs=1000,2000
-    Invalid examples: --indices=movies,actors --total-docs=1000 OR
-    --indices=movies --total-docs=1000,2000
+    Valid examples: --indices=movies,actors --number-of-docs=1000,2000
+    Invalid examples: --indices=movies,actors --number-of-docs=1000 OR
+    --indices=movies --number-of-docs=1000,2000
     '''
-    if docs_were_requested and len(indices) != len(total_docs):
-        raise exceptions.SystemSetupError("Both --indices and --total-docs were provided but missing corresponding indices or total docs.")
+    if docs_were_requested and len(indices) != len(number_of_docs):
+        raise exceptions.SystemSetupError("Both --indices and --number-of-docs were provided but missing corresponding indices or total docs.")
 
-def extract_mappings_and_corpora(client, output_path, indices_to_extract, total_docs_requested):
+def extract_mappings_and_corpora(client, output_path, indices_to_extract, number_of_docs_requested):
     indices = []
     corpora = []
-    docs_were_requested = total_docs_requested is not None and len(total_docs_requested) > 0
+    docs_were_requested = number_of_docs_requested is not None and len(number_of_docs_requested) > 0
 
-    check_if_indices_and_total_docs_match(indices_to_extract, total_docs_requested, docs_were_requested)
+    check_if_indices_and_number_of_docs_match(indices_to_extract, number_of_docs_requested, docs_were_requested)
 
     # first extract index metadata (which is cheap) and defer extracting data to reduce the potential for
     # errors due to invalid index names late in the process.
@@ -70,7 +70,7 @@ def extract_mappings_and_corpora(client, output_path, indices_to_extract, total_
 
     # That list only contains valid indices (with index patterns already resolved)
     for count, idx in enumerate(indices):
-        c = corpus.extract(client, output_path, idx["name"], int(total_docs_requested[count]) if docs_were_requested else None)
+        c = corpus.extract(client, output_path, idx["name"], int(number_of_docs_requested[count]) if docs_were_requested else None)
         if c:
             corpora.append(c)
 
@@ -101,7 +101,7 @@ def create_workload(cfg):
     unprocessed_custom_queries = cfg.opts("workload", "custom_queries")
 
     custom_queries = process_custom_queries(unprocessed_custom_queries)
-    total_docs = cfg.opts("generator", "total_docs")
+    number_of_docs = cfg.opts("generator", "number_of_docs")
 
     logger.info("Creating workload [%s] matching indices [%s]", workload_name, indices)
 
@@ -114,7 +114,7 @@ def create_workload(cfg):
     output_path = os.path.abspath(os.path.join(io.normalize_path(root_path), workload_name))
     io.ensure_dir(output_path)
 
-    indices, corpora = extract_mappings_and_corpora(client, output_path, indices, total_docs)
+    indices, corpora = extract_mappings_and_corpora(client, output_path, indices, number_of_docs)
 
     if len(indices) == 0:
         raise RuntimeError("Failed to extract any indices for workload!")

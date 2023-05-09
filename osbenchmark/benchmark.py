@@ -55,12 +55,6 @@ def create_arg_parser():
             raise argparse.ArgumentError(argument=None, message="At least one argument required!")
         return lst
 
-    def list_or_none(arg):
-        lst = opts.csv_to_list(arg)
-        if len(lst) < 1:
-            return None
-        return lst
-
     def runtime_jdk(v):
         if v == "bundled":
             return v
@@ -185,11 +179,10 @@ def create_arg_parser():
     create_workload_parser.add_argument(
         "--custom-queries",
         type=argparse.FileType('r'),
-        help="Input JSON file to use containing custom workload queries that override the default match_all query"
-    )
+        help="Input JSON file to use containing custom workload queries that override the default match_all query")
     create_workload_parser.add_argument(
-        "--total-docs",
-        type=list_or_none,
+        "--number-of-docs",
+        type=opts.csv_to_list,
         help="Comma-separated list of doc counts for each index specified in indices parameter. Ensure that order is preserved.")
 
     generate_parser = subparsers.add_parser("generate", help="Generate artifacts")
@@ -917,7 +910,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             generate(cfg)
         elif sub_command == "create-workload":
             cfg.add(config.Scope.applicationOverride, "generator", "indices", args.indices)
-            cfg.add(config.Scope.applicationOverride, "generator", "total_docs", args.total_docs)
+            cfg.add(config.Scope.applicationOverride, "generator", "number_of_docs", args.number_of_docs)
             cfg.add(config.Scope.applicationOverride, "generator", "output.path", args.output_path)
             cfg.add(config.Scope.applicationOverride, "workload", "workload.name", args.workload)
             cfg.add(config.Scope.applicationOverride, "workload", "custom_queries", args.custom_queries)
