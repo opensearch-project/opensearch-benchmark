@@ -48,8 +48,8 @@ def check_if_indices_and_number_of_docs_match(indices, number_of_docs, docs_were
     the number of pairs need to be less than or equal to number of indices
     '''
     if docs_were_requested and len(indices) < len(number_of_docs):
-        raise exceptions.SystemSetupError(f"Number of key:value pairs exceeds number of indices mentioned in --indices. "
-                                          f"Ensure it is less than or equal to.")
+        raise exceptions.SystemSetupError("Number of key:value pairs exceeds number of indices mentioned in --indices. " +
+                                          "Ensure it is less than or equal to.")
 
 def extract_mappings_and_corpora(client, output_path, indices_to_extract, number_of_docs_requested):
     indices = []
