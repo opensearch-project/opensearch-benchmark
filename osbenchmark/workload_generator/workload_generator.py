@@ -51,13 +51,13 @@ def validate_indices_docs_map(indices, indices_docs_map, docs_were_requested):
             "Number of <index>:<doc_count> pairs exceeds number of indices in --indices. " +
             "Ensure number of <index>:<doc_count> pairs is less than or equal to number of indices in --indices."
         )
+
     for index_name in indices_docs_map:
         if index_name not in indices:
             raise exceptions.SystemSetupError(
                 "Index from <index>:<doc_count> pair was not found in --indices. " +
                 "Ensure that indices from all <index>:<doc_count> pairs exist in --indices."
             )
-
 
 def extract_mappings_and_corpora(client, output_path, indices_to_extract, indices_docs_map):
     indices = []
