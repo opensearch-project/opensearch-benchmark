@@ -6,6 +6,7 @@
       "operation": {
         "name": "{{query.name}}",
         "operation-type": "{{query['operation-type']}}",
+        "index": {{ indices | map(attribute='name') | list | join(',') | tojson }},
         "body": {{query.body | replace("'", '"') }}
       }
     }{% if not loop.last %},{% endif -%}

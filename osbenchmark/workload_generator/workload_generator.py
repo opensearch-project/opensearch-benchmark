@@ -42,10 +42,22 @@ def process_template(templates_path, template_filename, template_vars, output_pa
     with open(output_path, "w") as f:
         f.write(template.render(template_vars))
 
+def check_if_indices_and_number_of_docs_match(indices, number_of_docs, docs_were_requested):
+    '''
+    if key(s) and value(s) were provided to --number-of-docs,
+    the number of pairs need to be less than or equal to number of indices
+    '''
+    if docs_were_requested and len(indices) < len(number_of_docs):
+        raise exceptions.SystemSetupError("Number of key:value pairs exceeds number of indices mentioned in --indices. " +
+                                          "Ensure it is less than or equal to.")
 
-def extract_mappings_and_corpora(client, output_path, indices_to_extract):
+def extract_mappings_and_corpora(client, output_path, indices_to_extract, number_of_docs_requested):
     indices = []
     corpora = []
+    docs_were_requested = number_of_docs_requested is not None and len(number_of_docs_requested) > 0
+
+    check_if_indices_and_number_of_docs_match(indices_to_extract, number_of_docs_requested, docs_were_requested)
+
     # first extract index metadata (which is cheap) and defer extracting data to reduce the potential for
     # errors due to invalid index names late in the process.
     for index_name in indices_to_extract:
@@ -56,7 +68,9 @@ def extract_mappings_and_corpora(client, output_path, indices_to_extract):
 
     # That list only contains valid indices (with index patterns already resolved)
     for i in indices:
-        c = corpus.extract(client, output_path, i["name"])
+        docs_to_extract = number_of_docs_requested.get(i["name"], None) if docs_were_requested else None
+        docs_to_extract = int(docs_to_extract) if docs_to_extract is not None else docs_to_extract
+        c = corpus.extract(client, output_path, i["name"], docs_to_extract)
         if c:
             corpora.append(c)
 
@@ -84,6 +98,7 @@ def create_workload(cfg):
     root_path = cfg.opts("generator", "output.path")
     target_hosts = cfg.opts("client", "hosts")
     client_options = cfg.opts("client", "options")
+    number_of_docs = cfg.opts("generator", "number_of_docs")
     unprocessed_custom_queries = cfg.opts("workload", "custom_queries")
 
     custom_queries = process_custom_queries(unprocessed_custom_queries)
@@ -99,7 +114,8 @@ def create_workload(cfg):
     output_path = os.path.abspath(os.path.join(io.normalize_path(root_path), workload_name))
     io.ensure_dir(output_path)
 
-    indices, corpora = extract_mappings_and_corpora(client, output_path, indices)
+    indices, corpora = extract_mappings_and_corpora(client, output_path, indices, number_of_docs)
+
     if len(indices) == 0:
         raise RuntimeError("Failed to extract any indices for workload!")
 

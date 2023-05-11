@@ -179,8 +179,13 @@ def create_arg_parser():
     create_workload_parser.add_argument(
         "--custom-queries",
         type=argparse.FileType('r'),
-        help="Input JSON file to use containing custom workload queries that override the default match_all query"
-    )
+        help="Input JSON file to use containing custom workload queries that override the default match_all query")
+    create_workload_parser.add_argument(
+        "--number-of-docs",
+        action=opts.StoreKeyPairAsDict,
+        nargs='+',
+        metavar="KEY:VAL",
+        help="Map of index name and doc count to extract. Ensure that index name in key field exists in --indices parameter.")
 
     generate_parser = subparsers.add_parser("generate", help="Generate artifacts")
     generate_parser.add_argument(
@@ -907,6 +912,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             generate(cfg)
         elif sub_command == "create-workload":
             cfg.add(config.Scope.applicationOverride, "generator", "indices", args.indices)
+            cfg.add(config.Scope.applicationOverride, "generator", "number_of_docs", args.number_of_docs)
             cfg.add(config.Scope.applicationOverride, "generator", "output.path", args.output_path)
             cfg.add(config.Scope.applicationOverride, "workload", "workload.name", args.workload)
             cfg.add(config.Scope.applicationOverride, "workload", "custom_queries", args.custom_queries)
