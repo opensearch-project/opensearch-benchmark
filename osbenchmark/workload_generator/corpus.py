@@ -67,7 +67,7 @@ def extract(client, output_path, index, number_of_docs_requested=None):
     total_docs = number_of_docs if not number_of_docs_requested else min(number_of_docs, number_of_docs_requested)
 
     if total_docs > 0:
-        logger.info("[%d] total docs in index [%s].", number_of_docs, index)
+        logger.info("[%d] total docs in index [%s]. Extracting [%s] docs.", number_of_docs, index, total_docs)
         docs_path = get_doc_outpath(output_path, index)
         dump_documents(client, index, get_doc_outpath(output_path, index, "-1k"), min(total_docs, 1000), " for test mode")
         dump_documents(client, index, docs_path, total_docs)
