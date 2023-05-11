@@ -76,14 +76,18 @@ def extract_mappings_and_corpora(client, output_path, indices_to_extract, indice
 
     # That list only contains valid indices (with index patterns already resolved)
     # For each index, check if docs were requested. If so, extract the number of docs from the map
-    logger = logging.getLogger(__name__)
     for i in indices:
         custom_docs_to_extract = None
 
         if docs_were_requested and i["name"] in indices_docs_map:
-            custom_docs_to_extract = int(indices_docs_map.get(i["name"]))
+            try:
+                custom_docs_to_extract = int(indices_docs_map.get(i["name"]))
+            except ValueError:
+                raise exceptions.InvalidSyntax(
+                    f"Value in <index>:<doc_count> pair is not a string-represented integer: [{indices_docs_map.get(i['name'])}]"
+                )
 
-        logger.info("Custom docs to extract for index %s is %s", i["name"], custom_docs_to_extract)
+        logging.getLogger(__name__).info("Extracting [%s] docs for index [%s]", custom_docs_to_extract, i["name"])
         c = corpus.extract(client, output_path, i["name"], custom_docs_to_extract)
         if c:
             corpora.append(c)

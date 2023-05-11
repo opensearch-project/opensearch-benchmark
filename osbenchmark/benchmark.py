@@ -185,7 +185,8 @@ def create_arg_parser():
         action=opts.StoreKeyPairAsDict,
         nargs='+',
         metavar="KEY:VAL",
-        help="Map of index name and doc count to extract. Ensure that index name in key field exists in --indices parameter.")
+        help="Map of index name and integer doc count to extract. Ensure that index name also exists in --indices parameter. " +
+        "For example, if extracting docs from movies and actors indices, provide: --number-of-docs movies:1000 actors:2000")
 
     generate_parser = subparsers.add_parser("generate", help="Generate artifacts")
     generate_parser.add_argument(
