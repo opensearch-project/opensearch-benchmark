@@ -35,6 +35,7 @@ import uuid
 from unittest import TestCase
 
 import opensearchpy.exceptions
+import pytest
 
 from osbenchmark import config, metrics, workload, exceptions, paths
 from osbenchmark.metrics import GlobalStatsCalculator
@@ -152,8 +153,9 @@ class OsClientTests(TestCase):
         def __init__(self, hosts):
             self.transport = OsClientTests.TransportMock(hosts)
 
+    @pytest.mark.parametrize("password_configuration", [None, "config", "environment"])
     @mock.patch("osbenchmark.client.OsClientFactory")
-    def test_config_opts_parsing(self, client_OsClientfactory):
+    def test_config_opts_parsing(self, client_OsClientfactory, password_configuration):
         cfg = config.Config()
 
         _datastore_host = ".".join([str(random.randint(1, 254)) for _ in range(4)])
@@ -167,11 +169,28 @@ class OsClientTests(TestCase):
         cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.port", _datastore_port)
         cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.secure", _datastore_secure)
         cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.user", _datastore_user)
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.password", _datastore_password)
+
+        if password_configuration == "config":
+            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.password", _datastore_password)
+        elif password_configuration == "environment":
+            monkeypatch = pytest.MonkeyPatch()
+            monkeypatch.setenv("OSB_RESULTS_PUBLISHING_PASSWORD", _datastore_password)
+
         if not _datastore_verify_certs:
             cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.ssl.verification_mode", "none")
 
-        metrics.OsClientFactory(cfg)
+        try:
+            metrics.OsClientFactory(cfg)
+        except exceptions.ConfigError as e:
+            if password_configuration is not None:
+                raise
+
+            assert (
+                e.message
+                == "No password configured through [results_publishing] configuration or OSB_RESULTS_PUBLISHING_PASSWORD environment variable."
+            )
+            return
+
         expected_client_options = {
             "use_ssl": True,
             "timeout": 120,
