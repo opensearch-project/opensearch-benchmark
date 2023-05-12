@@ -30,7 +30,7 @@ TLDR: to generate a 100 GB corpus and then run a test against it:
 
 $ expand-data-corpus.py --corpus-size 100 --output-file-suffix 100gb
 
-$ opensearch-benchmark execute_test --workload http_logs \\
+$ opensearch-benchmark execute-test --workload http_logs \\
     --workload_params=generated_corpus:t ...
 
 The script generates new documents by duplicating ones in the existing

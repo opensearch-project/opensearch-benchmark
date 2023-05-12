@@ -5,13 +5,13 @@ parent: Benchmark API
 nav_order: 10
 ---
 
-The `execute_test` command of OpenSearch Benchmark executes tests against your OpenSearch cluster.
+The `execute-test` command of OpenSearch Benchmark executes tests against your OpenSearch cluster.
 
 
-## Syntax 
+## Syntax
 
 ```bash
-opensearch-benchmark execute_test <arguments>
+opensearch-benchmark execute-test <arguments>
 ```
 
 
@@ -34,26 +34,26 @@ Argument | Description | Required
 *Example 1*
 
 ```
-opensearch-benchmark execute_test --workload eventdata --test-mode
+opensearch-benchmark execute-test --workload eventdata --test-mode
 ```
 
-Provision an OpenSearch node on the local machine based on the latest source code in Github and execute the `eventdata` workload in test mode. 
+Provision an OpenSearch node on the local machine based on the latest source code in Github and execute the `eventdata` workload in test mode.
 
 *Example 2*
 
 ```
-opensearch-benchmark execute_test --workload http_logs --pipeline benchmark-only --target-hosts <endpoint> --workload-params "bulk_indexing_clients:1,ingest_percentage:10"
+opensearch-benchmark execute-test --workload http_logs --pipeline benchmark-only --target-hosts <endpoint> --workload-params "bulk_indexing_clients:1,ingest_percentage:10"
 ```
 
-Execute the `http_logs` workload against an existing OpenSearch cluster but only use one client for indexing and only ingest 10% of the total data corpus. 
+Execute the `http_logs` workload against an existing OpenSearch cluster but only use one client for indexing and only ingest 10% of the total data corpus.
 
 *Example 3*
 
 ```
-opensearch-benchmark execute_test --workload nyc_taxis --pipeline benchmark-only --target-hosts <endpoint> --client-options "verify_certs:false,use_ssl:true,basic_auth_user:admin,basic_auth_password:admin"
+opensearch-benchmark execute-test --workload nyc_taxis --pipeline benchmark-only --target-hosts <endpoint> --client-options "verify_certs:false,use_ssl:true,basic_auth_user:admin,basic_auth_password:admin"
 ```
 
-Execute the `nyc_taxis` workload against an existing OpenSearch cluster with the security plugin enabled. 
+Execute the `nyc_taxis` workload against an existing OpenSearch cluster with the security plugin enabled.
 
 
 ### All Arguments

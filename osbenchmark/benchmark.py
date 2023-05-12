@@ -111,7 +111,7 @@ def create_arg_parser():
         dest="subcommand",
         help="")
 
-    test_execution_parser = subparsers.add_parser("execute_test", help="Run a benchmark")
+    test_execution_parser = subparsers.add_parser("execute-test", help="Run a benchmark")
     # change in favor of "list telemetry", "list workloads", "list pipelines"
     list_parser = subparsers.add_parser("list", help="List configuration options")
     list_parser.add_argument(
@@ -868,10 +868,10 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "builder", "preserve.install", convert.to_bool(args.preserve_install))
             cfg.add(config.Scope.applicationOverride, "system", "install.id", args.installation_id)
             builder.stop(cfg)
-        elif sub_command == "execute_test":
-            # As the execute_test command is doing more work than necessary at the moment, we duplicate several parameters
+        elif sub_command == "execute-test":
+            # As the execute-test command is doing more work than necessary at the moment, we duplicate several parameters
             # in this section that actually belong to dedicated subcommands (like install, start or stop). Over time
-            # these duplicated parameters will vanish as we move towards dedicated subcommands and use "execute_test" only
+            # these duplicated parameters will vanish as we move towards dedicated subcommands and use "execute-test" only
             # to run the actual benchmark (i.e. generating load).
             if args.effective_start_date:
                 cfg.add(config.Scope.applicationOverride, "system", "time.start", args.effective_start_date)

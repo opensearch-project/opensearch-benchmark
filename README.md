@@ -39,7 +39,7 @@ Run your first test execution
 
 Now we're ready to run our first test execution:
 
-    opensearch-benchmark execute_test --distribution-version=1.0.0 --workload=geonames --test-mode
+    opensearch-benchmark execute-test --distribution-version=1.0.0 --workload=geonames --test-mode
 
 This will download OpenSearch 1.0.0 and run one of OpenSearch Benchmark's official workloads - the [geonames workload](<https://github.com/opensearch-project/opensearch-benchmark-workloads/tree/main/geonames>) - against it.
 Note that this uses the `--test-mode` argument to only run a single instance of each operation in order to reduce the time needed for a test execution. This argument is used as a sanity check and should be removed in an actual benchmarking scenario.
