@@ -129,8 +129,8 @@ make install
 ### Adding New Major and Minor Python Versions to OpenSearch-Benchmark
 To streamline the process, please refer to [this guide](./PYTHON_SUPPORT_GUIDE.md)
 
-### Debugging Unittests in VS Code
-To debug the unittests in VS Code, add the following blurb to the Python `launch.json` file.
+### Debugging Unittests in Visual Studio Code
+To run and debug unittests in Visual Studio Code, add the following configuration to the Python Debugger `launch.json` file. See [the official Visual Studio Code documentation](https://code.visualstudio.com/docs/editor/debugging) for more information on setting up and accessing `launch.json` file.
 ```
         {
             "name": "Python: Module",
@@ -140,4 +140,4 @@ To debug the unittests in VS Code, add the following blurb to the Python `launch
             "args": ["-k ${file}"]
         }
 ```
-This will allow users to run and debug unittests easily without invoking pytest on the command line.
+With this, users can easily run and debug unittests within Visual Studio Code without invoking pytest manually on the command line.

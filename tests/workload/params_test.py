@@ -1576,7 +1576,7 @@ class CreateIndexParamSourceTests(TestCase):
         index, _ = p["indices"][0]
         self.assertEqual("index2", index)
 
-    def test_create_index_with_codec_default(self):
+    def test_create_index_with_default_codec(self):
         source = params.CreateIndexParamSource(workload.Workload(name="unit-test"), params={
             "index": "test",
             "body": {
@@ -1604,7 +1604,7 @@ class CreateIndexParamSourceTests(TestCase):
         self.assertEqual({}, p["request-params"])
         self.assertEqual("default", body["settings"]["index.codec"])
 
-    def test_create_index_with_codec_best_compression(self):
+    def test_create_index_with_best_compression_codec(self):
         source = params.CreateIndexParamSource(workload.Workload(name="unit-test"), params={
             "index": "test",
             "body": {
@@ -1632,7 +1632,7 @@ class CreateIndexParamSourceTests(TestCase):
         self.assertEqual({}, p["request-params"])
         self.assertEqual("BEST_COMPRESSION", body["settings"]["index.codec"])
 
-    def test_create_index_with_codec_invalid(self):
+    def test_create_index_with_invalid_codec(self):
         with self.assertRaises(exceptions.InvalidSyntax) as context:
             params.CreateIndexParamSource(workload.Workload(name="unit-test"), params={
                 "index": "test",
