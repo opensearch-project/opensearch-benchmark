@@ -1653,7 +1653,8 @@ class CreateIndexParamSourceTests(TestCase):
                 }
             })
 
-        self.assertEqual(str(context.exception), "Please set value properly for create-index operation. Invalid index.codec value 'invalid_codec'")
+        self.assertEqual(str(context.exception),
+                         "Please set value properly for create-index operation. Invalid index.codec value 'invalid_codec'")
 
 class CreateDataStreamParamSourceTests(TestCase):
     def test_create_data_stream(self):
