@@ -135,8 +135,7 @@ class StoreKeyPairAsDict(argparse.Action):
                 custom_dict[k] = v
             except ValueError:
                 raise exceptions.InvalidSyntax(
-                    "StoreKeyPairAsDict: Could not convert string to dict due to invalid syntax. If using parameter " +
-                    "--number-of-docs, ensure input follows format: " + "<index1>:<doc_count1> <index2>:<doc_count2> ... "
+                    "StoreKeyPairAsDict: Could not convert string to dict due to invalid syntax."
                     )
         setattr(namespace, self.dest, custom_dict)
 

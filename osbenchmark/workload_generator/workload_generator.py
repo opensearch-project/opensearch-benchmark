@@ -84,7 +84,7 @@ def extract_mappings_and_corpora(client, output_path, indices_to_extract, indice
                 custom_docs_to_extract = int(indices_docs_map.get(i["name"]))
             except ValueError:
                 raise exceptions.InvalidSyntax(
-                    f"Value in <index>:<doc_count> pair is not a string-represented integer: [{indices_docs_map.get(i['name'])}]"
+                    f"The string [{indices_docs_map.get(i['name'])}] in <index>:<doc_count> pair cannot be converted to an integer."
                 )
 
         logging.getLogger(__name__).info("Extracting [%s] docs for index [%s]", custom_docs_to_extract, i["name"])

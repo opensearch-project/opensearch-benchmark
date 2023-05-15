@@ -186,7 +186,7 @@ def create_arg_parser():
         nargs='+',
         metavar="KEY:VAL",
         help="Map of index name and integer doc count to extract. Ensure that index name also exists in --indices parameter. " +
-        "For example, if extracting docs from movies and actors indices, provide: --number-of-docs movies:1000 actors:2000")
+        "To specify several indices and doc counts, use format: <index1>:<doc_count1> <index2>:<doc_count2> ...")
 
     generate_parser = subparsers.add_parser("generate", help="Generate artifacts")
     generate_parser.add_argument(
