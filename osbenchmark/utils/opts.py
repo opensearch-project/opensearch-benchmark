@@ -26,6 +26,7 @@ import difflib
 import json
 import argparse
 
+from osbenchmark import exceptions
 from osbenchmark.utils import io
 
 
@@ -127,13 +128,18 @@ class StoreKeyPairAsDict(argparse.Action):
         super().__init__(option_strings, dest, nargs=nargs, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        my_dict = {}
+        custom_dict = {}
         for kv in values:
-            k,v = kv.split(":")
-            my_dict[k] = v
-        setattr(namespace, self.dest, my_dict)
+            try:
+                k,v = kv.split(":")
+                custom_dict[k] = v
+            except ValueError:
+                raise exceptions.InvalidSyntax(
+                    "StoreKeyPairAsDict: Could not convert string to dict due to invalid syntax."
+                    )
+        setattr(namespace, self.dest, custom_dict)
 
-        return my_dict
+        return custom_dict
 
 
 class ConnectOptions:

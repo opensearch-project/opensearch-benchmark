@@ -42,21 +42,29 @@ def process_template(templates_path, template_filename, template_vars, output_pa
     with open(output_path, "w") as f:
         f.write(template.render(template_vars))
 
-def check_if_indices_and_number_of_docs_match(indices, number_of_docs, docs_were_requested):
-    '''
-    if key(s) and value(s) were provided to --number-of-docs,
-    the number of pairs need to be less than or equal to number of indices
-    '''
-    if docs_were_requested and len(indices) < len(number_of_docs):
-        raise exceptions.SystemSetupError("Number of key:value pairs exceeds number of indices mentioned in --indices. " +
-                                          "Ensure it is less than or equal to.")
+def validate_indices_docs_map(indices, indices_docs_map, docs_were_requested):
+    if not docs_were_requested:
+        return
 
-def extract_mappings_and_corpora(client, output_path, indices_to_extract, number_of_docs_requested):
+    if len(indices) < len(indices_docs_map):
+        raise exceptions.SystemSetupError(
+            "Number of <index>:<doc_count> pairs exceeds number of indices in --indices. " +
+            "Ensure number of <index>:<doc_count> pairs is less than or equal to number of indices in --indices."
+        )
+
+    for index_name in indices_docs_map:
+        if index_name not in indices:
+            raise exceptions.SystemSetupError(
+                "Index from <index>:<doc_count> pair was not found in --indices. " +
+                "Ensure that indices from all <index>:<doc_count> pairs exist in --indices."
+            )
+
+def extract_mappings_and_corpora(client, output_path, indices_to_extract, indices_docs_map):
     indices = []
     corpora = []
-    docs_were_requested = number_of_docs_requested is not None and len(number_of_docs_requested) > 0
+    docs_were_requested = indices_docs_map is not None and len(indices_docs_map) > 0
 
-    check_if_indices_and_number_of_docs_match(indices_to_extract, number_of_docs_requested, docs_were_requested)
+    validate_indices_docs_map(indices_to_extract, indices_docs_map, docs_were_requested)
 
     # first extract index metadata (which is cheap) and defer extracting data to reduce the potential for
     # errors due to invalid index names late in the process.
@@ -67,10 +75,20 @@ def extract_mappings_and_corpora(client, output_path, indices_to_extract, number
             logging.getLogger(__name__).exception("Failed to extract index [%s]", index_name)
 
     # That list only contains valid indices (with index patterns already resolved)
+    # For each index, check if docs were requested. If so, extract the number of docs from the map
     for i in indices:
-        docs_to_extract = number_of_docs_requested.get(i["name"], None) if docs_were_requested else None
-        docs_to_extract = int(docs_to_extract) if docs_to_extract is not None else docs_to_extract
-        c = corpus.extract(client, output_path, i["name"], docs_to_extract)
+        custom_docs_to_extract = None
+
+        if docs_were_requested and i["name"] in indices_docs_map:
+            try:
+                custom_docs_to_extract = int(indices_docs_map.get(i["name"]))
+            except ValueError:
+                raise exceptions.InvalidSyntax(
+                    f"The string [{indices_docs_map.get(i['name'])}] in <index>:<doc_count> pair cannot be converted to an integer."
+                )
+
+        logging.getLogger(__name__).info("Extracting [%s] docs for index [%s]", custom_docs_to_extract, i["name"])
+        c = corpus.extract(client, output_path, i["name"], custom_docs_to_extract)
         if c:
             corpora.append(c)
 
@@ -104,7 +122,7 @@ def create_workload(cfg):
     custom_queries = process_custom_queries(unprocessed_custom_queries)
 
     logger.info("Creating workload [%s] matching indices [%s]", workload_name, indices)
-
+    logger.info("Number of Docs: %s", number_of_docs)
     client = OsClientFactory(hosts=target_hosts.all_hosts[opts.TargetHosts.DEFAULT],
                              client_options=client_options.all_client_options[opts.TargetHosts.DEFAULT]).create()
 
