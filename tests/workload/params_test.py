@@ -1610,7 +1610,7 @@ class CreateIndexParamSourceTests(TestCase):
             "body": {
                 "settings": {
                     "index.number_of_replicas": 0,
-                    "index.codec": "BEST_COMPRESSION"
+                    "index.codec": "best_compression"
                 },
                 "mappings": {
                     "doc": {
@@ -1630,7 +1630,7 @@ class CreateIndexParamSourceTests(TestCase):
         self.assertEqual("test", index)
         self.assertTrue(len(body) > 0)
         self.assertEqual({}, p["request-params"])
-        self.assertEqual("BEST_COMPRESSION", body["settings"]["index.codec"])
+        self.assertEqual("best_compression", body["settings"]["index.codec"])
 
     def test_create_index_with_invalid_codec(self):
         with self.assertRaises(exceptions.InvalidSyntax) as context:

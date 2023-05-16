@@ -716,7 +716,7 @@ class OperationType(Enum):
 @unique
 class IndexCodec(Enum):
     Default = "default"
-    BestCompression = "BEST_COMPRESSION"
+    BestCompression = "best_compression"
 
     @classmethod
     def is_codec_valid(cls, codec):
