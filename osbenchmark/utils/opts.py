@@ -123,10 +123,6 @@ class StoreKeyPairAsDict(argparse.Action):
     Custom Argparse action that allows users to pass in a key:value pairs after specifying a parameter.
     Used as action for --number-of-docs parameter for create-workload subcommand.
     """
-    def __init__(self, option_strings, dest, nargs=None, **kwargs):
-        self._nargs = nargs
-        super().__init__(option_strings, dest, nargs=nargs, **kwargs)
-
     def __call__(self, parser, namespace, values, option_string=None):
         custom_dict = {}
         for kv in values:
