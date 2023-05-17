@@ -713,6 +713,19 @@ class OperationType(Enum):
         else:
             raise KeyError(f"No enum value for [{v}]")
 
+@unique
+class IndexCodec(Enum):
+    Default = "default"
+    BestCompression = "best_compression"
+
+    @classmethod
+    def is_codec_valid(cls, codec):
+        for valid_codec in cls:
+            if codec == valid_codec.value:
+                return True
+
+        raise ValueError(f"Invalid index.codec value '{codec}'")
+
 
 class TaskNameFilter:
     def __init__(self, name):

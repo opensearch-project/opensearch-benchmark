@@ -1576,6 +1576,85 @@ class CreateIndexParamSourceTests(TestCase):
         index, _ = p["indices"][0]
         self.assertEqual("index2", index)
 
+    def test_create_index_with_default_codec(self):
+        source = params.CreateIndexParamSource(workload.Workload(name="unit-test"), params={
+            "index": "test",
+            "body": {
+                "settings": {
+                    "index.number_of_replicas": 0,
+                    "index.codec": "default"
+                },
+                "mappings": {
+                    "doc": {
+                        "properties": {
+                            "name": {
+                                "type": "keyword",
+                            }
+                        }
+                    }
+                }
+            }
+        })
+
+        p = source.params()
+        self.assertEqual(1, len(p["indices"]))
+        index, body = p["indices"][0]
+        self.assertEqual("test", index)
+        self.assertTrue(len(body) > 0)
+        self.assertEqual({}, p["request-params"])
+        self.assertEqual("default", body["settings"]["index.codec"])
+
+    def test_create_index_with_best_compression_codec(self):
+        source = params.CreateIndexParamSource(workload.Workload(name="unit-test"), params={
+            "index": "test",
+            "body": {
+                "settings": {
+                    "index.number_of_replicas": 0,
+                    "index.codec": "best_compression"
+                },
+                "mappings": {
+                    "doc": {
+                        "properties": {
+                            "name": {
+                                "type": "keyword",
+                            }
+                        }
+                    }
+                }
+            }
+        })
+
+        p = source.params()
+        self.assertEqual(1, len(p["indices"]))
+        index, body = p["indices"][0]
+        self.assertEqual("test", index)
+        self.assertTrue(len(body) > 0)
+        self.assertEqual({}, p["request-params"])
+        self.assertEqual("best_compression", body["settings"]["index.codec"])
+
+    def test_create_index_with_invalid_codec(self):
+        with self.assertRaises(exceptions.InvalidSyntax) as context:
+            params.CreateIndexParamSource(workload.Workload(name="unit-test"), params={
+                "index": "test",
+                "body": {
+                    "settings": {
+                        "index.number_of_replicas": 0,
+                        "index.codec": "invalid_codec"
+                    },
+                    "mappings": {
+                        "doc": {
+                            "properties": {
+                                "name": {
+                                    "type": "keyword",
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+
+        self.assertEqual(str(context.exception),
+                         "Please set the value properly for the create-index operation. Invalid index.codec value 'invalid_codec'")
 
 class CreateDataStreamParamSourceTests(TestCase):
     def test_create_data_stream(self):

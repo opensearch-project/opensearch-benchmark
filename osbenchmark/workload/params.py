@@ -200,23 +200,27 @@ class CreateIndexParamSource(ParamSource):
                         if "settings" in body:
                             # merge (and potentially override)
                             body["settings"].update(settings)
+                            self.validate_index_codec(body["settings"])
                         else:
                             body["settings"] = settings
                     elif not body and settings:
                         body = {
                             "settings": settings
                         }
-
                     self.index_definitions.append((idx.name, body))
         else:
             try:
                 # only 'index' is mandatory, the body is optional (may be ok to create an index without a body)
                 idx = params["index"]
                 body = params.get("body")
+                if body and "settings" in body:
+                    self.validate_index_codec(body["settings"])
                 if isinstance(idx, str):
                     idx = [idx]
                 for i in idx:
                     self.index_definitions.append((i, body))
+            except ValueError as e:
+                raise exceptions.InvalidSyntax(f"Please set the value properly for the create-index operation. {e}")
             except KeyError:
                 raise exceptions.InvalidSyntax("Please set the property 'index' for the create-index operation")
 
@@ -230,6 +234,9 @@ class CreateIndexParamSource(ParamSource):
         })
         return p
 
+    def validate_index_codec(self, settings):
+        if "index.codec" in settings:
+            return workload.IndexCodec.is_codec_valid(settings["index.codec"])
 
 class CreateDataStreamParamSource(ParamSource):
     def __init__(self, workload, params, **kwargs):
