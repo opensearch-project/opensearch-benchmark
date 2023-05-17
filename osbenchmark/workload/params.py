@@ -220,7 +220,7 @@ class CreateIndexParamSource(ParamSource):
                 for i in idx:
                     self.index_definitions.append((i, body))
             except ValueError as e:
-                raise exceptions.InvalidSyntax(f"Please set value properly for create-index operation. {e}")
+                raise exceptions.InvalidSyntax(f"Please set the value properly for the create-index operation. {e}")
             except KeyError:
                 raise exceptions.InvalidSyntax("Please set the property 'index' for the create-index operation")
 
