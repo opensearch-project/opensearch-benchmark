@@ -1,3 +1,7 @@
+###############################################################################
+# Install OpenSearch Benchmark from PyPI to build a Docker image
+###############################################################################
+
 FROM python:3.11.2-slim
 ARG VERSION
 ARG BUILD_DATE
@@ -20,8 +24,6 @@ RUN mkdir -p /opensearch-benchmark/.benchmark && \
     chown -R 1000:0 /opensearch-benchmark/.benchmark
 
 USER 1000
-
-ENV PATH=/opensearch-benchmark/venv/bin:$PATH
 
 LABEL org.label-schema.schema-version="1.0" \
   org.label-schema.vendor="OpenSearch-Project" \

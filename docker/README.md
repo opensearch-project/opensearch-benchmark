@@ -24,7 +24,13 @@ docker run -it --entrypoint expand-data-corpus.py opensearchstaging/opensearch-b
 # Building a Copy of OpenSearch Benchmark Image
 1. Git clone OpenSearch Benchmark Github repository
 2. Make changes locally
-3. Run `docker build --build-arg VERSION=<PYPI VERSION> -t <docker image name>:<optional tag> -f ./docker/Dockerfile .`. Ensure that build arg VERSION takes in an existing pypi version of OSB.
+3. Run `docker build --build-arg VERSION=<PYPI VERSION> -t <docker image name>:<optional tag> -f ./docker/Dockerfile .`
+
+Note: `Dockerfile` uses the argument `VERSION` to install a specific version of OSB that exists on PyPi.
+
+### Difference between Dockerfile and Dockerfile-development
+The build command in step 3 uses `Dockerfile`, which installs OSB from Pypi. However, if users want an image with OSB installed from the source code, replace `Dockerfile` in step 3's command with `Dockerfile-development`. When using `Dockerfile-development`, users can omit the `--build-arg VERSION=<PYPI VERSION>` since this argument is not used when installing OSB from source code.
+
 
 # Publishing a New Version of OpenSearch Benchmark Image
 After updating [version.txt](../version.txt) with the newest major, minor, and patch version and before publishing a tag to the repository, ensure that [docker.yml](../.github/workflows/docker.yml) has the tags updated. The last tag in the list should be updated to the new major, minor, and patch version found in [version.txt](../version.txt).
