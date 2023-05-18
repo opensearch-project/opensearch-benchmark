@@ -4,12 +4,11 @@
 
 FROM python:3.11.2-slim
 ARG VERSION
-ARG BUILD_DATE
 
 ENV BENCHMARK_RUNNING_IN_DOCKER True
 
 RUN apt-get -y update && \
-    apt-get install -y curl git gcc pbzip2 pigz && \
+    apt-get install -y curl git pbzip2 pigz && \
     apt-get -y upgrade && \
     rm -rf /var/lib/apt/lists/*
 
@@ -25,6 +24,8 @@ RUN mkdir -p /opensearch-benchmark/.benchmark && \
 
 USER 1000
 
+ARG BUILD_DATE
+
 LABEL org.label-schema.schema-version="1.0" \
   org.label-schema.vendor="OpenSearch-Project" \
   org.label-schema.name="opensearch-benchmark" \
@@ -33,7 +34,8 @@ LABEL org.label-schema.schema-version="1.0" \
   org.label-schema.license="Apache-2.0" \
   org.label-schema.description="A community driven, open source project to run performance tests for OpenSearch" \
   org.label-schema.build-date="$BUILD_DATE" \
-  org.label-schema.vcs-url="https://github.com/opensearch-project/OpenSearch-Benchmark"
+  org.label-schema.vcs-url="https://github.com/opensearch-project/OpenSearch-Benchmark" \
+  "DOCKERFILE"="https://github.com/opensearch-project/opensearch-benchmark/blob/main/docker/Dockerfile"
 
 VOLUME ["/opensearch-benchmark/.benchmark"]
 
