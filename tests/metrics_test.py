@@ -153,102 +153,88 @@ class OsClientTests(TestCase):
         def __init__(self, hosts):
             self.transport = OsClientTests.TransportMock(hosts)
 
-    @mock.patch("osbenchmark.client.OsClientFactory")
-    def test_config_opts_parsing_with_none(self, client_OsClientfactory):
-        password_configuration = None
-        cfg = config.Config()
-
-        _datastore_host = ".".join([str(random.randint(1, 254)) for _ in range(4)])
-        _datastore_port = random.randint(1024, 65535)
-        _datastore_secure = random.choice(["True", "true"])
-        _datastore_user = "".join([random.choice(string.ascii_letters) for _ in range(8)])
-        _datastore_password = "".join([random.choice(string.ascii_letters + string.digits + "_-@#$/") for _ in range(12)])
-        _datastore_verify_certs = random.choice([True, False])
-
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.host", _datastore_host)
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.port", _datastore_port)
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.secure", _datastore_secure)
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.user", _datastore_user)
-
-        if password_configuration == "config":
-            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.password", _datastore_password)
-        elif password_configuration == "environment":
-            monkeypatch = pytest.MonkeyPatch()
-            monkeypatch.setenv("OSB_RESULTS_PUBLISHING_PASSWORD", _datastore_password)
-
-        if not _datastore_verify_certs:
-            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.ssl.verification_mode", "none")
-
-        try:
-            metrics.OsClientFactory(cfg)
-        except exceptions.ConfigError as e:
-            if password_configuration is not None:
-                raise
-
-            assert (
-                e.message
-                == "No password configured through [results_publishing] configuration or OSB_RESULTS_PUBLISHING_PASSWORD environment variable."
-            )
-            # It doesn't exit here
-            return
+    def test_config_opts_parsing_with_none(self):
+        # Tries parsing but fails because it does not detect password from ENV or Config
+        self.config_opts_parsing(None)
 
     @mock.patch("osbenchmark.client.OsClientFactory")
     def test_config_opts_parsing_with_config(self, client_OsClientfactory):
-        self.config_opts_parsing(client_OsClientfactory, "config")
-
-    @mock.patch("osbenchmark.client.OsClientFactory")
-    def test_config_opts_parsing_with_env(self, client_OsClientfactory):
-        self.config_opts_parsing(client_OsClientfactory, "environment")
-
-    def config_opts_parsing(self, client_OsClientfactory, password_configuration):
-        cfg = config.Config()
-
-        _datastore_host = ".".join([str(random.randint(1, 254)) for _ in range(4)])
-        _datastore_port = random.randint(1024, 65535)
-        _datastore_secure = random.choice(["True", "true"])
-        _datastore_user = "".join([random.choice(string.ascii_letters) for _ in range(8)])
-        _datastore_password = "".join([random.choice(string.ascii_letters + string.digits + "_-@#$/") for _ in range(12)])
-        _datastore_verify_certs = random.choice([True, False])
-
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.host", _datastore_host)
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.port", _datastore_port)
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.secure", _datastore_secure)
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.user", _datastore_user)
-
-        if password_configuration == "config":
-            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.password", _datastore_password)
-        elif password_configuration == "environment":
-            monkeypatch = pytest.MonkeyPatch()
-            monkeypatch.setenv("OSB_RESULTS_PUBLISHING_PASSWORD", _datastore_password)
-
-        if not _datastore_verify_certs:
-            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.ssl.verification_mode", "none")
-
-        try:
-            metrics.OsClientFactory(cfg)
-        except exceptions.ConfigError as e:
-            if password_configuration is not None:
-                raise
-
-            assert (
-                e.message
-                == "No password configured through [results_publishing] configuration or OSB_RESULTS_PUBLISHING_PASSWORD environment variable."
-            )
-            # It doesn't exit here
-            return
+        config_opts = self.config_opts_parsing("config")
 
         expected_client_options = {
             "use_ssl": True,
             "timeout": 120,
-            "basic_auth_user": _datastore_user,
-            "basic_auth_password": _datastore_password,
-            "verify_certs": _datastore_verify_certs
+            "basic_auth_user": config_opts["_datastore_user"],
+            "basic_auth_password": config_opts["_datastore_password"],
+            "verify_certs": config_opts["_datastore_verify_certs"]
         }
 
         client_OsClientfactory.assert_called_with(
-            hosts=[{"host": _datastore_host, "port": _datastore_port}],
+            hosts=[{"host": config_opts["_datastore_host"], "port": config_opts["_datastore_port"]}],
             client_options=expected_client_options
         )
+
+    @mock.patch("osbenchmark.client.OsClientFactory")
+    def test_config_opts_parsing_with_env(self, client_OsClientfactory):
+        config_opts = self.config_opts_parsing("environment")
+
+        expected_client_options = {
+            "use_ssl": True,
+            "timeout": 120,
+            "basic_auth_user": config_opts["_datastore_user"],
+            "basic_auth_password": config_opts["_datastore_password"],
+            "verify_certs": config_opts["_datastore_verify_certs"]
+        }
+
+        client_OsClientfactory.assert_called_with(
+            hosts=[{"host": config_opts["_datastore_host"], "port": config_opts["_datastore_port"]}],
+            client_options=expected_client_options
+        )
+
+    def config_opts_parsing(self, password_configuration):
+        cfg = config.Config()
+
+        _datastore_host = ".".join([str(random.randint(1, 254)) for _ in range(4)])
+        _datastore_port = random.randint(1024, 65535)
+        _datastore_secure = random.choice(["True", "true"])
+        _datastore_user = "".join([random.choice(string.ascii_letters) for _ in range(8)])
+        _datastore_password = "".join([random.choice(string.ascii_letters + string.digits + "_-@#$/") for _ in range(12)])
+        _datastore_verify_certs = random.choice([True, False])
+
+        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.host", _datastore_host)
+        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.port", _datastore_port)
+        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.secure", _datastore_secure)
+        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.user", _datastore_user)
+
+        if password_configuration == "config":
+            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.password", _datastore_password)
+        elif password_configuration == "environment":
+            monkeypatch = pytest.MonkeyPatch()
+            monkeypatch.setenv("OSB_RESULTS_PUBLISHING_PASSWORD", _datastore_password)
+
+        if not _datastore_verify_certs:
+            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.ssl.verification_mode", "none")
+
+        try:
+            metrics.OsClientFactory(cfg)
+        except exceptions.ConfigError as e:
+            if password_configuration is not None:
+                raise
+
+            assert (
+                e.message
+                == "No password configured through [results_publishing] configuration or OSB_RESULTS_PUBLISHING_PASSWORD environment variable."
+            )
+            return
+
+        return {
+            "_datastore_user": _datastore_user,
+            "_datastore_host": _datastore_host,
+            "_datastore_password": _datastore_password,
+            "_datastore_port": _datastore_port,
+            "_datastore_verify_certs": _datastore_verify_certs
+        }
+
 
     def test_raises_sytem_setup_error_on_connection_problems(self):
         def raise_connection_error():
