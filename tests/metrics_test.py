@@ -210,7 +210,7 @@ class OsClientTests(TestCase):
             cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.password", _datastore_password)
         elif password_configuration == "environment":
             monkeypatch = pytest.MonkeyPatch()
-            monkeypatch.setenv("OSB_RESULTS_PUBLISHING_PASSWORD", _datastore_password)
+            monkeypatch.setenv("OSB_DATASTORE_PASSWORD", _datastore_password)
 
         if not _datastore_verify_certs:
             cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.ssl.verification_mode", "none")
@@ -223,7 +223,7 @@ class OsClientTests(TestCase):
 
             assert (
                 e.message
-                == "No password configured through [results_publishing] configuration or OSB_RESULTS_PUBLISHING_PASSWORD environment variable."
+                == "No password configured through [results_publishing] configuration or OSB_DATASTORE_PASSWORD environment variable."
             )
             return
 

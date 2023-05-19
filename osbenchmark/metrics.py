@@ -184,19 +184,17 @@ class OsClientFactory:
         secure = convert.to_bool(self._config.opts("results_publishing", "datastore.secure"))
         user = self._config.opts("results_publishing", "datastore.user")
         try:
-            password = os.environ["OSB_RESULTS_PUBLISHING_PASSWORD"]
+            password = os.environ["OSB_DATASTORE_PASSWORD"]
         except KeyError:
             try:
                 password = self._config.opts("results_publishing", "datastore.password")
             except exceptions.ConfigError:
                 raise exceptions.ConfigError(
-                    "No password configured through [results_publishing] configuration or OSB_RESULTS_PUBLISHING_PASSWORD environment variable."
+                    "No password configured through [results_publishing] configuration or OSB_DATASTORE_PASSWORD environment variable."
                 ) from None
         verify = self._config.opts("results_publishing", "datastore.ssl.verification_mode", default_value="full", mandatory=False) != "none"
         ca_path = self._config.opts("results_publishing", "datastore.ssl.certificate_authorities", default_value=None, mandatory=False)
         self.probe_version = self._config.opts("results_publishing", "datastore.probe.cluster_version", default_value=True, mandatory=False)
-
-        # Use environment variable
 
         # Instead of duplicating code, we're just adapting the metrics store specific properties to match the regular client options.
         client_options = {
