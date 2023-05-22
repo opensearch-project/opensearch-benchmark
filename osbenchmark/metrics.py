@@ -183,7 +183,15 @@ class OsClientFactory:
         port = self._config.opts("results_publishing", "datastore.port")
         secure = convert.to_bool(self._config.opts("results_publishing", "datastore.secure"))
         user = self._config.opts("results_publishing", "datastore.user")
-        password = self._config.opts("results_publishing", "datastore.password")
+        try:
+            password = os.environ["OSB_DATASTORE_PASSWORD"]
+        except KeyError:
+            try:
+                password = self._config.opts("results_publishing", "datastore.password")
+            except exceptions.ConfigError:
+                raise exceptions.ConfigError(
+                    "No password configured through [results_publishing] configuration or OSB_DATASTORE_PASSWORD environment variable."
+                ) from None
         verify = self._config.opts("results_publishing", "datastore.ssl.verification_mode", default_value="full", mandatory=False) != "none"
         ca_path = self._config.opts("results_publishing", "datastore.ssl.certificate_authorities", default_value=None, mandatory=False)
         self.probe_version = self._config.opts("results_publishing", "datastore.probe.cluster_version", default_value=True, mandatory=False)
@@ -1538,7 +1546,7 @@ class EsTestExecutionStore(TestExecutionStore):
 class OsResultsStore:
     """
     Stores the results of a test_execution in a format that is
-    better suited for reporting with Kibana.
+    better suited for reporting with OpenSearch Dashboards.
     """
     INDEX_PREFIX = "benchmark-results-"
     RESULTS_DOC_TYPE = "_doc"
