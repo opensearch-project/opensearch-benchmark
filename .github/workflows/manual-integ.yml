@@ -44,6 +44,12 @@ jobs:
           distribution: 'adopt'
           java-version: '16'
       - run: echo "JAVA16_HOME=$JAVA_HOME" >> $GITHUB_ENV
+      - name: Install JDK 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt'
+          java-version: '17'
+      - run: echo "JAVA17_HOME=$JAVA_HOME" >> $GITHUB_ENV
       - name: Run the CI build_it script
         run: bash .ci/build.sh build_it ${{ matrix.python-version }}
         env:
