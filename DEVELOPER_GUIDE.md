@@ -64,7 +64,17 @@ make it
 
 ### Important information related to integration tests
 
-If you have multiple JDKs installed, export them to the following format `JAVA(jdk_version)_HOME`. Here is an example of how one would export JDK 8, 11, 15, 16:
+To have all the tests run successfully JDK 17 is required, since one of the tests builds the latest version of OpenSearch from source, and the OpenSearch project uses JDK 17 for this purpose.
+```
+export JAVA_HOME=/path/to/JDK17
+
+```
+
+Note that the `javadoc` executable should be available in the JDK installation.
+
+You could also use one of the following versions instead: 16, 15, 14, 13, 12, 11 or 8.  Most of the complement of tests included will work with these.
+
+If you have multiple JDKs installed, export them in the following format `JAVA(jdk_version)_HOME`. Here is an example of how one would export JDK 8, 11, 15, 16:
 ```
 export JAVA8_HOME=/Library/Java/JavaVirtualMachines/jdk1.8.0_231.jdk/Contents/Home/
 export JAVA11_HOME=/Library/Java/JavaVirtualMachines/jdk-11.0.8.jdk/Contents/Home

@@ -36,7 +36,7 @@ from osbenchmark import client, config, version
 from osbenchmark.utils import process
 
 CONFIG_NAMES = ["in-memory-it", "os-it"]
-DISTRIBUTIONS = ["1.0.0", "1.0.1"]
+DISTRIBUTIONS = ["1.3.9", "2.5.0"]
 WORKLOADS = ["geonames", "nyc_taxis", "http_logs", "nested"]
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
@@ -194,7 +194,7 @@ class TestCluster:
 
 
 class OsMetricsStore:
-    VERSION = "1.0.1"
+    VERSION = "1.3.9"
 
     def __init__(self):
         self.cluster = TestCluster("in-memory-it")
