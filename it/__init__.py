@@ -86,7 +86,10 @@ def osbenchmark(cfg, command_line):
     This method should be used for benchmark invocations of the all commands besides test_execution.
     These commands may have different CLI options than test_execution.
     """
-    return os.system(osbenchmark_command_line_for(cfg, command_line))
+    err, retcode = process.run_subprocess_get_stderr(osbenchmark_command_line_for(cfg, command_line))
+    if retcode != 0:
+        print(err)
+    return retcode
 
 
 def execute_test(cfg, command_line):
@@ -163,8 +166,8 @@ class TestCluster:
         self.http_port = http_port
         transport_port = http_port + 100
         try:
-            output = process.run_subprocess_with_output(
-                "opensearch-benchmark install --configuration-name={cfg} --quiet --distribution-version={dist} --build-type=tar "
+            err, retcode = process.run_subprocess_get_stderr(
+                "opensearch-benchmark install --configuration-name={cfg} --distribution-version={dist} --build-type=tar "
                 "--http-port={http_port} --node={node_name} --master-nodes="
                 "{node_name} --provision-config-instance={provision_config_instance} "
                 "--seed-hosts=\"127.0.0.1:{transport_port}\"".format(cfg=self.cfg,
@@ -173,7 +176,9 @@ class TestCluster:
                                                                      node_name=node_name,
                                                                      provision_config_instance=provision_config_instance,
                                                                      transport_port=transport_port))
-            self.installation_id = json.loads("".join(output))["installation-id"]
+            if retcode != 0:
+                raise AssertionError("Failed to install OpenSearch {}.".format(distribution_version), err)
+            self.installation_id = json.loads(err)["installation-id"]
         except BaseException as e:
             raise AssertionError("Failed to install OpenSearch {}.".format(distribution_version), e)
 

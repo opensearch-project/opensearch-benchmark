@@ -85,15 +85,8 @@ function build_it {
   make install
   make precommit
 
-  if [[ "$1" == "3.8" ]]; then
-    make it38
-  elif [[ "$1" == "3.9" ]]; then
-    make it39
-  elif [[ "$1" == "3.10" ]]; then
-    make it310
-  elif [[ "$1" == "3.11" ]]; then
-    make it311
-  fi
+  # make it38, it39, etc.
+  make "it${1//./}"
 }
 
 function license-scan {

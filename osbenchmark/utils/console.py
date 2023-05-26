@@ -150,18 +150,19 @@ def warn(msg, end="\n", flush=False, force=False, logger=None, overline=None, un
 
 def error(msg, end="\n", flush=False, force=False, logger=None, overline=None, underline=None):
     println(msg, console_prefix="[ERROR]", end=end, flush=flush, force=force, overline=overline, underline=underline
-            , logger=logger.error if logger else None)
+            , logger=logger.error if logger else None, stderr=True)
 
 
-def println(msg, console_prefix=None, end="\n", flush=False, force=False, logger=None, overline=None, underline=None):
+def println(msg, console_prefix=None, end="\n", flush=False, force=False, logger=None, overline=None, underline=None, stderr=False):
     allow_print = force or (not QUIET and (BENCHMARK_RUNNING_IN_DOCKER or ASSUME_TTY or sys.stdout.isatty()))
+    file=sys.stderr if stderr else sys.stdout
     if allow_print:
         complete_msg = "%s %s" % (console_prefix, msg) if console_prefix else msg
         if overline:
-            print(format.underline_for(complete_msg, underline_symbol=overline), flush=flush)
-        print(complete_msg, end=end, flush=flush)
+            print(format.underline_for(complete_msg, underline_symbol=overline), flush=flush, file=file)
+        print(complete_msg, end=end, flush=flush, file=file)
         if underline:
-            print(format.underline_for(complete_msg, underline_symbol=underline), flush=flush)
+            print(format.underline_for(complete_msg, underline_symbol=underline), flush=flush, file=file)
     if logger:
         logger(msg)
 
