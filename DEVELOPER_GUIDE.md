@@ -66,7 +66,9 @@ We recommend users to look at the following two sections [Common issues in unitt
 
 ### Common issues in Unittests
 #### OSB_DATASTORE_PASSWORD environment variable conflicts with unittests
-When datastore password is assigned to env variable OSB_DATASTORE_PASSWORD instead of written in benchmark.ini, running make test will result in a failure as it's using the environment variable as seen here:
+OSB has the ability to store metrics into an OpenSearch datastore. To enable this, users can write the datastore password to the `benchmark.ini` config file or export it to the environment variable `OSB_DATASTORE_PASSWORD`. However, when the latter is done, users might encounter an assertion error when running unittests. This is because one unittest uses values assigned to `OSB_DATASTORE_PASSWORD`.
+
+The following is an example of the assertion error the comes up when users run unittests while the environment variable `OSB_DATASTORE_PASSWORD` is set.
 ```
 >           raise AssertionError(_error_message()) from cause
 E           AssertionError: expected call not found.
@@ -77,12 +79,11 @@ E           Actual: OsClientFactory(hosts=[{'host': '27.158.71.181', 'port': 279
 
 ...
 
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
 =========================== short test summary info ============================
 FAILED tests/metrics_test.py::OsClientTests::test_config_opts_parsing_with_config - AssertionError: expected call not found.
 ============ 1 failed, 1163 passed, 5 skipped, 3 warnings in 15.41s ============
 ```
-To avoid issue when running unit tests, unset your datastore password by running `unset OSB_DATASTORE_PASSWORD`.
+To avoid this issue when running unittests, unset your datastore password by running `unset OSB_DATASTORE_PASSWORD`.
 
 
 ### Important information related to integration tests
