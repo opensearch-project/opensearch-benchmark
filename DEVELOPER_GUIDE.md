@@ -62,6 +62,29 @@ make test
 make it
 ```
 
+We recommend users to look at the following two sections [Common issues in unittests](#common-issues-in-unittests) and [Important information related to integration tests](#important-information-related-to-integration-tests).
+
+### Common issues in Unittests
+#### OSB_DATASTORE_PASSWORD environment variable conflicts with unittests
+When datastore password is assigned to env variable OSB_DATASTORE_PASSWORD instead of written in benchmark.ini, running make test will result in a failure as it's using the environment variable as seen here:
+```
+>           raise AssertionError(_error_message()) from cause
+E           AssertionError: expected call not found.
+E           Expected: OsClientFactory(hosts=[{'host': '27.158.71.181', 'port': 27959}], client_options={'use_ssl': True, 'timeout': 120, 'basic_auth_user': 'WuxfoBBk', 'basic_auth_password': 'JXkTu9JhzFq$', 'verify_certs': False})
+E           Actual: OsClientFactory(hosts=[{'host': '27.158.71.181', 'port': 27959}], client_options={'use_ssl': True, 'verify_certs': False, 'timeout': 120, 'basic_auth_user': 'WuxfoBBk', 'basic_auth_password': '<Value from OSB_DATASTORE_PASSWORD Environment Variable>'})
+
+../../../../.pyenv/versions/3.8.12/lib/python3.8/unittest/mock.py:913: AssertionError
+
+...
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/metrics_test.py::OsClientTests::test_config_opts_parsing_with_config - AssertionError: expected call not found.
+============ 1 failed, 1163 passed, 5 skipped, 3 warnings in 15.41s ============
+```
+To avoid issue when running unit tests, unset your datastore password by running `unset OSB_DATASTORE_PASSWORD`.
+
+
 ### Important information related to integration tests
 
 To have all the tests run successfully JDK 17 is required, since one of the tests builds the latest version of OpenSearch from source, and the OpenSearch project uses JDK 17 for this purpose.
