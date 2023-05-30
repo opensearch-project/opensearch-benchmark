@@ -68,7 +68,7 @@ We recommend users to look at the following two sections [Common issues in unitt
 #### OSB_DATASTORE_PASSWORD environment variable conflicts with unittests
 OSB has the ability to store metrics into an OpenSearch datastore. To enable this, users can write the datastore password to the `benchmark.ini` config file or export it to the environment variable `OSB_DATASTORE_PASSWORD`. However, when the latter is done, users might encounter an assertion error when running unittests. This is because one unittest uses values assigned to `OSB_DATASTORE_PASSWORD`.
 
-The following is an example of the assertion error the comes up when users run unittests while the environment variable `OSB_DATASTORE_PASSWORD` is set.
+The following is an example of the assertion error that comes up when users run unittests while the environment variable `OSB_DATASTORE_PASSWORD` is set.
 ```
 >           raise AssertionError(_error_message()) from cause
 E           AssertionError: expected call not found.
