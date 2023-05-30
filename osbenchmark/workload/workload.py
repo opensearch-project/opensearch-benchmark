@@ -202,11 +202,11 @@ class Documents:
         :param includes_action_and_meta_data: True, if the source file already includes the action and meta-data line. False, if it only
         contains documents.
         :param number_of_documents: The number of documents
-        in the benchmark document. Needed for proper progress results_publishing. Only needed if
+        in the benchmark document. Needed for proper progress publishing. Only needed if
          a document_archive is given.
         :param compressed_size_in_bytes: The compressed size in bytes of
         the benchmark document. Needed for verification of the download and
-         user results_publishing. Only useful if a document_archive is given (optional but recommended to be set).
+         user publishing. Only useful if a document_archive is given (optional but recommended to be set).
         :param uncompressed_size_in_bytes: The size in bytes of the benchmark document after decompressing it.
         Only useful if a document_archive is given (optional but recommended to be set).
         :param target_index: The index to target for bulk operations. May be ``None`` if ``includes_action_and_meta_data`` is ``False``.
@@ -970,8 +970,8 @@ class Operation:
         self.param_source = param_source
 
     @property
-    def include_in_results_publishing(self):
-        return self.params.get("include-in-results_publishing", True)
+    def include_in_publishing(self):
+        return self.params.get("include-in-publishing", True)
 
     def __hash__(self):
         return hash(self.name)

@@ -35,7 +35,7 @@ import thespian.actors
 
 from osbenchmark import PROGRAM_NAME, BANNER, FORUM_LINK, SKULL, check_python_version, doc_link, telemetry
 from osbenchmark import version, actor, config, paths, \
-    test_execution_orchestrator, results_publisher, \
+    test_execution_orchestrator, publisher, \
         metrics, workload, chart_generator, exceptions, log
 from osbenchmark.builder import provision_config, builder
 from osbenchmark.workload_generator import workload_generator
@@ -815,11 +815,11 @@ def configure_connection_params(arg_parser, args, cfg):
         arg_parser.error("--target-hosts and --client-options must define the same keys for multi cluster setups.")
 
 
-def configure_results_publishing_params(args, cfg):
-    cfg.add(config.Scope.applicationOverride, "results_publishing", "format", args.results_format)
-    cfg.add(config.Scope.applicationOverride, "results_publishing", "values", args.show_in_results)
-    cfg.add(config.Scope.applicationOverride, "results_publishing", "output.path", args.results_file)
-    cfg.add(config.Scope.applicationOverride, "results_publishing", "numbers.align", args.results_numbers_align)
+def configure_publishing_params(args, cfg):
+    cfg.add(config.Scope.applicationOverride, "publishing", "format", args.results_format)
+    cfg.add(config.Scope.applicationOverride, "publishing", "values", args.show_in_results)
+    cfg.add(config.Scope.applicationOverride, "publishing", "output.path", args.results_file)
+    cfg.add(config.Scope.applicationOverride, "publishing", "numbers.align", args.results_numbers_align)
 
 
 def dispatch_sub_command(arg_parser, args, cfg):
@@ -830,8 +830,8 @@ def dispatch_sub_command(arg_parser, args, cfg):
 
     try:
         if sub_command == "compare":
-            configure_results_publishing_params(args, cfg)
-            results_publisher.compare(cfg, args.baseline, args.contender)
+            configure_publishing_params(args, cfg)
+            publisher.compare(cfg, args.baseline, args.contender)
         elif sub_command == "list":
             cfg.add(config.Scope.applicationOverride, "system", "list.config.option", args.configuration)
             cfg.add(config.Scope.applicationOverride, "system", "list.test_executions.max_results", args.limit)
@@ -903,7 +903,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "builder", "preserve.install", convert.to_bool(args.preserve_install))
             cfg.add(config.Scope.applicationOverride, "builder", "skip.rest.api.check", convert.to_bool(args.skip_rest_api_check))
 
-            configure_results_publishing_params(args, cfg)
+            configure_publishing_params(args, cfg)
 
             execute_test(cfg, args.kill_running_processes)
         elif sub_command == "generate":
