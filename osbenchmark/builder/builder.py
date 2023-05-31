@@ -81,7 +81,7 @@ def install(cfg):
         raise exceptions.SystemSetupError("Unknown build type [{}]".format(build_type))
 
     provisioner.save_node_configuration(root_path, node_config)
-    console.println(json.dumps({"installation-id": cfg.opts("system", "install.id")}, indent=2), force=True)
+    console.println(json.dumps({"installation-id": cfg.opts("system", "install.id")}, indent=2), force=True, stderr=True)
 
 
 def start(cfg):
