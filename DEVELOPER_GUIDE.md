@@ -3,19 +3,29 @@
 This document will walk you through on what's needed to start contributing code to OpenSearch Benchmark.
 
 ## Installation
+
 ### Prerequisites
 
-- Pyenv : Install `pyenv` and follow the instructions in the output of `pyenv init` to setup your shell and restart it before proceeding.
-For more details please refer to the [PyEnv installation instructions](https://github.com/pyenv/pyenv#installation).
-- JDK : JDK version required to build OpenSearch. Please refer to the [build setup requirements](https://github.com/opensearch-project/OpenSearch/blob/ca564fd04f5059cf9e3ce8aba442575afb3d99f1/DEVELOPER_GUIDE.md#install-prerequisites).
-- Docker : Docker and additionally `docker-compose`  on Linux.
-- Git : git 1.9 or latter.
+  - Pyenv : Install `pyenv` and follow the instructions in the output of `pyenv init` to set up your shell and restart it before proceeding.
+    For more details please refer to the [PyEnv installation instructions](https://github.com/pyenv/pyenv#installation).
+
+  - JDK: Although OSB is a Python application, it optionally builds and provisions OpenSearch clusters.  JDK version 17 is used to build the current version of OpenSearch.  Please refer to the [build setup requirements](https://github.com/opensearch-project/OpenSearch/blob/ca564fd04f5059cf9e3ce8aba442575afb3d99f1/DEVELOPER_GUIDE.md#install-prerequisites).
+    Note that the `javadoc` executable should be available in the JDK installation.  An earlier version of the JDK can be used, but not all the integration tests will pass.
+
+    ```
+    export JAVA_HOME=/path/to/JDK17
+
+    ```
+
+  - Install Docker and `docker-compose`.  Start the Docker server.  The user running the integration tests should have the permissions required to run docker commands.  Test by running `docker ps`.
+
+  - Git : git 1.9 or later.
 
 ### Setup
 
-Use the following command-line instructions to setup OpenSearch Benchmark for development:
+Use the following command-line instructions to set up OpenSearch Benchmark for development:
 ```
-git clone https://github.com/opensearch-project/OpenSearch-Benchmark.git
+git clone https://github.com/opensearch-project/OpenSearch-Benchmark
 cd OpenSearch-Benchmark
 make prereq
 make install
@@ -52,19 +62,15 @@ In order to run tests within the PyCharm IDE, ensure the `Python Integrated Tool
 
 ## Executing tests
 
-Once setup is complete, you may run unit/integration tests using the following :
+Once setup is complete, you may run the unit and integration tests.
+
+### Unit Tests
 
 ```
-## Run a unit test
 make test
 
-## Run integration tests
-make it
 ```
 
-We recommend users to look at the following two sections [Common issues in unittests](#common-issues-in-unittests) and [Important information related to integration tests](#important-information-related-to-integration-tests).
-
-### Common issues in Unittests
 #### OSB_DATASTORE_PASSWORD environment variable conflicts with unittests
 OSB has the ability to store metrics into an OpenSearch datastore. To enable this, users can write the datastore password to the `benchmark.ini` config file or export it to the environment variable `OSB_DATASTORE_PASSWORD`. However, when the latter is done, users might encounter an assertion error when running unittests. This is because one unittest uses values assigned to `OSB_DATASTORE_PASSWORD`.
 
@@ -85,47 +91,20 @@ FAILED tests/metrics_test.py::OsClientTests::test_config_opts_parsing_with_confi
 ```
 To avoid this issue when running unittests, unset your datastore password by running `unset OSB_DATASTORE_PASSWORD`.
 
+### Integration Tests
 
-### Important information related to integration tests
+Integration tests can be run on the following operating systems:
+  * RedHat
+  * CentOS
+  * Ubuntu
+  * Amazon Linux 2
+  * MacOS
 
-To have all the tests run successfully JDK 17 is required, since one of the tests builds the latest version of OpenSearch from source, and the OpenSearch project uses JDK 17 for this purpose.
-```
-export JAVA_HOME=/path/to/JDK17
-
-```
-
-Note that the `javadoc` executable should be available in the JDK installation.
-
-You could also use one of the following versions instead: 16, 15, 14, 13, 12, 11 or 8.  Most of the complement of tests included will work with these.
-
-If you have multiple JDKs installed, export them in the following format `JAVA(jdk_version)_HOME`. Here is an example of how one would export JDK 8, 11, 15, 16:
-```
-export JAVA8_HOME=/Library/Java/JavaVirtualMachines/jdk1.8.0_231.jdk/Contents/Home/
-export JAVA11_HOME=/Library/Java/JavaVirtualMachines/jdk-11.0.8.jdk/Contents/Home
-export JAVA15_HOME=/Library/Java/JavaVirtualMachines/amazon-corretto-15.jdk/Contents/Home/
-export JAVA16_HOME=/Library/Java/JavaVirtualMachines/amazon-corretto-16.jdk/Contents/Home/
-```
-
-OpenSearch currently releases artifacts for the following operating systems:
-- Linux
-- Docker
-- FreeBSD
-
-If the operating system is not listed above then the artifacts used will default to Linux.
-
-For MacOS users running OpenSearch, please set JAVA_HOME to one of the local JDKs you exported as the JDK bundled with OpenSearch is not compatible with MacOS and prevent the metrics store from coming up correctly during integration tests.
-
-### Troubleshooting
-```
-root WARNING Unable to get address info for address xxxxyyyy (AddressFamily.AF_INET, SocketKind.SOCK_DGRAM, 17, 0): <class 'socket.gaierror'> [Errno 8] nodename nor servname provided, or not known
-```
-- VPN may be interfering. Try turning off the VPN. If you are connected to a VPN and face Docker-related issues when running the integration tests disconnecting from the VPN may fix this.
 
 ```
-Cannot download OpenSearch-1.0.1
-```
-- JAVA_HOME may not be correctly set.
+make it
 
+```
 
 ## Submitting your changes for a pull request
 

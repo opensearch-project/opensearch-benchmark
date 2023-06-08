@@ -1,23 +1,26 @@
 OpenSearch Benchmark
 ====================
 
-OpenSearch Benchmark is a macrobenchmarking framework for OpenSearch, provided by the OpenSearch Project.
+OpenSearch Benchmark is the macrobenchmarking framework for OpenSearch.
 
 What is OpenSearch Benchmark?
 -----------------------------
 
-You can use OpenSearch Benchmark to gather performance metrics from an OpenSearch cluster for a variety of purposes, including:
+If you are looking to performance test OpenSearch, then OpenSearch Benchmark is for you. It can help you with the following tasks:
 
-* Tracking the overall performance of an OpenSearch cluster.
-* Informing decisions about when to upgrade your cluster to a new version.
-* Determining how changes to your workflow—such as modifying mappings or queries—might impact your cluster.
+* Running performance benchmarks and recording results
+* Setting up and tearing down OpenSearch clusters for benchmarking
+* Managing benchmark data and specifications across OpenSearch versions
+* Discovering performance problems by attaching so-called telemetry devices
+* Comparing performance results
 * Creating customized workloads
 
 We have also put considerable effort into OpenSearch Benchmark to ensure that benchmarking data are reproducible.
 
-Official Documentation
-----------------------
-[Click here](https://opensearch.org/docs/latest/benchmark/index/) to view the official documentation website for OpenSearch Benchmark.
+Documentation
+-------------
+
+Documentation for OpenSearch Benchmark is [available online](https://opensearch.org/docs/2.7/benchmark/index/).
 
 Quick Start
 -----------
