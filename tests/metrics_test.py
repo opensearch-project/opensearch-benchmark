@@ -201,19 +201,19 @@ class OsClientTests(TestCase):
         _datastore_password = "".join([random.choice(string.ascii_letters + string.digits + "_-@#$/") for _ in range(12)])
         _datastore_verify_certs = random.choice([True, False])
 
-        cfg.add(config.Scope.applicationOverride, "publishing", "datastore.host", _datastore_host)
-        cfg.add(config.Scope.applicationOverride, "publishing", "datastore.port", _datastore_port)
-        cfg.add(config.Scope.applicationOverride, "publishing", "datastore.secure", _datastore_secure)
-        cfg.add(config.Scope.applicationOverride, "publishing", "datastore.user", _datastore_user)
+        cfg.add(config.Scope.applicationOverride, "reporting", "datastore.host", _datastore_host)
+        cfg.add(config.Scope.applicationOverride, "reporting", "datastore.port", _datastore_port)
+        cfg.add(config.Scope.applicationOverride, "reporting", "datastore.secure", _datastore_secure)
+        cfg.add(config.Scope.applicationOverride, "reporting", "datastore.user", _datastore_user)
 
         if password_configuration == "config":
-            cfg.add(config.Scope.applicationOverride, "publishing", "datastore.password", _datastore_password)
+            cfg.add(config.Scope.applicationOverride, "reporting", "datastore.password", _datastore_password)
         elif password_configuration == "environment":
             monkeypatch = pytest.MonkeyPatch()
             monkeypatch.setenv("OSB_DATASTORE_PASSWORD", _datastore_password)
 
         if not _datastore_verify_certs:
-            cfg.add(config.Scope.applicationOverride, "publishing", "datastore.ssl.verification_mode", "none")
+            cfg.add(config.Scope.applicationOverride, "reporting", "datastore.ssl.verification_mode", "none")
 
         try:
             metrics.OsClientFactory(cfg)
@@ -223,7 +223,7 @@ class OsClientTests(TestCase):
 
             assert (
                 e.message
-                == "No password configured through [publishing] configuration or OSB_DATASTORE_PASSWORD environment variable."
+                == "No password configured through [reporting] configuration or OSB_DATASTORE_PASSWORD environment variable."
             )
             return
 
@@ -1782,7 +1782,7 @@ class StatsCalculatorTests(TestCase):
         cfg.add(config.Scope.application, "system", "env.name", "unittest")
         cfg.add(config.Scope.application, "system", "time.start", datetime.datetime.now())
         cfg.add(config.Scope.application, "system", "test_execution.id", "6ebc6e53-ee20-4b0c-99b4-09697987e9f4")
-        cfg.add(config.Scope.application, "publishing", "datastore.type", "in-memory")
+        cfg.add(config.Scope.application, "reporting", "datastore.type", "in-memory")
         cfg.add(config.Scope.application, "builder", "provision_config_instance.names", ["unittest_provision_config_instance"])
         cfg.add(config.Scope.application, "builder", "provision_config_instance.params", {})
         cfg.add(config.Scope.application, "builder", "plugin.params", {})
@@ -1873,7 +1873,7 @@ class StatsCalculatorTests(TestCase):
         cfg.add(config.Scope.application, "system", "env.name", "unittest")
         cfg.add(config.Scope.application, "system", "time.start", datetime.datetime.now())
         cfg.add(config.Scope.application, "system", "test_execution.id", "6ebc6e53-ee20-4b0c-99b4-09697987e9f4")
-        cfg.add(config.Scope.application, "publishing", "datastore.type", "in-memory")
+        cfg.add(config.Scope.application, "reporting", "datastore.type", "in-memory")
         cfg.add(config.Scope.application, "builder", "provision_config_instance.names", ["unittest_provision_config_instance"])
         cfg.add(config.Scope.application, "builder", "provision_config_instance.params", {})
         cfg.add(config.Scope.application, "builder", "plugin.params", {})
@@ -1931,7 +1931,7 @@ class GlobalStatsCalculatorTests(TestCase):
         del self.cfg
 
     def test_add_administrative_task_with_error_rate_in_results(self):
-        op = Operation(name='delete-index', operation_type='DeleteIndex', params={'include-in-publishing': False})
+        op = Operation(name='delete-index', operation_type='DeleteIndex', params={'include-in-reporting': False})
         task = Task('delete-index', operation=op, schedule='deterministic')
         test_procedure = TestProcedure(name='append-fast-with-conflicts', schedule=[task], meta_data={})
 

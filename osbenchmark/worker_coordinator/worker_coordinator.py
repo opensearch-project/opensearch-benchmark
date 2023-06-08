@@ -607,7 +607,7 @@ class WorkerCoordinator:
         self.test_procedure = select_test_procedure(self.config, self.workload)
         self.quiet = self.config.opts("system", "quiet.mode", mandatory=False, default_value=False)
         downsample_factor = int(self.config.opts(
-            "publishing", "metrics.request.downsample.factor",
+            "reporting", "metrics.request.downsample.factor",
             mandatory=False, default_value=1))
         self.metrics_store = metrics.metrics_store(cfg=self.config,
                                                    workload=self.workload.name,
@@ -1031,7 +1031,7 @@ class Worker(actor.BenchmarkActor):
         self.worker_id = msg.worker_id
         self.config = load_local_config(msg.config)
         self.on_error = self.config.opts("worker_coordinator", "on.error")
-        self.sample_queue_size = int(self.config.opts("publishing", "sample.queue.size", mandatory=False, default_value=1 << 20))
+        self.sample_queue_size = int(self.config.opts("reporting", "sample.queue.size", mandatory=False, default_value=1 << 20))
         self.workload = msg.workload
         workload.set_absolute_data_path(self.config, self.workload)
         self.client_allocations = msg.client_allocations
