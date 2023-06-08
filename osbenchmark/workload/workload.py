@@ -722,11 +722,10 @@ class IndexCodec(Enum):
 
     @classmethod
     def is_codec_valid(cls, codec):
-        for valid_codec in cls:
-            if codec.lower() == valid_codec.value:
-                return True
-
         available_codecs = cls.get_available_codecs()
+        if codec.lower() in available_codecs:
+            return True
+
         raise ValueError(f"Invalid index.codec value '{codec}'. Choose from available codecs: {available_codecs}")
 
     @classmethod
