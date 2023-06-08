@@ -71,26 +71,6 @@ make test
 
 ```
 
-#### OSB_DATASTORE_PASSWORD environment variable conflicts with unittests
-OSB has the ability to store metrics into an OpenSearch datastore. To enable this, users can write the datastore password to the `benchmark.ini` config file or export it to the environment variable `OSB_DATASTORE_PASSWORD`. However, when the latter is done, users might encounter an assertion error when running unittests. This is because one unittest uses values assigned to `OSB_DATASTORE_PASSWORD`.
-
-The following is an example of the assertion error that comes up when users run unittests while the environment variable `OSB_DATASTORE_PASSWORD` is set.
-```
->           raise AssertionError(_error_message()) from cause
-E           AssertionError: expected call not found.
-E           Expected: OsClientFactory(hosts=[{'host': '27.158.71.181', 'port': 27959}], client_options={'use_ssl': True, 'timeout': 120, 'basic_auth_user': 'WuxfoBBk', 'basic_auth_password': 'JXkTu9JhzFq$', 'verify_certs': False})
-E           Actual: OsClientFactory(hosts=[{'host': '27.158.71.181', 'port': 27959}], client_options={'use_ssl': True, 'verify_certs': False, 'timeout': 120, 'basic_auth_user': 'WuxfoBBk', 'basic_auth_password': '<Value from OSB_DATASTORE_PASSWORD Environment Variable>'})
-
-../../../../.pyenv/versions/3.8.12/lib/python3.8/unittest/mock.py:913: AssertionError
-
-...
-
-=========================== short test summary info ============================
-FAILED tests/metrics_test.py::OsClientTests::test_config_opts_parsing_with_config - AssertionError: expected call not found.
-============ 1 failed, 1163 passed, 5 skipped, 3 warnings in 15.41s ============
-```
-To avoid this issue when running unittests, unset your datastore password by running `unset OSB_DATASTORE_PASSWORD`.
-
 ### Integration Tests
 
 Integration tests can be run on the following operating systems:
