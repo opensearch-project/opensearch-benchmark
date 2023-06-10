@@ -17,6 +17,11 @@ If you are looking to performance test OpenSearch, then OpenSearch Benchmark is 
 
 We have also put considerable effort into OpenSearch Benchmark to ensure that benchmarking data are reproducible.
 
+Documentation
+-------------
+
+Documentation for OpenSearch Benchmark is [available online](https://opensearch.org/docs/2.7/benchmark/index/).
+
 Quick Start
 -----------
 

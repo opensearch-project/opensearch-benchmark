@@ -23,6 +23,7 @@
 # under the License.
 
 import os
+import sys
 import random
 import unittest.mock as mock
 from unittest import TestCase
@@ -74,7 +75,7 @@ class ConsoleFunctionTests(TestCase):
 
         console.println(msg="Unittest message")
         patched_print.assert_called_once_with(
-            "Unittest message", end="\n", flush=False
+            "Unittest message", end="\n", flush=False, file=sys.stdout
         )
 
     @mock.patch("sys.stdout.isatty")
@@ -85,7 +86,7 @@ class ConsoleFunctionTests(TestCase):
         patched_isatty.return_value = random_boolean
         console.println(msg="Unittest message")
         patched_print.assert_called_once_with(
-            "Unittest message", end="\n", flush=False
+            "Unittest message", end="\n", flush=False, file=sys.stdout
         )
 
     @mock.patch("sys.stdout.isatty")
@@ -106,7 +107,7 @@ class ConsoleFunctionTests(TestCase):
 
         console.println(msg="Unittest message", force=True)
         patched_print.assert_called_once_with(
-            "Unittest message", end="\n", flush=False
+            "Unittest message", end="\n", flush=False, file=sys.stdout
         )
 
 

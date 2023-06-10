@@ -52,6 +52,17 @@ def run_subprocess_with_output(command_line):
     return lines
 
 
+def run_subprocess_get_stderr(command_line):
+    logger = logging.getLogger(__name__)
+    logger.debug("Running subprocess [%s] with output and err.", command_line)
+    command_line_args = shlex.split(command_line)
+
+    sp = subprocess.Popen(command_line_args, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    sp.wait()
+    _, err = sp.communicate()
+    return err.decode("UTF-8"), sp.returncode
+
+
 def exit_status_as_bool(runnable, quiet=False):
     """
 
@@ -110,10 +121,12 @@ def run_subprocess_with_logging(command_line, header=None, level=logging.INFO, s
 
 
 def is_benchmark_process(p):
+    cmdline = p.cmdline()
     return p.name() == "opensearch-benchmark" or \
-           (p.name().lower().startswith("python")
-            and any("opensearch-benchmark" in e for e in p.cmdline())
-            and not any("opensearch-benchmarkd" in e for e in p.cmdline()))
+           (p.name().lower().startswith("python") and
+            (len(cmdline) > 1 and
+             (cmdline[1] == "opensearch-benchmark" or
+              cmdline[1].endswith(os.path.sep + "opensearch-benchmark"))))
 
 
 def find_all_other_benchmark_processes():

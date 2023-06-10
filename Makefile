@@ -49,6 +49,15 @@ prereq:
 	@ jq -r '.python_versions | [.[] | tostring] | join("\n")' .ci/variables.json > .python-version
 	-@ printf $(PYENV_PREREQ_HELP)
 
+check-java:
+	@if ! test "$(JAVA_HOME)" || ! java --version > /dev/null 2>&1 || ! javadoc --help > /dev/null 2>&1; then \
+	    echo "Java installation issues for running integration tests" >&2; \
+	    exit 1; \
+	fi
+	@if test `java --version | sed -n 's/[^0-9]*\([0-9]*\).*./\1/p;q'` != 17; then \
+	    echo "NOTE: Java version 17 required to have all integration tests pass" >&2; \
+	fi
+
 venv-create:
 	@if [[ ! -x $$(command -v pyenv) ]]; then \
 		printf $(PYENV_ERROR); \
@@ -112,20 +121,11 @@ test: check-venv
 
 precommit: lint
 
-it: check-venv python-caches-clean tox-env-clean
+it: check-java check-venv python-caches-clean tox-env-clean
 	. $(VENV_ACTIVATE_FILE); tox
 
-it38: check-venv python-caches-clean tox-env-clean
-	. $(VENV_ACTIVATE_FILE); tox -e py38
-
-it39: check-venv python-caches-clean tox-env-clean
-	. $(VENV_ACTIVATE_FILE); tox -e py39
-
-it310: check-venv python-caches-clean tox-env-clean
-	. $(VENV_ACTIVATE_FILE); tox -e py310
-
-it311: check-venv python-caches-clean tox-env-clean
-	. $(VENV_ACTIVATE_FILE); tox -e py311
+it38 it39 it310 it311: check-java check-venv python-caches-clean tox-env-clean
+	. $(VENV_ACTIVATE_FILE); tox -e $(@:it%=py%)
 
 benchmark: check-venv
 	. $(VENV_ACTIVATE_FILE); pytest benchmarks/
