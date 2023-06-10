@@ -228,3 +228,80 @@ class AIOHttpConnection(opensearchpy.AIOHttpConnection):
             connector=connector,
             trace_configs=self._trace_configs,
         )
+
+
+class AsyncHttpConnection(opensearchpy.AsyncHttpConnection):
+    def __init__(self,
+                 host="localhost",
+                 port=None,
+                 http_auth=None,
+                 use_ssl=False,
+                 ssl_assert_fingerprint=None,
+                 headers=None,
+                 ssl_context=None,
+                 http_compress=None,
+                 cloud_id=None,
+                 api_key=None,
+                 opaque_id=None,
+                 loop=None,
+                 trace_config=None,
+                 **kwargs,):
+        super().__init__(host=host,
+                         port=port,
+                         http_auth=http_auth,
+                         use_ssl=use_ssl,
+                         ssl_assert_fingerprint=ssl_assert_fingerprint,
+                         # provided to the base class via `maxsize` to keep base class state consistent despite Benchmark
+                         # calling the attribute differently.
+                         maxsize=max(256, kwargs.get("max_connections", 0)),
+                         headers=headers,
+                         ssl_context=ssl_context,
+                         http_compress=http_compress,
+                         cloud_id=cloud_id,
+                         api_key=api_key,
+                         opaque_id=opaque_id,
+                         loop=loop,
+                         **kwargs,)
+
+        self._trace_configs = [trace_config] if trace_config else None
+        self._enable_cleanup_closed = kwargs.get("enable_cleanup_closed", False)
+
+        static_responses = kwargs.get("static_responses")
+        self.use_static_responses = static_responses is not None
+
+        if self.use_static_responses:
+            # read static responses once and reuse them
+            if not StaticRequest.RESPONSES:
+                with open(io.normalize_path(static_responses)) as f:
+                    StaticRequest.RESPONSES = ResponseMatcher(json.load(f))
+
+            self._request_class = StaticRequest
+            self._response_class = StaticResponse
+        else:
+            self._request_class = aiohttp.ClientRequest
+            self._response_class = RawClientResponse
+
+    async def _create_aiohttp_session(self):
+        if self.loop is None:
+            self.loop = asyncio.get_running_loop()
+
+        if self.use_static_responses:
+            connector = StaticConnector(limit=self._limit, enable_cleanup_closed=self._enable_cleanup_closed)
+        else:
+            connector = aiohttp.TCPConnector(
+                limit=self._limit,
+                use_dns_cache=True,
+                ssl_context=self._ssl_context,
+                enable_cleanup_closed=self._enable_cleanup_closed
+            )
+
+        self.session = aiohttp.ClientSession(
+            headers=self.headers,
+            auto_decompress=True,
+            loop=self.loop,
+            cookie_jar=aiohttp.DummyCookieJar(),
+            request_class=self._request_class,
+            response_class=self._response_class,
+            connector=connector,
+            trace_configs=self._trace_configs,
+        )

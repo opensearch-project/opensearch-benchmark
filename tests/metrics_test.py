@@ -191,6 +191,72 @@ class OsClientTests(TestCase):
             client_options=expected_client_options
         )
 
+    @mock.patch("osbenchmark.client.OsClientFactory")
+    def test_config_opts_parsing_aws_creds_with_config(self, client_OsClientfactory):
+        # verify config parsing fails when configuration source for aws creds is set to None
+        self.config_opts_parsing_aws_creds("None")
+
+        # verify config parsing fails when configuration for aws creds is missing a required config key
+        override_config = {
+            "datastore.aws_access_key_id": None
+        }
+        self.config_opts_parsing_aws_creds("config", override_datastore=override_config)
+
+        # verify config parsing is successful when all required parameters are present
+        config_opts = self.config_opts_parsing_aws_creds("config")
+
+        expected_client_options = {
+            "use_ssl": True,
+            "timeout": 120,
+            "amazon_aws_log_in": 'client_option',
+            "aws_access_key_id": config_opts["_datastore_aws_access_key_id"],
+            "aws_secret_access_key": config_opts["_datastore_aws_secret_access_key"],
+            "service": config_opts["_datastore_aws_service"],
+            "region": config_opts["_datastore_aws_region"],
+            "verify_certs": config_opts["_datastore_verify_certs"]
+        }
+
+        client_OsClientfactory.assert_called_with(
+            hosts=[{"host": config_opts["_datastore_host"], "port": config_opts["_datastore_port"]}],
+            client_options=expected_client_options
+        )
+
+    def test_metrics_client_creation_with_aws_creds(self):
+        try:
+            self.config_opts_parsing_aws_creds("config")
+        except Exception:
+            assert False, "Metrics client creation should not fail"
+
+    @mock.patch("osbenchmark.client.OsClientFactory")
+    def test_config_opts_parsing_aws_creds_with_env(self, client_OsClientfactory):
+        # verify config parsing fails when configuration source for aws creds is set to None
+        self.config_opts_parsing_aws_creds("None")
+
+        # verify config parsing fails when configuration for aws creds is missing a required config key
+        override_config = {
+            "OSB_DATASTORE_AWS_ACCESS_KEY_ID": None
+        }
+        self.config_opts_parsing_aws_creds("environment", override_datastore=override_config)
+
+        # verify config parsing is successful when all required parameters are present
+        config_opts = self.config_opts_parsing_aws_creds("environment")
+
+        expected_client_options = {
+            "use_ssl": True,
+            "timeout": 120,
+            "amazon_aws_log_in": 'client_option',
+            "aws_access_key_id": config_opts["_datastore_aws_access_key_id"],
+            "aws_secret_access_key": config_opts["_datastore_aws_secret_access_key"],
+            "service": config_opts["_datastore_aws_service"],
+            "region": config_opts["_datastore_aws_region"],
+            "verify_certs": config_opts["_datastore_verify_certs"]
+        }
+
+        client_OsClientfactory.assert_called_with(
+            hosts=[{"host": config_opts["_datastore_host"], "port": config_opts["_datastore_port"]}],
+            client_options=expected_client_options
+        )
+
     def config_opts_parsing(self, password_configuration):
         cfg = config.Config()
 
@@ -235,6 +301,87 @@ class OsClientTests(TestCase):
             "_datastore_verify_certs": _datastore_verify_certs
         }
 
+    def config_opts_parsing_aws_creds(self, configuration_source, override_datastore=None):
+        if override_datastore is None:
+            override_datastore = {}
+        cfg = config.Config()
+
+        _datastore_host = ".".join([str(random.randint(1, 254)) for _ in range(4)])
+        _datastore_port = random.randint(1024, 65535)
+        _datastore_secure = random.choice(["True", "true"])
+        _datastore_user = ""
+        _datastore_password = ""
+        _datastore_verify_certs = random.choice([True, False])
+        _datastore_amazon_aws_log_in = configuration_source
+        _datastore_aws_access_key_id = "".join([random.choice(string.digits) for _ in range(12)])
+        _datastore_aws_secret_access_key = "".join([random.choice(string.ascii_letters + string.digits) for _ in range(40)])
+        _datastore_aws_service = random.choice(['es', 'aoss'])
+        _datastore_aws_region = random.choice(['us-east-1', 'eu-west-1'])
+
+        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.host", _datastore_host)
+        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.port", _datastore_port)
+        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.secure", _datastore_secure)
+        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.user", _datastore_user)
+        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.password", _datastore_password)
+        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.amazon_aws_log_in", _datastore_amazon_aws_log_in)
+
+        if _datastore_amazon_aws_log_in == 'config':
+            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.aws_access_key_id", _datastore_aws_access_key_id)
+            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.aws_secret_access_key", _datastore_aws_secret_access_key)
+            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.service", _datastore_aws_service)
+            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.region", _datastore_aws_region)
+        elif _datastore_amazon_aws_log_in == 'environment':
+            monkeypatch = pytest.MonkeyPatch()
+            monkeypatch.setenv("OSB_DATASTORE_AWS_ACCESS_KEY_ID", _datastore_aws_access_key_id)
+            monkeypatch.setenv("OSB_DATASTORE_AWS_SECRET_ACCESS_KEY", _datastore_aws_secret_access_key)
+            monkeypatch.setenv("OSB_DATASTORE_SERVICE", _datastore_aws_service)
+            monkeypatch.setenv("OSB_DATASTORE_REGION", _datastore_aws_region)
+
+        if not _datastore_verify_certs:
+            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.ssl.verification_mode", "none")
+
+        if override_datastore:
+            if _datastore_amazon_aws_log_in == 'config':
+                for k, v in override_datastore.items():
+                    cfg.add(config.Scope.applicationOverride, "results_publishing", k, v)
+            elif _datastore_amazon_aws_log_in == 'environment':
+                monkeypatch = pytest.MonkeyPatch()
+                for k, v in override_datastore.items():
+                    if v is not None:
+                        monkeypatch.setenv(k, v)
+                    else:
+                        monkeypatch.delenv(k)
+        try:
+            metrics.OsClientFactory(cfg)
+        except exceptions.ConfigError as e:
+            if configuration_source == "config":
+                missing_aws_credentials_message = "Missing AWS credentials through datastore.aws_access_key_id, " \
+                                                  "datastore.aws_secret_access_key, datastore.region, " \
+                                                  "datastore.service in the config file."
+            elif configuration_source == "environment":
+                missing_aws_credentials_message = "Missing AWS credentials through " \
+                                                  "OSB_DATASTORE_AWS_ACCESS_KEY_ID, " \
+                                                  "OSB_DATASTORE_AWS_SECRET_ACCESS_KEY, " \
+                                                  "OSB_DATASTORE_REGION, OSB_DATASTORE_SERVICE " \
+                                                  "environment variables."
+
+            else:
+                missing_aws_credentials_message = "datastore.amazon_aws_log_in can only be one of " \
+                                                  "'environment' or 'config'"
+            assert (e.message == missing_aws_credentials_message)
+            return
+
+        return {
+            "_datastore_user": _datastore_user,
+            "_datastore_host": _datastore_host,
+            "_datastore_password": _datastore_password,
+            "_datastore_port": _datastore_port,
+            "_datastore_verify_certs": _datastore_verify_certs,
+            "_datastore_aws_access_key_id": _datastore_aws_access_key_id,
+            "_datastore_aws_secret_access_key": _datastore_aws_secret_access_key,
+            "_datastore_aws_service": _datastore_aws_service,
+            "_datastore_aws_region": _datastore_aws_region
+        }
 
     def test_raises_sytem_setup_error_on_connection_problems(self):
         def raise_connection_error():
