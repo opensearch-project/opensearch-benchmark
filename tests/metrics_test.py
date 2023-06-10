@@ -323,11 +323,14 @@ class OsClientTests(TestCase):
         cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.secure", _datastore_secure)
         cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.user", _datastore_user)
         cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.password", _datastore_password)
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.amazon_aws_log_in", _datastore_amazon_aws_log_in)
+        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.amazon_aws_log_in",
+                _datastore_amazon_aws_log_in)
 
         if _datastore_amazon_aws_log_in == 'config':
-            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.aws_access_key_id", _datastore_aws_access_key_id)
-            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.aws_secret_access_key", _datastore_aws_secret_access_key)
+            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.aws_access_key_id",
+                    _datastore_aws_access_key_id)
+            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.aws_secret_access_key",
+                    _datastore_aws_secret_access_key)
             cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.service", _datastore_aws_service)
             cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.region", _datastore_aws_region)
         elif _datastore_amazon_aws_log_in == 'environment':
@@ -368,7 +371,7 @@ class OsClientTests(TestCase):
             else:
                 missing_aws_credentials_message = "datastore.amazon_aws_log_in can only be one of " \
                                                   "'environment' or 'config'"
-            assert (e.message == missing_aws_credentials_message)
+            assert e.message == missing_aws_credentials_message
             return
 
         return {
