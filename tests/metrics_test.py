@@ -281,19 +281,19 @@ class OsClientTests(TestCase):
         _datastore_password = "".join([random.choice(string.ascii_letters + string.digits + "_-@#$/") for _ in range(12)])
         _datastore_verify_certs = random.choice([True, False])
 
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.host", _datastore_host)
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.port", _datastore_port)
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.secure", _datastore_secure)
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.user", _datastore_user)
+        cfg.add(config.Scope.applicationOverride, "reporting", "datastore.host", _datastore_host)
+        cfg.add(config.Scope.applicationOverride, "reporting", "datastore.port", _datastore_port)
+        cfg.add(config.Scope.applicationOverride, "reporting", "datastore.secure", _datastore_secure)
+        cfg.add(config.Scope.applicationOverride, "reporting", "datastore.user", _datastore_user)
 
         if password_configuration == "config":
-            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.password", _datastore_password)
+            cfg.add(config.Scope.applicationOverride, "reporting", "datastore.password", _datastore_password)
         elif password_configuration == "environment":
             monkeypatch = pytest.MonkeyPatch()
             monkeypatch.setenv("OSB_DATASTORE_PASSWORD", _datastore_password)
 
         if not _datastore_verify_certs:
-            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.ssl.verification_mode", "none")
+            cfg.add(config.Scope.applicationOverride, "reporting", "datastore.ssl.verification_mode", "none")
 
         try:
             metrics.OsClientFactory(cfg)
@@ -303,7 +303,7 @@ class OsClientTests(TestCase):
 
             assert (
                 e.message
-                == "No password configured through [results_publishing] configuration or OSB_DATASTORE_PASSWORD environment variable."
+                == "No password configured through [reporting] configuration or OSB_DATASTORE_PASSWORD environment variable."
             )
             return
 
@@ -337,23 +337,23 @@ class OsClientTests(TestCase):
         _datastore_aws_session_token = "".join([random.choice(string.ascii_letters + string.digits) \
                                                 for _ in range(AWS_SESSION_TOKEN_LENGTH)])
 
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.host", _datastore_host)
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.port", _datastore_port)
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.secure", _datastore_secure)
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.user", _datastore_user)
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.password", _datastore_password)
-        cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.amazon_aws_log_in",
+        cfg.add(config.Scope.applicationOverride, "reporting", "datastore.host", _datastore_host)
+        cfg.add(config.Scope.applicationOverride, "reporting", "datastore.port", _datastore_port)
+        cfg.add(config.Scope.applicationOverride, "reporting", "datastore.secure", _datastore_secure)
+        cfg.add(config.Scope.applicationOverride, "reporting", "datastore.user", _datastore_user)
+        cfg.add(config.Scope.applicationOverride, "reporting", "datastore.password", _datastore_password)
+        cfg.add(config.Scope.applicationOverride, "reporting", "datastore.amazon_aws_log_in",
                 _datastore_amazon_aws_log_in)
 
         if _datastore_amazon_aws_log_in == 'config':
-            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.aws_access_key_id",
+            cfg.add(config.Scope.applicationOverride, "reporting", "datastore.aws_access_key_id",
                     _datastore_aws_access_key_id)
-            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.aws_secret_access_key",
+            cfg.add(config.Scope.applicationOverride, "reporting", "datastore.aws_secret_access_key",
                     _datastore_aws_secret_access_key)
-            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.service", _datastore_aws_service)
-            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.region", _datastore_aws_region)
+            cfg.add(config.Scope.applicationOverride, "reporting", "datastore.service", _datastore_aws_service)
+            cfg.add(config.Scope.applicationOverride, "reporting", "datastore.region", _datastore_aws_region)
             if role_based:
-                cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.aws_session_token", _datastore_aws_session_token)
+                cfg.add(config.Scope.applicationOverride, "reporting", "datastore.aws_session_token", _datastore_aws_session_token)
         elif _datastore_amazon_aws_log_in == 'environment':
             monkeypatch = pytest.MonkeyPatch()
             monkeypatch.setenv("OSB_DATASTORE_AWS_ACCESS_KEY_ID", _datastore_aws_access_key_id)
@@ -365,12 +365,12 @@ class OsClientTests(TestCase):
 
 
         if not _datastore_verify_certs:
-            cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.ssl.verification_mode", "none")
+            cfg.add(config.Scope.applicationOverride, "reporting", "datastore.ssl.verification_mode", "none")
 
         if override_datastore:
             if _datastore_amazon_aws_log_in == 'config':
                 for k, v in override_datastore.items():
-                    cfg.add(config.Scope.applicationOverride, "results_publishing", k, v)
+                    cfg.add(config.Scope.applicationOverride, "reporting", k, v)
             elif _datastore_amazon_aws_log_in == 'environment':
                 monkeypatch = pytest.MonkeyPatch()
                 for k, v in override_datastore.items():
@@ -2028,7 +2028,7 @@ class StatsCalculatorTests(TestCase):
         cfg.add(config.Scope.application, "system", "env.name", "unittest")
         cfg.add(config.Scope.application, "system", "time.start", datetime.datetime.now())
         cfg.add(config.Scope.application, "system", "test_execution.id", "6ebc6e53-ee20-4b0c-99b4-09697987e9f4")
-        cfg.add(config.Scope.application, "results_publishing", "datastore.type", "in-memory")
+        cfg.add(config.Scope.application, "reporting", "datastore.type", "in-memory")
         cfg.add(config.Scope.application, "builder", "cluster_config.names", ["unittest_cluster_config"])
         cfg.add(config.Scope.application, "builder", "cluster_config.params", {})
         cfg.add(config.Scope.application, "builder", "plugin.params", {})
@@ -2119,7 +2119,7 @@ class StatsCalculatorTests(TestCase):
         cfg.add(config.Scope.application, "system", "env.name", "unittest")
         cfg.add(config.Scope.application, "system", "time.start", datetime.datetime.now())
         cfg.add(config.Scope.application, "system", "test_execution.id", "6ebc6e53-ee20-4b0c-99b4-09697987e9f4")
-        cfg.add(config.Scope.application, "results_publishing", "datastore.type", "in-memory")
+        cfg.add(config.Scope.application, "reporting", "datastore.type", "in-memory")
         cfg.add(config.Scope.application, "builder", "cluster_config.names", ["unittest_cluster_config"])
         cfg.add(config.Scope.application, "builder", "cluster_config.params", {})
         cfg.add(config.Scope.application, "builder", "plugin.params", {})
@@ -2177,7 +2177,7 @@ class GlobalStatsCalculatorTests(TestCase):
         del self.cfg
 
     def test_add_administrative_task_with_error_rate_in_results(self):
-        op = Operation(name='delete-index', operation_type='DeleteIndex', params={'include-in-results_publishing': False})
+        op = Operation(name='delete-index', operation_type='DeleteIndex', params={'include-in-reporting': False})
         task = Task('delete-index', operation=op, schedule='deterministic')
         test_procedure = TestProcedure(name='append-fast-with-conflicts', schedule=[task], meta_data={})
 
@@ -2599,9 +2599,9 @@ class TestIndexTemplateProvider:
         _datastore_number_of_shards = random.randint(1, 100)
         _datastore_number_of_replicas = random.randint(0, 100)
 
-        self.cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.type", _datastore_type)
-        self.cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.number_of_shards", _datastore_number_of_shards)
-        self.cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.number_of_replicas", _datastore_number_of_replicas)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.type", _datastore_type)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.number_of_shards", _datastore_number_of_shards)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.number_of_replicas", _datastore_number_of_replicas)
 
         _index_template_provider = metrics.IndexTemplateProvider(self.cfg)
 
@@ -2620,8 +2620,8 @@ class TestIndexTemplateProvider:
         _datastore_type = "opensearch"
         _datastore_number_of_shards = random.randint(1, 100)
 
-        self.cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.type", _datastore_type)
-        self.cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.number_of_shards", _datastore_number_of_shards)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.type", _datastore_type)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.number_of_shards", _datastore_number_of_shards)
 
         _index_template_provider = metrics.IndexTemplateProvider(self.cfg)
 
@@ -2642,8 +2642,8 @@ class TestIndexTemplateProvider:
         _datastore_type = "opensearch"
         _datastore_number_of_replicas = random.randint(1, 100)
 
-        self.cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.type", _datastore_type)
-        self.cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.number_of_replicas", _datastore_number_of_replicas)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.type", _datastore_type)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.number_of_replicas", _datastore_number_of_replicas)
 
         _index_template_provider = metrics.IndexTemplateProvider(self.cfg)
 
@@ -2664,8 +2664,8 @@ class TestIndexTemplateProvider:
         _datastore_type = "opensearch"
         _datastore_number_of_shards = 0
 
-        self.cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.type", _datastore_type)
-        self.cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.number_of_shards", _datastore_number_of_shards)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.type", _datastore_type)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.number_of_shards", _datastore_number_of_shards)
         _index_template_provider = metrics.IndexTemplateProvider(self.cfg)
 
         with pytest.raises(exceptions.SystemSetupError) as ctx:
@@ -2685,9 +2685,9 @@ class TestIndexTemplateProvider:
         _datastore_number_of_shards = "200"
         _datastore_number_of_replicas = "1"
 
-        self.cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.type", _datastore_type)
-        self.cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.number_of_shards", _datastore_number_of_shards)
-        self.cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.number_of_replicas", _datastore_number_of_replicas)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.type", _datastore_type)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.number_of_shards", _datastore_number_of_shards)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.number_of_replicas", _datastore_number_of_replicas)
 
         _index_template_provider = metrics.IndexTemplateProvider(self.cfg)
 

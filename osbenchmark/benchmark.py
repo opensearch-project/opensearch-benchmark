@@ -35,7 +35,7 @@ import thespian.actors
 
 from osbenchmark import PROGRAM_NAME, BANNER, FORUM_LINK, SKULL, check_python_version, doc_link, telemetry
 from osbenchmark import version, actor, config, paths, \
-    test_execution_orchestrator, results_publisher, \
+    test_execution_orchestrator, publisher, \
         metrics, workload, exceptions, log
 from osbenchmark.builder import provision_config, builder
 from osbenchmark.synthetic_data_generator import synthetic_data_generator
@@ -993,14 +993,14 @@ def configure_connection_params(arg_parser, args, cfg):
         arg_parser.error("--target-hosts and --client-options must define the same keys for multi cluster setups.")
 
 
-def configure_results_publishing_params(args, cfg):
-    cfg.add(config.Scope.applicationOverride, "results_publishing", "format", args.results_format)
-    cfg.add(config.Scope.applicationOverride, "results_publishing", "values", args.show_in_results)
-    cfg.add(config.Scope.applicationOverride, "results_publishing", "output.path", args.results_file)
-    cfg.add(config.Scope.applicationOverride, "results_publishing", "numbers.align", args.results_numbers_align)
+def configure_reporting_params(args, cfg):
+    cfg.add(config.Scope.applicationOverride, "reporting", "format", args.results_format)
+    cfg.add(config.Scope.applicationOverride, "reporting", "values", args.show_in_results)
+    cfg.add(config.Scope.applicationOverride, "reporting", "output.path", args.results_file)
+    cfg.add(config.Scope.applicationOverride, "reporting", "numbers.align", args.results_numbers_align)
 
 def prepare_test_executions_dict(args, cfg):
-    cfg.add(config.Scope.applicationOverride, "results_publishing", "output.path", args.results_file)
+    cfg.add(config.Scope.applicationOverride, "reporting", "output.path", args.results_file)
     test_executions_dict = {}
     if args.test_executions:
         for execution in args.test_executions:
@@ -1057,7 +1057,7 @@ def configure_test(arg_parser, args, cfg):
     cfg.add(config.Scope.applicationOverride, "builder", "preserve.install", convert.to_bool(args.preserve_install))
     cfg.add(config.Scope.applicationOverride, "builder", "skip.rest.api.check", convert.to_bool(args.skip_rest_api_check))
 
-    configure_results_publishing_params(args, cfg)
+    configure_reporting_params(args, cfg)
 
 def print_test_execution_id(args):
     console.info(f"[Test Execution ID]: {args.test_execution_id}")
@@ -1070,9 +1070,9 @@ def dispatch_sub_command(arg_parser, args, cfg):
 
     try:
         if sub_command == "compare":
-            configure_results_publishing_params(args, cfg)
-            cfg.add(config.Scope.applicationOverride, "results_publishing", "percentiles", args.percentiles)
-            results_publisher.compare(cfg, args.baseline, args.contender)
+            configure_reporting_params(args, cfg)
+            cfg.add(config.Scope.applicationOverride, "reporting", "percentiles", args.percentiles)
+            publisher.compare(cfg, args.baseline, args.contender)
         elif sub_command == "aggregate":
             test_executions_dict = prepare_test_executions_dict(args, cfg)
             aggregator_instance = aggregator.Aggregator(cfg, test_executions_dict, args)

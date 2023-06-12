@@ -1732,7 +1732,7 @@ class WorkloadSpecificationReader:
 
                     schedule.append(task)
 
-            # verify we don't have any duplicate task names (which can be confusing / misleading in results_publishing).
+            # verify we don't have any duplicate task names (which can be confusing / misleading in reporting).
             known_task_names = set()
             for task in schedule:
                 for sub_task in task:
@@ -1929,8 +1929,8 @@ class WorkloadSpecificationReader:
 
         try:
             op = workload.OperationType.from_hyphenated_string(op_type_name)
-            if "include-in-results_publishing" not in params:
-                params["include-in-results_publishing"] = not op.admin_op
+            if "include-in-reporting" not in params:
+                params["include-in-reporting"] = not op.admin_op
             self.logger.debug("Using built-in operation type [%s] for operation [%s].", op_type_name, op_name)
         except KeyError:
             self.logger.info("Using user-provided operation type [%s] for operation [%s].", op_type_name, op_name)

@@ -114,7 +114,7 @@ def auto_load_local_config(base_config, additional_sections=None, config_file_cl
     cfg.load_config(auto_upgrade=True)
     # we override our some configuration with the one from the coordinator because it may contain more entries and we should be
     # consistent across all nodes here.
-    cfg.add_all(base_config, "results_publishing")
+    cfg.add_all(base_config, "reporting")
     cfg.add_all(base_config, "workloads")
     cfg.add_all(base_config, "provision_configs")
     cfg.add_all(base_config, "distributions")

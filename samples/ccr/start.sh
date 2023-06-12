@@ -122,7 +122,7 @@ opensearch.src.subdir = opensearch
 [benchmarks]
 local.dataset.cache = ${HOME}/.benchmark/benchmarks/data
 
-[results_publishing]
+[reporting]
 datastore.type = opensearch
 datastore.host = 127.0.0.1
 datastore.port = 9209

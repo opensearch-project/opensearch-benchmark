@@ -59,7 +59,7 @@ def compare(cfg, baseline_id, contender_id):
     if not baseline_id or not contender_id:
         raise exceptions.SystemSetupError("compare needs baseline and a contender")
     test_execution_store = metrics.test_execution_store(cfg)
-    ComparisonResultsPublisher(cfg).publish(
+    ComparisonPublisher(cfg).publish(
         test_execution_store.find_by_test_execution_id(baseline_id),
         test_execution_store.find_by_test_execution_id(contender_id))
 
@@ -119,14 +119,14 @@ def comma_separated_string_to_number_list(string_list):
 class SummaryResultsPublisher:
     def __init__(self, results, config):
         self.results = results
-        self.results_file = config.opts("results_publishing", "output.path")
-        self.results_format = config.opts("results_publishing", "format")
-        self.numbers_align = config.opts("results_publishing", "numbers.align",
+        self.results_file = config.opts("reporting", "output.path")
+        self.results_format = config.opts("reporting", "format")
+        self.numbers_align = config.opts("reporting", "numbers.align",
                                          mandatory=False, default_value="right")
-        results_publishing_values = config.opts("results_publishing", "values")
-        self.publish_all_values = results_publishing_values == "all"
-        self.publish_all_percentile_values = results_publishing_values == "all-percentiles"
-        self.show_processing_time = convert.to_bool(config.opts("results_publishing", "output.processingtime",
+        reporting_values = config.opts("reporting", "values")
+        self.publish_all_values = reporting_values == "all"
+        self.publish_all_percentile_values = reporting_values == "all-percentiles"
+        self.show_processing_time = convert.to_bool(config.opts("reporting", "output.processingtime",
                                                                 mandatory=False, default_value=False))
         self.cwd = config.opts("node", "benchmark.cwd")
         self.display_percentiles = {
@@ -391,17 +391,17 @@ class SummaryResultsPublisher:
             return []
 
 
-class ComparisonResultsPublisher:
+class ComparisonPublisher:
     def __init__(self, config):
         self.logger = logging.getLogger(__name__)
-        self.results_file = config.opts("results_publishing", "output.path")
-        self.results_format = config.opts("results_publishing", "format")
-        self.numbers_align = config.opts("results_publishing", "numbers.align",
+        self.results_file = config.opts("reporting", "output.path")
+        self.results_format = config.opts("reporting", "format")
+        self.numbers_align = config.opts("reporting", "numbers.align",
                                          mandatory=False, default_value="right")
         self.cwd = config.opts("node", "benchmark.cwd")
-        self.show_processing_time = convert.to_bool(config.opts("results_publishing", "output.processingtime",
+        self.show_processing_time = convert.to_bool(config.opts("reporting", "output.processingtime",
                                                                 mandatory=False, default_value=False))
-        self.percentiles = comma_separated_string_to_number_list(config.opts("results_publishing", "percentiles", mandatory=False))
+        self.percentiles = comma_separated_string_to_number_list(config.opts("reporting", "percentiles", mandatory=False))
         self.plain = False
 
     def publish(self, r1, r2):
