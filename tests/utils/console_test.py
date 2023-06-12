@@ -141,9 +141,9 @@ class TestCmdLineProgressResultsPublisher:
         message = "Unit test message"
         width = random.randint(20, 140)
         mock_printer = mock.Mock()
-        progress_results_publisher = console.CmdLineProgressResultsPublisher(width=width, printer=mock_printer)
+        progress_publisher = console.CmdLineProgressResultsPublisher(width=width, printer=mock_printer)
 
-        progress_results_publisher.print(message=message, progress=".")
+        progress_publisher.print(message=message, progress=".")
         mock_printer.assert_not_called()
         patched_flush.assert_not_called()
 
@@ -157,8 +157,8 @@ class TestCmdLineProgressResultsPublisher:
         message = "Unit test message"
         width = random.randint(20, 140)
         mock_printer = mock.Mock()
-        progress_results_publisher = console.CmdLineProgressResultsPublisher(width=width, printer=mock_printer)
-        progress_results_publisher.print(message=message, progress=".")
+        progress_publisher = console.CmdLineProgressResultsPublisher(width=width, printer=mock_printer)
+        progress_publisher.print(message=message, progress=".")
         mock_printer.assert_not_called()
         patched_flush.assert_not_called()
 
@@ -175,8 +175,8 @@ class TestCmdLineProgressResultsPublisher:
         message = "Unit test message"
         width = random.randint(20, 140)
         mock_printer = mock.Mock()
-        progress_results_publisher = console.CmdLineProgressResultsPublisher(width=width, printer=mock_printer)
-        progress_results_publisher.print(message=message, progress=".")
+        progress_publisher = console.CmdLineProgressResultsPublisher(width=width, printer=mock_printer)
+        progress_publisher.print(message=message, progress=".")
         mock_printer.assert_has_calls([
             mock.call(" " * width, end=""),
             mock.call("\x1b[{}D{}{}.".format(width, message, " "*(width-len(message)-1)), end="")
@@ -196,8 +196,8 @@ class TestCmdLineProgressResultsPublisher:
         message = "Unit test message"
         width = random.randint(20, 140)
         mock_printer = mock.Mock()
-        progress_results_publisher = console.CmdLineProgressResultsPublisher(width=width, printer=mock_printer)
-        progress_results_publisher.print(message=message, progress=".")
+        progress_publisher = console.CmdLineProgressResultsPublisher(width=width, printer=mock_printer)
+        progress_publisher.print(message=message, progress=".")
         mock_printer.assert_has_calls([
             mock.call(" " * width, end=""),
             mock.call("\x1b[{}D{}{}.".format(width, message, " "*(width-len(message)-1)), end="")
@@ -214,8 +214,8 @@ class TestCmdLineProgressResultsPublisher:
         message = "Unit test message"
         width = random.randint(20, 140)
         mock_printer = mock.Mock()
-        progress_results_publisher = console.CmdLineProgressResultsPublisher(width=width, printer=mock_printer)
-        progress_results_publisher.print(message=message, progress=".")
+        progress_publisher = console.CmdLineProgressResultsPublisher(width=width, printer=mock_printer)
+        progress_publisher.print(message=message, progress=".")
         mock_printer.assert_not_called()
         patched_flush.assert_not_called()
 
@@ -229,8 +229,8 @@ class TestCmdLineProgressResultsPublisher:
 
         width = random.randint(20, 140)
         mock_printer = mock.Mock()
-        progress_results_publisher = console.CmdLineProgressResultsPublisher(width=width, printer=mock_printer)
-        progress_results_publisher.finish()
+        progress_publisher = console.CmdLineProgressResultsPublisher(width=width, printer=mock_printer)
+        progress_publisher.finish()
         mock_printer.assert_not_called()
 
     @mock.patch("sys.stdout.isatty")
@@ -244,8 +244,8 @@ class TestCmdLineProgressResultsPublisher:
 
         width = random.randint(20, 140)
         mock_printer = mock.Mock()
-        progress_results_publisher = console.CmdLineProgressResultsPublisher(width=width, printer=mock_printer)
-        progress_results_publisher.finish()
+        progress_publisher = console.CmdLineProgressResultsPublisher(width=width, printer=mock_printer)
+        progress_publisher.finish()
         mock_printer.assert_called_once_with("")
 
     @mock.patch("sys.stdout.isatty")
@@ -259,6 +259,6 @@ class TestCmdLineProgressResultsPublisher:
 
         width = random.randint(20, 140)
         mock_printer = mock.Mock()
-        progress_results_publisher = console.CmdLineProgressResultsPublisher(width=width, printer=mock_printer)
-        progress_results_publisher.finish()
+        progress_publisher = console.CmdLineProgressResultsPublisher(width=width, printer=mock_printer)
+        progress_publisher.finish()
         mock_printer.assert_called_once_with("")
