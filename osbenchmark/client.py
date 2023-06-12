@@ -247,10 +247,10 @@ class OsClientFactory:
         aws_log_in_dict = {}
         # aws log in : option 1) pass in parameters from os environment variables
         if self.client_options["amazon_aws_log_in"] == "environment":
-            aws_log_in_dict["aws_access_key_id"] = os.environ.get("aws_access_key_id")
-            aws_log_in_dict["aws_secret_access_key"] = os.environ.get("aws_secret_access_key")
-            aws_log_in_dict["region"] = os.environ.get("region")
-            aws_log_in_dict["service"] = os.environ.get("service")
+            aws_log_in_dict["aws_access_key_id"] = os.environ.get("OSB_AWS_ACCESS_KEY_ID")
+            aws_log_in_dict["aws_secret_access_key"] = os.environ.get("OSB_AWS_SECRET_ACCESS_KEY")
+            aws_log_in_dict["region"] = os.environ.get("OSB_REGION")
+            aws_log_in_dict["service"] = os.environ.get("OSB_SERVICE")
         # aws log in : option 2) parameters are passed in from command line
         elif self.client_options["amazon_aws_log_in"] == "client_option":
             aws_log_in_dict["aws_access_key_id"] = self.client_options.get("aws_access_key_id")
