@@ -202,11 +202,11 @@ class Documents:
         :param includes_action_and_meta_data: True, if the source file already includes the action and meta-data line. False, if it only
         contains documents.
         :param number_of_documents: The number of documents
-        in the benchmark document. Needed for proper progress results_publishing. Only needed if
+        in the benchmark document. Needed for proper progress reporting. Only needed if
          a document_archive is given.
         :param compressed_size_in_bytes: The compressed size in bytes of
         the benchmark document. Needed for verification of the download and
-         user results_publishing. Only useful if a document_archive is given (optional but recommended to be set).
+         user reporting. Only useful if a document_archive is given (optional but recommended to be set).
         :param uncompressed_size_in_bytes: The size in bytes of the benchmark document after decompressing it.
         Only useful if a document_archive is given (optional but recommended to be set).
         :param target_index: The index to target for bulk operations. May be ``None`` if ``includes_action_and_meta_data`` is ``False``.
@@ -717,14 +717,20 @@ class OperationType(Enum):
 class IndexCodec(Enum):
     Default = "default"
     BestCompression = "best_compression"
+    ZSTD = "zstd"
+    ZSTDNODICT = "zstdnodict"
 
     @classmethod
     def is_codec_valid(cls, codec):
-        for valid_codec in cls:
-            if codec == valid_codec.value:
-                return True
+        available_codecs = cls.get_available_codecs()
+        if codec.lower() in available_codecs:
+            return True
 
-        raise ValueError(f"Invalid index.codec value '{codec}'")
+        raise ValueError(f"Invalid index.codec value '{codec}'. Choose from available codecs: {available_codecs}")
+
+    @classmethod
+    def get_available_codecs(cls):
+        return list(map(lambda codec: codec.value, cls))
 
 
 class TaskNameFilter:
@@ -970,8 +976,8 @@ class Operation:
         self.param_source = param_source
 
     @property
-    def include_in_results_publishing(self):
-        return self.params.get("include-in-results_publishing", True)
+    def include_in_reporting(self):
+        return self.params.get("include-in-reporting", True)
 
     def __hash__(self):
         return hash(self.name)

@@ -1632,6 +1632,62 @@ class CreateIndexParamSourceTests(TestCase):
         self.assertEqual({}, p["request-params"])
         self.assertEqual("best_compression", body["settings"]["index.codec"])
 
+    def test_create_index_with_zstd_codec(self):
+        source = params.CreateIndexParamSource(workload.Workload(name="unit-test"), params={
+            "index": "test",
+            "body": {
+                "settings": {
+                    "index.number_of_replicas": 0,
+                    "index.codec": "zstd"
+                },
+                "mappings": {
+                    "doc": {
+                        "properties": {
+                            "name": {
+                                "type": "keyword",
+                            }
+                        }
+                    }
+                }
+            }
+        })
+
+        p = source.params()
+        self.assertEqual(1, len(p["indices"]))
+        index, body = p["indices"][0]
+        self.assertEqual("test", index)
+        self.assertTrue(len(body) > 0)
+        self.assertEqual({}, p["request-params"])
+        self.assertEqual("zstd", body["settings"]["index.codec"])
+
+    def test_create_index_with_zstdnodict_codec(self):
+        source = params.CreateIndexParamSource(workload.Workload(name="unit-test"), params={
+            "index": "test",
+            "body": {
+                "settings": {
+                    "index.number_of_replicas": 0,
+                    "index.codec": "zstdnodict"
+                },
+                "mappings": {
+                    "doc": {
+                        "properties": {
+                            "name": {
+                                "type": "keyword",
+                            }
+                        }
+                    }
+                }
+            }
+        })
+
+        p = source.params()
+        self.assertEqual(1, len(p["indices"]))
+        index, body = p["indices"][0]
+        self.assertEqual("test", index)
+        self.assertTrue(len(body) > 0)
+        self.assertEqual({}, p["request-params"])
+        self.assertEqual("zstdnodict", body["settings"]["index.codec"])
+
     def test_create_index_with_invalid_codec(self):
         with self.assertRaises(exceptions.InvalidSyntax) as context:
             params.CreateIndexParamSource(workload.Workload(name="unit-test"), params={
@@ -1654,7 +1710,8 @@ class CreateIndexParamSourceTests(TestCase):
             })
 
         self.assertEqual(str(context.exception),
-                         "Please set the value properly for the create-index operation. Invalid index.codec value 'invalid_codec'")
+                         "Please set the value properly for the create-index operation. Invalid index.codec value " +
+                         "'invalid_codec'. Choose from available codecs: ['default', 'best_compression', 'zstd', 'zstdnodict']")
 
 class CreateDataStreamParamSourceTests(TestCase):
     def test_create_data_stream(self):

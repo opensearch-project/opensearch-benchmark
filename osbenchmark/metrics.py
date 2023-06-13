@@ -179,12 +179,12 @@ class OsClientFactory:
 
     def __init__(self, cfg):
         self._config = cfg
-        host = self._config.opts("results_publishing", "datastore.host")
-        port = self._config.opts("results_publishing", "datastore.port")
-        secure = convert.to_bool(self._config.opts("results_publishing", "datastore.secure"))
-        user = self._config.opts("results_publishing", "datastore.user")
+        host = self._config.opts("reporting", "datastore.host")
+        port = self._config.opts("reporting", "datastore.port")
+        secure = convert.to_bool(self._config.opts("reporting", "datastore.secure"))
+        user = self._config.opts("reporting", "datastore.user")
 
-        metrics_amazon_aws_log_in = self._config.opts("results_publishing", "datastore.amazon_aws_log_in",
+        metrics_amazon_aws_log_in = self._config.opts("reporting", "datastore.amazon_aws_log_in",
                                                       default_value=None, mandatory=False)
         metrics_aws_access_key_id = None
         metrics_aws_secret_access_key = None
@@ -192,13 +192,13 @@ class OsClientFactory:
         metrics_aws_service = None
 
         if metrics_amazon_aws_log_in == 'config':
-            metrics_aws_access_key_id = self._config.opts("results_publishing", "datastore.aws_access_key_id",
+            metrics_aws_access_key_id = self._config.opts("reporting", "datastore.aws_access_key_id",
                                                           default_value=None, mandatory=False)
-            metrics_aws_secret_access_key = self._config.opts("results_publishing", "datastore.aws_secret_access_key",
+            metrics_aws_secret_access_key = self._config.opts("reporting", "datastore.aws_secret_access_key",
                                                               default_value=None, mandatory=False)
-            metrics_aws_region = self._config.opts("results_publishing", "datastore.region",
+            metrics_aws_region = self._config.opts("reporting", "datastore.region",
                                                    default_value=None, mandatory=False)
-            metrics_aws_service = self._config.opts("results_publishing", "datastore.service",
+            metrics_aws_service = self._config.opts("reporting", "datastore.service",
                                                     default_value=None, mandatory=False)
         elif metrics_amazon_aws_log_in == 'environment':
             metrics_aws_access_key_id = os.getenv("OSB_DATASTORE_AWS_ACCESS_KEY_ID", default=None)
@@ -229,19 +229,18 @@ class OsClientFactory:
             if (metrics_aws_service not in ['es', 'aoss']):
                 raise exceptions.ConfigError("datastore.service can only be one of 'es' or 'aoss'") from None
 
-
         try:
             password = os.environ["OSB_DATASTORE_PASSWORD"]
         except KeyError:
             try:
-                password = self._config.opts("results_publishing", "datastore.password")
+                password = self._config.opts("reporting", "datastore.password")
             except exceptions.ConfigError:
                 raise exceptions.ConfigError(
-                    "No password configured through [results_publishing] configuration or OSB_DATASTORE_PASSWORD environment variable."
+                    "No password configured through [reporting] configuration or OSB_DATASTORE_PASSWORD environment variable."
                 ) from None
-        verify = self._config.opts("results_publishing", "datastore.ssl.verification_mode", default_value="full", mandatory=False) != "none"
-        ca_path = self._config.opts("results_publishing", "datastore.ssl.certificate_authorities", default_value=None, mandatory=False)
-        self.probe_version = self._config.opts("results_publishing", "datastore.probe.cluster_version", default_value=True, mandatory=False)
+        verify = self._config.opts("reporting", "datastore.ssl.verification_mode", default_value="full", mandatory=False) != "none"
+        ca_path = self._config.opts("reporting", "datastore.ssl.certificate_authorities", default_value=None, mandatory=False)
+        self.probe_version = self._config.opts("reporting", "datastore.probe.cluster_version", default_value=True, mandatory=False)
 
         # Instead of duplicating code, we're just adapting the metrics store specific properties to match the regular client options.
         client_options = {
@@ -345,7 +344,7 @@ def metrics_store(cfg, read_only=True, workload=None, test_procedure=None, provi
 
 
 def metrics_store_class(cfg):
-    if cfg.opts("results_publishing", "datastore.type") == "opensearch":
+    if cfg.opts("reporting", "datastore.type") == "opensearch":
         return OsMetricsStore
     else:
         return InMemoryMetricsStore
@@ -1195,7 +1194,7 @@ def test_execution_store(cfg):
     :return: A test_execution store implementation.
     """
     logger = logging.getLogger(__name__)
-    if cfg.opts("results_publishing", "datastore.type") == "opensearch":
+    if cfg.opts("reporting", "datastore.type") == "opensearch":
         logger.info("Creating OS test execution store")
         return CompositeTestExecutionStore(EsTestExecutionStore(cfg), FileTestExecutionStore(cfg))
     else:
@@ -1210,7 +1209,7 @@ def results_store(cfg):
     :return: A test_execution store implementation.
     """
     logger = logging.getLogger(__name__)
-    if cfg.opts("results_publishing", "datastore.type") == "opensearch":
+    if cfg.opts("reporting", "datastore.type") == "opensearch":
         logger.info("Creating OS results store")
         return OsResultsStore(cfg)
     else:
@@ -1678,7 +1677,7 @@ class GlobalStatsCalculator:
                 op_type = task.operation.type
                 error_rate = self.error_rate(t, op_type)
                 duration = self.duration(t)
-                if task.operation.include_in_results_publishing or error_rate > 0:
+                if task.operation.include_in_reporting or error_rate > 0:
                     self.logger.debug("Gathering request metrics for [%s].", t)
                     result.add_op_metrics(
                         t,
