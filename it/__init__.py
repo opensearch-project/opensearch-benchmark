@@ -86,7 +86,7 @@ def osbenchmark(cfg, command_line):
     This method should be used for benchmark invocations of the all commands besides test_execution.
     These commands may have different CLI options than test_execution.
     """
-    err, retcode = process.run_subprocess_get_stderr(osbenchmark_command_line_for(cfg, command_line))
+    err, retcode = process.run_subprocess_with_stderr(osbenchmark_command_line_for(cfg, command_line))
     if retcode != 0:
         print(err)
     return retcode
@@ -166,7 +166,7 @@ class TestCluster:
         self.http_port = http_port
         transport_port = http_port + 100
         try:
-            err, retcode = process.run_subprocess_get_stderr(
+            err, retcode = process.run_subprocess_with_stderr(
                 "opensearch-benchmark install --configuration-name={cfg} --distribution-version={dist} --build-type=tar "
                 "--http-port={http_port} --node={node_name} --master-nodes="
                 "{node_name} --provision-config-instance={provision_config_instance} "
