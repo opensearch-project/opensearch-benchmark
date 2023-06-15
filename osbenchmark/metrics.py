@@ -224,7 +224,10 @@ class IndexTemplateProvider:
     """
 
     def __init__(self, cfg):
-        self.script_dir = cfg.opts("node", "benchmark.root")
+        self._config = cfg
+        self.script_dir = self._config.opts("node", "benchmark.root")
+        self._number_of_shards = self._config.opts("reporting", "datastore.number_of_shards", default_value=None, mandatory=False)
+        self._number_of_replicas = self._config.opts("reporting", "datastore.number_of_replicas", default_value=None, mandatory=False)
 
     def metrics_template(self):
         return self._read("metrics-template")
@@ -237,7 +240,17 @@ class IndexTemplateProvider:
 
     def _read(self, template_name):
         with open("%s/resources/%s.json" % (self.script_dir, template_name), encoding="utf-8") as f:
-            return f.read()
+            template = json.load(f)
+            if self._number_of_shards is not None:
+                if int(self._number_of_shards) < 1:
+                    raise exceptions.SystemSetupError(
+                        f"The setting: datastore.number_of_shards must be >= 1. Please "
+                        f"check the configuration in {self._config.config_file.location}"
+                    )
+                template["settings"]["index"]["number_of_shards"] = int(self._number_of_shards)
+            if self._number_of_replicas is not None:
+                template["settings"]["index"]["number_of_replicas"] = int(self._number_of_replicas)
+            return json.dumps(template)
 
 
 class MetaInfoScope(Enum):
