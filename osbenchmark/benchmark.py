@@ -111,7 +111,7 @@ def create_arg_parser():
         dest="subcommand",
         help="")
 
-    test_execution_parser = subparsers.add_parser("execute-test", help="Run a benchmark")
+    test_execution_parser = subparsers.add_parser("run", help="Run a benchmark")
     # change in favor of "list telemetry", "list workloads", "list pipelines"
     list_parser = subparsers.add_parser("list", help="List configuration options")
     list_parser.add_argument(
@@ -649,7 +649,7 @@ def print_help_on_errors():
                     f"and include the log files in {paths.logs()}.")
 
 
-def execute_test(cfg, kill_running_processes=False):
+def run(cfg, kill_running_processes=False):
     logger = logging.getLogger(__name__)
 
     if kill_running_processes:
@@ -869,10 +869,10 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "builder", "preserve.install", convert.to_bool(args.preserve_install))
             cfg.add(config.Scope.applicationOverride, "system", "install.id", args.installation_id)
             builder.stop(cfg)
-        elif sub_command == "execute-test":
-            # As the execute-test command is doing more work than necessary at the moment, we duplicate several parameters
+        elif sub_command == "run":
+            # As the run command is doing more work than necessary at the moment, we duplicate several parameters
             # in this section that actually belong to dedicated subcommands (like install, start or stop). Over time
-            # these duplicated parameters will vanish as we move towards dedicated subcommands and use "execute-test" only
+            # these duplicated parameters will vanish as we move towards dedicated subcommands and use "run" only
             # to run the actual benchmark (i.e. generating load).
             if args.effective_start_date:
                 cfg.add(config.Scope.applicationOverride, "system", "time.start", args.effective_start_date)
@@ -905,7 +905,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
 
             configure_reporting_params(args, cfg)
 
-            execute_test(cfg, args.kill_running_processes)
+            run(cfg, args.kill_running_processes)
         elif sub_command == "generate":
             cfg.add(config.Scope.applicationOverride, "generator", "chart.spec.path", args.chart_spec_path)
             cfg.add(config.Scope.applicationOverride, "generator", "chart.type", args.chart_type)

@@ -256,7 +256,7 @@ class BenchmarkCoordinator:
         self.metrics_store.close()
 
 
-def execute_test(cfg, sources=False, distribution=False, external=False, docker=False):
+def run(cfg, sources=False, distribution=False, external=False, docker=False):
     logger = logging.getLogger(__name__)
     # at this point an actor system has to run and we should only join
     actor_system = actor.bootstrap_actor_system(try_join=True)
@@ -298,25 +298,25 @@ def set_default_hosts(cfg, host="127.0.0.1", port=9200):
 def from_sources(cfg):
     port = cfg.opts("provisioning", "node.http.port")
     set_default_hosts(cfg, port=port)
-    return execute_test(cfg, sources=True)
+    return run(cfg, sources=True)
 
 
 def from_distribution(cfg):
     port = cfg.opts("provisioning", "node.http.port")
     set_default_hosts(cfg, port=port)
-    return execute_test(cfg, distribution=True)
+    return run(cfg, distribution=True)
 
 
 def benchmark_only(cfg):
     set_default_hosts(cfg)
     # We'll use a special provision_config_instance name for external benchmarks.
     cfg.add(config.Scope.benchmark, "builder", "provision_config_instance.names", ["external"])
-    return execute_test(cfg, external=True)
+    return run(cfg, external=True)
 
 
 def docker(cfg):
     set_default_hosts(cfg)
-    return execute_test(cfg, docker=True)
+    return run(cfg, docker=True)
 
 
 Pipeline("from-sources",

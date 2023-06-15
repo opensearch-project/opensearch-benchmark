@@ -53,7 +53,7 @@ By default, workloads created will come with the following operations run in the
 
 To invoke the newly created workload, run the following:
 ```
-$ opensearch-benchmark execute_test \
+$ opensearch-benchmark run \
 --pipeline="benchmark-only" \
 --workload-path="<PATH OUTPUTTED IN THE OUTPUT OF THE CREATE-WORKLOAD COMMAND>" \
 --target-host="<CLUSTER ENDPOINT>" \
