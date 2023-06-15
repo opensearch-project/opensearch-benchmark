@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Execute Test
+title: Run
 parent: Benchmark API
 nav_order: 10
 ---

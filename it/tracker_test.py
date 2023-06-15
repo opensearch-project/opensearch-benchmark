@@ -49,7 +49,7 @@ def test_create_workload(cfg, tmp_path, test_cluster):
     # prepare some data
     cmd = f"--test-mode --pipeline=benchmark-only --target-hosts=127.0.0.1:{test_cluster.http_port} " \
           f" --workload=geonames --test-procedure=append-no-conflicts-index-only --quiet"
-    assert it.run(cfg, cmd) == 0
+    assert it.run_test(cfg, cmd) == 0
 
     # create the workload
     workload_name = f"test-workload-{uuid.uuid4()}"
@@ -71,4 +71,4 @@ def test_create_workload(cfg, tmp_path, test_cluster):
 
     # run a benchmark with the created workload
     cmd = f"--test-mode --pipeline=benchmark-only --target-hosts=127.0.0.1:{test_cluster.http_port} --workload-path={workload_path}"
-    assert it.run(cfg, cmd) == 0
+    assert it.run_test(cfg, cmd) == 0
