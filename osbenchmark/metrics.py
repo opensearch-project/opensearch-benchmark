@@ -1155,7 +1155,7 @@ def test_run_store(cfg):
     logger = logging.getLogger(__name__)
     if cfg.opts("reporting", "datastore.type") == "opensearch":
         logger.info("Creating OS test run store")
-        return CompositeTestRunStore(EsTestRunStore(cfg), FileTestRunStore(cfg))
+        return CompositeTestRunStore(OsTestRunStore(cfg), FileTestRunStore(cfg))
     else:
         logger.info("Creating file test-run store")
         return FileTestRunStore(cfg)
@@ -1465,7 +1465,7 @@ class FileTestRunStore(TestRunStore):
         return sorted(test_runs, key=lambda r: r.test_run_timestamp, reverse=True)
 
 
-class EsTestRunStore(TestRunStore):
+class OsTestRunStore(TestRunStore):
     INDEX_PREFIX = "benchmark-test-runs-"
     TEST_RUN_DOC_TYPE = "_doc"
 
@@ -1488,13 +1488,13 @@ class EsTestRunStore(TestRunStore):
         self.client.put_template("benchmark-test-runs", self.index_template_provider.test_runs_template())
         self.client.index(
             index=self.index_name(test_run),
-            doc_type=EsTestRunStore.TEST_RUN_DOC_TYPE,
+            doc_type=OsTestRunStore.TEST_RUN_DOC_TYPE,
             item=doc,
             id=test_run.test_run_id)
 
     def index_name(self, test_run):
         test_run_timestamp = test_run.test_run_timestamp
-        return f"{EsTestRunStore.INDEX_PREFIX}{test_run_timestamp:%Y-%m}"
+        return f"{OsTestRunStore.INDEX_PREFIX}{test_run_timestamp:%Y-%m}"
 
     def list(self):
         filters = [{
@@ -1518,7 +1518,7 @@ class EsTestRunStore(TestRunStore):
                 }
             ]
         }
-        result = self.client.search(index="%s*" % EsTestRunStore.INDEX_PREFIX, body=query)
+        result = self.client.search(index="%s*" % OsTestRunStore.INDEX_PREFIX, body=query)
         hits = result["hits"]["total"]
         # OpenSearch 1.0+
         if isinstance(hits, dict):
@@ -1542,7 +1542,7 @@ class EsTestRunStore(TestRunStore):
                 }
             }
         }
-        result = self.client.search(index="%s*" % EsTestRunStore.INDEX_PREFIX, body=query)
+        result = self.client.search(index="%s*" % OsTestRunStore.INDEX_PREFIX, body=query)
         hits = result["hits"]["total"]
         # OpenSearch 1.0+
         if isinstance(hits, dict):

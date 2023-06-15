@@ -1050,7 +1050,7 @@ class OsTestRunStoreTests(TestCase):
         self.cfg.add(config.Scope.application, "system", "env.name", "unittest-env")
         self.cfg.add(config.Scope.application, "system", "time.start", OsTestRunStoreTests.TEST_RUN_TIMESTAMP)
         self.cfg.add(config.Scope.application, "system", "test_run.id", FileTestRunStoreTests.TEST_RUN_ID)
-        self.test_run_store = metrics.EsTestRunStore(self.cfg,
+        self.test_run_store = metrics.OsTestRunStore(self.cfg,
                                               client_factory_class=MockClientFactory,
                                               index_template_provider_class=DummyIndexTemplateProvider,
                                               )
