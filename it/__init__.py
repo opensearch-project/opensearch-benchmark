@@ -83,8 +83,8 @@ def osbenchmark_command_line_for(cfg, command_line):
 
 def osbenchmark(cfg, command_line):
     """
-    This method should be used for benchmark invocations of the all commands besides test_execution.
-    These commands may have different CLI options than test_execution.
+    This method should be used for benchmark invocations of all commands except for "run".
+    These commands may have different CLI options than "run".
     """
     err, retcode = process.run_subprocess_get_stderr(osbenchmark_command_line_for(cfg, command_line))
     if retcode != 0:
@@ -94,8 +94,8 @@ def osbenchmark(cfg, command_line):
 
 def run_test(cfg, command_line):
     """
-    This method should be used for benchmark invocations of the test_execution command.
-    It sets up some defaults for how the integration tests expect to run test_executions.
+    This method should be used for invocations with the "run" command.
+    It sets up some defaults for how the integration tests expect to run benchmarks.
     """
     return osbenchmark(cfg, f"run {command_line} --kill-running-processes --on-error='abort'")
 
@@ -182,8 +182,8 @@ class TestCluster:
         except BaseException as e:
             raise AssertionError("Failed to install OpenSearch {}.".format(distribution_version), e)
 
-    def start(self, test_execution_id):
-        cmd = "start --runtime-jdk=\"bundled\" --installation-id={} --test-execution-id={}".format(self.installation_id, test_execution_id)
+    def start(self, test_run_id):
+        cmd = "start --runtime-jdk=\"bundled\" --installation-id={} --test-run-id={}".format(self.installation_id, test_run_id)
         if osbenchmark(self.cfg, cmd) != 0:
             raise AssertionError("Failed to start OpenSearch test cluster.")
         opensearch = client.OsClientFactory(hosts=[{"host": "127.0.0.1", "port": self.http_port}], client_options={}).create()
@@ -209,7 +209,7 @@ class OsMetricsStore:
                              node_name="metrics-store",
                              provision_config_instance="defaults",
                              http_port=10200)
-        self.cluster.start(test_execution_id="metrics-store")
+        self.cluster.start(test_run_id="metrics-store")
 
     def stop(self):
         self.cluster.stop()

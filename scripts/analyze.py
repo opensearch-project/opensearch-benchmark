@@ -23,9 +23,9 @@
 # under the License.
 
 # Simple helper script to create graphs based on multiple
-# test_execution.json files (it's a summary of the results of
-# a single test_execution which is
-# stored in ~/.benchmark/benchmarks/test_executions/TEST_EXECUTION_TS/).
+# test_run.json files (it's a summary of the results of
+# a single test_run which is
+# stored in ~/.benchmark/benchmarks/test-runs/TEST_RUN_TS/).
 # There is no specific integration into Benchmark and it is also not
 # installed with Benchmark.
 #
@@ -33,10 +33,10 @@
 #
 #
 # Usage:
-# python3 analyze.py [--label=LABEL] /path1/to/test_execution.json /path2/to/test_execution.json
+# python3 analyze.py [--label=LABEL] /path1/to/test_run.json /path2/to/test_run.json
 #
 # Output: A bunch of .png files in the current directory.
-# Each graph shows one data series per test_execution.
+# Each graph shows one data series per test_run.
 # The label key is chosen based on the
 # command line parameter `--label`
 #
@@ -224,17 +224,17 @@ def plot(raw_data, label_key):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Turns test_execution.json files into graphs")
+    parser = argparse.ArgumentParser(description="Turns test_run.json files into graphs")
 
     parser.add_argument(
         "--label",
-        help="defines which attribute to use for labelling data series (default: test-execution-timestamp).",
-        # choices=["environment", "test-execution-timestamp", "user-tags", "test_procedure", "provision-config-instance"],
-        default="test-execution-timestamp")
+        help="defines which attribute to use for labelling data series (default: test-run-timestamp).",
+        # choices=["environment", "test-run-timestamp", "user-tags", "test_procedure", "provision-config-instance"],
+        default="test-run-timestamp")
 
     parser.add_argument("path",
                         nargs="+",
-                        help="Full path to one or more test_execution.json files")
+                        help="Full path to one or more test_run.json files")
 
     return parser.parse_args()
 

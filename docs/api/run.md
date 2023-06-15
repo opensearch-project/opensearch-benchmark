@@ -64,7 +64,7 @@ Argument | Description | Required
 `provision-config-path` | Define the path to the provision_config_instance and plugin configurations to use. | No
 `provision-config-repository` | Define repository from where Benchmark will load provision_configs and provision_config_instances (default: `default`). | No
 `provision-config-revision` | Define a specific revision in the provision_config repository that Benchmark should use. | No
-`test-execution-id` | Define a unique id for this test_execution. | No
+`test-run-id` | Define a unique id for this test run. | No
 `pipeline` | Select the pipeline to run. | No
 `revision` | Define the source code revision for building the benchmark candidate. 'current' uses the source tree as is, 'latest' fetches the latest version on main. It is also possible to specify a commit id or an ISO timestamp. The timestamp must be specified as: "@ts" where "ts" must be a valid ISO 8601 timestamp, e.g. "@2013-07-27T10:37:00Z" (default: `current`). | No
 `workload-repository` | Define the repository from where Benchmark will load workloads (default: `default`). | No

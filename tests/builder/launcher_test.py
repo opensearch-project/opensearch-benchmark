@@ -295,7 +295,7 @@ class ProcessLauncherTests(TestCase):
         self.assertEqual(os.environ["OPENSEARCH_JAVA_OPTS"], env["OPENSEARCH_JAVA_OPTS"])
 
     @mock.patch("osbenchmark.time.sleep")
-    def test_pidfile_wait_test_execution(self, sleep):
+    def test_pidfile_wait_test_run(self, sleep):
         mo = mock_open()
         with self.assertRaises(exceptions.LaunchError):
             mo.side_effect = FileNotFoundError

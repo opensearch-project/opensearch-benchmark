@@ -35,11 +35,11 @@ def test_cluster():
     # test with a recent distribution
     dist = it.DISTRIBUTIONS[-1]
     port = 19200
-    test_execution_id = str(uuid.uuid4())
+    test_run_id = str(uuid.uuid4())
 
     it.wait_until_port_is_free(port_number=port)
     cluster.install(distribution_version=dist, node_name="benchmark-node", provision_config_instance="4gheap", http_port=port)
-    cluster.start(test_execution_id=test_execution_id)
+    cluster.start(test_run_id=test_run_id)
     yield cluster
     cluster.stop()
 

@@ -48,15 +48,15 @@ color_scheme_rgba = [
 ]
 
 
-def index_label(test_execution_config):
-    if test_execution_config.label:
-        return test_execution_config.label
+def index_label(test_run_config):
+    if test_run_config.label:
+        return test_run_config.label
 
-    label = "%s-%s" % (test_execution_config.test_procedure, test_execution_config.provision_config_instance)
-    if test_execution_config.plugins:
-        label += "-%s" % test_execution_config.plugins.replace(":", "-").replace(",", "+")
-    if test_execution_config.node_count > 1:
-        label += " (%d nodes)" % test_execution_config.node_count
+    label = "%s-%s" % (test_run_config.test_procedure, test_run_config.provision_config_instance)
+    if test_run_config.plugins:
+        label += "-%s" % test_run_config.plugins.replace(":", "-").replace(",", "+")
+    if test_run_config.node_count > 1:
+        label += " (%d nodes)" % test_run_config.node_count
     return label
 
 
@@ -90,7 +90,7 @@ class BarCharts:
                    f" AND node-count:{test_ex_config.node_count}"
 
     @staticmethod
-    def gc(title, environment, test_execution_config):
+    def gc(title, environment, test_run_config):
         vis_state = {
             "title": title,
             "type": "histogram",
@@ -249,7 +249,7 @@ class BarCharts:
             "index": "benchmark-results-*",
             "query": {
                 "query_string": {
-                    "query": BarCharts.filter_string(environment, test_execution_config),
+                    "query": BarCharts.filter_string(environment, test_run_config),
                     "analyze_wildcard": True
                 }
             },
@@ -272,7 +272,7 @@ class BarCharts:
         }
 
     @staticmethod
-    def io(title, environment, test_execution_config):
+    def io(title, environment, test_run_config):
         vis_state = {
             "title": title,
             "type": "histogram",
@@ -428,7 +428,7 @@ class BarCharts:
             "index": "benchmark-results-*",
             "query": {
                 "query_string": {
-                    "query": BarCharts.filter_string(environment, test_execution_config),
+                    "query": BarCharts.filter_string(environment, test_run_config),
                     "analyze_wildcard": True
                 }
             },
@@ -451,17 +451,17 @@ class BarCharts:
         }
 
     @staticmethod
-    def segment_memory(title, environment, test_execution_config):
+    def segment_memory(title, environment, test_run_config):
         # don't generate segment memory charts for releases
         return None
 
     @staticmethod
-    def query(environment, test_execution_config, q):
+    def query(environment, test_run_config, q):
         metric = "service_time"
         title = BarCharts.format_title(
             environment,
-            test_execution_config.workload,
-            suffix="%s-%s-p99-%s" % (test_execution_config.label,
+            test_run_config.workload,
+            suffix="%s-%s-p99-%s" % (test_run_config.label,
             q,
             metric))
         label = "Query Service Time [ms]"
@@ -596,7 +596,7 @@ class BarCharts:
                         q,
                         BarCharts.filter_string(
                             environment,
-                            test_execution_config)),
+                            test_run_config)),
                     "analyze_wildcard": True
                 }
             },
@@ -619,18 +619,18 @@ class BarCharts:
         }
 
     @staticmethod
-    def index(environment, test_execution_configs, title):
+    def index(environment, test_run_configs, title):
         filters = []
-        for test_execution_config in test_execution_configs:
-            label = index_label(test_execution_config)
+        for test_run_config in test_run_configs:
+            label = index_label(test_run_config)
             # the assumption is that we only have one bulk task
-            for bulk_task in test_execution_config.bulk_tasks:
+            for bulk_task in test_run_config.bulk_tasks:
                 filters.append({
                     "input": {
                         "query": {
                             "query_string": {
                                 "analyze_wildcard": True,
-                                "query": "task:\"%s\" AND %s" % (bulk_task, BarCharts.filter_string(environment, test_execution_config))
+                                "query": "task:\"%s\" AND %s" % (bulk_task, BarCharts.filter_string(environment, test_run_config))
                             }
                         }
                     },
@@ -880,7 +880,7 @@ class TimeSeriesCharts:
                 "show_legend": 1,
                 "show_grid": 1,
                 "drop_last_bucket": 0,
-                "time_field": "test-execution-timestamp",
+                "time_field": "test-run-timestamp",
                 "type": "timeseries",
                 "filter": TimeSeriesCharts.filter_string(environment, test_ex_config),
                 "annotations": [
@@ -893,7 +893,7 @@ class TimeSeriesCharts:
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
-                        "time_field": "test-execution-timestamp",
+                        "time_field": "test-run-timestamp",
                         "icon": "fa-tag",
                         "ignore_panel_filters": 1
                     }
@@ -920,7 +920,7 @@ class TimeSeriesCharts:
         }
 
     @staticmethod
-    def merge_time(title, environment, test_execution_config):
+    def merge_time(title, environment, test_run_config):
         vis_state = {
             "title": title,
             "type": "metrics",
@@ -973,20 +973,20 @@ class TimeSeriesCharts:
                 "show_legend": 1,
                 "show_grid": 1,
                 "drop_last_bucket": 0,
-                "time_field": "test-execution-timestamp",
+                "time_field": "test-run-timestamp",
                 "type": "timeseries",
-                "filter": TimeSeriesCharts.filter_string(environment, test_execution_config),
+                "filter": TimeSeriesCharts.filter_string(environment, test_run_config),
                 "annotations": [
                     {
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "benchmark-annotations",
-                        "query_string": f"((NOT _exists_:workload) OR workload:\"{test_execution_config.workload}\") "
+                        "query_string": f"((NOT _exists_:workload) OR workload:\"{test_run_config.workload}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:merge_times) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
-                        "time_field": "test-execution-timestamp",
+                        "time_field": "test-run-timestamp",
                         "icon": "fa-tag",
                         "ignore_panel_filters": 1
                     }
@@ -1013,7 +1013,7 @@ class TimeSeriesCharts:
         }
 
     @staticmethod
-    def merge_count(title, environment, test_execution_config):
+    def merge_count(title, environment, test_run_config):
         vis_state = {
             "title": title,
             "type": "metrics",
@@ -1060,20 +1060,20 @@ class TimeSeriesCharts:
                 "show_legend": 1,
                 "show_grid": 1,
                 "drop_last_bucket": 0,
-                "time_field": "test-execution-timestamp",
+                "time_field": "test-run-timestamp",
                 "type": "timeseries",
-                "filter": TimeSeriesCharts.filter_string(environment, test_execution_config),
+                "filter": TimeSeriesCharts.filter_string(environment, test_run_config),
                 "annotations": [
                     {
                         "fields": "message",
                         "template": "{{message}}",
                         "index_pattern": "benchmark-annotations",
-                        "query_string": f"((NOT _exists_:workload) OR workload:\"{test_execution_config.workload}\") "
+                        "query_string": f"((NOT _exists_:workload) OR workload:\"{test_run_config.workload}\") "
                                         f"AND ((NOT _exists_:chart) OR chart:merge_count) "
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
-                        "time_field": "test-execution-timestamp",
+                        "time_field": "test-run-timestamp",
                         "icon": "fa-tag",
                         "ignore_panel_filters": 1
                     }
@@ -1153,7 +1153,7 @@ class TimeSeriesCharts:
                 "show_legend": 1,
                 "show_grid": 1,
                 "drop_last_bucket": 0,
-                "time_field": "test-execution-timestamp",
+                "time_field": "test-run-timestamp",
                 "type": "timeseries",
                 "filter": TimeSeriesCharts.filter_string(environment, test_ex_config),
                 "annotations": [
@@ -1166,7 +1166,7 @@ class TimeSeriesCharts:
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
-                        "time_field": "test-execution-timestamp",
+                        "time_field": "test-run-timestamp",
                         "icon": "fa-tag",
                         "ignore_panel_filters": 1
                     }
@@ -1268,7 +1268,7 @@ class TimeSeriesCharts:
                     }
                 ],
                 "show_legend": 1,
-                "time_field": "test-execution-timestamp",
+                "time_field": "test-run-timestamp",
                 "type": "timeseries",
                 "filter": TimeSeriesCharts.filter_string(environment, test_ex_config),
                 "annotations": [
@@ -1281,7 +1281,7 @@ class TimeSeriesCharts:
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
-                        "time_field": "test-execution-timestamp",
+                        "time_field": "test-run-timestamp",
                         "icon": "fa-tag",
                         "ignore_panel_filters": 1
                     }
@@ -1418,7 +1418,7 @@ class TimeSeriesCharts:
                         "value_template": "{{value}} ms",
                     }
                 ],
-                "time_field": "test-execution-timestamp",
+                "time_field": "test-run-timestamp",
                 "index_pattern": "benchmark-results-*",
                 "interval": "1d",
                 "axis_position": "left",
@@ -1443,7 +1443,7 @@ class TimeSeriesCharts:
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
-                        "time_field": "test-execution-timestamp",
+                        "time_field": "test-run-timestamp",
                         "icon": "fa-tag",
                         "ignore_panel_filters": 1
                     }
@@ -1469,16 +1469,16 @@ class TimeSeriesCharts:
         }
 
     @staticmethod
-    def index(environment, test_execution_configs, title):
+    def index(environment, test_run_configs, title):
         filters = []
-        # any test_execution_config will do - they all belong to the same workload
-        t = test_execution_configs[0].workload
-        for idx, test_execution_config in enumerate(test_execution_configs):
-            label = index_label(test_execution_config)
-            for bulk_task in test_execution_config.bulk_tasks:
+        # any test_run_config will do - they all belong to the same workload
+        t = test_run_configs[0].workload
+        for idx, test_run_config in enumerate(test_run_configs):
+            label = index_label(test_run_config)
+            for bulk_task in test_run_config.bulk_tasks:
                 filters.append(
                     {
-                        "filter": "task:\"%s\" AND %s" % (bulk_task, TimeSeriesCharts.filter_string(environment, test_execution_config)),
+                        "filter": "task:\"%s\" AND %s" % (bulk_task, TimeSeriesCharts.filter_string(environment, test_run_config)),
                         "label": label,
                         "color": color_scheme_rgba[idx % len(color_scheme_rgba)],
                         "id": str(uuid.uuid4())
@@ -1524,7 +1524,7 @@ class TimeSeriesCharts:
                 "show_legend": 1,
                 "show_grid": 1,
                 "drop_last_bucket": 0,
-                "time_field": "test-execution-timestamp",
+                "time_field": "test-run-timestamp",
                 "type": "timeseries",
                 "filter": "environment:\"%s\" AND workload:\"%s\" AND name:\"throughput\" AND active:true" % (environment, t),
                 "annotations": [
@@ -1537,7 +1537,7 @@ class TimeSeriesCharts:
                                         f"AND ((NOT _exists_:chart-name) OR chart-name:\"{title}\") AND environment:\"{environment}\"",
                         "id": str(uuid.uuid4()),
                         "color": "rgba(102,102,102,1)",
-                        "time_field": "test-execution-timestamp",
+                        "time_field": "test-run-timestamp",
                         "icon": "fa-tag",
                         "ignore_panel_filters": 1
                     }
@@ -1563,7 +1563,7 @@ class TimeSeriesCharts:
         }
 
 
-class TestExecutionConfigWorkload:
+class TestRunConfigWorkload:
     def __init__(self, cfg, repository, name=None):
         self.repository = repository
         self.cached_workload = self.load_workload(cfg, name=name)
@@ -1578,7 +1578,7 @@ class TestExecutionConfigWorkload:
         if name:
             cfg.add(config.Scope.applicationOverride, "workload", "repository.name", self.repository)
             cfg.add(config.Scope.applicationOverride, "workload", "workload.name", name)
-        # another hack to ensure any workload-params in the test_execution config are used by Benchmark's workload loader
+        # another hack to ensure any workload-params in the test_run config are used by Benchmark's workload loader
         cfg.add(config.Scope.applicationOverride, "workload", "params", params)
         if excluded_tasks:
             cfg.add(config.Scope.application, "workload", "exclude.tasks", excluded_tasks)
@@ -1591,87 +1591,87 @@ class TestExecutionConfigWorkload:
         return self.cached_workload
 
 
-def generate_index_ops(chart_type, test_execution_configs, environment, logger):
-    idx_test_execution_configs = list(filter(lambda c: "indexing" in c.charts, test_execution_configs))
-    for test_execution_conf in idx_test_execution_configs:
-        logger.debug("Gen index visualization for test_execution config with name:[%s] / label:[%s] / flavor: [%s] / license: [%s]",
-                     test_execution_conf.name,
-                     test_execution_conf.label,
-                     test_execution_conf.flavor,
-                     test_execution_conf.os_license)
+def generate_index_ops(chart_type, test_run_configs, environment, logger):
+    idx_test_run_configs = list(filter(lambda c: "indexing" in c.charts, test_run_configs))
+    for test_run_conf in idx_test_run_configs:
+        logger.debug("Gen index visualization for test_run config with name:[%s] / label:[%s] / flavor: [%s] / license: [%s]",
+                     test_run_conf.name,
+                     test_run_conf.label,
+                     test_run_conf.flavor,
+                     test_run_conf.os_license)
     charts = []
 
-    if idx_test_execution_configs:
+    if idx_test_run_configs:
         title = chart_type.format_title(
             environment,
-            test_execution_configs[0].workload,
-            flavor=test_execution_configs[0].flavor,
+            test_run_configs[0].workload,
+            flavor=test_run_configs[0].flavor,
             suffix="indexing-throughput")
-        charts = [chart_type.index(environment, idx_test_execution_configs, title)]
+        charts = [chart_type.index(environment, idx_test_run_configs, title)]
     return charts
 
 
-def generate_queries(chart_type, test_execution_configs, environment):
+def generate_queries(chart_type, test_run_configs, environment):
     # output JSON structures
     structures = []
 
-    for test_execution_config in test_execution_configs:
-        if "query" in test_execution_config.charts:
-            for q in test_execution_config.throttled_tasks:
-                structures.append(chart_type.query(environment, test_execution_config, q))
+    for test_run_config in test_run_configs:
+        if "query" in test_run_config.charts:
+            for q in test_run_config.throttled_tasks:
+                structures.append(chart_type.query(environment, test_run_config, q))
     return structures
 
 
-def generate_io(chart_type, test_execution_configs, environment):
+def generate_io(chart_type, test_run_configs, environment):
     # output JSON structures
     structures = []
-    for test_execution_config in test_execution_configs:
-        if "io" in test_execution_config.charts:
-            title = chart_type.format_title(environment, test_execution_config.workload, os_license=test_execution_config.os_license,
-                                            suffix="%s-io" % test_execution_config.label)
-            structures.append(chart_type.io(title, environment, test_execution_config))
+    for test_run_config in test_run_configs:
+        if "io" in test_run_config.charts:
+            title = chart_type.format_title(environment, test_run_config.workload, os_license=test_run_config.os_license,
+                                            suffix="%s-io" % test_run_config.label)
+            structures.append(chart_type.io(title, environment, test_run_config))
 
     return structures
 
 
-def generate_gc(chart_type, test_execution_configs, environment):
+def generate_gc(chart_type, test_run_configs, environment):
     structures = []
-    for test_execution_config in test_execution_configs:
-        if "gc" in test_execution_config.charts:
-            title = chart_type.format_title(environment, test_execution_config.workload, os_license=test_execution_config.os_license,
-                                            suffix="%s-gc" % test_execution_config.label)
-            structures.append(chart_type.gc(title, environment, test_execution_config))
+    for test_run_config in test_run_configs:
+        if "gc" in test_run_config.charts:
+            title = chart_type.format_title(environment, test_run_config.workload, os_license=test_run_config.os_license,
+                                            suffix="%s-gc" % test_run_config.label)
+            structures.append(chart_type.gc(title, environment, test_run_config))
 
     return structures
 
-def generate_merge_time(chart_type, test_execution_configs, environment):
+def generate_merge_time(chart_type, test_run_configs, environment):
     structures = []
-    for test_execution_config in test_execution_configs:
-        if "merge_times" in test_execution_config.charts:
-            title = chart_type.format_title(environment, test_execution_config.workload, os_license=test_execution_config.os_license,
-                                            suffix=f"{test_execution_config.label}-merge-times")
-            structures.append(chart_type.merge_time(title, environment, test_execution_config))
+    for test_run_config in test_run_configs:
+        if "merge_times" in test_run_config.charts:
+            title = chart_type.format_title(environment, test_run_config.workload, os_license=test_run_config.os_license,
+                                            suffix=f"{test_run_config.label}-merge-times")
+            structures.append(chart_type.merge_time(title, environment, test_run_config))
 
     return structures
 
-def generate_merge_count(chart_type, test_execution_configs, environment):
+def generate_merge_count(chart_type, test_run_configs, environment):
     structures = []
-    for test_execution_config in test_execution_configs:
-        if "merge_count" in test_execution_config.charts:
-            title = chart_type.format_title(environment, test_execution_config.workload, os_license=test_execution_config.os_license,
-                                            suffix=f"{test_execution_config.label}-merge-count")
-            structures.append(chart_type.merge_count(title, environment, test_execution_config))
+    for test_run_config in test_run_configs:
+        if "merge_count" in test_run_config.charts:
+            title = chart_type.format_title(environment, test_run_config.workload, os_license=test_run_config.os_license,
+                                            suffix=f"{test_run_config.label}-merge-count")
+            structures.append(chart_type.merge_count(title, environment, test_run_config))
 
     return structures
 
 
-def generate_segment_memory(chart_type, test_execution_configs, environment):
+def generate_segment_memory(chart_type, test_run_configs, environment):
     structures = []
-    for test_execution_config in test_execution_configs:
-        if "segment_memory" in test_execution_config.charts:
-            title = chart_type.format_title(environment, test_execution_config.workload, os_license=test_execution_config.os_license,
-                                            suffix="%s-segment-memory" % test_execution_config.label)
-            chart = chart_type.segment_memory(title, environment, test_execution_config)
+    for test_run_config in test_run_configs:
+        if "segment_memory" in test_run_config.charts:
+            title = chart_type.format_title(environment, test_run_config.workload, os_license=test_run_config.os_license,
+                                            suffix="%s-segment-memory" % test_run_config.label)
+            chart = chart_type.segment_memory(title, environment, test_run_config)
             if chart:
                 structures.append(chart)
     return structures
@@ -1750,7 +1750,7 @@ def generate_dashboard(chart_type, environment, workload, charts, flavor=None):
     }
 
 
-class TestExecutionConfig:
+class TestRunConfig:
     def __init__(self, workload, cfg=None, flavor=None, os_license=None, \
         test_procedure=None, provision_config_instance=None, node_count=None,\
              charts=None):
@@ -1831,90 +1831,90 @@ class TestExecutionConfig:
         return task_names
 
 
-def load_test_execution_configs(cfg, chart_type, chart_spec_path=None):
-    def add_configs(test_execution_configs_per_lic, flavor_name="oss", lic="oss", workload_name=None):
+def load_test_run_configs(cfg, chart_type, chart_spec_path=None):
+    def add_configs(test_run_configs_per_lic, flavor_name="oss", lic="oss", workload_name=None):
         configs_per_lic = []
-        for test_execution_config in test_execution_configs_per_lic:
+        for test_run_config in test_run_configs_per_lic:
             excluded_tasks = None
-            if "exclude-tasks" in test_execution_config:
-                excluded_tasks = test_execution_config.get("exclude-tasks").split(",")
+            if "exclude-tasks" in test_run_config:
+                excluded_tasks = test_run_config.get("exclude-tasks").split(",")
             configs_per_lic.append(
-                TestExecutionConfig(workload=test_execution_config_workload.get_workload(cfg, name=workload_name,
-                                                             params=test_execution_config.get("workload-params", {}),
+                TestRunConfig(workload=test_run_config_workload.get_workload(cfg, name=workload_name,
+                                                             params=test_run_config.get("workload-params", {}),
                                                              excluded_tasks=excluded_tasks),
-                           cfg=test_execution_config,
+                           cfg=test_run_config,
                            flavor=flavor_name,
                            os_license=lic)
             )
         return configs_per_lic
 
-    def add_test_execution_configs(license_configs, flavor_name, workload_name):
+    def add_test_run_configs(license_configs, flavor_name, workload_name):
         if chart_type == BarCharts:
             # Only one license config, "basic", is present in bar charts
             _lic_conf = [license_config["configurations"] for license_config in license_configs if license_config["name"] == "basic"]
             if _lic_conf:
-                test_execution_configs_per_workload.extend(add_configs(_lic_conf[0], workload_name=workload_name))
+                test_run_configs_per_workload.extend(add_configs(_lic_conf[0], workload_name=workload_name))
         else:
             for lic_config in license_configs:
-                test_execution_configs_per_workload.extend(add_configs(lic_config["configurations"],
+                test_run_configs_per_workload.extend(add_configs(lic_config["configurations"],
                                                           flavor_name,
                                                           lic_config["name"],
                                                           workload_name))
 
-    test_execution_configs = {"oss": [], "default": []}
+    test_run_configs = {"oss": [], "default": []}
     if chart_type == BarCharts:
-        test_execution_configs = []
+        test_run_configs = []
 
     for _workload_file in glob.glob(io.normalize_path(chart_spec_path)):
         with open(_workload_file, mode="rt", encoding="utf-8") as f:
             for item in json.load(f):
                 _workload_repository = item.get("workload-repository", "default")
-                test_execution_config_workload = TestExecutionConfigWorkload(cfg, _workload_repository, name=item["workload"])
+                test_run_config_workload = TestRunConfigWorkload(cfg, _workload_repository, name=item["workload"])
                 for flavor in item["flavors"]:
-                    test_execution_configs_per_workload = []
+                    test_run_configs_per_workload = []
                     _flavor_name = flavor["name"]
                     _workload_name = item["workload"]
-                    add_test_execution_configs(flavor["licenses"], _flavor_name, _workload_name)
+                    add_test_run_configs(flavor["licenses"], _flavor_name, _workload_name)
 
-                    if test_execution_configs_per_workload:
+                    if test_run_configs_per_workload:
                         if chart_type == BarCharts:
-                            test_execution_configs.append(test_execution_configs_per_workload)
+                            test_run_configs.append(test_run_configs_per_workload)
                         else:
-                            test_execution_configs[_flavor_name].append(test_execution_configs_per_workload)
-    return test_execution_configs
+                            test_run_configs[_flavor_name].append(test_run_configs_per_workload)
+    return test_run_configs
 
 
-def gen_charts_per_workload_configs(test_execution_configs, chart_type, env, flavor=None, logger=None):
-    charts = generate_index_ops(chart_type, test_execution_configs, env, logger) + \
-             generate_io(chart_type, test_execution_configs, env) + \
-             generate_gc(chart_type, test_execution_configs, env) + \
-             generate_merge_time(chart_type, test_execution_configs, env) + \
-             generate_merge_count(chart_type, test_execution_configs, env) + \
-             generate_segment_memory(chart_type, test_execution_configs, env) + \
-             generate_queries(chart_type, test_execution_configs, env)
+def gen_charts_per_workload_configs(test_run_configs, chart_type, env, flavor=None, logger=None):
+    charts = generate_index_ops(chart_type, test_run_configs, env, logger) + \
+             generate_io(chart_type, test_run_configs, env) + \
+             generate_gc(chart_type, test_run_configs, env) + \
+             generate_merge_time(chart_type, test_run_configs, env) + \
+             generate_merge_count(chart_type, test_run_configs, env) + \
+             generate_segment_memory(chart_type, test_run_configs, env) + \
+             generate_queries(chart_type, test_run_configs, env)
 
-    dashboard = generate_dashboard(chart_type, env, test_execution_configs[0].workload, charts, flavor)
+    dashboard = generate_dashboard(chart_type, env, test_run_configs[0].workload, charts, flavor)
 
     return charts, dashboard
 
 
-def gen_charts_per_workload(test_execution_configs, chart_type, env, flavor=None, logger=None):
+def gen_charts_per_workload(test_run_configs, chart_type, env, flavor=None, logger=None):
     structures = []
-    for test_execution_configs_per_workload in test_execution_configs:
-        charts, dashboard = gen_charts_per_workload_configs(test_execution_configs_per_workload, chart_type, env, flavor, logger)
+    for test_run_configs_per_workload in test_run_configs:
+        charts, dashboard = gen_charts_per_workload_configs(test_run_configs_per_workload, chart_type, env, flavor, logger)
         structures.extend(charts)
         structures.append(dashboard)
 
     return structures
 
 
-def gen_charts_from_workload_combinations(test_execution_configs, chart_type, env, logger):
+def gen_charts_from_workload_combinations(test_run_configs, chart_type, env, logger):
     structures = []
-    for flavor, test_execution_configs_per_flavor in test_execution_configs.items():
-        for test_execution_configs_per_workload in test_execution_configs_per_flavor:
-            logger.debug("Generating charts for test_execution_configs with name:[%s]/flavor:[%s]",
-                         test_execution_configs_per_workload[0].name, flavor)
-            charts, dashboard = gen_charts_per_workload_configs(test_execution_configs_per_workload, chart_type, env, flavor, logger)
+    for flavor, test_run_configs_per_flavor in test_run_configs.items():
+        for test_run_configs_per_workload in test_run_configs_per_flavor:
+            logger.debug("Generating charts for test_run_configs with name:[%s]/flavor:[%s]",
+                         test_run_configs_per_workload[0].name, flavor)
+            charts, dashboard = gen_charts_per_workload_configs(test_run_configs_per_workload, chart_type, env, flavor, logger)
 
             structures.extend(charts)
             structures.append(dashboard)
@@ -1932,7 +1932,7 @@ def generate(cfg):
         chart_type = BarCharts
 
     console.info("Loading workload data...", flush=True)
-    test_execution_configs = load_test_execution_configs(cfg, chart_type, chart_spec_path)
+    test_run_configs = load_test_run_configs(cfg, chart_type, chart_spec_path)
     env = cfg.opts("system", "env.name")
 
     structures = []
@@ -1940,9 +1940,9 @@ def generate(cfg):
 
     if chart_type == BarCharts:
         # bar charts are flavor agnostic and split results based on a separate `user.setup` field
-        structures = gen_charts_per_workload(test_execution_configs, chart_type, env, logger=logger)
+        structures = gen_charts_per_workload(test_run_configs, chart_type, env, logger=logger)
     elif chart_type == TimeSeriesCharts:
-        structures = gen_charts_from_workload_combinations(test_execution_configs, chart_type, env, logger)
+        structures = gen_charts_from_workload_combinations(test_run_configs, chart_type, env, logger)
 
     output_path = cfg.opts("generator", "output.path")
     if output_path:
