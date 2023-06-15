@@ -39,16 +39,16 @@ Install Python 3.8+ including ``pip3``, git 1.9+ and an [appropriate JDK to run 
 
 If you have any trouble or need more detailed instructions, please look in the [detailed installation guide](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>).
 
-Run your first test execution
+Run your first test run
 -----------------------------
 
-Now we're ready to run our first test execution:
+Now we're ready to run our first test run:
 
     opensearch-benchmark run --distribution-version=1.0.0 --workload=geonames --test-mode
 
 This will download OpenSearch 1.0.0 and run one of OpenSearch Benchmark's official workloads - the [geonames workload](<https://github.com/opensearch-project/opensearch-benchmark-workloads/tree/main/geonames>) - against it.
-Note that this uses the `--test-mode` argument to only run a single instance of each operation in order to reduce the time needed for a test execution. This argument is used as a sanity check and should be removed in an actual benchmarking scenario.
-After the test execution, a summary report is written to the command line:
+Note that this uses the `--test-mode` argument to only run a single instance of each operation in order to reduce the time needed for a test run. This argument is used as a sanity check and should be removed in an actual benchmarking scenario.
+After the test run, a summary report is written to the command line:
 
     ------------------------------------------------------
         _______             __   _____

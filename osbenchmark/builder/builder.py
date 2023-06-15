@@ -368,7 +368,7 @@ class BuilderActor(actor.BenchmarkActor):
             self.on_all_nodes_started()
             self.status = "cluster_started"
         else:
-            console.info("Preparing for test execution ...", flush=True)
+            console.info("Preparing for test run ...", flush=True)
             self.logger.info("Cluster consisting of %s will be provisioned by Benchmark.", hosts)
             msg.hosts = hosts
             # Initialize the children array to have the right size to

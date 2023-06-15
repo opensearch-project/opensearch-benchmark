@@ -25,7 +25,7 @@ class Installer(ABC):
     @abstractmethod
     def cleanup(self, host):
         """
-        Removes the data that was downloaded, installed, and created on a given host during the test execution
+        Removes the data that was downloaded, installed, and created on a given host during the test run
 
         ;param host: A Host object defining the host on which to remove the data
         ;return None

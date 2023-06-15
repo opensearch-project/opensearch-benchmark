@@ -387,8 +387,8 @@ class MetricsStore:
         """
         Opens a metrics store for a specific test_run, workload, test_procedure and provision_config_instance.
 
-        :param test_ex_id: The test execution id. This attribute is sufficient to uniquely identify a test_run.
-        :param test_ex_timestamp: The test execution timestamp as a datetime.
+        :param test_ex_id: The test run id. This attribute is sufficient to uniquely identify a test_run.
+        :param test_ex_timestamp: The test run timestamp as a datetime.
         :param workload_name: Workload name.
         :param test_procedure_name: TestProcedure name.
         :param provision_config_instance_name: ProvisionConfigInstance name.
@@ -415,7 +415,7 @@ class MetricsStore:
             if isinstance(self._provision_config_instance, list) \
                 else self._provision_config_instance
 
-        self.logger.info("Opening metrics store for test execution timestamp=[%s], workload=[%s],"
+        self.logger.info("Opening metrics store for test run timestamp=[%s], workload=[%s],"
         "test_procedure=[%s], provision_config_instance=[%s]",
                          self._test_run_timestamp, self._workload, self._test_procedure, self._provision_config_instance)
 
@@ -423,7 +423,7 @@ class MetricsStore:
         for k, v in user_tags.items():
             # prefix user tag with "tag_" in order to avoid clashes with our internal meta data
             self.add_meta_info(MetaInfoScope.cluster, None, "tag_%s" % k, v)
-        # Don't store it for each metrics record as it's probably sufficient on test execution level
+        # Don't store it for each metrics record as it's probably sufficient on test run level
         # self.add_meta_info(MetaInfoScope.cluster, None, "benchmark_version", version.version())
         self._stop_watch.start()
         self.opened = True
@@ -844,7 +844,7 @@ class OsMetricsStore(MetricsStore):
             sw.start()
             self._client.bulk_index(index=self._index, doc_type=OsMetricsStore.METRICS_DOC_TYPE, items=self._docs)
             sw.stop()
-            self.logger.info("Successfully added %d metrics documents for test execution timestamp=[%s], workload=[%s], "
+            self.logger.info("Successfully added %d metrics documents for test run timestamp=[%s], workload=[%s], "
                              "test_procedure=[%s], provision_config_instance=[%s] in [%f] seconds.",
                              len(self._docs), self._test_run_timestamp,
                              self._workload, self._test_procedure, self._provision_config_instance, sw.total_time())
@@ -1154,7 +1154,7 @@ def test_run_store(cfg):
     """
     logger = logging.getLogger(__name__)
     if cfg.opts("reporting", "datastore.type") == "opensearch":
-        logger.info("Creating OS test execution store")
+        logger.info("Creating OS test run store")
         return CompositeTestRunStore(EsTestRunStore(cfg), FileTestRunStore(cfg))
     else:
         logger.info("Creating file test-run store")
@@ -1247,7 +1247,7 @@ class TestRun:
                  revision=None, results=None, meta_data=None):
         if results is None:
             results = {}
-        # this happens when the test execution is created initially
+        # this happens when the test run is created initially
         if meta_data is None:
             meta_data = {}
             if workload:
@@ -1294,7 +1294,7 @@ class TestRun:
 
     def as_dict(self):
         """
-        :return: A dict representation suitable for persisting this test execution instance as JSON.
+        :return: A dict representation suitable for persisting this test run instance as JSON.
         """
         d = {
             "benchmark-version": self.benchmark_version,
@@ -1329,7 +1329,7 @@ class TestRun:
 
     def to_result_dicts(self):
         """
-        :return: a list of dicts, suitable for persisting the results of this test execution in a format that is Kibana-friendly.
+        :return: a list of dicts, suitable for persisting the results of this test run in a format that is Kibana-friendly.
         """
         result_template = {
             "benchmark-version": self.benchmark_version,
@@ -1408,11 +1408,11 @@ class TestRunStore:
 # Does not inherit from TestRunStore as it is only a delegator with the same API.
 class CompositeTestRunStore:
     """
-    Internal helper class to store test executions as file and to OpenSearch in case users
-    want OpenSearch as a test executions store.
+    Internal helper class to store test runs as file and to OpenSearch in case users
+    want OpenSearch as a test runs store.
 
     It provides the same API as TestRunStore. It delegates writes to all stores
-    and all read operations only the OpenSearch test execution store.
+    and all read operations only the OpenSearch test run store.
     """
     def __init__(self, os_store, file_store):
         self.os_store = os_store
@@ -1451,7 +1451,7 @@ class FileTestRunStore(TestRunStore):
             test_runs = self._to_test_runs([test_run_file])
             if test_runs:
                 return test_runs[0]
-        raise exceptions.NotFound("No test execution with test execution id [{}]".format(test_run_id))
+        raise exceptions.NotFound("No test run with test run id [{}]".format(test_run_id))
 
     def _to_test_runs(self, results):
         test_runs = []
@@ -1551,7 +1551,7 @@ class EsTestRunStore(TestRunStore):
             return TestRun.from_dict(result["hits"]["hits"][0]["_source"])
         elif hits > 1:
             raise exceptions.BenchmarkAssertionError(
-                "Expected one test execution to match test ex id [{}] but there were [{}] matches.".format(test_run_id, hits))
+                "Expected one test run to match test run id [{}] but there were [{}] matches.".format(test_run_id, hits))
         else:
             raise exceptions.NotFound("No test-run with test-run id [{}]".format(test_run_id))
 

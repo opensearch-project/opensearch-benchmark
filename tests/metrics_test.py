@@ -1723,7 +1723,7 @@ class FileTestRunStoreTests(TestCase):
         self.test_run_store = metrics.FileTestRunStore(self.cfg)
 
     def test_test_run_not_found(self):
-        with self.assertRaisesRegex(exceptions.NotFound, r"No test execution with test execution id \[.*\]"):
+        with self.assertRaisesRegex(exceptions.NotFound, r"No test run with test run id \[.*\]"):
             # did not store anything yet
             self.test_run_store.find_by_test_run_id(FileTestRunStoreTests.TEST_RUN_ID)
 

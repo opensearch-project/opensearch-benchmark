@@ -275,7 +275,7 @@ def run_test(cfg, sources=False, distribution=False, external=False, docker=Fals
             raise exceptions.BenchmarkError("Got an unexpected result during benchmarking: [%s]." % str(result))
     except KeyboardInterrupt:
         logger.info("User has cancelled the benchmark (detected by test run orchestrator).")
-        # notify the coordinator so it can properly handle this state. Do it blocking so we don't have a test execution between this message
+        # notify the coordinator so it can properly handle this state. Do it blocking so we don't have a test run between this message
         # and the actor exit request.
         actor_system.ask(benchmark_actor, actor.BenchmarkCancelled())
     finally:
@@ -346,7 +346,7 @@ def run(cfg):
     logger = logging.getLogger(__name__)
     name = cfg.opts("test_run", "pipeline")
     test_run_id = cfg.opts("system", "test_run.id")
-    logger.info("Test Execution id [%s]", test_run_id)
+    logger.info("test run id [%s]", test_run_id)
     if len(name) == 0:
         # assume from-distribution pipeline if distribution.version has been specified and --pipeline cli arg not set
         if cfg.exists("builder", "distribution.version"):
