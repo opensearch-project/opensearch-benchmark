@@ -2362,7 +2362,7 @@ class TestIndexTemplateProvider:
 
         templates = [
             _index_template_provider.metrics_template(),
-            _index_template_provider.test_executions_template(),
+            _index_template_provider.test_runs_template(),
             _index_template_provider.results_template(),
         ]
 
@@ -2382,7 +2382,7 @@ class TestIndexTemplateProvider:
 
         templates = [
             _index_template_provider.metrics_template(),
-            _index_template_provider.test_executions_template(),
+            _index_template_provider.test_runs_template(),
             _index_template_provider.results_template(),
         ]
 
@@ -2404,7 +2404,7 @@ class TestIndexTemplateProvider:
 
         templates = [
             _index_template_provider.metrics_template(),
-            _index_template_provider.test_executions_template(),
+            _index_template_provider.test_runs_template(),
             _index_template_provider.results_template(),
         ]
 
@@ -2427,7 +2427,7 @@ class TestIndexTemplateProvider:
             # pylint: disable=unused-variable
             templates = [
                 _index_template_provider.metrics_template(),
-                _index_template_provider.test_executions_template(),
+                _index_template_provider.test_runs_template(),
                 _index_template_provider.results_template(),
             ]
         assert ctx.value.args[0] == (
@@ -2448,7 +2448,7 @@ class TestIndexTemplateProvider:
 
         templates = [
             _index_template_provider.metrics_template(),
-            _index_template_provider.test_executions_template(),
+            _index_template_provider.test_runs_template(),
             _index_template_provider.results_template(),
         ]
 
