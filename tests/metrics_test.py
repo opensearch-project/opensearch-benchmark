@@ -25,6 +25,7 @@
 
 import collections
 import datetime
+import json
 import logging
 import os
 import random
@@ -2339,3 +2340,119 @@ class SystemStatsTests(TestCase):
                 "single": 833 * 1024 * 1024
             }
         }, select(metric_list, "bytes_written", node="benchmark-node-1"))
+
+class TestIndexTemplateProvider:
+    def setup_method(self, method):
+        self.cfg = config.Config()
+        self.cfg.add(config.Scope.application, "node", "root.dir", os.path.join(tempfile.gettempdir(), str(uuid.uuid4())))
+        self.cfg.add(config.Scope.application, "node", "benchmark.root", paths.benchmark_root())
+        self.cfg.add(config.Scope.application, "system", "env.name", "unittest-env")
+        self.cfg.add(config.Scope.application, "system", "list.max_results", 100)
+
+    def test_primary_and_replica_shard_count_specified_index_template_update(self):
+        _datastore_type = "opensearch"
+        _datastore_number_of_shards = random.randint(1, 100)
+        _datastore_number_of_replicas = random.randint(0, 100)
+
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.type", _datastore_type)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.number_of_shards", _datastore_number_of_shards)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.number_of_replicas", _datastore_number_of_replicas)
+
+        _index_template_provider = metrics.IndexTemplateProvider(self.cfg)
+
+        templates = [
+            _index_template_provider.metrics_template(),
+            _index_template_provider.test_executions_template(),
+            _index_template_provider.results_template(),
+        ]
+
+        for template in templates:
+            t = json.loads(template)
+            assert t["settings"]["index"]["number_of_shards"] == _datastore_number_of_shards
+            assert t["settings"]["index"]["number_of_replicas"] == _datastore_number_of_replicas
+
+    def test_primary_shard_count_specified_index_template_update(self):
+        _datastore_type = "opensearch"
+        _datastore_number_of_shards = random.randint(1, 100)
+
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.type", _datastore_type)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.number_of_shards", _datastore_number_of_shards)
+
+        _index_template_provider = metrics.IndexTemplateProvider(self.cfg)
+
+        templates = [
+            _index_template_provider.metrics_template(),
+            _index_template_provider.test_executions_template(),
+            _index_template_provider.results_template(),
+        ]
+
+        for template in templates:
+            t = json.loads(template)
+            assert t["settings"]["index"]["number_of_shards"] == _datastore_number_of_shards
+            with pytest.raises(KeyError):
+                # pylint: disable=unused-variable
+                number_of_replicas = t["settings"]["index"]["number_of_replicas"]
+
+    def test_replica_shard_count_specified_index_template_update(self):
+        _datastore_type = "opensearch"
+        _datastore_number_of_replicas = random.randint(1, 100)
+
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.type", _datastore_type)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.number_of_replicas", _datastore_number_of_replicas)
+
+        _index_template_provider = metrics.IndexTemplateProvider(self.cfg)
+
+        templates = [
+            _index_template_provider.metrics_template(),
+            _index_template_provider.test_executions_template(),
+            _index_template_provider.results_template(),
+        ]
+
+        for template in templates:
+            t = json.loads(template)
+            assert t["settings"]["index"]["number_of_replicas"] == _datastore_number_of_replicas
+            with pytest.raises(KeyError):
+                # pylint: disable=unused-variable
+                number_of_shards = t["settings"]["index"]["number_of_shards"]
+
+    def test_primary_shard_count_less_than_one(self):
+        _datastore_type = "opensearch"
+        _datastore_number_of_shards = 0
+
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.type", _datastore_type)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.number_of_shards", _datastore_number_of_shards)
+        _index_template_provider = metrics.IndexTemplateProvider(self.cfg)
+
+        with pytest.raises(exceptions.SystemSetupError) as ctx:
+            # pylint: disable=unused-variable
+            templates = [
+                _index_template_provider.metrics_template(),
+                _index_template_provider.test_executions_template(),
+                _index_template_provider.results_template(),
+            ]
+        assert ctx.value.args[0] == (
+            "The setting: datastore.number_of_shards must be >= 1. Please check the configuration in "
+            f"{_index_template_provider._config.config_file.location}"
+        )
+
+    def test_primary_and_replica_shard_counts_passed_as_strings(self):
+        _datastore_type = "opensearch"
+        _datastore_number_of_shards = "200"
+        _datastore_number_of_replicas = "1"
+
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.type", _datastore_type)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.number_of_shards", _datastore_number_of_shards)
+        self.cfg.add(config.Scope.applicationOverride, "reporting", "datastore.number_of_replicas", _datastore_number_of_replicas)
+
+        _index_template_provider = metrics.IndexTemplateProvider(self.cfg)
+
+        templates = [
+            _index_template_provider.metrics_template(),
+            _index_template_provider.test_executions_template(),
+            _index_template_provider.results_template(),
+        ]
+
+        for template in templates:
+            t = json.loads(template)
+            assert t["settings"]["index"]["number_of_shards"] == 200
+            assert t["settings"]["index"]["number_of_replicas"] == 1
