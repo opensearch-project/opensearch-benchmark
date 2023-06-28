@@ -718,7 +718,7 @@ class IndexCodec(Enum):
     Default = "default"
     BestCompression = "best_compression"
     ZSTD = "zstd"
-    ZSTDNODICT = "zstdnodict"
+    ZSTDNODICT = "zstd_no_dict"
 
     @classmethod
     def is_codec_valid(cls, codec):
