@@ -22,25 +22,29 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import logging
 import os
+import re
 
 from osbenchmark import exceptions
 from osbenchmark.utils import io, process
 
+MIN_REQUIRED_MAJOR_VERSION = 2
+VERSION_REGEX = r'.* ([0-9]+)\.([0-9]+)\..*'
 
 def probed(f):
     def probe(src, *args, **kwargs):
         # Probe for -C
-        if not process.exit_status_as_bool(lambda: process.run_subprocess_with_logging(
-                "git -C {} --version".format(io.escape_path(src)), level=logging.DEBUG), quiet=True):
-            version = process.run_subprocess_with_output("git --version")
-            if version:
-                version = str(version).strip()
-            else:
-                version = "Unknown"
-            raise exceptions.SystemSetupError("Your git version is [%s] but Benchmark requires at least git 1.9. "
-            "Please update git." % version)
+        try:
+            out, _, status = process.run_subprocess_with_out_and_err(
+                "git -C {} --version".format(io.escape_path(src)))
+        except FileNotFoundError:
+            status = 1
+        if status != 0:
+            raise exceptions.SystemSetupError("Error invoking 'git', please install (or re-install).")
+        match = re.search(VERSION_REGEX, out)
+        if not match or int(match.group(1)) < MIN_REQUIRED_MAJOR_VERSION:
+            raise exceptions.SystemSetupError("OpenSearch Benchmark requires at least version 2 of git.  "
+                                              f"You have {out}.  Please update git.")
         return f(src, *args, **kwargs)
     return probe
 

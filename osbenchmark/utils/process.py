@@ -52,15 +52,26 @@ def run_subprocess_with_output(command_line):
     return lines
 
 
-def run_subprocess_get_stderr(command_line):
+def run_subprocess_with_out_and_err(command_line):
     logger = logging.getLogger(__name__)
-    logger.debug("Running subprocess [%s] with output and err.", command_line)
+    logger.debug("Running subprocess [%s] with stdout and stderr.", command_line)
+    command_line_args = shlex.split(command_line)
+
+    sp = subprocess.Popen(command_line_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    sp.wait()
+    out, err = sp.communicate()
+    return out.decode('UTF-8'), err.decode('UTF-8'), sp.returncode
+
+
+def run_subprocess_with_stderr(command_line):
+    logger = logging.getLogger(__name__)
+    logger.debug("Running subprocess [%s] with stderr but no stdout.", command_line)
     command_line_args = shlex.split(command_line)
 
     sp = subprocess.Popen(command_line_args, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     sp.wait()
     _, err = sp.communicate()
-    return err.decode("UTF-8"), sp.returncode
+    return err.decode('UTF-8'), sp.returncode
 
 
 def exit_status_as_bool(runnable, quiet=False):
