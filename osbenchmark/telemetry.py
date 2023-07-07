@@ -626,7 +626,10 @@ class NodeStats(TelemetryDevice):
 
     def on_benchmark_start(self):
         default_client = self.clients["default"]
-        distribution_name = default_client.info()["version"]["distribution"]
+        if not default_client.info()["version"]["distribution"] is None:
+            distribution_name = default_client.info()["version"]["distribution"]
+        else:
+            distribution_name = ""
         distribution_version = default_client.info()["version"]["number"]
         major, minor = components(distribution_version)[:2]
 
