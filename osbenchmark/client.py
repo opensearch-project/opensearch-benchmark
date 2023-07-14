@@ -124,12 +124,17 @@ class OsClientFactory:
         self.client_options = dict(client_options)
         self.ssl_context = None
         self.logger = logging.getLogger(__name__)
+        self.aws_log_in_dict = {}
 
         masked_client_options = dict(client_options)
         if "basic_auth_password" in masked_client_options:
             masked_client_options["basic_auth_password"] = "*****"
         if "http_auth" in masked_client_options:
             masked_client_options["http_auth"] = (masked_client_options["http_auth"][0], "*****")
+        if "amazon_aws_log_in" in masked_client_options:
+            self.aws_log_in_dict = self.parse_aws_log_in_params()
+            masked_client_options["aws_access_key_id"] = "*****"
+            masked_client_options["aws_secret_access_key"] = "*****"
         self.logger.info("Creating OpenSearch client connected to %s with options [%s]", hosts, masked_client_options)
 
         # we're using an SSL context now and it is not allowed to have use_ssl present in client options anymore
@@ -236,10 +241,52 @@ class OsClientFactory:
         except KeyError:
             return False
 
+    def parse_aws_log_in_params(self):
+        # pylint: disable=import-outside-toplevel
+        import os
+        aws_log_in_dict = {}
+        # aws log in : option 1) pass in parameters from os environment variables
+        if self.client_options["amazon_aws_log_in"] == "environment":
+            aws_log_in_dict["aws_access_key_id"] = os.environ.get("OSB_AWS_ACCESS_KEY_ID")
+            aws_log_in_dict["aws_secret_access_key"] = os.environ.get("OSB_AWS_SECRET_ACCESS_KEY")
+            aws_log_in_dict["region"] = os.environ.get("OSB_REGION")
+            aws_log_in_dict["service"] = os.environ.get("OSB_SERVICE")
+        # aws log in : option 2) parameters are passed in from command line
+        elif self.client_options["amazon_aws_log_in"] == "client_option":
+            aws_log_in_dict["aws_access_key_id"] = self.client_options.get("aws_access_key_id")
+            aws_log_in_dict["aws_secret_access_key"] = self.client_options.get("aws_secret_access_key")
+            aws_log_in_dict["region"] = self.client_options.get("region")
+            aws_log_in_dict["service"] = self.client_options.get("service")
+        if (not aws_log_in_dict["aws_access_key_id"] or not aws_log_in_dict["aws_secret_access_key"]
+                or not aws_log_in_dict["service"] or not aws_log_in_dict["region"]):
+            self.logger.error("Invalid amazon aws log in parameters, required input aws_access_key_id, "
+                              "aws_secret_access_key, service and region.")
+            raise exceptions.SystemSetupError(
+                "Invalid amazon aws log in parameters, required input aws_access_key_id, "
+                "aws_secret_access_key, and region."
+            )
+        if aws_log_in_dict["service"] not in ['es', 'aoss']:
+            self.logger.error("Service for aws log in should be one of 'es' or 'aoss'")
+            raise exceptions.SystemSetupError(
+                "Cannot specify service as '{}'. Accepted values are 'es' or 'aoss'.".format(
+                    aws_log_in_dict["service"])
+            )
+        return aws_log_in_dict
+
     def create(self):
         # pylint: disable=import-outside-toplevel
         import opensearchpy
-        return opensearchpy.OpenSearch(hosts=self.hosts, ssl_context=self.ssl_context, **self.client_options)
+        from botocore.credentials import Credentials
+
+        if "amazon_aws_log_in" not in self.client_options:
+            return opensearchpy.OpenSearch(hosts=self.hosts, ssl_context=self.ssl_context, **self.client_options)
+
+        credentials = Credentials(access_key=self.aws_log_in_dict["aws_access_key_id"],
+                                  secret_key=self.aws_log_in_dict["aws_secret_access_key"])
+        aws_auth = opensearchpy.AWSV4SignerAuth(credentials, self.aws_log_in_dict["region"],
+                                                self.aws_log_in_dict["service"])
+        return opensearchpy.OpenSearch(hosts=self.hosts, use_ssl=True, verify_certs=True, http_auth=aws_auth,
+                                       connection_class=opensearchpy.RequestsHttpConnection)
 
     def create_async(self):
         # pylint: disable=import-outside-toplevel
@@ -249,6 +296,7 @@ class OsClientFactory:
         import aiohttp
 
         from opensearchpy.serializer import JSONSerializer
+        from botocore.credentials import Credentials
 
         class LazyJSONSerializer(JSONSerializer):
             def loads(self, s):
@@ -277,10 +325,20 @@ class OsClientFactory:
         class BenchmarkAsyncOpenSearch(opensearchpy.AsyncOpenSearch, RequestContextHolder):
             pass
 
+        if "amazon_aws_log_in" not in self.client_options:
+            return BenchmarkAsyncOpenSearch(hosts=self.hosts,
+                                            connection_class=osbenchmark.async_connection.AIOHttpConnection,
+                                            ssl_context=self.ssl_context,
+                                            **self.client_options)
+
+        credentials = Credentials(access_key=self.aws_log_in_dict["aws_access_key_id"],
+                                  secret_key=self.aws_log_in_dict["aws_secret_access_key"])
+        aws_auth = opensearchpy.AWSV4SignerAsyncAuth(credentials, self.aws_log_in_dict["region"],
+                                                     self.aws_log_in_dict["service"])
         return BenchmarkAsyncOpenSearch(hosts=self.hosts,
-                                       connection_class=osbenchmark.async_connection.AIOHttpConnection,
-                                       ssl_context=self.ssl_context,
-                                       **self.client_options)
+                                        connection_class=osbenchmark.async_connection.AsyncHttpConnection,
+                                        use_ssl=True, verify_certs=True, http_auth=aws_auth,
+                                        **self.client_options)
 
 
 def wait_for_rest_layer(opensearch, max_attempts=40):

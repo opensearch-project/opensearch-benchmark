@@ -60,7 +60,7 @@ install_requires = [
     # transitive dependencies:
     #   urllib3: MIT
     #   aiohttp: Apache 2.0
-    "opensearch-py[async]==1.0.0",
+    "opensearch-py[async]==2.2.0",
     # License: BSD
     "psutil==5.8.0",
     # License: MIT
@@ -91,10 +91,7 @@ install_requires = [
     # License: Apache 2.0
     "google-auth==1.22.1",
     # License: MIT
-    "wheel==0.38.4"
-]
-
-s3_require = [
+    "wheel==0.38.4",
     # License: Apache 2.0
     # transitive dependencies:
     #   botocore: Apache 2.0
@@ -160,8 +157,7 @@ setup(name="opensearch-benchmark",
       test_suite="tests",
       tests_require=tests_require,
       extras_require={
-          "develop": tests_require + develop_require + s3_require,
-          "s3": s3_require
+          "develop": tests_require + develop_require
       },
       entry_points={
           "console_scripts": [
