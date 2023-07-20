@@ -1711,7 +1711,7 @@ class SegmentReplicationStats(TelemetryDevice):
 
         self.telemetry_params = telemetry_params
         self.clients = clients
-        self.sample_interval = telemetry_params.get("segment-replication-sample-interval", 1)
+        self.sample_interval = telemetry_params.get("segment-replication-stats-sample-interval", 1)
         if self.sample_interval <= 0:
             raise exceptions.SystemSetupError(
                 f"The telemetry parameter 'segment-replication-stats-sample-interval' must be greater than zero "
@@ -1790,7 +1790,7 @@ class SegmentReplicationStatsRecorder:
                 stats = self.client.transport.perform_request("GET", stats_api_endpoint + index, params={"time": "ms"})
             except opensearchpy.TransportError:
                 raise exceptions.BenchmarkError(
-                    f"A transport error occurred while collecting searchable snapshots stats on cluster "
+                    f"A transport error occurred while collecting segment replication stats on cluster "
                     f"[{self.cluster_name}]") from None
 
             # parse the REST API response, each field will be an array element

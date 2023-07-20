@@ -3373,14 +3373,44 @@ class IndexSizeTests(TestCase):
         self.assertEqual(0, metrics_store_cluster_value.call_count)
         self.assertEqual(0, get_size.call_count)
 
-class TestSegmentReplicationStats:
-    stats_response = """[so][0] node-1 127.0.0.1 0 0b 0 25 0\n[so][1] node-2 127.0.0.1 0 0b 0 3 0"""
-
-    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
-    def test_stores_total_stats(self, metrics_store_put_doc):
+class SegmentReplicationStatsTests(TestCase):
+    def test_negative_sample_interval_forbidden(self):
+        clients = {"default": Client(), "cluster_b": Client()}
         cfg = create_config()
         metrics_store = metrics.OsMetricsStore(cfg)
-        client = Client(transport_client=TransportClient(responses=[TestSegmentReplicationStats.stats_response]))
+        telemetry_params = {
+            "segment-replication-stats-sample-interval": -1 * random.random()
+        }
+        with self.assertRaisesRegex(exceptions.SystemSetupError,
+                                    r"The telemetry parameter 'segment-replication-stats-sample-interval' must be greater than zero but was .*\."):
+            telemetry.SegmentReplicationStats(telemetry_params, clients, metrics_store)
+
+    def test_wrong_cluster_name_in_ccr_stats_indices_forbidden(self):
+        clients = {"default": Client(), "cluster_b": Client()}
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        telemetry_params = {
+            "segment-replication-stats-indices":{
+                "default": ["index-1"],
+                "wrong_cluster_name": ["index-2"]
+            }
+        }
+        with self.assertRaisesRegex(exceptions.SystemSetupError,
+                                    r"The telemetry parameter 'segment-replication-stats-indices' must be a JSON Object with keys matching "
+                                    r"the cluster names \[{}] specified in --target-hosts "
+                                    r"but it had \[wrong_cluster_name\].".format(",".join(sorted(clients.keys())))
+                                    ):
+            telemetry.SegmentReplicationStats(telemetry_params, clients, metrics_store)
+
+class SegmentReplicationStatsRecorderTests(TestCase):
+    stats_response = """[so][0] node-1 127.0.0.1 0 0b 0 25 0
+[so][1] node-2 127.0.0.1 0 0b 0 3 0"""
+
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
+    def test_stores_default_stats(self, metrics_store_put_doc):
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        client = Client(transport_client=TransportClient(responses=[SegmentReplicationStatsRecorderTests.stats_response]))
 
         recorder = telemetry.SegmentReplicationStatsRecorder(
             cluster_name="default",
@@ -3406,3 +3436,10 @@ class TestSegmentReplicationStats:
                 meta_data={
                     "cluster": "default", "index": ""})
         ], any_order=True)
+
+    def test_exception_on_transport_error(self):
+        client = Client(transport_client=TransportClient(responses=[], force_error=True))
+        metrics_store = metrics.OsMetricsStore(create_config())
+        with self.assertRaisesRegex(exceptions.BenchmarkError,
+                                    r"A transport error occurred while collecting segment replication stats on cluster \[default\]"):
+            telemetry.SegmentReplicationStatsRecorder("default", client, metrics_store, 1).record()
