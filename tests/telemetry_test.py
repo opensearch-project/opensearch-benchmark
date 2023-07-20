@@ -3372,3 +3372,37 @@ class IndexSizeTests(TestCase):
         self.assertEqual(0, run_subprocess.call_count)
         self.assertEqual(0, metrics_store_cluster_value.call_count)
         self.assertEqual(0, get_size.call_count)
+
+class TestSegmentReplicationStats:
+    stats_response = """[so][0] node-1 127.0.0.1 0 0b 0 25 0\n[so][1] node-2 127.0.0.1 0 0b 0 3 0"""
+
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
+    def test_stores_total_stats(self, metrics_store_put_doc):
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        client = Client(transport_client=TransportClient(responses=[TestSegmentReplicationStats.stats_response]))
+
+        recorder = telemetry.SegmentReplicationStatsRecorder(
+            cluster_name="default",
+            client=client,
+            metrics_store=metrics_store,
+            sample_interval=1)
+        recorder.record()
+
+        metrics_store_put_doc.assert_has_calls([call({
+            "name": "segment-replication-stats",
+            "shard_id": "[so][0]",
+            "current_lag_in_millis": "0",
+            "last_completed_lag_in_millis": "25"},
+            level=MetaInfoScope.cluster,
+            meta_data={
+                "cluster": "default", "index": ""}),
+            call({
+                "name": "segment-replication-stats",
+                "shard_id": "[so][1]",
+                "current_lag_in_millis": "0",
+                "last_completed_lag_in_millis": "3"},
+                level=MetaInfoScope.cluster,
+                meta_data={
+                    "cluster": "default", "index": ""})
+        ], any_order=True)
