@@ -626,7 +626,8 @@ class NodeStats(TelemetryDevice):
 
     def on_benchmark_start(self):
         default_client = self.clients["default"]
-        distribution_name = default_client.info()["version"]["distribution"]
+        # ElasticSearch does not supply a value for the distribution field
+        distribution_name = default_client.info()["version"].get("distribution", "")
         distribution_version = default_client.info()["version"]["number"]
         major, minor = components(distribution_version)[:2]
 
