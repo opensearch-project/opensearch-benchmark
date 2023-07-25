@@ -1806,8 +1806,13 @@ class SegmentReplicationStatsRecorder:
         doc = {
             "name": "segment-replication-stats",
             "shard_id": stats[0],
+            "target_node": stats[1],
+            "target_host": stats[2],
+            "checkpoints_behind": stats[3],
+            "bytes_behind": stats[4],
             "current_lag_in_millis": stats[5],
             "last_completed_lag_in_millis": stats[6],
+            "rejected_requests": stats[7]
         }
 
         meta_data = {
