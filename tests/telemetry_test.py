@@ -3382,10 +3382,11 @@ class SegmentReplicationStatsTests(TestCase):
             "segment-replication-stats-sample-interval": -1 * random.random()
         }
         with self.assertRaisesRegex(exceptions.SystemSetupError,
-                                    r"The telemetry parameter 'segment-replication-stats-sample-interval' must be greater than zero but was .*\."):
+                                    r"The telemetry parameter 'segment-replication-stats-sample-interval' must be "
+                                    r"greater than zero but was .*\."):
             telemetry.SegmentReplicationStats(telemetry_params, clients, metrics_store)
 
-    def test_wrong_cluster_name_in_ccr_stats_indices_forbidden(self):
+    def test_wrong_cluster_name_in_segment_replication_stats_indices_forbidden(self):
         clients = {"default": Client(), "cluster_b": Client()}
         cfg = create_config()
         metrics_store = metrics.OsMetricsStore(cfg)
@@ -3401,6 +3402,15 @@ class SegmentReplicationStatsTests(TestCase):
                                     r"but it had \[wrong_cluster_name\].".format(",".join(sorted(clients.keys())))
                                     ):
             telemetry.SegmentReplicationStats(telemetry_params, clients, metrics_store)
+
+    def test_cluster_name_can_be_ingored_in_segment_replication_stats_indices_when_only_one_cluster_is_involved(self):
+        clients = {"default": Client()}
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        telemetry_params = {
+            "segment-replication-stats-indices": "index"
+        }
+        telemetry.SegmentReplicationStats(telemetry_params, clients, metrics_store)
 
 class SegmentReplicationStatsRecorderTests(TestCase):
     stats_response = """[so][0] node-1 127.0.0.1 1 2b 3 25 4
