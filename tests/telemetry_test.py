@@ -3372,3 +3372,94 @@ class IndexSizeTests(TestCase):
         self.assertEqual(0, run_subprocess.call_count)
         self.assertEqual(0, metrics_store_cluster_value.call_count)
         self.assertEqual(0, get_size.call_count)
+
+class SegmentReplicationStatsTests(TestCase):
+    def test_negative_sample_interval_forbidden(self):
+        clients = {"default": Client(), "cluster_b": Client()}
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        telemetry_params = {
+            "segment-replication-stats-sample-interval": -1 * random.random()
+        }
+        with self.assertRaisesRegex(exceptions.SystemSetupError,
+                                    r"The telemetry parameter 'segment-replication-stats-sample-interval' must be "
+                                    r"greater than zero but was .*\."):
+            telemetry.SegmentReplicationStats(telemetry_params, clients, metrics_store)
+
+    def test_wrong_cluster_name_in_segment_replication_stats_indices_forbidden(self):
+        clients = {"default": Client(), "cluster_b": Client()}
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        telemetry_params = {
+            "segment-replication-stats-indices":{
+                "default": ["index-1"],
+                "wrong_cluster_name": ["index-2"]
+            }
+        }
+        with self.assertRaisesRegex(exceptions.SystemSetupError,
+                                    r"The telemetry parameter 'segment-replication-stats-indices' must be a JSON Object"
+                                    r" with keys matching the cluster names \[{}] specified in --target-hosts "
+                                    r"but it had \[wrong_cluster_name\].".format(",".join(sorted(clients.keys())))
+                                    ):
+            telemetry.SegmentReplicationStats(telemetry_params, clients, metrics_store)
+
+    def test_cluster_name_can_be_ingored_in_segment_replication_stats_indices_when_only_one_cluster_is_involved(self):
+        clients = {"default": Client()}
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        telemetry_params = {
+            "segment-replication-stats-indices": "index"
+        }
+        telemetry.SegmentReplicationStats(telemetry_params, clients, metrics_store)
+
+class SegmentReplicationStatsRecorderTests(TestCase):
+    stats_response = """[so][0] node-1 127.0.0.1 1 2b 3 25 4
+[so][1] node-2 127.0.0.1 5 6b 7 12 8"""
+
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
+    def test_stores_default_stats(self, metrics_store_put_doc):
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        client = Client(transport_client=TransportClient(responses=[SegmentReplicationStatsRecorderTests.stats_response]))
+
+        recorder = telemetry.SegmentReplicationStatsRecorder(
+            cluster_name="default",
+            client=client,
+            metrics_store=metrics_store,
+            sample_interval=1)
+        recorder.record()
+
+        metrics_store_put_doc.assert_has_calls([call({
+            "name": "segment-replication-stats",
+            "shard_id": "[so][0]",
+            "target_node": "node-1",
+            "target_host": "127.0.0.1",
+            "checkpoints_behind": "1",
+            "bytes_behind": "2b",
+            "current_lag_in_millis": "3",
+            "last_completed_lag_in_millis": "25",
+            "rejected_requests": "4"},
+            level=MetaInfoScope.cluster,
+            meta_data={
+                "cluster": "default", "index": ""}),
+            call({
+                "name": "segment-replication-stats",
+                "shard_id": "[so][1]",
+                "target_node": "node-2",
+                "target_host": "127.0.0.1",
+                "checkpoints_behind": "5",
+                "bytes_behind": "6b",
+                "current_lag_in_millis": "7",
+                "last_completed_lag_in_millis": "12",
+                "rejected_requests": "8"},
+                level=MetaInfoScope.cluster,
+                meta_data={
+                    "cluster": "default", "index": ""})
+        ], any_order=True)
+
+    def test_exception_on_transport_error(self):
+        client = Client(transport_client=TransportClient(responses=[], force_error=True))
+        metrics_store = metrics.OsMetricsStore(create_config())
+        with self.assertRaisesRegex(exceptions.BenchmarkError,
+                                    r"A transport error occurred while collecting segment replication stats on cluster \[default\]"):
+            telemetry.SegmentReplicationStatsRecorder("default", client, metrics_store, 1).record()
