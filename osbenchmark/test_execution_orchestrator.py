@@ -32,7 +32,7 @@ import thespian.actors
 
 from osbenchmark import actor, config, doc_link, \
     worker_coordinator, exceptions, builder, metrics, \
-        publisher, workload, version, PROGRAM_NAME
+        results_publisher, workload, version, PROGRAM_NAME
 from osbenchmark.utils import console, opts, versions
 
 
@@ -250,7 +250,7 @@ class BenchmarkCoordinator:
             self.test_execution.add_results(final_results)
             self.test_execution_store.store_test_execution(self.test_execution)
             metrics.results_store(self.cfg).store_results(self.test_execution)
-            publisher.summarize(final_results, self.cfg)
+            results_publisher.summarize(final_results, self.cfg)
         else:
             self.logger.info("Suppressing output of summary results. Cancelled = [%r], Error = [%r].", self.cancelled, self.error)
         self.metrics_store.close()
