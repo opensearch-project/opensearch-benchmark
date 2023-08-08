@@ -281,7 +281,8 @@ class IndexTemplateProvider:
         self._config = cfg
         self.script_dir = self._config.opts("node", "benchmark.root")
         self._number_of_shards = self._config.opts("results_publishing", "datastore.number_of_shards", default_value=None, mandatory=False)
-        self._number_of_replicas = self._config.opts("results_publishing", "datastore.number_of_replicas", default_value=None, mandatory=False)
+        self._number_of_replicas = self._config.opts("results_publishing", "datastore.number_of_replicas",
+                                                     default_value=None, mandatory=False)
 
     def metrics_template(self):
         return self._read("metrics-template")
