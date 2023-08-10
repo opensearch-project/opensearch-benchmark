@@ -1788,7 +1788,7 @@ class SegmentReplicationStatsRecorder:
         for index in self.indices:
             try:
                 stats_api_endpoint = "/_cat/segment_replication/"
-                stats = self.client.transport.perform_request("GET", stats_api_endpoint + index, params={"time": "ms"})
+                stats = self.client.transport.perform_request("GET", stats_api_endpoint + index, params={"time": "ms", "byte": "b"})
             except opensearchpy.TransportError:
                 raise exceptions.BenchmarkError(
                     f"A transport error occurred while collecting segment replication stats on cluster "
@@ -1797,7 +1797,7 @@ class SegmentReplicationStatsRecorder:
             # parse the REST API response, each field will be an array element
             stats_arr = []
             for line_of_shard_stats in stats.splitlines():
-                stats_arr.append(line_of_shard_stats.split(" "))
+                stats_arr.append(line_of_shard_stats.split())
 
             for shard_stats_arr in stats_arr:
                 self._push_stats(stats=shard_stats_arr, index=index)
