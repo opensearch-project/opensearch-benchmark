@@ -99,14 +99,14 @@ def format_as_csv(headers, data):
 class SummaryResultsPublisher:
     def __init__(self, results, config):
         self.results = results
-        self.results_file = config.opts("reporting", "output.path")
-        self.results_format = config.opts("reporting", "format")
-        self.numbers_align = config.opts("reporting", "numbers.align",
+        self.results_file = config.opts("results_publishing", "output.path")
+        self.results_format = config.opts("results_publishing", "format")
+        self.numbers_align = config.opts("results_publishing", "numbers.align",
                                          mandatory=False, default_value="right")
-        reporting_values = config.opts("reporting", "values")
-        self.publish_all_values = reporting_values == "all"
-        self.publish_all_percentile_values = reporting_values == "all-percentiles"
-        self.show_processing_time = convert.to_bool(config.opts("reporting", "output.processingtime",
+        results_publishing_values = config.opts("results_publishing", "values")
+        self.publish_all_values = results_publishing_values == "all"
+        self.publish_all_percentile_values = results_publishing_values == "all-percentiles"
+        self.show_processing_time = convert.to_bool(config.opts("results_publishing", "output.processingtime",
                                                                 mandatory=False, default_value=False))
         self.cwd = config.opts("node", "benchmark.cwd")
 
@@ -317,12 +317,12 @@ class SummaryResultsPublisher:
 
 class ComparisonResultsPublisher:
     def __init__(self, config):
-        self.results_file = config.opts("reporting", "output.path")
-        self.results_format = config.opts("reporting", "format")
-        self.numbers_align = config.opts("reporting", "numbers.align",
+        self.results_file = config.opts("results_publishing", "output.path")
+        self.results_format = config.opts("results_publishing", "format")
+        self.numbers_align = config.opts("results_publishing", "numbers.align",
                                          mandatory=False, default_value="right")
         self.cwd = config.opts("node", "benchmark.cwd")
-        self.show_processing_time = convert.to_bool(config.opts("reporting", "output.processingtime",
+        self.show_processing_time = convert.to_bool(config.opts("results_publishing", "output.processingtime",
                                                                 mandatory=False, default_value=False))
         self.plain = False
 

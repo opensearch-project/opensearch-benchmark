@@ -110,7 +110,7 @@ After the test execution, a summary report is written to the command line:
 
 Creating Your Own Workloads
 ---------------------------
-For more information on how users can create their own workloads, see [the Create Workload Guide](https://github.com/opensearch-project/opensearch-benchmark/blob/main/CREATE_WORKLOAD_GUIDE.md)
+For more information on how users can create their own workloads, see [the Create Workload Guide](./CREATE_WORKLOAD_GUIDE.md)
 
 Getting help
 ------------
