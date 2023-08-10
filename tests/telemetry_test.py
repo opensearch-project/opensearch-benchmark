@@ -3413,8 +3413,26 @@ class SegmentReplicationStatsTests(TestCase):
         telemetry.SegmentReplicationStats(telemetry_params, clients, metrics_store)
 
 class SegmentReplicationStatsRecorderTests(TestCase):
-    stats_response = """[so][0] node-1 127.0.0.1 1 2b 3 25 4
-[so][1] node-2 127.0.0.1 5 6b 7 12 8"""
+    stats_response = [{
+    "shardId" : "[logs-211998][6]",
+    "target_node" : "ip-10-0-4-187.internal",
+    "target_host" : "10.0.4.187",
+    "checkpoints_behind" : "1",
+    "bytes_behind" : "47801",
+    "current_lag" : "691",
+    "last_completed_lag" : "821",
+    "rejected_requests" : "0"
+  },
+  {
+    "shardId" : "[logs-211998][7]",
+    "target_node" : "ip-10-0-5-230.internal",
+    "target_host" : "10.0.5.230",
+    "checkpoints_behind" : "2",
+    "bytes_behind" : "46623",
+    "current_lag" : "2039",
+    "last_completed_lag" : "323",
+    "rejected_requests" : "1"
+  }]
 
     @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     def test_stores_default_stats(self, metrics_store_put_doc):
@@ -3431,27 +3449,27 @@ class SegmentReplicationStatsRecorderTests(TestCase):
 
         metrics_store_put_doc.assert_has_calls([call({
             "name": "segment-replication-stats",
-            "shard_id": "[so][0]",
-            "target_node": "node-1",
-            "target_host": "127.0.0.1",
-            "checkpoints_behind": "1",
-            "bytes_behind": "2b",
-            "current_lag_in_millis": "3",
-            "last_completed_lag_in_millis": "25",
-            "rejected_requests": "4"},
+            "shard_id": "[logs-211998][6]",
+            "target_node": "ip-10-0-4-187.internal",
+            "target_host": "10.0.4.187",
+            "checkpoints_behind": 1,
+            "bytes_behind": 47801,
+            "current_lag_in_millis": 691,
+            "last_completed_lag_in_millis": 821,
+            "rejected_requests": 0},
             level=MetaInfoScope.cluster,
             meta_data={
                 "cluster": "default", "index": ""}),
             call({
                 "name": "segment-replication-stats",
-                "shard_id": "[so][1]",
-                "target_node": "node-2",
-                "target_host": "127.0.0.1",
-                "checkpoints_behind": "5",
-                "bytes_behind": "6b",
-                "current_lag_in_millis": "7",
-                "last_completed_lag_in_millis": "12",
-                "rejected_requests": "8"},
+                "shard_id": "[logs-211998][7]",
+                "target_node": "ip-10-0-5-230.internal",
+                "target_host": "10.0.5.230",
+                "checkpoints_behind": 2,
+                "bytes_behind": 46623,
+                "current_lag_in_millis": 2039,
+                "last_completed_lag_in_millis": 323,
+                "rejected_requests": 1},
                 level=MetaInfoScope.cluster,
                 meta_data={
                     "cluster": "default", "index": ""})
