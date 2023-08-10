@@ -1806,11 +1806,11 @@ class SegmentReplicationStatsRecorder:
             "shard_id": stats["shardId"],
             "target_node": stats["target_node"],
             "target_host": stats["target_host"],
-            "checkpoints_behind": stats["checkpoints_behind"],
-            "bytes_behind": stats["bytes_behind"],
-            "current_lag_in_millis": stats["current_lag"],
-            "last_completed_lag_in_millis": stats["last_completed_lag"],
-            "rejected_requests": stats["rejected_requests"]
+            "checkpoints_behind": int(stats["checkpoints_behind"]),
+            "bytes_behind": int(stats["bytes_behind"]),
+            "current_lag_in_millis": int(stats["current_lag"]),
+            "last_completed_lag_in_millis": int(stats["last_completed_lag"]),
+            "rejected_requests": int(stats["rejected_requests"])
         }
 
         meta_data = {
