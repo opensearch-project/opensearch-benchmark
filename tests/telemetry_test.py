@@ -3413,8 +3413,26 @@ class SegmentReplicationStatsTests(TestCase):
         telemetry.SegmentReplicationStats(telemetry_params, clients, metrics_store)
 
 class SegmentReplicationStatsRecorderTests(TestCase):
-    stats_response = """[logs-211998][6] ip-10-0-4-187.internal 10.0.4.187  1 47801 691  821  0
-[logs-211998][7] ip-10-0-5-230.internal 10.0.5.230  2 46623 2039 323 1"""
+    stats_response = [{
+    "shardId" : "[logs-211998][6]",
+    "target_node" : "ip-10-0-4-187.internal",
+    "target_host" : "10.0.4.187",
+    "checkpoints_behind" : "1",
+    "bytes_behind" : "47801",
+    "current_lag" : "691",
+    "last_completed_lag" : "821",
+    "rejected_requests" : "0"
+  },
+  {
+    "shardId" : "[logs-211998][7]",
+    "target_node" : "ip-10-0-5-230.internal",
+    "target_host" : "10.0.5.230",
+    "checkpoints_behind" : "2",
+    "bytes_behind" : "46623",
+    "current_lag" : "2039",
+    "last_completed_lag" : "323",
+    "rejected_requests" : "1"
+  }]
 
     @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     def test_stores_default_stats(self, metrics_store_put_doc):
