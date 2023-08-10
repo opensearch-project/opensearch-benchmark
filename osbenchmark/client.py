@@ -375,6 +375,15 @@ def wait_for_rest_layer(opensearch, max_attempts=40):
             if e.status_code in (503, 401, 408):
                 logger.debug("Got status code [%s] on attempt [%s]. Sleeping...", e.status_code, attempt)
                 time.sleep(3)
+            elif e.status_code == 404:
+                # Serverless does not support the cluster-health API.  Test with _cat/indices for now.
+                catclient = opensearchpy.client.cat.CatClient(opensearch)
+                try:
+                    catclient.indices()
+                    return True
+                except Exception as e:
+                    logger.warning("Encountered exception %s when attempting to probe endpoint health", e)
+                    raise e
             else:
                 logger.warning("Got unexpected status code [%s] on attempt [%s].", e.status_code, attempt)
                 raise e

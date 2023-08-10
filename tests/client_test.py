@@ -423,6 +423,18 @@ class RestLayerTests(TestCase):
         ]
         self.assertTrue(client.wait_for_rest_layer(opensearch, max_attempts=5))
 
+    # Test that _cat/indices is attempted for serverless implementations,
+    # which may not support the cluster health API.
+    @mock.patch("opensearchpy.client.cat.CatClient")
+    @mock.patch("opensearchpy.OpenSearch")
+    def test_cluster_health_notfound_error(self, opensearch, catclient):
+        opensearch.cluster.health.side_effect = [
+            opensearchpy.TransportError(404, "NotFoundError"),
+        ]
+        self.assertTrue(client.wait_for_rest_layer(opensearch, max_attempts=5))
+        catclient().indices.assert_called()
+
+
     # don't sleep in realtime
     @mock.patch("time.sleep")
     @mock.patch("opensearchpy.OpenSearch")
