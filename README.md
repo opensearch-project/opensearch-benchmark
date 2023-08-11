@@ -20,7 +20,7 @@ We have also put considerable effort into OpenSearch Benchmark to ensure that be
 Documentation
 -------------
 
-Documentation for OpenSearch Benchmark is [available online](https://opensearch.org/docs/2.7/benchmark/index/).
+Documentation for OpenSearch Benchmark is [available online](https://opensearch.org/docs/latest/benchmark/index/).
 
 Quick Start
 -----------
