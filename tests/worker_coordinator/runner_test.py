@@ -5660,7 +5660,9 @@ class CreateSearchPipelineRunnerTests(TestCase):
 
         await r(opensearch, params)
 
-        opensearch.transport.perform_request.assert_called_once_with(method='PUT', url='/_search/pipeline/test_pipeline', body=params["body"])
+        opensearch.transport.perform_request.assert_called_once_with(method='PUT', 
+                                                                     url='/_search/pipeline/test_pipeline',
+                                                                     body=params["body"])
 
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
@@ -5672,9 +5674,10 @@ class CreateSearchPipelineRunnerTests(TestCase):
         params = {
             "id": "test_pipeline",
         }
-        with self.assertRaisesRegex(exceptions.DataError,
-                                    "Parameter source for operation 'create-search-pipeline' did not provide the mandatory parameter 'body'. "
-                                    "Add it to your parameter source and try again."):
+        with self.assertRaisesRegex(
+            exceptions.DataError,
+            "Parameter source for operation 'create-search-pipeline' did not provide the mandatory parameter 'body'. "
+            "Add it to your parameter source and try again."):
             await r(opensearch, params)
 
         self.assertEqual(0, opensearch.transport.perform_request.call_count)
@@ -5689,9 +5692,10 @@ class CreateSearchPipelineRunnerTests(TestCase):
         params = {
             "body": {}
         }
-        with self.assertRaisesRegex(exceptions.DataError,
-                                    "Parameter source for operation 'create-search-pipeline' did not provide the mandatory parameter 'id'. "
-                                    "Add it to your parameter source and try again."):
+        with self.assertRaisesRegex(
+            exceptions.DataError,
+            "Parameter source for operation 'create-search-pipeline' did not provide the mandatory parameter 'id'. "
+            "Add it to your parameter source and try again."):
             await r(opensearch, params)
 
         self.assertEqual(0, opensearch.transport.perform_request.call_count)
