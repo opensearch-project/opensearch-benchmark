@@ -611,6 +611,7 @@ class OperationType(Enum):
     DeleteComposableTemplate = 1031
     CreateComponentTemplate = 1032
     DeleteComponentTemplate = 1033
+    CreateSearchPipeline = 1040
 
     @property
     def admin_op(self):
@@ -710,6 +711,8 @@ class OperationType(Enum):
             return OperationType.DeletePointInTime
         elif v == "list-all-point-in-time":
             return OperationType.ListAllPointInTime
+        elif v == "create-search-pipeline":
+            return OperationType.CreateSearchPipeline
         else:
             raise KeyError(f"No enum value for [{v}]")
 
