@@ -2147,6 +2147,65 @@ class QueryRunnerTests(TestCase):
 
         opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_search_pipeline_using_request_params(self, opensearch):
+        response = {
+            "timed_out": False,
+            "took": 62,
+            "hits": {
+                "total": {
+                    "value": 2,
+                    "relation": "eq"
+                },
+                "hits": [
+                    {
+                        "title": "some-doc-1"
+                    },
+                    {
+                        "title": "some-doc-2"
+                    }
+
+                ]
+            }
+        }
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(response)))
+
+        query_runner = runner.Query()
+        params = {
+            "index": "_all",
+            "cache": False,
+            "detailed-results": True,
+            "body": None,
+            "request-params": {
+                "q": "user:kimchy",
+                "search-pipeline": "test-search-pipeline"
+            }
+        }
+
+        async with query_runner:
+            result = await query_runner(opensearch, params)
+
+        self.assertEqual(1, result["weight"])
+        self.assertEqual("ops", result["unit"])
+        self.assertEqual(2, result["hits"])
+        self.assertEqual("eq", result["hits_relation"])
+        self.assertFalse(result["timed_out"])
+        self.assertEqual(62, result["took"])
+        self.assertFalse("error-type" in result)
+
+        opensearch.transport.perform_request.assert_called_once_with(
+            "GET",
+            "/_all/_search",
+            params={
+                "request_cache": "false",
+                "q": "user:kimchy",
+                'search-pipeline': 'test-search-pipeline'
+            },
+            body=params["body"],
+            headers=None
+        )
+        opensearch.clear_scroll.assert_not_called()
 
 class PutPipelineRunnerTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
@@ -5564,3 +5623,79 @@ class RemovePrefixTests(TestCase):
         suffix = runner.remove_prefix(index_name, "unrelatedprefix")
 
         self.assertEqual(suffix, index_name)
+
+
+class CreateSearchPipelineRunnerTests(TestCase):
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_create_search_pipeline(self, opensearch):
+        opensearch.transport.perform_request.return_value = as_future()
+
+        r = runner.CreateSearchPipeline()
+
+        params = {
+            "id": "test_pipeline",
+            "body": {
+                "request_processors": [
+                    {
+                        "filter_query": {
+                            "query": {
+                                "match": {
+                                    "foo": "bar"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "response_processors": [
+                    {
+                        "rename_field": {
+                            "field": "foo",
+                            "target_field": "bar"
+                        }
+                    }
+                ]
+            }
+        }
+
+        await r(opensearch, params)
+
+        opensearch.transport.perform_request.assert_called_once_with(method='PUT',
+                                                                     url='/_search/pipeline/test_pipeline',
+                                                                     body=params["body"])
+
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_param_body_mandatory(self, opensearch):
+        opensearch.transport.perform_request.return_value = as_future()
+
+        r = runner.CreateSearchPipeline()
+
+        params = {
+            "id": "test_pipeline",
+        }
+        with self.assertRaisesRegex(
+            exceptions.DataError,
+            "Parameter source for operation 'create-search-pipeline' did not provide the mandatory parameter 'body'. "
+            "Add it to your parameter source and try again."):
+            await r(opensearch, params)
+
+        self.assertEqual(0, opensearch.transport.perform_request.call_count)
+
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_param_id_mandatory(self, opensearch):
+        opensearch.transport.perform_request.return_value = as_future()
+
+        r = runner.CreateSearchPipeline()
+
+        params = {
+            "body": {}
+        }
+        with self.assertRaisesRegex(
+            exceptions.DataError,
+            "Parameter source for operation 'create-search-pipeline' did not provide the mandatory parameter 'id'. "
+            "Add it to your parameter source and try again."):
+            await r(opensearch, params)
+
+        self.assertEqual(0, opensearch.transport.perform_request.call_count)

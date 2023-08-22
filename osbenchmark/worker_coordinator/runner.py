@@ -94,6 +94,7 @@ def register_default_runners():
     register_runner(workload.OperationType.StartTransform, Retry(StartTransform()), async_runner=True)
     register_runner(workload.OperationType.WaitForTransform, Retry(WaitForTransform()), async_runner=True)
     register_runner(workload.OperationType.DeleteTransform, Retry(DeleteTransform()), async_runner=True)
+    register_runner(workload.OperationType.CreateSearchPipeline, Retry(CreateSearchPipeline()), async_runner=True)
 
 
 def runner_for(operation_type):
@@ -1102,6 +1103,14 @@ class PutPipeline(Runner):
     def __repr__(self, *args, **kwargs):
         return "put-pipeline"
 
+# TODO: refactor it after python client support search pipeline https://github.com/opensearch-project/opensearch-py/issues/474
+class CreateSearchPipeline(Runner):
+    async def __call__(self, opensearch, params):
+        endpoint = "/_search/pipeline/" + mandatory(params, "id", self)
+        await opensearch.transport.perform_request(method="PUT", url=endpoint, body=mandatory(params, "body", self))
+
+    def __repr__(self, *args, **kwargs):
+        return "create-search-pipeline"
 
 class Refresh(Runner):
     async def __call__(self, opensearch, params):
