@@ -2,6 +2,18 @@
 
 This document will walk you through on what's needed to start contributing code to OpenSearch Benchmark.
 
+### Table of Contents
+- [Installation](#installation)
+    - [Prerequisites](#prerequisites)
+    - [Setup](#setup)
+- [Importing the project into an IDE](#importing-the-project-into-an-ide)
+- [Executing tests](#executing-tests)
+    - [Unit tests](#unit-tests)
+    - [Integration tests](#integration-tests)
+- [Submitting your changes for a pull request](#submitting-your-changes-for-a-pull-request)
+- [Developing breaking changes](#developing-breaking-changes)
+- [Miscellaneous](#miscellaneous)
+
 ## Installation
 
 ### Prerequisites
@@ -109,7 +121,7 @@ Once your changes and tests are ready to submit for review:
 ## Developing Breaking Changes
 Breaking changes should not be directly added to the `main` branch. These should be developed in their own feature branch. Prior to a new release this feature branch should be rebased onto the latest changes from `main`. `main` can then `pull` or `cherry-pick` the breaking changes from the feature branch.
 
-## Misc
+## Miscellaneous
 
 ### git-secrets
 Security is our top priority. Avoid checking in credentials, install awslabs/git-secrets.
