@@ -13,15 +13,18 @@ This document will walk you through on what's needed to start contributing code 
 - [Submitting your changes for a pull request](#submitting-your-changes-for-a-pull-request)
 - [Developing breaking changes](#developing-breaking-changes)
 - [Miscellaneous](#miscellaneous)
+    - [git-secrets](#git-secrets)
+    - [Adding new major and minor Python versions to OpenSearch Benchmark](#adding-new-major-and-minor-python-versions-to-opensearch-benchmark)
+    - [Debugging unittests in Visual Studio Code](#debugging-unittests-in-visual-studio-code)
 
 ## Installation
 
 ### Prerequisites
 
-  - Pyenv : Install `pyenv` and follow the instructions in the output of `pyenv init` to set up your shell and restart it before proceeding.
+  - **Pyenv** : Install `pyenv` and follow the instructions in the output of `pyenv init` to set up your shell and restart it before proceeding.
     For more details please refer to the [PyEnv installation instructions](https://github.com/pyenv/pyenv#installation).
 
-  - JDK: Although OSB is a Python application, it optionally builds and provisions OpenSearch clusters.  JDK version 17 is used to build the current version of OpenSearch.  Please refer to the [build setup requirements](https://github.com/opensearch-project/OpenSearch/blob/ca564fd04f5059cf9e3ce8aba442575afb3d99f1/DEVELOPER_GUIDE.md#install-prerequisites).
+  - **JDK**: Although OSB is a Python application, it optionally builds and provisions OpenSearch clusters.  JDK version 17 is used to build the current version of OpenSearch.  Please refer to the [build setup requirements](https://github.com/opensearch-project/OpenSearch/blob/ca564fd04f5059cf9e3ce8aba442575afb3d99f1/DEVELOPER_GUIDE.md#install-prerequisites).
     Note that the `javadoc` executable should be available in the JDK installation.  An earlier version of the JDK can be used, but not all the integration tests will pass.
 
     ```
@@ -29,15 +32,16 @@ This document will walk you through on what's needed to start contributing code 
 
     ```
 
-  - Install Docker and `docker-compose`.  Start the Docker server.  The user running the integration tests should have the permissions required to run docker commands.  Test by running `docker ps`.
+  - **Docker**: Install Docker and `docker-compose`. Start the Docker server. The user running the integration tests should have the permissions required to run docker commands. Test by running `docker ps`.
 
-  - Git : git 1.9 or later.
+  - **Git** : supports versions 1.9+
 
 ### Setup
 
-Use the following command-line instructions to set up OpenSearch Benchmark for development:
+To develop OSB properly, it is recommended that you fork the official OpenSearch Benchmark repository.
+
+After you git cloned the forked copy of OpenSearch Benchmark, use the following command-line instructions to set up OpenSearch Benchmark for development:
 ```
-git clone https://github.com/opensearch-project/OpenSearch-Benchmark
 cd OpenSearch-Benchmark
 make prereq
 make install
@@ -62,8 +66,6 @@ Depending on the platform and shell you have, use the following command to activ
 
 For more information regarding activating virtual environments, please see https://docs.python.org/3/library/venv.html.
 
-As an extra step, please consider configuring your JAVA_HOMES as mentioned in the `Important information related to integration tests`.
-
 ## Importing the project into an IDE
 
 OpenSearch Benchmark builds using virtualenv. When importing into an IDE, such as PyCharm IDE, you will need to define an appropriate Python SDK, which is provided by virtualenv.
@@ -77,10 +79,10 @@ In order to run tests within the PyCharm IDE, ensure the `Python Integrated Tool
 Once setup is complete, you may run the unit and integration tests.
 
 ### Unit Tests
+Invoke unit tests by running the following command within the root directory of the repository:
 
 ```
 make test
-
 ```
 
 ### Integration Tests
@@ -92,6 +94,7 @@ Integration tests can be run on the following operating systems:
   * Amazon Linux 2
   * MacOS
 
+Invoke integration tests by running the following command within the root directory of the repository:
 
 ```
 make it
@@ -132,7 +135,7 @@ cd git-secrets
 make install
 ```
 ### Adding New Major and Minor Python Versions to OpenSearch-Benchmark
-To streamline the process, please refer to [this guide](./PYTHON_SUPPORT_GUIDE.md)
+To streamline the process, please refer to [this guide](https://github.com/opensearch-project/opensearch-benchmark/blob/main/PYTHON_SUPPORT_GUIDE.md)
 
 ### Debugging Unittests in Visual Studio Code
 To run and debug unittests in Visual Studio Code, add the following configuration to the Python Debugger `launch.json` file. See [the official Visual Studio Code documentation](https://code.visualstudio.com/docs/editor/debugging) for more information on setting up and accessing `launch.json` file.
