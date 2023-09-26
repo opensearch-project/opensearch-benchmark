@@ -130,8 +130,6 @@ class SummaryResultsPublisher:
 
         for record in stats.op_metrics:
             task = record["task"]
-            self.logger = logging.getLogger(__name__)
-            self.logger.info("Record: [%s], Task: [%s]", record, task)
             metrics_table.extend(self._publish_throughput(record, task))
             metrics_table.extend(self._publish_latency(record, task))
             metrics_table.extend(self._publish_service_time(record, task))
