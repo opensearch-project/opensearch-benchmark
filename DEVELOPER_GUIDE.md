@@ -42,7 +42,7 @@ To develop OSB properly, it is recommended that you fork the official OpenSearch
 
 After you git cloned the forked copy of OpenSearch Benchmark, use the following command-line instructions to set up OpenSearch Benchmark for development:
 ```
-cd OpenSearch-Benchmark
+cd opensearch-benchmark
 make prereq
 make install
 ```
