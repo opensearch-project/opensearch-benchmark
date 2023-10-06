@@ -42,6 +42,9 @@ from osbenchmark import config, metrics, workload, exceptions, paths
 from osbenchmark.metrics import GlobalStatsCalculator
 from osbenchmark.workload import Task, Operation, TestProcedure, Workload
 
+AWS_ACCESS_KEY_ID_LENGTH = 12
+AWS_SECRET_ACCESS_KEY_LENGTH = 40
+AWS_SESSION_TOKEN_LENGTH = 752
 
 class MockClientFactory:
     def __init__(self, cfg):
@@ -239,24 +242,33 @@ class OsClientTests(TestCase):
         }
         self.config_opts_parsing_aws_creds("environment", override_datastore=override_config)
 
-        # verify config parsing is successful when all required parameters are present
-        config_opts = self.config_opts_parsing_aws_creds("environment")
 
-        expected_client_options = {
-            "use_ssl": True,
-            "timeout": 120,
-            "amazon_aws_log_in": 'client_option',
-            "aws_access_key_id": config_opts["_datastore_aws_access_key_id"],
-            "aws_secret_access_key": config_opts["_datastore_aws_secret_access_key"],
-            "service": config_opts["_datastore_aws_service"],
-            "region": config_opts["_datastore_aws_region"],
-            "verify_certs": config_opts["_datastore_verify_certs"]
-        }
 
-        client_OsClientfactory.assert_called_with(
-            hosts=[{"host": config_opts["_datastore_host"], "port": config_opts["_datastore_port"]}],
-            client_options=expected_client_options
-        )
+        # validate client_options when session_token is passed
+        enable_role_access = [False, True]
+        for role_based in enable_role_access:
+            # verify config parsing is successful when all required parameters are present
+            config_opts = self.config_opts_parsing_aws_creds("environment", role_based=role_based)
+
+            expected_client_options = {
+                "use_ssl": True,
+                "timeout": 120,
+                "amazon_aws_log_in": 'client_option',
+                "aws_access_key_id": config_opts["_datastore_aws_access_key_id"],
+                "aws_secret_access_key": config_opts["_datastore_aws_secret_access_key"],
+                "service": config_opts["_datastore_aws_service"],
+                "region": config_opts["_datastore_aws_region"],
+                "verify_certs": config_opts["_datastore_verify_certs"]
+            }
+
+            if role_based:
+                expected_client_options["aws_session_token"] = config_opts["_datastore_aws_session_token"]
+
+            client_OsClientfactory.assert_called_with(
+                hosts=[{"host": config_opts["_datastore_host"], "port": config_opts["_datastore_port"]}],
+                client_options=expected_client_options
+            )
+
 
     def config_opts_parsing(self, password_configuration):
         cfg = config.Config()
@@ -302,7 +314,7 @@ class OsClientTests(TestCase):
             "_datastore_verify_certs": _datastore_verify_certs
         }
 
-    def config_opts_parsing_aws_creds(self, configuration_source, override_datastore=None):
+    def config_opts_parsing_aws_creds(self, configuration_source, override_datastore=None, role_based=False):
         if override_datastore is None:
             override_datastore = {}
         cfg = config.Config()
@@ -314,10 +326,13 @@ class OsClientTests(TestCase):
         _datastore_password = ""
         _datastore_verify_certs = random.choice([True, False])
         _datastore_amazon_aws_log_in = configuration_source
-        _datastore_aws_access_key_id = "".join([random.choice(string.digits) for _ in range(12)])
-        _datastore_aws_secret_access_key = "".join([random.choice(string.ascii_letters + string.digits) for _ in range(40)])
+        _datastore_aws_access_key_id = "".join([random.choice(string.digits) for _ in range(AWS_ACCESS_KEY_ID_LENGTH)])
+        _datastore_aws_secret_access_key = "".join([random.choice(string.ascii_letters + string.digits) for _ in range(AWS_SECRET_ACCESS_KEY_LENGTH)])
         _datastore_aws_service = random.choice(['es', 'aoss'])
         _datastore_aws_region = random.choice(['us-east-1', 'eu-west-1'])
+
+        # optional
+        _datastore_aws_session_token = "".join([random.choice(string.ascii_letters + string.digits) for _ in range(AWS_SESSION_TOKEN_LENGTH)])
 
         cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.host", _datastore_host)
         cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.port", _datastore_port)
@@ -334,12 +349,17 @@ class OsClientTests(TestCase):
                     _datastore_aws_secret_access_key)
             cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.service", _datastore_aws_service)
             cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.region", _datastore_aws_region)
+            if role_based:
+                cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.aws_session_token", _datastore_aws_session_token)
         elif _datastore_amazon_aws_log_in == 'environment':
             monkeypatch = pytest.MonkeyPatch()
             monkeypatch.setenv("OSB_DATASTORE_AWS_ACCESS_KEY_ID", _datastore_aws_access_key_id)
             monkeypatch.setenv("OSB_DATASTORE_AWS_SECRET_ACCESS_KEY", _datastore_aws_secret_access_key)
             monkeypatch.setenv("OSB_DATASTORE_SERVICE", _datastore_aws_service)
             monkeypatch.setenv("OSB_DATASTORE_REGION", _datastore_aws_region)
+            if role_based:
+                monkeypatch.setenv("OSB_DATASTORE_AWS_SESSION_TOKEN", _datastore_aws_session_token)
+
 
         if not _datastore_verify_certs:
             cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.ssl.verification_mode", "none")
@@ -375,7 +395,7 @@ class OsClientTests(TestCase):
             assert e.message == missing_aws_credentials_message
             return
 
-        return {
+        response = {
             "_datastore_user": _datastore_user,
             "_datastore_host": _datastore_host,
             "_datastore_password": _datastore_password,
@@ -386,6 +406,11 @@ class OsClientTests(TestCase):
             "_datastore_aws_service": _datastore_aws_service,
             "_datastore_aws_region": _datastore_aws_region
         }
+
+        if role_based:
+            response["_datastore_aws_session_token"] = _datastore_aws_session_token
+
+        return response
 
     def test_raises_sytem_setup_error_on_connection_problems(self):
         def raise_connection_error():
