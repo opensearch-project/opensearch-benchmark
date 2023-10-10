@@ -24,6 +24,13 @@ This document will walk you through on what's needed to start contributing code 
   - **Pyenv** : Install `pyenv` and follow the instructions in the output of `pyenv init` to set up your shell and restart it before proceeding.
     For more details please refer to the [PyEnv installation instructions](https://github.com/pyenv/pyenv#installation).
 
+    Install the following dependencies to continue with the next steps: 
+    ```
+    sudo apt-get install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
+    libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
+    xz-utils tk-dev libffi-dev liblzma-dev git
+    ```
+
   - **JDK**: Although OSB is a Python application, it optionally builds and provisions OpenSearch clusters.  JDK version 17 is used to build the current version of OpenSearch.  Please refer to the [build setup requirements](https://github.com/opensearch-project/OpenSearch/blob/ca564fd04f5059cf9e3ce8aba442575afb3d99f1/DEVELOPER_GUIDE.md#install-prerequisites).
     Note that the `javadoc` executable should be available in the JDK installation.  An earlier version of the JDK can be used, but not all the integration tests will pass.
 
@@ -38,7 +45,7 @@ This document will walk you through on what's needed to start contributing code 
 
 ### Setup
 
-To develop OSB properly, it is recommended that you fork the official OpenSearch Benchmark repository.
+To develop OSB properly, it is recommended that you fork the official OpenSearch Benchmark repository. For those working on WSL2, it is recommended to clone the repository and set up the working environment within the Linux subsystem. Refer to the guide for setting up WSL2 on [Visual Studio Code](https://code.visualstudio.com/docs/remote/wsl) or [PyCharm](https://www.jetbrains.com/help/pycharm/using-wsl-as-a-remote-interpreter.html#create-wsl-interpreter). 
 
 After you git cloned the forked copy of OpenSearch Benchmark, use the following command-line instructions to set up OpenSearch Benchmark for development:
 ```
@@ -73,6 +80,74 @@ Refer to IDE documentation for more details on defining a Python SDK. We recomme
 This is typically created in PyCharm IDE by visiting the `Python Interpreter`, selecting either `Virtualenv Environment` or `Existing Environment`, and pointing interpreter to `.venv/bin/python3` within the OpenSearch Benchmark source directory.
 `
 In order to run tests within the PyCharm IDE, ensure the `Python Integrated Tools` / `Testing` / `Default Test Runner` is set to `pytest`.
+
+## Running Workloads
+
+### Installation  
+
+Download the latest release of OpenSearch from https://opensearch.org/downloads.html. If you are using WSL, make sure to download it into your /home/<user> directory instead of /mnt/c. 
+```
+wget https://artifacts.opensearch.org/releases/bundle/opensearch/2.10.0/opensearch-2.10.0-linux-x64.tar.gz
+tar -xf opensearch-2.10.0-linux-x64.tar.gz
+cd opensearch-2.10.0
+```
+NOTE: Have Docker running in the background for the next steps. Refer to the installation instructions [here](https://docs.docker.com/compose/install/).
+
+### Setup 
+
+Add the following settings to the `opensearch.yml` file under the config directory 
+```
+vim config/opensearch.yml
+```
+```
+#
+discovery.type: single-node 
+plugins.security.disabled: true 
+#
+```
+Run the opensearch-tar-install.sh script to install and setup a cluster for our use. 
+```
+bash opensearch-tar-install.sh
+```
+Check the output of `curl.exe "http://localhost:9200/_cluster/health?pretty"`. Output should be similar to this:
+```
+{
+  "cluster_name" : "<name>",
+  "status" : "green",
+  "timed_out" : false,
+  "number_of_nodes" : 1,
+  "number_of_data_nodes" : 1,
+  "discovered_master" : true,
+  "discovered_cluster_manager" : true,
+  "active_primary_shards" : 3,
+  "active_shards" : 3,
+  "relocating_shards" : 0,
+  "initializing_shards" : 0,
+  "unassigned_shards" : 0,
+  "delayed_unassigned_shards" : 0,
+  "number_of_pending_tasks" : 0,
+  "number_of_in_flight_fetch" : 0,
+  "task_max_waiting_in_queue_millis" : 0,
+  "active_shards_percent_as_number" : 100.0
+}
+```
+You now have a local cluster running! You can connect to this and run the workload for the next step. 
+
+### Running the workload
+
+Here's a sample executation of the geonames benchmark which can be found from the [workloads](https://github.com/opensearch-project/opensearch-benchmark-workloads) repo. 
+```
+opensearch-benchmark execute-test --pipeline=benchmark-only --workload=geonames --target-host=127.0.0.1:9200 --test-mode --workload-params '{"number_of_shards":"1","number_of_replicas":"0"}'
+```
+
+And we're done! You should be seeing the performance metrics soon enough!
+
+### Debugging 
+
+**If you are not seeing any results, it should be an indicator that there is an issue with your cluster setup or the way the manager is accessing it**. Use the command below to view the logs. 
+```
+tail -f ~/.bencmark/logs/bechmark.log
+```
 
 ## Executing tests
 
