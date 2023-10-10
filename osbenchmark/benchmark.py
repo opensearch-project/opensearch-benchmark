@@ -36,7 +36,7 @@ import thespian.actors
 from osbenchmark import PROGRAM_NAME, BANNER, FORUM_LINK, SKULL, check_python_version, doc_link, telemetry
 from osbenchmark import version, actor, config, paths, \
     test_execution_orchestrator, results_publisher, \
-        metrics, workload, chart_generator, exceptions, log
+        metrics, workload, exceptions, log
 from osbenchmark.builder import provision_config, builder
 from osbenchmark.workload_generator import workload_generator
 from osbenchmark.utils import io, convert, process, console, net, opts, versions
@@ -187,31 +187,6 @@ def create_arg_parser():
         metavar="KEY:VAL",
         help="Map of index name and integer doc count to extract. Ensure that index name also exists in --indices parameter. " +
         "To specify several indices and doc counts, use format: <index1>:<doc_count1> <index2>:<doc_count2> ...")
-
-    generate_parser = subparsers.add_parser("generate", help="Generate artifacts")
-    generate_parser.add_argument(
-        "artifact",
-        metavar="artifact",
-        help="The artifact to create. Possible values are: charts",
-        choices=["charts"])
-    # We allow to either have a chart-spec-path *or* define a chart-spec on the fly
-    # with workload, test_procedure and provision_config_instance. Convincing
-    # argparse to validate that everything is correct *might* be doable but it is
-    # simpler to just do this manually.
-    generate_parser.add_argument(
-        "--chart-spec-path",
-        required=True,
-        help="Path to a JSON file(s) containing all combinations of charts to generate. Wildcard patterns can be used to specify "
-             "multiple files.")
-    generate_parser.add_argument(
-        "--chart-type",
-        help="Chart type to generate (default: time-series).",
-        choices=["time-series", "bar"],
-        default="time-series")
-    generate_parser.add_argument(
-        "--output-path",
-        help="Output file name (default: stdout).",
-        default=None)
 
     compare_parser = subparsers.add_parser("compare", help="Compare two test_executions")
     compare_parser.add_argument(
@@ -742,11 +717,6 @@ def with_actor_system(runnable, cfg):
                 console.warn("Could not terminate all internal processes within timeout. Please check and force-terminate "
                              "all Benchmark processes.")
 
-
-def generate(cfg):
-    chart_generator.generate(cfg)
-
-
 def configure_telemetry_params(args, cfg):
     cfg.add(config.Scope.applicationOverride, "telemetry", "devices", opts.csv_to_list(args.telemetry))
     cfg.add(config.Scope.applicationOverride, "telemetry", "params", opts.to_dict(args.telemetry_params))
@@ -906,11 +876,6 @@ def dispatch_sub_command(arg_parser, args, cfg):
             configure_results_publishing_params(args, cfg)
 
             execute_test(cfg, args.kill_running_processes)
-        elif sub_command == "generate":
-            cfg.add(config.Scope.applicationOverride, "generator", "chart.spec.path", args.chart_spec_path)
-            cfg.add(config.Scope.applicationOverride, "generator", "chart.type", args.chart_type)
-            cfg.add(config.Scope.applicationOverride, "generator", "output.path", args.output_path)
-            generate(cfg)
         elif sub_command == "create-workload":
             cfg.add(config.Scope.applicationOverride, "generator", "indices", args.indices)
             cfg.add(config.Scope.applicationOverride, "generator", "number_of_docs", args.number_of_docs)
