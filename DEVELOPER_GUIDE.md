@@ -164,10 +164,10 @@ make test
 
 ### Integration Tests
 
-Integration tests can be run on the following operating systems:
+Integration tests are expected to run for approximately **20-30 mins** and can be run on the following operating systems:
   * RedHat
   * CentOS
-  * Ubuntu
+  * Ubuntu (and WSL)
   * Amazon Linux 2
   * MacOS
 
@@ -176,8 +176,6 @@ Invoke integration tests by running the following command within the root direct
 ```
 make it
 ```
-
-Integration tests are expected to run for approximately 20-30 mins.
 
 ## Submitting your changes for a pull request
 
