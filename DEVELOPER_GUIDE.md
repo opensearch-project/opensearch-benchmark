@@ -24,7 +24,7 @@ This document will walk you through on what's needed to start contributing code 
   - **Pyenv** : Install `pyenv` and follow the instructions in the output of `pyenv init` to set up your shell and restart it before proceeding.
     For more details please refer to the [PyEnv installation instructions](https://github.com/pyenv/pyenv#installation).
 
-    Install the following dependencies to continue with the next steps: 
+    Install the following modules to continue with the next steps: 
     ```
     sudo apt-get install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
     libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
@@ -45,7 +45,9 @@ This document will walk you through on what's needed to start contributing code 
 
 ### Setup
 
-To develop OSB properly, it is recommended that you fork the official OpenSearch Benchmark repository. For those working on WSL2, it is recommended to clone the repository and set up the working environment within the Linux subsystem. Refer to the guide for setting up WSL2 on [Visual Studio Code](https://code.visualstudio.com/docs/remote/wsl) or [PyCharm](https://www.jetbrains.com/help/pycharm/using-wsl-as-a-remote-interpreter.html#create-wsl-interpreter). 
+To develop OSB properly, it is recommended that you fork the official OpenSearch Benchmark repository. 
+
+For those working on WSL2, it is recommended to clone the repository and set up the working environment within the Linux subsystem. Refer to the guide for setting up WSL2 on [Visual Studio Code](https://code.visualstudio.com/docs/remote/wsl) or [PyCharm](https://www.jetbrains.com/help/pycharm/using-wsl-as-a-remote-interpreter.html#create-wsl-interpreter). 
 
 After you git cloned the forked copy of OpenSearch Benchmark, use the following command-line instructions to set up OpenSearch Benchmark for development:
 ```
@@ -85,11 +87,11 @@ In order to run tests within the PyCharm IDE, ensure the `Python Integrated Tool
 
 ### Installation  
 
-Download the latest release of OpenSearch from https://opensearch.org/downloads.html. If you are using WSL, make sure to download it into your /home/<user> directory instead of /mnt/c. 
+Download the latest release of OpenSearch from https://opensearch.org/downloads.html. If you are using WSL, make sure to download it into your `/home/<user>` directory instead of `/mnt/c`. 
 ```
-wget https://artifacts.opensearch.org/releases/bundle/opensearch/2.10.0/opensearch-2.10.0-linux-x64.tar.gz
-tar -xf opensearch-2.10.0-linux-x64.tar.gz
-cd opensearch-2.10.0
+wget https://artifacts.opensearch.org/releases/bundle/opensearch/<x.x.x>/opensearch-<x.x.x>-linux-x64.tar.gz
+tar -xf opensearch-x.x.x-linux-x64.tar.gz
+cd opensearch-x.x.x
 ```
 NOTE: Have Docker running in the background for the next steps. Refer to the installation instructions [here](https://docs.docker.com/compose/install/).
 
@@ -131,7 +133,7 @@ Check the output of `curl.exe "http://localhost:9200/_cluster/health?pretty"`. O
   "active_shards_percent_as_number" : 100.0
 }
 ```
-You now have a local cluster running! You can connect to this and run the workload for the next step. 
+Now, you have a local cluster running! You can connect to this and run the workload for the next step. 
 
 ### Running the workload
 
