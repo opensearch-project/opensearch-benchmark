@@ -25,6 +25,7 @@
 import re
 from importlib import resources
 
+import pkg_resources
 
 from osbenchmark import paths
 from osbenchmark.utils import git, io
