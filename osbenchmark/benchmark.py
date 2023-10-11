@@ -575,7 +575,7 @@ def create_arg_parser():
         default=False)
 
     for p in [list_parser, test_execution_parser, compare_parser, download_parser, install_parser,
-              start_parser, stop_parser, info_parser, generate_parser, create_workload_parser]:
+              start_parser, stop_parser, info_parser, create_workload_parser]:
         # This option is needed to support a separate configuration for the integration tests on the same machine
         p.add_argument(
             "--configuration-name",
