@@ -24,7 +24,7 @@ This document will walk you through on what's needed to start contributing code 
   - **Pyenv** : Install `pyenv` and follow the instructions in the output of `pyenv init` to set up your shell and restart it before proceeding.
     For more details please refer to the [PyEnv installation instructions](https://github.com/pyenv/pyenv#installation).
 
-    Install the following modules to continue with the next steps: 
+    **Optional Step:** For Debian-based systems, install the following modules to continue with the next steps: 
     ```
     sudo apt-get install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
     libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
@@ -83,9 +83,9 @@ This is typically created in PyCharm IDE by visiting the `Python Interpreter`, s
 `
 In order to run tests within the PyCharm IDE, ensure the `Python Integrated Tools` / `Testing` / `Default Test Runner` is set to `pytest`.
 
-## Running Workloads
+## Setting Up an Local OpenSearch Cluster For OSB Development (Optional)
 
-### Installation  
+### OpenSearch Installation  
 
 Download the latest release of OpenSearch from https://opensearch.org/downloads.html. If you are using WSL, make sure to download it into your `/home/<user>` directory instead of `/mnt/c`. 
 ```
@@ -95,7 +95,7 @@ cd opensearch-x.x.x
 ```
 NOTE: Have Docker running in the background for the next steps. Refer to the installation instructions [here](https://docs.docker.com/compose/install/).
 
-### Setup 
+### OpenSearch cluster setup
 
 Add the following settings to the `opensearch.yml` file under the config directory 
 ```
@@ -135,7 +135,7 @@ Check the output of `curl.exe "http://localhost:9200/_cluster/health?pretty"`. O
 ```
 Now, you have a local cluster running! You can connect to this and run the workload for the next step. 
 
-### Running the workload
+### Running workloads on a locally installed cluster
 
 Here's a sample executation of the geonames benchmark which can be found from the [workloads](https://github.com/opensearch-project/opensearch-benchmark-workloads) repo. 
 ```
