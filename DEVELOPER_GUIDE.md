@@ -95,7 +95,7 @@ cd opensearch-x.x.x
 ```
 NOTE: Have Docker running in the background for the next steps. Refer to the installation instructions [here](https://docs.docker.com/compose/install/).
 
-### OpenSearch cluster setup
+### OpenSearch Cluster Setup
 
 Add the following settings to the `opensearch.yml` file under the config directory 
 ```
@@ -135,7 +135,7 @@ Check the output of `curl.exe "http://localhost:9200/_cluster/health?pretty"`. O
 ```
 Now, you have a local cluster running! You can connect to this and run the workload for the next step. 
 
-### Running workloads on a locally installed cluster
+### Running Workloads on a Locally Installed Cluster
 
 Here's a sample executation of the geonames benchmark which can be found from the [workloads](https://github.com/opensearch-project/opensearch-benchmark-workloads) repo. 
 ```
