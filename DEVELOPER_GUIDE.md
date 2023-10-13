@@ -7,6 +7,7 @@ This document will walk you through on what's needed to start contributing code 
     - [Prerequisites](#prerequisites)
     - [Setup](#setup)
 - [Importing the project into an IDE](#importing-the-project-into-an-ide)
+- [Setting Up a Local OpenSearch Cluster For OSB Development (Optional)](#setting-up-a-local-opensearch-cluster-for-osb-development-optional)
 - [Executing tests](#executing-tests)
     - [Unit tests](#unit-tests)
     - [Integration tests](#integration-tests)
@@ -83,7 +84,7 @@ This is typically created in PyCharm IDE by visiting the `Python Interpreter`, s
 `
 In order to run tests within the PyCharm IDE, ensure the `Python Integrated Tools` / `Testing` / `Default Test Runner` is set to `pytest`.
 
-## Setting Up an Local OpenSearch Cluster For OSB Development (Optional)
+## Setting Up a Local OpenSearch Cluster For OSB Development (Optional)
 
 ### OpenSearch Installation  
 
@@ -95,7 +96,7 @@ cd opensearch-x.x.x
 ```
 NOTE: Have Docker running in the background for the next steps. Refer to the installation instructions [here](https://docs.docker.com/compose/install/).
 
-### OpenSearch cluster setup
+### OpenSearch Cluster setup
 
 Add the following settings to the `opensearch.yml` file under the config directory 
 ```
@@ -135,7 +136,7 @@ Check the output of `curl.exe "http://localhost:9200/_cluster/health?pretty"`. O
 ```
 Now, you have a local cluster running! You can connect to this and run the workload for the next step. 
 
-### Running workloads on a locally installed cluster
+### Running Workloads on a locally installed Cluster
 
 Here's a sample executation of the geonames benchmark which can be found from the [workloads](https://github.com/opensearch-project/opensearch-benchmark-workloads) repo. 
 ```
