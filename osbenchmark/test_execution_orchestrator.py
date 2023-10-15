@@ -344,16 +344,18 @@ def list_pipelines():
 
 def run(cfg):
     logger = logging.getLogger(__name__)
-    name = cfg.opts("test_execution", "pipeline")
+    # pipeline is no more mandatory, will default to benchmark-only
+    name = cfg.opts("test_execution", "pipeline", mandatory=False)
     test_execution_id = cfg.opts("system", "test_execution.id")
     logger.info("Test Execution id [%s]", test_execution_id)
-    if len(name) == 0:
-        # assume from-distribution pipeline if distribution.version has been specified and --pipeline cli arg not set
+    if not name:
+        # assume from-distribution pipeline if distribution.version has been specified
         if cfg.exists("builder", "distribution.version"):
             name = "from-distribution"
         else:
-            name = "from-sources"
-        logger.info("User specified no pipeline. Automatically derived pipeline [%s].", name)
+            name = "benchmark-only"
+            logger.info("User did not specify distribution.version or pipeline. Using default pipeline [%s].", name)
+
         cfg.add(config.Scope.applicationOverride, "test_execution", "pipeline", name)
     else:
         logger.info("User specified pipeline [%s].", name)
