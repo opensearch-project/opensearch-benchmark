@@ -28,7 +28,8 @@ import it
 def test_sources(cfg):
     port = 19200
     it.wait_until_port_is_free(port_number=port)
-    assert it.execute_test(cfg, f"--pipeline=from-sources --revision=latest --workload=geonames --test-mode  --target-hosts=127.0.0.1:{port} "
+    assert it.execute_test(cfg, f"--pipeline=from-sources --revision=latest \
+                           --workload=geonames --test-mode  --target-hosts=127.0.0.1:{port} "
                         f"--test-procedure=append-no-conflicts --provision-config-instance=4gheap "
                         f"--opensearch-plugins=analysis-icu") == 0
 
