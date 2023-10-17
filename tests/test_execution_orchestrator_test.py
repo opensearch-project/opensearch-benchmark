@@ -114,3 +114,12 @@ def test_runs_a_known_pipeline(unittest_pipeline):
     test_execution_orchestrator.run(cfg)
 
     unittest_pipeline.target.assert_called_once_with(cfg)
+
+def test_runs_a_default_pipeline(benchmark_only_pipeline):
+    # with no pipeline specified, should default to benchmark-only
+    cfg = config.Config()
+    cfg.add(config.Scope.benchmark, "system", "test_execution.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
+
+    test_execution_orchestrator.run(cfg)
+
+    benchmark_only_pipeline.target.assert_called_once_with(cfg)
