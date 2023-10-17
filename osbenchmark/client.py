@@ -135,6 +135,9 @@ class OsClientFactory:
             self.aws_log_in_dict = self.parse_aws_log_in_params()
             masked_client_options["aws_access_key_id"] = "*****"
             masked_client_options["aws_secret_access_key"] = "*****"
+            # session_token is optional and used only for role based access
+            if self.aws_log_in_dict.get("aws_session_token", None):
+                masked_client_options["aws_session_token"] = "*****"
         self.logger.info("Creating OpenSearch client connected to %s with options [%s]", hosts, masked_client_options)
 
         # we're using an SSL context now and it is not allowed to have use_ssl present in client options anymore
@@ -206,7 +209,7 @@ class OsClientFactory:
             self.logger.info("HTTP basic authentication: off")
 
         if self._is_set(self.client_options, "compressed"):
-            console.warn("You set the deprecated client option 'compressed‘. Please use 'http_compress' instead.", logger=self.logger)
+            console.warn("You set the deprecated client option 'compressed'. Please use 'http_compress' instead.", logger=self.logger)
             self.client_options["http_compress"] = self.client_options.pop("compressed")
 
         if self._is_set(self.client_options, "http_compress"):
@@ -251,12 +254,16 @@ class OsClientFactory:
             aws_log_in_dict["aws_secret_access_key"] = os.environ.get("OSB_AWS_SECRET_ACCESS_KEY")
             aws_log_in_dict["region"] = os.environ.get("OSB_REGION")
             aws_log_in_dict["service"] = os.environ.get("OSB_SERVICE")
+            # optional: applicable only for role-based access
+            aws_log_in_dict["aws_session_token"] = os.environ.get("OSB_AWS_SESSION_TOKEN")
         # aws log in : option 2) parameters are passed in from command line
         elif self.client_options["amazon_aws_log_in"] == "client_option":
             aws_log_in_dict["aws_access_key_id"] = self.client_options.get("aws_access_key_id")
             aws_log_in_dict["aws_secret_access_key"] = self.client_options.get("aws_secret_access_key")
             aws_log_in_dict["region"] = self.client_options.get("region")
             aws_log_in_dict["service"] = self.client_options.get("service")
+            # optional: applicable only for role-based access
+            aws_log_in_dict["aws_session_token"] = self.client_options.get("aws_session_token")
         if (not aws_log_in_dict["aws_access_key_id"] or not aws_log_in_dict["aws_secret_access_key"]
                 or not aws_log_in_dict["service"] or not aws_log_in_dict["region"]):
             self.logger.error("Invalid amazon aws log in parameters, required input aws_access_key_id, "
@@ -282,7 +289,8 @@ class OsClientFactory:
             return opensearchpy.OpenSearch(hosts=self.hosts, ssl_context=self.ssl_context, **self.client_options)
 
         credentials = Credentials(access_key=self.aws_log_in_dict["aws_access_key_id"],
-                                  secret_key=self.aws_log_in_dict["aws_secret_access_key"])
+                                  secret_key=self.aws_log_in_dict["aws_secret_access_key"],
+                                  token=self.aws_log_in_dict["aws_session_token"])
         aws_auth = opensearchpy.AWSV4SignerAuth(credentials, self.aws_log_in_dict["region"],
                                                 self.aws_log_in_dict["service"])
         return opensearchpy.OpenSearch(hosts=self.hosts, use_ssl=True, verify_certs=True, http_auth=aws_auth,
@@ -332,7 +340,8 @@ class OsClientFactory:
                                             **self.client_options)
 
         credentials = Credentials(access_key=self.aws_log_in_dict["aws_access_key_id"],
-                                  secret_key=self.aws_log_in_dict["aws_secret_access_key"])
+                                  secret_key=self.aws_log_in_dict["aws_secret_access_key"],
+                                  token=self.aws_log_in_dict["aws_session_token"])
         aws_auth = opensearchpy.AWSV4SignerAsyncAuth(credentials, self.aws_log_in_dict["region"],
                                                      self.aws_log_in_dict["service"])
         return BenchmarkAsyncOpenSearch(hosts=self.hosts,

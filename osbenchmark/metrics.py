@@ -188,6 +188,7 @@ class OsClientFactory:
                                                       default_value=None, mandatory=False)
         metrics_aws_access_key_id = None
         metrics_aws_secret_access_key = None
+        metrics_aws_session_token = None
         metrics_aws_region = None
         metrics_aws_service = None
 
@@ -196,6 +197,8 @@ class OsClientFactory:
                                                           default_value=None, mandatory=False)
             metrics_aws_secret_access_key = self._config.opts("results_publishing", "datastore.aws_secret_access_key",
                                                               default_value=None, mandatory=False)
+            metrics_aws_session_token = self._config.opts("results_publishing", "datastore.aws_session_token",
+                                                          default_value=None, mandatory=False)
             metrics_aws_region = self._config.opts("results_publishing", "datastore.region",
                                                    default_value=None, mandatory=False)
             metrics_aws_service = self._config.opts("results_publishing", "datastore.service",
@@ -203,6 +206,7 @@ class OsClientFactory:
         elif metrics_amazon_aws_log_in == 'environment':
             metrics_aws_access_key_id = os.getenv("OSB_DATASTORE_AWS_ACCESS_KEY_ID", default=None)
             metrics_aws_secret_access_key = os.getenv("OSB_DATASTORE_AWS_SECRET_ACCESS_KEY", default=None)
+            metrics_aws_session_token = os.getenv("OSB_DATASTORE_AWS_SESSION_TOKEN", default=None)
             metrics_aws_region = os.getenv("OSB_DATASTORE_REGION", default=None)
             metrics_aws_service = os.getenv("OSB_DATASTORE_SERVICE", default=None)
 
@@ -254,13 +258,17 @@ class OsClientFactory:
             client_options["basic_auth_user"] = user
             client_options["basic_auth_password"] = password
 
-        #add options for aws user login: pass in aws access key id, aws secret access key, service and region on command
+        # add options for aws user login:
+        # pass in aws access key id, aws secret access key, aws session token, service and region on command
         if metrics_amazon_aws_log_in is not None:
             client_options["amazon_aws_log_in"] = 'client_option'
             client_options["aws_access_key_id"] = metrics_aws_access_key_id
             client_options["aws_secret_access_key"] = metrics_aws_secret_access_key
             client_options["service"] = metrics_aws_service
             client_options["region"] = metrics_aws_region
+
+            if metrics_aws_session_token:
+                client_options["aws_session_token"] = metrics_aws_session_token
 
         factory = client.OsClientFactory(hosts=[{"host": host, "port": port}], client_options=client_options)
         self._client = factory.create()

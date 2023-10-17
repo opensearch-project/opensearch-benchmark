@@ -249,7 +249,7 @@ class OsClientFactoryTests(TestCase):
     @mock.patch.object(ssl.SSLContext, "load_cert_chain")
     def test_create_https_connection_with_aws_creds(self, mocked_load_cert_chain):
         hosts = [{"host": "localhost", "port": 9200}]
-        client_options = {
+        user_based_client_options = {
             "use_ssl": True,
             "timeout": 120,
             "amazon_aws_log_in": 'client_option',
@@ -259,34 +259,50 @@ class OsClientFactoryTests(TestCase):
             "region": "us-east-1",
             "verify_certs": True
         }
-        # make a copy so we can verify later that the factory did not modify it
-        original_client_options = dict(client_options)
+
+        role_based_client_options = dict(user_based_client_options)
+        role_based_client_options["aws_session_token"] = "dummy_token"
+
+        client_options_list = [
+            user_based_client_options,
+            role_based_client_options
+        ]
 
         logger = logging.getLogger("osbenchmark.client")
-        with mock.patch.object(logger, "info") as mocked_info_logger:
-            f = client.OsClientFactory(hosts, client_options)
-        mocked_info_logger.assert_has_calls([
-            mock.call("SSL support: on"),
-            mock.call("SSL certificate verification: on"),
-            mock.call("SSL client authentication: off")
-        ])
 
-        assert not mocked_load_cert_chain.called, "ssl_context.load_cert_chain should not have been called as we have not supplied " \
-                                                  "client certs"
+        for client_options in client_options_list:
+            # make a copy so we can verify later that the factory did not modify it
+            original_client_options = dict(client_options)
 
-        self.assertEqual(hosts, f.hosts)
-        self.assertTrue(f.ssl_context.check_hostname)
-        self.assertEqual(ssl.CERT_REQUIRED, f.ssl_context.verify_mode)
+            with mock.patch.object(logger, "info") as mocked_info_logger:
+                f = client.OsClientFactory(hosts, client_options)
 
-        self.assertEqual("https", f.client_options["scheme"])
-        self.assertIn("timeout", f.client_options)
-        self.assertIn("aws_access_key_id", f.client_options)
-        self.assertIn("aws_secret_access_key", f.client_options)
-        self.assertIn("amazon_aws_log_in", f.client_options)
-        self.assertIn("service", f.client_options)
-        self.assertIn("region", f.client_options)
+            mocked_info_logger.assert_has_calls([
+                mock.call("SSL support: on"),
+                mock.call("SSL certificate verification: on"),
+                mock.call("SSL client authentication: off")
+            ])
 
-        self.assertDictEqual(original_client_options, client_options)
+            assert not mocked_load_cert_chain.called, "ssl_context.load_cert_chain should not have been called as we have not supplied " \
+                                                    "client certs"
+
+            self.assertEqual(hosts, f.hosts)
+            self.assertTrue(f.ssl_context.check_hostname)
+            self.assertEqual(ssl.CERT_REQUIRED, f.ssl_context.verify_mode)
+
+            self.assertEqual("https", f.client_options["scheme"])
+            self.assertIn("timeout", f.client_options)
+            self.assertIn("aws_access_key_id", f.client_options)
+            self.assertIn("aws_secret_access_key", f.client_options)
+            self.assertIn("amazon_aws_log_in", f.client_options)
+            self.assertIn("service", f.client_options)
+            self.assertIn("region", f.client_options)
+
+            if "aws_session_token" in original_client_options:
+                self.assertIn("aws_session_token", f.client_options)
+
+            self.assertDictEqual(original_client_options, client_options)
+
 
     @mock.patch.object(ssl.SSLContext, "load_cert_chain")
     def test_create_https_connection_unverified_certificate_present_client_certificates(self, mocked_load_cert_chain):
