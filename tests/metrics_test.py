@@ -327,12 +327,14 @@ class OsClientTests(TestCase):
         _datastore_verify_certs = random.choice([True, False])
         _datastore_amazon_aws_log_in = configuration_source
         _datastore_aws_access_key_id = "".join([random.choice(string.digits) for _ in range(AWS_ACCESS_KEY_ID_LENGTH)])
-        _datastore_aws_secret_access_key = "".join([random.choice(string.ascii_letters + string.digits) for _ in range(AWS_SECRET_ACCESS_KEY_LENGTH)])
+        _datastore_aws_secret_access_key = "".join([random.choice(string.ascii_letters + string.digits) \
+                                                    for _ in range(AWS_SECRET_ACCESS_KEY_LENGTH)])
         _datastore_aws_service = random.choice(['es', 'aoss'])
         _datastore_aws_region = random.choice(['us-east-1', 'eu-west-1'])
 
         # optional
-        _datastore_aws_session_token = "".join([random.choice(string.ascii_letters + string.digits) for _ in range(AWS_SESSION_TOKEN_LENGTH)])
+        _datastore_aws_session_token = "".join([random.choice(string.ascii_letters + string.digits) \
+                                                for _ in range(AWS_SESSION_TOKEN_LENGTH)])
 
         cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.host", _datastore_host)
         cfg.add(config.Scope.applicationOverride, "results_publishing", "datastore.port", _datastore_port)
