@@ -115,3 +115,6 @@ recipes/ccr/ccr-target-hosts.json
 
 # Tracker tracks
 tracks/
+
+# Visual Studio Code for Contributors
+.vscode/
