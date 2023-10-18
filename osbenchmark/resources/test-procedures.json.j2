@@ -1,0 +1,21 @@
+  {
+    "operation": "delete-index"
+  },{% raw %}
+  {
+    "operation": {
+      "operation-type": "create-index",
+      "settings": {{index_settings | default({}) | tojson}}
+    }
+  },{% endraw %}
+  {
+    "operation": {
+      "operation-type": "cluster-health",
+      "index": {{ indices | map(attribute='name') | list | join(',') | tojson }},{% raw %}
+      "request-params": {
+        "wait_for_status": "{{cluster_health | default('green')}}",
+        "wait_for_no_relocating_shards": "true"
+      },
+      "retry-until-success": true
+    }
+  },{% endraw -%}
+  {% block queries %}{% endblock %}

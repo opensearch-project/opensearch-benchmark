@@ -1,0 +1,14 @@
+{% extends "base-workload.json.j2" %}
+
+{%- block queries -%}
+    {% for query in custom_queries %}
+    {
+      "operation": {
+        "name": "{{query.name}}",
+        "operation-type": "{{query['operation-type']}}",
+        "index": {{ indices | map(attribute='name') | list | join(',') | tojson }},
+        "body": {{query.body | replace("'", '"') }}
+      }
+    }{% if not loop.last %},{% endif -%}
+    {% endfor %}
+{%- endblock %}

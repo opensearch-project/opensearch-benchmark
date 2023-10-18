@@ -1,0 +1,22 @@
+[
+  {
+    "name": "default",
+    "operation-type": "search",
+    "body": {
+      "query": {
+        "match_all": {}
+      }
+    }
+  },
+  {
+    "name": "term",
+    "operation-type": "search",
+    "body": {
+      "query": {
+        "term": {
+          "director": "Ian"
+        }
+      }
+    }
+  }
+]
