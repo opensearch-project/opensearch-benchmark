@@ -161,9 +161,6 @@ def create_workload(cfg):
     )
 
     # user logger.info and print indices and corpora
-    print("Indices: %s", indices)
-    print("Corpora: %s", corpora)
-
     if len(indices) == 0:
         raise RuntimeError("Failed to extract any indices for workload!")
 
