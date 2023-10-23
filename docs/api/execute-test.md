@@ -61,9 +61,9 @@ Execute the `nyc_taxis` workload against an existing OpenSearch cluster with the
 Argument | Description | Required
 :--- | :--- |:---
 `distribution-version` | Define the version of the OpenSearch distribution to download. Check https://opensearch.org/docs/version-history/ for released versions. | No
-`provision-config-path` | Define the path to the provision_config_instance and plugin configurations to use. | No
-`provision-config-repository` | Define repository from where Benchmark will load provision_configs and provision_config_instances (default: `default`). | No
-`provision-config-revision` | Define a specific revision in the provision_config repository that Benchmark should use. | No
+`cluster-config-path` | Define the path to the cluster-configs and plugin configurations to use. | No
+`cluster-config-repository` | Define repository from where Benchmark will load cluster-configs (default: `default`). | No
+`cluster-config-revision` | Define a specific revision in the cluster-config repository that Benchmark should use. | No
 `test-execution-id` | Define a unique id for this test_execution. | No
 `pipeline` | Select the pipeline to run. | No
 `revision` | Define the source code revision for building the benchmark candidate. 'current' uses the source tree as is, 'latest' fetches the latest version on main. It is also possible to specify a commit id or an ISO timestamp. The timestamp must be specified as: "@ts" where "ts" must be a valid ISO 8601 timestamp, e.g. "@2013-07-27T10:37:00Z" (default: `current`). | No
@@ -73,8 +73,8 @@ Argument | Description | Required
 `workload` | Define the workload to use. List possible workloads with `opensearch-benchmark list workloads`. | No
 `workload-params` | Define a comma-separated list of key:value pairs that are injected verbatim to the workload as variables. | No
 `test-procedure` | Define the test_procedure to use. List possible test_procedures for workloads with `opensearch-benchmark list workloads`. | No
-`provision-config-instance` | Define the provision_config_instance to use. List possible provision_config_instances with `opensearch-benchmark list provision_config_instances` (default: `defaults`). | No
-`provision-config-instance-params` | Define a comma-separated list of key:value pairs that are injected verbatim as variables for the provision_config_instance. | No
+`cluster-config` | Define the cluster-config to use. List possible cluster-configs with `opensearch-benchmark list cluster-configs` (default: `defaults`). | No
+`provision-config-instance-params` | Define a comma-separated list of key:value pairs that are injected verbatim as variables for the cluster-config. | No
 `runtime-jdk` | The major version of the runtime JDK to use. | No
 `opensearch-plugins` | Define the OpenSearch plugins to install. (default: install no plugins). | No
 `plugin-params` | Define a comma-separated list of key:value pairs that are injected verbatim to all plugins as variables. | No

@@ -12,7 +12,7 @@ class ProvisionConfigInstance:
     """
     Creates new settings for a benchmark candidate.
 
-    :param names: Descriptive name(s) for this provision_config_instance.
+    :param names: Descriptive name(s) for this cluster-config.
     :param root_path: The root path from which bootstrap hooks should be loaded if any. May be ``None``.
     :param provider: The infrastructure provider for the cluster
     :param flavor: The flavor of cluster to be provisioned

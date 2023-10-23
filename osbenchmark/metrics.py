@@ -341,7 +341,7 @@ def calculate_system_results(store, node_name):
     return calc()
 
 
-def metrics_store(cfg, read_only=True, workload=None, test_procedure=None, provision_config_instance=None, meta_info=None):
+def metrics_store(cfg, read_only=True, workload=None, test_procedure=None, cluster_config=None, meta_info=None):
     """
     Creates a proper metrics store based on the current configuration.
 
@@ -355,12 +355,12 @@ def metrics_store(cfg, read_only=True, workload=None, test_procedure=None, provi
 
     test_execution_id = cfg.opts("system", "test_execution.id")
     test_execution_timestamp = cfg.opts("system", "time.start")
-    selected_provision_config_instance = cfg.opts("builder", "provision_config_instance.names") \
-        if provision_config_instance is None else provision_config_instance
+    selected_cluster_config = cfg.opts("builder", "cluster_config.names") \
+        if cluster_config is None else cluster_config
 
     store.open(
         test_execution_id, test_execution_timestamp,
-        workload, test_procedure, selected_provision_config_instance,
+        workload, test_procedure, selected_cluster_config,
         create=not read_only)
     return store
 
@@ -427,8 +427,8 @@ class MetricsStore:
         self._workload = None
         self._workload_params = cfg.opts("workload", "params", default_value={}, mandatory=False)
         self._test_procedure = None
-        self._provision_config_instance = None
-        self._provision_config_instance_name = None
+        self._cluster_config = None
+        self._cluster_config_name = None
         self._environment_name = cfg.opts("system", "env.name")
         self.opened = False
         if meta_info is None:
@@ -445,16 +445,16 @@ class MetricsStore:
         self.logger = logging.getLogger(__name__)
 
     def open(self, test_ex_id=None, test_ex_timestamp=None, workload_name=None,\
-         test_procedure_name=None, provision_config_instance_name=None, ctx=None,\
+         test_procedure_name=None, cluster_config_name=None, ctx=None,\
          create=False):
         """
-        Opens a metrics store for a specific test_execution, workload, test_procedure and provision_config_instance.
+        Opens a metrics store for a specific test_execution, workload, test_procedure and cluster_config.
 
         :param test_ex_id: The test execution id. This attribute is sufficient to uniquely identify a test_execution.
         :param test_ex_timestamp: The test execution timestamp as a datetime.
         :param workload_name: Workload name.
         :param test_procedure_name: TestProcedure name.
-        :param provision_config_instance_name: ProvisionConfigInstance name.
+        :param cluster_config_name: ProvisionConfigInstance name.
         :param ctx: An metrics store open context retrieved from another metrics store with ``#open_context``.
         :param create: True if an index should be created (if necessary). This is typically True, when attempting to write metrics and
         False when it is just opened for reading (as we can assume all necessary indices exist at this point).
@@ -464,23 +464,23 @@ class MetricsStore:
             self._test_execution_timestamp = ctx["test-execution-timestamp"]
             self._workload = ctx["workload"]
             self._test_procedure = ctx["test_procedure"]
-            self._provision_config_instance = ctx["provision-config-instance"]
+            self._cluster_config = ctx["provision-config-instance"]
         else:
             self._test_execution_id = test_ex_id
             self._test_execution_timestamp = time.to_iso8601(test_ex_timestamp)
             self._workload = workload_name
             self._test_procedure = test_procedure_name
-            self._provision_config_instance = provision_config_instance_name
+            self._cluster_config = cluster_config_name
         assert self._test_execution_id is not None, "Attempting to open metrics store without a test execution id"
         assert self._test_execution_timestamp is not None, "Attempting to open metrics store without a test execution timestamp"
 
-        self._provision_config_instance_name = "+".join(self._provision_config_instance) \
-            if isinstance(self._provision_config_instance, list) \
-                else self._provision_config_instance
+        self._cluster_config_name = "+".join(self._cluster_config) \
+            if isinstance(self._cluster_config, list) \
+                else self._cluster_config
 
         self.logger.info("Opening metrics store for test execution timestamp=[%s], workload=[%s],"
-        "test_procedure=[%s], provision_config_instance=[%s]",
-                         self._test_execution_timestamp, self._workload, self._test_procedure, self._provision_config_instance)
+        "test_procedure=[%s], cluster_config=[%s]",
+                         self._test_execution_timestamp, self._workload, self._test_procedure, self._cluster_config)
 
         user_tags = extract_user_tags_from_config(self._config)
         for k, v in user_tags.items():
@@ -549,7 +549,7 @@ class MetricsStore:
             "test-execution-timestamp": self._test_execution_timestamp,
             "workload": self._workload,
             "test_procedure": self._test_procedure,
-            "provision-config-instance": self._provision_config_instance
+            "provision-config-instance": self._cluster_config
         }
 
     def put_value_cluster_level(self, name, value, unit=None, task=None, operation=None, operation_type=None, sample_type=SampleType.Normal,
@@ -621,7 +621,7 @@ class MetricsStore:
             "environment": self._environment_name,
             "workload": self._workload,
             "test_procedure": self._test_procedure,
-            "provision-config-instance": self._provision_config_instance_name,
+            "provision-config-instance": self._cluster_config_name,
             "name": name,
             "value": value,
             "unit": unit,
@@ -678,7 +678,7 @@ class MetricsStore:
             "environment": self._environment_name,
             "workload": self._workload,
             "test_procedure": self._test_procedure,
-            "provision-config-instance": self._provision_config_instance_name,
+            "provision-config-instance": self._cluster_config_name,
 
         })
         if meta:
@@ -866,13 +866,13 @@ class OsMetricsStore(MetricsStore):
         self._docs = None
 
     def open(self, test_ex_id=None, test_ex_timestamp=None, workload_name=None, \
-        test_procedure_name=None, provision_config_instance_name=None, ctx=None, \
+        test_procedure_name=None, cluster_config_name=None, ctx=None, \
         create=False):
         self._docs = []
         MetricsStore.open(
             self, test_ex_id, test_ex_timestamp,
             workload_name, test_procedure_name,
-            provision_config_instance_name, ctx, create)
+            cluster_config_name, ctx, create)
         self._index = self.index_name()
         # reduce a bit of noise in the metrics cluster log
         if create:
@@ -908,9 +908,9 @@ class OsMetricsStore(MetricsStore):
             self._client.bulk_index(index=self._index, doc_type=OsMetricsStore.METRICS_DOC_TYPE, items=self._docs)
             sw.stop()
             self.logger.info("Successfully added %d metrics documents for test execution timestamp=[%s], workload=[%s], "
-                             "test_procedure=[%s], provision_config_instance=[%s] in [%f] seconds.",
+                             "test_procedure=[%s], cluster_config=[%s] in [%f] seconds.",
                              len(self._docs), self._test_execution_timestamp,
-                             self._workload, self._test_procedure, self._provision_config_instance, sw.total_time())
+                             self._workload, self._test_procedure, self._cluster_config, sw.total_time())
         self._docs = []
         # ensure we can search immediately after flushing
         if refresh:
@@ -1255,10 +1255,10 @@ def list_test_executions(cfg):
             test_execution.workload,
             format_dict(test_execution.workload_params),
             test_execution.test_procedure_name,
-            test_execution.provision_config_instance_name,
+            test_execution.cluster_config_name,
             format_dict(test_execution.user_tags),
             test_execution.workload_revision,
-            test_execution.provision_config_revision])
+            test_execution.cluster_config_revision])
 
     if len(test_executions) > 0:
         console.println("\nRecent test_executions:\n")
@@ -1281,14 +1281,14 @@ def list_test_executions(cfg):
 
 
 def create_test_execution(cfg, workload, test_procedure, workload_revision=None):
-    provision_config_instance = cfg.opts("builder", "provision_config_instance.names")
+    cluster_config = cfg.opts("builder", "cluster_config.names")
     environment = cfg.opts("system", "env.name")
     test_execution_id = cfg.opts("system", "test_execution.id")
     test_execution_timestamp = cfg.opts("system", "time.start")
     user_tags = extract_user_tags_from_config(cfg)
     pipeline = cfg.opts("test_execution", "pipeline")
     workload_params = cfg.opts("workload", "params")
-    provision_config_instance_params = cfg.opts("builder", "provision_config_instance.params")
+    cluster_config_params = cfg.opts("builder", "cluster_config.params")
     plugin_params = cfg.opts("builder", "plugin.params")
     benchmark_version = version.version()
     benchmark_revision = version.revision()
@@ -1296,16 +1296,16 @@ def create_test_execution(cfg, workload, test_procedure, workload_revision=None)
     return TestExecution(benchmark_version, benchmark_revision,
     environment, test_execution_id, test_execution_timestamp,
     pipeline, user_tags, workload,
-    workload_params, test_procedure, provision_config_instance, provision_config_instance_params,
+    workload_params, test_procedure, cluster_config, cluster_config_params,
     plugin_params, workload_revision)
 
 
 class TestExecution:
     def __init__(self, benchmark_version, benchmark_revision, environment_name,
                  test_execution_id, test_execution_timestamp, pipeline, user_tags,
-                 workload, workload_params, test_procedure, provision_config_instance,
-                 provision_config_instance_params, plugin_params,
-                 workload_revision=None, provision_config_revision=None,
+                 workload, workload_params, test_procedure, cluster_config,
+                 cluster_config_params, plugin_params,
+                 workload_revision=None, cluster_config_revision=None,
                  distribution_version=None, distribution_flavor=None,
                  revision=None, results=None, meta_data=None):
         if results is None:
@@ -1327,11 +1327,11 @@ class TestExecution:
         self.workload = workload
         self.workload_params = workload_params
         self.test_procedure = test_procedure
-        self.provision_config_instance = provision_config_instance
-        self.provision_config_instance_params = provision_config_instance_params
+        self.cluster_config = cluster_config
+        self.cluster_config_params = cluster_config_params
         self.plugin_params = plugin_params
         self.workload_revision = workload_revision
-        self.provision_config_revision = provision_config_revision
+        self.cluster_config_revision = cluster_config_revision
         self.distribution_version = distribution_version
         self.distribution_flavor = distribution_flavor
         self.revision = revision
@@ -1347,10 +1347,10 @@ class TestExecution:
         return str(self.test_procedure) if self.test_procedure else None
 
     @property
-    def provision_config_instance_name(self):
-        return "+".join(self.provision_config_instance) \
-            if isinstance(self.provision_config_instance, list) \
-                else self.provision_config_instance
+    def cluster_config_name(self):
+        return "+".join(self.cluster_config) \
+            if isinstance(self.cluster_config, list) \
+                else self.cluster_config
 
     def add_results(self, results):
         self.results = results
@@ -1368,12 +1368,12 @@ class TestExecution:
             "pipeline": self.pipeline,
             "user-tags": self.user_tags,
             "workload": self.workload_name,
-            "provision-config-instance": self.provision_config_instance,
+            "provision-config-instance": self.cluster_config,
             "cluster": {
                 "revision": self.revision,
                 "distribution-version": self.distribution_version,
                 "distribution-flavor": self.distribution_flavor,
-                "provision-config-revision": self.provision_config_revision,
+                "cluster-config-revision": self.cluster_config_revision,
             }
         }
         if self.results:
@@ -1384,8 +1384,8 @@ class TestExecution:
             d["test_procedure"] = self.test_procedure_name
         if self.workload_params:
             d["workload-params"] = self.workload_params
-        if self.provision_config_instance_params:
-            d["provision-config-instance-params"] = self.provision_config_instance_params
+        if self.cluster_config_params:
+            d["provision-config-instance-params"] = self.cluster_config_params
         if self.plugin_params:
             d["plugin-params"] = self.plugin_params
         return d
@@ -1405,20 +1405,20 @@ class TestExecution:
             "user-tags": self.user_tags,
             "workload": self.workload_name,
             "test_procedure": self.test_procedure_name,
-            "provision-config-instance": self.provision_config_instance_name,
+            "provision-config-instance": self.cluster_config_name,
             # allow to logically delete records, e.g. for UI purposes when we only want to show the latest result
             "active": True
         }
         if self.distribution_version:
             result_template["distribution-major-version"] = versions.major_version(self.distribution_version)
-        if self.provision_config_revision:
-            result_template["provision-config-revision"] = self.provision_config_revision
+        if self.cluster_config_revision:
+            result_template["cluster-config-revision"] = self.cluster_config_revision
         if self.workload_revision:
             result_template["workload-revision"] = self.workload_revision
         if self.workload_params:
             result_template["workload-params"] = self.workload_params
-        if self.provision_config_instance_params:
-            result_template["provision-config-instance-params"] = self.provision_config_instance_params
+        if self.cluster_config_params:
+            result_template["provision-config-instance-params"] = self.cluster_config_params
         if self.plugin_params:
             result_template["plugin-params"] = self.plugin_params
         if self.meta_data:
@@ -1444,7 +1444,7 @@ class TestExecution:
                     d.get("test_procedure"), d["provision-config-instance"],
                     d.get("provision-config-instance-params"), d.get("plugin-params"),
                     workload_revision=d.get("workload-revision"),
-                    provision_config_revision=cluster.get("provision-config-revision"),
+                    cluster_config_revision=cluster.get("cluster-config-revision"),
                     distribution_version=cluster.get("distribution-version"),
                     distribution_flavor=cluster.get("distribution-flavor"),
                     revision=cluster.get("revision"), results=d.get("results"), meta_data=d.get("meta", {}))

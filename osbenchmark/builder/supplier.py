@@ -39,7 +39,7 @@ from osbenchmark.utils import git, io, process, net, jvm, convert, sysstats
 REVISION_PATTERN = r"(\w.*?):(.*)"
 
 
-def create(cfg, sources, distribution, provision_config_instance, plugins=None):
+def create(cfg, sources, distribution, cluster_config, plugins=None):
     logger = logging.getLogger(__name__)
     if plugins is None:
         plugins = []
@@ -58,7 +58,7 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
     template_renderer = TemplateRenderer(version=os_version, os_name=target_os, arch=target_arch)
 
     if build_needed:
-        raw_build_jdk = provision_config_instance.mandatory_var("build.jdk")
+        raw_build_jdk = cluster_config.mandatory_var("build.jdk")
         try:
             build_jdk = int(raw_build_jdk)
         except ValueError:
@@ -71,8 +71,8 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
 
     distributions_root = os.path.join(cfg.opts("node", "root.dir"), cfg.opts("source", "distribution.dir"))
     dist_cfg = {}
-    # provision_config_instance / plugin defines defaults...
-    dist_cfg.update(provision_config_instance.variables)
+    # cluster_config / plugin defines defaults...
+    dist_cfg.update(cluster_config.variables)
     for plugin in plugins:
         for k, v in plugin.variables.items():
             dist_cfg["plugin_{}_{}".format(plugin.name, k)] = v
@@ -97,7 +97,7 @@ def create(cfg, sources, distribution, provision_config_instance, plugins=None):
         source_supplier = OpenSearchSourceSupplier(os_version,
                                                       os_src_dir,
                                                       remote_url=cfg.opts("source", "remote.repo.url"),
-                                                      provision_config_instance=provision_config_instance,
+                                                      cluster_config=cluster_config,
                                                       builder=builder,
                                                       template_renderer=template_renderer)
 
@@ -387,11 +387,11 @@ class CachedSourceSupplier:
 
 
 class OpenSearchSourceSupplier:
-    def __init__(self, revision, os_src_dir, remote_url, provision_config_instance, builder, template_renderer):
+    def __init__(self, revision, os_src_dir, remote_url, cluster_config, builder, template_renderer):
         self.revision = revision
         self.src_dir = os_src_dir
         self.remote_url = remote_url
-        self.provision_config_instance = provision_config_instance
+        self.cluster_config = cluster_config
         self.builder = builder
         self.template_renderer = template_renderer
 
@@ -401,8 +401,8 @@ class OpenSearchSourceSupplier:
     def prepare(self):
         if self.builder:
             self.builder.build([
-                self.template_renderer.render(self.provision_config_instance.mandatory_var("clean_command")),
-                self.template_renderer.render(self.provision_config_instance.mandatory_var("system.build_command"))
+                self.template_renderer.render(self.cluster_config.mandatory_var("clean_command")),
+                self.template_renderer.render(self.cluster_config.mandatory_var("system.build_command"))
             ])
 
     def add(self, binaries):
@@ -411,7 +411,7 @@ class OpenSearchSourceSupplier:
     def resolve_binary(self):
         try:
             path = os.path.join(self.src_dir,
-                                self.template_renderer.render(self.provision_config_instance.mandatory_var("system.artifact_path_pattern")))
+                                self.template_renderer.render(self.cluster_config.mandatory_var("system.artifact_path_pattern")))
             return glob.glob(path)[0]
         except IndexError:
             raise SystemSetupError("Couldn't find a tar.gz distribution. Please run Benchmark with the pipeline 'from-sources'.")

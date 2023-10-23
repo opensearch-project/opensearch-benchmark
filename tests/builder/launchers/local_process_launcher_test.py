@@ -32,10 +32,10 @@ class LocalProcessLauncherTests(TestCase):
                 "params": None
             }
         }
-        self.provision_config_instance = ProvisionConfigInstance("fake_provision_config_instance", "/path/to/root",
+        self.cluster_config = ProvisionConfigInstance("fake_cluster_config", "/path/to/root",
                                                                  ["/path/to/config"], variables=self.variables)
 
-        self.launcher = LocalProcessLauncher(self.provision_config_instance, self.shell_executor, self.metrics_store)
+        self.launcher = LocalProcessLauncher(self.cluster_config, self.shell_executor, self.metrics_store)
         self.launcher.waiter = Mock()
         self.host = None
         self.path = "fake"
@@ -51,8 +51,8 @@ class LocalProcessLauncherTests(TestCase):
         node_configs = []
         for node in range(2):
             node_configs.append(NodeConfiguration(build_type="tar",
-                                                  provision_config_instance_runtime_jdks="12,11",
-                                                  provision_config_instance_provides_bundled_jdk=True,
+                                                  cluster_config_runtime_jdks="12,11",
+                                                  cluster_config_provides_bundled_jdk=True,
                                                   ip="127.0.0.1",
                                                   node_name=f"testnode-{node}",
                                                   node_root_path="/tmp",
@@ -112,7 +112,7 @@ class LocalProcessLauncherTests(TestCase):
         self.assertIsNone(env.get("JAVA_HOME"))
 
     def test_pass_env_vars(self):
-        self.provision_config_instance.variables["system"]["env"]["passenv"] = "JAVA_HOME,FOO1"
+        self.cluster_config.variables["system"]["env"]["passenv"] = "JAVA_HOME,FOO1"
 
         os.environ["JAVA_HOME"] = "/path/to/java"
         os.environ["FOO1"] = "BAR1"
@@ -127,7 +127,7 @@ class LocalProcessLauncherTests(TestCase):
         self.assertEqual(env["OPENSEARCH_JAVA_OPTS"], "-XX:+ExitOnOutOfMemoryError")
 
     def test_pass_java_opts(self):
-        self.provision_config_instance.variables["system"]["env"]["passenv"] = "OPENSEARCH_JAVA_OPTS"
+        self.cluster_config.variables["system"]["env"]["passenv"] = "OPENSEARCH_JAVA_OPTS"
 
         os.environ["OPENSEARCH_JAVA_OPTS"] = "-XX:-someJunk"
 

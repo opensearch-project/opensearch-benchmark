@@ -32,7 +32,7 @@ def test_tar_distributions(cfg):
         for workload in it.WORKLOADS:
             it.wait_until_port_is_free(port_number=port)
             assert it.execute_test(cfg, f"--distribution-version=\"{dist}\" --workload=\"{workload}\" "
-                                f"--test-mode --provision-config-instance=4gheap --target-hosts=127.0.0.1:{port}") == 0
+                                f"--test-mode --cluster-config=4gheap --target-hosts=127.0.0.1:{port}") == 0
 
 
 @it.random_benchmark_config
@@ -43,4 +43,4 @@ def test_docker_distribution(cfg):
     it.wait_until_port_is_free(port_number=port)
     assert it.execute_test(cfg, f"--pipeline=\"docker\" --distribution-version=\"{dist}\" "
                         f"--workload=\"geonames\" --test-procedure=\"append-no-conflicts-index-only\" --test-mode "
-                        f"--provision-config-instance=4gheap --target-hosts=127.0.0.1:{port}") == 0
+                        f"--cluster-config=4gheap --target-hosts=127.0.0.1:{port}") == 0
