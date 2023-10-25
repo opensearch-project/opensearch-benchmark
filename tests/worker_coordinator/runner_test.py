@@ -2207,13 +2207,13 @@ class QueryRunnerTests(TestCase):
         )
         opensearch.clear_scroll.assert_not_called()
 
-class PutPipelineRunnerTests(TestCase):
+class CreateIngestPipelineRunnerTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
     async def test_create_pipeline(self, opensearch):
         opensearch.ingest.put_pipeline.return_value = as_future()
 
-        r = runner.PutPipeline()
+        r = runner.CreateIngestPipeline()
 
         params = {
             "id": "rename",
@@ -2239,7 +2239,7 @@ class PutPipelineRunnerTests(TestCase):
     async def test_param_body_mandatory(self, opensearch):
         opensearch.ingest.put_pipeline.return_value = as_future()
 
-        r = runner.PutPipeline()
+        r = runner.CreateIngestPipeline()
 
         params = {
             "id": "rename"
@@ -2256,7 +2256,7 @@ class PutPipelineRunnerTests(TestCase):
     async def test_param_id_mandatory(self, opensearch):
         opensearch.ingest.put_pipeline.return_value = as_future()
 
-        r = runner.PutPipeline()
+        r = runner.CreateIngestPipeline()
 
         params = {
             "body": {}
