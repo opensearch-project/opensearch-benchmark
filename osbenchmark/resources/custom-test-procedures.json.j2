@@ -1,7 +1,5 @@
 { 
   "name": "append-no-conflicts",
-  "description": "Indexes the whole document corpus using OpenSearch default settings. We only adjust the number of replicas as we benchmark a single node cluster and Benchmark will only start the benchmark if the cluster turns green. Document ids are unique so all index operations are append only.",
-  "default": true,
   "schedule": [
     {
       "operation": "delete-index"
@@ -9,7 +7,7 @@
     {
       "operation": {
         "operation-type": "create-index",
-        "settings": {{index_settings | default({}) | tojson}}
+        "settings": {{index_settings | tojson}}
       }
     },{% endraw %}
     {
@@ -17,7 +15,7 @@
         "operation-type": "cluster-health",
         "index": {{ indices | map(attribute='name') | list | join(',') | tojson }},{% raw %}
         "request-params": {
-          "wait_for_status": "{{cluster_health | default('green')}}",
+          "wait_for_status": "{{cluster_health}}",
           "wait_for_no_relocating_shards": "true"
         },
         "retry-until-success": true
