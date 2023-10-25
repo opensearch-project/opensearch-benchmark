@@ -22,8 +22,13 @@
         },
         "retry-until-success": true
       }
+    },{% endraw -%}
+    {
+      "operation": "index-append",
+      "warmup-time-period": 120,{% raw -%}
+      "clients": {{bulk_indexing_clients | default(8)}},
+      "ignore-response-error-level": "{{error_level | default('non-fatal')}}"{% endraw -%}
     }
-    {% endraw -%}
   ]
 }
 

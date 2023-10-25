@@ -160,7 +160,6 @@ def create_workload(cfg):
         client, output_path, indices, number_of_docs
     )
 
-    # user logger.info and print indices and corpora
     if len(indices) == 0:
         raise RuntimeError("Failed to extract any indices for workload!")
 
@@ -178,34 +177,16 @@ def create_workload(cfg):
     test_procedures_path = os.path.join(test_procedures_path, "default.json")
     templates_path = os.path.join(cfg.opts("node", "benchmark.root"), "resources")
 
-    write_template(
+    create_workload(
         workload_path,
-        extract_template(templates_path, "base-workload.json.j2"),
+        templates_path,
         template_vars,
+        custom_queries,
+        operations_path,
+        test_procedures_path,
+        workload_name,
+        PROGRAM_NAME,
     )
-
-    if custom_queries:
-        write_template(
-            operations_path,
-            extract_template(templates_path, "custom-operations.json.j2"),
-            template_vars,
-        )
-        write_template(
-            test_procedures_path,
-            extract_template(templates_path, "custom-test-procedures.json.j2"),
-            template_vars,
-        )
-    else:
-        write_template(
-            operations_path,
-            extract_template(templates_path, "default-operations.json.j2"),
-            template_vars,
-        )
-        write_template(
-            test_procedures_path,
-            extract_template(templates_path, "default-test-procedures.json.j2"),
-            template_vars,
-        )
 
     console.println("")
     console.info(
@@ -213,6 +194,29 @@ def create_workload(cfg):
     )
 
 
-def write_template(output_path, template, template_vars):
-    with open(output_path, "w") as f:
-        f.write(template.render(template_vars))
+def create_workload(
+    workload_path,
+    templates_path,
+    template_vars,
+    custom_queries,
+    operations_path,
+    test_procedures_path,
+    workload_name,
+    PROGRAM_NAME,
+):
+    def write_template(output_path, template_type):
+        template_file = (
+            f"{template_type}-operations.json.j2"
+            if custom_queries
+            else f"default-{template_type}.json.j2"
+        )
+        template = extract_template(templates_path, template_file)
+        with open(output_path, "w") as f:
+            f.write(template.render(template_vars))
+
+    base_template = extract_template(templates_path, "base-workload.json.j2")
+    with open(workload_path, "w") as f:
+        f.write(base_template.render(template_vars))
+
+    write_template(operations_path, "custom" if custom_queries else "default")
+    write_template(test_procedures_path, "custom" if custom_queries else "default")
