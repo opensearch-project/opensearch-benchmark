@@ -1459,7 +1459,6 @@ class WorkloadSpecificationReader:
                 default_value=[],
             )
         ]
-
         if len(indices) > 0 and len(data_streams) > 0:
             # we guard against this early and support either or
             raise WorkloadSyntaxError(
@@ -1519,9 +1518,6 @@ class WorkloadSpecificationReader:
             path = [path]
 
         structure = root
-        self.logger.info(structure)
-        self.logger.info(path)
-
         try:
             for k in path:
                 structure = structure[k]
