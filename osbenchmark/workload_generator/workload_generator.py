@@ -154,10 +154,9 @@ def create_workload(cfg):
     operations_path = os.path.join(output_path, "operations")
     test_procedures_path = os.path.join(output_path, "test_procedures")
 
-
-    try: 
+    try:
         shutil.rmtree(output_path)
-    except OSError as e:
+    except OSError:
         pass
 
     io.ensure_dir(output_path)

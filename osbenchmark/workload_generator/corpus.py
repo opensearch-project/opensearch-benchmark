@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-# 	http://www.apache.org/licenses/LICENSE-2.0
+#	http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -42,7 +42,7 @@ def template_vars(index_name, out_path, doc_count):
         "path": comp_outpath,
         "doc_count": doc_count,
         "uncompressed_bytes": os.path.getsize(out_path),
-        "compressed_bytes": os.path.getsize(comp_outpath),
+        "compressed_bytes": os.path.getsize(comp_outpath)
     }
 
 
@@ -64,34 +64,16 @@ def extract(client, output_path, index, number_of_docs_requested=None):
 
     number_of_docs = client.count(index=index)["count"]
 
-    total_docs = (
-        number_of_docs
-        if not number_of_docs_requested
-        else min(number_of_docs, number_of_docs_requested)
-    )
+    total_docs = number_of_docs if not number_of_docs_requested else min(number_of_docs, number_of_docs_requested)
 
     if total_docs > 0:
-        logger.info(
-            "[%d] total docs in index [%s]. Extracting [%s] docs.",
-            number_of_docs,
-            index,
-            total_docs,
-        )
+        logger.info("[%d] total docs in index [%s]. Extracting [%s] docs.", number_of_docs, index, total_docs)
         docs_path = get_doc_outpath(output_path, index)
-        dump_documents(
-            client,
-            index,
-            get_doc_outpath(output_path, index, "-1k"),
-            min(total_docs, 1000),
-            " for test mode",
-        )
+        dump_documents(client, index, get_doc_outpath(output_path, index, "-1k"), min(total_docs, 1000), " for test mode")
         dump_documents(client, index, docs_path, total_docs)
         return template_vars(index, docs_path, total_docs)
     else:
-        logger.info(
-            "Skipping corpus extraction fo index [%s] as it contains no documents.",
-            index,
-        )
+        logger.info("Skipping corpus extraction fo index [%s] as it contains no documents.", index)
         return None
 
 
@@ -112,21 +94,12 @@ def dump_documents(client, index, out_path, number_of_docs, progress_message_suf
             for n, doc in enumerate(helpers.scan(client, query=query, index=index)):
                 if n >= number_of_docs:
                     break
-                data = (
-                    json.dumps(doc["_source"], separators=(",", ":")) + "\n"
-                ).encode("utf-8")
+                data = (json.dumps(doc["_source"], separators=(",", ":")) + "\n").encode("utf-8")
 
                 outfile.write(data)
                 comp_outfile.write(compressor.compress(data))
 
-                render_progress(
-                    progress,
-                    progress_message_suffix,
-                    index,
-                    n + 1,
-                    number_of_docs,
-                    freq,
-                )
+                render_progress(progress, progress_message_suffix, index, n + 1, number_of_docs, freq)
 
             comp_outfile.write(compressor.flush())
     progress.finish()
