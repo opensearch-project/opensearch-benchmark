@@ -23,8 +23,7 @@
     },
     {
       "operation": "index-append",
-      "warmup-time-period": 120,{% raw -%}
-      "clients": {{bulk_indexing_clients}},
+      {% raw -%}"clients": {{bulk_indexing_clients}},
       "ignore-response-error-level": "{{error_level}}"{% endraw -%}
     },
     {

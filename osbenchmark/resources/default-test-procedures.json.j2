@@ -25,7 +25,6 @@
     },{% endraw -%}
     {
       "operation": "index-append",
-      "warmup-time-period": 120,
       {% raw -%} "clients": {{bulk_indexing_clients | default(8)}},{% endraw -%}
       {% raw -%}"ignore-response-error-level": "{{error_level | default('non-fatal')}}"{% endraw -%}
     },
