@@ -5,7 +5,7 @@
       "ingest-percentage": {{ingest_percentage | default(100)}}
     },
     {
-      "name": "default",
+      "name": "search",
       "operation-type": "search",
       "index": {{ indices | map(attribute='name') | list | join(',') | tojson }},
       "body": {

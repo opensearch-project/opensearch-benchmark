@@ -3,5 +3,14 @@
       "operation-type": "bulk",
       "bulk-size": {{bulk_size}},
       "ingest-percentage": {{ingest_percentage}}
-      {% raw %}"clients": {{bulk_indexing_clients}}{% endraw %}
     },
+    {
+      "name": "search",
+      "operation-type": "search",
+      "index": {{ indices | map(attribute='name') | list | join(',') | tojson }},
+      "body": {
+        "query": {
+          "match_all": {}
+        }
+      }
+    }

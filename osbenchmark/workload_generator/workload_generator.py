@@ -25,6 +25,7 @@
 import logging
 import os
 import json
+import shutil
 
 from opensearchpy import OpenSearchException
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -149,8 +150,15 @@ def create_workload(cfg):
     output_path = os.path.abspath(
         os.path.join(io.normalize_path(root_path), workload_name)
     )
+
     operations_path = os.path.join(output_path, "operations")
     test_procedures_path = os.path.join(output_path, "test_procedures")
+
+
+    try: 
+        shutil.rmtree(output_path)
+    except OSError as e:
+        pass
 
     io.ensure_dir(output_path)
     io.ensure_dir(operations_path)
@@ -177,15 +185,13 @@ def create_workload(cfg):
     test_procedures_path = os.path.join(test_procedures_path, "default.json")
     templates_path = os.path.join(cfg.opts("node", "benchmark.root"), "resources")
 
-    create_workload(
+    render_templates(
         workload_path,
         templates_path,
         template_vars,
         custom_queries,
         operations_path,
         test_procedures_path,
-        workload_name,
-        PROGRAM_NAME,
     )
 
     console.println("")
@@ -194,29 +200,24 @@ def create_workload(cfg):
     )
 
 
-def create_workload(
+def render_templates(
     workload_path,
     templates_path,
     template_vars,
     custom_queries,
     operations_path,
     test_procedures_path,
-    workload_name,
-    PROGRAM_NAME,
 ):
-    def write_template(output_path, template_type):
-        template_file = (
-            f"{template_type}-operations.json.j2"
-            if custom_queries
-            else f"default-{template_type}.json.j2"
-        )
-        template = extract_template(templates_path, template_file)
+    def write_template(output_path, template_file):
+        template = extract_template(templates_path, template_file + ".json.j2")
         with open(output_path, "w") as f:
             f.write(template.render(template_vars))
 
-    base_template = extract_template(templates_path, "base-workload.json.j2")
-    with open(workload_path, "w") as f:
-        f.write(base_template.render(template_vars))
+    write_template(workload_path, "base-workload")
 
-    write_template(operations_path, "custom" if custom_queries else "default")
-    write_template(test_procedures_path, "custom" if custom_queries else "default")
+    if custom_queries:
+        write_template(operations_path, "custom-operations")
+        write_template(test_procedures_path, "custom-test-procedures")
+    else:
+        write_template(operations_path, "default-operations")
+        write_template(test_procedures_path, "default-test-procedures")
