@@ -30,17 +30,13 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 from osbenchmark.utils import console
 
-from threading import Lock
 
-progress_lock = Lock()
 DOCS_COMPRESSOR = bz2.BZ2Compressor
 COMP_EXT = ".bz2"
-OUT_EXT = ".json"
 
 
 def template_vars(index_name, out_path, doc_count):
-    comp_outpath = out_path + OUT_EXT + COMP_EXT
-    out_path = out_path + OUT_EXT
+    comp_outpath = out_path + COMP_EXT
     return {
         "index_name": index_name,
         "filename": os.path.basename(comp_outpath),
@@ -52,7 +48,7 @@ def template_vars(index_name, out_path, doc_count):
 
 
 def get_doc_outpath(outdir, name, suffix=""):
-    return os.path.join(outdir, f"{name}-documents{suffix}")
+    return os.path.join(outdir, f"{name}-documents{suffix}.json")
 
 
 def extract(client, output_path, index, number_of_docs_requested=None):
@@ -103,28 +99,18 @@ def extract(client, output_path, index, number_of_docs_requested=None):
 def dump_documents_range(
     client, index, out_path, start_doc, end_doc, total_docs, progress_message_suffix=""
 ):
-    """
-    Extract documents in the range of start_doc and end_doc and write to induvidual files
-
-    :param client: OpenSearch client used to extract data
-    :param index: Name of index to dump
-    :param out_path: Destination directory for corpus dump
-    :param start_doc: Start index of the document chunk
-    :param end_doc: End index of the document chunk
-    :param total_docs: Total number of documents
-    :return: dict of properties describing the corpus for templates
-    """
+    # pylint: disable=import-outside-toplevel
+    from opensearchpy import helpers
 
     logger = logging.getLogger(__name__)
     freq = max(1, total_docs // 1000)
 
     progress = console.progress()
     compressor = DOCS_COMPRESSOR()
-    out_path = f"{out_path}_{start_doc}_{end_doc}" + OUT_EXT
     comp_outpath = out_path + COMP_EXT
 
-    with open(out_path, "wb") as outfile:
-        with open(comp_outpath, "wb") as comp_outfile:
+    with open(f"{out_path}_{start_doc}_{end_doc}", "wb") as outfile:
+        with open(f"{comp_outpath}_{start_doc}_{end_doc}", "wb") as comp_outfile:
             logger.info(
                 f"Dumping corpus for index [{index}] to [{out_path}] for docs {start_doc}-{end_doc}."
             )
@@ -184,17 +170,6 @@ def dump_documents_range(
 
 
 def dump_documents(client, index, out_path, number_of_docs, progress_message_suffix=""):
-    """
-    Splits the dumping process into 8 threads.
-    First, they split the documents into chunks to be dumped. Then, they are dumped as "{index}-documents{suffix}_{start}_{end}.json(.bz2)"
-    Finally, they are all collated into their file "{out_path}-documents{suffix}.json(.bz2)" format.
-
-    :param client: OpenSearch client used to extract data
-    :param index: Name of index to dump
-    :param out_path: Destination directory for corpus dump
-    :param number_of_docs: Total number of documents
-    """
-
     num_threads = 8
     with ThreadPoolExecutor(max_workers=num_threads) as executor:
         step = number_of_docs // num_threads
@@ -205,26 +180,10 @@ def dump_documents(client, index, out_path, number_of_docs, progress_message_suf
             ),
             ranges,
         )
-    merge_json_files(out_path, ranges)
-
-
-def merge_json_files(out_path, ranges):
-    for EXT in [OUT_EXT, OUT_EXT + COMP_EXT]:
-        merged_file_path = f"{out_path}" + EXT
-        with open(merged_file_path, "wb") as merged_file:
-            for start, end in ranges:
-                file_path = f"{out_path}_{start}_{end}" + EXT
-                with open(file_path, "rb") as f:
-                    for line in f:
-                        merged_file.write(line)
-                os.remove(file_path)
 
 
 def render_progress(progress, progress_message_suffix, index, cur, total, freq):
-    with progress_lock:
-        if cur % freq == 0 or total - cur < freq:
-            msg = (
-                f"Extracting documents for index [{index}]{progress_message_suffix}..."
-            )
-            percent = (cur * 100) / total
-            progress.print(msg, f"{cur}/{total} docs [{percent:.1f}% done]")
+    if cur % freq == 0 or total - cur < freq:
+        msg = f"Extracting documents for index [{index}]{progress_message_suffix}..."
+        percent = (cur * 100) / total
+        progress.print(msg, f"{cur}/{total} docs [{percent:.1f}% done]")
