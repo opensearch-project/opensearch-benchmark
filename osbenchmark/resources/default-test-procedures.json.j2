@@ -33,16 +33,8 @@
       "operation": "refresh"
     }, 
     {
-      "operation": {
-        "name": "default",
-        "operation-type": "search",
-        "index": {{ indices | map(attribute='name') | list | join(',') | tojson }},
-        "body": {
-          "query": {
-            "match_all": {}
-          }
-        }
-      }
+      "name": "search-after-index",
+      "operation": "search"
     }
   ]
 }
