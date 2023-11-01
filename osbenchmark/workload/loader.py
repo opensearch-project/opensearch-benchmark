@@ -119,7 +119,6 @@ class WorkloadProcessorRegistry:
 
 def workloads(cfg):
     """
-
     Lists all known workloads. Note that users can specify a distribution version so if different workloads are available for
     different versions, this will be reflected in the output.
 
