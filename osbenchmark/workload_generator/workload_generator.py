@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+# 	http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -36,11 +36,15 @@ from osbenchmark.utils import io, opts, console
 
 
 def process_template(templates_path, template_filename, template_vars, output_path):
-    env = Environment(loader=FileSystemLoader(templates_path), autoescape=select_autoescape(['html', 'xml']))
+    env = Environment(
+        loader=FileSystemLoader(templates_path),
+        autoescape=select_autoescape(["html", "xml"]),
+    )
     template = env.get_template(template_filename)
 
     with open(output_path, "w") as f:
         f.write(template.render(template_vars))
+
 
 def validate_indices_docs_map(indices, indices_docs_map, docs_were_requested):
     if not docs_were_requested:
@@ -48,18 +52,21 @@ def validate_indices_docs_map(indices, indices_docs_map, docs_were_requested):
 
     if len(indices) < len(indices_docs_map):
         raise exceptions.SystemSetupError(
-            "Number of <index>:<doc_count> pairs exceeds number of indices in --indices. " +
-            "Ensure number of <index>:<doc_count> pairs is less than or equal to number of indices in --indices."
+            "Number of <index>:<doc_count> pairs exceeds number of indices in --indices. "
+            + "Ensure number of <index>:<doc_count> pairs is less than or equal to number of indices in --indices."
         )
 
     for index_name in indices_docs_map:
         if index_name not in indices:
             raise exceptions.SystemSetupError(
-                "Index from <index>:<doc_count> pair was not found in --indices. " +
-                "Ensure that indices from all <index>:<doc_count> pairs exist in --indices."
+                "Index from <index>:<doc_count> pair was not found in --indices. "
+                + "Ensure that indices from all <index>:<doc_count> pairs exist in --indices."
             )
 
-def extract_mappings_and_corpora(client, output_path, indices_to_extract, indices_docs_map):
+
+def extract_mappings_and_corpora(
+    client, output_path, indices_to_extract, indices_docs_map, concurrent=False
+):
     indices = []
     corpora = []
     docs_were_requested = indices_docs_map is not None and len(indices_docs_map) > 0
@@ -72,7 +79,9 @@ def extract_mappings_and_corpora(client, output_path, indices_to_extract, indice
         try:
             indices += index.extract(client, output_path, index_name)
         except OpenSearchException:
-            logging.getLogger(__name__).exception("Failed to extract index [%s]", index_name)
+            logging.getLogger(__name__).exception(
+                "Failed to extract index [%s]", index_name
+            )
 
     # That list only contains valid indices (with index patterns already resolved)
     # For each index, check if docs were requested. If so, extract the number of docs from the map
@@ -87,12 +96,17 @@ def extract_mappings_and_corpora(client, output_path, indices_to_extract, indice
                     f"The string [{indices_docs_map.get(i['name'])}] in <index>:<doc_count> pair cannot be converted to an integer."
                 )
 
-        logging.getLogger(__name__).info("Extracting [%s] docs for index [%s]", custom_docs_to_extract, i["name"])
-        c = corpus.extract(client, output_path, i["name"], custom_docs_to_extract)
+        logging.getLogger(__name__).info(
+            "Extracting [%s] docs for index [%s]", custom_docs_to_extract, i["name"]
+        )
+        c = corpus.extract(
+            client, output_path, i["name"], custom_docs_to_extract, concurrent
+        )
         if c:
             corpora.append(c)
 
     return indices, corpora
+
 
 def process_custom_queries(custom_queries):
     if not custom_queries:
@@ -104,9 +118,12 @@ def process_custom_queries(custom_queries):
             if isinstance(data, dict):
                 data = [data]
         except ValueError as err:
-            raise exceptions.SystemSetupError(f"Ensure JSON schema is valid and queries are contained in a list: {err}")
+            raise exceptions.SystemSetupError(
+                f"Ensure JSON schema is valid and queries are contained in a list: {err}"
+            )
 
     return data
+
 
 def create_workload(cfg):
     logger = logging.getLogger(__name__)
@@ -118,21 +135,31 @@ def create_workload(cfg):
     client_options = cfg.opts("client", "options")
     number_of_docs = cfg.opts("generator", "number_of_docs")
     unprocessed_custom_queries = cfg.opts("workload", "custom_queries")
+    concurrent = cfg.opts("workload", "concurrent")
 
     custom_queries = process_custom_queries(unprocessed_custom_queries)
 
     logger.info("Creating workload [%s] matching indices [%s]", workload_name, indices)
     logger.info("Number of Docs: %s", number_of_docs)
-    client = OsClientFactory(hosts=target_hosts.all_hosts[opts.TargetHosts.DEFAULT],
-                             client_options=client_options.all_client_options[opts.TargetHosts.DEFAULT]).create()
+    client = OsClientFactory(
+        hosts=target_hosts.all_hosts[opts.TargetHosts.DEFAULT],
+        client_options=client_options.all_client_options[opts.TargetHosts.DEFAULT],
+    ).create()
 
     info = client.info()
-    console.info(f"Connected to OpenSearch cluster [{info['name']}] version [{info['version']['number']}].\n", logger=logger)
+    console.info(
+        f"Connected to OpenSearch cluster [{info['name']}] version [{info['version']['number']}].\n",
+        logger=logger,
+    )
 
-    output_path = os.path.abspath(os.path.join(io.normalize_path(root_path), workload_name))
+    output_path = os.path.abspath(
+        os.path.join(io.normalize_path(root_path), workload_name)
+    )
     io.ensure_dir(output_path)
 
-    indices, corpora = extract_mappings_and_corpora(client, output_path, indices, number_of_docs)
+    indices, corpora = extract_mappings_and_corpora(
+        client, output_path, indices, number_of_docs, concurrent
+    )
 
     if len(indices) == 0:
         raise RuntimeError("Failed to extract any indices for workload!")
@@ -141,7 +168,7 @@ def create_workload(cfg):
         "workload_name": workload_name,
         "indices": indices,
         "corpora": corpora,
-        "custom_queries": custom_queries
+        "custom_queries": custom_queries,
     }
 
     logger.info("Template Vars: %s", template_vars)
@@ -150,9 +177,21 @@ def create_workload(cfg):
     templates_path = os.path.join(cfg.opts("node", "benchmark.root"), "resources")
 
     if custom_queries:
-        process_template(templates_path, "custom-query-workload.json.j2", template_vars, workload_path)
+        process_template(
+            templates_path,
+            "custom-query-workload.json.j2",
+            template_vars,
+            workload_path,
+        )
     else:
-        process_template(templates_path, "default-query-workload.json.j2", template_vars, workload_path)
+        process_template(
+            templates_path,
+            "default-query-workload.json.j2",
+            template_vars,
+            workload_path,
+        )
 
-    console.println("")
-    console.info(f"Workload {workload_name} has been created. Run it with: {PROGRAM_NAME} --workload-path={output_path}")
+    console.println("\n")
+    console.info(
+        f"Workload {workload_name} has been created. Run it with: {PROGRAM_NAME} --workload-path={output_path}"
+    )

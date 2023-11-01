@@ -26,13 +26,9 @@ import bz2
 import json
 import logging
 import os
-
 from concurrent.futures import ThreadPoolExecutor
-from osbenchmark.utils import console
+from tqdm import tqdm
 
-from threading import Lock
-
-progress_lock = Lock()
 DOCS_COMPRESSOR = bz2.BZ2Compressor
 COMP_EXT = ".bz2"
 OUT_EXT = ".json"
@@ -55,7 +51,9 @@ def get_doc_outpath(outdir, name, suffix=""):
     return os.path.join(outdir, f"{name}-documents{suffix}")
 
 
-def extract(client, output_path, index, number_of_docs_requested=None):
+def extract(
+    client, output_path, index, number_of_docs_requested=None, concurrent=False
+):
     """
     Scroll an index with a match-all query, dumping document source to ``outdir/documents.json``.
 
@@ -84,13 +82,14 @@ def extract(client, output_path, index, number_of_docs_requested=None):
         )
         docs_path = get_doc_outpath(output_path, index)
         dump_documents(
+            concurrent,
             client,
             index,
             get_doc_outpath(output_path, index, "-1k"),
             min(total_docs, 1000),
-            " for test mode",
+            "for test mode",
         )
-        dump_documents(client, index, docs_path, total_docs)
+        dump_documents(concurrent, client, index, docs_path, total_docs)
         return template_vars(index, docs_path, total_docs)
     else:
         logger.info(
@@ -101,13 +100,20 @@ def extract(client, output_path, index, number_of_docs_requested=None):
 
 
 def dump_documents_range(
-    client, index, out_path, start_doc, end_doc, total_docs, progress_message_suffix=""
+    pbar,
+    client,
+    index,
+    out_path,
+    start_doc,
+    end_doc,
+    total_docs,
+    progress_message_suffix="",
 ):
     """
-    Extract documents in the range of start_doc and end_doc and write to induvidual files
+    Extract documents in the range of start_doc and end_doc and write to individual files
 
     :param client: OpenSearch client used to extract data
-    :param index: Name of index to dump
+    :param index: Name of OpenSearch index to extract documents from
     :param out_path: Destination directory for corpus dump
     :param start_doc: Start index of the document chunk
     :param end_doc: End index of the document chunk
@@ -116,9 +122,7 @@ def dump_documents_range(
     """
 
     logger = logging.getLogger(__name__)
-    freq = max(1, total_docs // 1000)
 
-    progress = console.progress()
     compressor = DOCS_COMPRESSOR()
     out_path = f"{out_path}_{start_doc}_{end_doc}" + OUT_EXT
     comp_outpath = out_path + COMP_EXT
@@ -126,7 +130,11 @@ def dump_documents_range(
     with open(out_path, "wb") as outfile:
         with open(comp_outpath, "wb") as comp_outfile:
             logger.info(
-                f"Dumping corpus for index [{index}] to [{out_path}] for docs {start_doc}-{end_doc}."
+                "Dumping corpus for index [%s] to [%s] for docs %s-%s.",
+                index,
+                out_path,
+                start_doc,
+                end_doc,
             )
             query = {
                 "query": {"match_all": {}},
@@ -134,22 +142,22 @@ def dump_documents_range(
                 "size": end_doc - start_doc,
             }
 
+            batch_size = (end_doc - start_doc) // 5
             search_after = None
-
             n = 0
 
             while n < (end_doc - start_doc):
                 if search_after:
                     query = {
                         "query": {"match_all": {}},
-                        "size": 1,
+                        "size": batch_size,
                         "sort": [{"_id": "asc"}],
                         "search_after": search_after,
                     }
                 else:
                     query = {
                         "query": {"match_all": {}},
-                        "size": 1,
+                        "size": batch_size,
                         "sort": [{"_id": "asc"}],
                         "from": start_doc,
                     }
@@ -160,52 +168,77 @@ def dump_documents_range(
                 if not hits:
                     break
 
-                doc = hits[0]
-                search_after = doc["sort"]
-                data = (
-                    json.dumps(doc["_source"], separators=(",", ":")) + "\n"
-                ).encode("utf-8")
+                for doc in hits:
+                    search_after = doc["sort"]
+                    data = (
+                        json.dumps(doc["_source"], separators=(",", ":")) + "\n"
+                    ).encode("utf-8")
 
-                outfile.write(data)
-                comp_outfile.write(compressor.compress(data))
+                    outfile.write(data)
+                    comp_outfile.write(compressor.compress(data))
 
-                render_progress(
-                    progress,
-                    progress_message_suffix,
-                    index,
-                    start_doc + n + 1,
-                    total_docs,
-                    freq,
-                )
-
-                n += 1
+                    n += 1
+                    pbar.update(1)
+                    if n >= (end_doc - start_doc):
+                        break
 
             comp_outfile.write(compressor.flush())
 
 
-def dump_documents(client, index, out_path, number_of_docs, progress_message_suffix=""):
+def dump_documents(
+    concurrent, client, index, out_path, number_of_docs, progress_message_suffix=""
+):
     """
     Splits the dumping process into 8 threads.
     First, they split the documents into chunks to be dumped. Then, they are dumped as "{index}-documents{suffix}_{start}_{end}.json(.bz2)"
     Finally, they are all collated into their file "{out_path}-documents{suffix}.json(.bz2)" format.
 
     :param client: OpenSearch client used to extract data
-    :param index: Name of index to dump
+    :param index: Name of OpenSearch index to extract documents from
     :param out_path: Destination directory for corpus dump
     :param number_of_docs: Total number of documents
     """
-
-    num_threads = 8
-    with ThreadPoolExecutor(max_workers=num_threads) as executor:
-        step = number_of_docs // num_threads
-        ranges = [(i, i + step) for i in range(0, number_of_docs, step)]
-        executor.map(
-            lambda args: dump_documents_range(
-                client, index, out_path, *args, number_of_docs, progress_message_suffix
-            ),
-            ranges,
-        )
-    merge_json_files(out_path, ranges)
+    if concurrent:
+        num_threads = 8
+        with tqdm(
+            total=number_of_docs,
+            desc="Extracting documents"
+            + (f" [{progress_message_suffix}]" if progress_message_suffix else ""),
+            unit="doc",
+        ) as pbar:
+            with ThreadPoolExecutor(max_workers=num_threads) as executor:
+                step = number_of_docs // num_threads
+                ranges = [(i, i + step) for i in range(0, number_of_docs, step)]
+                executor.map(
+                    lambda args: dump_documents_range(
+                        pbar,
+                        client,
+                        index,
+                        out_path,
+                        *args,
+                        number_of_docs,
+                        progress_message_suffix,
+                    ),
+                    ranges,
+                )
+            merge_json_files(out_path, ranges)
+    else:
+        with tqdm(
+            total=number_of_docs,
+            desc="Extracting documents"
+            + (f" [{progress_message_suffix}]" if progress_message_suffix else ""),
+            unit="doc",
+        ) as pbar:
+            dump_documents_range(
+                pbar,
+                client,
+                index,
+                out_path,
+                0,
+                number_of_docs,
+                number_of_docs,
+                progress_message_suffix,
+            )
 
 
 def merge_json_files(out_path, ranges):
@@ -218,13 +251,3 @@ def merge_json_files(out_path, ranges):
                     for line in f:
                         merged_file.write(line)
                 os.remove(file_path)
-
-
-def render_progress(progress, progress_message_suffix, index, cur, total, freq):
-    with progress_lock:
-        if cur % freq == 0 or total - cur < freq:
-            msg = (
-                f"Extracting documents for index [{index}]{progress_message_suffix}..."
-            )
-            percent = (cur * 100) / total
-            progress.print(msg, f"{cur}/{total} docs [{percent:.1f}% done]")
