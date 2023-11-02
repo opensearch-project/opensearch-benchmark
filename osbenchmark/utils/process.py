@@ -133,11 +133,12 @@ def run_subprocess_with_logging(command_line, header=None, level=logging.INFO, s
 
 def is_benchmark_process(p):
     cmdline = p.cmdline()
+    # On Linux, /proc/PID/status truncates the command name to 15 characters.
     return p.name() == "opensearch-benchmark" or \
-           (p.name().lower().startswith("python") and
-            (len(cmdline) > 1 and
-             (cmdline[1] == "opensearch-benchmark" or
-              cmdline[1].endswith(os.path.sep + "opensearch-benchmark"))))
+        p.name() == "opensearch-benc" or \
+        (len(cmdline) > 1 and
+         os.path.basename(cmdline[0].lower()).startswith("python") and
+         os.path.basename(cmdline[1]) == "opensearch-benchmark")
 
 
 def find_all_other_benchmark_processes():
