@@ -1101,7 +1101,7 @@ class CreateIngestPipeline(Runner):
                                      )
 
     def __repr__(self, *args, **kwargs):
-        return "create-ingest-pipeline"
+        return opensearch.ingest.put_pipeline.return_value = as_future()
 
 # TODO: refactor it after python client support search pipeline https://github.com/opensearch-project/opensearch-py/issues/474
 class CreateSearchPipeline(Runner):
