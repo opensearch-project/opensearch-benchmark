@@ -169,7 +169,11 @@ def dump_documents_range(
                     break
 
                 for doc in hits:
-                    search_after = doc["sort"]
+                    try:
+                        search_after = doc["sort"]
+                    except KeyError:
+                        print(doc)
+                        logger.info("%s", doc)
                     data = (
                         json.dumps(doc["_source"], separators=(",", ":")) + "\n"
                     ).encode("utf-8")
