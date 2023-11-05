@@ -107,7 +107,6 @@ def dump_documents_range(
     start_doc,
     end_doc,
     total_docs,
-    progress_message_suffix="",
 ):
     """
     Extract documents in the range of start_doc and end_doc and write to individual files
@@ -129,24 +128,23 @@ def dump_documents_range(
 
     with open(out_path, "wb") as outfile:
         with open(comp_outpath, "wb") as comp_outfile:
+            max_doc = total_docs if end_doc > total_docs else end_doc
+
             logger.info(
                 "Dumping corpus for index [%s] to [%s] for docs %s-%s.",
                 index,
                 out_path,
                 start_doc,
-                end_doc,
+                max_doc,
             )
-            query = {
-                "query": {"match_all": {}},
-                "from": start_doc,
-                "size": end_doc - start_doc,
-            }
 
-            batch_size = (end_doc - start_doc) // 5
+            batch_size = (max_doc - start_doc) // 5
+            if batch_size < 1:
+                batch_size = 1
             search_after = None
             n = 0
 
-            while n < (end_doc - start_doc):
+            while n < max_doc - start_doc:
                 if search_after:
                     query = {
                         "query": {"match_all": {}},
@@ -172,7 +170,6 @@ def dump_documents_range(
                     try:
                         search_after = doc["sort"]
                     except KeyError:
-                        print(doc)
                         logger.info("%s", doc)
                     data = (
                         json.dumps(doc["_source"], separators=(",", ":")) + "\n"
@@ -183,7 +180,7 @@ def dump_documents_range(
 
                     n += 1
                     pbar.update(1)
-                    if n >= (end_doc - start_doc):
+                    if n >= (max_doc - start_doc):
                         break
 
             comp_outfile.write(compressor.flush())
@@ -206,7 +203,7 @@ def dump_documents(
         num_threads = 8
         with tqdm(
             total=number_of_docs,
-            desc="Extracting documents"
+            desc=f"Extracting documents from {index}"
             + (f" [{progress_message_suffix}]" if progress_message_suffix else ""),
             unit="doc",
         ) as pbar:
@@ -215,21 +212,15 @@ def dump_documents(
                 ranges = [(i, i + step) for i in range(0, number_of_docs, step)]
                 executor.map(
                     lambda args: dump_documents_range(
-                        pbar,
-                        client,
-                        index,
-                        out_path,
-                        *args,
-                        number_of_docs,
-                        progress_message_suffix,
+                        pbar, client, index, out_path, *args, number_of_docs
                     ),
                     ranges,
                 )
-            merge_json_files(out_path, ranges)
+        merge_json_files(out_path, ranges)
     else:
         with tqdm(
             total=number_of_docs,
-            desc="Extracting documents"
+            desc=f"Extracting documents from {index}"
             + (f" [{progress_message_suffix}]" if progress_message_suffix else ""),
             unit="doc",
         ) as pbar:
@@ -243,6 +234,7 @@ def dump_documents(
                 number_of_docs,
                 progress_message_suffix,
             )
+        merge_json_files(out_path, [(0, number_of_docs)])
 
 
 def merge_json_files(out_path, ranges):

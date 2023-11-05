@@ -128,9 +128,9 @@ class StoreKeyPairAsDict(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         custom_dict = {}
+        values = values[0].split(",")
         for kv in values:
             try:
-                print(kv)
                 k, v = kv.split(":")
                 custom_dict[k] = v
             except ValueError:

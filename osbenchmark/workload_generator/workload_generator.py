@@ -25,6 +25,7 @@
 import logging
 import os
 import json
+import shutil
 
 from opensearchpy import OpenSearchException
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -155,6 +156,10 @@ def create_workload(cfg):
     output_path = os.path.abspath(
         os.path.join(io.normalize_path(root_path), workload_name)
     )
+
+    if os.path.isdir(output_path):
+        shutil.rmtree(output_path)
+
     io.ensure_dir(output_path)
 
     indices, corpora = extract_mappings_and_corpora(
