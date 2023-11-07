@@ -571,7 +571,7 @@ def create_arg_parser():
              "(default: localhost:9200).",
         default="")  # actually the default is pipeline specific and it is set later
     test_execution_parser.add_argument(
-        "--load-worker-coordinator-hosts",
+        "--worker-ips",
         help="Define a comma-separated list of hosts which should generate load (default: localhost).",
         default="localhost")
     test_execution_parser.add_argument(
