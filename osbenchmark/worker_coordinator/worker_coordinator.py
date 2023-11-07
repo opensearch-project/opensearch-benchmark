@@ -528,7 +528,7 @@ class WorkerCoordinator:
         self.workload = None
         self.test_procedure = None
         self.metrics_store = None
-        self.load_worker_coordinator_hosts = []
+        self.worker_ips = []
         self.workers = []
         # which client ids are assigned to which workers?
         self.clients_per_worker = {}
@@ -636,7 +636,7 @@ class WorkerCoordinator:
         # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
         self.prepare_telemetry(os_clients, enable=not uses_static_responses)
 
-        for host in self.config.opts("worker_coordinator", "load_worker_coordinator_hosts"):
+        for host in self.config.opts("worker_coordinator", "worker_ips"):
             host_config = {
                 # for simplicity we assume that all benchmark machines have the same specs
                 "cores": num_cores(self.config)
@@ -646,9 +646,9 @@ class WorkerCoordinator:
             else:
                 host_config["host"] = host
 
-            self.load_worker_coordinator_hosts.append(host_config)
+            self.worker_ips.append(host_config)
 
-        self.target.prepare_workload([h["host"] for h in self.load_worker_coordinator_hosts], self.config, self.workload)
+        self.target.prepare_workload([h["host"] for h in self.worker_ips], self.config, self.workload)
 
     def start_benchmark(self):
         self.logger.info("Benchmark is about to start.")
@@ -669,7 +669,7 @@ class WorkerCoordinator:
         if allocator.clients < 128:
             self.logger.info("Allocation matrix:\n%s", "\n".join([str(a) for a in self.allocations]))
 
-        worker_assignments = calculate_worker_assignments(self.load_worker_coordinator_hosts, allocator.clients)
+        worker_assignments = calculate_worker_assignments(self.worker_ips, allocator.clients)
         worker_id = 0
         for assignment in worker_assignments:
             host = assignment["host"]
