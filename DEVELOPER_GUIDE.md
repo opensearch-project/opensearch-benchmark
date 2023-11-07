@@ -16,6 +16,7 @@ This document will walk you through on what's needed to start contributing code 
 - [Miscellaneous](#miscellaneous)
     - [git-secrets](#git-secrets)
     - [Adding new major and minor Python versions to OpenSearch Benchmark](#adding-new-major-and-minor-python-versions-to-opensearch-benchmark)
+    - [Debugging OpenSearch Benchmark in Developer Mode](#debugging-opensearch-benchmark-in-developer-mode)
     - [Debugging unittests in Visual Studio Code](#debugging-unittests-in-visual-studio-code)
 
 ## Installation
@@ -214,6 +215,9 @@ make install
 ```
 ### Adding New Major and Minor Python Versions to OpenSearch-Benchmark
 To streamline the process, please refer to [this guide](https://github.com/opensearch-project/opensearch-benchmark/blob/main/PYTHON_SUPPORT_GUIDE.md)
+
+### Debugging OpenSearch Benchmark in Developer Mode
+Many users find that the simplest way to debug OpenSearch Benchmark is by using developer mode. Users can activate developer mode by running `python3 -m pip install -e .` within the cloned OpenSearch Benchmark repository. Any changes made and saved will be reflected when OpenSearch Benchmark is run. Users can add loggers or print statements and see the changes reflected in subsequent runs. 
 
 ### Debugging Unittests in Visual Studio Code
 To run and debug unittests in Visual Studio Code, add the following configuration to the Python Debugger `launch.json` file. See [the official Visual Studio Code documentation](https://code.visualstudio.com/docs/editor/debugging) for more information on setting up and accessing `launch.json` file.
