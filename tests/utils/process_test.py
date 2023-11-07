@@ -123,6 +123,8 @@ class ProcessTests(TestCase):
         random_python = ProcessTests.Process(103, "python3", ["/some/django/app"])
         other_process = ProcessTests.Process(104, "init", ["/usr/sbin/init"])
         benchmark_process_p = ProcessTests.Process(105, "python3", ["/usr/bin/python3", "~/.local/bin/opensearch-benchmark"])
+        # On Linux, the process name is truncated to 15 characters.
+        benchmark_process_l = ProcessTests.Process(106, "opensearch-benc", ["/usr/bin/python3", "~/.local/bin/osbenchmark"])
         benchmark_process_e = ProcessTests.Process(107, "opensearch-benchmark", ["/usr/bin/python3", "~/.local/bin/opensearch-benchmark"])
         benchmark_process_mac = ProcessTests.Process(108, "Python", ["/Python.app/Contents/MacOS/Python",
                                                                      "~/.local/bin/opensearch-benchmark"])
@@ -139,6 +141,7 @@ class ProcessTests(TestCase):
             random_python,
             other_process,
             benchmark_process_p,
+            benchmark_process_l,
             benchmark_process_e,
             benchmark_process_mac,
             own_benchmark_process,
@@ -153,6 +156,7 @@ class ProcessTests(TestCase):
         self.assertFalse(random_python.killed)
         self.assertFalse(other_process.killed)
         self.assertTrue(benchmark_process_p.killed)
+        self.assertTrue(benchmark_process_l.killed)
         self.assertTrue(benchmark_process_e.killed)
         self.assertTrue(benchmark_process_mac.killed)
         self.assertFalse(own_benchmark_process.killed)
