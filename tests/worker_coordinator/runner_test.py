@@ -2245,7 +2245,10 @@ class CreateIngestPipelineRunnerTests(TestCase):
             "id": "rename"
         }
         with self.assertRaisesRegex(exceptions.DataError,
-                                    "Parameter source for operation 'create-ingest-pipeline' did not provide the mandatory parameter 'body'. "
+                                    "Parameter source "
+                                    "for operation 'create-ingest-pipeline' "
+                                    "did not provide the "
+                                    "mandatory parameter 'body'."
                                     "Add it to your parameter source and try again."):
             await r(opensearch, params)
 
@@ -2262,7 +2265,9 @@ class CreateIngestPipelineRunnerTests(TestCase):
             "body": {}
         }
         with self.assertRaisesRegex(exceptions.DataError,
-                                    "Parameter source for operation 'create-ingest-pipeline' did not provide the mandatory parameter 'id'. "
+                                    "Parameter source for "
+                                    "operation 'create-ingest-pipeline' did"
+                                    " not provide the mandatory parameter 'id'. "
                                     "Add it to your parameter source and try again."):
             await r(opensearch, params)
 
