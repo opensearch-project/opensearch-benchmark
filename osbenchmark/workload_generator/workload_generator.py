@@ -155,9 +155,9 @@ def create_workload(cfg):
     bsize = cfg.opts("workload", "bsize")
     custom_dump_query = cfg.opts("workload", "custom_dump_query")
 
-    if (threads or bsize or custom_dump_query) and not concurrent:
-        raise exceptions.SystemSetupError(
-            "Cannot set --threads, --bsize, or --dump-query without setting --concurrent."
+    if threads and not concurrent:
+        raise exceptions.WorkloadConfigError(
+            "Cannot set --threads without setting --concurrent."
         )
 
     custom_queries = process_custom_queries(unprocessed_custom_queries)
