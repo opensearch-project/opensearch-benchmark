@@ -126,8 +126,8 @@ def dump_documents_range(
     start_doc,
     end_doc,
     total_docs,
-    bsize=None,
-    custom_dump_query=None,
+    bsize=0,
+    custom_dump_query='{"match_all": {}}',
 ):
     """
     Extract documents in the range of start_doc and end_doc and write to individual files
@@ -151,14 +151,6 @@ def dump_documents_range(
         with open(comp_outpath, "wb") as comp_outfile:
             max_doc = total_docs if end_doc > total_docs else end_doc
 
-            logger.info(
-                "Dumping corpus for index [%s] to [%s] for docs %s-%s.",
-                index,
-                out_path,
-                start_doc,
-                max_doc,
-            )
-
             batch_size = bsize if bsize > 0 else (max_doc - start_doc) // 5
             if batch_size < 1:
                 batch_size = 1
@@ -175,7 +167,6 @@ def dump_documents_range(
                     }
                 else:
                     query = {
-                        #  {"match_all": {}}
                         "query": custom_dump_query,
                         "size": batch_size,
                         "sort": [{"_id": "asc"}],
@@ -192,7 +183,7 @@ def dump_documents_range(
                     try:
                         search_after = doc["sort"]
                     except KeyError:
-                        logger.info("%s", doc)
+                        logger.info("Error in response format: %s", doc)
                     data = (
                         json.dumps(doc["_source"], separators=(",", ":")) + "\n"
                     ).encode("utf-8")
@@ -206,6 +197,8 @@ def dump_documents_range(
                         break
 
             comp_outfile.write(compressor.flush())
+
+    logger.info("Finished dumping corpus for index [%s] to [%s].", index, out_path)
 
 
 def dump_documents(
@@ -270,12 +263,13 @@ def dump_documents(
                 0,
                 number_of_docs,
                 number_of_docs,
-                progress_message_suffix,
             )
         merge_json_files(out_path, [(0, number_of_docs)])
 
 
 def merge_json_files(out_path, ranges):
+    logger = logging.getLogger(__name__)
+
     for EXT in [OUT_EXT, OUT_EXT + COMP_EXT]:
         merged_file_path = f"{out_path}" + EXT
         with open(merged_file_path, "wb") as merged_file:
@@ -284,4 +278,9 @@ def merge_json_files(out_path, ranges):
                 with open(file_path, "rb") as f:
                     for line in f:
                         merged_file.write(line)
-                os.remove(file_path)
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
+
+        logger.info("Finished merging shards into [%s].", merged_file_path)

@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+# 	http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -38,7 +38,12 @@ def test_cluster():
     test_execution_id = str(uuid.uuid4())
 
     it.wait_until_port_is_free(port_number=port)
-    cluster.install(distribution_version=dist, node_name="benchmark-node", provision_config_instance="4gheap", http_port=port)
+    cluster.install(
+        distribution_version=dist,
+        node_name="benchmark-node",
+        provision_config_instance="4gheap",
+        http_port=port,
+    )
     cluster.start(test_execution_id=test_execution_id)
     yield cluster
     cluster.stop()
@@ -47,23 +52,33 @@ def test_cluster():
 @it.benchmark_in_mem
 def test_create_workload(cfg, tmp_path, test_cluster):
     # prepare some data
-    cmd = f"--test-mode --pipeline=benchmark-only --target-hosts=127.0.0.1:{test_cluster.http_port} " \
-          f" --workload=geonames --test-procedure=append-no-conflicts-index-only --quiet"
+    cmd = (
+        f"--test-mode --pipeline=benchmark-only --target-hosts=127.0.0.1:{test_cluster.http_port} "
+        f" --workload=geonames --test-procedure=append-no-conflicts-index-only --quiet"
+    )
     assert it.execute_test(cfg, cmd) == 0
 
     # create the workload
     workload_name = f"test-workload-{uuid.uuid4()}"
     workload_path = tmp_path / workload_name
 
-    assert it.osbenchmark(cfg, f"create-workload --target-hosts=127.0.0.1:{test_cluster.http_port} --indices=geonames "
-                           f"--workload={workload_name} --output-path={tmp_path}") == 0
+    assert (
+        it.osbenchmark(
+            cfg,
+            f"create-workload --target-hosts=127.0.0.1:{test_cluster.http_port} --indices=geonames "
+            f"--workload={workload_name} --output-path={tmp_path}",
+        )
+        == 0
+    )
 
-    expected_files = ["workload.json",
-                      "geonames.json",
-                      "geonames-documents-1k.json",
-                      "geonames-documents.json",
-                      "geonames-documents-1k.json.bz2",
-                      "geonames-documents.json.bz2"]
+    expected_files = [
+        "workload.json",
+        "geonames.json",
+        "geonames-documents-1k.json",
+        "geonames-documents.json",
+        "geonames-documents-1k.json.bz2",
+        "geonames-documents.json.bz2",
+    ]
 
     for f in expected_files:
         full_path = workload_path / f
