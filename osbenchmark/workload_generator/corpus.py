@@ -52,7 +52,14 @@ def get_doc_outpath(outdir, name, suffix=""):
 
 
 def extract(
-    client, output_path, index, number_of_docs_requested=None, concurrent=False
+    client,
+    output_path,
+    index,
+    number_of_docs_requested=None,
+    concurrent=False,
+    threads=None,
+    bsize=None,
+    custom_dump_query=None,
 ):
     """
     Scroll an index with a match-all query, dumping document source to ``outdir/documents.json``.
@@ -87,9 +94,21 @@ def extract(
             index,
             get_doc_outpath(output_path, index, "-1k"),
             min(total_docs, 1000),
-            "for test mode",
+            progress_message_suffix="for test mode",
+            threads=threads,
+            bsize=bsize,
+            custom_dump_query=custom_dump_query,
         )
-        dump_documents(concurrent, client, index, docs_path, total_docs)
+        dump_documents(
+            concurrent,
+            client,
+            index,
+            docs_path,
+            total_docs,
+            threads=threads,
+            bsize=bsize,
+            custom_dump_query=custom_dump_query,
+        )
         return template_vars(index, docs_path, total_docs)
     else:
         logger.info(
@@ -107,6 +126,8 @@ def dump_documents_range(
     start_doc,
     end_doc,
     total_docs,
+    bsize=None,
+    custom_dump_query=None,
 ):
     """
     Extract documents in the range of start_doc and end_doc and write to individual files
@@ -138,7 +159,7 @@ def dump_documents_range(
                 max_doc,
             )
 
-            batch_size = (max_doc - start_doc) // 5
+            batch_size = bsize if bsize > 0 else (max_doc - start_doc) // 5
             if batch_size < 1:
                 batch_size = 1
             search_after = None
@@ -147,14 +168,15 @@ def dump_documents_range(
             while n < max_doc - start_doc:
                 if search_after:
                     query = {
-                        "query": {"match_all": {}},
+                        "query": custom_dump_query,
                         "size": batch_size,
                         "sort": [{"_id": "asc"}],
                         "search_after": search_after,
                     }
                 else:
                     query = {
-                        "query": {"match_all": {}},
+                        #  {"match_all": {}}
+                        "query": custom_dump_query,
                         "size": batch_size,
                         "sort": [{"_id": "asc"}],
                         "from": start_doc,
@@ -187,7 +209,15 @@ def dump_documents_range(
 
 
 def dump_documents(
-    concurrent, client, index, out_path, number_of_docs, progress_message_suffix=""
+    concurrent,
+    client,
+    index,
+    out_path,
+    number_of_docs,
+    progress_message_suffix="",
+    threads=None,
+    bsize=None,
+    custom_dump_query=None,
 ):
     """
     Splits the dumping process into 8 threads.
@@ -200,19 +230,27 @@ def dump_documents(
     :param number_of_docs: Total number of documents
     """
     if concurrent:
-        num_threads = 8
+        threads = int(threads)
+        bsize = int(bsize)
         with tqdm(
             total=number_of_docs,
             desc=f"Extracting documents from {index}"
             + (f" [{progress_message_suffix}]" if progress_message_suffix else ""),
             unit="doc",
         ) as pbar:
-            with ThreadPoolExecutor(max_workers=num_threads) as executor:
-                step = number_of_docs // num_threads
+            with ThreadPoolExecutor(max_workers=threads) as executor:
+                step = number_of_docs // threads
                 ranges = [(i, i + step) for i in range(0, number_of_docs, step)]
                 executor.map(
                     lambda args: dump_documents_range(
-                        pbar, client, index, out_path, *args, number_of_docs
+                        pbar,
+                        client,
+                        index,
+                        out_path,
+                        *args,
+                        number_of_docs,
+                        bsize,
+                        custom_dump_query,
                     ),
                     ranges,
                 )

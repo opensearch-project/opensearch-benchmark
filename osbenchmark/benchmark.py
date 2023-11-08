@@ -243,6 +243,24 @@ def create_arg_parser():
         action="store_true",
         help="Whether to generate workload concurrently (default: false)",
     )
+    create_workload_parser.add_argument(
+        "--threads",
+        type=positive_number,
+        default=8,
+        help="Number of threads for dumping documents from indices (default: false)",
+    )
+    create_workload_parser.add_argument(
+        "--bsize",
+        type=positive_number,
+        default=0,  # 0 means dynamic batching within corpus.py `dump_documents_range()`
+        help="Batch size to use for dumping documents (default: false)",
+    )
+    create_workload_parser.add_argument(
+        "--custom_dump_query",
+        action=opts.ProcessDumpQuery,
+        type=argparse.FileType("r"),
+        help="File path for custom dumping query of documents in index (default: false)",
+    )
 
     compare_parser = subparsers.add_parser(
         "compare", help="Compare two test_executions"
@@ -1346,6 +1364,24 @@ def dispatch_sub_command(arg_parser, args, cfg):
                 "workload",
                 "concurrent",
                 args.concurrent,
+            )
+            cfg.add(
+                config.Scope.applicationOverride,
+                "workload",
+                "threads",
+                args.threads,
+            )
+            cfg.add(
+                config.Scope.applicationOverride,
+                "workload",
+                "bsize",
+                args.bsize,
+            )
+            cfg.add(
+                config.Scope.applicationOverride,
+                "workload",
+                "custom_dump_query",
+                args.custom_dump_query,
             )
             configure_connection_params(arg_parser, args, cfg)
 

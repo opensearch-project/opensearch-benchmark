@@ -66,7 +66,14 @@ def validate_indices_docs_map(indices, indices_docs_map, docs_were_requested):
 
 
 def extract_mappings_and_corpora(
-    client, output_path, indices_to_extract, indices_docs_map, concurrent=False
+    client,
+    output_path,
+    indices_to_extract,
+    indices_docs_map,
+    concurrent=False,
+    threads=None,
+    bsize=None,
+    custom_dump_query=None,
 ):
     indices = []
     corpora = []
@@ -101,7 +108,14 @@ def extract_mappings_and_corpora(
             "Extracting [%s] docs for index [%s]", custom_docs_to_extract, i["name"]
         )
         c = corpus.extract(
-            client, output_path, i["name"], custom_docs_to_extract, concurrent
+            client,
+            output_path,
+            i["name"],
+            custom_docs_to_extract,
+            concurrent,
+            threads,
+            bsize,
+            custom_dump_query,
         )
         if c:
             corpora.append(c)
@@ -137,6 +151,14 @@ def create_workload(cfg):
     number_of_docs = cfg.opts("generator", "number_of_docs")
     unprocessed_custom_queries = cfg.opts("workload", "custom_queries")
     concurrent = cfg.opts("workload", "concurrent")
+    threads = cfg.opts("workload", "threads")
+    bsize = cfg.opts("workload", "bsize")
+    custom_dump_query = cfg.opts("workload", "custom_dump_query")
+
+    if (threads or bsize or custom_dump_query) and not concurrent:
+        raise exceptions.SystemSetupError(
+            "Cannot set --threads, --bsize, or --dump-query without setting --concurrent."
+        )
 
     custom_queries = process_custom_queries(unprocessed_custom_queries)
 
@@ -163,7 +185,14 @@ def create_workload(cfg):
     io.ensure_dir(output_path)
 
     indices, corpora = extract_mappings_and_corpora(
-        client, output_path, indices, number_of_docs, concurrent
+        client,
+        output_path,
+        indices,
+        number_of_docs,
+        concurrent,
+        threads,
+        bsize,
+        custom_dump_query,
     )
 
     if len(indices) == 0:

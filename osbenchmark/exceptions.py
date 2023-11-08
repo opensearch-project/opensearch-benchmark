@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+# 	http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -44,6 +44,7 @@ class LaunchError(BenchmarkError):
     """
     Thrown whenever there was a problem launching the benchmark candidate
     """
+
 
 class InstallError(BenchmarkError):
     """
@@ -105,6 +106,12 @@ class WorkloadConfigError(BenchmarkError):
     """
     Thrown when something is wrong with the workload config e.g. user supplied a workload-param
     that can't be set
+    """
+
+
+class QueryProcessingError(BenchmarkError):
+    """
+    Thrown when there is an error processing a query from the file path given in
     """
 
 

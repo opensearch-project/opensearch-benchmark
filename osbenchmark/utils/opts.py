@@ -25,6 +25,7 @@
 import difflib
 import json
 import argparse
+import os
 
 from osbenchmark import exceptions
 from osbenchmark.utils import io
@@ -140,6 +141,23 @@ class StoreKeyPairAsDict(argparse.Action):
         setattr(namespace, self.dest, custom_dict)
 
         return custom_dict
+
+
+class ProcessDumpQuery(argparse.Action):
+    def __call__(self, parser, namespace, values, option_string=None):
+        query = {}
+        try:
+            with open(str(values.name), "r") as f:
+                query = json.load(f)
+                setattr(namespace, self.dest, query)
+        except Exception as e:
+            print(e)
+            setattr(namespace, self.dest, "{}")
+            raise exceptions.QueryProcessingError(
+                "ProcessDumpQuery: Could not process query from file."
+            )
+
+        return query
 
 
 class ConnectOptions:
