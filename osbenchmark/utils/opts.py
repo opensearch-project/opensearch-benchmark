@@ -25,7 +25,6 @@
 import difflib
 import json
 import argparse
-import os
 
 from osbenchmark import exceptions
 from osbenchmark.utils import io
