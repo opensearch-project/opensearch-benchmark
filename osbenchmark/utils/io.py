@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+# 	http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -41,6 +41,7 @@ class FileSource:
     """
     FileSource is a wrapper around a plain file which simplifies testing of file I/O calls.
     """
+
     def __init__(self, file_name, mode, encoding="utf-8"):
         self.file_name = file_name
         self.mode = mode
@@ -91,6 +92,7 @@ class MmapSource:
     """
     MmapSource is a wrapper around a memory-mapped file which simplifies testing of file I/O calls.
     """
+
     def __init__(self, file_name, mode, encoding="utf-8"):
         self.file_name = file_name
         self.mode = mode
@@ -151,6 +153,7 @@ class DictStringFileSourceFactory:
 
     It is intended for scenarios where multiple files may be read by client code.
     """
+
     def __init__(self, name_to_contents):
         self.name_to_contents = name_to_contents
 
@@ -163,6 +166,7 @@ class StringAsFileSource:
     Implementation of ``FileSource`` intended for tests. It's kept close to ``FileSource`` to simplify maintenance but it is not meant to
      be used in production code.
     """
+
     def __init__(self, contents, mode, encoding="utf-8"):
         """
         :param contents: The file contents as an array of strings. Each item in the array should correspond to one line.
@@ -240,7 +244,10 @@ def _zipdir(source_directory, archive):
         for file in files:
             archive.write(
                 filename=os.path.join(root, file),
-                arcname=os.path.relpath(os.path.join(root, file), os.path.join(source_directory, "..")))
+                arcname=os.path.relpath(
+                    os.path.join(root, file), os.path.join(source_directory, "..")
+                ),
+            )
 
 
 def is_archive(name):
@@ -296,38 +303,66 @@ def decompress(zip_name, target_directory):
     elif extension == ".bz2":
         decompressor_args = ["pbzip2", "-d", "-k", "-m10000", "-c"]
         decompressor_lib = bz2.open
-        _do_decompress_manually(target_directory, zip_name, decompressor_args, decompressor_lib)
+        _do_decompress_manually(
+            target_directory, zip_name, decompressor_args, decompressor_lib
+        )
     elif extension == ".gz":
         decompressor_args = ["pigz", "-d", "-k", "-c"]
         decompressor_lib = gzip.open
-        _do_decompress_manually(target_directory, zip_name, decompressor_args, decompressor_lib)
+        _do_decompress_manually(
+            target_directory, zip_name, decompressor_args, decompressor_lib
+        )
     elif extension in [".tar", ".tar.gz", ".tgz", ".tar.bz2"]:
         _do_decompress(target_directory, tarfile.open(zip_name))
     else:
-        raise RuntimeError("Unsupported file extension [%s]. Cannot decompress [%s]" % (extension, zip_name))
+        raise RuntimeError(
+            "Unsupported file extension [%s]. Cannot decompress [%s]"
+            % (extension, zip_name)
+        )
 
 
-def _do_decompress_manually(target_directory, filename, decompressor_args, decompressor_lib):
+def _do_decompress_manually(
+    target_directory, filename, decompressor_args, decompressor_lib
+):
     decompressor_bin = decompressor_args[0]
     base_path_without_extension = basename(splitext(filename)[0])
 
     if is_executable(decompressor_bin):
-        if _do_decompress_manually_external(target_directory, filename, base_path_without_extension, decompressor_args):
+        if _do_decompress_manually_external(
+            target_directory, filename, base_path_without_extension, decompressor_args
+        ):
             return
     else:
-        logging.getLogger(__name__).warning("%s not found in PATH. Using standard library, decompression will take longer.",
-                                            decompressor_bin)
+        logging.getLogger(__name__).warning(
+            "%s not found in PATH. Using standard library, decompression will take longer.",
+            decompressor_bin,
+        )
 
-    _do_decompress_manually_with_lib(target_directory, filename, decompressor_lib(filename))
+    _do_decompress_manually_with_lib(
+        target_directory, filename, decompressor_lib(filename)
+    )
 
 
-def _do_decompress_manually_external(target_directory, filename, base_path_without_extension, decompressor_args):
-    with open(os.path.join(target_directory, base_path_without_extension), "wb") as new_file:
+def _do_decompress_manually_external(
+    target_directory, filename, base_path_without_extension, decompressor_args
+):
+    with open(
+        os.path.join(target_directory, base_path_without_extension), "wb"
+    ) as new_file:
         try:
-            subprocess.run(decompressor_args + [filename], stdout=new_file, stderr=subprocess.PIPE, check=True)
+            subprocess.run(
+                decompressor_args + [filename],
+                stdout=new_file,
+                stderr=subprocess.PIPE,
+                check=True,
+            )
         except subprocess.CalledProcessError as err:
-            logging.getLogger(__name__).warning("Failed to decompress [%s] with [%s]. Error [%s]. Falling back to standard library.",
-                                                filename, err.cmd, err.stderr)
+            logging.getLogger(__name__).warning(
+                "Failed to decompress [%s] with [%s]. Error [%s]. Falling back to standard library.",
+                filename,
+                err.cmd,
+                err.stderr,
+            )
             return False
     return True
 
@@ -337,7 +372,9 @@ def _do_decompress_manually_with_lib(target_directory, filename, compressed_file
 
     ensure_dir(target_directory)
     try:
-        with open(os.path.join(target_directory, path_without_extension), "wb") as new_file:
+        with open(
+            os.path.join(target_directory, path_without_extension), "wb"
+        ) as new_file:
             for data in iter(lambda: compressed_file.read(100 * 1024), b""):
                 new_file.write(data)
     finally:
@@ -348,7 +385,9 @@ def _do_decompress(target_directory, compressed_file):
     try:
         compressed_file.extractall(path=target_directory)
     except BaseException:
-        raise RuntimeError("Could not decompress provided archive [%s]" % compressed_file.filename)
+        raise RuntimeError(
+            "Could not decompress provided archive [%s]" % compressed_file.filename
+        )
     finally:
         compressed_file.close()
 
@@ -422,6 +461,7 @@ class FileOffsetTable:
     The FileOffsetTable represents a persistent mapping from lines in a data file to their offset in bytes in the
     data file. This helps bulk-indexing clients to advance quickly to a certain position in a large data file.
     """
+
     def __init__(self, data_file_path, offset_table_path, mode):
         """
         Creates a new FileOffsetTable instance. The constructor should not be called directly but instead the
@@ -447,7 +487,9 @@ class FileOffsetTable:
         """
         :return: True iff the file offset table exists and it is up-to-date.
         """
-        return self.exists() and os.path.getmtime(self.offset_table_path) >= os.path.getmtime(self.data_file_path)
+        return self.exists() and os.path.getmtime(
+            self.offset_table_path
+        ) >= os.path.getmtime(self.data_file_path)
 
     def __enter__(self):
         self.offset_file = open(self.offset_table_path, self.mode)
@@ -530,7 +572,11 @@ def prepare_file_offset_table(data_file_path):
     """
     file_offset_table = FileOffsetTable.create_for_data_file(data_file_path)
     if not file_offset_table.is_valid():
-        console.info("Preparing file offset table for [%s] ... " % data_file_path, end="", flush=True)
+        console.info(
+            "Preparing file offset table for [%s] ... " % data_file_path,
+            end="\n",
+            flush=True,
+        )
         line_number = 0
         with file_offset_table:
             with open(data_file_path, mode="rt", encoding="utf-8") as data_file:
@@ -541,7 +587,7 @@ def prepare_file_offset_table(data_file_path):
                     line_number += 1
                     if line_number % 50000 == 0:
                         file_offset_table.add_offset(line_number, data_file.tell())
-        console.println("[OK]")
+        console.print("[OK]")
         return line_number
     else:
         return None
@@ -572,7 +618,9 @@ def skip_lines(data_file_path, data_file, number_of_lines_to_skip):
     # can we fast forward?
     if file_offset_table.exists():
         with file_offset_table:
-            offset, remaining_lines = file_offset_table.find_closest_offset(number_of_lines_to_skip)
+            offset, remaining_lines = file_offset_table.find_closest_offset(
+                number_of_lines_to_skip
+            )
     else:
         offset = 0
         remaining_lines = number_of_lines_to_skip
