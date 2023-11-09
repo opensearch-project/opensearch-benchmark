@@ -2248,7 +2248,7 @@ class CreateIngestPipelineRunnerTests(TestCase):
                                     "Parameter source "
                                     "for operation 'create-ingest-pipeline' "
                                     "did not provide the "
-                                    "mandatory parameter 'body'."
+                                    "mandatory parameter 'body'. "
                                     "Add it to your parameter source and try again."):
             await r(opensearch, params)
 
