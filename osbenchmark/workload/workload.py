@@ -588,7 +588,7 @@ class OperationType(Enum):
     # administrative actions
     ForceMerge = 1001
     ClusterHealth = 1002
-    PutPipeline = 1003
+    CreateIngestPipeline = 1003
     Refresh = 1004
     CreateIndex = 1005
     DeleteIndex = 1006
@@ -647,8 +647,8 @@ class OperationType(Enum):
             return OperationType.Bulk
         elif v == "raw-request":
             return OperationType.RawRequest
-        elif v == "put-pipeline":
-            return OperationType.PutPipeline
+        elif v == "create-ingest-pipeline":
+            return OperationType.CreateIngestPipeline
         elif v == "refresh":
             return OperationType.Refresh
         elif v == "create-index":
