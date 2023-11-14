@@ -72,7 +72,7 @@ def register_default_runners():
     register_runner(workload.OperationType.RestoreSnapshot, RestoreSnapshot(), async_runner=True)
     # We treat the following as administrative commands and thus already start to wrap them in a retry.
     register_runner(workload.OperationType.ClusterHealth, Retry(ClusterHealth()), async_runner=True)
-    register_runner(workload.OperationType.PutPipeline, Retry(PutPipeline()), async_runner=True)
+    register_runner(workload.OperationType.CreateIngestPipeline, Retry(CreateIngestPipeline()), async_runner=True)
     register_runner(workload.OperationType.Refresh, Retry(Refresh()), async_runner=True)
     register_runner(workload.OperationType.CreateIndex, Retry(CreateIndex()), async_runner=True)
     register_runner(workload.OperationType.DeleteIndex, Retry(DeleteIndex()), async_runner=True)
@@ -1092,7 +1092,7 @@ class ClusterHealth(Runner):
         return "cluster-health"
 
 
-class PutPipeline(Runner):
+class CreateIngestPipeline(Runner):
     async def __call__(self, opensearch, params):
         await opensearch.ingest.put_pipeline(id=mandatory(params, "id", self),
                                      body=mandatory(params, "body", self),
@@ -1101,7 +1101,7 @@ class PutPipeline(Runner):
                                      )
 
     def __repr__(self, *args, **kwargs):
-        return "put-pipeline"
+        return "create-ingest-pipeline"
 
 # TODO: refactor it after python client support search pipeline https://github.com/opensearch-project/opensearch-py/issues/474
 class CreateSearchPipeline(Runner):

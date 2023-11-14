@@ -2207,13 +2207,13 @@ class QueryRunnerTests(TestCase):
         )
         opensearch.clear_scroll.assert_not_called()
 
-class PutPipelineRunnerTests(TestCase):
+class CreateIngestPipelineRunnerTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
     async def test_create_pipeline(self, opensearch):
         opensearch.ingest.put_pipeline.return_value = as_future()
 
-        r = runner.PutPipeline()
+        r = runner.CreateIngestPipeline()
 
         params = {
             "id": "rename",
@@ -2239,13 +2239,16 @@ class PutPipelineRunnerTests(TestCase):
     async def test_param_body_mandatory(self, opensearch):
         opensearch.ingest.put_pipeline.return_value = as_future()
 
-        r = runner.PutPipeline()
+        r = runner.CreateIngestPipeline()
 
         params = {
             "id": "rename"
         }
         with self.assertRaisesRegex(exceptions.DataError,
-                                    "Parameter source for operation 'put-pipeline' did not provide the mandatory parameter 'body'. "
+                                    "Parameter source "
+                                    "for operation 'create-ingest-pipeline' "
+                                    "did not provide the "
+                                    "mandatory parameter 'body'. "
                                     "Add it to your parameter source and try again."):
             await r(opensearch, params)
 
@@ -2256,13 +2259,15 @@ class PutPipelineRunnerTests(TestCase):
     async def test_param_id_mandatory(self, opensearch):
         opensearch.ingest.put_pipeline.return_value = as_future()
 
-        r = runner.PutPipeline()
+        r = runner.CreateIngestPipeline()
 
         params = {
             "body": {}
         }
         with self.assertRaisesRegex(exceptions.DataError,
-                                    "Parameter source for operation 'put-pipeline' did not provide the mandatory parameter 'id'. "
+                                    "Parameter source for "
+                                    "operation 'create-ingest-pipeline' did"
+                                    " not provide the mandatory parameter 'id'. "
                                     "Add it to your parameter source and try again."):
             await r(opensearch, params)
 
