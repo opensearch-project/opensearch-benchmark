@@ -44,21 +44,21 @@ def _path_for(provision_config_root_path, provision_config_member_type):
     return root_path
 
 
-def list_provision_config_instances(cfg):
-    loader = ProvisionConfigInstanceLoader(provision_config_path(cfg))
-    provision_config_instances = []
-    for name in loader.provision_config_instance_names():
-        provision_config_instances.append(loader.load_provision_config_instance(name))
+def list_cluster_configs(cfg):
+    loader = ProvisionConfigInstanceLoader(cluster_config_path(cfg))
+    cluster_configs = []
+    for name in loader.cluster_config_names():
+        cluster_configs.append(loader.load_cluster_config(name))
     # first by type, then by name (we need to run the sort in reverse for that)
     # idiomatic way according to https://docs.python.org/3/howto/sorting.html#sort-stability-and-complex-sorts
-    provision_config_instances = sorted(sorted(provision_config_instances, key=lambda c: c.name), key=lambda c: c.type)
-    console.println("Available provision_config_instances:\n")
+    cluster_configs = sorted(sorted(cluster_configs, key=lambda c: c.name), key=lambda c: c.type)
+    console.println("Available cluster-configs:\n")
     console.println(tabulate.tabulate(
-        [[c.name, c.type, c.description] for c in provision_config_instances],
+        [[c.name, c.type, c.description] for c in cluster_configs],
         headers=["Name", "Type", "Description"]))
 
 
-def load_provision_config_instance(repo, name, provision_config_instance_params=None):
+def load_cluster_config(repo, name, cluster_config_params=None):
     class Component:
         def __init__(self, root_path, entry_point):
             self.root_path = root_path
@@ -68,10 +68,10 @@ def load_provision_config_instance(repo, name, provision_config_instance_params=
     # preserve order as we append to existing config files later during provisioning.
     all_config_paths = []
     all_config_base_vars = {}
-    all_provision_config_instance_vars = {}
+    all_cluster_config_vars = {}
 
     for n in name:
-        descriptor = ProvisionConfigInstanceLoader(repo).load_provision_config_instance(n, provision_config_instance_params)
+        descriptor = ProvisionConfigInstanceLoader(repo).load_cluster_config(n, cluster_config_params)
         for p in descriptor.config_paths:
             if p not in all_config_paths:
                 all_config_paths.append(p)
@@ -80,25 +80,25 @@ def load_provision_config_instance(repo, name, provision_config_instance_params=
             if BootstrapHookHandler(Component(root_path=p, entry_point=ProvisionConfigInstance.entry_point)).can_load():
                 if not root_path:
                     root_path = p
-                # multiple provision_config_instances are based on the same hook
+                # multiple cluster_configs are based on the same hook
                 elif root_path != p:
                     raise exceptions.SystemSetupError(
-                        "Invalid provision_config_instance: {}. Multiple bootstrap hooks are forbidden.".format(name))
+                        "Invalid cluster_config: {}. Multiple bootstrap hooks are forbidden.".format(name))
         all_config_base_vars.update(descriptor.config_base_variables)
-        all_provision_config_instance_vars.update(descriptor.variables)
+        all_cluster_config_vars.update(descriptor.variables)
 
     if len(all_config_paths) == 0:
-        raise exceptions.SystemSetupError("At least one config base is required for provision_config_instance {}".format(name))
+        raise exceptions.SystemSetupError("At least one config base is required for cluster_config {}".format(name))
     variables = {}
-    # provision_config_instance variables *always* take precedence over config base variables
+    # cluster_config variables *always* take precedence over config base variables
     variables.update(all_config_base_vars)
-    variables.update(all_provision_config_instance_vars)
+    variables.update(all_cluster_config_vars)
 
     return ProvisionConfigInstance(name, root_path, all_config_paths, variables=variables)
 
 
 def list_plugins(cfg):
-    plugins = PluginLoader(provision_config_path(cfg)).plugins()
+    plugins = PluginLoader(cluster_config_path(cfg)).plugins()
     if plugins:
         console.println("Available OpenSearch plugins:\n")
         console.println(tabulate.tabulate([[p.name, p.config] for p in plugins], headers=["Name", "Configuration"]))
@@ -128,7 +128,7 @@ def load_plugins(repo, plugin_names, plugin_params=None):
     return plugins
 
 
-def provision_config_path(cfg):
+def cluster_config_path(cfg):
     root_path = cfg.opts("builder", "provision_config.path", mandatory=False)
     if root_path:
         return root_path
@@ -152,40 +152,40 @@ def provision_config_path(cfg):
 
 class ProvisionConfigInstanceLoader:
     def __init__(self, provision_config_root_path):
-        self.provision_config_instances_dir = _path_for(provision_config_root_path, "provision_config_instances")
+        self.cluster_configs_dir = _path_for(provision_config_root_path, "cluster_configs")
         self.logger = logging.getLogger(__name__)
 
-    def provision_config_instance_names(self):
-        def __provision_config_instance_name(path):
+    def cluster_config_names(self):
+        def __cluster_config_name(path):
             p, _ = io.splitext(path)
             return io.basename(p)
 
-        def __is_provision_config_instance(path):
+        def __is_cluster_config(path):
             _, extension = io.splitext(path)
             return extension == ".ini"
-        return map(__provision_config_instance_name, filter(
-            __is_provision_config_instance,
-            os.listdir(self.provision_config_instances_dir)))
+        return map(__cluster_config_name, filter(
+            __is_cluster_config,
+            os.listdir(self.cluster_configs_dir)))
 
-    def _provision_config_instance_file(self, name):
-        return os.path.join(self.provision_config_instances_dir, "{}.ini".format(name))
+    def _cluster_config_file(self, name):
+        return os.path.join(self.cluster_configs_dir, "{}.ini".format(name))
 
-    def load_provision_config_instance(self, name, provision_config_instance_params=None):
-        provision_config_instance_config_file = self._provision_config_instance_file(name)
-        if not io.exists(provision_config_instance_config_file):
+    def load_cluster_config(self, name, cluster_config_params=None):
+        cluster_config_config_file = self._cluster_config_file(name)
+        if not io.exists(cluster_config_config_file):
             raise exceptions.SystemSetupError(
-                "Unknown provision_config_instance [{}]. List the available "
-                "provision_config_instances with {} list provision_config_instances.".format(name, PROGRAM_NAME))
-        config = self._config_loader(provision_config_instance_config_file)
+                "Unknown cluster-config [{}]. List the available "
+                "cluster-configs with {} list cluster-configs.".format(name, PROGRAM_NAME))
+        config = self._config_loader(cluster_config_config_file)
         root_paths = []
         config_paths = []
         config_base_vars = {}
         description = self._value(config, ["meta", "description"], default="")
-        provision_config_instance_type = self._value(config, ["meta", "type"], default="provision-config-instance")
+        cluster_config_type = self._value(config, ["meta", "type"], default="provision-config-instance")
         config_bases = self._value(config, ["config", "base"], default="").split(",")
         for base in config_bases:
             if base:
-                root_path = os.path.join(self.provision_config_instances_dir, base)
+                root_path = os.path.join(self.cluster_configs_dir, base)
                 root_paths.append(root_path)
                 config_paths.append(os.path.join(root_path, "templates"))
                 config_file = os.path.join(root_path, "config.ini")
@@ -193,16 +193,16 @@ class ProvisionConfigInstanceLoader:
                     base_config = self._config_loader(config_file)
                     self._copy_section(base_config, "variables", config_base_vars)
 
-        # it's possible that some provision_config_instances don't have a config base, e.g. mixins which only override variables
+        # it's possible that some cluster_configs don't have a config base, e.g. mixins which only override variables
         if len(config_paths) == 0:
             self.logger.info("ProvisionConfigInstance [%s] does not define any config paths. Assuming that it is used as a mixin.", name)
         variables = self._copy_section(config, "variables", {})
-        # add all provision_config_instance params here to override any defaults
-        if provision_config_instance_params:
-            variables.update(provision_config_instance_params)
+        # add all cluster_config params here to override any defaults
+        if cluster_config_params:
+            variables.update(cluster_config_params)
 
         return ProvisionConfigInstanceDescriptor(
-            name, description, provision_config_instance_type,
+            name, description, cluster_config_type,
             root_paths, config_paths, config_base_vars, variables)
 
     def _config_loader(self, file_name):
@@ -247,7 +247,7 @@ class ProvisionConfigInstanceDescriptor:
 
 
 class ProvisionConfigInstance:
-    # name of the initial Python file to load for provision_config_instances.
+    # name of the initial Python file to load for cluster_configs.
     entry_point = "config"
 
     def __init__(self, names, root_path, config_paths, provider=ClusterInfraProvider.LOCAL,
@@ -255,7 +255,7 @@ class ProvisionConfigInstance:
         """
         Creates new settings for a benchmark candidate.
 
-        :param names: Descriptive name(s) for this provision_config_instance.
+        :param names: Descriptive name(s) for this cluster_config.
         :param root_path: The root path from which bootstrap hooks should be loaded if any. May be ``None``.
         :param config_paths: A non-empty list of paths where the raw config can be found.
         ;param provider: The infrastructure provider for the cluster

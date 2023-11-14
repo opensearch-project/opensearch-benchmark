@@ -118,7 +118,7 @@ class BenchmarkActor(actor.BenchmarkActor):
     @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_EngineStarted(self, msg, sender):
         self.logger.info("Builder has started engine successfully.")
-        self.coordinator.test_execution.provision_config_revision = msg.provision_config_revision
+        self.coordinator.test_execution.cluster_config_revision = msg.cluster_config_revision
         self.main_worker_coordinator = self.createActor(
             worker_coordinator.WorkerCoordinatorActor,
             targetActorRequirements={"coordinator": True}
@@ -222,16 +222,16 @@ class BenchmarkCoordinator:
         # store test_execution initially (without any results) so other components can retrieve full metadata
         self.test_execution_store.store_test_execution(self.test_execution)
         if self.test_execution.test_procedure.auto_generated:
-            console.info("Executing test with workload [{}] and provision_config_instance {} with version [{}].\n"
+            console.info("Executing test with workload [{}] and cluster_config {} with version [{}].\n"
                          .format(self.test_execution.workload_name,
-                         self.test_execution.provision_config_instance,
+                         self.test_execution.cluster_config,
                          self.test_execution.distribution_version))
         else:
-            console.info("Executing test with workload [{}], test_procedure [{}] and provision_config_instance {} with version [{}].\n"
+            console.info("Executing test with workload [{}], test_procedure [{}] and cluster_config {} with version [{}].\n"
                          .format(
                              self.test_execution.workload_name,
                              self.test_execution.test_procedure_name,
-                             self.test_execution.provision_config_instance,
+                             self.test_execution.cluster_config,
                              self.test_execution.distribution_version
                              ))
 
@@ -309,8 +309,8 @@ def from_distribution(cfg):
 
 def benchmark_only(cfg):
     set_default_hosts(cfg)
-    # We'll use a special provision_config_instance name for external benchmarks.
-    cfg.add(config.Scope.benchmark, "builder", "provision_config_instance.names", ["external"])
+    # We'll use a special cluster_config name for external benchmarks.
+    cfg.add(config.Scope.benchmark, "builder", "cluster_config.names", ["external"])
     return execute_test(cfg, external=True)
 
 

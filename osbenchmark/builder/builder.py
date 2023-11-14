@@ -41,16 +41,16 @@ METRIC_FLUSH_INTERVAL_SECONDS = 30
 
 
 def download(cfg):
-    provision_config_instance, plugins = load_provision_config(cfg, external=False)
+    cluster_config, plugins = load_provision_config(cfg, external=False)
 
-    s = supplier.create(cfg, sources=False, distribution=True, provision_config_instance=provision_config_instance, plugins=plugins)
+    s = supplier.create(cfg, sources=False, distribution=True, cluster_config=cluster_config, plugins=plugins)
     binaries = s()
     console.println(json.dumps(binaries, indent=2), force=True)
 
 
 def install(cfg):
     root_path = paths.install_root(cfg)
-    provision_config_instance, plugins = load_provision_config(cfg, external=False)
+    cluster_config, plugins = load_provision_config(cfg, external=False)
 
     # A non-empty distribution-version is provided
     distribution = bool(cfg.opts("builder", "distribution.version", mandatory=False))
@@ -63,8 +63,8 @@ def install(cfg):
     seed_hosts = cfg.opts("builder", "seed.hosts")
 
     if build_type == "tar":
-        binary_supplier = supplier.create(cfg, sources, distribution, provision_config_instance, plugins)
-        p = provisioner.local(cfg=cfg, provision_config_instance=provision_config_instance, plugins=plugins, ip=ip, http_port=http_port,
+        binary_supplier = supplier.create(cfg, sources, distribution, cluster_config, plugins)
+        p = provisioner.local(cfg=cfg, cluster_config=cluster_config, plugins=plugins, ip=ip, http_port=http_port,
                               all_node_ips=seed_hosts, all_node_names=master_nodes, target_root=root_path,
                               node_name=node_name)
         node_config = p.prepare(binary=binary_supplier())
@@ -73,7 +73,7 @@ def install(cfg):
             raise exceptions.SystemSetupError("You cannot specify any plugins for Docker clusters. Please remove "
                                               "\"--opensearch-plugins\" and try again.")
         p = provisioner.docker(
-            cfg=cfg, provision_config_instance=provision_config_instance,
+            cfg=cfg, cluster_config=cluster_config,
             ip=ip, http_port=http_port, target_root=root_path, node_name=node_name)
         # there is no binary for Docker that can be downloaded / built upfront
         node_config = p.prepare(binary=None)
@@ -202,8 +202,8 @@ class StartEngine:
 
 
 class EngineStarted:
-    def __init__(self, provision_config_revision):
-        self.provision_config_revision = provision_config_revision
+    def __init__(self, cluster_config_revision):
+        self.cluster_config_revision = cluster_config_revision
 
 
 class StopEngine:
@@ -326,8 +326,8 @@ class BuilderActor(actor.BenchmarkActor):
         self.test_execution_orchestrator = None
         self.cluster_launcher = None
         self.cluster = None
-        self.provision_config_instance = None
-        self.provision_config_revision = None
+        self.cluster_config = None
+        self.cluster_config_revision = None
         self.externally_provisioned = False
 
     def receiveUnrecognizedMessage(self, msg, sender):
@@ -356,9 +356,9 @@ class BuilderActor(actor.BenchmarkActor):
         self.logger.info("Received signal from test execution orchestrator to start engine.")
         self.test_execution_orchestrator = sender
         self.cfg = msg.cfg
-        self.provision_config_instance, _ = load_provision_config(self.cfg, msg.external)
+        self.cluster_config, _ = load_provision_config(self.cfg, msg.external)
         # TODO: This is implicitly set by #load_provision_config() - can we gather this elsewhere?
-        self.provision_config_revision = self.cfg.opts("builder", "repository.revision")
+        self.cluster_config_revision = self.cfg.opts("builder", "repository.revision")
 
         # In our startup procedure we first create all builders. Only if this succeeds we'll continue.
         hosts = self.cfg.opts("client", "hosts").default
@@ -425,7 +425,7 @@ class BuilderActor(actor.BenchmarkActor):
         self.transition_when_all_children_responded(sender, msg, "cluster_stopping", "cluster_stopped", self.on_all_nodes_stopped)
 
     def on_all_nodes_started(self):
-        self.send(self.test_execution_orchestrator, EngineStarted(self.provision_config_revision))
+        self.send(self.test_execution_orchestrator, EngineStarted(self.cluster_config_revision))
 
     def reset_relative_time(self):
         for m in self.children:
@@ -610,20 +610,20 @@ class NodeBuilderActor(actor.BenchmarkActor):
 #####################################################
 
 def load_provision_config(cfg, external):
-    # externally provisioned clusters do not support provision_config_instances / plugins
+    # externally provisioned clusters do not support cluster_configs / plugins
     if external:
-        provision_config_instance = None
+        cluster_config = None
         plugins = []
     else:
-        provision_config_path = provision_config.provision_config_path(cfg)
-        provision_config_instance = provision_config.load_provision_config_instance(
-            provision_config_path,
-            cfg.opts("builder", "provision_config_instance.names"),
-            cfg.opts("builder", "provision_config_instance.params"))
-        plugins = provision_config.load_plugins(provision_config_path,
-                                    cfg.opts("builder", "provision_config_instance.plugins", mandatory=False),
+        cluster_config_path = provision_config.cluster_config_path(cfg)
+        cluster_config = provision_config.load_cluster_config(
+            cluster_config_path,
+            cfg.opts("builder", "cluster_config.names"),
+            cfg.opts("builder", "cluster_config.params"))
+        plugins = provision_config.load_plugins(cluster_config_path,
+                                    cfg.opts("builder", "cluster_config.plugins", mandatory=False),
                                     cfg.opts("builder", "plugin.params", mandatory=False))
-    return provision_config_instance, plugins
+    return cluster_config, plugins
 
 
 def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_ids, sources=False, distribution=False,
@@ -631,16 +631,16 @@ def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_i
     test_execution_root_path = paths.test_execution_root(cfg)
     node_ids = cfg.opts("provisioning", "node.ids", mandatory=False)
     node_name_prefix = cfg.opts("provisioning", "node.name.prefix")
-    provision_config_instance, plugins = load_provision_config(cfg, external)
+    cluster_config, plugins = load_provision_config(cfg, external)
 
     if sources or distribution:
-        s = supplier.create(cfg, sources, distribution, provision_config_instance, plugins)
+        s = supplier.create(cfg, sources, distribution, cluster_config, plugins)
         p = []
         all_node_names = ["%s-%s" % (node_name_prefix, n) for n in all_node_ids]
         for node_id in node_ids:
             node_name = "%s-%s" % (node_name_prefix, node_id)
             p.append(
-                provisioner.local(cfg, provision_config_instance, plugins, node_ip, node_http_port, all_node_ips,
+                provisioner.local(cfg, cluster_config, plugins, node_ip, node_http_port, all_node_ips,
                                   all_node_names, test_execution_root_path, node_name))
         l = launcher.ProcessLauncher(cfg)
     elif external:
@@ -653,7 +653,7 @@ def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_i
         p = []
         for node_id in node_ids:
             node_name = "%s-%s" % (node_name_prefix, node_id)
-            p.append(provisioner.docker(cfg, provision_config_instance, node_ip, node_http_port, test_execution_root_path, node_name))
+            p.append(provisioner.docker(cfg, cluster_config, node_ip, node_http_port, test_execution_root_path, node_name))
         l = launcher.DockerLauncher(cfg)
     else:
         # It is a programmer error (and not a user error) if this function is called with wrong parameters

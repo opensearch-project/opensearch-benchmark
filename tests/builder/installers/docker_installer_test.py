@@ -23,7 +23,7 @@ class DockerProvisionerTests(TestCase):
         self.node_heap_dump_dir = os.path.join(self.node_root_dir, "heapdump")
 
         self.executor = Mock()
-        self.provision_config_instance = ProvisionConfigInstance(
+        self.cluster_config = ProvisionConfigInstance(
             names="fake",
             root_path=None,
             config_paths="/tmp",
@@ -44,7 +44,7 @@ class DockerProvisionerTests(TestCase):
             }
         )
 
-        self.installer = DockerInstaller(self.provision_config_instance, self.executor)
+        self.installer = DockerInstaller(self.cluster_config, self.executor)
 
     maxDiff = None
     @mock.patch("uuid.uuid4")
@@ -136,8 +136,8 @@ networks:
         benchmark_root.return_value = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                                                     os.pardir, os.pardir, os.pardir, "osbenchmark"))
 
-        self.provision_config_instance.variables["origin"]["docker"]["docker_mem_limit"] = "256m"
-        self.provision_config_instance.variables["origin"]["docker"]["docker_cpu_count"] = 2
+        self.cluster_config.variables["origin"]["docker"]["docker_mem_limit"] = "256m"
+        self.cluster_config.variables["origin"]["docker"]["docker_cpu_count"] = 2
 
         node = self.installer._create_node()
 

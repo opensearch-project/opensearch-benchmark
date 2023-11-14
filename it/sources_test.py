@@ -30,9 +30,9 @@ def test_sources(cfg):
     it.wait_until_port_is_free(port_number=port)
     assert it.execute_test(cfg, f"--pipeline=from-sources --revision=latest \
                            --workload=geonames --test-mode  --target-hosts=127.0.0.1:{port} "
-                        f"--test-procedure=append-no-conflicts --provision-config-instance=4gheap "
+                        f"--test-procedure=append-no-conflicts --cluster-config=4gheap "
                         f"--opensearch-plugins=analysis-icu") == 0
 
     it.wait_until_port_is_free(port_number=port)
     assert it.execute_test(cfg, f"--pipeline=from-sources --workload=geonames --test-mode --target-hosts=127.0.0.1:{port} "
-                        f"--test-procedure=append-no-conflicts-index-only --provision-config-instance=\"4gheap,ea\"") == 0
+                        f"--test-procedure=append-no-conflicts-index-only --cluster-config=\"4gheap,ea\"") == 0

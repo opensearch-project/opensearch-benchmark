@@ -38,7 +38,7 @@ def test_cluster():
     test_execution_id = str(uuid.uuid4())
 
     it.wait_until_port_is_free(port_number=port)
-    cluster.install(distribution_version=dist, node_name="benchmark-node", provision_config_instance="4gheap", http_port=port)
+    cluster.install(distribution_version=dist, node_name="benchmark-node", cluster_config="4gheap", http_port=port)
     cluster.start(test_execution_id=test_execution_id)
     yield cluster
     cluster.stop()

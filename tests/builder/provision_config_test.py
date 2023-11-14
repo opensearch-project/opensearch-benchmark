@@ -41,118 +41,118 @@ class ProvisionConfigInstanceLoaderTests(TestCase):
         self.provision_config_dir = os.path.join(current_dir, "data")
         self.loader = provision_config.ProvisionConfigInstanceLoader(self.provision_config_dir)
 
-    def test_lists_provision_config_instance_names(self):
+    def test_lists_cluster_config_names(self):
         # contrary to the name this assertion compares contents but does not care about order.
         self.assertCountEqual(
             ["default", "with_hook", "32gheap", "missing_cfg_base", "empty_cfg_base", "ea", "verbose", "multi_hook", "another_with_hook"],
-            self.loader.provision_config_instance_names()
+            self.loader.cluster_config_names()
         )
 
-    def test_load_known_provision_config_instance(self):
-        provision_config_instance = provision_config.load_provision_config_instance(
+    def test_load_known_cluster_config(self):
+        cluster_config = provision_config.load_cluster_config(
             self.provision_config_dir, ["default"],
-            provision_config_instance_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
-        self.assertEqual("default", provision_config_instance.name)
+            cluster_config_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
+        self.assertEqual("default", cluster_config.name)
         self.assertEqual(
-            [os.path.join(current_dir, "data", "provision_config_instances", "v1", "vanilla", "templates")],
-            provision_config_instance.config_paths)
-        self.assertIsNone(provision_config_instance.root_path)
+            [os.path.join(current_dir, "data", "cluster_configs", "v1", "vanilla", "templates")],
+            cluster_config.config_paths)
+        self.assertIsNone(cluster_config.root_path)
         self.assertDictEqual({
             "heap_size": "1g",
             "clean_command": "./gradlew clean",
             "data_paths": ["/mnt/disk0", "/mnt/disk1"]
-        }, provision_config_instance.variables)
-        self.assertIsNone(provision_config_instance.root_path)
+        }, cluster_config.variables)
+        self.assertIsNone(cluster_config.root_path)
 
-    def test_load_provision_config_instance_with_mixin_single_config_base(self):
-        provision_config_instance = provision_config.load_provision_config_instance(self.provision_config_dir, ["32gheap", "ea"])
-        self.assertEqual("32gheap+ea", provision_config_instance.name)
+    def test_load_cluster_config_with_mixin_single_config_base(self):
+        cluster_config = provision_config.load_cluster_config(self.provision_config_dir, ["32gheap", "ea"])
+        self.assertEqual("32gheap+ea", cluster_config.name)
         self.assertEqual(
-            [os.path.join(current_dir, "data", "provision_config_instances", "v1", "vanilla", "templates")],
-            provision_config_instance.config_paths)
-        self.assertIsNone(provision_config_instance.root_path)
+            [os.path.join(current_dir, "data", "cluster_configs", "v1", "vanilla", "templates")],
+            cluster_config.config_paths)
+        self.assertIsNone(cluster_config.root_path)
         self.assertEqual({
             "heap_size": "32g",
             "clean_command": "./gradlew clean",
             "assertions": "true"
-        }, provision_config_instance.variables)
-        self.assertIsNone(provision_config_instance.root_path)
+        }, cluster_config.variables)
+        self.assertIsNone(cluster_config.root_path)
 
-    def test_load_provision_config_instance_with_mixin_multiple_config_bases(self):
-        provision_config_instance = provision_config.load_provision_config_instance(self.provision_config_dir, ["32gheap", "ea", "verbose"])
-        self.assertEqual("32gheap+ea+verbose", provision_config_instance.name)
+    def test_load_cluster_config_with_mixin_multiple_config_bases(self):
+        cluster_config = provision_config.load_cluster_config(self.provision_config_dir, ["32gheap", "ea", "verbose"])
+        self.assertEqual("32gheap+ea+verbose", cluster_config.name)
         self.assertEqual([
-            os.path.join(current_dir, "data", "provision_config_instances", "v1", "vanilla", "templates"),
-            os.path.join(current_dir, "data", "provision_config_instances", "v1", "verbose_logging", "templates"),
-        ], provision_config_instance.config_paths)
-        self.assertIsNone(provision_config_instance.root_path)
+            os.path.join(current_dir, "data", "cluster_configs", "v1", "vanilla", "templates"),
+            os.path.join(current_dir, "data", "cluster_configs", "v1", "verbose_logging", "templates"),
+        ], cluster_config.config_paths)
+        self.assertIsNone(cluster_config.root_path)
         self.assertEqual({
             "heap_size": "32g",
             "clean_command": "./gradlew clean",
             "verbose_logging": "true",
             "assertions": "true"
-        }, provision_config_instance.variables)
+        }, cluster_config.variables)
 
-    def test_load_provision_config_instance_with_install_hook(self):
-        provision_config_instance = provision_config.load_provision_config_instance(
+    def test_load_cluster_config_with_install_hook(self):
+        cluster_config = provision_config.load_cluster_config(
             self.provision_config_dir,
             ["default", "with_hook"],
-            provision_config_instance_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
-        self.assertEqual("default+with_hook", provision_config_instance.name)
+            cluster_config_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
+        self.assertEqual("default+with_hook", cluster_config.name)
         self.assertEqual([
-            os.path.join(current_dir, "data", "provision_config_instances", "v1", "vanilla", "templates"),
-            os.path.join(current_dir, "data", "provision_config_instances", "v1", "with_hook", "templates"),
-        ], provision_config_instance.config_paths)
+            os.path.join(current_dir, "data", "cluster_configs", "v1", "vanilla", "templates"),
+            os.path.join(current_dir, "data", "cluster_configs", "v1", "with_hook", "templates"),
+        ], cluster_config.config_paths)
         self.assertEqual(
-            os.path.join(current_dir, "data", "provision_config_instances", "v1", "with_hook"),
-            provision_config_instance.root_path)
+            os.path.join(current_dir, "data", "cluster_configs", "v1", "with_hook"),
+            cluster_config.root_path)
         self.assertDictEqual({
             "heap_size": "1g",
             "clean_command": "./gradlew clean",
             "data_paths": ["/mnt/disk0", "/mnt/disk1"]
-        }, provision_config_instance.variables)
+        }, cluster_config.variables)
 
-    def test_load_provision_config_instance_with_multiple_bases_referring_same_install_hook(self):
-        provision_config_instance = provision_config.load_provision_config_instance(
+    def test_load_cluster_config_with_multiple_bases_referring_same_install_hook(self):
+        cluster_config = provision_config.load_cluster_config(
             self.provision_config_dir, ["with_hook", "another_with_hook"])
-        self.assertEqual("with_hook+another_with_hook", provision_config_instance.name)
+        self.assertEqual("with_hook+another_with_hook", cluster_config.name)
         self.assertEqual([
-            os.path.join(current_dir, "data", "provision_config_instances", "v1", "vanilla", "templates"),
-            os.path.join(current_dir, "data", "provision_config_instances", "v1", "with_hook", "templates"),
-            os.path.join(current_dir, "data", "provision_config_instances", "v1", "verbose_logging", "templates")
-        ], provision_config_instance.config_paths)
+            os.path.join(current_dir, "data", "cluster_configs", "v1", "vanilla", "templates"),
+            os.path.join(current_dir, "data", "cluster_configs", "v1", "with_hook", "templates"),
+            os.path.join(current_dir, "data", "cluster_configs", "v1", "verbose_logging", "templates")
+        ], cluster_config.config_paths)
         self.assertEqual(
-            os.path.join(current_dir, "data", "provision_config_instances", "v1", "with_hook"),
-            provision_config_instance.root_path)
+            os.path.join(current_dir, "data", "cluster_configs", "v1", "with_hook"),
+            cluster_config.root_path)
         self.assertDictEqual({
             "heap_size": "16g",
             "clean_command": "./gradlew clean",
             "verbose_logging": "true"
-        }, provision_config_instance.variables)
+        }, cluster_config.variables)
 
-    def test_raises_error_on_unknown_provision_config_instance(self):
+    def test_raises_error_on_unknown_cluster_config(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            provision_config.load_provision_config_instance(self.provision_config_dir, ["don_t-know-you"])
+            provision_config.load_cluster_config(self.provision_config_dir, ["don_t-know-you"])
         self.assertRegex(
             ctx.exception.args[0],
-            r"Unknown provision_config_instance \[don_t-know-you\]. "
-            r"List the available provision_config_instances with [^\s]+ list provision_config_instances.")
+            r"Unknown cluster-config \[don_t-know-you\]. "
+            r"List the available cluster-configs with [^\s]+ list cluster-configs.")
 
     def test_raises_error_on_empty_config_base(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            provision_config.load_provision_config_instance(self.provision_config_dir, ["empty_cfg_base"])
-        self.assertEqual("At least one config base is required for provision_config_instance ['empty_cfg_base']", ctx.exception.args[0])
+            provision_config.load_cluster_config(self.provision_config_dir, ["empty_cfg_base"])
+        self.assertEqual("At least one config base is required for cluster_config ['empty_cfg_base']", ctx.exception.args[0])
 
     def test_raises_error_on_missing_config_base(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            provision_config.load_provision_config_instance(self.provision_config_dir, ["missing_cfg_base"])
-        self.assertEqual("At least one config base is required for provision_config_instance ['missing_cfg_base']", ctx.exception.args[0])
+            provision_config.load_cluster_config(self.provision_config_dir, ["missing_cfg_base"])
+        self.assertEqual("At least one config base is required for cluster_config ['missing_cfg_base']", ctx.exception.args[0])
 
     def test_raises_error_if_more_than_one_different_install_hook(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            provision_config.load_provision_config_instance(self.provision_config_dir, ["multi_hook"])
+            provision_config.load_cluster_config(self.provision_config_dir, ["multi_hook"])
         self.assertEqual(
-            "Invalid provision_config_instance: ['multi_hook']. Multiple bootstrap hooks are forbidden.",
+            "Invalid cluster_config: ['multi_hook']. Multiple bootstrap hooks are forbidden.",
             ctx.exception.args[0])
 
 
