@@ -120,9 +120,9 @@ def create_arg_parser():
         "configuration",
         metavar="configuration",
         help="The configuration for which OSB should show the available options. "
-             "Possible values are: telemetry, workloads, pipelines, test_executions, provision_config_instances, opensearch-plugins",
+             "Possible values are: telemetry, workloads, pipelines, test_executions, cluster-configs, opensearch-plugins",
         choices=["telemetry", "workloads", "pipelines", "test_executions", "aggregated_results",
-                 "provision_config_instances", "opensearch-plugins"])
+                 "cluster-configs", "opensearch-plugins"])
     list_parser.add_argument(
         "--limit",
         help="Limit the number of search results for recent test_executions (default: 10).",
@@ -314,16 +314,16 @@ def create_arg_parser():
 
     download_parser = subparsers.add_parser("download", help="Downloads an artifact")
     download_parser.add_argument(
-        "--provision-config-repository",
-        help="Define the repository from where OSB will load provision_configs and provision_config_instances (default: default).",
+        "--cluster-config-repository",
+        help="Define the repository from where OSB will load cluster-configs (default: default).",
         default="default")
     download_parser.add_argument(
-        "--provision-config-revision",
-        help="Define a specific revision in the provision_config repository that OSB should use.",
+        "--cluster-config-revision",
+        help="Define a specific revision in the cluster-config repository that OSB should use.",
         default=None)
     download_parser.add_argument(
-        "--provision-config-path",
-        help="Define the path to the provision_config_instance and plugin configurations to use.")
+        "--cluster-config-path",
+        help="Define the path to the cluster-config and plugin configurations to use.")
     download_parser.add_argument(
         "--distribution-version",
         type=supported_os_version,
@@ -335,14 +335,14 @@ def create_arg_parser():
         help="Define the repository from where the OpenSearch distribution should be downloaded (default: release).",
         default="release")
     download_parser.add_argument(
-        "--provision-config-instance",
-        help=f"Define the provision_config_instance to use. List possible "
-        f"provision_config_instances with `{PROGRAM_NAME} list "
-        f"provision_config_instances` (default: defaults).",
+        "--cluster-config",
+        help=f"Define the cluster-config to use. List possible "
+        f"cluster-configs with `{PROGRAM_NAME} list "
+        f"cluster-configs` (default: defaults).",
         default="defaults")  # optimized for local usage
     download_parser.add_argument(
-        "--provision-config-instance-params",
-        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the provision_config_instance.",
+        "--cluster-config-params",
+        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the cluster-config.",
         default=""
     )
     download_parser.add_argument(
@@ -369,16 +369,16 @@ def create_arg_parser():
         choices=["tar", "docker"],
         default="tar")
     install_parser.add_argument(
-        "--provision-config-repository",
-        help="Define the repository from where OSB will load provision_configs and provision_config_instances (default: default).",
+        "--cluster-config-repository",
+        help="Define the repository from where OSB will load cluster-configs (default: default).",
         default="default")
     install_parser.add_argument(
-        "--provision-config-revision",
-        help="Define a specific revision in the provision_config repository that OSB should use.",
+        "--cluster-config-revision",
+        help="Define a specific revision in the cluster-config repository that OSB should use.",
         default=None)
     install_parser.add_argument(
-        "--provision-config-path",
-        help="Define the path to the provision_config_instance and plugin configurations to use.")
+        "--cluster-config-path",
+        help="Define the path to the cluster-config and plugin configurations to use.")
     install_parser.add_argument(
         "--runtime-jdk",
         type=runtime_jdk,
@@ -395,14 +395,14 @@ def create_arg_parser():
              "Check https://opensearch.org/docs/version-history/ for released versions.",
         default="")
     install_parser.add_argument(
-        "--provision-config-instance",
-        help=f"Define the provision_config_instance to use. List possible "
-        f"provision_config_instances with `{PROGRAM_NAME} list "
-        f"provision_config_instances` (default: defaults).",
+        "--cluster-config",
+        help=f"Define the cluster-config to use. List possible "
+        f"cluster-configs with `{PROGRAM_NAME} list "
+        f"cluster-configs` (default: defaults).",
         default="defaults")  # optimized for local usage
     install_parser.add_argument(
-        "--provision-config-instance-params",
-        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the provision_config_instance.",
+        "--cluster-config-params",
+        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the cluster-config.",
         default=""
     )
     install_parser.add_argument(
@@ -494,15 +494,15 @@ def create_arg_parser():
                  "Check https://opensearch.org/docs/version-history/ for released versions.",
             default="")
         p.add_argument(
-            "--provision-config-path",
-            help="Define the path to the provision_config_instance and plugin configurations to use.")
+            "--cluster-config-path",
+            help="Define the path to the cluster-config and plugin configurations to use.")
         p.add_argument(
-            "--provision-config-repository",
-            help="Define repository from where OSB will load provision_configs and provision_config_instances (default: default).",
+            "--cluster-config-repository",
+            help="Define repository from where OSB will load cluster-configs (default: default).",
             default="default")
         p.add_argument(
-            "--provision-config-revision",
-            help="Define a specific revision in the provision_config repository that OSB should use.",
+            "--cluster-config-revision",
+            help="Define a specific revision in the cluster-config repository that OSB should use.",
             default=None)
 
     test_execution_parser.add_argument(
@@ -540,14 +540,14 @@ def create_arg_parser():
         "--test-procedure",
         help=f"Define the test_procedure to use. List possible test_procedures for workloads with `{PROGRAM_NAME} list workloads`.")
     test_execution_parser.add_argument(
-        "--provision-config-instance",
-        help=f"Define the provision_config_instance to use. List possible "
-        f"provision_config_instances with `{PROGRAM_NAME} list "
-        f"provision_config_instances` (default: defaults).",
+        "--cluster-config",
+        help=f"Define the cluster-config to use. List possible "
+        f"cluster-configs with `{PROGRAM_NAME} list "
+        f"cluster-configs` (default: defaults).",
         default="defaults")  # optimized for local usage
     test_execution_parser.add_argument(
-        "--provision-config-instance-params",
-        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the provision_config_instance.",
+        "--cluster-config-params",
+        help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the cluster-config.",
         default=""
     )
     test_execution_parser.add_argument(
@@ -798,8 +798,8 @@ def dispatch_list(cfg):
         metrics.list_test_executions(cfg)
     elif what == "aggregated_results":
         metrics.list_aggregated_results(cfg)
-    elif what == "provision_config_instances":
-        provision_config.list_provision_config_instances(cfg)
+    elif what == "cluster-configs":
+        provision_config.list_cluster_configs(cfg)
     elif what == "opensearch-plugins":
         provision_config.list_plugins(cfg)
     else:
@@ -944,28 +944,28 @@ def configure_workload_params(arg_parser, args, cfg, command_requires_workload=T
         cfg.add(config.Scope.applicationOverride, "workload", "exclude.tasks", opts.csv_to_list(args.exclude_tasks))
 
 
-def configure_builder_params(args, cfg, command_requires_provision_config_instance=True):
-    if args.provision_config_path:
+def configure_builder_params(args, cfg, command_requires_cluster_config=True):
+    if args.cluster_config_path:
         cfg.add(
             config.Scope.applicationOverride, "builder",
-            "provision_config.path", os.path.abspath(
-                io.normalize_path(args.provision_config_path)))
+            "cluster_config.path", os.path.abspath(
+                io.normalize_path(args.cluster_config_path)))
         cfg.add(config.Scope.applicationOverride, "builder", "repository.name", None)
         cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", None)
     else:
-        cfg.add(config.Scope.applicationOverride, "builder", "repository.name", args.provision_config_repository)
-        cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", args.provision_config_revision)
+        cfg.add(config.Scope.applicationOverride, "builder", "repository.name", args.cluster_config_repository)
+        cfg.add(config.Scope.applicationOverride, "builder", "repository.revision", args.cluster_config_revision)
 
-    if command_requires_provision_config_instance:
+    if command_requires_cluster_config:
         if args.distribution_version:
             cfg.add(config.Scope.applicationOverride, "builder", "distribution.version", args.distribution_version)
         cfg.add(config.Scope.applicationOverride, "builder", "distribution.repository", args.distribution_repository)
         cfg.add(config.Scope.applicationOverride, "builder",
-        "provision_config_instance.names", opts.csv_to_list(
-            args.provision_config_instance))
+        "cluster_config.names", opts.csv_to_list(
+            args.cluster_config))
         cfg.add(config.Scope.applicationOverride, "builder",
-        "provision_config_instance.params", opts.to_dict(
-            args.provision_config_instance_params))
+        "cluster_config.params", opts.to_dict(
+            args.cluster_config_params))
 
 
 def configure_connection_params(arg_parser, args, cfg):
@@ -1080,7 +1080,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
         elif sub_command == "list":
             cfg.add(config.Scope.applicationOverride, "system", "list.config.option", args.configuration)
             cfg.add(config.Scope.applicationOverride, "system", "list.test_executions.max_results", args.limit)
-            configure_builder_params(args, cfg, command_requires_provision_config_instance=False)
+            configure_builder_params(args, cfg, command_requires_cluster_config=False)
             configure_workload_params(arg_parser, args, cfg, command_requires_workload=False)
             dispatch_list(cfg)
         elif sub_command == "download":
@@ -1099,7 +1099,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "builder", "master.nodes", opts.csv_to_list(args.master_nodes))
             cfg.add(config.Scope.applicationOverride, "builder", "seed.hosts", opts.csv_to_list(args.seed_hosts))
             cfg.add(config.Scope.applicationOverride, "builder",
-            "provision_config_instance.plugins", opts.csv_to_list(
+            "cluster_config.plugins", opts.csv_to_list(
                 args.opensearch_plugins))
             cfg.add(config.Scope.applicationOverride, "builder", "plugin.params", opts.to_dict(args.plugin_params))
             configure_builder_params(args, cfg)

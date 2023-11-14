@@ -10,11 +10,11 @@ from osbenchmark.builder.utils.path_manager import PathManager
 
 
 class OpenSearchPreparer(Preparer):
-    def __init__(self, provision_config_instance, executor, hook_handler_class):
+    def __init__(self, cluster_config, executor, hook_handler_class):
         super().__init__(executor)
         self.logger = logging.getLogger(__name__)
-        self.provision_config_instance = provision_config_instance
-        self.hook_handler = hook_handler_class(self.provision_config_instance)
+        self.cluster_config = cluster_config
+        self.hook_handler = hook_handler_class(self.cluster_config)
         if self.hook_handler.can_load():
             self.hook_handler.load()
         self.path_manager = PathManager(executor)
@@ -28,8 +28,8 @@ class OpenSearchPreparer(Preparer):
 
     def _create_node(self):
         node_name = str(uuid.uuid4())
-        node_port = int(self.provision_config_instance.variables["node"]["port"])
-        node_root_dir = os.path.join(self.provision_config_instance.variables["test_execution_root"], node_name)
+        node_port = int(self.cluster_config.variables["node"]["port"])
+        node_root_dir = os.path.join(self.cluster_config.variables["test_execution_root"], node_name)
         node_binary_path = os.path.join(node_root_dir, "install")
         node_log_dir = os.path.join(node_root_dir, "logs", "server")
         node_heap_dump_dir = os.path.join(node_root_dir, "heapdump")
@@ -74,7 +74,7 @@ class OpenSearchPreparer(Preparer):
 
     def get_config_vars(self, host, node, all_node_ips):
         installer_defaults = {
-            "cluster_name": self.provision_config_instance.variables["cluster_name"],
+            "cluster_name": self.cluster_config.variables["cluster_name"],
             "node_name": node.name,
             "data_paths": node.data_paths[0],
             "log_path": node.log_path,
@@ -91,15 +91,15 @@ class OpenSearchPreparer(Preparer):
             "install_root_path": node.binary_path
         }
         config_vars = {}
-        config_vars.update(self.provision_config_instance.variables)
+        config_vars.update(self.cluster_config.variables)
         config_vars.update(installer_defaults)
         return config_vars
 
     def get_config_paths(self):
-        return self.provision_config_instance.config_paths
+        return self.cluster_config.config_paths
 
     def invoke_install_hook(self, host, phase, variables, env):
         self.hook_handler.invoke(phase.name, variables=variables, env=env)
 
     def cleanup(self, host):
-        self.host_cleaner.cleanup(host, self.provision_config_instance.variables["preserve_install"])
+        self.host_cleaner.cleanup(host, self.cluster_config.variables["preserve_install"])

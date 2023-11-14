@@ -11,7 +11,7 @@ class OpenSearchDistributionDownloaderTest(TestCase):
         self.host = None
 
         self.executor = Mock()
-        self.provision_config_instance = ProvisionConfigInstance(names="fake", root_path="also fake", config_paths="fake2", variables={
+        self.cluster_config = ProvisionConfigInstance(names="fake", root_path="also fake", config_paths="fake2", variables={
             "node": {
                 "root": {
                     "dir": "/fake/dir/for/download"
@@ -24,7 +24,7 @@ class OpenSearchDistributionDownloaderTest(TestCase):
 
         self.path_manager = Mock()
         self.distribution_repository_provider = Mock()
-        self.os_distro_downloader = OpenSearchDistributionDownloader(self.provision_config_instance, self.executor, self.path_manager,
+        self.os_distro_downloader = OpenSearchDistributionDownloader(self.cluster_config, self.executor, self.path_manager,
                                                                      self.distribution_repository_provider)
 
 

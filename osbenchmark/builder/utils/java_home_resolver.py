@@ -10,9 +10,9 @@ class JavaHomeResolver:
         self.executor = executor
         self.jdk_resolver = JdkResolver(executor)
 
-    def resolve_java_home(self, host, provision_config_instance):
-        is_runtime_jdk_bundled = provision_config_instance.variables["system"]["runtime"]["jdk"]["bundled"]
-        runtime_jdks = provision_config_instance.variables["system"]["runtime"]["jdk"]["version"]
+    def resolve_java_home(self, host, cluster_config):
+        is_runtime_jdk_bundled = cluster_config.variables["system"]["runtime"]["jdk"]["bundled"]
+        runtime_jdks = cluster_config.variables["system"]["runtime"]["jdk"]["version"]
 
         try:
             allowed_runtime_jdks = [int(v) for v in runtime_jdks.split(",")]

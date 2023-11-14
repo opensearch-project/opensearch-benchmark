@@ -37,40 +37,40 @@ from osbenchmark.builder import provision_config, java_resolver
 from osbenchmark.utils import console, convert, io, process, versions
 
 
-def local(cfg, provision_config_instance, plugins, ip, http_port, all_node_ips, all_node_names, target_root, node_name):
+def local(cfg, cluster_config, plugins, ip, http_port, all_node_ips, all_node_names, target_root, node_name):
     distribution_version = cfg.opts("builder", "distribution.version", mandatory=False)
 
     node_root_dir = os.path.join(target_root, node_name)
 
-    runtime_jdk_bundled = convert.to_bool(provision_config_instance.mandatory_var("runtime.jdk.bundled"))
-    runtime_jdk = provision_config_instance.mandatory_var("runtime.jdk")
+    runtime_jdk_bundled = convert.to_bool(cluster_config.mandatory_var("runtime.jdk.bundled"))
+    runtime_jdk = cluster_config.mandatory_var("runtime.jdk")
     _, java_home = java_resolver.java_home(runtime_jdk, cfg.opts("builder", "runtime.jdk"), runtime_jdk_bundled)
 
     os_installer = OpenSearchInstaller(
-        provision_config_instance, java_home, node_name,
+        cluster_config, java_home, node_name,
         node_root_dir, all_node_ips, all_node_names, ip, http_port)
     plugin_installers = [PluginInstaller(plugin, java_home) for plugin in plugins]
 
     return BareProvisioner(os_installer, plugin_installers, distribution_version=distribution_version)
 
 
-def docker(cfg, provision_config_instance, ip, http_port, target_root, node_name):
+def docker(cfg, cluster_config, ip, http_port, target_root, node_name):
     distribution_version = cfg.opts("builder", "distribution.version", mandatory=False)
     benchmark_root = cfg.opts("node", "benchmark.root")
 
     node_root_dir = os.path.join(target_root, node_name)
 
-    return DockerProvisioner(provision_config_instance, node_name, ip, http_port, node_root_dir, distribution_version, benchmark_root)
+    return DockerProvisioner(cluster_config, node_name, ip, http_port, node_root_dir, distribution_version, benchmark_root)
 
 
 class NodeConfiguration:
-    def __init__(self, build_type, provision_config_instance_runtime_jdks, \
-        provision_config_instance_provides_bundled_jdk, ip, node_name, \
+    def __init__(self, build_type, cluster_config_runtime_jdks, \
+        cluster_config_provides_bundled_jdk, ip, node_name, \
             node_root_path,
                  binary_path, data_paths):
         self.build_type = build_type
-        self.provision_config_instance_runtime_jdks = provision_config_instance_runtime_jdks
-        self.provision_config_instance_provides_bundled_jdk = provision_config_instance_provides_bundled_jdk
+        self.cluster_config_runtime_jdks = cluster_config_runtime_jdks
+        self.cluster_config_provides_bundled_jdk = cluster_config_provides_bundled_jdk
         self.ip = ip
         self.node_name = node_name
         self.node_root_path = node_root_path
@@ -80,8 +80,8 @@ class NodeConfiguration:
     def as_dict(self):
         return {
             "build-type": self.build_type,
-            "provision-config-instance-runtime-jdks": self.provision_config_instance_runtime_jdks,
-            "provision-config-instance-provides-bundled-jdk": self.provision_config_instance_provides_bundled_jdk,
+            "provision-config-instance-runtime-jdks": self.cluster_config_runtime_jdks,
+            "provision-config-instance-provides-bundled-jdk": self.cluster_config_provides_bundled_jdk,
             "ip": self.ip,
             "node-name": self.node_name,
             "node-root-path": self.node_root_path,
@@ -206,8 +206,8 @@ class BareProvisioner:
         for installer in self.plugin_installers:
             installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, provisioner_vars.copy())
 
-        return NodeConfiguration("tar", self.os_installer.provision_config_instance.mandatory_var("runtime.jdk"),
-                                 convert.to_bool(self.os_installer.provision_config_instance.mandatory_var("runtime.jdk.bundled")),
+        return NodeConfiguration("tar", self.os_installer.cluster_config.mandatory_var("runtime.jdk"),
+                                 convert.to_bool(self.os_installer.cluster_config.mandatory_var("runtime.jdk.bundled")),
                                  self.os_installer.node_ip, self.os_installer.node_name,
                                  self.os_installer.node_root_dir, self.os_installer.os_home_path,
                                  self.os_installer.data_paths)
@@ -241,9 +241,9 @@ class BareProvisioner:
 
 
 class OpenSearchInstaller:
-    def __init__(self, provision_config_instance, java_home, node_name, node_root_dir, all_node_ips, all_node_names, ip, http_port,
+    def __init__(self, cluster_config, java_home, node_name, node_root_dir, all_node_ips, all_node_names, ip, http_port,
                  hook_handler_class=provision_config.BootstrapHookHandler):
-        self.provision_config_instance = provision_config_instance
+        self.cluster_config = cluster_config
         self.java_home = java_home
         self.node_name = node_name
         self.node_root_dir = node_root_dir
@@ -254,7 +254,7 @@ class OpenSearchInstaller:
         self.all_node_names = all_node_names
         self.node_ip = ip
         self.http_port = http_port
-        self.hook_handler = hook_handler_class(self.provision_config_instance)
+        self.hook_handler = hook_handler_class(self.cluster_config)
         if self.hook_handler.can_load():
             self.hook_handler.load()
         self.os_home_path = None
@@ -307,17 +307,17 @@ class OpenSearchInstaller:
             "install_root_path": self.os_home_path
         }
         variables = {}
-        variables.update(self.provision_config_instance.variables)
+        variables.update(self.cluster_config.variables)
         variables.update(defaults)
         return variables
 
     @property
     def config_source_paths(self):
-        return self.provision_config_instance.config_paths
+        return self.cluster_config.config_paths
 
     def _data_paths(self):
-        if "data_paths" in self.provision_config_instance.variables:
-            data_paths = self.provision_config_instance.variables["data_paths"]
+        if "data_paths" in self.cluster_config.variables:
+            data_paths = self.cluster_config.variables["data_paths"]
             if isinstance(data_paths, str):
                 return [data_paths]
             elif isinstance(data_paths, list):
@@ -388,8 +388,8 @@ class PluginInstaller:
 
 
 class DockerProvisioner:
-    def __init__(self, provision_config_instance, node_name, ip, http_port, node_root_dir, distribution_version, benchmark_root):
-        self.provision_config_instance = provision_config_instance
+    def __init__(self, cluster_config, node_name, ip, http_port, node_root_dir, distribution_version, benchmark_root):
+        self.cluster_config = cluster_config
         self.node_name = node_name
         self.node_ip = ip
         self.http_port = http_port
@@ -420,7 +420,7 @@ class DockerProvisioner:
         }
 
         self.config_vars = {}
-        self.config_vars.update(self.provision_config_instance.variables)
+        self.config_vars.update(self.cluster_config.variables)
         self.config_vars.update(provisioner_defaults)
 
     def prepare(self, binary):
@@ -439,11 +439,11 @@ class DockerProvisioner:
 
         mounts = {}
 
-        for provision_config_instance_config_path in self.provision_config_instance.config_paths:
-            for root, _, files in os.walk(provision_config_instance_config_path):
+        for cluster_config_config_path in self.cluster_config.config_paths:
+            for root, _, files in os.walk(cluster_config_config_path):
                 env = jinja2.Environment(loader=jinja2.FileSystemLoader(root), autoescape=select_autoescape(['html', 'xml']))
 
-                relative_root = root[len(provision_config_instance_config_path) + 1:]
+                relative_root = root[len(cluster_config_config_path) + 1:]
                 absolute_target_root = os.path.join(self.binary_path, relative_root)
                 io.ensure_dir(absolute_target_root)
 
@@ -465,27 +465,27 @@ class DockerProvisioner:
         with open(os.path.join(self.binary_path, "docker-compose.yml"), mode="wt", encoding="utf-8") as f:
             f.write(docker_cfg)
 
-        return NodeConfiguration("docker", self.provision_config_instance.mandatory_var("runtime.jdk"),
-                                 convert.to_bool(self.provision_config_instance.mandatory_var("runtime.jdk.bundled")), self.node_ip,
+        return NodeConfiguration("docker", self.cluster_config.mandatory_var("runtime.jdk"),
+                                 convert.to_bool(self.cluster_config.mandatory_var("runtime.jdk.bundled")), self.node_ip,
                                  self.node_name, self.node_root_dir, self.binary_path, self.data_paths)
 
     def docker_vars(self, mounts):
         v = {
             "os_version": self.distribution_version,
-            "docker_image": self.provision_config_instance.mandatory_var("docker_image"),
+            "docker_image": self.cluster_config.mandatory_var("docker_image"),
             "http_port": self.http_port,
             "os_data_dir": self.data_paths[0],
             "os_log_dir": self.node_log_dir,
             "os_heap_dump_dir": self.heap_dump_dir,
             "mounts": mounts
         }
-        self._add_if_defined_for_provision_config_instance(v, "docker_mem_limit")
-        self._add_if_defined_for_provision_config_instance(v, "docker_cpu_count")
+        self._add_if_defined_for_cluster_config(v, "docker_mem_limit")
+        self._add_if_defined_for_cluster_config(v, "docker_cpu_count")
         return v
 
-    def _add_if_defined_for_provision_config_instance(self, variables, key):
-        if key in self.provision_config_instance.variables:
-            variables[key] = self.provision_config_instance.variables[key]
+    def _add_if_defined_for_cluster_config(self, variables, key):
+        if key in self.cluster_config.variables:
+            variables[key] = self.cluster_config.variables[key]
 
     def _render_template(self, loader, template_name, variables):
         try:

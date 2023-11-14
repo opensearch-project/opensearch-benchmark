@@ -471,7 +471,7 @@ class PruneTests(TestCase):
 
 class OpenSearchSourceSupplierTests(TestCase):
     def test_no_build(self):
-        provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
+        cluster_config = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
             "clean_command": "./gradlew clean",
             "system.build_command": "./gradlew assemble"
         })
@@ -479,14 +479,14 @@ class OpenSearchSourceSupplierTests(TestCase):
         opensearch = supplier.OpenSearchSourceSupplier(revision="abc",
                                                   os_src_dir="/src",
                                                   remote_url="",
-                                                  provision_config_instance=provision_config_instance,
+                                                  cluster_config=cluster_config,
                                                   builder=None,
                                                   template_renderer=renderer)
         opensearch.prepare()
         # nothing has happened (intentionally) because there is no builder
 
     def test_build(self):
-        provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
+        cluster_config = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
             "clean_command": "./gradlew clean",
             "system.build_command": "./gradlew assemble"
         })
@@ -495,15 +495,15 @@ class OpenSearchSourceSupplierTests(TestCase):
         opensearch = supplier.OpenSearchSourceSupplier(revision="abc",
                                                   os_src_dir="/src",
                                                   remote_url="",
-                                                  provision_config_instance=provision_config_instance,
+                                                  cluster_config=cluster_config,
                                                   builder=builder,
                                                   template_renderer=renderer)
         opensearch.prepare()
 
         builder.build.assert_called_once_with(["./gradlew clean", "./gradlew assemble"])
 
-    def test_raises_error_on_missing_provision_config_instance_variable(self):
-        provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
+    def test_raises_error_on_missing_cluster_config_variable(self):
+        cluster_config = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
             "clean_command": "./gradlew clean",
             # system.build_command is not defined
         })
@@ -512,7 +512,7 @@ class OpenSearchSourceSupplierTests(TestCase):
         opensearch = supplier.OpenSearchSourceSupplier(revision="abc",
                                                   os_src_dir="/src",
                                                   remote_url="",
-                                                  provision_config_instance=provision_config_instance,
+                                                  cluster_config=cluster_config,
                                                   builder=builder,
                                                   template_renderer=renderer)
         with self.assertRaisesRegex(exceptions.SystemSetupError,
@@ -523,7 +523,7 @@ class OpenSearchSourceSupplierTests(TestCase):
 
     @mock.patch("glob.glob", lambda p: ["opensearch.tar.gz"])
     def test_add_opensearch_binary(self):
-        provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
+        cluster_config = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
             "clean_command": "./gradlew clean",
             "system.build_command": "./gradlew assemble",
             "system.artifact_path_pattern": "distribution/archives/tar/build/distributions/*.tar.gz"
@@ -532,7 +532,7 @@ class OpenSearchSourceSupplierTests(TestCase):
         opensearch = supplier.OpenSearchSourceSupplier(revision="abc",
                                                   os_src_dir="/src",
                                                   remote_url="",
-                                                  provision_config_instance=provision_config_instance,
+                                                  cluster_config=cluster_config,
                                                   builder=None,
                                                   template_renderer=renderer)
         binaries = {}
@@ -699,9 +699,9 @@ class CreateSupplierTests(TestCase):
         cfg.add(config.Scope.application, "distributions", "release.cache", True)
         cfg.add(config.Scope.application, "node", "root.dir", "/opt/benchmark")
 
-        provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[])
+        cluster_config = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[])
 
-        composite_supplier = supplier.create(cfg, sources=False, distribution=True, provision_config_instance=provision_config_instance)
+        composite_supplier = supplier.create(cfg, sources=False, distribution=True, cluster_config=cluster_config)
 
         self.assertEqual(1, len(composite_supplier.suppliers))
         self.assertIsInstance(composite_supplier.suppliers[0], supplier.OpenSearchDistributionSupplier)
@@ -721,7 +721,7 @@ class CreateSupplierTests(TestCase):
         cfg.add(config.Scope.application, "source", "opensearch.src.subdir", "opensearch")
         cfg.add(config.Scope.application, "source", "plugin.community-plugin.src.dir", "/home/user/Projects/community-plugin")
 
-        provision_config_instance = provision_config.ProvisionConfigInstance(
+        cluster_config = provision_config.ProvisionConfigInstance(
             "default", root_path=None, config_paths=[],
             variables={"build.jdk": "10"})
         core_plugin = provision_config.PluginDescriptor("analysis-icu", core_plugin=True)
@@ -730,7 +730,7 @@ class CreateSupplierTests(TestCase):
         # --revision="community-plugin:effab" --distribution-version="1.0.0"
         composite_supplier = supplier.create(
             cfg, sources=False, distribution=True,
-            provision_config_instance=provision_config_instance, plugins=[
+            cluster_config=cluster_config, plugins=[
             core_plugin,
             external_plugin
         ])
@@ -757,7 +757,7 @@ class CreateSupplierTests(TestCase):
         cfg.add(config.Scope.application, "source", "remote.repo.url", "https://github.com/opensearch-project/OpenSearch.git")
         cfg.add(config.Scope.application, "source", "plugin.community-plugin.src.subdir", "opensearch-extra/community-plugin")
 
-        provision_config_instance = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
+        cluster_config = provision_config.ProvisionConfigInstance("default", root_path=None, config_paths=[], variables={
             "clean_command": "./gradlew clean",
             "build_command": "./gradlew assemble",
             "build.jdk": "11"
@@ -768,7 +768,7 @@ class CreateSupplierTests(TestCase):
         # --revision="opensearch:abc,community-plugin:effab"
         composite_supplier = supplier.create(
             cfg, sources=True, distribution=False,
-            provision_config_instance=provision_config_instance, plugins=[
+            cluster_config=cluster_config, plugins=[
             core_plugin,
             external_plugin
         ])

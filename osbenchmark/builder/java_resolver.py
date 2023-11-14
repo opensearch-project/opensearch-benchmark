@@ -28,7 +28,7 @@ from osbenchmark import exceptions
 from osbenchmark.utils import jvm, sysstats
 
 
-def java_home(provision_config_instance_runtime_jdks, specified_runtime_jdk=None, provides_bundled_jdk=False):
+def java_home(cluster_config_runtime_jdks, specified_runtime_jdk=None, provides_bundled_jdk=False):
     def determine_runtime_jdks():
         if specified_runtime_jdk:
             return [specified_runtime_jdk]
@@ -43,12 +43,12 @@ def java_home(provision_config_instance_runtime_jdks, specified_runtime_jdk=None
     logger = logging.getLogger(__name__)
 
     try:
-        allowed_runtime_jdks = [int(v) for v in provision_config_instance_runtime_jdks.split(",")]
+        allowed_runtime_jdks = [int(v) for v in cluster_config_runtime_jdks.split(",")]
 
     except ValueError:
         raise exceptions.SystemSetupError(
             "ProvisionConfigInstance config key \"runtime.jdk\" is invalid: \"{}\" (must be int)".format(
-                provision_config_instance_runtime_jdks))
+                cluster_config_runtime_jdks))
 
     runtime_jdk_versions = determine_runtime_jdks()
 

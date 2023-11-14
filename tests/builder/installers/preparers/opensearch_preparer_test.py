@@ -25,7 +25,7 @@ class OpenSearchPreparerTests(TestCase):
         self.executor = Mock()
         self.hook_handler_class = Mock()
 
-        self.provision_config_instance = ProvisionConfigInstance(
+        self.cluster_config = ProvisionConfigInstance(
             names="defaults",
             root_path="fake",
             config_paths=["/tmp"],
@@ -37,7 +37,7 @@ class OpenSearchPreparerTests(TestCase):
                 }
             }
         )
-        self.preparer = OpenSearchPreparer(self.provision_config_instance, self.executor, self.hook_handler_class)
+        self.preparer = OpenSearchPreparer(self.cluster_config, self.executor, self.hook_handler_class)
         self.preparer.path_manager = Mock()
 
     @mock.patch("uuid.uuid4")
