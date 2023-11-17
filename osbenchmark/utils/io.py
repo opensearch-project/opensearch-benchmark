@@ -31,9 +31,11 @@ import subprocess
 import tarfile
 import zipfile
 from contextlib import suppress
-import zstandard as zstd
 
 import mmap
+
+
+import zstandard as zstd
 
 from osbenchmark.utils import console
 
@@ -371,15 +373,15 @@ def _do_decompress_manually_with_lib(target_directory, filename, compressed_file
 
 
 def _do_decompress_zstd(target_directory, filename):
-    path_without_extension = os.path.splitext(os.path.basename(filename))[0]
+    path_without_extension = basename(splitext(filename)[0])
     try:
         with open(filename, 'rb') as compressed_file:
             zstd_decompressor = zstd.ZstdDecompressor()
             with open(os.path.join(target_directory, path_without_extension), "wb") as new_file:
-                for chunk in zstd_decompressor.read_to_iter(compressed_file.read):
+                for chunk in zstd_decompressor.read_to_iter(compressed_file):
                     new_file.write(chunk)
-    except Exception as e:
-        logging.getLogger(__name__).warning("Failed to decompress [%s] with Zstandard. Error: %s.", filename, str(e))
+    finally:
+        compressed_file.close()
 
 
 def _do_decompress(target_directory, compressed_file):
