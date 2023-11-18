@@ -179,7 +179,7 @@ class TargetHosts(ConnectOptions):
             defined as a json string or file.
             """
             # pylint: disable=import-outside-toplevel
-            from opensearchpy.client import _normalize_hosts
+            from opensearchpy.client.utils import _normalize_hosts
             return {TargetHosts.DEFAULT: _normalize_hosts(arg)}
 
         self.parsed_options = to_dict(self.argvalue, default_parser=normalize_to_dict)
