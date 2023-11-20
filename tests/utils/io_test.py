@@ -76,7 +76,7 @@ class IoTests(TestCase):
 
 class TestDecompression:
     def test_decompresses_supported_file_formats(self):
-        for ext in ["zip", "gz", "bz2", "tgz", "tar.bz2", "tar.gz"]:
+        for ext in ["zip", "gz", "bz2", "tgz", "tar.bz2", "tar.gz", "zst"]:
             tmp_dir = tempfile.mkdtemp()
             archive_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", f"test.txt.{ext}")
             decompressed_path = os.path.join(tmp_dir, "test.txt")
@@ -90,7 +90,7 @@ class TestDecompression:
 
     @mock.patch.object(io, "is_executable", return_value=False)
     def test_decompresses_supported_file_formats_with_lib_as_failover(self, mocked_is_executable):
-        for ext in ["zip", "gz", "bz2", "tgz", "tar.bz2", "tar.gz"]:
+        for ext in ["zip", "gz", "bz2", "tgz", "tar.bz2", "tar.gz", "zst"]:
             tmp_dir = tempfile.mkdtemp()
             archive_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "resources", f"test.txt.{ext}")
             decompressed_path = os.path.join(tmp_dir, "test.txt")

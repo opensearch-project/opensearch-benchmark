@@ -34,6 +34,9 @@ from contextlib import suppress
 
 import mmap
 
+
+import zstandard as zstd
+
 from osbenchmark.utils import console
 
 
@@ -249,7 +252,7 @@ def is_archive(name):
     :return: True iff the given file name is an archive that is also recognized for decompression by Benchmark.
     """
     _, ext = splitext(name)
-    return ext in [".zip", ".bz2", ".gz", ".tar", ".tar.gz", ".tgz", ".tar.bz2"]
+    return ext in [".zip", ".bz2", ".gz", ".tar", ".tar.gz", ".tgz", ".tar.bz2", ".zst"]
 
 
 def is_executable(name):
@@ -272,6 +275,28 @@ def compress(source_directory, archive_name):
     _zipdir(source_directory, archive)
 
 
+def compress_zstd(source_directory, archive_name):
+    """
+    Compress a directory tree using Zstandard compression.
+    :param source_directory: The source directory to compress. Must be readable.
+    :param archive_name: The absolute path including the file name of the archive. Must have the extension .zst.
+    """
+    zstc = zstd.ZstdCompressor()
+
+    with open(archive_name, "wb") as archive_file:
+        with zstc.stream_writer(archive_file) as compressor:
+            for root, _, files in os.walk(source_directory):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(file_path, source_directory)
+                    # Write the file path (relative) to the archive to recreate the directory structure
+                    compressor.write(rel_path.encode("utf-8"))
+                    with open(file_path, "rb") as source_file:
+                        # Write the content of the file to the archive
+                        for chunk in source_file:
+                            compressor.write(chunk)
+
+
 def decompress(zip_name, target_directory):
     """
     Decompresses the provided archive to the target directory. The following file extensions are supported:
@@ -283,6 +308,7 @@ def decompress(zip_name, target_directory):
     * tar.gz
     * tgz
     * tar.bz2
+    * zst
 
     The decompression method is chosen based on the file extension.
 
@@ -303,6 +329,8 @@ def decompress(zip_name, target_directory):
         _do_decompress_manually(target_directory, zip_name, decompressor_args, decompressor_lib)
     elif extension in [".tar", ".tar.gz", ".tgz", ".tar.bz2"]:
         _do_decompress(target_directory, tarfile.open(zip_name))
+    elif extension == ".zst":
+        _do_decompress_zstd(target_directory, zip_name)
     else:
         raise RuntimeError("Unsupported file extension [%s]. Cannot decompress [%s]" % (extension, zip_name))
 
@@ -340,6 +368,18 @@ def _do_decompress_manually_with_lib(target_directory, filename, compressed_file
         with open(os.path.join(target_directory, path_without_extension), "wb") as new_file:
             for data in iter(lambda: compressed_file.read(100 * 1024), b""):
                 new_file.write(data)
+    finally:
+        compressed_file.close()
+
+
+def _do_decompress_zstd(target_directory, filename):
+    path_without_extension = basename(splitext(filename)[0])
+    try:
+        with open(filename, 'rb') as compressed_file:
+            zstd_decompressor = zstd.ZstdDecompressor()
+            with open(os.path.join(target_directory, path_without_extension), "wb") as new_file:
+                for chunk in zstd_decompressor.read_to_iter(compressed_file):
+                    new_file.write(chunk)
     finally:
         compressed_file.close()
 
