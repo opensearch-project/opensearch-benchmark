@@ -291,10 +291,10 @@ class OsClientFactory:
         credentials = Credentials(access_key=self.aws_log_in_dict["aws_access_key_id"],
                                   secret_key=self.aws_log_in_dict["aws_secret_access_key"],
                                   token=self.aws_log_in_dict["aws_session_token"])
-        aws_auth = opensearchpy.AWSV4SignerAuth(credentials, self.aws_log_in_dict["region"],
+        aws_auth = opensearchpy.Urllib3AWSV4SignerAuth(credentials, self.aws_log_in_dict["region"],
                                                 self.aws_log_in_dict["service"])
         return opensearchpy.OpenSearch(hosts=self.hosts, use_ssl=True, verify_certs=True, http_auth=aws_auth,
-                                       connection_class=opensearchpy.RequestsHttpConnection)
+                                       connection_class=opensearchpy.Urllib3HttpConnection)
 
     def create_async(self):
         # pylint: disable=import-outside-toplevel
