@@ -27,6 +27,7 @@ import collections
 import concurrent.futures
 import datetime
 import itertools
+import json
 import logging
 import math
 import multiprocessing
@@ -44,7 +45,7 @@ from osbenchmark import actor, config, exceptions, metrics, workload, client, pa
 from osbenchmark.worker_coordinator import runner, scheduler
 from osbenchmark.workload import WorkloadProcessorRegistry, load_workload, load_workload_plugins
 from osbenchmark.utils import convert, console, net
-
+from osbenchmark.worker_coordinator.errors import parse_error
 
 ##################################
 #
@@ -1690,6 +1691,7 @@ async def execute_single(runner, opensearch, params, on_error):
     except KeyError as e:
         logging.getLogger(__name__).exception("Cannot execute runner [%s]; most likely due to missing parameters.", str(runner))
         msg = "Cannot execute [%s]. Provided parameters are: %s. Error: [%s]." % (str(runner), list(params.keys()), str(e))
+        console.error(msg)
         raise exceptions.SystemSetupError(msg)
 
     if not request_meta_data["success"]:
@@ -1698,7 +1700,21 @@ async def execute_single(runner, opensearch, params, on_error):
             description = request_meta_data.get("error-description")
             if description:
                 msg += ", Description: %s" % description
+                console.error(msg)
             raise exceptions.BenchmarkAssertionError(msg)
+
+        if 'error-description' in request_meta_data:
+            try:
+                error_metadata = json.loads(request_meta_data["error-description"])
+                # parse error-description metadata
+                opensearch_operation_error = parse_error(error_metadata)
+                console.error(opensearch_operation_error.get_error_message())
+            except Exception as e:
+                # error-description is not a valid json so we just print it
+                console.error(request_meta_data["error-description"])
+
+            logging.getLogger(__name__).error(request_meta_data["error-description"])
+
     return total_ops, total_ops_unit, request_meta_data
 
 
