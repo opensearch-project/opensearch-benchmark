@@ -130,8 +130,8 @@ def list_workloads(cfg):
 
     headers = ["Name", "Description", "Documents", "Compressed Size", "Uncompressed Size"]
     if not only_auto_generated_test_procedures:
-        headers.append("Default TestProcedure")
-        headers.append("All TestProcedures")
+        headers.append("Default Procedure")
+        headers.append("All Procedures")
 
     console.println("Available workloads:\n")
     console.println(tabulate.tabulate(tabular_data=data, headers=headers))
@@ -147,7 +147,7 @@ def workload_info(cfg):
 
     def test_procedure_info(c):
         if not c.auto_generated:
-            msg = "TestProcedure [{}]".format(c.name)
+            msg = "Procedure [{}]".format(c.name)
             if c.default:
                 msg += " (run by default)"
             console.println(msg, underline="=", overline="=")
@@ -1370,7 +1370,7 @@ class WorkloadSpecificationReader:
             for task in schedule:
                 for sub_task in task:
                     if sub_task.name in known_task_names:
-                        self._error("TestProcedure '%s' contains multiple tasks with the name '%s'. Please use the task's name property to "
+                        self._error("Procedure '%s' contains multiple tasks with the name '%s'. Please use the task's name property to "
                                     "assign a unique name for each task." % (name, sub_task.name))
                     else:
                         known_task_names.add(sub_task.name)
@@ -1378,7 +1378,7 @@ class WorkloadSpecificationReader:
             # merge params
             final_test_procedure_params = dict(collections.merge_dicts(workload_params, test_procedure_params))
 
-            test_procedure = workload.TestProcedure(name=name,
+            test_procedure = workload.Procedure(name=name,
                                         parameters=final_test_procedure_params,
                                         meta_data=meta_data,
                                         description=description,

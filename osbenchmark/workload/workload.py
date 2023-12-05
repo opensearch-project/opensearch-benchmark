@@ -511,7 +511,7 @@ class Workload:
                  othr.templates, othr.composable_templates, othr.component_templates, othr.corpora))
 
 
-class TestProcedure:
+class Procedure:
     """
     A test procedure defines the concrete operations that will be done.
     """

@@ -40,7 +40,7 @@ import pytest
 
 from osbenchmark import config, metrics, workload, exceptions, paths
 from osbenchmark.metrics import GlobalStatsCalculator
-from osbenchmark.workload import Task, Operation, TestProcedure, Workload
+from osbenchmark.workload import Task, Operation, Procedure, Workload
 
 
 class MockClientFactory:
@@ -1260,7 +1260,7 @@ class OsTestExecutionStoreTests(TestCase):
 
         t = workload.Workload(name="unittest",
                         indices=[workload.Index(name="tests", types=["_doc"])],
-                        test_procedures=[workload.TestProcedure(name="index", default=True, schedule=schedule)])
+                        test_procedures=[workload.Procedure(name="index", default=True, schedule=schedule)])
 
         test_execution = metrics.TestExecution(benchmark_version="0.4.4", benchmark_revision="123abc", environment_name="unittest",
                             test_execution_id=OsTestExecutionStoreTests.TEST_EXECUTION_ID,
@@ -1364,7 +1364,7 @@ class OsResultsStoreTests(TestCase):
 
         t = workload.Workload(name="unittest-workload",
                         indices=[workload.Index(name="tests", types=["_doc"])],
-                        test_procedures=[workload.TestProcedure(
+                        test_procedures=[workload.Procedure(
                             name="index", default=True, meta_data={"saturation": "70% saturated"}, schedule=schedule)],
                         meta_data={"workload-type": "saturation-degree", "saturation": "oversaturation"})
 
@@ -1514,7 +1514,7 @@ class OsResultsStoreTests(TestCase):
 
         t = workload.Workload(name="unittest-workload",
                         indices=[workload.Index(name="tests", types=["_doc"])],
-                        test_procedures=[workload.TestProcedure(
+                        test_procedures=[workload.Procedure(
                             name="index", default=True, meta_data={"saturation": "70% saturated"}, schedule=schedule)],
                         meta_data={"workload-type": "saturation-degree", "saturation": "oversaturation"})
 
@@ -1884,7 +1884,7 @@ class FileTestExecutionStoreTests(TestCase):
 
         t = workload.Workload(name="unittest",
                         indices=[workload.Index(name="tests", types=["_doc"])],
-                        test_procedures=[workload.TestProcedure(name="index", default=True, schedule=schedule)])
+                        test_procedures=[workload.Procedure(name="index", default=True, schedule=schedule)])
 
         test_execution = metrics.TestExecution(
             benchmark_version="0.4.4", benchmark_revision="123abc", environment_name="unittest",
@@ -1949,7 +1949,7 @@ class StatsCalculatorTests(TestCase):
             name="index",
             operation_type=workload.OperationType.Bulk,
             params=None))
-        test_procedure = workload.TestProcedure(name="unittest", schedule=[index1, index2], default=True)
+        test_procedure = workload.Procedure(name="unittest", schedule=[index1, index2], default=True)
         t = workload.Workload("unittest", "unittest-workload", test_procedures=[test_procedure])
 
         store = metrics.metrics_store(cfg, read_only=False, workload=t, test_procedure=test_procedure)
@@ -2036,7 +2036,7 @@ class StatsCalculatorTests(TestCase):
             name="index",
             operation_type=workload.OperationType.Bulk,
             params=None))
-        test_procedure = workload.TestProcedure(name="unittest", schedule=[index], default=True)
+        test_procedure = workload.Procedure(name="unittest", schedule=[index], default=True)
         t = workload.Workload("unittest", "unittest-workload", test_procedures=[test_procedure])
 
         store = metrics.metrics_store(cfg, read_only=False, workload=t, test_procedure=test_procedure)
@@ -2084,7 +2084,7 @@ class GlobalStatsCalculatorTests(TestCase):
     def test_add_administrative_task_with_error_rate_in_results(self):
         op = Operation(name='delete-index', operation_type='DeleteIndex', params={'include-in-reporting': False})
         task = Task('delete-index', operation=op, schedule='deterministic')
-        test_procedure = TestProcedure(name='append-fast-with-conflicts', schedule=[task], meta_data={})
+        test_procedure = Procedure(name='append-fast-with-conflicts', schedule=[task], meta_data={})
 
         self.metrics_store.open(InMemoryMetricsStoreTests.TEST_EXECUTION_ID, InMemoryMetricsStoreTests.TEST_EXECUTION_TIMESTAMP,
                                 "test", "append-fast-with-conflicts", "defaults", create=True)
