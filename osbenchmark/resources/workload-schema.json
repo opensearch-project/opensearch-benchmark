@@ -177,7 +177,7 @@
       }
     },
     "test_procedure": {
-      "title": "TestProcedure",
+      "title": "Procedure",
       "type": "object",
       "description": "Defines the concrete execution order",
       "properties": {

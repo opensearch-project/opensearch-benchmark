@@ -453,7 +453,7 @@ class MetricsStore:
         :param test_ex_id: The test execution id. This attribute is sufficient to uniquely identify a test_execution.
         :param test_ex_timestamp: The test execution timestamp as a datetime.
         :param workload_name: Workload name.
-        :param test_procedure_name: TestProcedure name.
+        :param test_procedure_name: Procedure name.
         :param provision_config_instance_name: ProvisionConfigInstance name.
         :param ctx: An metrics store open context retrieved from another metrics store with ``#open_context``.
         :param create: True if an index should be created (if necessary). This is typically True, when attempting to write metrics and
@@ -1269,7 +1269,7 @@ def list_test_executions(cfg):
                 "TestExecution Timestamp",
                 "Workload",
                 "Workload Parameters",
-                "TestProcedure",
+                "Procedure",
                 "ProvisionConfigInstance",
                 "User Tags",
                 "workload Revision",

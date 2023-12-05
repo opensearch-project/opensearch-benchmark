@@ -113,10 +113,10 @@ class WorkerCoordinatorTests(TestCase):
         self.cfg.add(config.Scope.application, "worker_coordinator", "load_worker_coordinator_hosts", ["localhost"])
         self.cfg.add(config.Scope.application, "results_publishing", "datastore.type", "in-memory")
 
-        default_test_procedure = workload.TestProcedure("default", default=True, schedule=[
+        default_test_procedure = workload.Procedure("default", default=True, schedule=[
             workload.Task(name="index", operation=workload.Operation("index", operation_type=workload.OperationType.Bulk), clients=4)
         ])
-        another_test_procedure = workload.TestProcedure("other", default=False)
+        another_test_procedure = workload.Procedure("other", default=False)
         self.workload = workload.Workload(
             name="unittest",
             description="unittest workload",

@@ -1307,10 +1307,10 @@ class WorkloadPathTests(TestCase):
         cfg = config.Config()
         cfg.add(config.Scope.application, "benchmarks", "local.dataset.cache", "/data")
 
-        default_test_procedure = workload.TestProcedure("default", default=True, schedule=[
+        default_test_procedure = workload.Procedure("default", default=True, schedule=[
             workload.Task(name="index", operation=workload.Operation("index", operation_type=workload.OperationType.Bulk), clients=4)
         ])
-        another_test_procedure = workload.TestProcedure("other", default=False)
+        another_test_procedure = workload.Procedure("other", default=False)
         t = workload.Workload(name="u", test_procedures=[another_test_procedure, default_test_procedure],
                         corpora=[
                             workload.DocumentCorpus("unittest", documents=[
@@ -1942,7 +1942,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         reader = loader.WorkloadSpecificationReader()
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
-        self.assertEqual("Workload 'unittest' is invalid. TestProcedure 'default-test_procedure' contains multiple tasks"
+        self.assertEqual("Workload 'unittest' is invalid. Procedure 'default-test_procedure' contains multiple tasks"
                          " with the name 'search'. Please"
                          " use the task's name property to assign a unique name for each task.",
                          ctx.exception.args[0])
@@ -1976,7 +1976,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         reader = loader.WorkloadSpecificationReader()
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
-        self.assertEqual("Workload 'unittest' is invalid. TestProcedure 'default-test_procedure' contains multiple tasks with the name "
+        self.assertEqual("Workload 'unittest' is invalid. Procedure 'default-test_procedure' contains multiple tasks with the name "
                          "'duplicate-task-name'. Please use the task's name property to assign a unique name for each task.",
                          ctx.exception.args[0])
 
