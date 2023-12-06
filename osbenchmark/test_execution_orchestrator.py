@@ -177,7 +177,7 @@ class BenchmarkCoordinator:
         self.error = False
         self.workload_revision = None
         self.current_workload = None
-        self.current_test_procedure = None
+        self.current_procedure = None
 
     def setup(self, sources=False):
         # to load the workload we need to know the correct cluster distribution version. Usually, this value should be set
@@ -194,23 +194,23 @@ class BenchmarkCoordinator:
 
         self.current_workload = workload.load_workload(self.cfg)
         self.workload_revision = self.cfg.opts("workload", "repository.revision", mandatory=False)
-        test_procedure_name = self.cfg.opts("workload", "test_procedure.name")
-        self.current_test_procedure = self.current_workload.find_test_procedure_or_default(test_procedure_name)
-        if self.current_test_procedure is None:
+        procedure_name = self.cfg.opts("workload", "procedure.name")
+        self.current_procedure = self.current_workload.find_procedure_or_default(procedure_name)
+        if self.current_procedure is None:
             raise exceptions.SystemSetupError(
-                "Workload [{}] does not provide test_procedure [{}]. List the available workloads with {} list workloads.".format(
-                    self.current_workload.name, test_procedure_name, PROGRAM_NAME))
-        if self.current_test_procedure.user_info:
-            console.info(self.current_test_procedure.user_info)
+                "Workload [{}] does not provide procedure [{}]. List the available workloads with {} list workloads.".format(
+                    self.current_workload.name, procedure_name, PROGRAM_NAME))
+        if self.current_procedure.user_info:
+            console.info(self.current_procedure.user_info)
         self.test_execution = metrics.create_test_execution(
             self.cfg, self.current_workload,
-            self.current_test_procedure,
+            self.current_procedure,
             self.workload_revision)
 
         self.metrics_store = metrics.metrics_store(
             self.cfg,
             workload=self.test_execution.workload_name,
-            test_procedure=self.test_execution.test_procedure_name,
+            procedure=self.test_execution.procedure_name,
             read_only=False
         )
         self.test_execution_store = metrics.test_execution_store(self.cfg)
@@ -221,16 +221,16 @@ class BenchmarkCoordinator:
         self.test_execution.revision = revision
         # store test_execution initially (without any results) so other components can retrieve full metadata
         self.test_execution_store.store_test_execution(self.test_execution)
-        if self.test_execution.test_procedure.auto_generated:
+        if self.test_execution.procedure.auto_generated:
             console.info("Executing test with workload [{}] and provision_config_instance {} with version [{}].\n"
                          .format(self.test_execution.workload_name,
                          self.test_execution.provision_config_instance,
                          self.test_execution.distribution_version))
         else:
-            console.info("Executing test with workload [{}], test_procedure [{}] and provision_config_instance {} with version [{}].\n"
+            console.info("Executing test with workload [{}], procedure [{}] and provision_config_instance {} with version [{}].\n"
                          .format(
                              self.test_execution.workload_name,
-                             self.test_execution.test_procedure_name,
+                             self.test_execution.procedure_name,
                              self.test_execution.provision_config_instance,
                              self.test_execution.distribution_version
                              ))

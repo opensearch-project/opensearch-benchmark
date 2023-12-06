@@ -72,7 +72,7 @@ class TelemetryTests(TestCase):
     def test_merges_options_set_by_different_devices(self):
         cfg = config.Config()
         cfg.add(config.Scope.application, "telemetry", "devices", "jfr")
-        cfg.add(config.Scope.application, "system", "test_procedure.root.dir", "test_procedure-root")
+        cfg.add(config.Scope.application, "system", "procedure.root.dir", "procedure-root")
         cfg.add(config.Scope.application, "benchmarks", "metrics.log.dir", "telemetry")
 
         devices = [

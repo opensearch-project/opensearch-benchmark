@@ -336,8 +336,8 @@ class ComparisonResultsPublisher:
         print_internal("Comparing baseline")
         print_internal("  TestExecution ID: %s" % r1.test_execution_id)
         print_internal("  TestExecution timestamp: %s" % r1.test_execution_timestamp)
-        if r1.test_procedure_name:
-            print_internal("  Procedure: %s" % r1.test_procedure_name)
+        if r1.procedure_name:
+            print_internal("  Procedure: %s" % r1.procedure_name)
         print_internal("  ProvisionConfigInstance: %s" % r1.provision_config_instance_name)
         if r1.user_tags:
             r1_user_tags = ", ".join(["%s=%s" % (k, v) for k, v in sorted(r1.user_tags.items())])
@@ -346,8 +346,8 @@ class ComparisonResultsPublisher:
         print_internal("with contender")
         print_internal("  TestExecution ID: %s" % r2.test_execution_id)
         print_internal("  TestExecution timestamp: %s" % r2.test_execution_timestamp)
-        if r2.test_procedure_name:
-            print_internal("  Procedure: %s" % r2.test_procedure_name)
+        if r2.procedure_name:
+            print_internal("  Procedure: %s" % r2.procedure_name)
         print_internal("  ProvisionConfigInstance: %s" % r2.provision_config_instance_name)
         if r2.user_tags:
             r2_user_tags = ", ".join(["%s=%s" % (k, v) for k, v in sorted(r2.user_tags.items())])

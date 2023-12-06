@@ -29,52 +29,52 @@ from osbenchmark.workload import workload
 
 
 class WorkloadTests(TestCase):
-    def test_finds_default_test_procedure(self):
-        default_test_procedure = workload.Procedure("default", description="default test_procedure", default=True)
-        another_test_procedure = workload.Procedure("other", description="non-default test_procedure", default=False)
+    def test_finds_default_procedure(self):
+        default_procedure = workload.Procedure("default", description="default procedure", default=True)
+        another_procedure = workload.Procedure("other", description="non-default procedure", default=False)
 
-        self.assertEqual(default_test_procedure,
+        self.assertEqual(default_procedure,
                          workload.Workload(name="unittest",
                                      description="unittest workload",
-                                     test_procedures=[another_test_procedure, default_test_procedure])
-                         .default_test_procedure)
+                                     procedures=[another_procedure, default_procedure])
+                         .default_procedure)
 
-    def test_default_test_procedure_none_if_no_test_procedures(self):
+    def test_default_procedure_none_if_no_procedures(self):
         self.assertIsNone(workload.Workload(name="unittest",
                                       description="unittest workload",
-                                      test_procedures=[])
-                          .default_test_procedure)
+                                      procedures=[])
+                          .default_procedure)
 
-    def test_finds_test_procedure_by_name(self):
-        default_test_procedure = workload.Procedure("default", description="default test_procedure", default=True)
-        another_test_procedure = workload.Procedure("other", description="non-default test_procedure", default=False)
+    def test_finds_procedure_by_name(self):
+        default_procedure = workload.Procedure("default", description="default procedure", default=True)
+        another_procedure = workload.Procedure("other", description="non-default procedure", default=False)
 
-        self.assertEqual(another_test_procedure,
+        self.assertEqual(another_procedure,
                          workload.Workload(name="unittest",
                                      description="unittest workload",
-                                     test_procedures=[another_test_procedure, default_test_procedure])
-                         .find_test_procedure_or_default("other"))
+                                     procedures=[another_procedure, default_procedure])
+                         .find_procedure_or_default("other"))
 
-    def test_uses_default_test_procedure_if_no_name_given(self):
-        default_test_procedure = workload.Procedure("default", description="default test_procedure", default=True)
-        another_test_procedure = workload.Procedure("other", description="non-default test_procedure", default=False)
+    def test_uses_default_procedure_if_no_name_given(self):
+        default_procedure = workload.Procedure("default", description="default procedure", default=True)
+        another_procedure = workload.Procedure("other", description="non-default procedure", default=False)
 
-        self.assertEqual(default_test_procedure,
+        self.assertEqual(default_procedure,
                          workload.Workload(name="unittest",
                                      description="unittest workload",
-                                     test_procedures=[another_test_procedure, default_test_procedure])
-                         .find_test_procedure_or_default(""))
+                                     procedures=[another_procedure, default_procedure])
+                         .find_procedure_or_default(""))
 
-    def test_does_not_find_unknown_test_procedure(self):
-        default_test_procedure = workload.Procedure("default", description="default test_procedure", default=True)
-        another_test_procedure = workload.Procedure("other", description="non-default test_procedure", default=False)
+    def test_does_not_find_unknown_procedure(self):
+        default_procedure = workload.Procedure("default", description="default procedure", default=True)
+        another_procedure = workload.Procedure("other", description="non-default procedure", default=False)
 
         with self.assertRaises(exceptions.InvalidName) as ctx:
             workload.Workload(name="unittest",
                         description="unittest workload",
-                        test_procedures=[another_test_procedure, default_test_procedure]).find_test_procedure_or_default("unknown-name")
+                        procedures=[another_procedure, default_procedure]).find_procedure_or_default("unknown-name")
 
-        self.assertEqual("Unknown test_procedure [unknown-name] for workload [unittest]", ctx.exception.args[0])
+        self.assertEqual("Unknown procedure [unknown-name] for workload [unittest]", ctx.exception.args[0])
 
 
 class IndexTests(TestCase):

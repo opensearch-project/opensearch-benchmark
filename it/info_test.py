@@ -27,7 +27,7 @@ from osbenchmark.utils import process
 
 
 @it.benchmark_in_mem
-def test_workload_info_with_test_procedure(cfg):
+def test_workload_info_with_procedure(cfg):
     assert it.osbenchmark(cfg, "info --workload=geonames --test-procedure=append-no-conflicts") == 0
 
 

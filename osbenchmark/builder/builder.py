@@ -128,7 +128,7 @@ def stop(cfg):
             test_ex_id=current_test_execution.test_execution_id,
             test_ex_timestamp=current_test_execution.test_execution_timestamp,
             workload_name=current_test_execution.workload_name,
-            test_procedure_name=current_test_execution.test_procedure_name
+            procedure_name=current_test_execution.procedure_name
         )
     except exceptions.NotFound:
         logging.getLogger(__name__).info("Could not find test_execution [%s] and will thus not persist system metrics.", test_execution_id)

@@ -100,7 +100,7 @@ class WorkerCoordinatorTests(TestCase):
         self.cfg.add(config.Scope.application, "system", "test_execution.id", "6ebc6e53-ee20-4b0c-99b4-09697987e9f4")
         self.cfg.add(config.Scope.application, "system", "available.cores", 8)
         self.cfg.add(config.Scope.application, "node", "root.dir", "/tmp")
-        self.cfg.add(config.Scope.application, "workload", "test_procedure.name", "default")
+        self.cfg.add(config.Scope.application, "workload", "procedure.name", "default")
         self.cfg.add(config.Scope.application, "workload", "params", {})
         self.cfg.add(config.Scope.application, "workload", "test.mode.enabled", True)
         self.cfg.add(config.Scope.application, "telemetry", "devices", [])
@@ -113,14 +113,14 @@ class WorkerCoordinatorTests(TestCase):
         self.cfg.add(config.Scope.application, "worker_coordinator", "load_worker_coordinator_hosts", ["localhost"])
         self.cfg.add(config.Scope.application, "results_publishing", "datastore.type", "in-memory")
 
-        default_test_procedure = workload.Procedure("default", default=True, schedule=[
+        default_procedure = workload.Procedure("default", default=True, schedule=[
             workload.Task(name="index", operation=workload.Operation("index", operation_type=workload.OperationType.Bulk), clients=4)
         ])
-        another_test_procedure = workload.Procedure("other", default=False)
+        another_procedure = workload.Procedure("other", default=False)
         self.workload = workload.Workload(
             name="unittest",
             description="unittest workload",
-            test_procedures=[another_test_procedure, default_test_procedure])
+            procedures=[another_procedure, default_procedure])
 
     def tearDown(self):
         WorkerCoordinatorTests.StaticClientFactory.close()
@@ -294,7 +294,7 @@ class SamplePostprocessorTests(TestCase):
         post_process = worker_coordinator.SamplePostprocessor(metrics_store,
                                                   downsample_factor=1,
                                                   workload_meta_data={},
-                                                  test_procedure_meta_data={})
+                                                  procedure_meta_data={})
 
         task = workload.Task("index", workload.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
         samples = [
@@ -321,7 +321,7 @@ class SamplePostprocessorTests(TestCase):
         post_process = worker_coordinator.SamplePostprocessor(metrics_store,
                                                   downsample_factor=2,
                                                   workload_meta_data={},
-                                                  test_procedure_meta_data={})
+                                                  procedure_meta_data={})
 
         task = workload.Task("index", workload.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
 
@@ -349,7 +349,7 @@ class SamplePostprocessorTests(TestCase):
         post_process = worker_coordinator.SamplePostprocessor(metrics_store,
                                                   downsample_factor=1,
                                                   workload_meta_data={},
-                                                  test_procedure_meta_data={})
+                                                  procedure_meta_data={})
 
         task = workload.Task("index", workload.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
         samples = [
@@ -1160,7 +1160,7 @@ class AsyncExecutorTests(TestCase):
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_workload = workload.Workload(name="unittest", description="unittest workload",
                                  indices=None,
-                                 test_procedures=None)
+                                 procedures=None)
 
         task = workload.Task("time-based", workload.Operation("time-based", workload.OperationType.Bulk.to_hyphenated_string(),
                                                         params={
@@ -1223,7 +1223,7 @@ class AsyncExecutorTests(TestCase):
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_workload = workload.Workload(name="unittest", description="unittest workload",
                                  indices=None,
-                                 test_procedures=None)
+                                 procedures=None)
 
         task = workload.Task("time-based", workload.Operation("time-based", operation_type="unit-test-recovery", params={
             "indices-to-restore": "*",
@@ -1282,7 +1282,7 @@ class AsyncExecutorTests(TestCase):
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_workload = workload.Workload(name="unittest", description="unittest workload",
                                  indices=None,
-                                 test_procedures=None)
+                                 procedures=None)
 
         task = workload.Task("override-throughput", workload.Operation("override-throughput",
                                                                  operation_type="override-throughput", params={
@@ -1344,7 +1344,7 @@ class AsyncExecutorTests(TestCase):
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_workload = workload.Workload(name="unittest", description="unittest workload",
                                  indices=None,
-                                 test_procedures=None)
+                                 procedures=None)
 
         # in one second (0.5 warmup + 0.5 measurement) we should get 1000 [ops/s] / 4 [clients] = 250 samples
         for target_throughput, bounds in {10: [2, 4], 100: [24, 26], 1000: [235, 255]}.items():
@@ -1402,7 +1402,7 @@ class AsyncExecutorTests(TestCase):
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
         test_workload = workload.Workload(name="unittest", description="unittest workload",
                                  indices=None,
-                                 test_procedures=None)
+                                 procedures=None)
 
         # in one second (0.5 warmup + 0.5 measurement) we should get 1000 [ops/s] / 4 [clients] = 250 samples
         for target_throughput in [10, 100, 1000]:
