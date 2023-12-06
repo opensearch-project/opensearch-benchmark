@@ -142,7 +142,7 @@ def create_arg_parser():
         default=""
     )
     info_parser.add_argument(
-        "--test-procedure",
+        "--procedure",
         help=f"Define the procedure to use. List possible procedures for workloads with `{PROGRAM_NAME} list workloads`."
     )
     info_task_filter_group = info_parser.add_mutually_exclusive_group()
@@ -462,7 +462,7 @@ def create_arg_parser():
         default=""
     )
     test_execution_parser.add_argument(
-        "--test-procedure",
+        "--procedure",
         help=f"Define the procedure to use. List possible procedures for workloads with `{PROGRAM_NAME} list workloads`.")
     test_execution_parser.add_argument(
         "--provision-config-instance",
