@@ -48,7 +48,7 @@
       "workload": {
         "type": "keyword"
       },
-      "test_procedure": {
+      "procedure": {
         "type": "keyword"
       },
       "provision-config-instance": {

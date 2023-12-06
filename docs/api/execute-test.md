@@ -23,7 +23,7 @@ Argument | Description | Required
 :--- | :--- |:---
 `workload` | The dataset and operations that execute during a test. See [OpenSearch Benchmark Workloads repository](https://github.com/opensearch-project/opensearch-benchmark-workloads) for more details on workloads. | Yes
 `workload-params` | Parameters defined within each workload that can be overwritten. These parameters are outlined in the README of each workload. You can find an example of the parameters for the eventdata workload [here](https://github.com/opensearch-project/opensearch-benchmark-workloads/tree/main/eventdata#parameters).  | No
-`test_procedure` | Test Procedures define the sequence of operations and parameters for a specific workload. When no `test_procedure` is specified, Benchmark selects the default for the workload. You can find an example test procedure [here](https://github.com/opensearch-project/opensearch-benchmark-workloads/blob/main/eventdata/test_procedures/default.json). | No
+`procedure` | Test Procedures define the sequence of operations and parameters for a specific workload. When no `procedure` is specified, Benchmark selects the default for the workload. You can find an example test procedure [here](https://github.com/opensearch-project/opensearch-benchmark-workloads/blob/main/eventdata/procedures/default.json). | No
 `client-options` | Options for the [OpenSearch Python client](https://opensearch.org/docs/latest/clients/python/). Required if testing against a cluster with security enabled. | No
 `pipeline` | Steps required to execute a test, including provisioning an OpenSearch from source code or a specified distribution. Defaults to `from-sources` which provisions an OpenSearch cluster from source code. | No
 `distribution-version` | The OpenSearch version to use for a given test. Defining a version can be useful when using a `pipeline` that includes provisioning. When using a `pipeline` without provisioning, Benchmark will automatically determine the version | No
@@ -72,7 +72,7 @@ Argument | Description | Required
 `workload-revision` | Define a specific revision in the workload repository that Benchmark should use. | No
 `workload` | Define the workload to use. List possible workloads with `opensearch-benchmark list workloads`. | No
 `workload-params` | Define a comma-separated list of key:value pairs that are injected verbatim to the workload as variables. | No
-`test-procedure` | Define the test_procedure to use. List possible test_procedures for workloads with `opensearch-benchmark list workloads`. | No
+`test-procedure` | Define the procedure to use. List possible procedures for workloads with `opensearch-benchmark list workloads`. | No
 `provision-config-instance` | Define the provision_config_instance to use. List possible provision_config_instances with `opensearch-benchmark list provision_config_instances` (default: `defaults`). | No
 `provision-config-instance-params` | Define a comma-separated list of key:value pairs that are injected verbatim as variables for the provision_config_instance. | No
 `runtime-jdk` | The major version of the runtime JDK to use. | No
@@ -85,8 +85,8 @@ Argument | Description | Required
 `telemetry` | Enable the provided telemetry devices, provided as a comma-separated list. List possible telemetry devices with `opensearch-benchmark list telemetry`. | No
 `telemetry-params` | Define a comma-separated list of key:value pairs that are injected verbatim to the telemetry devices as parameters. | No
 `distribution-repository` | Define the repository from where the OpenSearch distribution should be downloaded (default: `release`). | No
-`include-tasks` | Defines a comma-separated list of tasks to run. By default all tasks of a test_procedure are run. | No
-`exclude-tasks` | Defines a comma-separated list of tasks not to run. By default all tasks of a test_procedure are run. | No
+`include-tasks` | Defines a comma-separated list of tasks to run. By default all tasks of a procedure are run. | No
+`exclude-tasks` | Defines a comma-separated list of tasks not to run. By default all tasks of a procedure are run. | No
 `user-tag` | Define a user-specific key-value pair (separated by ':'). It is added to each metric record as meta info. Example: intention:baseline-ticket-12345 | No
 `results-format` | Define the output format for the command line results. Options are `markdown` and `csv` (default: `markdown`). | No
 `results-numbers-align` | Define the output column number alignment for the command line results. Options are `right`, `center`, `left` and `decimal` (default: right). | No

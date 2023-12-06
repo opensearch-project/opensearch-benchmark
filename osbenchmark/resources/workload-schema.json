@@ -176,26 +176,26 @@
         }
       }
     },
-    "test_procedure": {
+    "procedure": {
       "title": "Procedure",
       "type": "object",
       "description": "Defines the concrete execution order",
       "properties": {
         "name": {
           "type": "string",
-          "description": "A descriptive name of the test_procedure. Should not contain spaces in order to simplify handling on the command line for users."
+          "description": "A descriptive name of the procedure. Should not contain spaces in order to simplify handling on the command line for users."
         },
         "default": {
           "type": "boolean",
-          "description": "If true, Benchmark should select this test_procedure as the default test_procedure if the user does not specify one on the command line."
+          "description": "If true, Benchmark should select this procedure as the default procedure if the user does not specify one on the command line."
         },
         "meta": {
           "type": "object",
-          "description": "Meta-information which will be added to each metrics-record of this test_procedure."
+          "description": "Meta-information which will be added to each metrics-record of this procedure."
         },
         "description": {
           "type": "string",
-          "description": "A human readable description of the test_procedure"
+          "description": "A human readable description of the procedure"
         },
         "cluster-settings": {
           "type": "object",
@@ -462,7 +462,7 @@
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "description": "The 'operations' block describes the operations that can be executed. These can be reused later in the 'test_procedures' block which describes the actual execution schedule.",
+      "description": "The 'operations' block describes the operations that can be executed. These can be reused later in the 'procedures' block which describes the actual execution schedule.",
       "items": {
         "title": "Operation",
         "type": "object",
@@ -562,16 +562,16 @@
         ]
       }
     },
-    "test_procedures": {
+    "procedures": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
       "items": {
-        "$ref": "#/definitions/test_procedure"
+        "$ref": "#/definitions/procedure"
       }
     },
-    "test_procedure": {
-      "$ref": "#/definitions/test_procedure"
+    "procedure": {
+      "$ref": "#/definitions/procedure"
     },
     "schedule": {
       "$ref": "#/definitions/schedule"

@@ -116,20 +116,20 @@ def workloads(cfg):
 
 def list_workloads(cfg):
     available_workloads = workloads(cfg)
-    only_auto_generated_test_procedures = all(t.default_test_procedure.auto_generated for t in available_workloads)
+    only_auto_generated_procedures = all(t.default_procedure.auto_generated for t in available_workloads)
 
     data = []
     for t in available_workloads:
         line = [t.name, t.description, convert.number_to_human_string(t.number_of_documents),
                 convert.bytes_to_human_string(t.compressed_size_in_bytes),
                 convert.bytes_to_human_string(t.uncompressed_size_in_bytes)]
-        if not only_auto_generated_test_procedures:
-            line.append(t.default_test_procedure)
-            line.append(",".join(map(str, t.test_procedures)))
+        if not only_auto_generated_procedures:
+            line.append(t.default_procedure)
+            line.append(",".join(map(str, t.procedures)))
         data.append(line)
 
     headers = ["Name", "Description", "Documents", "Compressed Size", "Uncompressed Size"]
-    if not only_auto_generated_test_procedures:
+    if not only_auto_generated_procedures:
         headers.append("Default Procedure")
         headers.append("All Procedures")
 
@@ -145,7 +145,7 @@ def workload_info(cfg):
         msg += suffix
         return msg
 
-    def test_procedure_info(c):
+    def procedure_info(c):
         if not c.auto_generated:
             msg = "Procedure [{}]".format(c.name)
             if c.default:
@@ -173,11 +173,11 @@ def workload_info(cfg):
         console.println("* Uncompressed Size: {}".format(convert.bytes_to_human_string(t.uncompressed_size_in_bytes)))
     console.println("")
 
-    if t.selected_test_procedure:
-        test_procedure_info(t.selected_test_procedure)
+    if t.selected_procedure:
+        procedure_info(t.selected_procedure)
     else:
-        for test_procedure in t.test_procedures:
-            test_procedure_info(test_procedure)
+        for procedure in t.procedures:
+            procedure_info(procedure)
             console.println("")
 
 
@@ -387,8 +387,8 @@ def operation_parameters(t, task):
 def used_corpora(t):
     corpora = {}
     if t.corpora:
-        test_procedure = t.selected_test_procedure_or_default
-        for task in test_procedure.schedule:
+        procedure = t.selected_procedure_or_default
+        for task in procedure.schedule:
             for sub_task in task:
                 param_source = operation_parameters(t, sub_task)
                 if hasattr(param_source, "corpora"):
@@ -828,10 +828,10 @@ class TaskFilterWorkloadProcessor(WorkloadProcessor):
         if not self.filters:
             return workload
 
-        for test_procedure in workload.test_procedures:
+        for procedure in workload.procedures:
             # don't modify the schedule while iterating over it
             tasks_to_remove = []
-            for task in test_procedure.schedule:
+            for task in procedure.schedule:
                 if self._filter_out_match(task):
                     tasks_to_remove.append(task)
                 else:
@@ -840,12 +840,12 @@ class TaskFilterWorkloadProcessor(WorkloadProcessor):
                         if self._filter_out_match(leaf_task):
                             leafs_to_remove.append(leaf_task)
                     for leaf_task in leafs_to_remove:
-                        self.logger.info("Removing sub-task [%s] from test_procedure [%s] due to task filter.",
-                                         leaf_task, test_procedure)
+                        self.logger.info("Removing sub-task [%s] from procedure [%s] due to task filter.",
+                                         leaf_task, procedure)
                         task.remove_task(leaf_task)
             for task in tasks_to_remove:
-                self.logger.info("Removing task [%s] from test_procedure [%s] due to task filter.", task, test_procedure)
-                test_procedure.remove_task(task)
+                self.logger.info("Removing task [%s] from procedure [%s] due to task filter.", task, procedure)
+                procedure.remove_task(task)
 
         return workload
 
@@ -884,8 +884,8 @@ class TestModeWorkloadProcessor(WorkloadProcessor):
                     document_set.compressed_size_in_bytes = None
                     document_set.uncompressed_size_in_bytes = None
 
-        for test_procedure in workload.test_procedures:
-            for task in test_procedure.schedule:
+        for procedure in workload.procedures:
+            for task in procedure.schedule:
                 # we need iterate over leaf tasks and await iterating over possible intermediate 'parallel' elements
                 for leaf_task in task:
                     # iteration-based schedules are divided among all clients and we should provide
@@ -956,7 +956,7 @@ class WorkloadFileReader:
         self.read_workload = WorkloadSpecificationReader(
             workload_params=self.workload_params,
             complete_workload_params=self.complete_workload_params,
-            selected_test_procedure=cfg.opts("workload", "test_procedure.name", mandatory=False)
+            selected_procedure=cfg.opts("workload", "procedure.name", mandatory=False)
         )
         self.logger = logging.getLogger(__name__)
 
@@ -1110,11 +1110,11 @@ class WorkloadSpecificationReader:
     Creates a workload instances based on its parsed JSON description.
     """
 
-    def __init__(self, workload_params=None, complete_workload_params=None, selected_test_procedure=None, source=io.FileSource):
+    def __init__(self, workload_params=None, complete_workload_params=None, selected_procedure=None, source=io.FileSource):
         self.name = None
         self.workload_params = workload_params if workload_params else {}
         self.complete_workload_params = complete_workload_params
-        self.selected_test_procedure = selected_test_procedure
+        self.selected_procedure = selected_procedure
         self.source = source
         self.logger = logging.getLogger(__name__)
 
@@ -1138,10 +1138,10 @@ class WorkloadSpecificationReader:
                      for tpl in self._r(workload_specification, "component-templates", mandatory=False, default_value=[])]
         corpora = self._create_corpora(self._r(workload_specification, "corpora", mandatory=False, default_value=[]),
                                        indices, data_streams)
-        test_procedures = self._create_test_procedures(workload_specification)
+        procedures = self._create_procedures(workload_specification)
         # at this point, *all* workload params must have been referenced in the templates
         return workload.Workload(name=self.name, meta_data=meta_data,
-        description=description, test_procedures=test_procedures,
+        description=description, procedures=procedures,
         indices=indices,
                            data_streams=data_streams, templates=templates, composable_templates=composable_templates,
                            component_templates=component_templates, corpora=corpora)
@@ -1332,33 +1332,33 @@ class WorkloadSpecificationReader:
             document_corpora.append(corpus)
         return document_corpora
 
-    def _create_test_procedures(self, workload_spec):
+    def _create_procedures(self, workload_spec):
         ops = self.parse_operations(self._r(workload_spec, "operations", mandatory=False, default_value=[]))
         workload_params = self._r(workload_spec, "parameters", mandatory=False, default_value={})
-        test_procedures = []
-        known_test_procedure_names = set()
-        default_test_procedure = None
-        test_procedure_specs, auto_generated = self._get_test_procedure_specs(workload_spec)
-        number_of_test_procedures = len(test_procedure_specs)
-        for test_procedure_spec in test_procedure_specs:
-            name = self._r(test_procedure_spec, "name", error_ctx="test_procedures")
-            description = self._r(test_procedure_spec, "description", error_ctx=name, mandatory=False)
-            user_info = self._r(test_procedure_spec, "user-info", error_ctx=name, mandatory=False)
-            test_procedure_params = self._r(test_procedure_spec, "parameters", error_ctx=name, mandatory=False, default_value={})
-            meta_data = self._r(test_procedure_spec, "meta", error_ctx=name, mandatory=False)
-            # if we only have one test_procedure it is treated as default test_procedure, no matter what the user has specified
-            default = number_of_test_procedures == 1 or self._r(test_procedure_spec, "default", error_ctx=name, mandatory=False)
-            selected = number_of_test_procedures == 1 or self.selected_test_procedure == name
-            if default and default_test_procedure is not None:
-                self._error("Both '%s' and '%s' are defined as default test_procedures. Please define only one of them as default."
-                            % (default_test_procedure.name, name))
-            if name in known_test_procedure_names:
-                self._error("Duplicate test_procedure with name '%s'." % name)
-            known_test_procedure_names.add(name)
+        procedures = []
+        known_procedure_names = set()
+        default_procedure = None
+        procedure_specs, auto_generated = self._get_procedure_specs(workload_spec)
+        number_of_procedures = len(procedure_specs)
+        for procedure_spec in procedure_specs:
+            name = self._r(procedure_spec, "name", error_ctx="procedures")
+            description = self._r(procedure_spec, "description", error_ctx=name, mandatory=False)
+            user_info = self._r(procedure_spec, "user-info", error_ctx=name, mandatory=False)
+            procedure_params = self._r(procedure_spec, "parameters", error_ctx=name, mandatory=False, default_value={})
+            meta_data = self._r(procedure_spec, "meta", error_ctx=name, mandatory=False)
+            # if we only have one procedure it is treated as default procedure, no matter what the user has specified
+            default = number_of_procedures == 1 or self._r(procedure_spec, "default", error_ctx=name, mandatory=False)
+            selected = number_of_procedures == 1 or self.selected_procedure == name
+            if default and default_procedure is not None:
+                self._error("Both '%s' and '%s' are defined as default procedures. Please define only one of them as default."
+                            % (default_procedure.name, name))
+            if name in known_procedure_names:
+                self._error("Duplicate procedure with name '%s'." % name)
+            known_procedure_names.add(name)
 
             schedule = []
 
-            for op in self._r(test_procedure_spec, "schedule", error_ctx=name):
+            for op in self._r(procedure_spec, "schedule", error_ctx=name):
                 if "parallel" in op:
                     task = self.parse_parallel(op["parallel"], ops, name)
                 else:
@@ -1376,10 +1376,10 @@ class WorkloadSpecificationReader:
                         known_task_names.add(sub_task.name)
 
             # merge params
-            final_test_procedure_params = dict(collections.merge_dicts(workload_params, test_procedure_params))
+            final_procedure_params = dict(collections.merge_dicts(workload_params, procedure_params))
 
-            test_procedure = workload.Procedure(name=name,
-                                        parameters=final_test_procedure_params,
+            procedure = workload.Procedure(name=name,
+                                        parameters=final_procedure_params,
                                         meta_data=meta_data,
                                         description=description,
                                         user_info=user_info,
@@ -1388,31 +1388,31 @@ class WorkloadSpecificationReader:
                                         auto_generated=auto_generated,
                                         schedule=schedule)
             if default:
-                default_test_procedure = test_procedure
+                default_procedure = procedure
 
-            test_procedures.append(test_procedure)
+            procedures.append(procedure)
 
-        if test_procedures and default_test_procedure is None:
+        if procedures and default_procedure is None:
             self._error(
-                "No default test_procedure specified. Please edit the workload and add \"default\": true to one of the test_procedures %s."
-                        % ", ".join([c.name for c in test_procedures]))
-        return test_procedures
+                "No default procedure specified. Please edit the workload and add \"default\": true to one of the procedures %s."
+                        % ", ".join([c.name for c in procedures]))
+        return procedures
 
-    def _get_test_procedure_specs(self, workload_spec):
+    def _get_procedure_specs(self, workload_spec):
         schedule = self._r(workload_spec, "schedule", mandatory=False)
-        test_procedure = self._r(workload_spec, "test_procedure", mandatory=False)
-        test_procedures = self._r(workload_spec, "test_procedures", mandatory=False)
+        procedure = self._r(workload_spec, "procedure", mandatory=False)
+        procedures = self._r(workload_spec, "procedures", mandatory=False)
 
-        count_defined = len(list(filter(lambda e: e is not None, [schedule, test_procedure, test_procedures])))
+        count_defined = len(list(filter(lambda e: e is not None, [schedule, procedure, procedures])))
 
         if count_defined == 0:
-            self._error("You must define 'test_procedure', 'test_procedures' or 'schedule' but none is specified.")
+            self._error("You must define 'procedure', 'procedures' or 'schedule' but none is specified.")
         elif count_defined > 1:
-            self._error("Multiple out of 'test_procedure', 'test_procedures' or 'schedule' are defined but only one of them is allowed.")
-        elif test_procedure is not None:
-            return [test_procedure], False
-        elif test_procedures is not None:
-            return test_procedures, False
+            self._error("Multiple out of 'procedure', 'procedures' or 'schedule' are defined but only one of them is allowed.")
+        elif procedure is not None:
+            return [procedure], False
+        elif procedures is not None:
+            return procedures, False
         elif schedule is not None:
             return [{
                 "name": "default",
@@ -1420,10 +1420,10 @@ class WorkloadSpecificationReader:
             }], True
         else:
             raise AssertionError(
-                "Unexpected: schedule=[{}], test_procedure=[{}], test_procedures=[{}]".format(
-                    schedule, test_procedure, test_procedures))
+                "Unexpected: schedule=[{}], procedure=[{}], procedures=[{}]".format(
+                    schedule, procedure, procedures))
 
-    def parse_parallel(self, ops_spec, ops, test_procedure_name):
+    def parse_parallel(self, ops_spec, ops, procedure_name):
         # use same default values as #parseTask() in case the 'parallel' element did not specify anything
         default_warmup_iterations = self._r(ops_spec, "warmup-iterations", error_ctx="parallel", mandatory=False)
         default_iterations = self._r(ops_spec, "iterations", error_ctx="parallel", mandatory=False)
@@ -1435,7 +1435,7 @@ class WorkloadSpecificationReader:
         # now descent to each operation
         tasks = []
         for task in self._r(ops_spec, "tasks", error_ctx="parallel"):
-            tasks.append(self.parse_task(task, ops, test_procedure_name, default_warmup_iterations, default_iterations,
+            tasks.append(self.parse_task(task, ops, procedure_name, default_warmup_iterations, default_iterations,
                                          default_warmup_time_period, default_time_period, completed_by))
         if completed_by:
             completion_task = None
@@ -1444,14 +1444,14 @@ class WorkloadSpecificationReader:
                     completion_task = task
                 elif task.completes_parent:
                     self._error(
-                        "'parallel' element for test_procedure '%s' contains multiple tasks with the name '%s' which are marked with "
-                                "'completed-by' but only task is allowed to match." % (test_procedure_name, completed_by))
+                        "'parallel' element for procedure '%s' contains multiple tasks with the name '%s' which are marked with "
+                                "'completed-by' but only task is allowed to match." % (procedure_name, completed_by))
             if not completion_task:
-                self._error("'parallel' element for test_procedure '%s' is marked with 'completed-by' with task name '%s' but no task with "
-                            "this name exists." % (test_procedure_name, completed_by))
+                self._error("'parallel' element for procedure '%s' is marked with 'completed-by' with task name '%s' but no task with "
+                            "this name exists." % (procedure_name, completed_by))
         return workload.Parallel(tasks, clients)
 
-    def parse_task(self, task_spec, ops, test_procedure_name, default_warmup_iterations=None, default_iterations=None,
+    def parse_task(self, task_spec, ops, procedure_name, default_warmup_iterations=None, default_iterations=None,
                    default_warmup_time_period=None, default_time_period=None, completed_by_name=None):
 
         op_spec = task_spec["operation"]
@@ -1459,7 +1459,7 @@ class WorkloadSpecificationReader:
             op = ops[op_spec]
         else:
             # may as well an inline operation
-            op = self.parse_operation(op_spec, error_ctx="inline operation in test_procedure %s" % test_procedure_name)
+            op = self.parse_operation(op_spec, error_ctx="inline operation in procedure %s" % procedure_name)
 
         schedule = self._r(task_spec, "schedule", error_ctx=op.name, mandatory=False)
         task_name = self._r(task_spec, "name", error_ctx=op.name, mandatory=False, default_value=op.name)
@@ -1482,12 +1482,12 @@ class WorkloadSpecificationReader:
                           params=task_spec)
         if task.warmup_iterations is not None and task.time_period is not None:
             self._error(
-                "Operation '%s' in test_procedure '%s' defines '%d' warmup iterations and a time period of '%d' seconds. Please do not "
-                        "mix time periods and iterations." % (op.name, test_procedure_name, task.warmup_iterations, task.time_period))
+                "Operation '%s' in procedure '%s' defines '%d' warmup iterations and a time period of '%d' seconds. Please do not "
+                        "mix time periods and iterations." % (op.name, procedure_name, task.warmup_iterations, task.time_period))
         elif task.warmup_time_period is not None and task.iterations is not None:
             self._error(
-                "Operation '%s' in test_procedure '%s' defines a warmup time period of '%d' seconds and '%d' iterations. Please do not "
-                        "mix time periods and iterations." % (op.name, test_procedure_name, task.warmup_time_period, task.iterations))
+                "Operation '%s' in procedure '%s' defines a warmup time period of '%d' seconds and '%d' iterations. Please do not "
+                        "mix time periods and iterations." % (op.name, procedure_name, task.warmup_time_period, task.iterations))
 
         return task
 
