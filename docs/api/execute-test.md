@@ -72,7 +72,7 @@ Argument | Description | Required
 `workload-revision` | Define a specific revision in the workload repository that Benchmark should use. | No
 `workload` | Define the workload to use. List possible workloads with `opensearch-benchmark list workloads`. | No
 `workload-params` | Define a comma-separated list of key:value pairs that are injected verbatim to the workload as variables. | No
-`test-procedure` | Define the procedure to use. List possible procedures for workloads with `opensearch-benchmark list workloads`. | No
+`procedure` | Define the procedure to use. List possible procedures for workloads with `opensearch-benchmark list workloads`. | No
 `provision-config-instance` | Define the provision_config_instance to use. List possible provision_config_instances with `opensearch-benchmark list provision_config_instances` (default: `defaults`). | No
 `provision-config-instance-params` | Define a comma-separated list of key:value pairs that are injected verbatim as variables for the provision_config_instance. | No
 `runtime-jdk` | The major version of the runtime JDK to use. | No

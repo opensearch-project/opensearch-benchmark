@@ -48,7 +48,7 @@ def test_cluster():
 def test_create_workload(cfg, tmp_path, test_cluster):
     # prepare some data
     cmd = f"--test-mode --pipeline=benchmark-only --target-hosts=127.0.0.1:{test_cluster.http_port} " \
-          f" --workload=geonames --test-procedure=append-no-conflicts-index-only --quiet"
+          f" --workload=geonames --procedure=append-no-conflicts-index-only --quiet"
     assert it.execute_test(cfg, cmd) == 0
 
     # create the workload
