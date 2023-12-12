@@ -27,21 +27,22 @@ import contextvars
 import json
 import logging
 import random
+import re
 import sys
 import time
 import types
-import re
 from collections import Counter, OrderedDict
 from copy import deepcopy
 from enum import Enum
 from functools import total_ordering
+from io import BytesIO
 from os.path import commonprefix
 from typing import List, Optional
-from io import BytesIO
 
 import ijson
 
 from osbenchmark import exceptions, workload
+from osbenchmark.utils import convert
 
 # Mapping from operation type to specific runner
 
@@ -56,6 +57,7 @@ def register_default_runners():
     register_runner(workload.OperationType.Search, Query(), async_runner=True)
     register_runner(workload.OperationType.PaginatedSearch, Query(), async_runner=True)
     register_runner(workload.OperationType.ScrollSearch, Query(), async_runner=True)
+    register_runner(workload.OperationType.VectorSearch, Query(), async_runner=True)
     register_runner(workload.OperationType.RawRequest, RawRequest(), async_runner=True)
     register_runner(workload.OperationType.Composite, Composite(), async_runner=True)
     register_runner(workload.OperationType.SubmitAsyncSearch, SubmitAsyncSearch(), async_runner=True)
@@ -967,6 +969,96 @@ class Query(Runner):
                 "took": took
             }
 
+        async def _vector_search_query_with_recall(opensearch, params):
+            """
+            Perform vector search and report recall@k , recall@r and time taken to perform recall in ms as
+            meta object.
+            """
+            result = {
+                "weight": 1,
+                "unit": "ops",
+                "success": True,
+                "recall@k": 0,
+                "recall@1": 0,
+            }
+
+            def _is_empty_search_results(content):
+                if content is None:
+                    return True
+                if "hits" not in content:
+                    return True
+                if "hits" not in content["hits"]:
+                    return True
+                if len(content['hits']['hits']) == 0:
+                    return True
+                return False
+
+            def calculate_recall(predictions, neighbors, top_k):
+                """
+                Calculates the recall by comparing top_k neighbors with predictions.
+                recall = Sum of matched neighbors from predictions / total number of neighbors from ground truth
+                Args:
+                    predictions: list containing ids of results returned by OpenSearch.
+                    neighbors: list containing ids of the actual neighbors for a set of queries
+                    top_k: number of top results to check from the neighbors and should be greater than zero
+                Returns:
+                    Recall between predictions and top k neighbors from ground truth
+                """
+                correct = 0.0
+                if neighbors is None:
+                    self.logger.info("No neighbors are provided for recall calculation")
+                    return 0.0
+                min_num_of_results = min(top_k, len(neighbors))
+                truth_set = neighbors[:min_num_of_results]
+                for j in range(min_num_of_results):
+                    if j >= len(predictions):
+                        self.logger.info("No more neighbors in prediction to compare against ground truth.\n"
+                                         "Total neighbors in prediction: [%d].\n"
+                                         "Total neighbors in ground truth: [%d]", len(predictions), min_num_of_results)
+                        break
+                    if predictions[j] in truth_set:
+                        correct += 1.0
+
+                return correct / min_num_of_results
+
+            doc_type = params.get("type")
+            response = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
+            recall_processing_start = time.perf_counter()
+            if detailed_results:
+                props = parse(response, ["hits.total", "hits.total.value", "hits.total.relation", "timed_out", "took"])
+                hits_total = props.get("hits.total.value", props.get("hits.total", 0))
+                hits_relation = props.get("hits.total.relation", "eq")
+                timed_out = props.get("timed_out", False)
+                took = props.get("took", 0)
+
+                result.update({
+                    "hits": hits_total,
+                    "hits_relation": hits_relation,
+                    "timed_out": timed_out,
+                    "took": took
+                })
+            response_json = json.loads(response.getvalue())
+            if _is_empty_search_results(response_json):
+                self.logger.info("Vector search query returned no results.")
+                return result
+            id_field = params.get("id_field_name", "_id")
+            candidates = []
+            for hit in response_json['hits']['hits']:
+                if id_field in hit:  # Will add to candidates if field value is present
+                    candidates.append(hit[id_field])
+            neighbors_dataset = params["neighbors"]
+            num_neighbors = params.get("k", 1)
+            recall_k = calculate_recall(candidates, neighbors_dataset, num_neighbors)
+            result.update({"recall@k": recall_k})
+
+            recall_1 = calculate_recall(candidates, neighbors_dataset, 1)
+            result.update({"recall@1": recall_1})
+
+            recall_processing_end = time.perf_counter()
+            recall_processing_time = convert.seconds_to_ms(recall_processing_end - recall_processing_start)
+            result["recall_time_ms"] = recall_processing_time
+            return result
+
         search_method = params.get("operation-type")
         if search_method == "paginated-search":
             return await _search_after_query(opensearch, params)
@@ -976,6 +1068,8 @@ class Query(Runner):
             logging.getLogger(__name__).warning("Invoking a scroll search with the 'search' operation is deprecated "
                                                 "and will be removed in a future release. Use 'scroll-search' instead.")
             return await _scroll_query(opensearch, params)
+        elif search_method == "vector-search":
+            return await _vector_search_query_with_recall(opensearch, params)
         else:
             return await _request_body_query(opensearch, params)
 

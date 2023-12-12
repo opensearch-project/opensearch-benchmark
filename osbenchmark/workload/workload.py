@@ -584,6 +584,7 @@ class OperationType(Enum):
     CreatePointInTime = 14
     DeletePointInTime = 15
     ListAllPointInTime = 16
+    VectorSearch = 17
 
     # administrative actions
     ForceMerge = 1001
@@ -641,6 +642,8 @@ class OperationType(Enum):
             return OperationType.ScrollSearch
         elif v == "paginated-search":
             return OperationType.PaginatedSearch
+        elif v == "vector-search":
+            return OperationType.VectorSearch
         elif v == "cluster-health":
             return OperationType.ClusterHealth
         elif v == "bulk":
