@@ -40,7 +40,7 @@ import pytest
 
 from osbenchmark import config, metrics, workload, exceptions, paths
 from osbenchmark.metrics import GlobalStatsCalculator
-from osbenchmark.workload import Task, Operation, Procedure, Workload
+from osbenchmark.workload import Task, Operation, Scenario, Workload
 
 
 class MockClientFactory:
@@ -533,7 +533,7 @@ class OsMetricsTests(TestCase):
             "workload-params": {
                 "shard-count": 3
             },
-            "procedure": "append",
+            "scenario": "append",
             "provision-config-instance": "defaults",
             "name": "indexing_throughput",
             "value": throughput,
@@ -565,7 +565,7 @@ class OsMetricsTests(TestCase):
             "workload-params": {
                 "shard-count": 3
             },
-            "procedure": "append",
+            "scenario": "append",
             "provision-config-instance": "defaults",
             "name": "indexing_throughput",
             "value": throughput,
@@ -606,7 +606,7 @@ class OsMetricsTests(TestCase):
             "workload-params": {
                 "shard-count": 3
             },
-            "procedure": "append",
+            "scenario": "append",
             "provision-config-instance": "defaults",
             "name": "indexing_throughput",
             "value": throughput,
@@ -646,7 +646,7 @@ class OsMetricsTests(TestCase):
             "workload-params": {
                 "shard-count": 3
             },
-            "procedure": "append",
+            "scenario": "append",
             "provision-config-instance": "defaults",
             "name": "custom_metric",
             "total": 1234567,
@@ -694,7 +694,7 @@ class OsMetricsTests(TestCase):
             "workload-params": {
                 "shard-count": 3
             },
-            "procedure": "append",
+            "scenario": "append",
             "provision-config-instance": "defaults",
             "name": "custom_metric",
             "total": 1234567,
@@ -1223,7 +1223,7 @@ class OsTestExecutionStoreTests(TestCase):
                             "test-execution-timestamp": "20160131T000000Z",
                             "pipeline": "from-sources",
                             "workload": "unittest",
-                            "procedure": "index",
+                            "scenario": "index",
                             "workload-revision": "abc1",
                             "provision-config-instance": "defaults",
                             "results": {
@@ -1260,13 +1260,13 @@ class OsTestExecutionStoreTests(TestCase):
 
         t = workload.Workload(name="unittest",
                         indices=[workload.Index(name="tests", types=["_doc"])],
-                        procedures=[workload.Procedure(name="index", default=True, schedule=schedule)])
+                        scenarios=[workload.Scenario(name="index", default=True, schedule=schedule)])
 
         test_execution = metrics.TestExecution(benchmark_version="0.4.4", benchmark_revision="123abc", environment_name="unittest",
                             test_execution_id=OsTestExecutionStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=OsTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params={"shard-count": 3},
-                            procedure=t.default_procedure,
+                            scenario=t.default_scenario,
                             provision_config_instance="defaults",
                             provision_config_instance_params={"heap_size": "512mb"},
                             plugin_params=None,
@@ -1307,7 +1307,7 @@ class OsTestExecutionStoreTests(TestCase):
             "workload-params": {
                 "shard-count": 3
             },
-            "procedure": "index",
+            "scenario": "index",
             "workload-revision": "abc1",
             "provision-config-instance": "defaults",
             "provision-config-instance-params": {
@@ -1364,7 +1364,7 @@ class OsResultsStoreTests(TestCase):
 
         t = workload.Workload(name="unittest-workload",
                         indices=[workload.Index(name="tests", types=["_doc"])],
-                        procedures=[workload.Procedure(
+                        scenarios=[workload.Scenario(
                             name="index", default=True, meta_data={"saturation": "70% saturated"}, schedule=schedule)],
                         meta_data={"workload-type": "saturation-degree", "saturation": "oversaturation"})
 
@@ -1372,7 +1372,7 @@ class OsResultsStoreTests(TestCase):
                             test_execution_id=OsResultsStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=OsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params=None,
-                            procedure=t.default_procedure,
+                            scenario=t.default_scenario,
                             provision_config_instance="4gheap",
                             provision_config_instance_params=None,
                             plugin_params={"some-param": True},
@@ -1420,7 +1420,7 @@ class OsResultsStoreTests(TestCase):
                 "workload": "unittest-workload",
                 "provision-config-revision": "123ab",
                 "workload-revision": "abc1",
-                "procedure": "index",
+                "scenario": "index",
                 "provision-config-instance": "4gheap",
                 "plugin-params": {
                     "some-param": True
@@ -1450,7 +1450,7 @@ class OsResultsStoreTests(TestCase):
                 "workload": "unittest-workload",
                 "provision-config-revision": "123ab",
                 "workload-revision": "abc1",
-                "procedure": "index",
+                "scenario": "index",
                 "provision-config-instance": "4gheap",
                 "plugin-params": {
                     "some-param": True
@@ -1486,7 +1486,7 @@ class OsResultsStoreTests(TestCase):
                 "workload": "unittest-workload",
                 "provision-config-revision": "123ab",
                 "workload-revision": "abc1",
-                "procedure": "index",
+                "scenario": "index",
                 "provision-config-instance": "4gheap",
                 "plugin-params": {
                     "some-param": True
@@ -1514,7 +1514,7 @@ class OsResultsStoreTests(TestCase):
 
         t = workload.Workload(name="unittest-workload",
                         indices=[workload.Index(name="tests", types=["_doc"])],
-                        procedures=[workload.Procedure(
+                        scenarios=[workload.Scenario(
                             name="index", default=True, meta_data={"saturation": "70% saturated"}, schedule=schedule)],
                         meta_data={"workload-type": "saturation-degree", "saturation": "oversaturation"})
 
@@ -1522,7 +1522,7 @@ class OsResultsStoreTests(TestCase):
                             test_execution_id=OsResultsStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=OsResultsStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params=None,
-                            procedure=t.default_procedure,
+                            scenario=t.default_scenario,
                             provision_config_instance="4gheap",
                             provision_config_instance_params=None,
                             plugin_params=None,
@@ -1571,7 +1571,7 @@ class OsResultsStoreTests(TestCase):
                 "workload": "unittest-workload",
                 "provision-config-revision": "123ab",
                 "workload-revision": "abc1",
-                "procedure": "index",
+                "scenario": "index",
                 "provision-config-instance": "4gheap",
                 "active": True,
                 "name": "old_gc_time",
@@ -1597,7 +1597,7 @@ class OsResultsStoreTests(TestCase):
                 "workload": "unittest-workload",
                 "provision-config-revision": "123ab",
                 "workload-revision": "abc1",
-                "procedure": "index",
+                "scenario": "index",
                 "provision-config-instance": "4gheap",
                 "active": True,
                 "name": "throughput",
@@ -1629,7 +1629,7 @@ class OsResultsStoreTests(TestCase):
                 "workload": "unittest-workload",
                 "provision-config-revision": "123ab",
                 "workload-revision": "abc1",
-                "procedure": "index",
+                "scenario": "index",
                 "provision-config-instance": "4gheap",
                 "active": True,
                 "name": "young_gc_time",
@@ -1884,14 +1884,14 @@ class FileTestExecutionStoreTests(TestCase):
 
         t = workload.Workload(name="unittest",
                         indices=[workload.Index(name="tests", types=["_doc"])],
-                        procedures=[workload.Procedure(name="index", default=True, schedule=schedule)])
+                        scenarios=[workload.Scenario(name="index", default=True, schedule=schedule)])
 
         test_execution = metrics.TestExecution(
             benchmark_version="0.4.4", benchmark_revision="123abc", environment_name="unittest",
                             test_execution_id=FileTestExecutionStoreTests.TEST_EXECUTION_ID,
                             test_execution_timestamp=FileTestExecutionStoreTests.TEST_EXECUTION_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params={"clients": 12},
-                            procedure=t.default_procedure,
+                            scenario=t.default_scenario,
                             provision_config_instance="4gheap",
                             provision_config_instance_params=None,
                             plugin_params=None,
@@ -1949,10 +1949,10 @@ class StatsCalculatorTests(TestCase):
             name="index",
             operation_type=workload.OperationType.Bulk,
             params=None))
-        procedure = workload.Procedure(name="unittest", schedule=[index1, index2], default=True)
-        t = workload.Workload("unittest", "unittest-workload", procedures=[procedure])
+        scenario = workload.Scenario(name="unittest", schedule=[index1, index2], default=True)
+        t = workload.Workload("unittest", "unittest-workload", scenarios=[scenario])
 
-        store = metrics.metrics_store(cfg, read_only=False, workload=t, procedure=procedure)
+        store = metrics.metrics_store(cfg, read_only=False, workload=t, scenario=scenario)
 
         store.put_value_cluster_level("throughput", 500, unit="docs/s", task="index #1", operation_type=workload.OperationType.Bulk)
         store.put_value_cluster_level("throughput", 1000, unit="docs/s", task="index #1", operation_type=workload.OperationType.Bulk)
@@ -1992,7 +1992,7 @@ class StatsCalculatorTests(TestCase):
             "unit": "ms"
         }, level=metrics.MetaInfoScope.cluster)
 
-        stats = metrics.calculate_results(store, metrics.create_test_execution(cfg, t, procedure))
+        stats = metrics.calculate_results(store, metrics.create_test_execution(cfg, t, scenario))
 
         del store
 
@@ -2036,10 +2036,10 @@ class StatsCalculatorTests(TestCase):
             name="index",
             operation_type=workload.OperationType.Bulk,
             params=None))
-        procedure = workload.Procedure(name="unittest", schedule=[index], default=True)
-        t = workload.Workload("unittest", "unittest-workload", procedures=[procedure])
+        scenario = workload.Scenario(name="unittest", schedule=[index], default=True)
+        t = workload.Workload("unittest", "unittest-workload", scenarios=[scenario])
 
-        store = metrics.metrics_store(cfg, read_only=False, workload=t, procedure=procedure)
+        store = metrics.metrics_store(cfg, read_only=False, workload=t, scenario=scenario)
         store.add_meta_info(metrics.MetaInfoScope.node, "benchmark-node-0", "node_name", "benchmark-node-0")
 
         store.put_value_node_level("benchmark-node-0", "final_index_size_bytes", 2048, unit="bytes")
@@ -2084,7 +2084,7 @@ class GlobalStatsCalculatorTests(TestCase):
     def test_add_administrative_task_with_error_rate_in_results(self):
         op = Operation(name='delete-index', operation_type='DeleteIndex', params={'include-in-reporting': False})
         task = Task('delete-index', operation=op, schedule='deterministic')
-        procedure = Procedure(name='append-fast-with-conflicts', schedule=[task], meta_data={})
+        scenario = Scenario(name='append-fast-with-conflicts', schedule=[task], meta_data={})
 
         self.metrics_store.open(InMemoryMetricsStoreTests.TEST_EXECUTION_ID, InMemoryMetricsStoreTests.TEST_EXECUTION_TIMESTAMP,
                                 "test", "append-fast-with-conflicts", "defaults", create=True)
@@ -2092,7 +2092,7 @@ class GlobalStatsCalculatorTests(TestCase):
                                         "relative-time-ms": 283.382,
                                         "test-execution-id": "fb26018b-428d-4528-b36b-cf8c54a303ec",
                                         "test-execution-timestamp": "20200728T003905Z", "environment": "local",
-                                        "workload": "geonames", "procedure": "append-fast-with-conflicts",
+                                        "workload": "geonames", "scenario": "append-fast-with-conflicts",
                                         "provision-config-instance": "defaults", "name": "service_time", "value": 72.67997100007051,
                                         "unit": "ms", "sample-type": "normal",
                                         "meta": {"source_revision": "7f634e9f44834fbc12724506cc1da681b0c3b1e3",
@@ -2101,7 +2101,7 @@ class GlobalStatsCalculatorTests(TestCase):
                                         "operation-type": "DeleteIndex"})
 
         result = GlobalStatsCalculator(store=self.metrics_store, workload=Workload(name='geonames', meta_data={}),
-                                       procedure=procedure)()
+                                       scenario=scenario)()
         assert "delete-index" in [op_metric.get('task') for op_metric in result.op_metrics]
 
 

@@ -27,8 +27,8 @@ from osbenchmark.utils import process
 
 
 @it.benchmark_in_mem
-def test_workload_info_with_procedure(cfg):
-    assert it.osbenchmark(cfg, "info --workload=geonames --procedure=append-no-conflicts") == 0
+def test_workload_info_with_scenario(cfg):
+    assert it.osbenchmark(cfg, "info --workload=geonames --scenario=append-no-conflicts") == 0
 
 
 @it.benchmark_in_mem
@@ -38,7 +38,7 @@ def test_workload_info_with_workload_repo(cfg):
 
 @it.benchmark_in_mem
 def test_workload_info_with_task_filter(cfg):
-    assert it.osbenchmark(cfg, "info --workload=geonames --procedure=append-no-conflicts --include-tasks=\"type:search\"") == 0
+    assert it.osbenchmark(cfg, "info --workload=geonames --scenario=append-no-conflicts --include-tasks=\"type:search\"") == 0
 
 
 @it.benchmark_in_mem

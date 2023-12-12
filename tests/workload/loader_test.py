@@ -632,9 +632,9 @@ class WorkloadPreparationTests(TestCase):
                     "operation-type": "node-stats"
                 },
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
+                    "name": "default-scenario",
                     "schedule": [
                         {
                             "parallel": {
@@ -661,7 +661,7 @@ class WorkloadPreparationTests(TestCase):
                 }
             ]
         }
-        reader = loader.WorkloadSpecificationReader(selected_procedure="default-procedure")
+        reader = loader.WorkloadSpecificationReader(selected_scenario="default-scenario")
         full_workload = reader("unittest", workload_specification, "/mappings")
         used_corpora = sorted(loader.used_corpora(full_workload), key=lambda c: c.name)
         self.assertEqual(2, len(used_corpora))
@@ -789,8 +789,8 @@ class TemplateSource(TestCase):
           "operations": [
             {{ benchmark.collect(parts="operations/*.json") }}
           ],
-          "procedures": [
-            {{ benchmark.collect(parts="procedures/*.json") }}
+          "scenarios": [
+            {{ benchmark.collect(parts="scenarios/*.json") }}
           ]
         }
         """)
@@ -833,8 +833,8 @@ class TemplateSource(TestCase):
               "operations": [
                 {"replaced ~/.benchmark/benchmarks/workloads/default/geonames/operations/*.json": "true"}
               ],
-              "procedures": [
-                {"replaced ~/.benchmark/benchmarks/workloads/default/geonames/procedures/*.json": "true"}
+              "scenarios": [
+                {"replaced ~/.benchmark/benchmarks/workloads/default/geonames/scenarios/*.json": "true"}
               ]
             }
             """)
@@ -1076,10 +1076,10 @@ class WorkloadPostProcessingTests(TestCase):
                 "operation-type": "search"
             }
         ],
-        "procedures": [
+        "scenarios": [
             {
-                "name": "default-procedure",
-                "description": "Default procedure",
+                "name": "default-scenario",
+                "description": "Default scenario",
                 "schedule": [
                     {
                         "clients": {{ bulk_indexing_clients | default(8) }},
@@ -1153,10 +1153,10 @@ class WorkloadPostProcessingTests(TestCase):
                     "operation-type": "search"
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
-                    "description": "Default procedure",
+                    "name": "default-scenario",
+                    "description": "Default scenario",
                     "schedule": [
                         {
                             "clients": 8,
@@ -1227,10 +1227,10 @@ class WorkloadPostProcessingTests(TestCase):
                     "operation-type": "search"
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
-                    "description": "Default procedure",
+                    "name": "default-scenario",
+                    "description": "Default scenario",
                     "schedule": [
                         {
                             "clients": 8,
@@ -1307,11 +1307,11 @@ class WorkloadPathTests(TestCase):
         cfg = config.Config()
         cfg.add(config.Scope.application, "benchmarks", "local.dataset.cache", "/data")
 
-        default_procedure = workload.Procedure("default", default=True, schedule=[
+        default_scenario = workload.Scenario("default", default=True, schedule=[
             workload.Task(name="index", operation=workload.Operation("index", operation_type=workload.OperationType.Bulk), clients=4)
         ])
-        another_procedure = workload.Procedure("other", default=False)
-        t = workload.Workload(name="u", procedures=[another_procedure, default_procedure],
+        another_scenario = workload.Scenario("other", default=False)
+        t = workload.Workload(name="u", scenarios=[another_scenario, default_scenario],
                         corpora=[
                             workload.DocumentCorpus("unittest", documents=[
                                 workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
@@ -1378,9 +1378,9 @@ class WorkloadFilterTests(TestCase):
                     }
                 },
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
+                    "name": "default-scenario",
                     "schedule": [
                         {
                             "operation": "create-index"
@@ -1448,7 +1448,7 @@ class WorkloadFilterTests(TestCase):
         }
         reader = loader.WorkloadSpecificationReader()
         full_workload = reader("unittest", workload_specification, "/mappings")
-        self.assertEqual(7, len(full_workload.procedures[0].schedule))
+        self.assertEqual(7, len(full_workload.scenarios[0].schedule))
 
         filtered = self.filter(full_workload, include_tasks=["index-3",
                                                           "type:search",
@@ -1456,7 +1456,7 @@ class WorkloadFilterTests(TestCase):
                                                           "type:custom-operation-type",
                                                           "tag:include-me"])
 
-        schedule = filtered.procedures[0].schedule
+        schedule = filtered.scenarios[0].schedule
         self.assertEqual(5, len(schedule))
         self.assertEqual(["index-3", "match-all-parallel"], [t.name for t in schedule[0].tasks])
         self.assertEqual("match-all-serial", schedule[1].name)
@@ -1495,9 +1495,9 @@ class WorkloadFilterTests(TestCase):
                     }
                 },
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
+                    "name": "default-scenario",
                     "schedule": [
                         {
                             "operation": "create-index"
@@ -1540,11 +1540,11 @@ class WorkloadFilterTests(TestCase):
         }
         reader = loader.WorkloadSpecificationReader()
         full_workload = reader("unittest", workload_specification, "/mappings")
-        self.assertEqual(5, len(full_workload.procedures[0].schedule))
+        self.assertEqual(5, len(full_workload.scenarios[0].schedule))
 
         filtered = self.filter(full_workload, exclude_tasks=["index-3", "type:search", "create-index"])
 
-        schedule = filtered.procedures[0].schedule
+        schedule = filtered.scenarios[0].schedule
         self.assertEqual(3, len(schedule))
         self.assertEqual(["index-1", "index-2"], [t.name for t in schedule[0].tasks])
         self.assertEqual("node-stats", schedule[1].name)
@@ -1581,9 +1581,9 @@ class WorkloadFilterTests(TestCase):
                     }
                 },
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
+                    "name": "default-scenario",
                     "schedule": [
                         {
                             "operation": "create-index"
@@ -1608,12 +1608,12 @@ class WorkloadFilterTests(TestCase):
 
         reader = loader.WorkloadSpecificationReader()
         full_workload = reader("unittest", workload_specification, "/mappings")
-        self.assertEqual(5, len(full_workload.procedures[0].schedule))
+        self.assertEqual(5, len(full_workload.scenarios[0].schedule))
 
-        expected_schedule = full_workload.procedures[0].schedule.copy()
+        expected_schedule = full_workload.scenarios[0].schedule.copy()
         filtered = self.filter(full_workload, exclude_tasks=["nothing"])
 
-        schedule = filtered.procedures[0].schedule
+        schedule = filtered.scenarios[0].schedule
         self.assertEqual(expected_schedule, schedule)
 
     def test_unmatched_include_runs_nothing(self):
@@ -1647,9 +1647,9 @@ class WorkloadFilterTests(TestCase):
                     }
                 },
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
+                    "name": "default-scenario",
                     "schedule": [
                         {
                             "operation": "create-index"
@@ -1674,12 +1674,12 @@ class WorkloadFilterTests(TestCase):
 
         reader = loader.WorkloadSpecificationReader()
         full_workload = reader("unittest", workload_specification, "/mappings")
-        self.assertEqual(5, len(full_workload.procedures[0].schedule))
+        self.assertEqual(5, len(full_workload.scenarios[0].schedule))
 
         expected_schedule = []
         filtered = self.filter(full_workload, include_tasks=["nothing"])
 
-        schedule = filtered.procedures[0].schedule
+        schedule = filtered.scenarios[0].schedule
         self.assertEqual(expected_schedule, schedule)
 
 
@@ -1688,7 +1688,7 @@ class WorkloadSpecificationReaderTests(TestCase):
     def test_description_is_optional(self):
         workload_specification = {
             # no description here
-            "procedures": []
+            "scenarios": []
         }
         reader = loader.WorkloadSpecificationReader()
 
@@ -1703,7 +1703,7 @@ class WorkloadSpecificationReaderTests(TestCase):
             "data-streams": [],
             "corpora": [],
             "operations": [],
-            "procedures": []
+            "scenarios": []
         }
         reader = loader.WorkloadSpecificationReader()
         resulting_workload = reader("unittest", workload_specification, "/mappings")
@@ -1721,7 +1721,7 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "documents": [{"source-file": "documents-main.json.bz2"}]
                 }
             ],
-            "procedures": []
+            "scenarios": []
         }
         reader = loader.WorkloadSpecificationReader()
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
@@ -1759,9 +1759,9 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "bulk-size": 5000,
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
+                    "name": "default-scenario",
                     "schedule": [
                         {
                             "clients": 8,
@@ -1780,12 +1780,12 @@ class WorkloadSpecificationReaderTests(TestCase):
         }))
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
-        self.assertEqual("Workload 'unittest' is invalid. Operation 'index-append' in procedure 'default-procedure' "
+        self.assertEqual("Workload 'unittest' is invalid. Operation 'index-append' in scenario 'default-scenario' "
                          "defines '3' warmup iterations and a time period of '60' seconds. Please do not mix time periods and iterations.",
                          ctx.exception.args[0])
 
     @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
-    def test_parse_missing_procedure_or_procedures(self, mocked_params_checker):
+    def test_parse_missing_scenario_or_scenarios(self, mocked_params_checker):
         workload_specification = {
             "description": "description for unit test",
             "indices": [
@@ -1808,19 +1808,19 @@ class WorkloadSpecificationReaderTests(TestCase):
                     ]
                 }
             ],
-            # no procedure or procedures element
+            # no scenario or scenarios element
         }
         reader = loader.WorkloadSpecificationReader(source=io.DictStringFileSourceFactory({
             "/mappings/index.json": ['{"mappings": {"docs": "empty-for-test"}}'],
         }))
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
-        self.assertEqual("Workload 'unittest' is invalid. You must define 'procedure', 'procedures' or "
+        self.assertEqual("Workload 'unittest' is invalid. You must define 'scenario', 'scenarios' or "
                          "'schedule' but none is specified.",
                          ctx.exception.args[0])
 
     @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
-    def test_parse_procedure_and_procedures_are_defined(self, mocked_params_checker):
+    def test_parse_scenario_and_scenarios_are_defined(self, mocked_params_checker):
         workload_specification = {
             "description": "description for unit test",
             "indices": [
@@ -1843,17 +1843,17 @@ class WorkloadSpecificationReaderTests(TestCase):
                     ]
                 }
             ],
-            # We define both. Note that procedures without any properties
+            # We define both. Note that scenarios without any properties
             # would not pass JSON schema validation but we don't test this here.
-            "procedure": {},
-            "procedures": []
+            "scenario": {},
+            "scenarios": []
         }
         reader = loader.WorkloadSpecificationReader(source=io.DictStringFileSourceFactory({
             "/mappings/index.json": ['{"mappings": {"docs": "empty-for-test"}}'],
         }))
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
-        self.assertEqual("Workload 'unittest' is invalid. Multiple out of 'procedure', 'procedures' or 'schedule' "
+        self.assertEqual("Workload 'unittest' is invalid. Multiple out of 'scenario', 'scenarios' or 'schedule' "
                          "are defined but only "
                          "one of them is allowed.", ctx.exception.args[0])
 
@@ -1888,9 +1888,9 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "bulk-size": 5000,
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
+                    "name": "default-scenario",
                     "schedule": [
                         {
                             "clients": 8,
@@ -1909,7 +1909,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         }))
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
-        self.assertEqual("Workload 'unittest' is invalid. Operation 'index-append' in procedure 'default-procedure' "
+        self.assertEqual("Workload 'unittest' is invalid. Operation 'index-append' in scenario 'default-scenario' "
                          "defines a warmup time "
                          "period of '20' seconds and '1000' iterations. "
                          "Please do not mix time periods and iterations.",
@@ -1925,8 +1925,8 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "index": "_all"
                 }
             ],
-            "procedure": {
-                "name": "default-procedure",
+            "scenario": {
+                "name": "default-scenario",
                 "schedule": [
                     {
                         "operation": "search",
@@ -1942,7 +1942,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         reader = loader.WorkloadSpecificationReader()
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
-        self.assertEqual("Workload 'unittest' is invalid. Procedure 'default-procedure' contains multiple tasks"
+        self.assertEqual("Workload 'unittest' is invalid. Scenario 'default-scenario' contains multiple tasks"
                          " with the name 'search'. Please"
                          " use the task's name property to assign a unique name for each task.",
                          ctx.exception.args[0])
@@ -1957,8 +1957,8 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "index": "_all"
                 }
             ],
-            "procedure": {
-                "name": "default-procedure",
+            "scenario": {
+                "name": "default-scenario",
                 "schedule": [
                     {
                         "name": "duplicate-task-name",
@@ -1976,7 +1976,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         reader = loader.WorkloadSpecificationReader()
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
-        self.assertEqual("Workload 'unittest' is invalid. Procedure 'default-procedure' contains multiple tasks with the name "
+        self.assertEqual("Workload 'unittest' is invalid. Scenario 'default-scenario' contains multiple tasks with the name "
                          "'duplicate-task-name'. Please use the task's name property to assign a unique name for each task.",
                          ctx.exception.args[0])
 
@@ -2043,8 +2043,8 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "index": "_all"
                 }
             ],
-            "procedure": {
-                "name": "default-procedure",
+            "scenario": {
+                "name": "default-scenario",
                 "schedule": [
                     {
                         "name": "search-one-client",
@@ -2059,12 +2059,12 @@ class WorkloadSpecificationReaderTests(TestCase):
                 ]
             }
         }
-        reader = loader.WorkloadSpecificationReader(selected_procedure="default-procedure")
+        reader = loader.WorkloadSpecificationReader(selected_scenario="default-scenario")
         resulting_workload = reader("unittest", workload_specification, "/mappings")
         self.assertEqual("unittest", resulting_workload.name)
-        procedure = resulting_workload.procedures[0]
-        self.assertTrue(procedure.selected)
-        schedule = procedure.schedule
+        scenario = resulting_workload.scenarios[0]
+        self.assertTrue(scenario.selected)
+        schedule = scenario.schedule
         self.assertEqual(2, len(schedule))
         self.assertEqual("search-one-client", schedule[0].name)
         self.assertEqual("search", schedule[0].operation.name)
@@ -2131,10 +2131,10 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "index": "index-historical"
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
-                    "description": "Default procedure",
+                    "name": "default-scenario",
+                    "description": "Default scenario",
                     "meta": {
                         "mixed": True,
                         "max-clients": 8
@@ -2235,13 +2235,13 @@ class WorkloadSpecificationReaderTests(TestCase):
             "role": "secondary"
         }, docs_secondary.meta_data)
 
-        # procedures
-        self.assertEqual(1, len(resulting_workload.procedures))
-        self.assertEqual("default-procedure", resulting_workload.procedures[0].name)
-        self.assertEqual("Default procedure", resulting_workload.procedures[0].description)
-        self.assertEqual({"mixed": True, "max-clients": 8}, resulting_workload.procedures[0].meta_data)
-        self.assertEqual({"append": True}, resulting_workload.procedures[0].schedule[0].operation.meta_data)
-        self.assertEqual({"operation-index": 0}, resulting_workload.procedures[0].schedule[0].meta_data)
+        # scenarios
+        self.assertEqual(1, len(resulting_workload.scenarios))
+        self.assertEqual("default-scenario", resulting_workload.scenarios[0].name)
+        self.assertEqual("Default scenario", resulting_workload.scenarios[0].description)
+        self.assertEqual({"mixed": True, "max-clients": 8}, resulting_workload.scenarios[0].meta_data)
+        self.assertEqual({"append": True}, resulting_workload.scenarios[0].schedule[0].operation.meta_data)
+        self.assertEqual({"operation-index": 0}, resulting_workload.scenarios[0].schedule[0].meta_data)
 
     def test_parse_data_streams_valid_workload_specification(self):
         workload_specification = {
@@ -2295,10 +2295,10 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "data-stream": "data-stream-historical"
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
-                    "description": "Default procedure",
+                    "name": "default-scenario",
+                    "description": "Default scenario",
                     "meta": {
                         "mixed": True,
                         "max-clients": 8
@@ -2373,13 +2373,13 @@ class WorkloadSpecificationReaderTests(TestCase):
         self.assertIsNone(docs_tertiary.target_type)
         self.assertEqual("data-stream-historical", docs_tertiary.target_data_stream)
 
-        # procedures
-        self.assertEqual(1, len(resulting_workload.procedures))
-        self.assertEqual("default-procedure", resulting_workload.procedures[0].name)
-        self.assertEqual("Default procedure", resulting_workload.procedures[0].description)
-        self.assertEqual({"mixed": True, "max-clients": 8}, resulting_workload.procedures[0].meta_data)
-        self.assertEqual({"append": True}, resulting_workload.procedures[0].schedule[0].operation.meta_data)
-        self.assertEqual({"operation-index": 0}, resulting_workload.procedures[0].schedule[0].meta_data)
+        # scenarios
+        self.assertEqual(1, len(resulting_workload.scenarios))
+        self.assertEqual("default-scenario", resulting_workload.scenarios[0].name)
+        self.assertEqual("Default scenario", resulting_workload.scenarios[0].description)
+        self.assertEqual({"mixed": True, "max-clients": 8}, resulting_workload.scenarios[0].meta_data)
+        self.assertEqual({"append": True}, resulting_workload.scenarios[0].schedule[0].operation.meta_data)
+        self.assertEqual({"operation-index": 0}, resulting_workload.scenarios[0].schedule[0].meta_data)
 
     @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_valid_without_types(self, mocked_param_checker):
@@ -2458,8 +2458,8 @@ class WorkloadSpecificationReaderTests(TestCase):
         self.assertIsNone(docs_primary.target_type)
         self.assertIsNone(docs_primary.target_data_stream)
 
-        # procedures
-        self.assertEqual(1, len(resulting_workload.procedures))
+        # scenarios
+        self.assertEqual(1, len(resulting_workload.scenarios))
 
     @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_invalid_data_streams_with_indices(self, mocked_param_checker):
@@ -2703,8 +2703,8 @@ class WorkloadSpecificationReaderTests(TestCase):
         self.assertIsNone(docs_primary.target_type)
         self.assertIsNone(docs_primary.target_index)
 
-        # procedures
-        self.assertEqual(1, len(resulting_workload.procedures))
+        # scenarios
+        self.assertEqual(1, len(resulting_workload.scenarios))
 
     def test_parse_valid_workload_specification_with_index_template(self):
         workload_specification = {
@@ -2717,7 +2717,7 @@ class WorkloadSpecificationReaderTests(TestCase):
                 }
             ],
             "operations": [],
-            "procedures": []
+            "scenarios": []
         }
         complete_workload_params = loader.CompleteWorkloadParams()
         reader = loader.WorkloadSpecificationReader(
@@ -2751,7 +2751,7 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "number_of_shards": 1
                 }
             }, resulting_workload.templates[0].content)
-        self.assertEqual(0, len(resulting_workload.procedures))
+        self.assertEqual(0, len(resulting_workload.scenarios))
 
     def test_parse_valid_workload_specification_with_composable_template(self):
         workload_specification = {
@@ -2774,7 +2774,7 @@ class WorkloadSpecificationReaderTests(TestCase):
                 }
             ],
             "operations": [],
-            "procedures": []
+            "scenarios": []
         }
         complete_workload_params = loader.CompleteWorkloadParams()
         reader = loader.WorkloadSpecificationReader(
@@ -2865,7 +2865,7 @@ class WorkloadSpecificationReaderTests(TestCase):
                     }
                 }
             }, resulting_workload.component_templates[1].content)
-        self.assertEqual(0, len(resulting_workload.procedures))
+        self.assertEqual(0, len(resulting_workload.scenarios))
 
     def test_parse_invalid_workload_specification_with_composable_template(self):
         workload_specification = {
@@ -2876,7 +2876,7 @@ class WorkloadSpecificationReaderTests(TestCase):
                 }
             ],
             "operations": [],
-            "procedures": []
+            "scenarios": []
         }
         complete_workload_params = loader.CompleteWorkloadParams()
         reader = loader.WorkloadSpecificationReader(
@@ -2887,7 +2887,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         self.assertEqual("Workload 'unittest' is invalid. Mandatory element 'template' is missing.",
                          ctx.exception.args[0])
 
-    def test_unique_procedure_names(self):
+    def test_unique_scenario_names(self):
         workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
@@ -2897,10 +2897,10 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "test-procedure",
-                    "description": "Some procedure",
+                    "name": "test-scenario",
+                    "description": "Some scenario",
                     "default": True,
                     "schedule": [
                         {
@@ -2909,8 +2909,8 @@ class WorkloadSpecificationReaderTests(TestCase):
                     ]
                 },
                 {
-                    "name": "test-procedure",
-                    "description": "Another procedure with the same name",
+                    "name": "test-scenario",
+                    "description": "Another scenario with the same name",
                     "schedule": [
                         {
                             "operation": "index-append"
@@ -2923,9 +2923,9 @@ class WorkloadSpecificationReaderTests(TestCase):
         reader = loader.WorkloadSpecificationReader()
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
-        self.assertEqual("Workload 'unittest' is invalid. Duplicate procedure with name 'test-procedure'.", ctx.exception.args[0])
+        self.assertEqual("Workload 'unittest' is invalid. Duplicate scenario with name 'test-scenario'.", ctx.exception.args[0])
 
-    def test_not_more_than_one_default_procedure_possible(self):
+    def test_not_more_than_one_default_scenario_possible(self):
         workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
@@ -2935,10 +2935,10 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
-                    "description": "Default procedure",
+                    "name": "default-scenario",
+                    "description": "Default scenario",
                     "default": True,
                     "schedule": [
                         {
@@ -2947,7 +2947,7 @@ class WorkloadSpecificationReaderTests(TestCase):
                     ]
                 },
                 {
-                    "name": "another-procedure",
+                    "name": "another-scenario",
                     "description": "See if we can sneek it in as another default",
                     "default": True,
                     "schedule": [
@@ -2962,11 +2962,11 @@ class WorkloadSpecificationReaderTests(TestCase):
         reader = loader.WorkloadSpecificationReader()
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
-        self.assertEqual("Workload 'unittest' is invalid. Both 'default-procedure' and 'another-procedure' "
-                         "are defined as default procedures. "
+        self.assertEqual("Workload 'unittest' is invalid. Both 'default-scenario' and 'another-scenario' "
+                         "are defined as default scenarios. "
                          "Please define only one of them as default.", ctx.exception.args[0])
 
-    def test_at_least_one_default_procedure(self):
+    def test_at_least_one_default_scenario(self):
         workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
@@ -2976,9 +2976,9 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "procedure",
+                    "name": "scenario",
                     "schedule": [
                         {
                             "operation": "index-append"
@@ -2986,7 +2986,7 @@ class WorkloadSpecificationReaderTests(TestCase):
                     ]
                 },
                 {
-                    "name": "another-procedure",
+                    "name": "another-scenario",
                     "schedule": [
                         {
                             "operation": "index-append"
@@ -2999,11 +2999,11 @@ class WorkloadSpecificationReaderTests(TestCase):
         reader = loader.WorkloadSpecificationReader()
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
-        self.assertEqual("Workload 'unittest' is invalid. No default procedure specified. "
+        self.assertEqual("Workload 'unittest' is invalid. No default scenario specified. "
                          "Please edit the workload and add \"default\": true "
-                         "to one of the procedures procedure, another-procedure.", ctx.exception.args[0])
+                         "to one of the scenarios scenario, another-scenario.", ctx.exception.args[0])
 
-    def test_exactly_one_default_procedure(self):
+    def test_exactly_one_default_scenario(self):
         workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
@@ -3013,9 +3013,9 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "procedure",
+                    "name": "scenario",
                     "default": True,
                     "schedule": [
                         {
@@ -3024,7 +3024,7 @@ class WorkloadSpecificationReaderTests(TestCase):
                     ]
                 },
                 {
-                    "name": "another-procedure",
+                    "name": "another-scenario",
                     "schedule": [
                         {
                             "operation": "index-append"
@@ -3034,15 +3034,15 @@ class WorkloadSpecificationReaderTests(TestCase):
 
             ]
         }
-        reader = loader.WorkloadSpecificationReader(selected_procedure="another-procedure")
+        reader = loader.WorkloadSpecificationReader(selected_scenario="another-scenario")
         resulting_workload = reader("unittest", workload_specification, "/mappings")
-        self.assertEqual(2, len(resulting_workload.procedures))
-        self.assertEqual("procedure", resulting_workload.procedures[0].name)
-        self.assertTrue(resulting_workload.procedures[0].default)
-        self.assertFalse(resulting_workload.procedures[1].default)
-        self.assertTrue(resulting_workload.procedures[1].selected)
+        self.assertEqual(2, len(resulting_workload.scenarios))
+        self.assertEqual("scenario", resulting_workload.scenarios[0].name)
+        self.assertTrue(resulting_workload.scenarios[0].default)
+        self.assertFalse(resulting_workload.scenarios[1].default)
+        self.assertTrue(resulting_workload.scenarios[1].selected)
 
-    def test_selects_sole_procedure_implicitly_as_default(self):
+    def test_selects_sole_scenario_implicitly_as_default(self):
         workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
@@ -3052,8 +3052,8 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "procedure": {
-                "name": "procedure",
+            "scenario": {
+                "name": "scenario",
                 "schedule": [
                     {
                         "operation": "index-append"
@@ -3063,12 +3063,12 @@ class WorkloadSpecificationReaderTests(TestCase):
         }
         reader = loader.WorkloadSpecificationReader()
         resulting_workload = reader("unittest", workload_specification, "/mappings")
-        self.assertEqual(1, len(resulting_workload.procedures))
-        self.assertEqual("procedure", resulting_workload.procedures[0].name)
-        self.assertTrue(resulting_workload.procedures[0].default)
-        self.assertTrue(resulting_workload.procedures[0].selected)
+        self.assertEqual(1, len(resulting_workload.scenarios))
+        self.assertEqual("scenario", resulting_workload.scenarios[0].name)
+        self.assertTrue(resulting_workload.scenarios[0].default)
+        self.assertTrue(resulting_workload.scenarios[0].selected)
 
-    def test_auto_generates_procedure_from_schedule(self):
+    def test_auto_generates_scenario_from_schedule(self):
         workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
@@ -3086,17 +3086,17 @@ class WorkloadSpecificationReaderTests(TestCase):
         }
         reader = loader.WorkloadSpecificationReader()
         resulting_workload = reader("unittest", workload_specification, "/mappings")
-        self.assertEqual(1, len(resulting_workload.procedures))
-        self.assertTrue(resulting_workload.procedures[0].auto_generated)
-        self.assertTrue(resulting_workload.procedures[0].default)
-        self.assertTrue(resulting_workload.procedures[0].selected)
+        self.assertEqual(1, len(resulting_workload.scenarios))
+        self.assertTrue(resulting_workload.scenarios[0].auto_generated)
+        self.assertTrue(resulting_workload.scenarios[0].default)
+        self.assertTrue(resulting_workload.scenarios[0].selected)
 
     def test_inline_operations(self):
         workload_specification = {
             "description": "description for unit test",
             "indices": [{"name": "test-index"}],
-            "procedure": {
-                "name": "procedure",
+            "scenario": {
+                "name": "scenario",
                 "schedule": [
                     # an operation with parameters still needs to define a type
                     {
@@ -3115,10 +3115,10 @@ class WorkloadSpecificationReaderTests(TestCase):
         reader = loader.WorkloadSpecificationReader()
         resulting_workload = reader("unittest", workload_specification, "/mappings")
 
-        procedure = resulting_workload.procedures[0]
-        self.assertEqual(2, len(procedure.schedule))
-        self.assertEqual(workload.OperationType.Bulk.to_hyphenated_string(), procedure.schedule[0].operation.type)
-        self.assertEqual(workload.OperationType.ForceMerge.to_hyphenated_string(), procedure.schedule[1].operation.type)
+        scenario = resulting_workload.scenarios[0]
+        self.assertEqual(2, len(scenario.schedule))
+        self.assertEqual(workload.OperationType.Bulk.to_hyphenated_string(), scenario.schedule[0].operation.type)
+        self.assertEqual(workload.OperationType.ForceMerge.to_hyphenated_string(), scenario.schedule[1].operation.type)
 
     def test_supports_target_throughput(self):
         workload_specification = {
@@ -3130,8 +3130,8 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "procedure": {
-                "name": "default-procedure",
+            "scenario": {
+                "name": "default-scenario",
                 "schedule": [
                     {
                         "operation": "index-append",
@@ -3142,7 +3142,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         }
         reader = loader.WorkloadSpecificationReader()
         resulting_workload = reader("unittest", workload_specification, "/mappings")
-        self.assertEqual(10, resulting_workload.procedures[0].schedule[0].params["target-throughput"])
+        self.assertEqual(10, resulting_workload.scenarios[0].schedule[0].params["target-throughput"])
 
     def test_supports_target_interval(self):
         workload_specification = {
@@ -3154,9 +3154,9 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
+                    "name": "default-scenario",
                     "schedule": [
                         {
                             "operation": "index-append",
@@ -3168,7 +3168,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         }
         reader = loader.WorkloadSpecificationReader()
         resulting_workload = reader("unittest", workload_specification, "/mappings")
-        self.assertEqual(5, resulting_workload.procedures[0].schedule[0].params["target-interval"])
+        self.assertEqual(5, resulting_workload.scenarios[0].schedule[0].params["target-interval"])
 
     def test_parallel_tasks_with_default_values(self):
         workload_specification = {
@@ -3188,9 +3188,9 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 },
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
+                    "name": "default-scenario",
                     "schedule": [
                         {
                             "parallel": {
@@ -3221,7 +3221,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         }
         reader = loader.WorkloadSpecificationReader()
         resulting_workload = reader("unittest", workload_specification, "/mappings")
-        parallel_element = resulting_workload.procedures[0].schedule[0]
+        parallel_element = resulting_workload.scenarios[0].schedule[0]
         parallel_tasks = parallel_element.tasks
 
         self.assertEqual(22, parallel_element.clients)
@@ -3255,9 +3255,9 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
+                    "name": "default-scenario",
                     "schedule": [
                         {
                             "parallel": {
@@ -3290,7 +3290,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         }
         reader = loader.WorkloadSpecificationReader()
         resulting_workload = reader("unittest", workload_specification, "/mappings")
-        parallel_element = resulting_workload.procedures[0].schedule[0]
+        parallel_element = resulting_workload.scenarios[0].schedule[0]
         parallel_tasks = parallel_element.tasks
 
         # we will only have two clients *in total*
@@ -3313,9 +3313,9 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
+                    "name": "default-scenario",
                     "schedule": [
                         {
                             "parallel": {
@@ -3338,7 +3338,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         }
         reader = loader.WorkloadSpecificationReader()
         resulting_workload = reader("unittest", workload_specification, "/mappings")
-        parallel_element = resulting_workload.procedures[0].schedule[0]
+        parallel_element = resulting_workload.scenarios[0].schedule[0]
         parallel_tasks = parallel_element.tasks
 
         # we will only have two clients *in total*
@@ -3365,9 +3365,9 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
+                    "name": "default-scenario",
                     "schedule": [
                         {
                             "parallel": {
@@ -3392,7 +3392,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         }
         reader = loader.WorkloadSpecificationReader()
         resulting_workload = reader("unittest", workload_specification, "/mappings")
-        parallel_element = resulting_workload.procedures[0].schedule[0]
+        parallel_element = resulting_workload.scenarios[0].schedule[0]
         parallel_tasks = parallel_element.tasks
 
         # we will only have two clients *in total*
@@ -3419,9 +3419,9 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
+                    "name": "default-scenario",
                     "schedule": [
                         {
                             "parallel": {
@@ -3445,7 +3445,7 @@ class WorkloadSpecificationReaderTests(TestCase):
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
         self.assertEqual("Workload 'unittest' is invalid. 'parallel' element for "
-                         "procedure 'default-procedure' is marked with 'completed-by' "
+                         "scenario 'default-scenario' is marked with 'completed-by' "
                          "with task name 'non-existing-task' but no task with this name exists.", ctx.exception.args[0])
 
     def test_parallel_tasks_with_completed_by_set_multiple_tasks_match(self):
@@ -3458,9 +3458,9 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "default-procedure",
+                    "name": "default-scenario",
                     "schedule": [
                         {
                             "parallel": {
@@ -3483,12 +3483,12 @@ class WorkloadSpecificationReaderTests(TestCase):
 
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
-        self.assertEqual("Workload 'unittest' is invalid. 'parallel' element for procedure "
-                         "'default-procedure' contains multiple tasks with "
+        self.assertEqual("Workload 'unittest' is invalid. 'parallel' element for scenario "
+                         "'default-scenario' contains multiple tasks with "
                          "the name 'index-1' which are marked with 'completed-by' but only task is allowed to match.",
                          ctx.exception.args[0])
 
-    def test_propagate_parameters_to_procedure_level(self):
+    def test_propagate_parameters_to_scenario_level(self):
         workload_specification = {
             "description": "description for unit test",
             "parameters": {
@@ -3502,12 +3502,12 @@ class WorkloadSpecificationReaderTests(TestCase):
                     "operation-type": "bulk"
                 }
             ],
-            "procedures": [
+            "scenarios": [
                 {
-                    "name": "procedure",
+                    "name": "scenario",
                     "default": True,
                     "parameters": {
-                        "level": "procedure",
+                        "level": "scenario",
                         "another-value": 17
                     },
                     "schedule": [
@@ -3517,7 +3517,7 @@ class WorkloadSpecificationReaderTests(TestCase):
                     ]
                 },
                 {
-                    "name": "another-procedure",
+                    "name": "another-scenario",
                     "schedule": [
                         {
                             "operation": "index-append"
@@ -3527,23 +3527,23 @@ class WorkloadSpecificationReaderTests(TestCase):
 
             ]
         }
-        reader = loader.WorkloadSpecificationReader(selected_procedure="another-procedure")
+        reader = loader.WorkloadSpecificationReader(selected_scenario="another-scenario")
         resulting_workload = reader("unittest", workload_specification, "/mappings")
-        self.assertEqual(2, len(resulting_workload.procedures))
-        self.assertEqual("procedure", resulting_workload.procedures[0].name)
-        self.assertTrue(resulting_workload.procedures[0].default)
+        self.assertEqual(2, len(resulting_workload.scenarios))
+        self.assertEqual("scenario", resulting_workload.scenarios[0].name)
+        self.assertTrue(resulting_workload.scenarios[0].default)
         self.assertDictEqual({
-            "level": "procedure",
+            "level": "scenario",
             "value": 7,
             "another-value": 17
-        }, resulting_workload.procedures[0].parameters)
+        }, resulting_workload.scenarios[0].parameters)
 
-        self.assertFalse(resulting_workload.procedures[1].default)
-        self.assertTrue(resulting_workload.procedures[1].selected)
+        self.assertFalse(resulting_workload.scenarios[1].default)
+        self.assertTrue(resulting_workload.scenarios[1].selected)
         self.assertDictEqual({
             "level": "workload",
             "value": 7
-        }, resulting_workload.procedures[1].parameters)
+        }, resulting_workload.scenarios[1].parameters)
 
 
 class MyMockWorkloadProcessor(loader.WorkloadProcessor):

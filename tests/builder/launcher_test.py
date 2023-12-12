@@ -157,7 +157,7 @@ def get_metrics_store(cfg):
     ms.open(test_ex_id=str(uuid.uuid4()),
             test_ex_timestamp=datetime.now(),
             workload_name="test",
-            procedure_name="test",
+            scenario_name="test",
             provision_config_instance_name="test")
     return ms
 

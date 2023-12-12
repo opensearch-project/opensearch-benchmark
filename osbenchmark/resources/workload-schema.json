@@ -176,26 +176,26 @@
         }
       }
     },
-    "procedure": {
-      "title": "Procedure",
+    "scenario": {
+      "title": "Scenario",
       "type": "object",
       "description": "Defines the concrete execution order",
       "properties": {
         "name": {
           "type": "string",
-          "description": "A descriptive name of the procedure. Should not contain spaces in order to simplify handling on the command line for users."
+          "description": "A descriptive name of the scenario. Should not contain spaces in order to simplify handling on the command line for users."
         },
         "default": {
           "type": "boolean",
-          "description": "If true, Benchmark should select this procedure as the default procedure if the user does not specify one on the command line."
+          "description": "If true, Benchmark should select this scenario as the default scenario if the user does not specify one on the command line."
         },
         "meta": {
           "type": "object",
-          "description": "Meta-information which will be added to each metrics-record of this procedure."
+          "description": "Meta-information which will be added to each metrics-record of this scenario."
         },
         "description": {
           "type": "string",
-          "description": "A human readable description of the procedure"
+          "description": "A human readable description of the scenario"
         },
         "cluster-settings": {
           "type": "object",
@@ -462,7 +462,7 @@
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "description": "The 'operations' block describes the operations that can be executed. These can be reused later in the 'procedures' block which describes the actual execution schedule.",
+      "description": "The 'operations' block describes the operations that can be executed. These can be reused later in the 'scenarios' block which describes the actual execution schedule.",
       "items": {
         "title": "Operation",
         "type": "object",
@@ -562,16 +562,16 @@
         ]
       }
     },
-    "procedures": {
+    "scenarios": {
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
       "items": {
-        "$ref": "#/definitions/procedure"
+        "$ref": "#/definitions/scenario"
       }
     },
-    "procedure": {
-      "$ref": "#/definitions/procedure"
+    "scenario": {
+      "$ref": "#/definitions/scenario"
     },
     "schedule": {
       "$ref": "#/definitions/schedule"
