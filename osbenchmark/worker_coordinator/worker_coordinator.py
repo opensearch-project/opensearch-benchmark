@@ -527,7 +527,7 @@ class WorkerCoordinator:
         self.config = config
         self.os_client_factory = os_client_factory_class
         self.workload = None
-        self.procedure = None
+        self.scenario = None
         self.metrics_store = None
         self.load_worker_coordinator_hosts = []
         self.workers = []
@@ -606,20 +606,20 @@ class WorkerCoordinator:
 
     def prepare_benchmark(self, t):
         self.workload = t
-        self.procedure = select_procedure(self.config, self.workload)
+        self.scenario = select_scenario(self.config, self.workload)
         self.quiet = self.config.opts("system", "quiet.mode", mandatory=False, default_value=False)
         downsample_factor = int(self.config.opts(
             "results_publishing", "metrics.request.downsample.factor",
             mandatory=False, default_value=1))
         self.metrics_store = metrics.metrics_store(cfg=self.config,
                                                    workload=self.workload.name,
-                                                   procedure=self.procedure.name,
+                                                   scenario=self.scenario.name,
                                                    read_only=False)
 
         self.sample_post_processor = SamplePostprocessor(self.metrics_store,
                                                          downsample_factor,
                                                          self.workload.meta_data,
-                                                         self.procedure.meta_data)
+                                                         self.scenario.meta_data)
 
         os_clients = self.create_os_clients()
 
@@ -659,7 +659,7 @@ class WorkerCoordinator:
         self.telemetry.on_benchmark_start()
         self.logger.info("Cluster-level telemetry devices are now attached.")
 
-        allocator = Allocator(self.procedure.schedule)
+        allocator = Allocator(self.scenario.schedule)
         self.allocations = allocator.allocations
         self.number_of_steps = len(allocator.join_points) - 1
         self.tasks_per_join_point = allocator.tasks_per_joinpoint
@@ -832,11 +832,11 @@ class WorkerCoordinator:
 
 
 class SamplePostprocessor:
-    def __init__(self, metrics_store, downsample_factor, workload_meta_data, procedure_meta_data):
+    def __init__(self, metrics_store, downsample_factor, workload_meta_data, scenario_meta_data):
         self.logger = logging.getLogger(__name__)
         self.metrics_store = metrics_store
         self.workload_meta_data = workload_meta_data
-        self.procedure_meta_data = procedure_meta_data
+        self.scenario_meta_data = scenario_meta_data
         self.throughput_calculator = ThroughputCalculator()
         self.downsample_factor = downsample_factor
 
@@ -851,7 +851,7 @@ class SamplePostprocessor:
                 final_sample_count += 1
                 meta_data = self.merge(
                     self.workload_meta_data,
-                    self.procedure_meta_data,
+                    self.scenario_meta_data,
                     sample.operation_meta_data,
                     sample.task.meta_data,
                     sample.request_meta_data)
@@ -891,7 +891,7 @@ class SamplePostprocessor:
         for task, samples in aggregates.items():
             meta_data = self.merge(
                 self.workload_meta_data,
-                self.procedure_meta_data,
+                self.scenario_meta_data,
                 task.operation.meta_data,
                 task.meta_data
             )
@@ -1256,14 +1256,14 @@ class Sample:
                f"[{self.total_ops} {self.total_ops_unit}]"
 
 
-def select_procedure(config, t):
-    procedure_name = config.opts("workload", "procedure.name")
-    selected_procedure = t.find_procedure_or_default(procedure_name)
+def select_scenario(config, t):
+    scenario_name = config.opts("workload", "scenario.name")
+    selected_scenario = t.find_scenario_or_default(scenario_name)
 
-    if not selected_procedure:
-        raise exceptions.SystemSetupError("Unknown procedure [%s] for workload [%s]. You can list the available workloads and their "
-                                          "procedures with %s list workloads." % (procedure_name, t.name, PROGRAM_NAME))
-    return selected_procedure
+    if not selected_scenario:
+        raise exceptions.SystemSetupError("Unknown scenario [%s] for workload [%s]. You can list the available workloads and their "
+                                          "scenarios with %s list workloads." % (scenario_name, t.name, PROGRAM_NAME))
+    return selected_scenario
 
 
 class ThroughputCalculator:

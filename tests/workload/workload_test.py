@@ -29,52 +29,52 @@ from osbenchmark.workload import workload
 
 
 class WorkloadTests(TestCase):
-    def test_finds_default_procedure(self):
-        default_procedure = workload.Procedure("default", description="default procedure", default=True)
-        another_procedure = workload.Procedure("other", description="non-default procedure", default=False)
+    def test_finds_default_scenario(self):
+        default_scenario = workload.Scenario("default", description="default scenario", default=True)
+        another_scenario = workload.Scenario("other", description="non-default scenario", default=False)
 
-        self.assertEqual(default_procedure,
+        self.assertEqual(default_scenario,
                          workload.Workload(name="unittest",
                                      description="unittest workload",
-                                     procedures=[another_procedure, default_procedure])
-                         .default_procedure)
+                                     scenarios=[another_scenario, default_scenario])
+                         .default_scenario)
 
-    def test_default_procedure_none_if_no_procedures(self):
+    def test_default_scenario_none_if_no_scenarios(self):
         self.assertIsNone(workload.Workload(name="unittest",
                                       description="unittest workload",
-                                      procedures=[])
-                          .default_procedure)
+                                      scenarios=[])
+                          .default_scenario)
 
-    def test_finds_procedure_by_name(self):
-        default_procedure = workload.Procedure("default", description="default procedure", default=True)
-        another_procedure = workload.Procedure("other", description="non-default procedure", default=False)
+    def test_finds_scenario_by_name(self):
+        default_scenario = workload.Scenario("default", description="default scenario", default=True)
+        another_scenario = workload.Scenario("other", description="non-default scenario", default=False)
 
-        self.assertEqual(another_procedure,
+        self.assertEqual(another_scenario,
                          workload.Workload(name="unittest",
                                      description="unittest workload",
-                                     procedures=[another_procedure, default_procedure])
-                         .find_procedure_or_default("other"))
+                                     scenarios=[another_scenario, default_scenario])
+                         .find_scenario_or_default("other"))
 
-    def test_uses_default_procedure_if_no_name_given(self):
-        default_procedure = workload.Procedure("default", description="default procedure", default=True)
-        another_procedure = workload.Procedure("other", description="non-default procedure", default=False)
+    def test_uses_default_scenario_if_no_name_given(self):
+        default_scenario = workload.Scenario("default", description="default scenario", default=True)
+        another_scenario = workload.Scenario("other", description="non-default scenario", default=False)
 
-        self.assertEqual(default_procedure,
+        self.assertEqual(default_scenario,
                          workload.Workload(name="unittest",
                                      description="unittest workload",
-                                     procedures=[another_procedure, default_procedure])
-                         .find_procedure_or_default(""))
+                                     scenarios=[another_scenario, default_scenario])
+                         .find_scenario_or_default(""))
 
-    def test_does_not_find_unknown_procedure(self):
-        default_procedure = workload.Procedure("default", description="default procedure", default=True)
-        another_procedure = workload.Procedure("other", description="non-default procedure", default=False)
+    def test_does_not_find_unknown_scenario(self):
+        default_scenario = workload.Scenario("default", description="default scenario", default=True)
+        another_scenario = workload.Scenario("other", description="non-default scenario", default=False)
 
         with self.assertRaises(exceptions.InvalidName) as ctx:
             workload.Workload(name="unittest",
                         description="unittest workload",
-                        procedures=[another_procedure, default_procedure]).find_procedure_or_default("unknown-name")
+                        scenarios=[another_scenario, default_scenario]).find_scenario_or_default("unknown-name")
 
-        self.assertEqual("Unknown procedure [unknown-name] for workload [unittest]", ctx.exception.args[0])
+        self.assertEqual("Unknown scenario [unknown-name] for workload [unittest]", ctx.exception.args[0])
 
 
 class IndexTests(TestCase):

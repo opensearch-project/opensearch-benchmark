@@ -128,7 +128,7 @@ def stop(cfg):
             test_ex_id=current_test_execution.test_execution_id,
             test_ex_timestamp=current_test_execution.test_execution_timestamp,
             workload_name=current_test_execution.workload_name,
-            procedure_name=current_test_execution.procedure_name
+            scenario_name=current_test_execution.scenario_name
         )
     except exceptions.NotFound:
         logging.getLogger(__name__).info("Could not find test_execution [%s] and will thus not persist system metrics.", test_execution_id)
@@ -360,7 +360,7 @@ class BuilderActor(actor.BenchmarkActor):
         # TODO: This is implicitly set by #load_provision_config() - can we gather this elsewhere?
         self.provision_config_revision = self.cfg.opts("builder", "repository.revision")
 
-        # In our startup procedure we first create all builders. Only if this succeeds we'll continue.
+        # In our startup scenario we first create all builders. Only if this succeeds we'll continue.
         hosts = self.cfg.opts("client", "hosts").default
         if len(hosts) == 0:
             raise exceptions.LaunchError("No target hosts are configured.")

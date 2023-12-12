@@ -142,16 +142,16 @@ def create_arg_parser():
         default=""
     )
     info_parser.add_argument(
-        "--procedure",
-        help=f"Define the procedure to use. List possible procedures for workloads with `{PROGRAM_NAME} list workloads`."
+        "--scenario",
+        help=f"Define the scenario to use. List possible scenarios for workloads with `{PROGRAM_NAME} list workloads`."
     )
     info_task_filter_group = info_parser.add_mutually_exclusive_group()
     info_task_filter_group.add_argument(
         "--include-tasks",
-        help="Defines a comma-separated list of tasks to run. By default all tasks of a procedure are run.")
+        help="Defines a comma-separated list of tasks to run. By default all tasks of a scenario are run.")
     info_task_filter_group.add_argument(
         "--exclude-tasks",
-        help="Defines a comma-separated list of tasks not to run. By default all tasks of a procedure are run.")
+        help="Defines a comma-separated list of tasks not to run. By default all tasks of a scenario are run.")
 
     create_workload_parser = subparsers.add_parser("create-workload", help="Create a Benchmark workload from existing data")
     create_workload_parser.add_argument(
@@ -437,8 +437,8 @@ def create_arg_parser():
         default=""
     )
     test_execution_parser.add_argument(
-        "--procedure",
-        help=f"Define the procedure to use. List possible procedures for workloads with `{PROGRAM_NAME} list workloads`.")
+        "--scenario",
+        help=f"Define the scenario to use. List possible scenarios for workloads with `{PROGRAM_NAME} list workloads`.")
     test_execution_parser.add_argument(
         "--provision-config-instance",
         help=f"Define the provision_config_instance to use. List possible "
@@ -500,10 +500,10 @@ def create_arg_parser():
     task_filter_group = test_execution_parser.add_mutually_exclusive_group()
     task_filter_group.add_argument(
         "--include-tasks",
-        help="Defines a comma-separated list of tasks to run. By default all tasks of a procedure are run.")
+        help="Defines a comma-separated list of tasks to run. By default all tasks of a scenario are run.")
     task_filter_group.add_argument(
         "--exclude-tasks",
-        help="Defines a comma-separated list of tasks not to run. By default all tasks of a procedure are run.")
+        help="Defines a comma-separated list of tasks not to run. By default all tasks of a scenario are run.")
     test_execution_parser.add_argument(
         "--user-tag",
         help="Define a user-specific key-value pair (separated by ':'). It is added to each metric record as meta info. "
@@ -746,7 +746,7 @@ def configure_workload_params(arg_parser, args, cfg, command_requires_workload=T
 
     if command_requires_workload:
         cfg.add(config.Scope.applicationOverride, "workload", "params", opts.to_dict(args.workload_params))
-        cfg.add(config.Scope.applicationOverride, "workload", "procedure.name", args.procedure)
+        cfg.add(config.Scope.applicationOverride, "workload", "scenario.name", args.scenario)
         cfg.add(config.Scope.applicationOverride, "workload", "include.tasks", opts.csv_to_list(args.include_tasks))
         cfg.add(config.Scope.applicationOverride, "workload", "exclude.tasks", opts.csv_to_list(args.exclude_tasks))
 

@@ -391,7 +391,7 @@ class Workload:
     A workload defines the data set that is used. It corresponds loosely to a use case (e.g. logging, event processing, analytics, ...)
     """
 
-    def __init__(self, name, description=None, meta_data=None, procedures=None, indices=None, data_streams=None,
+    def __init__(self, name, description=None, meta_data=None, scenarios=None, indices=None, data_streams=None,
                  templates=None, composable_templates=None, component_templates=None, corpora=None, has_plugins=False):
         """
 
@@ -400,7 +400,7 @@ class Workload:
         :param name: A short, descriptive name for this workload. As per convention, this name should be in lower-case without spaces.
         :param description: A description for this workload (should be less than 80 characters).
         :param meta_data: An optional dict of meta-data elements to attach to each metrics record. Default: {}.
-        :param procedures: A list of one or more procedures to use.
+        :param scenarios: A list of one or more scenarios to use.
         Precondition: If the list is non-empty it contains exactly one element
         with its ``default`` property set to ``True``.
         :param indices: A list of indices for this workload. May be None.
@@ -412,7 +412,7 @@ class Workload:
         self.name = name
         self.meta_data = meta_data if meta_data else {}
         self.description = description if description is not None else ""
-        self.procedures = procedures if procedures else []
+        self.scenarios = scenarios if scenarios else []
         self.indices = indices if indices else []
         self.data_streams = data_streams if data_streams else []
         self.corpora = corpora if corpora else []
@@ -422,40 +422,40 @@ class Workload:
         self.has_plugins = has_plugins
 
     @property
-    def default_procedure(self):
-        for procedure in self.procedures:
-            if procedure.default:
-                return procedure
-        # This should only happen if we don't have any procedures
+    def default_scenario(self):
+        for scenario in self.scenarios:
+            if scenario.default:
+                return scenario
+        # This should only happen if we don't have any scenarios
         return None
 
     @property
-    def selected_procedure(self):
-        for procedure in self.procedures:
-            if procedure.selected:
-                return procedure
+    def selected_scenario(self):
+        for scenario in self.scenarios:
+            if scenario.selected:
+                return scenario
         return None
 
     @property
-    def selected_procedure_or_default(self):
-        selected = self.selected_procedure
-        return selected if selected else self.default_procedure
+    def selected_scenario_or_default(self):
+        selected = self.selected_scenario
+        return selected if selected else self.default_scenario
 
-    def find_procedure_or_default(self, name):
+    def find_scenario_or_default(self, name):
         """
-        :param name: The name of the procedure to find.
-        :return: The procedure with the given name. The default procedure, if the name is "" or ``None``.
+        :param name: The name of the scenario to find.
+        :return: The scenario with the given name. The default scenario, if the name is "" or ``None``.
         """
         if name in [None, ""]:
-            return self.default_procedure
+            return self.default_scenario
         else:
-            return self.find_procedure(name)
+            return self.find_scenario(name)
 
-    def find_procedure(self, name):
-        for procedure in self.procedures:
-            if procedure.name == name:
-                return procedure
-        raise exceptions.InvalidName("Unknown procedure [%s] for workload [%s]" % (name, self.name))
+    def find_scenario(self, name):
+        for scenario in self.scenarios:
+            if scenario.name == name:
+                return scenario
+        raise exceptions.InvalidName("Unknown scenario [%s] for workload [%s]" % (name, self.name))
 
     @property
     def number_of_documents(self):
@@ -499,21 +499,21 @@ class Workload:
         return ", ".join(r)
 
     def __hash__(self):
-        return hash(self.name) ^ hash(self.meta_data) ^ hash(self.description) ^ hash(self.procedures) ^ \
+        return hash(self.name) ^ hash(self.meta_data) ^ hash(self.description) ^ hash(self.scenarios) ^ \
                hash(self.indices) ^ hash(self.templates) ^ hash(self.composable_templates) ^ hash(self.component_templates) \
                ^ hash(self.corpora)
 
     def __eq__(self, othr):
         return (isinstance(othr, type(self)) and
-                (self.name, self.meta_data, self.description, self.procedures, self.indices, self.data_streams,
+                (self.name, self.meta_data, self.description, self.scenarios, self.indices, self.data_streams,
                  self.templates, self.composable_templates, self.component_templates, self.corpora) ==
-                (othr.name, othr.meta_data, othr.description, othr.procedures, othr.indices, othr.data_streams,
+                (othr.name, othr.meta_data, othr.description, othr.scenarios, othr.indices, othr.data_streams,
                  othr.templates, othr.composable_templates, othr.component_templates, othr.corpora))
 
 
-class Procedure:
+class Scenario:
     """
-    A test procedure defines the concrete operations that will be done.
+    A scenario defines the concrete operations that will be done.
     """
     #Pytest throws a collection warning if the following line is removed
     __test__ = False

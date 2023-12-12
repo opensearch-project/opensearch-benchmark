@@ -41,7 +41,7 @@ class Scope(Enum):
     # A sole benchmark
     benchmark = 3
     # Single benchmark workload setup (e.g. default, multinode, ...)
-    procedure = 4
+    scenario = 4
     # property for every invocation, i.e. for backtesting
     invocation = 5
 
