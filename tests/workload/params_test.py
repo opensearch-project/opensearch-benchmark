@@ -24,11 +24,20 @@
 # pylint: disable=protected-access
 
 import random
+import shutil
+import tempfile
 from unittest import TestCase
 
+import numpy as np
+
 from osbenchmark import exceptions
-from osbenchmark.workload import params, workload
 from osbenchmark.utils import io
+from osbenchmark.utils.dataset import Context, HDF5DataSet
+from osbenchmark.utils.parse import ConfigurationError
+from osbenchmark.workload import params, workload
+from osbenchmark.workload.params import VectorDataSetPartitionParamSource, VectorSearchPartitionParamSource
+from tests.utils.dataset_helper import create_data_set
+from tests.utils.dataset_test import DEFAULT_NUM_VECTORS
 
 
 class StaticBulkReader:
@@ -2476,3 +2485,236 @@ class ForceMergeParamSourceTests(TestCase):
         self.assertEqual(30, p["request-timeout"])
         self.assertEqual(1, p["max-num-segments"])
         self.assertEqual("polling", p["mode"])
+
+
+class VectorSearchParamSourceTests(TestCase):
+    DEFAULT_INDEX_NAME = "test-index"
+    DEFAULT_FIELD_NAME = "test-field"
+    DEFAULT_CONTEXT = Context.INDEX
+    DEFAULT_TYPE = HDF5DataSet.FORMAT_NAME
+    DEFAULT_NUM_VECTORS = 10
+    DEFAULT_DIMENSION = 10
+    DEFAULT_RANDOM_STRING_LENGTH = 8
+
+    def setUp(self) -> None:
+        self.data_set_dir = tempfile.mkdtemp()
+
+        # Create a data set we know to be valid for convenience
+        self.valid_data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            self.DEFAULT_CONTEXT,
+            self.data_set_dir
+        )
+
+    def tearDown(self):
+        shutil.rmtree(self.data_set_dir)
+
+    def test_missing_params(self):
+        empty_params = dict()
+        self.assertRaises(
+            ConfigurationError,
+            lambda: self.TestVectorsFromDataSetParamSource(
+                empty_params, VectorSearchParamSourceTests.DEFAULT_CONTEXT)
+        )
+
+    def test_invalid_data_set_format(self):
+        invalid_data_set_format = "invalid-data-set-format"
+
+        test_param_source_params = {
+            "index": VectorSearchParamSourceTests.DEFAULT_INDEX_NAME,
+            "field": VectorSearchParamSourceTests.DEFAULT_FIELD_NAME,
+            "data_set_format": invalid_data_set_format,
+            "data_set_path": self.valid_data_set_path,
+        }
+        self.assertRaises(
+            ConfigurationError,
+            lambda: self.TestVectorsFromDataSetParamSource(
+                test_param_source_params,
+                self.DEFAULT_CONTEXT
+            )
+        )
+
+    def test_invalid_data_set_path(self):
+        invalid_data_set_path = "invalid-data-set-path"
+        test_param_source_params = {
+            "index": self.DEFAULT_INDEX_NAME,
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": HDF5DataSet.FORMAT_NAME,
+            "data_set_path": invalid_data_set_path,
+        }
+        self.assertRaises(
+            FileNotFoundError,
+            lambda: self.TestVectorsFromDataSetParamSource(
+                test_param_source_params,
+                self.DEFAULT_CONTEXT
+            )
+        )
+
+    def test_partition_hdf5(self):
+        num_vectors = 100
+
+        hdf5_data_set_path = create_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            HDF5DataSet.FORMAT_NAME,
+            self.DEFAULT_CONTEXT,
+            self.data_set_dir
+        )
+
+        test_param_source_params = {
+            "index": self.DEFAULT_INDEX_NAME,
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": HDF5DataSet.FORMAT_NAME,
+            "data_set_path": hdf5_data_set_path,
+        }
+        test_param_source = self.TestVectorsFromDataSetParamSource(
+            test_param_source_params,
+            self.DEFAULT_CONTEXT
+        )
+
+        num_partitions = 10
+        vectors_per_partition = test_param_source.num_vectors // num_partitions
+
+        self._test_partition(
+            test_param_source,
+            num_partitions,
+            vectors_per_partition
+        )
+
+    def test_partition_bigann(self):
+        num_vectors = 100
+        float_extension = "fbin"
+
+        bigann_data_set_path = create_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            float_extension,
+            self.DEFAULT_CONTEXT,
+            self.data_set_dir
+        )
+
+        test_param_source_params = {
+            "index": self.DEFAULT_INDEX_NAME,
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": "bigann",
+            "data_set_path": bigann_data_set_path,
+        }
+        test_param_source = self.TestVectorsFromDataSetParamSource(
+            test_param_source_params,
+            self.DEFAULT_CONTEXT
+        )
+
+        num_partitions = 10
+        vecs_per_partition = test_param_source.num_vectors // num_partitions
+
+        self._test_partition(
+            test_param_source,
+            num_partitions,
+            vecs_per_partition
+        )
+
+    def _test_partition(
+            self,
+            test_param_source: VectorDataSetPartitionParamSource,
+            num_partitions: int,
+            vec_per_partition: int
+    ):
+        for i in range(num_partitions):
+            test_param_source_i = test_param_source.partition(i, num_partitions)
+            self.assertEqual(test_param_source_i.num_vectors, vec_per_partition)
+            self.assertEqual(test_param_source_i.offset, i * vec_per_partition)
+
+    class TestVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
+        """
+        Empty implementation of ABC VectorsFromDataSetParamSource so that we can
+        test the concrete methods.
+        """
+
+        def params(self):
+            pass
+
+
+class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
+
+    DEFAULT_INDEX_NAME = "test-partition-index"
+    DEFAULT_FIELD_NAME = "test-vector-field"
+    DEFAULT_CONTEXT = Context.INDEX
+    DEFAULT_TYPE = HDF5DataSet.FORMAT_NAME
+    DEFAULT_NUM_VECTORS = 10
+    DEFAULT_DIMENSION = 10
+    DEFAULT_RANDOM_STRING_LENGTH = 8
+
+    def setUp(self) -> None:
+        self.data_set_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.data_set_dir)
+
+    def test_params(self):
+        # Create a data set
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        neighbors_data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir
+        )
+
+        # Create a QueryVectorsFromDataSetParamSource with relevant params
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "neighbors_data_set_path": neighbors_data_set_path,
+            "k": k,
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            test_param_source_params, {"index": self.DEFAULT_INDEX_NAME, "request-params": {}}
+        )
+
+        # Check each
+        for _ in range(DEFAULT_NUM_VECTORS):
+            self._check_params(
+                query_param_source.params(),
+                self.DEFAULT_FIELD_NAME,
+                self.DEFAULT_DIMENSION,
+                k
+            )
+
+        # Assert last call creates stop iteration
+        with self.assertRaises(StopIteration):
+            query_param_source.params()
+
+    def _check_params(
+            self,
+            params: dict,
+            expected_field: str,
+            expected_dimension: int,
+            expected_k: int
+    ):
+        body = params.get("body")
+        self.assertIsInstance(body, dict)
+        query = body.get("query")
+        self.assertIsInstance(query, dict)
+        query_knn = query.get("knn")
+        self.assertIsInstance(query_knn, dict)
+        field = query_knn.get(expected_field)
+        self.assertIsInstance(field, dict)
+        vector = field.get("vector")
+        self.assertIsInstance(vector, np.ndarray)
+        self.assertEqual(len(list(vector)), expected_dimension)
+        k = field.get("k")
+        self.assertEqual(k, expected_k)
+        neighbor = params.get("neighbors")
+        self.assertIsInstance(neighbor, list)
+        self.assertEqual(len(neighbor), expected_dimension)
