@@ -110,3 +110,17 @@ class WorkloadConfigError(BenchmarkError):
 
 class NotFound(BenchmarkError):
     pass
+
+
+class InvalidExtensionException(BenchmarkError):
+    """
+    Thrown when invalid or unsupported file extension is passed in config
+    """
+
+
+class ConfigurationError(BenchmarkError):
+    """Exception raised for errors configuration.
+
+    Attributes:
+        message -- explanation of the error
+    """
