@@ -7,7 +7,7 @@ from osbenchmark.exceptions import ConfigurationError
 
 
 def parse_string_parameter(key: str, params: dict, default: str = None) -> str:
-    if key not in params:
+    if key not in params or not params[key]:
         if default is not None:
             return default
         raise ConfigurationError(

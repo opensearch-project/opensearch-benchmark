@@ -35,7 +35,8 @@ from osbenchmark.utils import io
 from osbenchmark.utils.dataset import Context, HDF5DataSet
 from osbenchmark.utils.parse import ConfigurationError
 from osbenchmark.workload import params, workload
-from osbenchmark.workload.params import VectorDataSetPartitionParamSource, VectorSearchPartitionParamSource
+from osbenchmark.workload.params import VectorDataSetPartitionParamSource, VectorSearchPartitionParamSource, \
+    BulkVectorsFromDataSetParamSource
 from tests.utils.dataset_helper import create_data_set
 from tests.utils.dataset_test import DEFAULT_NUM_VECTORS
 
@@ -2516,6 +2517,7 @@ class VectorSearchParamSourceTests(TestCase):
         self.assertRaises(
             ConfigurationError,
             lambda: self.TestVectorsFromDataSetParamSource(
+                workload.Workload(name="unit-test"),
                 empty_params, VectorSearchParamSourceTests.DEFAULT_CONTEXT)
         )
 
@@ -2531,6 +2533,7 @@ class VectorSearchParamSourceTests(TestCase):
         self.assertRaises(
             ConfigurationError,
             lambda: self.TestVectorsFromDataSetParamSource(
+                workload.Workload(name="unit-test"),
                 test_param_source_params,
                 self.DEFAULT_CONTEXT
             )
@@ -2547,6 +2550,7 @@ class VectorSearchParamSourceTests(TestCase):
         self.assertRaises(
             FileNotFoundError,
             lambda: self.TestVectorsFromDataSetParamSource(
+                workload.Workload(name="unit-test"),
                 test_param_source_params,
                 self.DEFAULT_CONTEXT
             )
@@ -2570,6 +2574,7 @@ class VectorSearchParamSourceTests(TestCase):
             "data_set_path": hdf5_data_set_path,
         }
         test_param_source = self.TestVectorsFromDataSetParamSource(
+            workload.Workload(name="unit-test"),
             test_param_source_params,
             self.DEFAULT_CONTEXT
         )
@@ -2602,6 +2607,7 @@ class VectorSearchParamSourceTests(TestCase):
             "data_set_path": bigann_data_set_path,
         }
         test_param_source = self.TestVectorsFromDataSetParamSource(
+            workload.Workload(name="unit-test"),
             test_param_source_params,
             self.DEFAULT_CONTEXT
         )
@@ -2679,6 +2685,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             "k": k
         }
         query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
             test_param_source_params, {
                 "index": self.DEFAULT_INDEX_NAME,
                 "request-params": {},
@@ -2725,6 +2732,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             "k": k
         }
         query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
             test_param_source_params, {
                 "index": self.DEFAULT_INDEX_NAME,
                 "request-params": {},
@@ -2774,3 +2782,137 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
         self.assertEqual(len(neighbor), expected_dimension)
         size = body.get("size")
         self.assertEqual(size, expected_size if expected_size else expected_k)
+
+
+class BulkVectorsFromDataSetParamSourceTestCase(TestCase):
+
+    DEFAULT_INDEX_NAME = "test-partition-index"
+    DEFAULT_VECTOR_FIELD_NAME = "test-vector-field"
+    DEFAULT_CONTEXT = Context.INDEX
+    DEFAULT_TYPE = HDF5DataSet.FORMAT_NAME
+    DEFAULT_NUM_VECTORS = 10
+    DEFAULT_DIMENSION = 10
+    DEFAULT_RANDOM_STRING_LENGTH = 8
+    DEFAULT_ID_FIELD_NAME = "_id"
+
+    def setUp(self) -> None:
+        self.data_set_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.data_set_dir)
+
+    def test_params_default(self):
+        num_vectors = 49
+        bulk_size = 10
+        data_set_path = create_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.INDEX,
+            self.data_set_dir
+        )
+
+        test_param_source_params = {
+            "index": self.DEFAULT_INDEX_NAME,
+            "field": self.DEFAULT_VECTOR_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "bulk_size": bulk_size,
+            "id-field-name": self.DEFAULT_ID_FIELD_NAME,
+        }
+        bulk_param_source = BulkVectorsFromDataSetParamSource(
+            workload.Workload(name="unit-test"), test_param_source_params)
+
+        # Check each payload returned
+        vectors_consumed = 0
+        while vectors_consumed < num_vectors:
+            expected_num_vectors = min(num_vectors - vectors_consumed, bulk_size)
+            actual_params = bulk_param_source.params()
+            self._check_params(
+                actual_params,
+                self.DEFAULT_INDEX_NAME,
+                self.DEFAULT_VECTOR_FIELD_NAME,
+                self.DEFAULT_DIMENSION,
+                expected_num_vectors,
+                self.DEFAULT_ID_FIELD_NAME,
+            )
+            vectors_consumed += expected_num_vectors
+
+        # Assert last call creates stop iteration
+        with self.assertRaises(StopIteration):
+            bulk_param_source.params()
+
+    def test_params_custom(self):
+        num_vectors = 49
+        bulk_size = 10
+        data_set_path = create_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.INDEX,
+            self.data_set_dir
+        )
+
+        test_param_source_params = {
+            "index": self.DEFAULT_INDEX_NAME,
+            "field": self.DEFAULT_VECTOR_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "bulk_size": bulk_size,
+            "id-field-name": "id",
+        }
+        bulk_param_source = BulkVectorsFromDataSetParamSource(
+            workload.Workload(name="unit-test"), test_param_source_params)
+
+        # Check each payload returned
+        vectors_consumed = 0
+        while vectors_consumed < num_vectors:
+            expected_num_vectors = min(num_vectors - vectors_consumed, bulk_size)
+            actual_params = bulk_param_source.params()
+            self._check_params(
+                actual_params,
+                self.DEFAULT_INDEX_NAME,
+                self.DEFAULT_VECTOR_FIELD_NAME,
+                self.DEFAULT_DIMENSION,
+                expected_num_vectors,
+                "id",
+            )
+            vectors_consumed += expected_num_vectors
+
+        # Assert last call creates stop iteration
+        with self.assertRaises(StopIteration):
+            bulk_param_source.params()
+
+    def _check_params(
+            self,
+            actual_params: dict,
+            expected_index: str,
+            expected_vector_field: str,
+            expected_dimension: int,
+            expected_num_vectors_in_payload: int,
+            expected_id_field: str,
+    ):
+        size = actual_params.get("size")
+        self.assertEqual(size, expected_num_vectors_in_payload)
+        body = actual_params.get("body")
+        self.assertIsInstance(body, list)
+        self.assertEqual(len(body) // 2, expected_num_vectors_in_payload)
+
+        # Bulk payload has 2 parts: first one is the header and the second one
+        # is the body. The header will have the index name and the body will
+        # have the vector
+        for header, req_body in zip(*[iter(body)] * 2):
+            index = header.get("index")
+            self.assertIsInstance(index, dict)
+
+            index_name = index.get("_index")
+            self.assertEqual(index_name, expected_index)
+
+            vector = req_body.get(expected_vector_field)
+            self.assertIsInstance(vector, list)
+            self.assertEqual(len(vector), expected_dimension)
+            if expected_id_field in index:
+                self.assertEqual(self.DEFAULT_ID_FIELD_NAME, expected_id_field)
+                self.assertFalse(expected_id_field in req_body)
+                continue
+            self.assertTrue(expected_id_field in req_body)
