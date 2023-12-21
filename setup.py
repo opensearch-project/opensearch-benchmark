@@ -100,6 +100,12 @@ install_requires = [
     "boto3==1.28.62",
     # Licence: BSD-3-Clause
     "zstandard==0.22.0",
+    # License: BSD
+    # Required for knnvector workload
+    "h5py==3.10.0",
+    # License: BSD
+    # Required for knnvector workload
+    "numpy==1.24.2",
 ]
 
 tests_require = [
