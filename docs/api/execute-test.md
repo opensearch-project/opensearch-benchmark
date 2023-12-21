@@ -23,12 +23,12 @@ Argument | Description | Required
 :--- | :--- |:---
 `workload` | The dataset and operations that execute during a test. See [OpenSearch Benchmark Workloads repository](https://github.com/opensearch-project/opensearch-benchmark-workloads) for more details on workloads. | Yes
 `workload-params` | Parameters defined within each workload that can be overwritten. These parameters are outlined in the README of each workload. You can find an example of the parameters for the eventdata workload [here](https://github.com/opensearch-project/opensearch-benchmark-workloads/tree/main/eventdata#parameters).  | No
-`scenario` | Test scenarios define the sequence of operations and parameters for a specific workload. When no `scenario` is specified, Benchmark selects the default for the workload. You can find an example test scenario [here](https://github.com/opensearch-project/opensearch-benchmark-workloads/blob/main/eventdata/scenarios/default.json). | No
+`scenario` | Scenarios define the sequence of operations and parameters for a specific workload. When no `scenario` is specified, Benchmark selects the default for the workload. You can find an example scenario [here](https://github.com/opensearch-project/opensearch-benchmark-workloads/blob/main/eventdata/scenarios/default.json). | No
 `client-options` | Options for the [OpenSearch Python client](https://opensearch.org/docs/latest/clients/python/). Required if testing against a cluster with security enabled. | No
 `pipeline` | Steps required to execute a test, including provisioning an OpenSearch from source code or a specified distribution. Defaults to `from-sources` which provisions an OpenSearch cluster from source code. | No
 `distribution-version` | The OpenSearch version to use for a given test. Defining a version can be useful when using a `pipeline` that includes provisioning. When using a `pipeline` without provisioning, Benchmark will automatically determine the version | No
 `target-hosts` | The OpenSearch endpoint(s) to execute a test against. This should only be specified with  `--pipeline=benchmark-only`  | No
-`test-mode` | Run a single iteration of each operation in the test scenario. The test provides a quick way for sanity checking a testing configuration. Therefore, do not use `test-mode` for actual benchmarking. | No
+`test-mode` | Run a single iteration of each operation in the Scenario. The test provides a quick way for sanity checking a testing configuration. Therefore, do not use `test-mode` for actual benchmarking. | No
 `kill-running-processes` | Kill any running OpenSearch Benchmark processes on the local machine before the test executes. | No
 
 *Example 1*
@@ -72,7 +72,7 @@ Argument | Description | Required
 `workload-revision` | Define a specific revision in the workload repository that Benchmark should use. | No
 `workload` | Define the workload to use. List possible workloads with `opensearch-benchmark list workloads`. | No
 `workload-params` | Define a comma-separated list of key:value pairs that are injected verbatim to the workload as variables. | No
-`scenario` | Define the scenario to use. List possible scenarios for workloads with `opensearch-benchmark list workloads`. | No
+`scenario` | Define the scenario to use. List possible scenarios for workloads with `opensearch-benchmark info --workload=<workload_name>`. | No
 `provision-config-instance` | Define the provision_config_instance to use. List possible provision_config_instances with `opensearch-benchmark list provision_config_instances` (default: `defaults`). | No
 `provision-config-instance-params` | Define a comma-separated list of key:value pairs that are injected verbatim as variables for the provision_config_instance. | No
 `runtime-jdk` | The major version of the runtime JDK to use. | No
