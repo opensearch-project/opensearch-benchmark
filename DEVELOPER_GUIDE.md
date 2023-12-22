@@ -150,7 +150,7 @@ And we're done! You should be seeing the performance metrics soon enough!
 
 **If you are not seeing any results, it should be an indicator that there is an issue with your cluster setup or the way the manager is accessing it**. Use the command below to view the logs. 
 ```
-tail -f ~/.bencmark/logs/bechmark.log
+tail -f ~/.benchmark/logs/benchmark.log
 ```
 
 ## Executing tests
