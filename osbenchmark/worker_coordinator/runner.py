@@ -1041,7 +1041,7 @@ class Query(Runner):
             if _is_empty_search_results(response_json):
                 self.logger.info("Vector search query returned no results.")
                 return result
-            id_field = params.get("id_field_name", "_id")
+            id_field = params.get("id-field-name", "_id")
             candidates = []
             for hit in response_json['hits']['hits']:
                 if id_field in hit:  # Will add to candidates if field value is present
