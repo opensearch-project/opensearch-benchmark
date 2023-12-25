@@ -993,6 +993,16 @@ class Query(Runner):
                     return True
                 return False
 
+            def _get_field_value(content, field_name):
+                if field_name in content:  # Will add to candidates if field value is present
+                    return content[field_name]
+                # if fields are used in request params to return id_field's value
+                if "fields" in content and id_field in content["fields"]:
+                    return content["fields"][id_field][0]  # fields returns always an array
+                if "_source" in content:  # if source is not disabled, retrieve value from source
+                    return _get_field_value(content["_source"], field_name)
+                return None
+
             def calculate_recall(predictions, neighbors, top_k):
                 """
                 Calculates the recall by comparing top_k neighbors with predictions.
@@ -1044,8 +1054,11 @@ class Query(Runner):
             id_field = params.get("id-field-name", "_id")
             candidates = []
             for hit in response_json['hits']['hits']:
-                if id_field in hit:  # Will add to candidates if field value is present
-                    candidates.append(hit[id_field])
+                field_value = _get_field_value(hit, id_field)
+                if field_value is None:  # Will add to candidates if field value is present
+                    self.logger.warning("No value found for field %s", id_field)
+                    continue
+                candidates.append(field_value)
             neighbors_dataset = params["neighbors"]
             num_neighbors = params.get("k", 1)
             recall_k = calculate_recall(candidates, neighbors_dataset, num_neighbors)
