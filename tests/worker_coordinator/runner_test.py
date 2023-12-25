@@ -2207,6 +2207,8 @@ class QueryRunnerTests(TestCase):
         )
         opensearch.clear_scroll.assert_not_called()
 
+
+class VectorSearchQueryRunnerTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
     async def test_query_vector_search_with_perfect_recall(self, opensearch):
@@ -2337,7 +2339,6 @@ class QueryRunnerTests(TestCase):
             body=params["body"],
             headers={"Accept-Encoding": "identity"}
         )
-
 
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
@@ -2559,7 +2560,6 @@ class QueryRunnerTests(TestCase):
             headers={"Accept-Encoding": "identity"}
         )
 
-
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
     async def test_query_vector_search_with_custom_id_field(self, opensearch):
@@ -2735,6 +2735,7 @@ class QueryRunnerTests(TestCase):
             body=params["body"],
             headers={"Accept-Encoding": "identity"}
         )
+
 
 class CreateIngestPipelineRunnerTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
