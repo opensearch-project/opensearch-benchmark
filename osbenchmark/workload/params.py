@@ -907,6 +907,8 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
     """
     PARAMS_NAME_K = "k"
     PARAMS_NAME_BODY = "body"
+    PARAMS_NAME_SIZE = "size"
+    PARAMS_NAME_QUERY = "query"
     PARAMS_NAME_REPETITIONS = "repetitions"
     PARAMS_NAME_NEIGHBORS_DATA_SET_FORMAT = "neighbors_data_set_format"
     PARAMS_NAME_NEIGHBORS_DATA_SET_PATH = "neighbors_data_set_path"
@@ -919,6 +921,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
 
     def __init__(self, params, query_params):
         super().__init__(params, Context.QUERY)
+        self.logger = logging.getLogger(__name__)
         self.k = parse_int_parameter(self.PARAMS_NAME_K, params)
         self.repetitions = parse_int_parameter(self.PARAMS_NAME_REPETITIONS, params, 1)
         self.current_rep = 1
@@ -945,6 +948,17 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
             self.PARAMS_NAME_ALLOW_PARTIAL_RESULTS, "false")
         self.query_params.update({self.PARAMS_NAME_REQUEST_PARAMS: request_params})
 
+    def _update_body_params(self, vector):
+        # accept body params if passed from workload, else, create empty dictionary
+        body_params = self.query_params.get(self.PARAMS_NAME_BODY) or dict()
+        if self.PARAMS_NAME_SIZE not in body_params:
+            body_params[self.PARAMS_NAME_SIZE] = self.k
+        if self.PARAMS_NAME_QUERY in body_params:
+            self.logger.warning("[%s] param from body will be replaced with vector search query.", self.PARAMS_NAME_QUERY)
+        # override query params with vector search query
+        body_params[self.PARAMS_NAME_QUERY] = self._build_vector_search_query_body(vector)
+        self.query_params.update({self.PARAMS_NAME_BODY: body_params})
+
     def params(self):
         """
         Returns: A query parameter with a vector and neighbor from a data set
@@ -964,33 +978,27 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
             "neighbors": true_neighbors,
         })
         self._update_request_params()
-
-        self.query_params.update({
-            self.PARAMS_NAME_BODY: self._build_vector_search_query_body(self.field_name, vector)})
+        self._update_body_params(vector)
         self.current += 1
         self.percent_completed = self.current / self.total
         return self.query_params
 
-    def _build_vector_search_query_body(self, field_name: str, vector) -> dict:
+    def _build_vector_search_query_body(self, vector) -> dict:
         """Builds a k-NN request that can be used to execute an approximate nearest
         neighbor search against a k-NN plugin index
         Args:
-            field_name: name of field to search
             vector: vector used for query
         Returns:
             A dictionary containing the body used for search query
         """
         return {
-            "size": self.k,
-            "query": {
                 "knn": {
-                    field_name: {
+                    self.field_name: {
                         "vector": vector,
                         "k": self.k
                     }
                 }
             }
-        }
 
 
 def get_target(workload, params):
