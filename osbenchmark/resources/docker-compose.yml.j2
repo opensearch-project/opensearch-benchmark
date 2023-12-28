@@ -39,7 +39,7 @@ services:
     networks:
       - opensearch-net
     healthcheck:
-          test: curl -f http://localhost:{{http_port}} -u admin:admin --insecure
+          test: curl -f http://localhost:{{http_port}} -u admin:myStrongPassword123! --insecure
           interval: 5s
           timeout: 2s
           retries: 10

@@ -50,7 +50,7 @@ Execute the `http_logs` workload against an existing OpenSearch cluster but only
 *Example 3*
 
 ```
-opensearch-benchmark execute-test --workload nyc_taxis --pipeline benchmark-only --target-hosts <endpoint> --client-options "verify_certs:false,use_ssl:true,basic_auth_user:admin,basic_auth_password:admin"
+opensearch-benchmark execute-test --workload nyc_taxis --pipeline benchmark-only --target-hosts <endpoint> --client-options "verify_certs:false,use_ssl:true,basic_auth_user:admin,basic_auth_password:<admin password>"
 ```
 
 Execute the `nyc_taxis` workload against an existing OpenSearch cluster with the security plugin enabled.

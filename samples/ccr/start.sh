@@ -25,7 +25,7 @@ printf "Waiting for clusters to get ready "
 ALL_CLUSTERS_READY=false
 
 while ! $ALL_CLUSTERS_READY; do
-    (curl -ks -u admin:admin https://localhost:9200 -o /dev/null && curl -ks -u admin:admin https://localhost:9201 -o /dev/null && ALL_CLUSTERS_READY=true) || (printf "." && sleep 5)
+    (curl -ks -u admin:myStrongPassword123! https://localhost:9200 -o /dev/null && curl -ks -u admin:admin https://localhost:9201 -o /dev/null && ALL_CLUSTERS_READY=true) || (printf "." && sleep 5)
 done
 
 echo
@@ -50,7 +50,7 @@ curl -o /dev/null -H 'Content-Type: application/json' -k -u admin:admin -X PUT h
 EOF
 
 echo "Set auto-follow pattern on follower for every index on leader"
-curl -H 'Content-Type: application/json' -k -u admin:admin https://localhost:9201/_plugins/_replication/_autofollow -d @- <<-EOF
+curl -H 'Content-Type: application/json' -k -u admin:myStrongPassword123! https://localhost:9201/_plugins/_replication/_autofollow -d @- <<-EOF
 {
   "leader_alias": "source",
   "name": "all",
@@ -90,7 +90,7 @@ cat >ccr-client-options.json <<'EOF'
   "default": {
     "use_ssl":"true",
     "basic_auth_user":"admin",
-    "basic_auth_password":"admin",
+    "basic_auth_password":"myStrongPassword123!",
     "verify_certs":"false"
   },
   "follower": {

@@ -11,6 +11,7 @@ services:
       - cluster.initial_master_nodes=metricstore-node
       - bootstrap.memory_lock=true # along with the memlock settings below, disables swapping
       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m" # minimum and maximum Java heap size, recommend setting both to 50% of system RAM
+      - "OPENSEARCH_INITIAL_ADMIN_PASSWORD=myStrongPassword123!"
     ulimits:
       memlock:
         soft: -1
