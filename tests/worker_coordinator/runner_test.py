@@ -2207,6 +2207,8 @@ class QueryRunnerTests(TestCase):
         )
         opensearch.clear_scroll.assert_not_called()
 
+
+class VectorSearchQueryRunnerTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
     async def test_query_vector_search_with_perfect_recall(self, opensearch):
@@ -2337,7 +2339,6 @@ class QueryRunnerTests(TestCase):
             body=params["body"],
             headers={"Accept-Encoding": "identity"}
         )
-
 
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
@@ -2549,6 +2550,182 @@ class QueryRunnerTests(TestCase):
         self.assertEqual(result["recall@k"], 0.5)
         self.assertIn("recall@1", result.keys())
         self.assertEqual(result["recall@1"], 0)
+        self.assertNotIn("error-type", result.keys())
+
+        opensearch.transport.perform_request.assert_called_once_with(
+            "GET",
+            "/unittest/_search",
+            params={},
+            body=params["body"],
+            headers={"Accept-Encoding": "identity"}
+        )
+
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_query_vector_search_with_custom_id_field(self, opensearch):
+        search_response = {
+            "timed_out": False,
+            "took": 5,
+            "hits": {
+                "total": {
+                    "value": 3,
+                    "relation": "eq"
+                },
+                "hits": [
+                    {
+                        "_id": "random-id1",
+                        "_score": 0.95,
+                        "fields": {
+                            "id": [0]
+                        }
+                    },
+                    {
+                        "_id": "random-id2",
+                        "_score": 0.88,
+                        "fields": {
+                            "id": [1]
+                        }
+                    },
+                    {
+                        "_id": "random-id3",
+                        "_score": 0.1,
+                        "fields": {
+                            "id": [2]
+                        }
+                    }
+                ]
+            }
+        }
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+
+        query_runner = runner.Query()
+
+        params = {
+            "index": "unittest",
+            "operation-type": "vector-search",
+            "detailed-results": True,
+            "response-compression-enabled": False,
+            "id-field-name": "id",
+            "k": 3,
+            "neighbors": [0, 1, 2],
+            "request-params": {
+                "docvalue_fields": "id",
+                "_source": False,
+            },
+            "body": {
+                "query": {
+                    "knn": {
+                        "location": {
+                            "vector": [
+                                5,
+                                4
+                            ],
+                            "k": 3
+                        }
+                    }}
+            }
+        }
+
+        async with query_runner:
+            result = await query_runner(opensearch, params)
+
+        self.assertEqual(1, result["weight"])
+        self.assertEqual("ops", result["unit"])
+        self.assertEqual(3, result["hits"])
+        self.assertEqual("eq", result["hits_relation"])
+        self.assertFalse(result["timed_out"])
+        self.assertEqual(5, result["took"])
+        self.assertIn("recall_time_ms", result.keys())
+        self.assertIn("recall@k", result.keys())
+        self.assertEqual(result["recall@k"], 1.0)
+        self.assertIn("recall@1", result.keys())
+        self.assertEqual(result["recall@1"], 1.0)
+        self.assertNotIn("error-type", result.keys())
+
+        opensearch.transport.perform_request.assert_called_once_with(
+            "GET",
+            "/unittest/_search",
+            params={'docvalue_fields': "id", "_source": False},
+            body=params["body"],
+            headers={"Accept-Encoding": "identity"}
+        )
+
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_query_vector_search_with_custom_id_field_inside_source(self, opensearch):
+        search_response = {
+            "timed_out": False,
+            "took": 5,
+            "hits": {
+                "total": {
+                    "value": 3,
+                    "relation": "eq"
+                },
+                "hits": [
+                    {
+                        "_id": "random-id1",
+                        "_score": 0.95,
+                        "_source": {
+                            "id": "101"
+                        }
+                    },
+                    {
+                        "_id": "random-id2",
+                        "_score": 0.88,
+                        "_source": {
+                            "id": "102"
+                        }
+                    },
+                    {
+                        "_id": "random-id3",
+                        "_score": 0.1,
+                        "_source": {
+                            "id": "103",
+                        }
+                    }
+                ]
+            }
+        }
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+
+        query_runner = runner.Query()
+
+        params = {
+            "index": "unittest",
+            "operation-type": "vector-search",
+            "detailed-results": True,
+            "response-compression-enabled": False,
+            "id-field-name": "id",
+            "k": 3,
+            "neighbors": ["101", "102", "103"],
+            "body": {
+                "query": {
+                    "knn": {
+                        "location": {
+                            "vector": [
+                                5,
+                                4
+                            ],
+                            "k": 3
+                        }
+                    }}
+            }
+        }
+
+        async with query_runner:
+            result = await query_runner(opensearch, params)
+
+        self.assertEqual(1, result["weight"])
+        self.assertEqual("ops", result["unit"])
+        self.assertEqual(3, result["hits"])
+        self.assertEqual("eq", result["hits_relation"])
+        self.assertFalse(result["timed_out"])
+        self.assertEqual(5, result["took"])
+        self.assertIn("recall_time_ms", result.keys())
+        self.assertIn("recall@k", result.keys())
+        self.assertEqual(result["recall@k"], 1.0)
+        self.assertIn("recall@1", result.keys())
+        self.assertEqual(result["recall@1"], 1.0)
         self.assertNotIn("error-type", result.keys())
 
         opensearch.transport.perform_request.assert_called_once_with(
