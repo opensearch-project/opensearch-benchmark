@@ -2599,8 +2599,10 @@ class VectorSearchQueryRunnerTests(TestCase):
         )
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_query_vector_search_with_custom_id_field(self, opensearch):
+    async def test_query_vector_search_with_custom_id_field(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -2689,8 +2691,10 @@ class VectorSearchQueryRunnerTests(TestCase):
         )
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_query_vector_search_with_custom_id_field_inside_source(self, opensearch):
+    async def test_query_vector_search_with_custom_id_field_inside_source(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
