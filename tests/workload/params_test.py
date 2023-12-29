@@ -2652,7 +2652,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
     def tearDown(self):
         shutil.rmtree(self.data_set_dir)
 
-    def test_params(self):
+    def test_params_default(self):
         # Create a data set
         k = 12
         data_set_path = create_data_set(
@@ -2676,10 +2676,13 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             "data_set_format": self.DEFAULT_TYPE,
             "data_set_path": data_set_path,
             "neighbors_data_set_path": neighbors_data_set_path,
-            "k": k,
+            "k": k
         }
         query_param_source = VectorSearchPartitionParamSource(
-            test_param_source_params, {"index": self.DEFAULT_INDEX_NAME, "request-params": {}}
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+            }
         )
 
         # Check each
@@ -2688,7 +2691,57 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
                 query_param_source.params(),
                 self.DEFAULT_FIELD_NAME,
                 self.DEFAULT_DIMENSION,
-                k
+                k,
+            )
+
+        # Assert last call creates stop iteration
+        with self.assertRaises(StopIteration):
+            query_param_source.params()
+
+    def test_params_custom_body(self):
+        # Create a data set
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        neighbors_data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir
+        )
+
+        # Create a QueryVectorsFromDataSetParamSource with relevant params
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "neighbors_data_set_path": neighbors_data_set_path,
+            "k": k
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+                "body": {
+                    "size": 100,
+                }
+            }
+        )
+
+        # Check each
+        for _ in range(DEFAULT_NUM_VECTORS):
+            self._check_params(
+                query_param_source.params(),
+                self.DEFAULT_FIELD_NAME,
+                self.DEFAULT_DIMENSION,
+                k,
+                100,
             )
 
         # Assert last call creates stop iteration
@@ -2697,12 +2750,13 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
 
     def _check_params(
             self,
-            params: dict,
+            actual_params: dict,
             expected_field: str,
             expected_dimension: int,
-            expected_k: int
+            expected_k: int,
+            expected_size=None,
     ):
-        body = params.get("body")
+        body = actual_params.get("body")
         self.assertIsInstance(body, dict)
         query = body.get("query")
         self.assertIsInstance(query, dict)
@@ -2715,6 +2769,8 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
         self.assertEqual(len(list(vector)), expected_dimension)
         k = field.get("k")
         self.assertEqual(k, expected_k)
-        neighbor = params.get("neighbors")
+        neighbor = actual_params.get("neighbors")
         self.assertIsInstance(neighbor, list)
         self.assertEqual(len(neighbor), expected_dimension)
+        size = body.get("size")
+        self.assertEqual(size, expected_size if expected_size else expected_k)
