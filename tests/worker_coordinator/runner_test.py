@@ -1368,8 +1368,10 @@ class IndicesStatsRunnerTests(TestCase):
 
 class QueryRunnerTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_query_match_only_request_body_defined(self, opensearch):
+    async def test_query_match_only_request_body_defined(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -1424,8 +1426,10 @@ class QueryRunnerTests(TestCase):
         opensearch.clear_scroll.assert_not_called()
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_query_with_timeout_and_headers(self, opensearch):
+    async def test_query_with_timeout_and_headers(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -1483,8 +1487,10 @@ class QueryRunnerTests(TestCase):
         opensearch.clear_scroll.assert_not_called()
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_query_match_using_request_params(self, opensearch):
+    async def test_query_match_using_request_params(self, opensearch, on_client_request_start, on_client_request_end):
         response = {
             "timed_out": False,
             "took": 62,
@@ -1541,8 +1547,10 @@ class QueryRunnerTests(TestCase):
         opensearch.clear_scroll.assert_not_called()
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_query_no_detailed_results(self, opensearch):
+    async def test_query_no_detailed_results(self, opensearch, on_client_request_start, on_client_request_end):
         response = {
             "timed_out": False,
             "took": 62,
@@ -1595,8 +1603,10 @@ class QueryRunnerTests(TestCase):
         opensearch.clear_scroll.assert_not_called()
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_query_hits_total_as_number(self, opensearch):
+    async def test_query_hits_total_as_number(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -1650,8 +1660,10 @@ class QueryRunnerTests(TestCase):
         opensearch.clear_scroll.assert_not_called()
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_query_match_all(self, opensearch):
+    async def test_query_match_all(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -1706,8 +1718,10 @@ class QueryRunnerTests(TestCase):
         opensearch.clear_scroll.assert_not_called()
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_query_match_all_doc_type_fallback(self, opensearch):
+    async def test_query_match_all_doc_type_fallback(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -1763,8 +1777,10 @@ class QueryRunnerTests(TestCase):
         opensearch.clear_scroll.assert_not_called()
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_scroll_query_only_one_page(self, opensearch):
+    async def test_scroll_query_only_one_page(self, opensearch, on_client_request_start, on_client_request_end):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -1825,8 +1841,10 @@ class QueryRunnerTests(TestCase):
         opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_scroll_query_no_request_cache(self, opensearch):
+    async def test_scroll_query_no_request_cache(self, opensearch, on_client_request_start, on_client_request_end):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -1887,8 +1905,10 @@ class QueryRunnerTests(TestCase):
         opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_scroll_query_only_one_page_only_request_body_defined(self, opensearch):
+    async def test_scroll_query_only_one_page_only_request_body_defined(self, opensearch, on_client_request_start, on_client_request_end):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -1949,8 +1969,10 @@ class QueryRunnerTests(TestCase):
         opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_scroll_query_with_explicit_number_of_pages(self, opensearch):
+    async def test_scroll_query_with_explicit_number_of_pages(self, opensearch, on_client_request_start, on_client_request_end):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -2023,8 +2045,10 @@ class QueryRunnerTests(TestCase):
         opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_scroll_query_cannot_clear_scroll(self, opensearch):
+    async def test_scroll_query_cannot_clear_scroll(self, opensearch, on_client_request_start, on_client_request_end):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -2074,8 +2098,10 @@ class QueryRunnerTests(TestCase):
         opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_scroll_query_request_all_pages(self, opensearch):
+    async def test_scroll_query_request_all_pages(self, opensearch, on_client_request_start, on_client_request_end):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -2148,8 +2174,10 @@ class QueryRunnerTests(TestCase):
         opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_search_pipeline_using_request_params(self, opensearch):
+    async def test_search_pipeline_using_request_params(self, opensearch, on_client_request_start, on_client_request_end):
         response = {
             "timed_out": False,
             "took": 62,
@@ -2208,8 +2236,10 @@ class QueryRunnerTests(TestCase):
         opensearch.clear_scroll.assert_not_called()
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_query_vector_search_with_perfect_recall(self, opensearch):
+    async def test_query_vector_search_with_perfect_recall(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -2284,8 +2314,10 @@ class QueryRunnerTests(TestCase):
         )
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_query_vector_search_with_no_results(self, opensearch):
+    async def test_query_vector_search_with_no_results(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 1
@@ -2340,8 +2372,10 @@ class QueryRunnerTests(TestCase):
 
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_query_vector_search_with_imperfect_recall(self, opensearch):
+    async def test_query_vector_search_with_imperfect_recall(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -2416,8 +2450,10 @@ class QueryRunnerTests(TestCase):
         )
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_query_vector_search_with_few_results_than_ground_truth(self, opensearch):
+    async def test_query_vector_search_with_few_results_than_ground_truth(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -2488,8 +2524,10 @@ class QueryRunnerTests(TestCase):
         )
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_query_vector_search_with_zero_recall_1(self, opensearch):
+    async def test_query_vector_search_with_zero_recall_1(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -5260,8 +5298,11 @@ class CompositeTests(TestCase):
         runner.remove_runner("call-recorder")
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.new_request_context')
     @run_async
-    async def test_execute_multiple_streams(self, opensearch):
+    async def test_execute_multiple_streams(self, opensearch, on_client_request_start, on_client_request_end,new_request_context):
         opensearch.transport.perform_request.side_effect = [
             # raw-request
             as_future(),
@@ -5337,8 +5378,11 @@ class CompositeTests(TestCase):
         ])
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.new_request_context')
     @run_async
-    async def test_propagates_violated_assertions(self, opensearch):
+    async def test_propagates_violated_assertions(self, opensearch, on_client_request_start, on_client_request_end, new_request_context):
         opensearch.transport.perform_request.side_effect = [
             # search
             as_future(io.StringIO(json.dumps({
@@ -5396,8 +5440,11 @@ class CompositeTests(TestCase):
         ])
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.new_request_context')
     @run_async
-    async def test_executes_tasks_in_specified_order(self, opensearch):
+    async def test_executes_tasks_in_specified_order(self, opensearch, on_client_request_start, on_client_request_end, new_request_context):
         opensearch.transport.perform_request.return_value = as_future()
 
         params = {

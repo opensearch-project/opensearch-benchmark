@@ -132,6 +132,7 @@ class SummaryResultsPublisher:
             task = record["task"]
             metrics_table.extend(self._publish_throughput(record, task))
             metrics_table.extend(self._publish_latency(record, task))
+            metrics_table.extend(self._publish_client_processing_time(record, task))
             metrics_table.extend(self._publish_service_time(record, task))
             # this is mostly needed for debugging purposes but not so relevant to end users
             if self.show_processing_time:
@@ -175,6 +176,9 @@ class SummaryResultsPublisher:
 
     def _publish_latency(self, values, task):
         return self._publish_percentiles("latency", task, values["latency"])
+
+    def _publish_client_processing_time(self, values, task):
+        return self._publish_percentiles("client_processing_time", task, values["client_processing_time"])
 
     def _publish_service_time(self, values, task):
         return self._publish_percentiles("service time", task, values["service_time"])
@@ -374,6 +378,7 @@ class ComparisonResultsPublisher:
             if t in contender_stats.tasks():
                 metrics_table.extend(self._publish_throughput(baseline_stats, contender_stats, t))
                 metrics_table.extend(self._publish_latency(baseline_stats, contender_stats, t))
+                metrics_table.extend(self._publish_client_processing_time(baseline_stats, contender_stats, t))
                 metrics_table.extend(self._publish_service_time(baseline_stats, contender_stats, t))
                 if self.show_processing_time:
                     metrics_table.extend(self._publish_processing_time(baseline_stats, contender_stats, t))
@@ -408,6 +413,11 @@ class ComparisonResultsPublisher:
         baseline_latency = baseline_stats.metrics(task)["latency"]
         contender_latency = contender_stats.metrics(task)["latency"]
         return self._publish_percentiles("latency", task, baseline_latency, contender_latency)
+
+    def _publish_client_processing_time(self, baseline_stats, contender_stats, task):
+        baseline_client_processing_time = baseline_stats.metrics(task)["client_processing_time"]
+        contender_client_processing_time = contender_stats.metrics(task)["client_processing_time"]
+        return self._publish_percentiles("client_processing_time", task, baseline_client_processing_time, contender_client_processing_time)
 
     def _publish_service_time(self, baseline_stats, contender_stats, task):
         baseline_service_time = baseline_stats.metrics(task)["service_time"]

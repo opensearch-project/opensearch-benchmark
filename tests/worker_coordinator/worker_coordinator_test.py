@@ -277,6 +277,9 @@ class SamplePostprocessorTests(TestCase):
     def latency(self, absolute_time, relative_time, value):
         return self.request_metric(absolute_time, relative_time, "latency", value)
 
+    def client_processing_time(self, absolute_time, relative_time, value):
+        return self.request_metric(absolute_time, relative_time, "client_processing_time", value)
+
     def request_metric(self, absolute_time, relative_time, name, value):
         return mock.call(name=name,
                          value=value,
@@ -300,17 +303,23 @@ class SamplePostprocessorTests(TestCase):
         samples = [
             worker_coordinator.Sample(
                 0, 38598, 24, 0, task, metrics.SampleType.Normal,
-                None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2),
+                None, 0.01, 0.0007, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2),
             worker_coordinator.Sample(
                 0, 38599, 25, 0, task, metrics.SampleType.Normal,
-                None, 0.01, 0.007, 0.009, None, 5000, "docs", 2, 2 / 2),
+                None, 0.01, 0.0007, 0.007, 0.009, None, 5000, "docs", 2, 2 / 2),
         ]
 
         post_process(samples)
 
         calls = [
-            self.latency(38598, 24, 10.0), self.service_time(38598, 24, 7.0), self.processing_time(38598, 24, 9.0),
-            self.latency(38599, 25, 10.0), self.service_time(38599, 25, 7.0), self.processing_time(38599, 25, 9.0),
+            self.latency(38598, 24, 10.0),
+            self.client_processing_time(38598, 24, 0.7),
+            self.service_time(38598, 24, 7.0),
+            self.processing_time(38598, 24, 9.0),
+            self.latency(38599, 25, 10.0),
+            self.client_processing_time(38599, 25, 0.7),
+            self.service_time(38599, 25, 7.0),
+            self.processing_time(38599, 25, 9.0),
             self.throughput(38598, 24, 5000),
             self.throughput(38599, 25, 5000),
         ]
@@ -328,17 +337,21 @@ class SamplePostprocessorTests(TestCase):
         samples = [
             worker_coordinator.Sample(
                 0, 38598, 24, 0, task, metrics.SampleType.Normal,
-                None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2),
+                None, 0.01, 0.0007, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2),
             worker_coordinator.Sample(
                 0, 38599, 25, 0, task, metrics.SampleType.Normal,
-                None, 0.01, 0.007, 0.009, None, 5000, "docs", 2, 2 / 2),
+                None, 0.01, 0.0007, 0.007, 0.009, None, 5000, "docs", 2, 2 / 2),
         ]
 
         post_process(samples)
 
         calls = [
-            # only the first out of two request samples is included, throughput metrics are still complete
-            self.latency(38598, 24, 10.0), self.service_time(38598, 24, 7.0), self.processing_time(38598, 24, 9.0),
+            # only the first out of two request samples is included,
+            # throughput metrics are still complete
+            self.latency(38598, 24, 10.0),
+            self.client_processing_time(38598, 24, 0.7),
+            self.service_time(38598, 24, 7.0),
+            self.processing_time(38598, 24, 9.0),
             self.throughput(38598, 24, 5000),
             self.throughput(38599, 25, 5000),
         ]
@@ -346,38 +359,42 @@ class SamplePostprocessorTests(TestCase):
 
     @mock.patch("osbenchmark.metrics.MetricsStore")
     def test_dependent_samples(self, metrics_store):
-        post_process = worker_coordinator.SamplePostprocessor(metrics_store,
-                                                  downsample_factor=1,
-                                                  workload_meta_data={},
-                                                  test_procedure_meta_data={})
+        post_process = worker_coordinator.SamplePostprocessor(
+            metrics_store,
+            downsample_factor=1,
+            workload_meta_data={},
+            test_procedure_meta_data={})
 
-        task = workload.Task("index", workload.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
+        task = workload.Task("index", workload.Operation(
+            "index-op", "bulk",
+            param_source="worker-coordinator-test-param-source"))
         samples = [
             worker_coordinator.Sample(
                 0, 38598, 24, 0, task, metrics.SampleType.Normal,
-                None, 0.01, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2,
-                          dependent_timing=[
-                              {
-                                  "absolute_time": 38601,
-                                  "request_start": 25,
-                                  "service_time": 0.05,
-                                  "operation": "index-op",
-                                  "operation-type": "bulk"
-                              },
-                              {
-                                  "absolute_time": 38602,
-                                  "request_start": 26,
-                                  "service_time": 0.08,
-                                  "operation": "index-op",
-                                  "operation-type": "bulk"
-                              }
-                          ]),
+                None, 0.01, 0.0007, 0.007, 0.009, None, 5000, "docs", 1, 1 / 2,
+                dependent_timing=[
+                    {
+                        "absolute_time": 38601,
+                        "request_start": 25,
+                        "service_time": 0.05,
+                        "operation": "index-op",
+                        "operation-type": "bulk"
+                    },
+                    {
+                        "absolute_time": 38602,
+                        "request_start": 26,
+                        "service_time": 0.08,
+                        "operation": "index-op",
+                        "operation-type": "bulk"
+                    }
+                ]),
         ]
 
         post_process(samples)
 
         calls = [
-            self.latency(38598, 24, 10.0), self.service_time(38598, 24, 7.0), self.processing_time(38598, 24, 9.0),
+            self.latency(38598, 24, 10.0), self.client_processing_time(38598, 24, 0.7),
+            self.service_time(38598, 24, 7.0), self.processing_time(38598, 24, 9.0),
             # dependent timings
             self.service_time(38601, 25, 50.0),
             self.service_time(38602, 26, 80.0),
@@ -722,11 +739,17 @@ class MetricsAggregationTests(TestCase):
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
 
     def test_different_sample_types(self):
-        op = workload.Operation("index", workload.OperationType.Bulk, param_source="worker-coordinator-test-param-source")
+        op = workload.Operation("index", workload.OperationType.Bulk,
+                                param_source="worker-coordinator-test-param-source")
 
         samples = [
-            worker_coordinator.Sample(0, 1470838595, 21, 0, op, metrics.SampleType.Warmup, None, -1, -1, -1, None, 3000, "docs", 1, 1),
-            worker_coordinator.Sample(0, 1470838595.5, 21.5, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 2500, "docs", 1, 1),
+            worker_coordinator.Sample(0, 1470838595, 21, 0, op,
+                                      metrics.SampleType.Warmup,
+                                      None, -1, -1, -1, -1, None,
+                                      3000, "docs", 1, 1),
+            worker_coordinator.Sample(0, 1470838595.5, 21.5, 0, op,
+                                      metrics.SampleType.Normal, None, -1,
+                                      -1, -1, -1, None, 2500, "docs", 1, 1),
         ]
 
         aggregated = self.calculate_global_throughput(samples)
@@ -740,18 +763,25 @@ class MetricsAggregationTests(TestCase):
         self.assertEqual((1470838595.5, 21.5, metrics.SampleType.Normal, 3666.6666666666665, "docs/s"), throughput[1])
 
     def test_single_metrics_aggregation(self):
-        op = workload.Operation("index", workload.OperationType.Bulk, param_source="worker-coordinator-test-param-source")
+        op = workload.Operation("index", workload.OperationType.Bulk,
+                                param_source="worker-coordinator-test-param-source")
 
         samples = [
-            worker_coordinator.Sample(0, 38595, 21, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 1, 1 / 9),
-            worker_coordinator.Sample(0, 38596, 22, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 2, 2 / 9),
-            worker_coordinator.Sample(0, 38597, 23, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 3, 3 / 9),
-            worker_coordinator.Sample(0, 38598, 24, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 4, 4 / 9),
-            worker_coordinator.Sample(0, 38599, 25, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 5, 5 / 9),
-            worker_coordinator.Sample(0, 38600, 26, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 6, 6 / 9),
-            worker_coordinator.Sample(1, 38598.5, 24.5, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 4.5, 7 / 9),
-            worker_coordinator.Sample(1, 38599.5, 25.5, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 5.5, 8 / 9),
-            worker_coordinator.Sample(1, 38600.5, 26.5, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, None, 5000, "docs", 6.5, 9 / 9)
+            worker_coordinator.Sample(0, 38595, 21, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 1, 1 / 9),
+            worker_coordinator.Sample(0, 38596, 22, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 2, 2 / 9),
+            worker_coordinator.Sample(0, 38597, 23, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 3, 3 / 9),
+            worker_coordinator.Sample(0, 38598, 24, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 4, 4 / 9),
+            worker_coordinator.Sample(0, 38599, 25, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 5, 5 / 9),
+            worker_coordinator.Sample(0, 38600, 26, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 6, 6 / 9),
+            worker_coordinator.Sample(1, 38598.5, 24.5, 0, op,
+                                      metrics.SampleType.Normal, None, -1, -1,
+                                      -1, -1, None, 5000, "docs", 4.5, 7 / 9),
+            worker_coordinator.Sample(1, 38599.5, 25.5, 0, op,
+                                      metrics.SampleType.Normal, None, -1, -1,
+                                      -1, -1, None, 5000, "docs", 5.5, 8 / 9),
+            worker_coordinator.Sample(1, 38600.5, 26.5, 0, op,
+                                      metrics.SampleType.Normal, None, -1, -1,
+                                      -1, -1, None, 5000, "docs", 6.5, 9 / 9)
         ]
 
         aggregated = self.calculate_global_throughput(samples)
@@ -774,9 +804,9 @@ class MetricsAggregationTests(TestCase):
                              param_source="worker-coordinator-test-param-source")
 
         samples = [
-            worker_coordinator.Sample(0, 38595, 21, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, 8000, 5000, "byte", 1, 1 / 3),
-            worker_coordinator.Sample(0, 38596, 22, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, 8000, 5000, "byte", 2, 2 / 3),
-            worker_coordinator.Sample(0, 38597, 23, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, 8000, 5000, "byte", 3, 3 / 3),
+            worker_coordinator.Sample(0, 38595, 21, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, 8000, 5000, "byte", 1, 1 / 3),
+            worker_coordinator.Sample(0, 38596, 22, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, 8000, 5000, "byte", 2, 2 / 3),
+            worker_coordinator.Sample(0, 38597, 23, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, 8000, 5000, "byte", 3, 3 / 3),
         ]
 
         aggregated = self.calculate_global_throughput(samples)
@@ -1104,6 +1134,14 @@ class AsyncExecutorTests(TestCase):
             return self.current_request_start
 
         @property
+        def client_request_start(self):
+            return self.current_request_start - 0.0025
+
+        @property
+        def client_request_end(self):
+            return self.current_request_start + 0.0525
+
+        @property
         def request_end(self):
             return self.current_request_start + 0.05
 
@@ -1150,8 +1188,12 @@ class AsyncExecutorTests(TestCase):
         runner.register_runner("override-throughput", self.runner_overriding_throughput, async_runner=True)
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextManager')
     @run_async
-    async def test_execute_schedule_in_throughput_mode(self, opensearch):
+    async def test_execute_schedule_in_throughput_mode(self, opensearch, on_client_request_start,
+                                                       on_client_request_end, MockRequestContextManager):
         task_start = time.perf_counter()
         opensearch.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
 
@@ -1328,8 +1370,12 @@ class AsyncExecutorTests(TestCase):
         self.assertIsNotNone(sample.time_period)
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextManager')
     @run_async
-    async def test_execute_schedule_throughput_throttled(self, opensearch):
+    async def test_execute_schedule_throughput_throttled(self, opensearch, on_client_request_start,
+                                                         on_client_request_end, MockRequestContextManager):
         def perform_request(*args, **kwargs):
             return as_future()
 
@@ -1394,8 +1440,10 @@ class AsyncExecutorTests(TestCase):
     @run_async
     async def test_cancel_execute_schedule(self, opensearch):
         opensearch.init_request_context.return_value = {
-            "request_start": 0,
-            "request_end": 10
+            "client_request_start": 0,
+            "request_start": 1,
+            "request_end": 11,
+            "client_request_end": 12
         }
         opensearch.bulk.return_value = as_future(io.StringIO('{"errors": false, "took": 8}'))
 

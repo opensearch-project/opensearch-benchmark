@@ -862,6 +862,16 @@ class SamplePostprocessor:
                                                            sample_type=sample.sample_type, absolute_time=sample.absolute_time,
                                                            relative_time=sample.relative_time, meta_data=meta_data)
 
+                self.metrics_store.put_value_cluster_level(
+                    name="client_processing_time",
+                    value=convert.seconds_to_ms(sample.client_processing_time),
+                    unit="ms", task=sample.task.name,
+                    operation=sample.operation_name,
+                    operation_type=sample.operation_type,
+                    sample_type=sample.sample_type,
+                    absolute_time=sample.absolute_time,
+                    relative_time=sample.relative_time, meta_data=meta_data)
+
                 self.metrics_store.put_value_cluster_level(name="service_time", value=convert.seconds_to_ms(sample.service_time),
                                                            unit="ms", task=sample.task.name,
                                                            operation=sample.operation_name, operation_type=sample.operation_type,
@@ -1180,12 +1190,12 @@ class Sampler:
         self.q = queue.Queue(maxsize=buffer_size)
         self.logger = logging.getLogger(__name__)
 
-    def add(self, task, client_id, sample_type, meta_data, absolute_time, request_start, latency, service_time,
+    def add(self, task, client_id, sample_type, meta_data, absolute_time, request_start, latency, client_processing_time, service_time,
             processing_time, throughput, ops, ops_unit, time_period, percent_completed, dependent_timing=None):
         try:
             self.q.put_nowait(
                 Sample(client_id, absolute_time, request_start, self.start_timestamp, task, sample_type, meta_data,
-                       latency, service_time, processing_time, throughput, ops, ops_unit, time_period,
+                       latency, client_processing_time, service_time, processing_time, throughput, ops, ops_unit, time_period,
                        percent_completed, dependent_timing))
         except queue.Full:
             self.logger.warning("Dropping sample for [%s] due to a full sampling queue.", task.operation.name)
@@ -1202,9 +1212,12 @@ class Sampler:
 
 
 class Sample:
-    def __init__(self, client_id, absolute_time, request_start, task_start, task, sample_type, request_meta_data, latency,
-                 service_time, processing_time, throughput, total_ops, total_ops_unit, time_period,
-                 percent_completed, dependent_timing=None, operation_name=None, operation_type=None):
+    def __init__(self, client_id, absolute_time, request_start, task_start,
+                 task, sample_type, request_meta_data, latency,
+                 client_processing_time, service_time, processing_time,
+                 throughput, total_ops, total_ops_unit, time_period,
+                 percent_completed, dependent_timing=None, operation_name=None,
+                 operation_type=None):
         self.client_id = client_id
         self.absolute_time = absolute_time
         self.request_start = request_start
@@ -1213,6 +1226,7 @@ class Sample:
         self.sample_type = sample_type
         self.request_meta_data = request_meta_data
         self.latency = latency
+        self.client_processing_time = client_processing_time
         self.service_time = service_time
         self.processing_time = processing_time
         self.throughput = throughput
@@ -1246,14 +1260,14 @@ class Sample:
         if self._dependent_timing:
             for t in self._dependent_timing:
                 yield Sample(self.client_id, t["absolute_time"], t["request_start"], self.task_start, self.task,
-                             self.sample_type, self.request_meta_data, 0, t["service_time"], 0, 0, self.total_ops,
+                             self.sample_type, self.request_meta_data, 0, 0, t["service_time"], 0, 0, self.total_ops,
                              self.total_ops_unit, self.time_period, self.percent_completed, None,
                              t["operation"], t["operation-type"])
 
     def __repr__(self, *args, **kwargs):
         return f"[{self.absolute_time}; {self.relative_time}] [client [{self.client_id}]] [{self.task}] " \
-               f"[{self.sample_type}]: [{self.latency}s] request latency, [{self.service_time}s] service time, " \
-               f"[{self.total_ops} {self.total_ops_unit}]"
+               f"[{self.sample_type}]: [{self.latency}s] request latency, [{self.client_processing_time}s] client processing time,  " \
+               f"[{self.service_time}s] service time, [{self.total_ops} {self.total_ops_unit}]"
 
 
 def select_test_procedure(config, t):
@@ -1582,9 +1596,12 @@ class AsyncExecutor:
                     total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch, params, self.on_error)
                     request_start = request_context.request_start
                     request_end = request_context.request_end
+                    client_request_start = request_context.client_request_start
+                    client_request_end = request_context.client_request_end
 
                 processing_end = time.perf_counter()
                 service_time = request_end - request_start
+                client_processing_time = (client_request_end - client_request_start)-service_time
                 processing_time = processing_end - processing_start
                 time_period = request_end - total_start
                 self.schedule_handle.after_request(processing_end, total_ops, total_ops_unit, request_meta_data)
@@ -1620,7 +1637,7 @@ class AsyncExecutor:
 
                 self.sampler.add(self.task, self.client_id, sample_type, request_meta_data,
                                  absolute_processing_start, request_start,
-                                 latency, service_time, processing_time, throughput, total_ops, total_ops_unit,
+                                 latency, client_processing_time, service_time, processing_time, throughput, total_ops, total_ops_unit,
                                  time_period, progress, request_meta_data.pop("dependent_timing", None))
 
                 if completed:

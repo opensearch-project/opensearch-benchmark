@@ -42,6 +42,7 @@ from typing import List, Optional
 import ijson
 
 from osbenchmark import exceptions, workload
+from osbenchmark.client import RequestContextHolder
 from osbenchmark.utils import convert
 
 # Mapping from operation type to specific runner
@@ -97,6 +98,9 @@ def register_default_runners():
     register_runner(workload.OperationType.WaitForTransform, Retry(WaitForTransform()), async_runner=True)
     register_runner(workload.OperationType.DeleteTransform, Retry(DeleteTransform()), async_runner=True)
     register_runner(workload.OperationType.CreateSearchPipeline, Retry(CreateSearchPipeline()), async_runner=True)
+
+
+request_context_holder = RequestContextHolder()
 
 
 def runner_for(operation_type):
@@ -166,6 +170,7 @@ class Runner:
         self.logger = logging.getLogger(__name__)
 
     async def __aenter__(self):
+        request_context_holder.on_client_request_start()
         return self
 
     async def __call__(self, opensearch, params):
@@ -181,6 +186,7 @@ class Runner:
         raise NotImplementedError("abstract operation")
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
+        request_context_holder.on_client_request_end()
         return False
 
     def _default_kw_params(self, params):
