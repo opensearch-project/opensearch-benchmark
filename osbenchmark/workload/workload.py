@@ -585,6 +585,7 @@ class OperationType(Enum):
     DeletePointInTime = 15
     ListAllPointInTime = 16
     VectorSearch = 17
+    BulkVectorDataSet = 18
 
     # administrative actions
     ForceMerge = 1001
@@ -644,6 +645,8 @@ class OperationType(Enum):
             return OperationType.PaginatedSearch
         elif v == "vector-search":
             return OperationType.VectorSearch
+        elif v == "bulk-vector-data-set":
+            return OperationType.BulkVectorDataSet
         elif v == "cluster-health":
             return OperationType.ClusterHealth
         elif v == "bulk":
