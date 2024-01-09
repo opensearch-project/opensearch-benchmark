@@ -2737,13 +2737,13 @@ class VectorSearchQueryRunnerTests(TestCase):
         )
 
 
-class CreateIngestPipelineRunnerTests(TestCase):
+class PutPipelineRunnerTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
     async def test_create_pipeline(self, opensearch):
         opensearch.ingest.put_pipeline.return_value = as_future()
 
-        r = runner.CreateIngestPipeline()
+        r = runner.PutPipeline()
 
         params = {
             "id": "rename",
@@ -2769,16 +2769,13 @@ class CreateIngestPipelineRunnerTests(TestCase):
     async def test_param_body_mandatory(self, opensearch):
         opensearch.ingest.put_pipeline.return_value = as_future()
 
-        r = runner.CreateIngestPipeline()
+        r = runner.PutPipeline()
 
         params = {
             "id": "rename"
         }
         with self.assertRaisesRegex(exceptions.DataError,
-                                    "Parameter source "
-                                    "for operation 'create-ingest-pipeline' "
-                                    "did not provide the "
-                                    "mandatory parameter 'body'. "
+                                    "Parameter source for operation 'put-pipeline' did not provide the mandatory parameter 'body'. "
                                     "Add it to your parameter source and try again."):
             await r(opensearch, params)
 
@@ -2789,15 +2786,13 @@ class CreateIngestPipelineRunnerTests(TestCase):
     async def test_param_id_mandatory(self, opensearch):
         opensearch.ingest.put_pipeline.return_value = as_future()
 
-        r = runner.CreateIngestPipeline()
+        r = runner.PutPipeline()
 
         params = {
             "body": {}
         }
         with self.assertRaisesRegex(exceptions.DataError,
-                                    "Parameter source for "
-                                    "operation 'create-ingest-pipeline' did"
-                                    " not provide the mandatory parameter 'id'. "
+                                    "Parameter source for operation 'put-pipeline' did not provide the mandatory parameter 'id'. "
                                     "Add it to your parameter source and try again."):
             await r(opensearch, params)
 
