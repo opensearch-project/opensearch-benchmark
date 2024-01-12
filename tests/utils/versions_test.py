@@ -110,40 +110,40 @@ class TestsVersions:
             versions.VersionVariants("5.0.0a-SNAPSHOT")
 
     def test_find_best_match(self):
-        assert versions.best_match(["1.7", "2", "5.0.0-alpha1", "5", "main"], "6.0.0-alpha1") == "main",\
+        assert versions.best_matching_version(["1.7", "2", "5.0.0-alpha1", "5", "main"], "6.0.0-alpha1") == "main",\
             "Assume main for versions newer than latest alternative available"
 
-        assert versions.best_match(["1.7", "2", "5.0.0-alpha1", "5", "main"], "5.1.0-SNAPSHOT") == "5",\
+        assert versions.best_matching_version(["1.7", "2", "5.0.0-alpha1", "5", "main"], "5.1.0-SNAPSHOT") == "5",\
             "Best match for specific version"
 
-        assert versions.best_match(["1.7", "2", "5.0.0-alpha1", "5", "main"], None) == "main",\
+        assert versions.best_matching_version(["1.7", "2", "5.0.0-alpha1", "5", "main"], None) == "main",\
             "Assume main on unknown version"
 
-        assert versions.best_match(["1.7", "2", "5.0.0-alpha1", "5", "main"], "0.4") is None,\
+        assert versions.best_matching_version(["1.7", "2", "5.0.0-alpha1", "5", "main"], "0.4") is None,\
             "Reject versions that are too old"
 
-        assert versions.best_match(["7", "7.10.2", "7.11", "7.2", "5", "6", "main"], "7.10.2") == "7.10.2", \
+        assert versions.best_matching_version(["7", "7.10.2", "7.11", "7.2", "5", "6", "main"], "7.10.2") == "7.10.2", \
             "Exact match"
 
-        assert versions.best_match(["7", "7.10", "main"], "7.1.0") == "7", \
+        assert versions.best_matching_version(["7", "7.10", "main"], "7.1.0") == "7", \
             "Best match is major version"
 
-        assert versions.best_match(["7", "7.11", "7.2", "5", "6", "main"], "7.11.0") == "7.11",\
+        assert versions.best_matching_version(["7", "7.11", "7.2", "5", "6", "main"], "7.11.0") == "7.11",\
             "Best match for specific minor version"
 
-        assert versions.best_match(["7", "7.11", "7.2", "5", "6", "main"], "7.12.0") == "7.11",\
+        assert versions.best_matching_version(["7", "7.11", "7.2", "5", "6", "main"], "7.12.0") == "7.11",\
             "If no exact match, best match is the nearest prior minor"
 
-        assert versions.best_match(["7", "7.11", "7.2", "5", "6", "main"], "7.3.0") == "7.2",\
+        assert versions.best_matching_version(["7", "7.11", "7.2", "5", "6", "main"], "7.3.0") == "7.2",\
             "If no exact match, best match is the nearest prior minor"
 
-        assert versions.best_match(["7", "7.11", "7.2", "5", "6", "main"], "7.10.0") == "7.2", \
+        assert versions.best_matching_version(["7", "7.11", "7.2", "5", "6", "main"], "7.10.0") == "7.2", \
             "If no exact match, best match is the nearest prior minor"
 
-        assert versions.best_match(["7", "7.1", "7.11.1", "7.11.0", "7.2", "5", "6", "main"], "7.12.0") == "7.2",\
+        assert versions.best_matching_version(["7", "7.1", "7.11.1", "7.11.0", "7.2", "5", "6", "main"], "7.12.0") == "7.2",\
             "Patch or patch-suffix branches are not supported and ignored, best match is nearest prior minor"
 
-        assert versions.best_match(["7", "7.11", "7.2", "5", "6", "main"], "7.1.0") == "7",\
+        assert versions.best_matching_version(["7", "7.11", "7.2", "5", "6", "main"], "7.1.0") == "7",\
             "If no exact match and no minor match, next best match is major version"
 
     def test_version_comparison(self):

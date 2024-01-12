@@ -62,10 +62,10 @@ class BenchmarkRepository:
                     raise exceptions.SystemSetupError("[{src}] must be a git repository.\n\nPlease run:\ngit -C {src} init"
                                                       .format(src=self.repo_dir))
 
-    def update(self, distribution_version):
+    def update(self, distribution_version, distribution_type=None):
         try:
             if self.remote:
-                branch = versions.best_match(git.branches(self.repo_dir, remote=self.remote), distribution_version)
+                branch = versions.best_matching_branch(git.branches(self.repo_dir, remote=self.remote), distribution_version, distribution_type)
                 if branch:
                     # Allow uncommitted changes iff we do not have to change the branch
                     self.logger.info(
@@ -85,7 +85,7 @@ class BenchmarkRepository:
                     msg = "Could not find %s remotely for distribution version [%s]. Trying to find %s locally." % \
                           (self.resource_name, distribution_version, self.resource_name)
                     self.logger.warning(msg)
-            branch = versions.best_match(git.branches(self.repo_dir, remote=False), distribution_version)
+            branch = versions.best_matching_branch(git.branches(self.repo_dir, remote=False), distribution_version, distribution_type)
             if branch:
                 if git.current_branch(self.repo_dir) != branch:
                     self.logger.info("Checking out [%s] in [%s] for distribution version [%s].",

@@ -184,8 +184,10 @@ class BenchmarkCoordinator:
         # but there are rare cases (external pipeline and user did not specify the distribution version) where we need
         # to derive it ourselves. For source builds we always assume "master"
         if not sources and not self.cfg.exists("builder", "distribution.version"):
+            distribution_type = builder.cluster_distribution_type(self.cfg)
             distribution_version = builder.cluster_distribution_version(self.cfg)
             self.logger.info("Automatically derived distribution version [%s]", distribution_version)
+            self.cfg.add(config.Scope.benchmark, "builder", "distribution.type", distribution_type)
             self.cfg.add(config.Scope.benchmark, "builder", "distribution.version", distribution_version)
             min_os_version = versions.Version.from_string(version.minimum_os_version())
             specified_version = versions.Version.from_string(distribution_version)

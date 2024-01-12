@@ -31,6 +31,10 @@ VERSIONS = re.compile(r"^(\d+)\.(\d+)\.(\d+)(?:-(.+))?$")
 
 VERSIONS_OPTIONAL = re.compile(r"^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:-(.+))?$")
 
+OS_VERSIONS = ["1", "2", "3"]
+
+ES_VERSIONS = ["6", "7"]
+
 
 def _versions_pattern(strict):
     return VERSIONS if strict else VERSIONS_OPTIONAL
@@ -151,9 +155,9 @@ class VersionVariants:
         return versions
 
 
-def best_match(available_alternatives, distribution_version):
+def best_matching_version(available_alternatives, distribution_version):
     """
-    Finds the most specific branch for a given distribution version assuming that versions have the pattern:
+    Finds the most specific branch version number for a given distribution version assuming that versions have the pattern:
 
         major.minor.patch-suffix
 
@@ -186,6 +190,38 @@ def best_match(available_alternatives, distribution_version):
     elif not distribution_version:
         return "main"
     return None
+
+
+def best_matching_branch(available_alternatives, distribution_version, distribution_type=None):
+    """
+    Finds the most specific branch for a given distribution version by calling best_matching_version().
+    See best_matching_version() for more explainations.
+
+    :param available_alternatives: A list of possible distribution versions (or shortened versions).
+    :param distribution_version: An OpenSearch distribution version.
+    :param distribution_type: A type of cluster engine.
+    :return: The most specific alternative that is available or None.
+    """
+    version = best_matching_version(available_alternatives, distribution_version)
+    if distribution_type == "":
+        distribution_type = "elasticsearch" 
+    if version and version != "main":
+        version_list = [OS_VERSIONS, ES_VERSIONS]
+        matched_type = next((i for i, lst in enumerate(version_list) if version in lst), "")
+        matched_type = "opensearch" if matched_type == 0 else "elasticsearch"
+        if distribution_type and distribution_type != matched_type:
+            raise exceptions.BuildError("mismatched expected ('%s') and actual distribution type ('%s')" % (matched_type, distribution_type))
+        elif distribution_type == "opensearch" or matched_type == "opensearch":
+            prefix = "OS-"
+        elif distribution_type == "elasticsearch" or matched_type == "elasticsearch":
+            prefix = "ES-"
+        else:
+            raise exceptions.InvalidSyntax("unlisted distribution type '%s'" % (distribution_type))
+        return prefix + version
+    else:
+        #the returing version variable at this point should be either None or 'main'
+        return version
+
 
 
 def _latest_major(alternatives):
