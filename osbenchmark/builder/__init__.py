@@ -24,4 +24,4 @@
 
 # expose only the minimum API
 from .builder import StartEngine, EngineStarted, StopEngine, EngineStopped, ResetRelativeTime, BuilderActor, \
-    cluster_distribution_version, download, install, start, stop
+    cluster_distribution_version, cluster_distribution_type, download, install, start, stop

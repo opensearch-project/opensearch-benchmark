@@ -158,11 +158,11 @@ class BenchmarkRepositoryTests(TestCase):
             resource_name="unittest-resources",
             offline=random.choice([True, False]))
 
-        r.update(distribution_version="1.7.3")
+        r.update(distribution_version="1.7.3", distribution_type="opensearch")
 
         branches.assert_called_with("/benchmark-resources/unit-test", remote=True)
-        rebase.assert_called_with("/benchmark-resources/unit-test", branch="1")
-        checkout.assert_called_with("/benchmark-resources/unit-test", branch="1")
+        rebase.assert_called_with("/benchmark-resources/unit-test", branch="OS-1")
+        checkout.assert_called_with("/benchmark-resources/unit-test", branch="OS-1")
 
     @mock.patch("osbenchmark.utils.git.head_revision")
     @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)
@@ -184,7 +184,7 @@ class BenchmarkRepositoryTests(TestCase):
             resource_name="unittest-resources",
             offline=False)
 
-        r.update(distribution_version="6.0.0")
+        r.update(distribution_version="6.0.0", distribution_type="")
 
         branches.assert_called_with("/benchmark-resources/unit-test", remote=False)
         self.assertEqual(0, rebase.call_count)
@@ -212,7 +212,7 @@ class BenchmarkRepositoryTests(TestCase):
             resource_name="unittest-resources",
             offline=False)
 
-        r.update(distribution_version="1.7.4")
+        r.update(distribution_version="1.7.4", distribution_type="opensearch")
 
         branches.assert_called_with("/benchmark-resources/unit-test", remote=False)
         self.assertEqual(0, rebase.call_count)
@@ -280,7 +280,7 @@ class BenchmarkRepositoryTests(TestCase):
             resource_name="unittest-resources",
             offline=False)
 
-        r.update(distribution_version="1.7.3")
+        r.update(distribution_version="1.7.3", distribution_type="opensearch")
 
         calls = [
             # first try to find it remotely...
@@ -291,7 +291,7 @@ class BenchmarkRepositoryTests(TestCase):
 
         branches.assert_has_calls(calls)
         self.assertEqual(0, tags.call_count)
-        checkout.assert_called_with("/benchmark-resources/unit-test", branch="1")
+        checkout.assert_called_with("/benchmark-resources/unit-test", branch="OS-1")
         self.assertEqual(0, rebase.call_count)
 
     @mock.patch("osbenchmark.utils.git.is_working_copy", autospec=True)

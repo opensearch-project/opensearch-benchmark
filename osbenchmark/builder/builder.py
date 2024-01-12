@@ -273,6 +273,28 @@ def cluster_distribution_version(cfg, client_factory=client.OsClientFactory):
     return distribution_version
 
 
+def cluster_distribution_type(cfg, client_factory=client.OsClientFactory):
+    """
+    Attempt to get the cluster's distribution type even before it is actually started (which makes only sense for externally
+    provisioned clusters).
+
+    :param cfg: The current config object.
+    :param client_factory: Factory class that creates the OpenSearch client.
+    :return: The distribution type.
+    """
+    hosts = cfg.opts("client", "hosts").default
+    client_options = cfg.opts("client", "options").default
+    opensearch = client_factory(hosts, client_options).create()
+    # unconditionally wait for the REST layer - if it's not up by then, we'll intentionally raise the original error
+    client.wait_for_rest_layer(opensearch)
+    try:
+        distribution_type = opensearch.info()["version"]["distribution"]
+    except Exception:
+        console.warn("Could not determine distribution type from endpoint, use --distribution-version to specify")
+        distribution_type = None
+    return distribution_type
+
+
 def to_ip_port(hosts):
     ip_port_pairs = []
     for host in hosts:

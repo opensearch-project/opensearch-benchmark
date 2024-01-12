@@ -315,6 +315,7 @@ class GitWorkloadRepository:
         # current workload name (if any)
         self.workload_name = cfg.opts("workload", "workload.name", mandatory=False)
         distribution_version = cfg.opts("builder", "distribution.version", mandatory=False)
+        distribution_type = cfg.opts("builder", "distribution.type", mandatory=False)
         repo_name = cfg.opts("workload", "repository.name")
         repo_revision = cfg.opts("workload", "repository.revision", mandatory=False)
         offline = cfg.opts("system", "offline.mode")
@@ -328,7 +329,7 @@ class GitWorkloadRepository:
             if repo_revision:
                 self.repo.checkout(repo_revision)
             else:
-                self.repo.update(distribution_version)
+                self.repo.update(distribution_version, distribution_type)
                 cfg.add(config.Scope.applicationOverride, "workload", "repository.revision", self.repo.revision)
 
     @property
