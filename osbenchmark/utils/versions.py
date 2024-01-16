@@ -215,6 +215,7 @@ def best_matching_branch(available_alternatives, distribution_version, distribut
             prefix = "OS-"
         elif distribution_type == "elasticsearch" or matched_type == "elasticsearch":
             prefix = "ES-"
+        #this else case will not be invoked since unlisted distribution type will be de catched by the first if.
         else:
             raise exceptions.InvalidSyntax("unlisted distribution type '%s'" % (distribution_type))
         return prefix + version

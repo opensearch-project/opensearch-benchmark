@@ -109,7 +109,7 @@ class TestsVersions:
         ):
             versions.VersionVariants("5.0.0a-SNAPSHOT")
 
-    def test_find_best_match(self):
+    def test_find_best_matching_version(self):
         assert versions.best_matching_version(["1.7", "2", "5.0.0-alpha1", "5", "main"], "6.0.0-alpha1") == "main",\
             "Assume main for versions newer than latest alternative available"
 
@@ -145,6 +145,37 @@ class TestsVersions:
 
         assert versions.best_matching_version(["7", "7.11", "7.2", "5", "6", "main"], "7.1.0") == "7",\
             "If no exact match and no minor match, next best match is major version"
+
+
+    def test_find_best_matching_branch(self):
+        assert versions.best_matching_branch(["1","2","3","6","7","OS-1","OS-2","OS-3","ES-6","ES-7", "main"], "2.11.1", "opensearch") == "OS-2",\
+            "Best match for specific version"
+        
+        assert versions.best_matching_branch(["1","2","3","6","7","OS-1","OS-2","OS-3","ES-6","ES-7", "main"], "8.11.1", "opensearch") == "main",\
+            "Assume main for versions newer than latest alternative available"
+        
+        assert versions.best_matching_branch(["1","2","3","6","7","OS-1","OS-2","OS-3","ES-6","ES-7", "main"], None, "opensearch") == "main",\
+            "Assume main on unknown version"
+        
+        assert versions.best_matching_branch(["1","2","3","6","7","OS-1","OS-2","OS-3","ES-6","ES-7", "main"], "2.11.1", None) == "OS-2",\
+            "Assume type when type is unkown"
+        
+        assert versions.best_matching_branch(["1","2","3","6","7","OS-1","OS-2","OS-3","ES-6","ES-7", "main"], "0.4", None) is None,\
+            "Reject versions that are too old"
+        
+        with pytest.raises(exceptions.BuildError) as ctx:  
+            versions.best_matching_branch(["1","2","3","6","7","OS-1","OS-2","OS-3","ES-6","ES-7", "main"],"2.11.1", "")  
+        assert str(ctx.value) == "mismatched expected ('opensearch') and actual distribution type ('elasticsearch')",\
+            "Exception raised for mismatched expected and actural distribution type"
+        
+        with pytest.raises(exceptions.BuildError) as ctx:  
+            versions.best_matching_branch(["1","2","3","6","7","OS-1","OS-2","OS-3","ES-6","ES-7", "main"],"2.11.1", "unlistedtype")  
+        assert str(ctx.value) == "mismatched expected ('opensearch') and actual distribution type ('unlistedtype')",\
+            "Exception raised for valid version number but unexpected distribution type" 
+        
+        assert versions.best_matching_branch(["1","2","3","6","7","OS-1","OS-2","OS-3","ES-6","ES-7", "main"],"4.1.1", "unlistedtype") is None,\
+            "Reject invalid version number and unexpected distribution type (No exception)"
+        
 
     def test_version_comparison(self):
         assert versions.Version.from_string("7.10.2") < versions.Version.from_string("7.11.0")
