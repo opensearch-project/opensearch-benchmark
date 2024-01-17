@@ -65,7 +65,8 @@ class BenchmarkRepository:
     def update(self, distribution_version, distribution_type=None):
         try:
             if self.remote:
-                branch = versions.best_matching_branch(git.branches(self.repo_dir, remote=self.remote), distribution_version, distribution_type)
+                branch = versions.best_matching_branch(git.branches(self.repo_dir, remote=self.remote), \
+                                                       distribution_version, distribution_type)
                 if branch:
                     # Allow uncommitted changes iff we do not have to change the branch
                     self.logger.info(

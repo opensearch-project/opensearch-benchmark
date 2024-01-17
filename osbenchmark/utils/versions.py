@@ -204,13 +204,14 @@ def best_matching_branch(available_alternatives, distribution_version, distribut
     """
     version = best_matching_version(available_alternatives, distribution_version)
     if distribution_type == "":
-        distribution_type = "elasticsearch" 
+        distribution_type = "elasticsearch"
     if version and version != "main":
         version_list = [OS_VERSIONS, ES_VERSIONS]
         matched_type = next((i for i, lst in enumerate(version_list) if version in lst), "")
         matched_type = "opensearch" if matched_type == 0 else "elasticsearch"
         if distribution_type and distribution_type != matched_type:
-            raise exceptions.BuildError("mismatched expected ('%s') and actual distribution type ('%s')" % (matched_type, distribution_type))
+            raise exceptions.BuildError("mismatched expected ('%s') and actual distribution type ('%s')" % \
+                                        (matched_type, distribution_type))
         elif distribution_type == "opensearch" or matched_type == "opensearch":
             prefix = "OS-"
         elif distribution_type == "elasticsearch" or matched_type == "elasticsearch":
