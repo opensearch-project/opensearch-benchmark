@@ -40,7 +40,12 @@ services:
     networks:
       - opensearch-net
     healthcheck:
-          test: curl -f http://localhost:{{http_port}} -u admin:myStrongPassword123! --insecure
+          {%- set version_numbers = os_version.split('.') | map('int') %}
+          {%- if version_numbers[0] > 2 or (version_numbers[0] == 2 and version_numbers[1] >= 12) %}
+            test: curl -f http://localhost:{{http_port}} -u admin:myStrongPassword123! --insecure
+          {%- else %}
+            test: curl -f http://localhost:{{http_port}} -u admin:admin --insecure
+          {%- endif %}
           interval: 5s
           timeout: 2s
           retries: 10
