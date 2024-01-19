@@ -1787,6 +1787,49 @@ class InMemoryMetricsStoreTests(TestCase):
             self.assertAlmostEqual(expected_percentiles[percentile], actual_percentile_value, places=1,
                                    msg=str(percentile) + "th percentile differs")
 
+    def test_filter_percentiles_by_sample_size(self):
+        test_percentiles = [
+            0,
+            0.0001,
+            0.001,
+            0.01,
+            0.1,
+            4,
+            10,
+            10.01,
+            45,
+            46.001,
+            50,
+            80.1,
+            90,
+            98.9,
+            98.91,
+            98.999,
+            99,
+            99.9,
+            99.99,
+            99.999,
+            99.9999,
+            100]
+        sample_size_to_result_map = {
+            1: [100],
+            5: [50, 100],
+            10: [0, 10, 50, 90, 100],
+            99: [0, 10, 50, 90, 100],
+            100: [0, 4, 10, 45, 50, 90, 99, 100],
+            1000: [0, 0.1, 4, 10, 45, 50, 80.1, 90, 98.9, 99, 99.9, 100],
+            10000: [0, 0.01, 0.1, 4, 10, 10.01, 45, 50, 80.1, 90, 98.9, 98.91, 99, 99.9, 99.99, 100],
+            100000: [0, 0.001, 0.01, 0.1, 4, 10, 10.01, 45, 46.001, 50, 80.1, 90, 98.9, 98.91, 98.999, 99, 99.9, 99.99, 99.999, 100],
+            1000000: [0, 0.0001, 0.001, 0.01, 0.1, 4, 10, 10.01, 45, 46.001, 50,
+                      80.1, 90, 98.9, 98.91, 98.999, 99, 99.9, 99.99, 99.999, 99.9999, 100]
+        } # 100,000 corresponds to 0.001% which is the order of magnitude we round to,
+        # so at higher orders (>=1M samples) all values are permitted
+        for sample_size, expected_results in sample_size_to_result_map.items():
+            filtered = metrics.filter_percentiles_by_sample_size(sample_size, test_percentiles)
+            self.assertEqual(len(filtered), len(expected_results))
+            for res, exp in zip(filtered, expected_results):
+                self.assertEqual(res, exp)
+
     def test_externalize_and_bulk_add(self):
         self.metrics_store.open(InMemoryMetricsStoreTests.TEST_EXECUTION_ID, InMemoryMetricsStoreTests.TEST_EXECUTION_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults", create=True)

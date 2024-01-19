@@ -554,6 +554,11 @@ def create_arg_parser():
         default=False,
         help="If any processes is running, it is going to kill them and allow Benchmark to continue to run."
     )
+    test_execution_parser.add_argument(
+        "--latency-percentiles",
+        help="A comma-separated list of percentiles to report for latency.",
+        default="50,90,99,99.9,99.99,100"
+    )
 
     ###############################################################################
     #
@@ -862,6 +867,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
                 "load_worker_coordinator_hosts",
                 opts.csv_to_list(args.load_worker_coordinator_hosts))
             cfg.add(config.Scope.applicationOverride, "workload", "test.mode.enabled", args.test_mode)
+            cfg.add(config.Scope.applicationOverride, "workload", "latency.percentiles", args.latency_percentiles)
             configure_workload_params(arg_parser, args, cfg)
             configure_connection_params(arg_parser, args, cfg)
             configure_telemetry_params(args, cfg)

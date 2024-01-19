@@ -332,7 +332,12 @@ class MetaInfoScope(Enum):
 
 
 def calculate_results(store, test_execution):
-    calc = GlobalStatsCalculator(store, test_execution.workload, test_execution.test_procedure)
+    calc = GlobalStatsCalculator(
+        store,
+        test_execution.workload,
+        test_execution.test_procedure,
+        latency_percentiles=test_execution.latency_percentiles
+        )
     return calc()
 
 
@@ -1292,12 +1297,13 @@ def create_test_execution(cfg, workload, test_procedure, workload_revision=None)
     plugin_params = cfg.opts("builder", "plugin.params")
     benchmark_version = version.version()
     benchmark_revision = version.revision()
+    latency_percentiles = cfg.opts("workload", "latency.percentiles", mandatory=False)
 
     return TestExecution(benchmark_version, benchmark_revision,
     environment, test_execution_id, test_execution_timestamp,
     pipeline, user_tags, workload,
     workload_params, test_procedure, provision_config_instance, provision_config_instance_params,
-    plugin_params, workload_revision)
+    plugin_params, workload_revision, latency_percentiles=latency_percentiles)
 
 
 class TestExecution:
@@ -1307,7 +1313,7 @@ class TestExecution:
                  provision_config_instance_params, plugin_params,
                  workload_revision=None, provision_config_revision=None,
                  distribution_version=None, distribution_flavor=None,
-                 revision=None, results=None, meta_data=None):
+                 revision=None, results=None, meta_data=None, latency_percentiles=None):
         if results is None:
             results = {}
         # this happens when the test execution is created initially
@@ -1337,6 +1343,10 @@ class TestExecution:
         self.revision = revision
         self.results = results
         self.meta_data = meta_data
+        self.latency_percentiles = None
+        if latency_percentiles:
+            # split comma-separated string into list of floats
+            self.latency_percentiles = [float(value) for value in latency_percentiles.split(",")]
 
     @property
     def workload_name(self):
@@ -1665,30 +1675,52 @@ def encode_float_key(k):
     return str(float(k)).replace(".", "_")
 
 
-def percentiles_for_sample_size(sample_size):
-    # if needed we can come up with something smarter but it'll do for now
+def filter_percentiles_by_sample_size(sample_size, percentiles):
+    # Don't show percentiles if there aren't enough samples for the value to be distinct.
+    # For example, we should only show p99.9, p45.6, or p0.01 if there are at least 1000 values.
+    # If nothing is suitable, default to just returning [100] rather than an empty list.
     if sample_size < 1:
         raise AssertionError("Percentiles require at least one sample")
-    elif sample_size == 1:
-        return [100]
-    elif 1 < sample_size < 10:
-        return [50, 100]
-    elif 10 <= sample_size < 100:
-        return [50, 90, 100]
-    elif 100 <= sample_size < 1000:
-        return [50, 90, 99, 100]
-    elif 1000 <= sample_size < 10000:
-        return [50, 90, 99, 99.9, 100]
-    else:
-        return [50, 90, 99, 99.9, 99.99, 100]
 
+    filtered_percentiles = []
+    # Treat the 1 and 2-10 case separately, to return p50 and p100 if present
+    if sample_size == 1:
+        filtered_percentiles = [100]
+    elif sample_size < 10:
+        for p in [50, 100]:
+            if p in percentiles:
+                filtered_percentiles.append(p)
+    else:
+        effective_sample_size = 10 ** (int(math.log10(sample_size))) # round down to nearest power of ten
+        delta = 0.000001 # If (p / 100) * effective_sample_size is within this value of a whole number,
+        # assume the discrepancy is due to floating point and allow it
+        filtered_percentiles = []
+        for p in percentiles:
+            fraction = p / 100
+
+            # check if fraction * effective_sample_size is close enough to a whole number
+            if abs((effective_sample_size * fraction) - round(effective_sample_size*fraction)) < delta:
+                filtered_percentiles.append(p)
+    # if no percentiles are suitable, just return 100
+    if len(filtered_percentiles) == 0:
+        return [100]
+    return filtered_percentiles
+
+def percentiles_for_sample_size(sample_size, latency_percentiles=None):
+    # If latency_percentiles is present, as a list, also display those values (assuming there are enough samples)
+    percentiles = [50, 90, 99, 99.9, 99.99, 100]
+    if latency_percentiles:
+        percentiles = latency_percentiles # Defaults get overridden if a value is provided
+        percentiles.sort()
+    return filter_percentiles_by_sample_size(sample_size, percentiles)
 
 class GlobalStatsCalculator:
-    def __init__(self, store, workload, test_procedure):
+    def __init__(self, store, workload, test_procedure, latency_percentiles=None):
         self.store = store
         self.logger = logging.getLogger(__name__)
         self.workload = workload
         self.test_procedure = test_procedure
+        self.latency_percentiles = latency_percentiles
 
     def __call__(self):
         result = GlobalStats()
@@ -1862,11 +1894,16 @@ class GlobalStatsCalculator:
         stats = self.store.get_stats(metric_name, task=task, operation_type=operation_type, sample_type=sample_type)
         sample_size = stats["count"] if stats else 0
         if sample_size > 0:
+            # The custom latency percentiles have to be supplied here as the workload runs,
+            # or else they aren't present when results are published
             percentiles = self.store.get_percentiles(metric_name,
                                                      task=task,
                                                      operation_type=operation_type,
                                                      sample_type=sample_type,
-                                                     percentiles=percentiles_for_sample_size(sample_size))
+                                                     percentiles=percentiles_for_sample_size(
+                                                         sample_size,
+                                                         latency_percentiles=self.latency_percentiles
+                                                         ))
             mean = self.store.get_mean(metric_name,
                                        task=task,
                                        operation_type=operation_type,
