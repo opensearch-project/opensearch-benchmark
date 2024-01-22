@@ -556,8 +556,9 @@ def create_arg_parser():
     )
     test_execution_parser.add_argument(
         "--latency-percentiles",
-        help="A comma-separated list of percentiles to report for latency.",
-        default="50,90,99,99.9,99.99,100"
+        help=f"A comma-separated list of percentiles to report for latency "
+             f"(default: {metrics.GlobalStatsCalculator.DEFAULT_LATENCY_PERCENTILES}).",
+        default=metrics.GlobalStatsCalculator.DEFAULT_LATENCY_PERCENTILES
     )
 
     ###############################################################################

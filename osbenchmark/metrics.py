@@ -1323,6 +1323,9 @@ class TestExecution:
                 meta_data.update(workload.meta_data)
             if test_procedure:
                 meta_data.update(test_procedure.meta_data)
+        if latency_percentiles:
+            # split comma-separated string into list of floats
+            latency_percentiles = [float(value) for value in latency_percentiles.split(",")]
         self.benchmark_version = benchmark_version
         self.benchmark_revision = benchmark_revision
         self.environment_name = environment_name
@@ -1343,10 +1346,8 @@ class TestExecution:
         self.revision = revision
         self.results = results
         self.meta_data = meta_data
-        self.latency_percentiles = None
-        if latency_percentiles:
-            # split comma-separated string into list of floats
-            self.latency_percentiles = [float(value) for value in latency_percentiles.split(",")]
+        self.latency_percentiles = latency_percentiles
+
 
     @property
     def workload_name(self):
@@ -1694,7 +1695,6 @@ def filter_percentiles_by_sample_size(sample_size, percentiles):
         effective_sample_size = 10 ** (int(math.log10(sample_size))) # round down to nearest power of ten
         delta = 0.000001 # If (p / 100) * effective_sample_size is within this value of a whole number,
         # assume the discrepancy is due to floating point and allow it
-        filtered_percentiles = []
         for p in percentiles:
             fraction = p / 100
 
@@ -1707,14 +1707,17 @@ def filter_percentiles_by_sample_size(sample_size, percentiles):
     return filtered_percentiles
 
 def percentiles_for_sample_size(sample_size, latency_percentiles=None):
-    # If latency_percentiles is present, as a list, also display those values (assuming there are enough samples)
-    percentiles = [50, 90, 99, 99.9, 99.99, 100]
+    # If latency_percentiles is present, as a list, display those values instead (assuming there are enough samples)
+    percentiles = GlobalStatsCalculator.DEFAULT_LATENCY_PERCENTILES_LIST
     if latency_percentiles:
         percentiles = latency_percentiles # Defaults get overridden if a value is provided
         percentiles.sort()
     return filter_percentiles_by_sample_size(sample_size, percentiles)
 
 class GlobalStatsCalculator:
+    DEFAULT_LATENCY_PERCENTILES = "50,90,99,99.9,99.99,100"
+    DEFAULT_LATENCY_PERCENTILES_LIST = [float(value) for value in DEFAULT_LATENCY_PERCENTILES.split(",")]
+
     def __init__(self, store, workload, test_procedure, latency_percentiles=None):
         self.store = store
         self.logger = logging.getLogger(__name__)
