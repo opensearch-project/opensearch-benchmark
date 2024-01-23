@@ -1,0 +1,18 @@
+{
+    "name": "index-append",
+    "operation-type": "bulk",
+    "bulk-size": {{bulk_size | default(5000)}},
+    "ingest-percentage": {{ingest_percentage | default(100)}}
+},
+{%- block queries -%}
+    {% for query in custom_queries %}
+    {
+      "operation": {
+        "name": "{{query.name}}",
+        "operation-type": "{{query['operation-type']}}",
+        "index": {{ indices | map(attribute='name') | list | join(',') | tojson }},
+        "body": {{query.body | replace("'", '"') }}
+      }
+    }{% if not loop.last %},{% endif -%}
+    {% endfor %}
+{%- endblock %}

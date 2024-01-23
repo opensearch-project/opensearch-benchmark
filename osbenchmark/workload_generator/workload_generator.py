@@ -24,6 +24,7 @@
 
 import logging
 import os
+import shutil
 import json
 
 from opensearchpy import OpenSearchException
@@ -33,14 +34,6 @@ from osbenchmark import PROGRAM_NAME, exceptions
 from osbenchmark.client import OsClientFactory
 from osbenchmark.workload_generator import corpus, index
 from osbenchmark.utils import io, opts, console
-
-
-def process_template(templates_path, template_filename, template_vars, output_path):
-    env = Environment(loader=FileSystemLoader(templates_path), autoescape=select_autoescape(['html', 'xml']))
-    template = env.get_template(template_filename)
-
-    with open(output_path, "w") as f:
-        f.write(template.render(template_vars))
 
 def validate_indices_docs_map(indices, indices_docs_map, docs_were_requested):
     if not docs_were_requested:
@@ -108,9 +101,33 @@ def process_custom_queries(custom_queries):
 
     return data
 
+def write_template(template_vars, output_path, template_file):
+    template = get_template(template_file)
+    with open(output_path, "w") as f:
+        f.write(template.render(template_vars))
+
+def get_template(template_file):
+    template_file_name = template_file  + ".json.j2"
+    templates_path = os.path.join(cfg.opts("node", "benchmark.root"), "resources")
+
+    env = Environment(loader=FileSystemLoader(templates_path), autoescape=select_autoescape(['html', 'xml']))
+
+    return env.get_template(template_file_name)
+
+def render_templates(workload_path, operations_path, test_procedures_path, template_vars, custom_queries):
+    write_template(workload_path, "base-workload")
+
+    if custom_queries:
+        write_template(template_vars, operations_path, "custom-operations")
+        write_template(template_vars, test_procedures_path, "custom-test-procedures")
+    else:
+        write_template(template_vars, operations_path, "default-operations")
+        write_template(template_vars, test_procedures_path, "default-test-procedures")
+
 def create_workload(cfg):
     logger = logging.getLogger(__name__)
 
+    # All inputs provided by user
     workload_name = cfg.opts("workload", "workload.name")
     indices = cfg.opts("generator", "indices")
     root_path = cfg.opts("generator", "output.path")
@@ -119,24 +136,43 @@ def create_workload(cfg):
     number_of_docs = cfg.opts("generator", "number_of_docs")
     unprocessed_custom_queries = cfg.opts("workload", "custom_queries")
 
+    # Process custom queries
     custom_queries = process_custom_queries(unprocessed_custom_queries)
 
     logger.info("Creating workload [%s] matching indices [%s]", workload_name, indices)
     logger.info("Number of Docs: %s", number_of_docs)
+
+    # Initialize client factory
     client = OsClientFactory(hosts=target_hosts.all_hosts[opts.TargetHosts.DEFAULT],
                              client_options=client_options.all_client_options[opts.TargetHosts.DEFAULT]).create()
-
     info = client.info()
     console.info(f"Connected to OpenSearch cluster [{info['name']}] version [{info['version']['number']}].\n", logger=logger)
 
+    # Establish output paths directory
     output_path = os.path.abspath(os.path.join(io.normalize_path(root_path), workload_name))
-    io.ensure_dir(output_path)
 
+    operations_path = os.path.join(output_path, "operations")
+    test_procedures_path = os.path.join(output_path, "test_procedures")
+
+    try:
+        logger.info(f"Removing existing workload [{workload_name}] in path [{output_path}]")
+        shutil.rmtree(output_path)
+    except OSError:
+        pass
+
+    io.ensure_dir(output_path)
+    io.ensure_dir(operations_path)
+    io.ensure_dir(test_procedures_path)
+
+    # Extract Indices and Corpora
+    logger.info("Extracting indices and corpora")
     indices, corpora = extract_mappings_and_corpora(client, output_path, indices, number_of_docs)
+    logger.info("Finished extracting indices and corpora")
 
     if len(indices) == 0:
         raise RuntimeError("Failed to extract any indices for workload!")
 
+    # Collect all itmes into dictionary
     template_vars = {
         "workload_name": workload_name,
         "indices": indices,
@@ -147,12 +183,13 @@ def create_workload(cfg):
     logger.info("Template Vars: %s", template_vars)
 
     workload_path = os.path.join(output_path, "workload.json")
-    templates_path = os.path.join(cfg.opts("node", "benchmark.root"), "resources")
+    operations_path = os.path.join(operations_path, "default.json")
+    test_procedures_path = os.path.join(test_procedures_path, "default.json")
 
-    if custom_queries:
-        process_template(templates_path, "custom-query-workload.json.j2", template_vars, workload_path)
-    else:
-        process_template(templates_path, "default-query-workload.json.j2", template_vars, workload_path)
+    # Render all templates
+    logger.info("Rendering templates")
+    render_templates(workload_path, operations_path, test_procedures_path,
+        template_vars, custom_queries)
 
     console.println("")
     console.info(f"Workload {workload_name} has been created. Run it with: {PROGRAM_NAME} --workload-path={output_path}")
