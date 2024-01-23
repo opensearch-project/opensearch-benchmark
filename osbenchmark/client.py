@@ -29,10 +29,9 @@ import time
 import certifi
 import urllib3
 from urllib3.util.ssl_ import is_ipaddress
-
+import opensearchpy
 from osbenchmark import exceptions, doc_link
 from osbenchmark.utils import console, convert
-
 
 class RequestContextManager:
     """
@@ -282,23 +281,35 @@ class OsClientFactory:
 
     def create(self):
         # pylint: disable=import-outside-toplevel
-        import opensearchpy
+        import osbenchmark.sync_connection
         from botocore.credentials import Credentials
 
+        if "connection_class" in self.client_options:
+            connection = self.client_options.pop("connection_class", None)
+            if connection.lower() in {"urllib3httpconnection", "urllib3"}:
+                connection_class = osbenchmark.sync_connection.Urllib3HttpConnection
+            elif connection.lower() in {"requestshttpconnection", "requests"}:
+                connection_class = osbenchmark.sync_connection.RequestsHttpConnection
+        else:
+            connection_class = osbenchmark.sync_connection.Urllib3HttpConnection
+
         if "amazon_aws_log_in" not in self.client_options:
-            return opensearchpy.OpenSearch(hosts=self.hosts, ssl_context=self.ssl_context, **self.client_options)
+            return self.BenchmarkOpenSearch(hosts=self.hosts, ssl_context=self.ssl_context,
+                                            **self.client_options, connection_class=connection_class)
 
         credentials = Credentials(access_key=self.aws_log_in_dict["aws_access_key_id"],
                                   secret_key=self.aws_log_in_dict["aws_secret_access_key"],
                                   token=self.aws_log_in_dict["aws_session_token"])
         aws_auth = opensearchpy.Urllib3AWSV4SignerAuth(credentials, self.aws_log_in_dict["region"],
                                                 self.aws_log_in_dict["service"])
-        return opensearchpy.OpenSearch(hosts=self.hosts, use_ssl=True, verify_certs=True, http_auth=aws_auth,
-                                       connection_class=opensearchpy.Urllib3HttpConnection)
+        return self.BenchmarkOpenSearch(hosts=self.hosts, use_ssl=True, verify_certs=True, http_auth=aws_auth,
+                                       connection_class=connection_class)
+
+    class BenchmarkOpenSearch(opensearchpy.OpenSearch, RequestContextHolder):
+        pass
 
     def create_async(self):
         # pylint: disable=import-outside-toplevel
-        import opensearchpy
         import osbenchmark.async_connection
         import io
         import aiohttp
@@ -333,6 +344,7 @@ class OsClientFactory:
         class BenchmarkAsyncOpenSearch(opensearchpy.AsyncOpenSearch, RequestContextHolder):
             pass
 
+        self.client_options.pop("connection_class", None)
         if "amazon_aws_log_in" not in self.client_options:
             return BenchmarkAsyncOpenSearch(hosts=self.hosts,
                                             connection_class=osbenchmark.async_connection.AIOHttpConnection,
@@ -365,8 +377,6 @@ def wait_for_rest_layer(opensearch, max_attempts=40):
     logger = logging.getLogger(__name__)
     for attempt in range(max_attempts):
         logger.debug("REST API is available after %s attempts", attempt)
-        # pylint: disable=import-outside-toplevel
-        import opensearchpy
         try:
             # see also WaitForHttpResource in OpenSearch tests. Contrary to the ES tests we consider the API also
             # available when the cluster status is RED (as long as all required nodes are present)

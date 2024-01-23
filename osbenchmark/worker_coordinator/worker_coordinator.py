@@ -1449,7 +1449,17 @@ class AsyncIoAdapter:
         def os_clients(all_hosts, all_client_options):
             opensearch = {}
             for cluster_name, cluster_hosts in all_hosts.items():
-                opensearch[cluster_name] = client.OsClientFactory(cluster_hosts, all_client_options[cluster_name]).create_async()
+                if "connection_class" in all_client_options["default"]:
+                    connection = all_client_options["default"]["connection_class"].lower()
+
+                    if connection in {"urllib3httpconnection", "urllib3", "requestshttpconnection", "requests"}:
+                        opensearch[cluster_name] = client.OsClientFactory(cluster_hosts, all_client_options[cluster_name]).create()
+                    elif connection == "aiohttpconnection":
+                        opensearch[cluster_name] = client.OsClientFactory(cluster_hosts, all_client_options[cluster_name]).create_async()
+                    else:
+                        raise Exception("Connection class not identified in client_options")
+                else:
+                    opensearch[cluster_name] = client.OsClientFactory(cluster_hosts, all_client_options[cluster_name]).create_async()
             return opensearch
 
         # Properly size the internal connection pool to match the number of expected clients but allow the user
@@ -1493,7 +1503,10 @@ class AsyncIoAdapter:
             shutdown_asyncgens_end = time.perf_counter()
             self.logger.info("Total time to shutdown asyncgens: %f seconds.", (shutdown_asyncgens_end - run_end))
             for s in opensearch.values():
-                await s.transport.close()
+                if asyncio.iscoroutinefunction(s.transport.close):
+                    await s.transport.close()
+                else:
+                    s.transport.close()
             transport_close_end = time.perf_counter()
             self.logger.info("Total time to close transports: %f seconds.", (shutdown_asyncgens_end - transport_close_end))
 
