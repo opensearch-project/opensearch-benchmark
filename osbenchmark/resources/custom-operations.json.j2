@@ -5,14 +5,12 @@
     "ingest-percentage": {{ingest_percentage | default(100)}}
 },
 {%- block queries -%}
-    {% for query in custom_queries %}
-    {
-      "operation": {
-        "name": "{{query.name}}",
-        "operation-type": "{{query['operation-type']}}",
-        "index": {{ indices | map(attribute='name') | list | join(',') | tojson }},
-        "body": {{query.body | replace("'", '"') }}
-      }
-    }{% if not loop.last %},{% endif -%}
-    {% endfor %}
+{% for query in custom_queries %}
+{
+  "name": "{{query.name}}",
+  "operation-type": "{{query['operation-type']}}",
+  "index": {{ indices | map(attribute='name') | list | join(',') | tojson }},
+  "body": {{query.body | replace("'", '"') }}
+}{% if not loop.last %},{% endif -%}
+{% endfor %}
 {%- endblock %}
