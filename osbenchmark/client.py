@@ -286,10 +286,10 @@ class OsClientFactory:
 
         if "connection_class" in self.client_options:
             connection = self.client_options.pop("connection_class", None)
-            if connection.lower() in {"urllib3httpconnection", "urllib3"}:
-                connection_class = osbenchmark.sync_connection.Urllib3HttpConnection
-            elif connection.lower() in {"requestshttpconnection", "requests"}:
+            if connection.lower() in {"requestshttpconnection", "requests"}:
                 connection_class = osbenchmark.sync_connection.RequestsHttpConnection
+            else:
+                connection_class = osbenchmark.sync_connection.Urllib3HttpConnection
         else:
             connection_class = osbenchmark.sync_connection.Urllib3HttpConnection
 
