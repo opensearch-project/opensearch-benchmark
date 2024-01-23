@@ -33,6 +33,26 @@
     {
       "name": "refresh-after-index",
       "operation": "refresh"
-    }
+    },
+{%- block queries -%}
+    {% for query in custom_queries %}
+    {
+      "operation":"{{query.name}}",
+      {% raw -%}
+      "warmup-iterations": {{warmup_iterations | default(50)}},
+      "iterations": {{iterations | default(100)}}
+      {%- if not target_throughput %}
+      ,"target-throughput": 3
+      {%- elif target_throughput is string and target_throughput.lower() == 'none' %}
+      {%- else %}
+      ,"target-throughput": {{ target_throughput | tojson }}
+      {%- endif %}
+      {%-if search_clients is defined and search_clients %}
+      ,"clients": {{ search_clients | tojson}}
+      {%- endif %}
+      {% endraw -%}
+    }{% if not loop.last %},{% endif -%}
+    {% endfor %}
+{%- endblock %}
   ]
 }
