@@ -25,9 +25,10 @@
     },{% endraw -%}
     {
       "operation": "index-append",
-      {% raw -%} "clients": {{bulk_indexing_clients | default(8)}},{% endraw -%}
-      {% raw -%}"ignore-response-error-level": "{{error_level | default('non-fatal')}}"{% endraw -%}
+      {% raw -%}"clients": {{bulk_indexing_clients | default(8)}},
+      "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
     },
+    {% endraw -%}
     {
       "name": "refresh-after-index",
       "operation": "refresh"
