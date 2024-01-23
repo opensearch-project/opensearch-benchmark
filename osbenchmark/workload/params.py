@@ -33,6 +33,9 @@ import random
 import time
 from abc import ABC, abstractmethod
 from enum import Enum
+from typing import List, Dict, Any
+
+import numpy as np
 
 from osbenchmark import exceptions
 from osbenchmark.utils import io
@@ -803,7 +806,7 @@ class ForceMergeParamSource(ParamSource):
 class VectorSearchParamSource(SearchParamSource):
     def __init__(self, workload, params, **kwargs):
         super().__init__(workload, params, **kwargs)
-        self.delegate_param_source = VectorSearchPartitionParamSource(params, self.query_params)
+        self.delegate_param_source = VectorSearchPartitionParamSource(workload, params, self.query_params, **kwargs)
 
     def partition(self, partition_index, total_partitions):
         return self.delegate_param_source.partition(partition_index, total_partitions)
@@ -812,7 +815,7 @@ class VectorSearchParamSource(SearchParamSource):
         raise exceptions.WorkloadConfigError("Do not use a VectorSearchParamSource without partitioning")
 
 
-class VectorDataSetPartitionParamSource(ABC):
+class VectorDataSetPartitionParamSource(ParamSource):
     """ Abstract class that can read vectors from a data set and partition the
     vectors across multiple clients.
 
@@ -831,7 +834,8 @@ class VectorDataSetPartitionParamSource(ABC):
                 multiple partitions
     """
 
-    def __init__(self, params, context: Context):
+    def __init__(self, workload, params, context: Context, **kwargs):
+        super().__init__(workload, params, **kwargs)
         self.field_name: str = parse_string_parameter("field", params)
 
         self.context = context
@@ -847,9 +851,12 @@ class VectorDataSetPartitionParamSource(ABC):
                 num_vectors < 0 or num_vectors > self.data_set.size()) else num_vectors
         self.total = self.num_vectors
         self.current = 0
-        self.infinite = False
         self.percent_completed = 0
         self.offset = 0
+
+    @property
+    def infinite(self):
+        return False
 
     def _is_last_partition(self, partition_index, total_partitions):
         return partition_index == total_partitions - 1
@@ -919,8 +926,8 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
     PARAMS_NAME_SOURCE = "_source"
     PARAMS_NAME_ALLOW_PARTIAL_RESULTS = "allow_partial_search_results"
 
-    def __init__(self, params, query_params):
-        super().__init__(params, Context.QUERY)
+    def __init__(self, workloads, params, query_params, **kwargs):
+        super().__init__(workloads, params, Context.QUERY, **kwargs)
         self.logger = logging.getLogger(__name__)
         self.k = parse_int_parameter(self.PARAMS_NAME_K, params)
         self.repetitions = parse_int_parameter(self.PARAMS_NAME_REPETITIONS, params, 1)
@@ -999,6 +1006,84 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
                     }
                 }
             }
+
+
+class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
+    """ Create bulk index requests from a data set of vectors.
+
+    Attributes:
+        bulk_size: number of vectors per request
+        retries: number of times to retry the request when it fails
+    """
+
+    DEFAULT_RETRIES = 10
+    PARAMS_NAME_ID_FIELD_NAME = "id-field-name"
+    DEFAULT_ID_FIELD_NAME = "_id"
+
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, Context.INDEX, **kwargs)
+        self.bulk_size: int = parse_int_parameter("bulk_size", params)
+        self.retries: int = parse_int_parameter("retries", params,
+                                                self.DEFAULT_RETRIES)
+        self.index_name: str = parse_string_parameter("index", params)
+        self.id_field_name: str = parse_string_parameter(
+            self.PARAMS_NAME_ID_FIELD_NAME, params, self.DEFAULT_ID_FIELD_NAME)
+
+    def bulk_transform(self, partition: np.ndarray, action) -> List[Dict[str, Any]]:
+        """Partitions and transforms a list of vectors into OpenSearch's bulk
+        injection format.
+        Args:
+            offset: to start counting from
+            partition: An array of vectors to transform.
+            action: Bulk API action.
+        Returns:
+            An array of transformed vectors in bulk format.
+        """
+        actions = []
+        _ = [
+            actions.extend([action(self.id_field_name, i + self.current), None])
+            for i in range(len(partition))
+        ]
+        bulk_contents = []
+        add_id_field_to_body = self.id_field_name != self.DEFAULT_ID_FIELD_NAME
+        for vec, identifier in zip(partition.tolist(), range(self.current, self.current + len(partition))):
+            row = {self.field_name: vec}
+            if add_id_field_to_body:
+                row.update({self.id_field_name: identifier})
+            bulk_contents.append(row)
+        actions[1::2] = bulk_contents
+        return actions
+
+    def params(self):
+        """
+        Returns: A bulk index parameter with vectors from a data set.
+        """
+        # TODO: Fix below logic to make sure we index only total number of documents as mentioned in the params.
+        if self.current >= self.num_vectors + self.offset:
+            raise StopIteration
+
+        def action(id_field_name, doc_id):
+            # support only index operation
+            bulk_action = 'index'
+            metadata = {
+                '_index': self.index_name
+            }
+            # Add id field to metadata only if it is _id
+            if id_field_name == self.DEFAULT_ID_FIELD_NAME:
+                metadata.update({id_field_name: doc_id})
+            return {bulk_action: metadata}
+
+        partition = self.data_set.read(self.bulk_size)
+        body = self.bulk_transform(partition, action)
+        size = len(body) // 2
+        self.current += size
+        self.percent_completed = self.current / self.total
+
+        return {
+            "body": body,
+            "retries": self.retries,
+            "size": size
+        }
 
 
 def get_target(workload, params):
@@ -1418,6 +1503,7 @@ class SourceOnlyIndexDataReader(IndexDataReader):
 
 
 register_param_source_for_operation(workload.OperationType.Bulk, BulkIndexParamSource)
+register_param_source_for_operation(workload.OperationType.BulkVectorDataSet, BulkVectorsFromDataSetParamSource)
 register_param_source_for_operation(workload.OperationType.Search, SearchParamSource)
 register_param_source_for_operation(workload.OperationType.VectorSearch, VectorSearchParamSource)
 register_param_source_for_operation(workload.OperationType.CreateIndex, CreateIndexParamSource)

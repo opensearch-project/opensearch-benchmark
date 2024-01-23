@@ -40,11 +40,13 @@ from os.path import commonprefix
 from typing import List, Optional
 
 import ijson
+from opensearchpy import ConnectionTimeout
 
 from osbenchmark import exceptions, workload
 from osbenchmark.utils import convert
 
 # Mapping from operation type to specific runner
+from osbenchmark.utils.parse import parse_int_parameter, parse_string_parameter
 
 __RUNNERS = {}
 
@@ -58,6 +60,7 @@ def register_default_runners():
     register_runner(workload.OperationType.PaginatedSearch, Query(), async_runner=True)
     register_runner(workload.OperationType.ScrollSearch, Query(), async_runner=True)
     register_runner(workload.OperationType.VectorSearch, Query(), async_runner=True)
+    register_runner(workload.OperationType.BulkVectorDataSet, BulkVectorDataSet(), async_runner=True)
     register_runner(workload.OperationType.RawRequest, RawRequest(), async_runner=True)
     register_runner(workload.OperationType.Composite, Composite(), async_runner=True)
     register_runner(workload.OperationType.SubmitAsyncSearch, SubmitAsyncSearch(), async_runner=True)
@@ -74,7 +77,7 @@ def register_default_runners():
     register_runner(workload.OperationType.RestoreSnapshot, RestoreSnapshot(), async_runner=True)
     # We treat the following as administrative commands and thus already start to wrap them in a retry.
     register_runner(workload.OperationType.ClusterHealth, Retry(ClusterHealth()), async_runner=True)
-    register_runner(workload.OperationType.CreateIngestPipeline, Retry(CreateIngestPipeline()), async_runner=True)
+    register_runner(workload.OperationType.PutPipeline, Retry(PutPipeline()), async_runner=True)
     register_runner(workload.OperationType.Refresh, Retry(Refresh()), async_runner=True)
     register_runner(workload.OperationType.CreateIndex, Retry(CreateIndex()), async_runner=True)
     register_runner(workload.OperationType.DeleteIndex, Retry(DeleteIndex()), async_runner=True)
@@ -633,6 +636,35 @@ class BulkIndex(Runner):
         return "bulk-index"
 
 
+# TODO: Add retry logic to BulkIndex, so that we can remove BulkVectorDataSet and use BulkIndex.
+class BulkVectorDataSet(Runner):
+    """
+    Bulk inserts vector search dataset of type hdf5, bigann
+    """
+
+    NAME = "bulk-vector-data-set"
+
+    async def __call__(self, opensearch, params):
+        size = parse_int_parameter("size", params)
+        retries = parse_int_parameter("retries", params, 0) + 1
+
+        for attempt in range(retries):
+            try:
+                await opensearch.bulk(
+                    body=params["body"]
+                )
+
+                return size, "docs"
+            except ConnectionTimeout:
+                self.logger.warning("Bulk vector ingestion timed out. Retrying attempt: %d", attempt)
+
+        raise TimeoutError("Failed to submit bulk request in specified number "
+                           "of retries: {}".format(retries))
+
+    def __repr__(self, *args, **kwargs):
+        return self.NAME
+
+
 class ForceMerge(Runner):
     """
     Runs a force merge operation against OpenSearch.
@@ -1092,7 +1124,7 @@ class Query(Runner):
             if _is_empty_search_results(response_json):
                 self.logger.info("Vector search query returned no results.")
                 return result
-            id_field = params.get("id-field-name", "_id")
+            id_field = parse_string_parameter("id-field-name", params, "_id")
             candidates = []
             for hit in response_json['hits']['hits']:
                 field_value = _get_field_value(hit, id_field)
@@ -1246,7 +1278,7 @@ class ClusterHealth(Runner):
         return "cluster-health"
 
 
-class CreateIngestPipeline(Runner):
+class PutPipeline(Runner):
     async def __call__(self, opensearch, params):
         if "BenchmarkOpenSearch" in str(opensearch):
             opensearch.ingest.put_pipeline(id=mandatory(params, "id", self),
@@ -1262,7 +1294,7 @@ class CreateIngestPipeline(Runner):
                                      )
 
     def __repr__(self, *args, **kwargs):
-        return "create-ingest-pipeline"
+        return "put-pipeline"
 
 # TODO: refactor it after python client support search pipeline https://github.com/opensearch-project/opensearch-py/issues/474
 class CreateSearchPipeline(Runner):

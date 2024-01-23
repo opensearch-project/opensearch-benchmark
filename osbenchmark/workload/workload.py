@@ -585,11 +585,12 @@ class OperationType(Enum):
     DeletePointInTime = 15
     ListAllPointInTime = 16
     VectorSearch = 17
+    BulkVectorDataSet = 18
 
     # administrative actions
     ForceMerge = 1001
     ClusterHealth = 1002
-    CreateIngestPipeline = 1003
+    PutPipeline = 1003
     Refresh = 1004
     CreateIndex = 1005
     DeleteIndex = 1006
@@ -644,14 +645,16 @@ class OperationType(Enum):
             return OperationType.PaginatedSearch
         elif v == "vector-search":
             return OperationType.VectorSearch
+        elif v == "bulk-vector-data-set":
+            return OperationType.BulkVectorDataSet
         elif v == "cluster-health":
             return OperationType.ClusterHealth
         elif v == "bulk":
             return OperationType.Bulk
         elif v == "raw-request":
             return OperationType.RawRequest
-        elif v == "create-ingest-pipeline":
-            return OperationType.CreateIngestPipeline
+        elif v == "put-pipeline":
+            return OperationType.PutPipeline
         elif v == "refresh":
             return OperationType.Refresh
         elif v == "create-index":
