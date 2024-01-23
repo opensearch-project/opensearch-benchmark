@@ -157,7 +157,7 @@ def create_workload(cfg):
     test_procedures_path = os.path.join(output_path, "test_procedures")
 
     try:
-        logger.info(f"Removing existing workload [{workload_name}] in path [{output_path}]")
+        logger.info("Removing existing workload [%s] in path [%s]", workload_name, output_path)
         shutil.rmtree(output_path)
     except OSError:
         pass
