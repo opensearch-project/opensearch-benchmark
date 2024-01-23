@@ -101,28 +101,29 @@ def process_custom_queries(custom_queries):
 
     return data
 
-def write_template(template_vars, output_path, template_file):
-    template = get_template(template_file)
+def write_template(template_vars, templates_path, output_path, template_file):
+    template = get_template(template_file, templates_path)
     with open(output_path, "w") as f:
         f.write(template.render(template_vars))
 
-def get_template(template_file):
+def get_template(template_file, templates_path):
     template_file_name = template_file  + ".json.j2"
-    templates_path = os.path.join(cfg.opts("node", "benchmark.root"), "resources")
 
     env = Environment(loader=FileSystemLoader(templates_path), autoescape=select_autoescape(['html', 'xml']))
 
     return env.get_template(template_file_name)
 
-def render_templates(workload_path, operations_path, test_procedures_path, template_vars, custom_queries):
-    write_template(workload_path, "base-workload")
+def render_templates(
+    workload_path, operations_path, test_procedures_path, templates_path, template_vars, custom_queries
+    ):
+    write_template(template_vars, templates_path, workload_path, "base-workload")
 
     if custom_queries:
-        write_template(template_vars, operations_path, "custom-operations")
-        write_template(template_vars, test_procedures_path, "custom-test-procedures")
+        write_template(template_vars, templates_path, operations_path, "custom-operations")
+        write_template(template_vars, templates_path, test_procedures_path, "custom-test-procedures")
     else:
-        write_template(template_vars, operations_path, "default-operations")
-        write_template(template_vars, test_procedures_path, "default-test-procedures")
+        write_template(template_vars, templates_path, operations_path, "default-operations")
+        write_template(template_vars, templates_path, test_procedures_path, "default-test-procedures")
 
 def create_workload(cfg):
     logger = logging.getLogger(__name__)
@@ -135,6 +136,7 @@ def create_workload(cfg):
     client_options = cfg.opts("client", "options")
     number_of_docs = cfg.opts("generator", "number_of_docs")
     unprocessed_custom_queries = cfg.opts("workload", "custom_queries")
+    templates_path = os.path.join(cfg.opts("node", "benchmark.root"), "resources")
 
     # Process custom queries
     custom_queries = process_custom_queries(unprocessed_custom_queries)
@@ -188,8 +190,14 @@ def create_workload(cfg):
 
     # Render all templates
     logger.info("Rendering templates")
-    render_templates(workload_path, operations_path, test_procedures_path,
-        template_vars, custom_queries)
+    render_templates(
+        workload_path,
+        operations_path,
+        test_procedures_path,
+        templates_path,
+        template_vars,
+        custom_queries
+    )
 
     console.println("")
     console.info(f"Workload {workload_name} has been created. Run it with: {PROGRAM_NAME} --workload-path={output_path}")
