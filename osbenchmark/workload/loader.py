@@ -991,9 +991,23 @@ class WorkloadFileReader:
                 f.write(rendered)
             self.logger.info("Final rendered workload for '%s' has been written to '%s'.", workload_spec_file, tmp.name)
             workload_spec = json.loads(rendered)
+
         except jinja2.exceptions.TemplateNotFound:
             self.logger.exception("Could not load [%s]", workload_spec_file)
             raise exceptions.SystemSetupError("Workload {} does not exist".format(workload_name))
+
+        except jinja2.exceptions.TemplateSyntaxError as e:
+            exception_message = f"Jinja2 Exception TemplateSyntaxError: {e}\n"
+            if 'endif' in exception_message:
+                exception_message += \
+                    "There is an extra Jinja2 \"endif\" somewhere in workload's files. Please remove it so that the workload can be rendered and run.\n"
+            if 'Missing end of raw directive' in exception_message:
+                exception_message += \
+                    "In the workload files, \"{% raw -%}\" was provided but is missing it's associated \"{% endraw -%}\" tag.\n"
+
+            raise exceptions.SystemSetupError(exception_message)
+
+
         except json.JSONDecodeError as e:
             self.logger.exception("Could not load [%s].", workload_spec_file)
             msg = "Could not load '{}': {}.".format(workload_spec_file, str(e))
@@ -1012,6 +1026,7 @@ class WorkloadFileReader:
                 f"See common workload formatting errors:{WorkloadFileReader.COMMON_WORKLOAD_FORMAT_ERRORS}"
             msg += console_message
             raise WorkloadSyntaxError(msg)
+
         except Exception as e:
             # TypeErrors get logged here
             self.logger.exception("Could not load [%s].", workload_spec_file)
