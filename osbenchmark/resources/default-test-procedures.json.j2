@@ -9,7 +9,7 @@
     {
       "operation": {
         "operation-type": "create-index",
-        "settings": {{index_settings | default({}) | tojson}}
+        "settings": {{ index_settings | default({}) | tojson }}
       }
     },{% endraw %}
     {
@@ -17,7 +17,7 @@
         "operation-type": "cluster-health",
         "index": {{ indices | map(attribute='name') | list | join(',') | tojson }},{% raw %}
         "request-params": {
-          "wait_for_status": "{{cluster_health | default('green')}}",
+          "wait_for_status": "{{ cluster_health | default('green') }}",
           "wait_for_no_relocating_shards": "true"
         },
         "retry-until-success": true
@@ -26,9 +26,9 @@
     {% endraw -%}
     {
       "operation": "index-append",
-      {% raw -%}"clients": {{bulk_indexing_clients | default(8)}},
+      {% raw -%}"clients": {{ bulk_indexing_clients | default(8) }},
       {% endraw -%}
-      {% raw -%}"ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+      {% raw -%}"ignore-response-error-level": "{{ error_level | default('non-fatal') }}"
     {% endraw -%}},
     {
       "name": "refresh-after-index",
@@ -51,17 +51,10 @@
     },{% raw %}
     {
       "operation": "match-all",
-      "warmup-iterations": {{warmup_iterations | default(50)}},
-      "iterations": {{iterations | default(100)}}
-      {%- if not target_throughput %}
-      ,"target-throughput": 3
-      {%- elif target_throughput is string and target_throughput.lower() == 'none' %}
-      {%- else %}
-      ,"target-throughput": {{ target_throughput | tojson }}
-      {%- endif %}
-      {%-if search_clients is defined and search_clients %}
-      ,"clients": {{ search_clients | tojson}}
-      {%- endif %}
+      "warmup-iterations": {{ warmup_iterations | default(50) }},
+      "iterations": {{ iterations | default(100) }},
+      "target-throughput": {{ target_throughput | default(3) }},
+      "clients": {{ search_clients | default(1) }}
     }{% endraw -%}
   ]
 }
