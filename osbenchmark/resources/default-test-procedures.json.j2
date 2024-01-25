@@ -5,25 +5,24 @@
   "schedule": [
     {
       "operation": "delete-index"
-    },{% raw %}
+    },
     {
       "operation": {
         "operation-type": "create-index",
-        "settings": {{ index_settings | default({}) | tojson }}
-      }
-    },{% endraw %}
+        {% raw %}"settings": {{ index_settings | default({}) | tojson }}
+      {% endraw %}}
+    },
     {
       "operation": {
         "operation-type": "cluster-health",
-        "index": {{ indices | map(attribute='name') | list | join(',') | tojson }},{% raw %}
+        "index": {{ indices | map(attribute='name') | list | join(',') | tojson }},
         "request-params": {
-          "wait_for_status": "{{ cluster_health | default('green') }}",
-          "wait_for_no_relocating_shards": "true"
+          {% raw %}"wait_for_status": "{{ cluster_health | default('green') }}",
+          {% endraw -%}"wait_for_no_relocating_shards": "true"
         },
         "retry-until-success": true
       }
     },
-    {% endraw -%}
     {
       "operation": "index-append",
       {% raw -%}"clients": {{ bulk_indexing_clients | default(8) }},
