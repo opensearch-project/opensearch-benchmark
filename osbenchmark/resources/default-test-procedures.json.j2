@@ -22,19 +22,35 @@
         },
         "retry-until-success": true
       }
-    },{% endraw -%}
-    {
-      "operation": "index-append",
-      {% raw -%}"clients": {{bulk_indexing_clients | default(8)}},
-      "ignore-response-error-level": "{{error_level | default('non-fatal')}}"
     },
     {% endraw -%}
     {
+      "operation": "index-append",
+      {% raw -%}"clients": {{bulk_indexing_clients | default(8)}},
+      {% endraw -%}
+      {% raw -%}"ignore-response-error-level": "{{error_level | default('non-fatal')}}"
+    {% endraw -%}},
+    {
       "name": "refresh-after-index",
       "operation": "refresh"
+    },
+    {
+      "operation": {
+        "operation-type": "force-merge",
+        "request-timeout": 7200{%- if force_merge_max_num_segments is defined %},
+        "max-num-segments": {{ force_merge_max_num_segments | tojson }}
+        {%- endif %}
+      }
+    },
+    {
+      "name": "refresh-after-force-merge",
+      "operation": "refresh"
+    },
+    {
+      "operation": "wait-until-merges-finish"
     },{% raw %}
     {
-      "operation": "default",
+      "operation": "match-all",
       "warmup-iterations": {{warmup_iterations | default(50)}},
       "iterations": {{iterations | default(100)}}
       {%- if not target_throughput %}

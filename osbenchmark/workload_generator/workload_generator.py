@@ -113,9 +113,12 @@ def get_template(template_file, templates_path):
 
     return env.get_template(template_file_name)
 
-def render_templates(
-    workload_path, operations_path, test_procedures_path, templates_path, template_vars, custom_queries
-    ):
+def render_templates(workload_path,
+                    operations_path,
+                    test_procedures_path,
+                    templates_path,
+                    template_vars,
+                    custom_queries):
     write_template(template_vars, templates_path, workload_path, "base-workload")
 
     if custom_queries:
@@ -156,11 +159,13 @@ def create_workload(cfg):
     operations_path = os.path.join(output_path, "operations")
     test_procedures_path = os.path.join(output_path, "test_procedures")
 
-    try:
-        logger.info("Removing existing workload [%s] in path [%s]", workload_name, output_path)
-        shutil.rmtree(output_path)
-    except OSError:
-        pass
+    if os.path.exists(output_path):
+        try:
+            logger.info("Workload already exists. Removing existing workload [%s] in path [%s]", workload_name, output_path)
+            shutil.rmtree(output_path)
+        except OSError:
+            logger.error("Had issues removing existing workload [%s] in path [%s]", workload_name, output_path)
+            pass
 
     io.ensure_dir(output_path)
     io.ensure_dir(operations_path)
