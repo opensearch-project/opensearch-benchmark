@@ -1,0 +1,28 @@
+{
+    "name": "index-append",
+    "operation-type": "bulk",
+    "bulk-size": {{bulk_size | default(5000)}},
+    "ingest-percentage": {{ingest_percentage | default(100)}}
+},
+{
+    "name": "wait-until-merges-finish",
+    "operation-type": "index-stats",
+    "index": "_all",
+    "condition": {
+      "path": "_all.total.merges.current",
+      "expected-value": 0
+    },
+    "retry-until-success": true,
+    "include-in-reporting": false
+},
+{
+    "name": "match-all",
+    "operation-type": "search",
+    "index": {{ indices | map(attribute='name') | list | join(',') | tojson }},
+    "body": {
+        "size": {{match_all_size | default(10)}},
+        "query": {
+            "match_all": {}
+        }
+    }
+}
