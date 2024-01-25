@@ -165,7 +165,6 @@ def create_workload(cfg):
             shutil.rmtree(output_path)
         except OSError:
             logger.error("Had issues removing existing workload [%s] in path [%s]", workload_name, output_path)
-            pass
 
     io.ensure_dir(output_path)
     io.ensure_dir(operations_path)
