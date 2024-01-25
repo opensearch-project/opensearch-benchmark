@@ -4,6 +4,17 @@
     "bulk-size": {{bulk_size | default(5000)}},
     "ingest-percentage": {{ingest_percentage | default(100)}}
 },
+{
+    "name": "wait-until-merges-finish",
+    "operation-type": "index-stats",
+    "index": "_all",
+    "condition": {
+      "path": "_all.total.merges.current",
+      "expected-value": 0
+    },
+    "retry-until-success": true,
+    "include-in-reporting": false
+},
 {%- block queries -%}
 {% for query in custom_queries %}
 {
