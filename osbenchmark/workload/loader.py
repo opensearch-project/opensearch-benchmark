@@ -1022,7 +1022,7 @@ class WorkloadFileReader:
                 msg += " Lines containing the error:\n\n{}\n\n".format("\n".join(erroneous_lines))
             msg += "The complete workload has been written to '{}' for diagnosis. \n\n".format(tmp.name)
             console_message = f"Suggestion: Verify that [{workload_name}] workload has correctly formatted JSON files and " + \
-                f"Jinja Templates. For Jinja2 errors, consider using a live Jinja2 parser. " + \
+                "Jinja Templates. For Jinja2 errors, consider using a live Jinja2 parser. " + \
                 f"See common workload formatting errors:{WorkloadFileReader.COMMON_WORKLOAD_FORMAT_ERRORS}"
             msg += console_message
             raise WorkloadSyntaxError(msg)
@@ -1030,9 +1030,10 @@ class WorkloadFileReader:
         except Exception as e:
             # TypeErrors get logged here
             self.logger.exception("Could not load [%s].", workload_spec_file)
-            msg = "Could not load '{}'. The complete workload has been written to '{}' for diagnosis. \n\n".format(workload_spec_file, tmp.name)
+            msg = "Could not load '{}'. The complete workload has been written to '{}' for diagnosis. \n\n".format(
+                workload_spec_file, tmp.name)
             console_message = f"Suggestion: Verify that [{workload_name}] workload has correctly formatted JSON files and " + \
-                f"Jinja Templates. For Jinja2 errors, consider using a live Jinja2 parser. " + \
+                "Jinja Templates. For Jinja2 errors, consider using a live Jinja2 parser. " + \
                 f"See common workload formatting errors:{WorkloadFileReader.COMMON_WORKLOAD_FORMAT_ERRORS}"
             msg += console_message
             # Convert to string early on to avoid serialization errors with Jinja exceptions.
