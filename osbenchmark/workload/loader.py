@@ -999,8 +999,9 @@ class WorkloadFileReader:
         except jinja2.exceptions.TemplateSyntaxError as e:
             exception_message = f"Jinja2 Exception TemplateSyntaxError: {e}\n"
             if 'endif' in exception_message:
-                exception_message += \
-                    "There is an extra Jinja2 \"endif\" somewhere in workload's files. Please remove it so that the workload can be rendered and run.\n"
+                exception_message = exception_message + \
+                    "There is an extra Jinja2 \"endif\" somewhere in workload's files. " + \
+                    "Please remove it so that the workload can be rendered and run.\n"
             if 'Missing end of raw directive' in exception_message:
                 exception_message += \
                     "In the workload files, \"{% raw -%}\" was provided but is missing it's associated \"{% endraw -%}\" tag.\n"
