@@ -1742,6 +1742,7 @@ class GlobalStatsCalculator:
                         self.summary_stats("throughput", t, op_type),
                         self.single_latency(t, op_type),
                         self.single_latency(t, op_type, metric_name="service_time"),
+                        self.single_latency(t, op_type, metric_name="client_processing_time"),
                         self.single_latency(t, op_type, metric_name="processing_time"),
                         error_rate,
                         duration,
@@ -1991,6 +1992,8 @@ class GlobalStats:
                         all_results.append(op_metrics(item, "latency"))
                     if "service_time" in item:
                         all_results.append(op_metrics(item, "service_time"))
+                    if "client_processing_time" in item:
+                        all_results.append(op_metrics(item, "client_processing_time"))
                     if "processing_time" in item:
                         all_results.append(op_metrics(item, "processing_time"))
                     if "error_rate" in item:
@@ -2035,13 +2038,14 @@ class GlobalStats:
     def v(self, d, k, default=None):
         return d.get(k, default) if d else default
 
-    def add_op_metrics(self, task, operation, throughput, latency, service_time, processing_time, error_rate, duration, meta):
+    def add_op_metrics(self, task, operation, throughput, latency, service_time, client_processing_time, processing_time, error_rate, duration, meta):
         doc = {
             "task": task,
             "operation": operation,
             "throughput": throughput,
             "latency": latency,
             "service_time": service_time,
+            "client_processing_time": client_processing_time,
             "processing_time": processing_time,
             "error_rate": error_rate,
             "duration": duration

@@ -44,7 +44,7 @@ from opensearchpy import ConnectionTimeout
 
 from osbenchmark import exceptions, workload
 from osbenchmark.utils import convert
-
+from osbenchmark.client import RequestContextHolder
 # Mapping from operation type to specific runner
 from osbenchmark.utils.parse import parse_int_parameter, parse_string_parameter
 
@@ -210,6 +210,20 @@ class Runner:
         if opaque_id is not None:
             headers.update({"x-opaque-id": opaque_id})
         return request_params, headers
+
+request_context_holder = RequestContextHolder()
+
+def time_func(func):
+    async def advised(*args, **kwargs):
+        st = time.perf_counter()
+        print("started", st)
+        request_context_holder.on_client_request_start()
+        rsl = await func(*args, **kwargs)
+        request_context_holder.on_client_request_end()
+        en = time.perf_counter()
+        print("ended", en)
+        return rsl
+    return advised
 
 
 class Delegator:
@@ -489,14 +503,16 @@ class BulkIndex(Runner):
         # errors have occurred we only need a small amount of information from the potentially large response.
         if not detailed_results:
             opensearch.return_raw_response()
-
+        request_context_holder.on_client_request_start()
+        
         if with_action_metadata:
             api_kwargs.pop("index", None)
             # only half of the lines are documents
             response = await opensearch.bulk(params=bulk_params, **api_kwargs)
         else:
             response = await opensearch.bulk(doc_type=params.get("type"), params=bulk_params, **api_kwargs)
-
+            
+        request_context_holder.on_client_request_end()
         stats = self.detailed_stats(params, response) if detailed_results else self.simple_stats(bulk_size, unit, response)
 
         meta_data = {
@@ -642,9 +658,11 @@ class BulkVectorDataSet(Runner):
 
         for attempt in range(retries):
             try:
+                request_context_holder.on_client_request_start()
                 await opensearch.bulk(
                     body=params["body"]
                 )
+                request_context_holder.on_client_request_end()
 
                 return size, "docs"
             except ConnectionTimeout:
@@ -673,7 +691,9 @@ class ForceMerge(Runner):
         if mode == "polling":
             complete = False
             try:
+                request_context_holder.on_client_request_start()
                 await opensearch.indices.forcemerge(**merge_params)
+                request_context_holder.on_client_request_end()
                 complete = True
             except opensearchpy.ConnectionTimeout:
                 pass
@@ -684,7 +704,9 @@ class ForceMerge(Runner):
                     # empty nodes response indicates no tasks
                     complete = True
         else:
-            await opensearch.indices.forcemerge(**merge_params)
+            request_context_holder.on_client_request_start()        
+            await opensearch.indices.forcemerge(**merge_params)           
+            request_context_holder.on_client_request_end()
 
     def __repr__(self, *args, **kwargs):
         return "force-merge"
@@ -710,7 +732,9 @@ class IndicesStats(Runner):
         api_kwargs = self._default_kw_params(params)
         index = api_kwargs.pop("index", "_all")
         condition = params.get("condition")
+        request_context_holder.on_client_request_start()
         response = await opensearch.indices.stats(index=index, metric="_all", **api_kwargs)
+        request_context_holder.on_client_request_end()
         if condition:
             path = mandatory(condition, "path", repr(self))
             expected_value = mandatory(condition, "expected-value", repr(self))
@@ -743,6 +767,7 @@ class NodeStats(Runner):
     Gather node stats for all nodes.
     """
 
+    @time_func
     async def __call__(self, opensearch, params):
         request_timeout = params.get("request-timeout")
         await opensearch.nodes.stats(metric="_all", request_timeout=request_timeout)
@@ -970,10 +995,12 @@ class Query(Runner):
                         took = props.get("took", 0)
                         all_results_collected = (size is not None and hits < size) or hits == 0
                     else:
+                        request_context_holder.on_client_request_start()
                         r = await opensearch.transport.perform_request("GET", "/_search/scroll",
                                                                body={"scroll_id": scroll_id, "scroll": "10s"},
                                                                params=request_params,
                                                                headers=headers)
+                        request_context_holder.on_client_request_end()
                         props = parse(r, ["timed_out", "took"], ["hits.hits"])
                         timed_out = timed_out or props.get("timed_out", False)
                         took += props.get("took", 0)
@@ -1106,16 +1133,21 @@ class Query(Runner):
 
         search_method = params.get("operation-type")
         if search_method == "paginated-search":
+            print("11")
             return await _search_after_query(opensearch, params)
         elif search_method == "scroll-search":
+            print("22")
             return await _scroll_query(opensearch, params)
         elif "pages" in params:
+            print("33")
             logging.getLogger(__name__).warning("Invoking a scroll search with the 'search' operation is deprecated "
                                                 "and will be removed in a future release. Use 'scroll-search' instead.")
             return await _scroll_query(opensearch, params)
         elif search_method == "vector-search":
+            print("44")
             return await _vector_search_query_with_recall(opensearch, params)
         else:
+            print("55")
             return await _request_body_query(opensearch, params)
 
     async def _raw_search(self, opensearch, doc_type, index, body, params, headers=None):
@@ -1126,7 +1158,10 @@ class Query(Runner):
             components.append(doc_type)
         components.append("_search")
         path = "/".join(components)
-        return await opensearch.transport.perform_request("GET", "/" + path, params=params, body=body, headers=headers)
+        request_context_holder.on_client_request_start()
+        response = await opensearch.transport.perform_request("GET", "/" + path, params=params, body=body, headers=headers)
+        request_context_holder.on_client_request_end()
+        return response
 
     def _query_headers(self, params):
         # reduces overhead due to decompression of very large responses
@@ -1211,8 +1246,10 @@ class ClusterHealth(Runner):
         else:
             # we're good with any count of relocating shards.
             expected_relocating_shards = sys.maxsize
-
+        
+        request_context_holder.on_client_request_start()
         result = await opensearch.cluster.health(**api_kw_params)
+        request_context_holder.on_client_request_end()
         cluster_status = result["status"]
         relocating_shards = result["relocating_shards"]
 
@@ -1232,6 +1269,7 @@ class ClusterHealth(Runner):
 
 
 class PutPipeline(Runner):
+    @time_func
     async def __call__(self, opensearch, params):
         await opensearch.ingest.put_pipeline(id=mandatory(params, "id", self),
                                      body=mandatory(params, "body", self),
@@ -1244,6 +1282,7 @@ class PutPipeline(Runner):
 
 # TODO: refactor it after python client support search pipeline https://github.com/opensearch-project/opensearch-py/issues/474
 class CreateSearchPipeline(Runner):
+    @time_func
     async def __call__(self, opensearch, params):
         endpoint = "/_search/pipeline/" + mandatory(params, "id", self)
         await opensearch.transport.perform_request(method="PUT", url=endpoint, body=mandatory(params, "body", self))
@@ -1252,6 +1291,7 @@ class CreateSearchPipeline(Runner):
         return "create-search-pipeline"
 
 class Refresh(Runner):
+    @time_func
     async def __call__(self, opensearch, params):
         await opensearch.indices.refresh(index=params.get("index", "_all"))
 
@@ -1261,13 +1301,16 @@ class Refresh(Runner):
 
 class CreateIndex(Runner):
     async def __call__(self, opensearch, params):
+        print("CreateIndex __call__ printed")
         indices = mandatory(params, "indices", self)
         api_params = self._default_kw_params(params)
         ## ignore invalid entries rather than erroring
         for term in ["index", "body"]:
             api_params.pop(term, None)
         for index, body in indices:
+            request_context_holder.on_client_request_start()
             await opensearch.indices.create(index=index, body=body, **api_params)
+            request_context_holder.on_client_request_end()
         return {
             "weight": len(indices),
             "unit": "ops",
@@ -1283,7 +1326,9 @@ class CreateDataStream(Runner):
         data_streams = mandatory(params, "data-streams", self)
         request_params = mandatory(params, "request-params", self)
         for data_stream in data_streams:
+            request_context_holder.on_client_request_start()
             await opensearch.indices.create_data_stream(data_stream, params=request_params)
+            request_context_holder.on_client_request_end()
         return {
             "weight": len(data_streams),
             "unit": "ops",
@@ -1295,6 +1340,7 @@ class CreateDataStream(Runner):
 
 
 class DeleteIndex(Runner):
+    @time_func
     async def __call__(self, opensearch, params):
         ops = 0
 
@@ -1304,11 +1350,15 @@ class DeleteIndex(Runner):
 
         for index_name in indices:
             if not only_if_exists:
+                request_context_holder.on_client_request_start()
                 await opensearch.indices.delete(index=index_name, params=request_params)
+                request_context_holder.on_client_request_end()
                 ops += 1
             elif only_if_exists and await opensearch.indices.exists(index=index_name):
                 self.logger.info("Index [%s] already exists. Deleting it.", index_name)
+                request_context_holder.on_client_request_start()
                 await opensearch.indices.delete(index=index_name, params=request_params)
+                request_context_holder.on_client_request_end()
                 ops += 1
 
         return {
@@ -1331,11 +1381,15 @@ class DeleteDataStream(Runner):
 
         for data_stream in data_streams:
             if not only_if_exists:
+                request_context_holder.on_client_request_start()
                 await opensearch.indices.delete_data_stream(data_stream, ignore=[404], params=request_params)
+                request_context_holder.on_client_request_end()
                 ops += 1
             elif only_if_exists and await opensearch.indices.exists(index=data_stream):
                 self.logger.info("Data stream [%s] already exists. Deleting it.", data_stream)
+                request_context_holder.on_client_request_start()
                 await opensearch.indices.delete_data_stream(data_stream, params=request_params)
+                request_context_holder.on_client_request_end()
                 ops += 1
 
         return {
@@ -1353,8 +1407,10 @@ class CreateComponentTemplate(Runner):
         templates = mandatory(params, "templates", self)
         request_params = mandatory(params, "request-params", self)
         for template, body in templates:
+            request_context_holder.on_client_request_start()
             await opensearch.cluster.put_component_template(name=template, body=body,
                                                     params=request_params)
+            request_context_holder.on_client_request_end()
         return {
             "weight": len(templates),
             "unit": "ops",
@@ -1382,11 +1438,15 @@ class DeleteComponentTemplate(Runner):
         ops_count = 0
         for template_name in template_names:
             if not only_if_exists:
+                request_context_holder.on_client_request_start()
                 await opensearch.cluster.delete_component_template(name=template_name, params=request_params, ignore=[404])
+                request_context_holder.on_client_request_end()
                 ops_count += 1
             elif only_if_exists and await _exists(template_name):
                 self.logger.info("Component Index template [%s] already exists. Deleting it.", template_name)
+                request_context_holder.on_client_request_start()
                 await opensearch.cluster.delete_component_template(name=template_name, params=request_params)
+                request_context_holder.on_client_request_end()
                 ops_count += 1
         return {
             "weight": ops_count,
@@ -1404,7 +1464,9 @@ class CreateComposableTemplate(Runner):
         templates = mandatory(params, "templates", self)
         request_params = mandatory(params, "request-params", self)
         for template, body in templates:
+            request_context_holder.on_client_request_start()
             await opensearch.cluster.put_index_template(name=template, body=body, params=request_params)
+            request_context_holder.on_client_request_end()
 
         return {
             "weight": len(templates),
@@ -1425,11 +1487,15 @@ class DeleteComposableTemplate(Runner):
 
         for template_name, delete_matching_indices, index_pattern in templates:
             if not only_if_exists:
+                request_context_holder.on_client_request_start()
                 await opensearch.indices.delete_index_template(name=template_name, params=request_params, ignore=[404])
+                request_context_holder.on_client_request_end()
                 ops_count += 1
             elif only_if_exists and await opensearch.indices.exists_template(template_name):
                 self.logger.info("Composable Index template [%s] already exists. Deleting it.", template_name)
+                request_context_holder.on_client_request_start()
                 await opensearch.indices.delete_index_template(name=template_name, params=request_params)
+                request_context_holder.on_client_request_end()
                 ops_count += 1
             # ensure that we do not provide an empty index pattern by accident
             if delete_matching_indices and index_pattern:
@@ -1451,9 +1517,11 @@ class CreateIndexTemplate(Runner):
         templates = mandatory(params, "templates", self)
         request_params = params.get("request-params", {})
         for template, body in templates:
+            request_context_holder.on_client_request_start()
             await opensearch.indices.put_template(name=template,
                                           body=body,
                                           params=request_params)
+            request_context_holder.on_client_request_end()
         return {
             "weight": len(templates),
             "unit": "ops",
@@ -1473,11 +1541,15 @@ class DeleteIndexTemplate(Runner):
 
         for template_name, delete_matching_indices, index_pattern in template_names:
             if not only_if_exists:
+                request_context_holder.on_client_request_start()
                 await opensearch.indices.delete_template(name=template_name, params=request_params)
+                request_context_holder.on_client_request_end()
                 ops_count += 1
             elif only_if_exists and await opensearch.indices.exists_template(template_name):
                 self.logger.info("Index template [%s] already exists. Deleting it.", template_name)
+                request_context_holder.on_client_request_start()
                 await opensearch.indices.delete_template(name=template_name, params=request_params)
+                request_context_holder.on_client_request_end()
                 ops_count += 1
             # ensure that we do not provide an empty index pattern by accident
             if delete_matching_indices and index_pattern:
@@ -1561,7 +1633,9 @@ class ShrinkIndex(Runner):
             # kick off the shrink operation
             index_suffix = remove_prefix(source_index, source_indices_stem)
             final_target_index = target_index if len(index_suffix) == 0 else target_index+index_suffix
+            request_context_holder.on_client_request_start()
             await opensearch.indices.shrink(index=source_index, target=final_target_index, body=target_body)
+            request_context_holder.on_client_request_end()
 
             self.logger.info("Waiting for shrink to finish for index [%s] ...", source_index)
             await self._wait_for(opensearch, final_target_index, f"shrink for index [{final_target_index}]")
@@ -1590,11 +1664,13 @@ class RawRequest(Runner):
             #counter-intuitive, but preserves prior behavior
             headers = None
 
+        request_context_holder.on_client_request_start()
         await opensearch.transport.perform_request(method=params.get("method", "GET"),
                                            url=path,
                                            headers=headers,
                                            body=params.get("body"),
                                            params=request_params)
+        request_context_holder.on_client_request_end()
 
     def __repr__(self, *args, **kwargs):
         return "raw-request"
@@ -1620,6 +1696,7 @@ class DeleteSnapshotRepository(Runner):
     """
     Deletes a snapshot repository
     """
+    @time_func
     async def __call__(self, opensearch, params):
         await opensearch.snapshot.delete_repository(repository=mandatory(params, "repository", repr(self)))
 
@@ -1631,6 +1708,7 @@ class CreateSnapshotRepository(Runner):
     """
     Creates a new snapshot repository
     """
+    @time_func
     async def __call__(self, opensearch, params):
         request_params = params.get("request-params", {})
         await opensearch.snapshot.create_repository(repository=mandatory(params, "repository", repr(self)),
@@ -1645,6 +1723,7 @@ class CreateSnapshot(Runner):
     """
     Creates a new snapshot repository
     """
+    @time_func
     async def __call__(self, opensearch, params):
         wait_for_completion = params.get("wait-for-completion", False)
         repository = mandatory(params, "repository", repr(self))
@@ -1711,6 +1790,7 @@ class RestoreSnapshot(Runner):
     """
     Restores a snapshot from an already registered repository
     """
+    @time_func
     async def __call__(self, opensearch, params):
         api_kwargs = self._default_kw_params(params)
         await opensearch.snapshot.restore(repository=mandatory(params, "repository", repr(self)),
@@ -1736,7 +1816,9 @@ class IndicesRecovery(Runner):
         # The nesting level is ok here given the structure of the API response
         # pylint: disable=too-many-nested-blocks
         while not all_shards_done:
+            request_context_holder.on_client_request_start()
             response = await opensearch.indices.recovery(index=index)
+            request_context_holder.on_client_request_end()
             # This might happen if we happen to call the API before the next recovery is scheduled.
             if not response:
                 self.logger.debug("Empty index recovery response for [%s].", index)
@@ -1776,6 +1858,7 @@ class IndicesRecovery(Runner):
 
 
 class PutSettings(Runner):
+    @time_func
     async def __call__(self, opensearch, params):
         await opensearch.cluster.put_settings(body=mandatory(params, "body", repr(self)))
 
@@ -1784,6 +1867,7 @@ class PutSettings(Runner):
 
 
 class CreateTransform(Runner):
+    @time_func
     async def __call__(self, opensearch, params):
         transform_id = mandatory(params, "transform-id", self)
         body = mandatory(params, "body", self)
@@ -1795,6 +1879,7 @@ class CreateTransform(Runner):
 
 
 class StartTransform(Runner):
+    @time_func
     async def __call__(self, opensearch, params):
         transform_id = mandatory(params, "transform-id", self)
         timeout = params.get("timeout")
@@ -1920,6 +2005,7 @@ class WaitForTransform(Runner):
 
 
 class DeleteTransform(Runner):
+    @time_func
     async def __call__(self, opensearch, params):
         transform_id = mandatory(params, "transform-id", self)
         force = params.get("force", False)
@@ -1931,6 +2017,7 @@ class DeleteTransform(Runner):
 
 
 class SubmitAsyncSearch(Runner):
+    @time_func
     async def __call__(self, opensearch, params):
         request_params = params.get("request-params", {})
         response = await opensearch.async_search.submit(body=mandatory(params, "body", self),
@@ -1962,8 +2049,10 @@ class GetAsyncSearch(Runner):
         request_params = params.get("request-params", {})
         stats = {}
         for search_id, search in async_search_ids(searches):
+            request_context_holder.on_client_request_start()
             response = await opensearch.async_search.get(id=search_id,
                                                  params=request_params)
+            request_context_holder.on_client_request_end()
             is_running = response["is_running"]
             success = success and not is_running
             if not is_running:
@@ -1990,7 +2079,9 @@ class DeleteAsyncSearch(Runner):
     async def __call__(self, opensearch, params):
         searches = mandatory(params, "delete-results-for", self)
         for search_id, search in async_search_ids(searches):
+            request_context_holder.on_client_request_start()
             await opensearch.async_search.delete(id=search_id)
+            request_context_holder.on_client_request_end()
             CompositeContext.remove(search)
 
     def __repr__(self, *args, **kwargs):
@@ -1998,6 +2089,7 @@ class DeleteAsyncSearch(Runner):
 
 
 class CreatePointInTime(Runner):
+    @time_func
     async def __call__(self, opensearch, params):
         op_name = mandatory(params, "name", self)
         index = mandatory(params, "index", self)
@@ -2013,6 +2105,7 @@ class CreatePointInTime(Runner):
 
 
 class DeletePointInTime(Runner):
+    @time_func
     async def __call__(self, opensearch, params):
         pit_op = params.get("with-point-in-time-from", None)
         request_params = params.get("request-params", {})
@@ -2031,6 +2124,7 @@ class DeletePointInTime(Runner):
 
 
 class ListAllPointInTime(Runner):
+    @time_func
     async def __call__(self, opensearch, params):
         request_params = params.get("request-params", {})
         await opensearch.list_all_point_in_time(params=request_params, headers=None)
