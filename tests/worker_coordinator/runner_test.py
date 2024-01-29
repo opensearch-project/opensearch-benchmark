@@ -349,9 +349,11 @@ class SelectiveJsonParserTests(TestCase):
 
 
 class BulkIndexRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_bulk_index_missing_params(self, opensearch):
+    async def test_bulk_index_missing_params(self, opensearch, on_client_request_start, on_client_request_end):
         bulk_response = {
             "errors": False,
             "took": 8
@@ -375,9 +377,11 @@ class BulkIndexRunnerTests(TestCase):
             "Parameter source for operation 'bulk-index' did not provide the mandatory parameter 'action-metadata-present'. "
             "Add it to your parameter source and try again.", ctx.exception.args[0])
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_bulk_index_success_with_metadata(self, opensearch):
+    async def test_bulk_index_success_with_metadata(self, opensearch, on_client_request_start, on_client_request_end):
         bulk_response = {
             "errors": False,
             "took": 8
@@ -410,9 +414,11 @@ class BulkIndexRunnerTests(TestCase):
 
         opensearch.bulk.assert_called_with(body=bulk_params["body"], params={})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_simple_bulk_with_timeout_and_headers(self, opensearch):
+    async def test_simple_bulk_with_timeout_and_headers(self, opensearch, on_client_request_start, on_client_request_end):
         bulk_response = {
             "errors": False,
             "took": 8
@@ -452,9 +458,11 @@ class BulkIndexRunnerTests(TestCase):
                                    opaque_id="DESIRED-OPAQUE-ID",
                                    request_timeout=3.0)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_bulk_index_success_without_metadata_with_doc_type(self, opensearch):
+    async def test_bulk_index_success_without_metadata_with_doc_type(self, opensearch, on_client_request_start, on_client_request_end):
         bulk_response = {
             "errors": False,
             "took": 8
@@ -485,9 +493,11 @@ class BulkIndexRunnerTests(TestCase):
 
         opensearch.bulk.assert_called_with(body=bulk_params["body"], index="test-index", doc_type="_doc", params={})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_bulk_index_success_without_metadata_and_without_doc_type(self, opensearch):
+    async def test_bulk_index_success_without_metadata_and_without_doc_type(self, opensearch, on_client_request_start, on_client_request_end):
         bulk_response = {
             "errors": False,
             "took": 8
@@ -517,9 +527,11 @@ class BulkIndexRunnerTests(TestCase):
 
         opensearch.bulk.assert_called_with(body=bulk_params["body"], index="test-index", doc_type=None, params={})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_bulk_index_error(self, opensearch):
+    async def test_bulk_index_error(self, opensearch, on_client_request_start, on_client_request_end):
         bulk_response = {
             "took": 5,
             "errors": True,
@@ -586,9 +598,11 @@ class BulkIndexRunnerTests(TestCase):
 
         opensearch.bulk.assert_called_with(body=bulk_params["body"], params={})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_bulk_index_error_no_shards(self, opensearch):
+    async def test_bulk_index_error_no_shards(self, opensearch, on_client_request_start, on_client_request_end):
         bulk_response = {
             "took": 20,
             "errors": True,
@@ -653,9 +667,11 @@ class BulkIndexRunnerTests(TestCase):
 
         opensearch.bulk.assert_called_with(body=bulk_params["body"], params={})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_mixed_bulk_with_simple_stats(self, opensearch):
+    async def test_mixed_bulk_with_simple_stats(self, opensearch, on_client_request_start, on_client_request_end):
         bulk_response = {
             "took": 30,
             "ingest_took": 20,
@@ -761,9 +777,11 @@ class BulkIndexRunnerTests(TestCase):
 
         opensearch.bulk.assert_called_with(body=bulk_params["body"], params={})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_mixed_bulk_with_detailed_stats_body_as_string(self, opensearch):
+    async def test_mixed_bulk_with_detailed_stats_body_as_string(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.bulk.return_value = as_future({
             "took": 30,
             "ingest_took": 20,
@@ -953,9 +971,11 @@ class BulkIndexRunnerTests(TestCase):
         result = await bulk(opensearch, bulk_params)
         self.assertNotIn("ingest_took", result)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_simple_bulk_with_detailed_stats_body_as_list(self, opensearch):
+    async def test_simple_bulk_with_detailed_stats_body_as_list(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.bulk.return_value = as_future({
             "took": 30,
             "ingest_took": 20,
@@ -1028,9 +1048,11 @@ class BulkIndexRunnerTests(TestCase):
         result = await bulk(opensearch, bulk_params)
         self.assertNotIn("ingest_took", result)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_simple_bulk_with_detailed_stats_body_as_unrecognized_type(self, opensearch):
+    async def test_simple_bulk_with_detailed_stats_body_as_unrecognized_type(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.bulk.return_value = as_future({
             "took": 30,
             "ingest_took": 20,
@@ -1076,18 +1098,22 @@ class BulkIndexRunnerTests(TestCase):
 
 
 class ForceMergeRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_force_merge_with_defaults(self, opensearch):
+    async def test_force_merge_with_defaults(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.forcemerge.return_value = as_future()
         force_merge = runner.ForceMerge()
         await force_merge(opensearch, params={"index": "_all"})
 
         opensearch.indices.forcemerge.assert_called_once_with(index="_all")
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_force_merge_with_timeout_and_headers(self, opensearch):
+    async def test_force_merge_with_timeout_and_headers(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.forcemerge.return_value = as_future()
         force_merge = runner.ForceMerge()
         await force_merge(opensearch, params={"index": "_all",
@@ -1100,9 +1126,11 @@ class ForceMergeRunnerTests(TestCase):
                                                       opaque_id="test-id",
                                                       request_timeout=3.0)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_force_merge_override_request_timeout(self, opensearch):
+    async def test_force_merge_override_request_timeout(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.forcemerge.return_value = as_future()
 
         force_merge = runner.ForceMerge()
@@ -1110,9 +1138,11 @@ class ForceMergeRunnerTests(TestCase):
 
         opensearch.indices.forcemerge.assert_called_once_with(index="_all", request_timeout=50000)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_force_merge_with_params(self, opensearch):
+    async def test_force_merge_with_params(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.forcemerge.return_value = as_future()
 
         force_merge = runner.ForceMerge()
@@ -1120,18 +1150,22 @@ class ForceMergeRunnerTests(TestCase):
 
         opensearch.indices.forcemerge.assert_called_once_with(index="_all", max_num_segments=1, request_timeout=50000)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_force_merge_with_polling_no_timeout(self, opensearch):
+    async def test_force_merge_with_polling_no_timeout(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.forcemerge.return_value = as_future()
 
         force_merge = runner.ForceMerge()
         await force_merge(opensearch, params={"index" : "_all", "mode": "polling", 'poll-period': 0})
         opensearch.indices.forcemerge.assert_called_once_with(index="_all")
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_force_merge_with_polling(self, opensearch):
+    async def test_force_merge_with_polling(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.forcemerge.return_value = as_future(exception=opensearchpy.ConnectionTimeout())
         opensearch.tasks.list.side_effect = [
             as_future({
@@ -1179,9 +1213,11 @@ class ForceMergeRunnerTests(TestCase):
         await force_merge(opensearch, params={"index": "_all", "mode": "polling", "poll-period": 0})
         opensearch.indices.forcemerge.assert_called_once_with(index="_all")
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_force_merge_with_polling_and_params(self, opensearch):
+    async def test_force_merge_with_polling_and_params(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.forcemerge.return_value = as_future(exception=opensearchpy.ConnectionTimeout())
         opensearch.tasks.list.side_effect = [
             as_future({
@@ -1233,9 +1269,11 @@ class ForceMergeRunnerTests(TestCase):
 
 
 class IndicesStatsRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_indices_stats_without_parameters(self, opensearch):
+    async def test_indices_stats_without_parameters(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.stats.return_value = as_future({})
         indices_stats = runner.IndicesStats()
         result = await indices_stats(opensearch, params={})
@@ -1245,9 +1283,11 @@ class IndicesStatsRunnerTests(TestCase):
 
         opensearch.indices.stats.assert_called_once_with(index="_all", metric="_all")
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_indices_stats_with_timeout_and_headers(self, opensearch):
+    async def test_indices_stats_with_timeout_and_headers(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.stats.return_value = as_future({})
         indices_stats = runner.IndicesStats()
         result = await indices_stats(opensearch, params={"request-timeout": 3.0,
@@ -1263,9 +1303,11 @@ class IndicesStatsRunnerTests(TestCase):
                                                  opaque_id="test-id1",
                                                  request_timeout=3.0)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_indices_stats_with_failed_condition(self, opensearch):
+    async def test_indices_stats_with_failed_condition(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.stats.return_value = as_future({
             "_all": {
                 "total": {
@@ -1297,9 +1339,11 @@ class IndicesStatsRunnerTests(TestCase):
 
         opensearch.indices.stats.assert_called_once_with(index="logs-*", metric="_all")
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_indices_stats_with_successful_condition(self, opensearch):
+    async def test_indices_stats_with_successful_condition(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.stats.return_value = as_future({
             "_all": {
                 "total": {
@@ -1331,9 +1375,11 @@ class IndicesStatsRunnerTests(TestCase):
 
         opensearch.indices.stats.assert_called_once_with(index="logs-*", metric="_all")
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_indices_stats_with_non_existing_path(self, opensearch):
+    async def test_indices_stats_with_non_existing_path(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.stats.return_value = as_future({
             "indices": {
                 "total": {
@@ -1367,9 +1413,11 @@ class IndicesStatsRunnerTests(TestCase):
 
 
 class QueryRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_query_match_only_request_body_defined(self, opensearch):
+    async def test_query_match_only_request_body_defined(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -1423,9 +1471,11 @@ class QueryRunnerTests(TestCase):
         )
         opensearch.clear_scroll.assert_not_called()
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_query_with_timeout_and_headers(self, opensearch):
+    async def test_query_with_timeout_and_headers(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -1482,9 +1532,11 @@ class QueryRunnerTests(TestCase):
         )
         opensearch.clear_scroll.assert_not_called()
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_query_match_using_request_params(self, opensearch):
+    async def test_query_match_using_request_params(self, opensearch, on_client_request_start, on_client_request_end):
         response = {
             "timed_out": False,
             "took": 62,
@@ -1540,9 +1592,11 @@ class QueryRunnerTests(TestCase):
         )
         opensearch.clear_scroll.assert_not_called()
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_query_no_detailed_results(self, opensearch):
+    async def test_query_no_detailed_results(self, opensearch, on_client_request_start, on_client_request_end):
         response = {
             "timed_out": False,
             "took": 62,
@@ -1594,9 +1648,11 @@ class QueryRunnerTests(TestCase):
         )
         opensearch.clear_scroll.assert_not_called()
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_query_hits_total_as_number(self, opensearch):
+    async def test_query_hits_total_as_number(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -1649,9 +1705,11 @@ class QueryRunnerTests(TestCase):
         )
         opensearch.clear_scroll.assert_not_called()
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_query_match_all(self, opensearch):
+    async def test_query_match_all(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -1705,9 +1763,11 @@ class QueryRunnerTests(TestCase):
         )
         opensearch.clear_scroll.assert_not_called()
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_query_match_all_doc_type_fallback(self, opensearch):
+    async def test_query_match_all_doc_type_fallback(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -1762,9 +1822,11 @@ class QueryRunnerTests(TestCase):
         )
         opensearch.clear_scroll.assert_not_called()
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_scroll_query_only_one_page(self, opensearch):
+    async def test_scroll_query_only_one_page(self, opensearch, on_client_request_start, on_client_request_end):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -1824,9 +1886,11 @@ class QueryRunnerTests(TestCase):
         )
         opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_scroll_query_no_request_cache(self, opensearch):
+    async def test_scroll_query_no_request_cache(self, opensearch, on_client_request_start, on_client_request_end):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -1886,9 +1950,11 @@ class QueryRunnerTests(TestCase):
         )
         opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_scroll_query_only_one_page_only_request_body_defined(self, opensearch):
+    async def test_scroll_query_only_one_page_only_request_body_defined(self, opensearch, on_client_request_start, on_client_request_end):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -1948,9 +2014,11 @@ class QueryRunnerTests(TestCase):
 
         opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_scroll_query_with_explicit_number_of_pages(self, opensearch):
+    async def test_scroll_query_with_explicit_number_of_pages(self, opensearch, on_client_request_start, on_client_request_end):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -2022,9 +2090,11 @@ class QueryRunnerTests(TestCase):
 
         opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_scroll_query_cannot_clear_scroll(self, opensearch):
+    async def test_scroll_query_cannot_clear_scroll(self, opensearch, on_client_request_start, on_client_request_end):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -2073,9 +2143,11 @@ class QueryRunnerTests(TestCase):
 
         opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_scroll_query_request_all_pages(self, opensearch):
+    async def test_scroll_query_request_all_pages(self, opensearch, on_client_request_start, on_client_request_end):
         # page 1
         search_response = {
             "_scroll_id": "some-scroll-id",
@@ -2147,9 +2219,11 @@ class QueryRunnerTests(TestCase):
 
         opensearch.clear_scroll.assert_called_once_with(body={"scroll_id": ["some-scroll-id"]})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_search_pipeline_using_request_params(self, opensearch):
+    async def test_search_pipeline_using_request_params(self, opensearch, on_client_request_start, on_client_request_end):
         response = {
             "timed_out": False,
             "took": 62,
@@ -2209,9 +2283,11 @@ class QueryRunnerTests(TestCase):
 
 
 class VectorSearchQueryRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_query_vector_search_with_perfect_recall(self, opensearch):
+    async def test_query_vector_search_with_perfect_recall(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -2285,9 +2361,11 @@ class VectorSearchQueryRunnerTests(TestCase):
             headers={"Accept-Encoding": "identity"}
         )
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_query_vector_search_with_no_results(self, opensearch):
+    async def test_query_vector_search_with_no_results(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 1
@@ -2340,9 +2418,11 @@ class VectorSearchQueryRunnerTests(TestCase):
             headers={"Accept-Encoding": "identity"}
         )
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_query_vector_search_with_imperfect_recall(self, opensearch):
+    async def test_query_vector_search_with_imperfect_recall(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -2416,9 +2496,11 @@ class VectorSearchQueryRunnerTests(TestCase):
             headers={"Accept-Encoding": "identity"}
         )
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_query_vector_search_with_few_results_than_ground_truth(self, opensearch):
+    async def test_query_vector_search_with_few_results_than_ground_truth(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -2488,9 +2570,11 @@ class VectorSearchQueryRunnerTests(TestCase):
             headers={"Accept-Encoding": "identity"}
         )
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_query_vector_search_with_zero_recall_1(self, opensearch):
+    async def test_query_vector_search_with_zero_recall_1(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -2560,9 +2644,11 @@ class VectorSearchQueryRunnerTests(TestCase):
             headers={"Accept-Encoding": "identity"}
         )
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_query_vector_search_with_custom_id_field(self, opensearch):
+    async def test_query_vector_search_with_custom_id_field(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -2650,9 +2736,11 @@ class VectorSearchQueryRunnerTests(TestCase):
             headers={"Accept-Encoding": "identity"}
         )
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_query_vector_search_with_custom_id_field_inside_source(self, opensearch):
+    async def test_query_vector_search_with_custom_id_field_inside_source(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -2738,9 +2826,11 @@ class VectorSearchQueryRunnerTests(TestCase):
 
 
 class PutPipelineRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_create_pipeline(self, opensearch):
+    async def test_create_pipeline(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.ingest.put_pipeline.return_value = as_future()
 
         r = runner.PutPipeline()
@@ -2764,9 +2854,11 @@ class PutPipelineRunnerTests(TestCase):
 
         opensearch.ingest.put_pipeline.assert_called_once_with(id="rename", body=params["body"], master_timeout=None, timeout=None)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_param_body_mandatory(self, opensearch):
+    async def test_param_body_mandatory(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.ingest.put_pipeline.return_value = as_future()
 
         r = runner.PutPipeline()
@@ -2781,9 +2873,11 @@ class PutPipelineRunnerTests(TestCase):
 
         self.assertEqual(0, opensearch.ingest.put_pipeline.call_count)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_param_id_mandatory(self, opensearch):
+    async def test_param_id_mandatory(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.ingest.put_pipeline.return_value = as_future()
 
         r = runner.PutPipeline()
@@ -2800,9 +2894,11 @@ class PutPipelineRunnerTests(TestCase):
 
 
 class ClusterHealthRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_waits_for_expected_cluster_status(self, opensearch):
+    async def test_waits_for_expected_cluster_status(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.cluster.health.return_value = as_future({
             "status": "green",
             "relocating_shards": 0
@@ -2827,9 +2923,11 @@ class ClusterHealthRunnerTests(TestCase):
 
         opensearch.cluster.health.assert_called_once_with(params={"wait_for_status": "green"})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_accepts_better_cluster_status(self, opensearch):
+    async def test_accepts_better_cluster_status(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.cluster.health.return_value = as_future({
             "status": "green",
             "relocating_shards": 0
@@ -2854,9 +2952,11 @@ class ClusterHealthRunnerTests(TestCase):
 
         opensearch.cluster.health.assert_called_once_with(params={"wait_for_status": "yellow"})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_cluster_health_with_timeout_and_headers(self, opensearch):
+    async def test_cluster_health_with_timeout_and_headers(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.cluster.health.return_value = as_future({
             "status": "green",
             "relocating_shards": 0
@@ -2887,9 +2987,11 @@ class ClusterHealthRunnerTests(TestCase):
                                                   params={"wait_for_status": "yellow"},
                                                   request_timeout=3.0)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_rejects_relocating_shards(self, opensearch):
+    async def test_rejects_relocating_shards(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.cluster.health.return_value = as_future({
             "status": "yellow",
             "relocating_shards": 3
@@ -2917,9 +3019,11 @@ class ClusterHealthRunnerTests(TestCase):
         opensearch.cluster.health.assert_called_once_with(index="logs-*",
                                                   params={"wait_for_status": "red", "wait_for_no_relocating_shards": True})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_rejects_unknown_cluster_status(self, opensearch):
+    async def test_rejects_unknown_cluster_status(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.cluster.health.return_value = as_future({
             "status": None,
             "relocating_shards": 0
@@ -2946,9 +3050,11 @@ class ClusterHealthRunnerTests(TestCase):
 
 
 class CreateIndexRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_creates_multiple_indices(self, opensearch):
+    async def test_creates_multiple_indices(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.create.return_value = as_future()
 
         r = runner.CreateIndex()
@@ -2978,9 +3084,11 @@ class CreateIndexRunnerTests(TestCase):
             mock.call(index="indexB", body={"settings": {}}, params=request_params)
         ])
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_create_with_timeout_and_headers(self, opensearch):
+    async def test_create_with_timeout_and_headers(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.create.return_value = as_future()
 
         create_index_runner = runner.CreateIndex()
@@ -3015,9 +3123,11 @@ class CreateIndexRunnerTests(TestCase):
                                                   params={"wait_for_active_shards": "true"},
                                                   request_timeout=3.0)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_ignore_invalid_params(self, opensearch):
+    async def test_ignore_invalid_params(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.create.return_value = as_future()
 
         r = runner.CreateIndex()
@@ -3047,9 +3157,11 @@ class CreateIndexRunnerTests(TestCase):
                                                   body={"settings": {}},
                                                   params={"wait_for_active_shards": "true"})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_param_indices_mandatory(self, opensearch):
+    async def test_param_indices_mandatory(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.create.return_value = as_future()
 
         r = runner.CreateIndex()
@@ -3064,9 +3176,11 @@ class CreateIndexRunnerTests(TestCase):
 
 
 class CreateDataStreamRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_creates_multiple_data_streams(self, opensearch):
+    async def test_creates_multiple_data_streams(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.create_data_stream.return_value = as_future()
 
         r = runner.CreateDataStream()
@@ -3096,9 +3210,11 @@ class CreateDataStreamRunnerTests(TestCase):
             mock.call("data-stream-B", params=request_params)
         ])
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_param_data_streams_mandatory(self, opensearch):
+    async def test_param_data_streams_mandatory(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.create_data_stream.return_value = as_future()
 
         r = runner.CreateDataStream()
@@ -3113,9 +3229,11 @@ class CreateDataStreamRunnerTests(TestCase):
 
 
 class DeleteIndexRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_deletes_existing_indices(self, opensearch):
+    async def test_deletes_existing_indices(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.exists.side_effect = [as_future(False), as_future(True)]
         opensearch.indices.delete.return_value = as_future()
         r = runner.DeleteIndex()
@@ -3135,9 +3253,11 @@ class DeleteIndexRunnerTests(TestCase):
 
         opensearch.indices.delete.assert_called_once_with(index="indexB", params={})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_deletes_all_indices(self, opensearch):
+    async def test_deletes_all_indices(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.delete.return_value = as_future()
         r = runner.DeleteIndex()
 
@@ -3166,9 +3286,11 @@ class DeleteIndexRunnerTests(TestCase):
 
 
 class DeleteDataStreamRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_deletes_existing_data_streams(self, opensearch):
+    async def test_deletes_existing_data_streams(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.exists.side_effect = [as_future(False), as_future(True)]
         opensearch.indices.delete_data_stream.return_value = as_future()
 
@@ -3190,9 +3312,11 @@ class DeleteDataStreamRunnerTests(TestCase):
 
         opensearch.indices.delete_data_stream.assert_called_once_with("data-stream-B", params={})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_deletes_all_data_streams(self, opensearch):
+    async def test_deletes_all_data_streams(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.delete_data_stream.return_value = as_future()
 
         r = runner.DeleteDataStream()
@@ -3222,9 +3346,11 @@ class DeleteDataStreamRunnerTests(TestCase):
 
 
 class CreateIndexTemplateRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_create_index_templates(self, opensearch):
+    async def test_create_index_templates(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.put_template.return_value = as_future()
 
         r = runner.CreateIndexTemplate()
@@ -3253,9 +3379,11 @@ class CreateIndexTemplateRunnerTests(TestCase):
             mock.call(name="templateB", body={"settings": {}}, params=params["request-params"])
         ])
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_param_templates_mandatory(self, opensearch):
+    async def test_param_templates_mandatory(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.put_template.return_value = as_future()
 
         r = runner.CreateIndexTemplate()
@@ -3270,9 +3398,11 @@ class CreateIndexTemplateRunnerTests(TestCase):
 
 
 class DeleteIndexTemplateRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_deletes_all_index_templates(self, opensearch):
+    async def test_deletes_all_index_templates(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.delete_template.return_value = as_future()
         opensearch.indices.delete.return_value = as_future()
 
@@ -3302,9 +3432,11 @@ class DeleteIndexTemplateRunnerTests(TestCase):
         ])
         opensearch.indices.delete.assert_called_once_with(index="logs-*")
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_deletes_only_existing_index_templates(self, opensearch):
+    async def test_deletes_only_existing_index_templates(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.exists_template.side_effect = [as_future(False), as_future(True)]
         opensearch.indices.delete_template.return_value = as_future()
 
@@ -3334,9 +3466,11 @@ class DeleteIndexTemplateRunnerTests(TestCase):
         # not called because the matching index is empty.
         self.assertEqual(0, opensearch.indices.delete.call_count)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_param_templates_mandatory(self, opensearch):
+    async def test_param_templates_mandatory(self, opensearch, on_client_request_start, on_client_request_end):
         r = runner.DeleteIndexTemplate()
 
         params = {}
@@ -3349,9 +3483,11 @@ class DeleteIndexTemplateRunnerTests(TestCase):
 
 
 class CreateComponentTemplateRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_create_index_templates(self, opensearch):
+    async def test_create_index_templates(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.cluster.put_component_template.return_value = as_future()
         r = runner.CreateComponentTemplate()
         params = {
@@ -3378,9 +3514,11 @@ class CreateComponentTemplateRunnerTests(TestCase):
                       params=params["request-params"])
         ])
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_param_templates_mandatory(self, opensearch):
+    async def test_param_templates_mandatory(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.cluster.put_component_template.return_value = as_future()
 
         r = runner.CreateComponentTemplate()
@@ -3395,9 +3533,11 @@ class CreateComponentTemplateRunnerTests(TestCase):
 
 
 class DeleteComponentTemplateRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_deletes_all_index_templates(self, opensearch):
+    async def test_deletes_all_index_templates(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.cluster.delete_component_template.return_value = as_future()
         opensearch.cluster.delete_component_template.return_value = as_future()
 
@@ -3425,9 +3565,11 @@ class DeleteComponentTemplateRunnerTests(TestCase):
             mock.call(name="templateB", params=params["request-params"], ignore=[404])
         ])
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_deletes_only_existing_index_templates(self, opensearch):
+    async def test_deletes_only_existing_index_templates(self, opensearch, on_client_request_start, on_client_request_end):
 
         def _side_effect(http_method, path):
             if http_method == "HEAD":
@@ -3459,9 +3601,11 @@ class DeleteComponentTemplateRunnerTests(TestCase):
 
         opensearch.cluster.delete_component_template.assert_called_once_with(name="templateB", params=params["request-params"])
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_param_templates_mandatory(self, opensearch):
+    async def test_param_templates_mandatory(self, opensearch, on_client_request_start, on_client_request_end):
         r = runner.DeleteComponentTemplate()
 
         params = {}
@@ -3474,9 +3618,11 @@ class DeleteComponentTemplateRunnerTests(TestCase):
 
 
 class CreateComposableTemplateRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_create_index_templates(self, opensearch):
+    async def test_create_index_templates(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.cluster.put_index_template.return_value = as_future()
         r = runner.CreateComposableTemplate()
         params = {
@@ -3504,9 +3650,11 @@ class CreateComposableTemplateRunnerTests(TestCase):
                                               "composed_of":["ct3","ct4"]}, params=params["request-params"])
         ])
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_param_templates_mandatory(self, opensearch):
+    async def test_param_templates_mandatory(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.cluster.put_index_template.return_value = as_future()
 
         r = runner.CreateComposableTemplate()
@@ -3521,9 +3669,11 @@ class CreateComposableTemplateRunnerTests(TestCase):
 
 
 class DeleteComposableTemplateRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_deletes_all_index_templates(self, opensearch):
+    async def test_deletes_all_index_templates(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.delete_index_template.return_value = as_future()
         opensearch.indices.delete.return_value = as_future()
 
@@ -3554,9 +3704,11 @@ class DeleteComposableTemplateRunnerTests(TestCase):
         ])
         opensearch.indices.delete.assert_called_once_with(index="logs-*")
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_deletes_only_existing_index_templates(self, opensearch):
+    async def test_deletes_only_existing_index_templates(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.exists_template.side_effect = [as_future(False), as_future(True)]
         opensearch.indices.delete_index_template.return_value = as_future()
 
@@ -3586,9 +3738,11 @@ class DeleteComposableTemplateRunnerTests(TestCase):
         # not called because the matching index is empty.
         self.assertEqual(0, opensearch.indices.delete.call_count)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_param_templates_mandatory(self, opensearch):
+    async def test_param_templates_mandatory(self, opensearch, on_client_request_start, on_client_request_end):
         r = runner.DeleteComposableTemplate()
 
         params = {}
@@ -3601,9 +3755,11 @@ class DeleteComposableTemplateRunnerTests(TestCase):
 
 
 class RawRequestRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_raises_missing_slash(self, opensearch):
+    async def test_raises_missing_slash(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.transport.perform_request.return_value = as_future()
         r = runner.RawRequest()
 
@@ -3619,9 +3775,11 @@ class RawRequestRunnerTests(TestCase):
                 mock.call("RawRequest failed. Path parameter: [%s] must begin with a '/'.", params["path"])
             ])
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_issue_request_with_defaults(self, opensearch):
+    async def test_issue_request_with_defaults(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.transport.perform_request.return_value = as_future()
         r = runner.RawRequest()
 
@@ -3636,9 +3794,11 @@ class RawRequestRunnerTests(TestCase):
                                                              body=None,
                                                              params={})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_issue_delete_index(self, opensearch):
+    async def test_issue_delete_index(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.transport.perform_request.return_value = as_future()
         r = runner.RawRequest()
 
@@ -3658,9 +3818,11 @@ class RawRequestRunnerTests(TestCase):
                                                              body=None,
                                                              params={"ignore": [400, 404], "pretty": "true"})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_issue_create_index(self, opensearch):
+    async def test_issue_create_index(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.transport.perform_request.return_value = as_future()
         r = runner.RawRequest()
 
@@ -3689,9 +3851,11 @@ class RawRequestRunnerTests(TestCase):
                                                              },
                                                              params={})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_issue_msearch(self, opensearch):
+    async def test_issue_msearch(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.transport.perform_request.return_value = as_future()
         r = runner.RawRequest()
 
@@ -3720,9 +3884,11 @@ class RawRequestRunnerTests(TestCase):
                                                              ],
                                                              params={})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_raw_with_timeout_and_opaqueid(self, opensearch):
+    async def test_raw_with_timeout_and_opaqueid(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.transport.perform_request.return_value = as_future()
         r = runner.RawRequest()
 
@@ -3787,9 +3953,11 @@ class SleepTests(TestCase):
 
 
 class DeleteSnapshotRepositoryTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_delete_snapshot_repository(self, opensearch):
+    async def test_delete_snapshot_repository(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.snapshot.delete_repository.return_value = as_future()
         params = {
             "repository": "backups"
@@ -3802,9 +3970,11 @@ class DeleteSnapshotRepositoryTests(TestCase):
 
 
 class CreateSnapshotRepositoryTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_create_snapshot_repository(self, opensearch):
+    async def test_create_snapshot_repository(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.snapshot.create_repository.return_value = as_future()
         params = {
             "repository": "backups",
@@ -3830,9 +4000,11 @@ class CreateSnapshotRepositoryTests(TestCase):
 
 
 class CreateSnapshotTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_create_snapshot_no_wait(self, opensearch):
+    async def test_create_snapshot_no_wait(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.snapshot.create.return_value = as_future({})
 
         params = {
@@ -3858,9 +4030,11 @@ class CreateSnapshotTests(TestCase):
                                                    params={"request_timeout": 7200},
                                                    wait_for_completion=False)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_create_snapshot_wait_for_completion(self, opensearch):
+    async def test_create_snapshot_wait_for_completion(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.snapshot.create.return_value = as_future({
             "snapshot": {
                 "snapshot": "snapshot-001",
@@ -3911,9 +4085,11 @@ class CreateSnapshotTests(TestCase):
 
 
 class WaitForSnapshotCreateTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_wait_for_snapshot_create_entire_lifecycle(self, opensearch):
+    async def test_wait_for_snapshot_create_entire_lifecycle(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.snapshot.status.side_effect = [
             # empty response
             as_future({}),
@@ -4017,9 +4193,11 @@ class WaitForSnapshotCreateTests(TestCase):
 
         self.assertEqual(3, opensearch.snapshot.status.call_count)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_wait_for_snapshot_create_immediate_success(self, opensearch):
+    async def test_wait_for_snapshot_create_immediate_success(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.snapshot.status.return_value = as_future({
             "snapshots": [
                 {
@@ -4063,9 +4241,11 @@ class WaitForSnapshotCreateTests(TestCase):
                                                    snapshot="snapshot-001",
                                                    ignore_unavailable=True)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_wait_for_snapshot_create_failure(self, opensearch):
+    async def test_wait_for_snapshot_create_failure(self, opensearch, on_client_request_start, on_client_request_end):
         snapshot_status = {
             "snapshots": [
                 {
@@ -4095,9 +4275,11 @@ class WaitForSnapshotCreateTests(TestCase):
 
 
 class RestoreSnapshotTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_restore_snapshot(self, opensearch):
+    async def test_restore_snapshot(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.snapshot.restore.return_value = as_future()
 
         params = {
@@ -4117,9 +4299,11 @@ class RestoreSnapshotTests(TestCase):
                                                     wait_for_completion=True,
                                                     params={"request_timeout": 7200})
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_restore_snapshot_with_body(self, opensearch):
+    async def test_restore_snapshot_with_body(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.snapshot.restore.return_value = as_future()
         params = {
             "repository": "backups",
@@ -4154,9 +4338,11 @@ class RestoreSnapshotTests(TestCase):
 
 
 class IndicesRecoveryTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_waits_for_ongoing_indices_recovery(self, opensearch):
+    async def test_waits_for_ongoing_indices_recovery(self, opensearch, on_client_request_start, on_client_request_end):
         # empty response
         opensearch.indices.recovery.side_effect = [
             # recovery did not yet start
@@ -4302,11 +4488,13 @@ class IndicesRecoveryTests(TestCase):
 
 
 class ShrinkIndexTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     # To avoid real sleeps in unit tests
     @mock.patch("asyncio.sleep", return_value=as_future())
     @run_async
-    async def test_shrink_index_with_shrink_node(self, sleep, opensearch):
+    async def test_shrink_index_with_shrink_node(self, sleep, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.get.return_value = as_future({
             "src": {}
         })
@@ -4356,11 +4544,13 @@ class ShrinkIndexTests(TestCase):
             }
         })
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     # To avoid real sleeps in unit tests
     @mock.patch("asyncio.sleep", return_value=as_future())
     @run_async
-    async def test_shrink_index_derives_shrink_node(self, sleep, opensearch):
+    async def test_shrink_index_derives_shrink_node(self, sleep, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.get.return_value = as_future({
             "src": {}
         })
@@ -4440,11 +4630,13 @@ class ShrinkIndexTests(TestCase):
             }
         })
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     # To avoid real sleeps in unit tests
     @mock.patch("asyncio.sleep", return_value=as_future())
     @run_async
-    async def test_shrink_index_pattern_with_shrink_node(self, sleep, opensearch):
+    async def test_shrink_index_pattern_with_shrink_node(self, sleep, opensearch, on_client_request_start, on_client_request_end):
         opensearch.indices.get.return_value = as_future({
             "src1": {}, "src2": {}, "src-2020": {}
         })
@@ -4537,9 +4729,11 @@ class ShrinkIndexTests(TestCase):
 
 
 class PutSettingsTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_put_settings(self, opensearch):
+    async def test_put_settings(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.cluster.put_settings.return_value = as_future()
         params = {
             "body": {
@@ -4560,9 +4754,11 @@ class PutSettingsTests(TestCase):
 
 
 class CreateTransformTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_create_transform(self, opensearch):
+    async def test_create_transform(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.transform.put_transform.return_value = as_future()
 
         params = {
@@ -4603,9 +4799,11 @@ class CreateTransformTests(TestCase):
 
 
 class StartTransformTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_start_transform(self, opensearch):
+    async def test_start_transform(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.transform.start_transform.return_value = as_future()
 
         transform_id = "a-transform"
@@ -4621,9 +4819,11 @@ class StartTransformTests(TestCase):
 
 
 class WaitForTransformTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_wait_for_transform(self, opensearch):
+    async def test_wait_for_transform(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.transform.stop_transform.return_value = as_future()
         transform_id = "a-transform"
         params = {
@@ -4685,9 +4885,11 @@ class WaitForTransformTests(TestCase):
                                                             wait_for_checkpoint=params["wait-for-checkpoint"]
                                                             )
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_wait_for_transform_progress(self, opensearch):
+    async def test_wait_for_transform_progress(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.transform.stop_transform.return_value = as_future()
         transform_id = "a-transform"
         params = {
@@ -4869,9 +5071,11 @@ class WaitForTransformTests(TestCase):
 
 
 class DeleteTransformTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_delete_transform(self, opensearch):
+    async def test_delete_transform(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.transform.delete_transform.return_value = as_future()
 
         transform_id = "a-transform"
@@ -4888,9 +5092,11 @@ class DeleteTransformTests(TestCase):
 
 
 class SubmitAsyncSearchTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_submit_async_search(self, opensearch):
+    async def test_submit_async_search(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.async_search.submit.return_value = as_future({"id": "12345"})
         r = runner.SubmitAsyncSearch()
         params = {
@@ -4916,9 +5122,11 @@ class SubmitAsyncSearchTests(TestCase):
 
 
 class GetAsyncSearchTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_get_async_search(self, opensearch):
+    async def test_get_async_search(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.async_search.get.return_value = as_future({
             "is_running": False,
             "response": {
@@ -4958,9 +5166,11 @@ class GetAsyncSearchTests(TestCase):
 
 
 class DeleteAsyncSearchTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_delete_async_search(self, opensearch):
+    async def test_delete_async_search(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.async_search.delete.side_effect = [
             as_future({}),
             as_future({})
@@ -4983,9 +5193,11 @@ class DeleteAsyncSearchTests(TestCase):
 
 
 class CreatePointInTimeTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_creates_point_in_time(self, opensearch):
+    async def test_creates_point_in_time(self, opensearch, on_client_request_start, on_client_request_end):
         pit_id = "0123456789abcdef"
         params = {
             "name": "open-pit-test",
@@ -4999,9 +5211,11 @@ class CreatePointInTimeTests(TestCase):
             await r(opensearch, params)
             self.assertEqual(pit_id, runner.CompositeContext.get("open-pit-test"))
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_can_only_be_run_in_composite(self, opensearch):
+    async def test_can_only_be_run_in_composite(self, opensearch, on_client_request_start, on_client_request_end):
         pit_id = "0123456789abcdef"
         params = {
             "name": "open-pit-test",
@@ -5017,9 +5231,11 @@ class CreatePointInTimeTests(TestCase):
         self.assertEqual("This operation is only allowed inside a composite operation.", ctx.exception.args[0])
 
 class DeletePointInTimeTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_delete_point_in_time(self, opensearch):
+    async def test_delete_point_in_time(self, opensearch, on_client_request_start, on_client_request_end):
         pit_id = "0123456789abcdef"
         params = {
             "name": "close-pit-test",
@@ -5033,9 +5249,11 @@ class DeletePointInTimeTests(TestCase):
 
         opensearch.delete_point_in_time.assert_called_once_with(body={"pit_id": ["0123456789abcdef"]}, params={}, headers=None)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_delete_point_in_time_without_context(self, opensearch):
+    async def test_delete_point_in_time_without_context(self, opensearch, on_client_request_start, on_client_request_end):
         params = {
             "name": "close-pit-test",
         }
@@ -5045,9 +5263,11 @@ class DeletePointInTimeTests(TestCase):
         opensearch.delete_point_in_time.assert_called_once_with(body=None, all=True, params={}, headers=None)
 
 class ListAllPointInTimeTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_get_all_point_in_time(self, opensearch):
+    async def test_get_all_point_in_time(self, opensearch, on_client_request_start, on_client_request_end):
         pit_id = "0123456789abcdef"
         params = {}
         opensearch.list_all_point_in_time.return_value = as_future({
@@ -5063,9 +5283,11 @@ class ListAllPointInTimeTests(TestCase):
         await r(opensearch, params)
         opensearch.list_all_point_in_time.assert_called_once()
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_get_all_point_in_time_in_composite(self, opensearch):
+    async def test_get_all_point_in_time_in_composite(self, opensearch, on_client_request_start, on_client_request_end):
         pit_id = "0123456789abcdef"
         params = {}
         opensearch.list_all_point_in_time.return_value = as_future({
@@ -5085,9 +5307,11 @@ class ListAllPointInTimeTests(TestCase):
 
 
 class QueryWithSearchAfterScrollTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_search_after_with_pit(self, opensearch):
+    async def test_search_after_with_pit(self, opensearch, on_client_request_start, on_client_request_end):
         pit_op = "open-point-in-time1"
         pit_id = "0123456789abcdef"
         params = {
@@ -5188,9 +5412,11 @@ class QueryWithSearchAfterScrollTests(TestCase):
                                                                  },
                                                                  headers=None)])
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_search_after_without_pit(self, opensearch):
+    async def test_search_after_without_pit(self, opensearch, on_client_request_start, on_client_request_end):
         params = {
             "name": "search-with-pit",
             "operation-type": "paginated-search",
@@ -5431,9 +5657,12 @@ class CompositeTests(TestCase):
         runner.remove_runner("counter")
         runner.remove_runner("call-recorder")
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.new_request_context')
     @run_async
-    async def test_execute_multiple_streams(self, opensearch):
+    async def test_execute_multiple_streams(self, opensearch, on_client_request_start, on_client_request_end,new_request_context):
         opensearch.transport.perform_request.side_effect = [
             # raw-request
             as_future(),
@@ -5508,9 +5737,12 @@ class CompositeTests(TestCase):
                       headers=None)
         ])
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.new_request_context')
     @run_async
-    async def test_propagates_violated_assertions(self, opensearch):
+    async def test_propagates_violated_assertions(self, opensearch, on_client_request_start, on_client_request_end, new_request_context):
         opensearch.transport.perform_request.side_effect = [
             # search
             as_future(io.StringIO(json.dumps({
@@ -5567,9 +5799,12 @@ class CompositeTests(TestCase):
                       headers=None)
         ])
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.new_request_context')
     @run_async
-    async def test_executes_tasks_in_specified_order(self, opensearch):
+    async def test_executes_tasks_in_specified_order(self, opensearch, on_client_request_start, on_client_request_end, new_request_context):
         opensearch.transport.perform_request.return_value = as_future()
 
         params = {
@@ -5696,9 +5931,11 @@ class CompositeTests(TestCase):
             self.assertIn("request_end", timing)
             self.assertGreater(timing["request_end"], timing["request_start"])
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_limits_connections(self, opensearch):
+    async def test_limits_connections(self, opensearch, on_client_request_start, on_client_request_end):
         params = {
             "max-connections": 2,
             "requests": [
@@ -5734,9 +5971,11 @@ class CompositeTests(TestCase):
         # composite runner should limit to two concurrent connections
         self.assertEqual(2, self.counter_runner.max_value)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_rejects_invalid_stream(self, opensearch):
+    async def test_rejects_invalid_stream(self, opensearch, on_client_request_start, on_client_request_end):
         # params contains a "streams" property (plural) but it should be "stream" (singular)
         params = {
             "max-connections": 2,
@@ -5765,9 +6004,11 @@ class CompositeTests(TestCase):
 
         self.assertEqual("Requests structure must contain [stream] or [operation-type].", ctx.exception.args[0])
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_rejects_unsupported_operations(self, opensearch):
+    async def test_rejects_unsupported_operations(self, opensearch, on_client_request_start, on_client_request_end):
         params = {
             "requests": [
                 {
@@ -5812,9 +6053,11 @@ class RequestTimingTests(TestCase):
         async def __aexit__(self, exc_type, exc_val, exc_tb):
             return False
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_merges_timing_info(self, opensearch):
+    async def test_merges_timing_info(self, opensearch, on_client_request_start, on_client_request_end):
         multi_cluster_client = {"default": opensearch}
         opensearch.new_request_context.return_value = RequestTimingTests.StaticRequestTiming(task_start=2)
 
@@ -5845,9 +6088,11 @@ class RequestTimingTests(TestCase):
 
         delegate.assert_called_once_with(multi_cluster_client, params)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_creates_new_timing_info(self, opensearch):
+    async def test_creates_new_timing_info(self, opensearch, on_client_request_start, on_client_request_end):
         multi_cluster_client = {"default": opensearch}
         opensearch.new_request_context.return_value = RequestTimingTests.StaticRequestTiming(task_start=2)
 
@@ -6156,9 +6401,11 @@ class RemovePrefixTests(TestCase):
 
 
 class CreateSearchPipelineRunnerTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_create_search_pipeline(self, opensearch):
+    async def test_create_search_pipeline(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.transport.perform_request.return_value = as_future()
 
         r = runner.CreateSearchPipeline()
@@ -6194,9 +6441,11 @@ class CreateSearchPipelineRunnerTests(TestCase):
                                                                      url='/_search/pipeline/test_pipeline',
                                                                      body=params["body"])
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_param_body_mandatory(self, opensearch):
+    async def test_param_body_mandatory(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.transport.perform_request.return_value = as_future()
 
         r = runner.CreateSearchPipeline()
@@ -6212,9 +6461,11 @@ class CreateSearchPipelineRunnerTests(TestCase):
 
         self.assertEqual(0, opensearch.transport.perform_request.call_count)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_param_id_mandatory(self, opensearch):
+    async def test_param_id_mandatory(self, opensearch, on_client_request_start, on_client_request_end):
         opensearch.transport.perform_request.return_value = as_future()
 
         r = runner.CreateSearchPipeline()
