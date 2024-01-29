@@ -868,12 +868,13 @@ class SamplePostprocessor:
                                                            sample_type=sample.sample_type, absolute_time=sample.absolute_time,
                                                            relative_time=sample.relative_time, meta_data=meta_data)
 
-                self.metrics_store.put_value_cluster_level(name="client_processing_time", value=convert.seconds_to_ms(sample.client_processing_time),
+                self.metrics_store.put_value_cluster_level(name="client_processing_time",
+                                                           value=convert.seconds_to_ms(sample.client_processing_time),
                                                            unit="ms", task=sample.task.name,
                                                            operation=sample.operation_name, operation_type=sample.operation_type,
                                                            sample_type=sample.sample_type, absolute_time=sample.absolute_time,
                                                            relative_time=sample.relative_time, meta_data=meta_data)
-                
+
                 self.metrics_store.put_value_cluster_level(name="processing_time", value=convert.seconds_to_ms(sample.processing_time),
                                                            unit="ms", task=sample.task.name,
                                                            operation=sample.operation_name, operation_type=sample.operation_type,
@@ -1587,7 +1588,6 @@ class AsyncExecutor:
                 processing_start = time.perf_counter()
                 self.schedule_handle.before_request(processing_start)
                 async with self.opensearch["default"].new_request_context() as request_context:
-                    print("runner", runner)
                     total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch, params, self.on_error)
                     request_start = request_context.request_start
                     request_end = request_context.request_end

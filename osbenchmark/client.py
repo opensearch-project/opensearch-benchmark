@@ -56,7 +56,7 @@ class RequestContextManager:
     @property
     def request_end(self):
         return self.ctx["request_end"]
-    
+
     @property
     def client_request_start(self):
         return self.ctx["client_request_start"]
@@ -117,13 +117,11 @@ class RequestContextHolder:
     def update_client_request_start(cls, new_client_request_start):
         meta = cls.request_context.get()
         if "client_request_start" not in meta:
-            print("updated client_request_start", new_client_request_start)
             meta["client_request_start"] = new_client_request_start
 
     @classmethod
     def update_client_request_end(cls, new_client_request_end):
         meta = cls.request_context.get()
-        print("updated client_request_end", new_client_request_end)
         meta["client_request_end"] = new_client_request_end
 
     @classmethod

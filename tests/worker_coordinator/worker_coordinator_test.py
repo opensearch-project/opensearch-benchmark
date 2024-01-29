@@ -270,7 +270,7 @@ class SamplePostprocessorTests(TestCase):
 
     def service_time(self, absolute_time, relative_time, value):
         return self.request_metric(absolute_time, relative_time, "service_time", value)
-    
+
     def client_processing_time(self, absolute_time, relative_time, value):
         return self.request_metric(absolute_time, relative_time, "client_processing_time", value)
 
@@ -312,8 +312,10 @@ class SamplePostprocessorTests(TestCase):
         post_process(samples)
 
         calls = [
-            self.latency(38598, 24, 10.0), self.service_time(38598, 24, 7.0), self.client_processing_time(38598, 24, 0.7), self.processing_time(38598, 24, 9.0),
-            self.latency(38599, 25, 10.0), self.service_time(38599, 25, 7.0), self.client_processing_time(38599, 25, 0.7), self.processing_time(38599, 25, 9.0),
+            self.latency(38598, 24, 10.0), self.service_time(38598, 24, 7.0),
+            self.client_processing_time(38598, 24, 0.7), self.processing_time(38598, 24, 9.0),
+            self.latency(38599, 25, 10.0), self.service_time(38599, 25, 7.0),
+            self.client_processing_time(38599, 25, 0.7), self.processing_time(38599, 25, 9.0),
             self.throughput(38598, 24, 5000),
             self.throughput(38599, 25, 5000),
         ]
@@ -341,7 +343,8 @@ class SamplePostprocessorTests(TestCase):
 
         calls = [
             # only the first out of two request samples is included, throughput metrics are still complete
-            self.latency(38598, 24, 10.0), self.service_time(38598, 24, 7.0), self.client_processing_time(38598, 24, 0.7), self.processing_time(38598, 24, 9.0),
+            self.latency(38598, 24, 10.0), self.service_time(38598, 24, 7.0),
+            self.client_processing_time(38598, 24, 0.7), self.processing_time(38598, 24, 9.0),
             self.throughput(38598, 24, 5000),
             self.throughput(38599, 25, 5000),
         ]
@@ -380,7 +383,8 @@ class SamplePostprocessorTests(TestCase):
         post_process(samples)
 
         calls = [
-            self.latency(38598, 24, 10.0), self.service_time(38598, 24, 7.0), self.client_processing_time(38598, 24, 0.7), self.processing_time(38598, 24, 9.0),
+            self.latency(38598, 24, 10.0), self.service_time(38598, 24, 7.0),
+            self.client_processing_time(38598, 24, 0.7), self.processing_time(38598, 24, 9.0),
             # dependent timings
             self.service_time(38601, 25, 50.0),
             self.service_time(38602, 26, 80.0),
@@ -728,8 +732,10 @@ class MetricsAggregationTests(TestCase):
         op = workload.Operation("index", workload.OperationType.Bulk, param_source="worker-coordinator-test-param-source")
 
         samples = [
-            worker_coordinator.Sample(0, 1470838595, 21, 0, op, metrics.SampleType.Warmup, None, -1, -1, -1, -1, None, 3000, "docs", 1, 1),
-            worker_coordinator.Sample(0, 1470838595.5, 21.5, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 2500, "docs", 1, 1),
+            worker_coordinator.Sample(0, 1470838595, 21, 0, op, metrics.SampleType.Warmup,
+                                      None, -1, -1, -1, -1, None, 3000, "docs", 1, 1),
+            worker_coordinator.Sample(0, 1470838595.5, 21.5, 0, op, metrics.SampleType.Normal,
+                                      None, -1, -1, -1, -1, None, 2500, "docs", 1, 1),
         ]
 
         aggregated = self.calculate_global_throughput(samples)
@@ -752,9 +758,12 @@ class MetricsAggregationTests(TestCase):
             worker_coordinator.Sample(0, 38598, 24, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 4, 4 / 9),
             worker_coordinator.Sample(0, 38599, 25, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 5, 5 / 9),
             worker_coordinator.Sample(0, 38600, 26, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 6, 6 / 9),
-            worker_coordinator.Sample(1, 38598.5, 24.5, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 4.5, 7 / 9),
-            worker_coordinator.Sample(1, 38599.5, 25.5, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 5.5, 8 / 9),
-            worker_coordinator.Sample(1, 38600.5, 26.5, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 6.5, 9 / 9)
+            worker_coordinator.Sample(1, 38598.5, 24.5, 0, op, metrics.SampleType.Normal,
+                                      None, -1, -1, -1, -1, None, 5000, "docs", 4.5, 7 / 9),
+            worker_coordinator.Sample(1, 38599.5, 25.5, 0, op, metrics.SampleType.Normal,
+                                      None, -1, -1, -1, -1, None, 5000, "docs", 5.5, 8 / 9),
+            worker_coordinator.Sample(1, 38600.5, 26.5, 0, op, metrics.SampleType.Normal,
+                                      None, -1, -1, -1, -1, None, 5000, "docs", 6.5, 9 / 9)
         ]
 
         aggregated = self.calculate_global_throughput(samples)

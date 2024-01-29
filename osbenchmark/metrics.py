@@ -2038,7 +2038,8 @@ class GlobalStats:
     def v(self, d, k, default=None):
         return d.get(k, default) if d else default
 
-    def add_op_metrics(self, task, operation, throughput, latency, service_time, client_processing_time, processing_time, error_rate, duration, meta):
+    def add_op_metrics(self, task, operation, throughput, latency, service_time, client_processing_time,
+                       processing_time, error_rate, duration, meta):
         doc = {
             "task": task,
             "operation": operation,

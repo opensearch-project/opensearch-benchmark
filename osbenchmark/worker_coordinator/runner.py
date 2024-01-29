@@ -215,13 +215,9 @@ request_context_holder = RequestContextHolder()
 
 def time_func(func):
     async def advised(*args, **kwargs):
-        st = time.perf_counter()
-        print("started", st)
         request_context_holder.on_client_request_start()
         rsl = await func(*args, **kwargs)
         request_context_holder.on_client_request_end()
-        en = time.perf_counter()
-        print("ended", en)
         return rsl
     return advised
 
@@ -504,14 +500,14 @@ class BulkIndex(Runner):
         if not detailed_results:
             opensearch.return_raw_response()
         request_context_holder.on_client_request_start()
-        
+
         if with_action_metadata:
             api_kwargs.pop("index", None)
             # only half of the lines are documents
             response = await opensearch.bulk(params=bulk_params, **api_kwargs)
         else:
             response = await opensearch.bulk(doc_type=params.get("type"), params=bulk_params, **api_kwargs)
-            
+
         request_context_holder.on_client_request_end()
         stats = self.detailed_stats(params, response) if detailed_results else self.simple_stats(bulk_size, unit, response)
 
@@ -704,8 +700,8 @@ class ForceMerge(Runner):
                     # empty nodes response indicates no tasks
                     complete = True
         else:
-            request_context_holder.on_client_request_start()        
-            await opensearch.indices.forcemerge(**merge_params)           
+            request_context_holder.on_client_request_start()
+            await opensearch.indices.forcemerge(**merge_params)
             request_context_holder.on_client_request_end()
 
     def __repr__(self, *args, **kwargs):
@@ -1133,21 +1129,16 @@ class Query(Runner):
 
         search_method = params.get("operation-type")
         if search_method == "paginated-search":
-            print("11")
             return await _search_after_query(opensearch, params)
         elif search_method == "scroll-search":
-            print("22")
             return await _scroll_query(opensearch, params)
         elif "pages" in params:
-            print("33")
             logging.getLogger(__name__).warning("Invoking a scroll search with the 'search' operation is deprecated "
                                                 "and will be removed in a future release. Use 'scroll-search' instead.")
             return await _scroll_query(opensearch, params)
         elif search_method == "vector-search":
-            print("44")
             return await _vector_search_query_with_recall(opensearch, params)
         else:
-            print("55")
             return await _request_body_query(opensearch, params)
 
     async def _raw_search(self, opensearch, doc_type, index, body, params, headers=None):
@@ -1246,7 +1237,7 @@ class ClusterHealth(Runner):
         else:
             # we're good with any count of relocating shards.
             expected_relocating_shards = sys.maxsize
-        
+
         request_context_holder.on_client_request_start()
         result = await opensearch.cluster.health(**api_kw_params)
         request_context_holder.on_client_request_end()
@@ -1301,7 +1292,6 @@ class Refresh(Runner):
 
 class CreateIndex(Runner):
     async def __call__(self, opensearch, params):
-        print("CreateIndex __call__ printed")
         indices = mandatory(params, "indices", self)
         api_params = self._default_kw_params(params)
         ## ignore invalid entries rather than erroring

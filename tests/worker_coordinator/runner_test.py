@@ -497,7 +497,9 @@ class BulkIndexRunnerTests(TestCase):
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_bulk_index_success_without_metadata_and_without_doc_type(self, opensearch, on_client_request_start, on_client_request_end):
+    async def test_bulk_index_success_without_metadata_and_without_doc_type(self, opensearch,
+                                                                            on_client_request_start,
+                                                                            on_client_request_end):
         bulk_response = {
             "errors": False,
             "took": 8
@@ -1052,7 +1054,9 @@ class BulkIndexRunnerTests(TestCase):
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_simple_bulk_with_detailed_stats_body_as_unrecognized_type(self, opensearch, on_client_request_start, on_client_request_end):
+    async def test_simple_bulk_with_detailed_stats_body_as_unrecognized_type(self, opensearch,
+                                                                             on_client_request_start,
+                                                                             on_client_request_end):
         opensearch.bulk.return_value = as_future({
             "took": 30,
             "ingest_took": 20,
