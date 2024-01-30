@@ -837,22 +837,15 @@ class VectorDataSetPartitionParamSource(ParamSource):
     def __init__(self, workload, params, context: Context, **kwargs):
         super().__init__(workload, params, **kwargs)
         self.field_name: str = parse_string_parameter("field", params)
-
         self.context = context
         self.data_set_format = parse_string_parameter("data_set_format", params)
         self.data_set_path = parse_string_parameter("data_set_path", params)
-        self.data_set: DataSet = get_data_set(
-            self.data_set_format, self.data_set_path, self.context)
-
-        num_vectors: int = parse_int_parameter(
-            "num_vectors", params, self.data_set.size())
-        # if value is -1 or greater than dataset size, use dataset size as num_vectors
-        self.num_vectors = self.data_set.size() if (
-                num_vectors < 0 or num_vectors > self.data_set.size()) else num_vectors
-        self.total = self.num_vectors
+        self.num_vectors: int = parse_int_parameter("num_vectors", params, -1)
+        self.total = 1
         self.current = 0
         self.percent_completed = 0
         self.offset = 0
+        self.data_set: DataSet = None
 
     @property
     def infinite(self):
@@ -872,6 +865,14 @@ class VectorDataSetPartitionParamSource(ParamSource):
         Returns:
             The parameter source for this particular partition
         """
+        if self.data_set is None:
+            self.data_set: DataSet = get_data_set(
+                self.data_set_format, self.data_set_path, self.context)
+        # if value is -1 or greater than dataset size, use dataset size as num_vectors
+        if self.num_vectors < 0 or self.num_vectors > self.data_set.size():
+            self.num_vectors = self.data_set.size()
+            self.total = self.num_vectors
+
         partition_x = copy.copy(self)
 
         num_vectors = int(self.num_vectors / total_partitions)
@@ -934,10 +935,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         self.current_rep = 1
         self.neighbors_data_set_format = parse_string_parameter(
             self.PARAMS_NAME_NEIGHBORS_DATA_SET_FORMAT, params, self.data_set_format)
-        self.neighbors_data_set_path = parse_string_parameter(
-            self.PARAMS_NAME_NEIGHBORS_DATA_SET_PATH, params, self.data_set_path)
-        self.neighbors_data_set: DataSet = get_data_set(
-            self.neighbors_data_set_format, self.neighbors_data_set_path, Context.NEIGHBORS)
+        self.neighbors_data_set_path = params.get(self.PARAMS_NAME_NEIGHBORS_DATA_SET_PATH)
         operation_type = parse_string_parameter(self.PARAMS_NAME_OPERATION_TYPE, params,
                                                 self.PARAMS_VALUE_VECTOR_SEARCH)
         self.query_params = query_params
@@ -961,10 +959,20 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         if self.PARAMS_NAME_SIZE not in body_params:
             body_params[self.PARAMS_NAME_SIZE] = self.k
         if self.PARAMS_NAME_QUERY in body_params:
-            self.logger.warning("[%s] param from body will be replaced with vector search query.", self.PARAMS_NAME_QUERY)
+            self.logger.warning(
+                "[%s] param from body will be replaced with vector search query.", self.PARAMS_NAME_QUERY)
         # override query params with vector search query
         body_params[self.PARAMS_NAME_QUERY] = self._build_vector_search_query_body(vector)
         self.query_params.update({self.PARAMS_NAME_BODY: body_params})
+
+    def partition(self, partition_index, total_partitions):
+        partition = super().partition(partition_index, total_partitions)
+        if not self.neighbors_data_set_path:
+            self.neighbors_data_set_path = self.data_set_path
+        # add neighbor instance to partition
+        partition.neighbors_data_set = get_data_set(
+            self.neighbors_data_set_format, self.neighbors_data_set_path, Context.NEIGHBORS)
+        return partition
 
     def params(self):
         """

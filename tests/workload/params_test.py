@@ -2536,7 +2536,7 @@ class VectorSearchParamSourceTests(TestCase):
                 workload.Workload(name="unit-test"),
                 test_param_source_params,
                 self.DEFAULT_CONTEXT
-            )
+            ).partition(0, 1)
         )
 
     def test_invalid_data_set_path(self):
@@ -2553,11 +2553,12 @@ class VectorSearchParamSourceTests(TestCase):
                 workload.Workload(name="unit-test"),
                 test_param_source_params,
                 self.DEFAULT_CONTEXT
-            )
+            ).partition(0, 1)
         )
 
     def test_partition_hdf5(self):
         num_vectors = 100
+        num_partitions = 10
 
         hdf5_data_set_path = create_data_set(
             num_vectors,
@@ -2579,8 +2580,7 @@ class VectorSearchParamSourceTests(TestCase):
             self.DEFAULT_CONTEXT
         )
 
-        num_partitions = 10
-        vectors_per_partition = test_param_source.num_vectors // num_partitions
+        vectors_per_partition = num_vectors // num_partitions
 
         self._test_partition(
             test_param_source,
@@ -2590,6 +2590,7 @@ class VectorSearchParamSourceTests(TestCase):
 
     def test_partition_bigann(self):
         num_vectors = 100
+        num_partitions = 10
         float_extension = "fbin"
 
         bigann_data_set_path = create_data_set(
@@ -2611,14 +2612,11 @@ class VectorSearchParamSourceTests(TestCase):
             test_param_source_params,
             self.DEFAULT_CONTEXT
         )
-
-        num_partitions = 10
-        vecs_per_partition = test_param_source.num_vectors // num_partitions
-
+        vectors_per_partition = num_vectors // num_partitions
         self._test_partition(
             test_param_source,
             num_partitions,
-            vecs_per_partition
+            vectors_per_partition
         )
 
     def _test_partition(
@@ -2691,11 +2689,12 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
                 "request-params": {},
             }
         )
+        query_param_source_partition = query_param_source.partition(0, 1)
 
         # Check each
         for _ in range(DEFAULT_NUM_VECTORS):
             self._check_params(
-                query_param_source.params(),
+                query_param_source_partition.params(),
                 self.DEFAULT_FIELD_NAME,
                 self.DEFAULT_DIMENSION,
                 k,
@@ -2703,7 +2702,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
 
         # Assert last call creates stop iteration
         with self.assertRaises(StopIteration):
-            query_param_source.params()
+            query_param_source_partition.params()
 
     def test_params_custom_body(self):
         # Create a data set
@@ -2741,11 +2740,12 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
                 }
             }
         )
+        query_param_source_partition = query_param_source.partition(0, 1)
 
         # Check each
         for _ in range(DEFAULT_NUM_VECTORS):
             self._check_params(
-                query_param_source.params(),
+                query_param_source_partition.params(),
                 self.DEFAULT_FIELD_NAME,
                 self.DEFAULT_DIMENSION,
                 k,
@@ -2754,7 +2754,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
 
         # Assert last call creates stop iteration
         with self.assertRaises(StopIteration):
-            query_param_source.params()
+            query_param_source_partition.params()
 
     def _check_params(
             self,
@@ -2822,12 +2822,12 @@ class BulkVectorsFromDataSetParamSourceTestCase(TestCase):
         }
         bulk_param_source = BulkVectorsFromDataSetParamSource(
             workload.Workload(name="unit-test"), test_param_source_params)
-
+        bulk_param_source_partition = bulk_param_source.partition(0, 1)
         # Check each payload returned
         vectors_consumed = 0
         while vectors_consumed < num_vectors:
             expected_num_vectors = min(num_vectors - vectors_consumed, bulk_size)
-            actual_params = bulk_param_source.params()
+            actual_params = bulk_param_source_partition.params()
             self._check_params(
                 actual_params,
                 self.DEFAULT_INDEX_NAME,
@@ -2840,7 +2840,7 @@ class BulkVectorsFromDataSetParamSourceTestCase(TestCase):
 
         # Assert last call creates stop iteration
         with self.assertRaises(StopIteration):
-            bulk_param_source.params()
+            bulk_param_source_partition.params()
 
     def test_params_custom(self):
         num_vectors = 49
@@ -2863,12 +2863,12 @@ class BulkVectorsFromDataSetParamSourceTestCase(TestCase):
         }
         bulk_param_source = BulkVectorsFromDataSetParamSource(
             workload.Workload(name="unit-test"), test_param_source_params)
-
+        bulk_param_source_partition = bulk_param_source.partition(0, 1)
         # Check each payload returned
         vectors_consumed = 0
         while vectors_consumed < num_vectors:
             expected_num_vectors = min(num_vectors - vectors_consumed, bulk_size)
-            actual_params = bulk_param_source.params()
+            actual_params = bulk_param_source_partition.params()
             self._check_params(
                 actual_params,
                 self.DEFAULT_INDEX_NAME,
@@ -2881,7 +2881,7 @@ class BulkVectorsFromDataSetParamSourceTestCase(TestCase):
 
         # Assert last call creates stop iteration
         with self.assertRaises(StopIteration):
-            bulk_param_source.params()
+            bulk_param_source_partition.params()
 
     def _check_params(
             self,
