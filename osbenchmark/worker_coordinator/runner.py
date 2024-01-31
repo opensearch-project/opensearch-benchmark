@@ -1330,6 +1330,7 @@ class CreateDataStream(Runner):
 
 
 class DeleteIndex(Runner):
+    @time_func
     async def __call__(self, opensearch, params):
         ops = 0
 
@@ -1339,15 +1340,11 @@ class DeleteIndex(Runner):
 
         for index_name in indices:
             if not only_if_exists:
-                request_context_holder.on_client_request_start()
                 await opensearch.indices.delete(index=index_name, params=request_params)
-                request_context_holder.on_client_request_end()
                 ops += 1
             elif only_if_exists and await opensearch.indices.exists(index=index_name):
                 self.logger.info("Index [%s] already exists. Deleting it.", index_name)
-                request_context_holder.on_client_request_start()
                 await opensearch.indices.delete(index=index_name, params=request_params)
-                request_context_holder.on_client_request_end()
                 ops += 1
 
         return {
