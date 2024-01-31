@@ -216,9 +216,9 @@ request_context_holder = RequestContextHolder()
 def time_func(func):
     async def advised(*args, **kwargs):
         request_context_holder.on_client_request_start()
-        rsl = await func(*args, **kwargs)
+        response = await func(*args, **kwargs)
         request_context_holder.on_client_request_end()
-        return rsl
+        return response
     return advised
 
 
