@@ -100,6 +100,7 @@ class HDF5DataSet(DataSet):
             self.data = cast(h5py.Dataset, file[self.context])
 
     def read(self, chunk_size: int):
+        # load file first before read
         self._load()
         if self.current >= self.size():
             return None
@@ -113,7 +114,6 @@ class HDF5DataSet(DataSet):
         return vectors
 
     def seek(self, offset: int):
-        # load file first before seek
         if offset < self.BEGINNING:
             raise Exception("Offset must be greater than or equal to 0")
 
