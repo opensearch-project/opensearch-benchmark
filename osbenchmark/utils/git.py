@@ -33,10 +33,8 @@ VERSION_REGEX = r'.* ([0-9]+)\.([0-9]+)\..*'
 
 def probed(f):
     def probe(src, *args, **kwargs):
-        # Probe for -C
         try:
-            out, _, status = process.run_subprocess_with_out_and_err(
-                "git -C {} --version".format(io.escape_path(src)))
+            out, _, status = process.run_subprocess_with_out_and_err("git --version")
         except FileNotFoundError:
             status = 1
         if status != 0:
@@ -58,6 +56,7 @@ def is_working_copy(src):
     return os.path.exists(src) and os.path.exists(os.path.join(src, ".git"))
 
 
+@probed
 def clone(src, remote):
     io.ensure_dir(src)
     # Don't swallow subprocess output, user might need to enter credentials...
