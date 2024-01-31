@@ -1330,7 +1330,6 @@ class CreateDataStream(Runner):
 
 
 class DeleteIndex(Runner):
-    @time_func
     async def __call__(self, opensearch, params):
         ops = 0
 

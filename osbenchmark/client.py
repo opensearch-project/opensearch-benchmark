@@ -55,7 +55,7 @@ class RequestContextManager:
 
     @property
     def request_end(self):
-        return self.ctx["request_end"]
+        return max((value for value in self.ctx["request_end_list"] if value < self.client_request_end))
 
     @property
     def client_request_start(self):
@@ -67,10 +67,10 @@ class RequestContextManager:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         # propagate earliest request start and most recent request end to parent
-        request_start = self.request_start
-        request_end = self.request_end
         client_request_start = self.client_request_start
         client_request_end = self.client_request_end
+        request_start = self.request_start
+        request_end = self.request_end
         self.ctx_holder.restore_context(self.token)
         # don't attempt to restore these values on the top-level context as they don't exist
         if self.token.old_value != contextvars.Token.MISSING:
@@ -105,13 +105,15 @@ class RequestContextHolder:
     def update_request_start(cls, new_request_start):
         meta = cls.request_context.get()
         # this can happen if multiple requests are sent on the wire for one logical request (e.g. scrolls)
-        if "request_start" not in meta:
+        if "request_start" not in meta and "client_request_start" in meta:
             meta["request_start"] = new_request_start
 
     @classmethod
     def update_request_end(cls, new_request_end):
         meta = cls.request_context.get()
-        meta["request_end"] = new_request_end
+        if "request_end_list" not in meta:
+            meta["request_end_list"] = []
+        meta["request_end_list"].append(new_request_end)
 
     @classmethod
     def update_client_request_start(cls, new_client_request_start):
