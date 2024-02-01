@@ -1801,12 +1801,14 @@ class WorkloadRandomizationTests(TestCase):
             full_workload = reader("unittest", workload_specification, "/mappings")
             return full_workload
 
-        def get_standard_value_source(self, op_name, field_name): # Passed to the processor, to be able to find the standard value sources for all ops/fields.
+        def get_standard_value_source(self, op_name, field_name):
+            # Passed to the processor, to be able to find the standard value sources for all ops/fields.
             # The actual source functions for the op/field pairs, which in a real application
             # would be defined in the workload's workload.py and involve some randomization
             return lambda: self.new_values[op_name][field_name]
 
-        def get_standard_value(self, op_name, field_name, index): # Passed to the processor, to be able to retrive the saved standard values for all ops/fields.
+        def get_standard_value(self, op_name, field_name, index):
+            # Passed to the processor, to be able to retrive the saved standard values for all ops/fields.
             return self.saved_values[op_name][field_name]
 
     def test_range_finding_function(self):
@@ -1895,7 +1897,7 @@ class WorkloadRandomizationTests(TestCase):
         self.assertEqual(multiple_nested_range_query_result, multiple_nested_range_query_expected)
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            empty_result = processor.extract_fields_and_paths({"body":{"contents":["not_a_valid_query"]}})
+            _ = processor.extract_fields_and_paths({"body":{"contents":["not_a_valid_query"]}})
             self.assertEqual("Cannot extract range query fields from these params, missing params[\"body\"][\"query\"]",
                          ctx.exception.args[0])
 
@@ -1917,7 +1919,8 @@ class WorkloadRandomizationTests(TestCase):
                                                             get_standard_value_source=helper.get_standard_value_source)
             modified_range_1 = modified_params["body"]["query"]["bool"]["filter"]["range"][helper.field_name_1]
             modified_range_2 = modified_params["body"]["query"]["bool"]["filter"]["must"][0]["range"][helper.field_name_2]
-            self.assertEqual(modified_range_1["lt"], expected_values_dict[helper.op_name_1][helper.field_name_1]["lte"]) # Note it should keep whichever of lt/lte it found in the original query
+            self.assertEqual(modified_range_1["lt"], expected_values_dict[helper.op_name_1][helper.field_name_1]["lte"])
+            # Note it should keep whichever of lt/lte it found in the original query
             self.assertEqual(modified_range_1["gte"], expected_values_dict[helper.op_name_1][helper.field_name_1]["gte"])
 
             self.assertEqual(modified_range_2["lte"], expected_values_dict[helper.op_name_1][helper.field_name_2]["lte"])
@@ -1944,7 +1947,9 @@ class WorkloadRandomizationTests(TestCase):
         # Do nothing with default config as randomization.enabled is false
         helper = self.StandardValueHelper()
         input_workload = helper.get_simple_workload()
-        self.assertEqual(repr(input_workload), repr(processor.on_after_load_workload(input_workload, get_standard_value=helper.get_standard_value,
+        self.assertEqual(
+            repr(input_workload),
+            repr(processor.on_after_load_workload(input_workload, get_standard_value=helper.get_standard_value,
                                                             get_standard_value_source=helper.get_standard_value_source)))
         # It seems that comparing the workloads directly will incorrectly call them equal, even if they have differences,
         # so compare their string representations instead
@@ -1958,7 +1963,9 @@ class WorkloadRandomizationTests(TestCase):
         self.assertEqual(processor.rf, loader.QueryRandomizerWorkloadProcessor.DEFAULT_RF)
         self.assertEqual(type(processor.rf), float)
         input_workload = helper.get_simple_workload()
-        self.assertNotEqual(repr(input_workload), repr(processor.on_after_load_workload(input_workload, get_standard_value=helper.get_standard_value,
+        self.assertNotEqual(
+            repr(input_workload),
+            repr(processor.on_after_load_workload(input_workload, get_standard_value=helper.get_standard_value,
                                                             get_standard_value_source=helper.get_standard_value_source)))
         for test_procedure in input_workload.test_procedures:
             for task in test_procedure.schedule:

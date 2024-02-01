@@ -49,7 +49,7 @@ class WorkloadSyntaxError(exceptions.InvalidSyntax):
 
 
 class WorkloadProcessor:
-    def on_after_load_workload(self, workload):
+    def on_after_load_workload(self, input_workload, **kwargs):
         """
         This method is called by Benchmark after a workload has been loaded. Implementations are expected to modify the
         provided workload object in place.
@@ -825,11 +825,11 @@ class TaskFilterWorkloadProcessor(WorkloadProcessor):
                 return self.exclude
         return not self.exclude
 
-    def on_after_load_workload(self, workload):
+    def on_after_load_workload(self, input_workload, **kwargs):
         if not self.filters:
-            return workload
+            return input_workload
 
-        for test_procedure in workload.test_procedures:
+        for test_procedure in input_workload.test_procedures:
             # don't modify the schedule while iterating over it
             tasks_to_remove = []
             for task in test_procedure.schedule:
@@ -848,7 +848,7 @@ class TaskFilterWorkloadProcessor(WorkloadProcessor):
                 self.logger.info("Removing task [%s] from test_procedure [%s] due to task filter.", task, test_procedure)
                 test_procedure.remove_task(task)
 
-        return workload
+        return input_workload
 
 
 class TestModeWorkloadProcessor(WorkloadProcessor):
@@ -856,11 +856,11 @@ class TestModeWorkloadProcessor(WorkloadProcessor):
         self.test_mode_enabled = cfg.opts("workload", "test.mode.enabled", mandatory=False, default_value=False)
         self.logger = logging.getLogger(__name__)
 
-    def on_after_load_workload(self, workload):
+    def on_after_load_workload(self, input_workload, **kwargs):
         if not self.test_mode_enabled:
-            return workload
-        self.logger.info("Preparing workload [%s] for test mode.", str(workload))
-        for corpus in workload.corpora:
+            return input_workload
+        self.logger.info("Preparing workload [%s] for test mode.", str(input_workload))
+        for corpus in input_workload.corpora:
             if self.logger.isEnabledFor(logging.DEBUG):
                 self.logger.debug("Reducing corpus size to 1000 documents for [%s]", corpus.name)
             for document_set in corpus.documents:
@@ -885,7 +885,7 @@ class TestModeWorkloadProcessor(WorkloadProcessor):
                     document_set.compressed_size_in_bytes = None
                     document_set.uncompressed_size_in_bytes = None
 
-        for test_procedure in workload.test_procedures:
+        for test_procedure in input_workload.test_procedures:
             for task in test_procedure.schedule:
                 # we need iterate over leaf tasks and await iterating over possible intermediate 'parallel' elements
                 for leaf_task in task:
@@ -919,7 +919,7 @@ class TestModeWorkloadProcessor(WorkloadProcessor):
                         leaf_task.params.pop("target-interval", None)
                         leaf_task.params["target-throughput"] = f"{sys.maxsize} {original_throughput.unit}"
 
-        return workload
+        return input_workload
 
 class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
     DEFAULT_RF = 0.3
@@ -972,10 +972,10 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
         # Return the field and the current path if we're currently scanning the field name in a range query, otherwise return an empty list.
         fields = [] # pairs of (field, path_to_field)
         curr = self.get_dict_from_previous_path(root, current_path)
-        if type(curr) is dict and curr != {}:
+        if isinstance(curr, dict) and curr != {}:
             if len(current_path) > 0 and current_path[-1] == "range":
                 for key in curr.keys():
-                    if type(curr[key]) == dict:
+                    if isinstance(curr, dict):
                         if ("gte" in curr[key] or "gt" in curr[key]) and ("lte" in curr[key] or "lt" in curr[key]):
                             fields.append((key, current_path))
                 return fields
@@ -983,8 +983,8 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
                 for key in curr.keys():
                     fields += self.extract_fields_helper(root, current_path + [key])
                 return fields
-        elif type(curr) is list and curr != []:
-            for i, value in enumerate(curr):
+        elif isinstance(curr, list) and curr != []:
+            for i in range(len(curr)):
                 fields += self.extract_fields_helper(root, current_path + [i])
             return fields
         else:
@@ -1054,43 +1054,45 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
                                                                  get_standard_value_source=get_standard_value_source,
                                                                  op_name=op_name, **kwargs)
 
-    def on_after_load_workload(self, input_workload,
-                               get_standard_value=None,
-                               get_standard_value_source=None):
-
+    def on_after_load_workload(self, input_workload, **kwargs):
         if not self.randomization_enabled:
             return input_workload
 
         # By default, use params for standard values and generate new standard values the first time an op/field is seen.
         # In unit tests, we should be able to supply our own sources independent of params.
+        # This is done in kwargs because pylint didn't like having specific keyword args that weren't in the parent method.
         generate_new_standard_values = False
-        if get_standard_value is None:
-            get_standard_value = params.get_standard_value
+        if "get_standard_value" not in kwargs:
+            kwargs["get_standard_value"] = params.get_standard_value
             generate_new_standard_values = True
-        if get_standard_value_source is None:
-            get_standard_value_source = params.get_standard_value_source
+        if "get_standard_value_source" not in kwargs:
+            kwargs["get_standard_value_source"] = params.get_standard_value_source
             generate_new_standard_values = True
 
+        default_test_procedure = None
         for test_procedure in input_workload.test_procedures:
-            if test_procedure.default: # TODO - not sure if this is correct
-                for task in test_procedure.schedule:
-                    for leaf_task in task:
-                        try:
-                            op_type = workload.OperationType.from_hyphenated_string(leaf_task.operation.type)
-                        except KeyError:
-                            op_type = None
-                        if op_type == workload.OperationType.Search:
-                            op_name = leaf_task.operation.name
-                            param_source_name = op_name + "-randomized"
-                            params.register_param_source_for_name(
-                                param_source_name,
-                                self.create_param_source_lambda(op_name, get_standard_value=get_standard_value,
-                                                                get_standard_value_source=get_standard_value_source))
-                            leaf_task.operation.param_source = param_source_name
-                            # Generate the right number of standard values for this field, if not already present
-                            for field_and_path in self.extract_fields_and_paths(leaf_task.operation.params):
-                                if generate_new_standard_values:
-                                    params.generate_standard_values_if_absent(op_name, field_and_path[0], self.N)
+            if test_procedure.default:
+                default_test_procedure = test_procedure # TODO - not sure if this is correct
+                break
+
+        for task in default_test_procedure.schedule:
+            for leaf_task in task:
+                try:
+                    op_type = workload.OperationType.from_hyphenated_string(leaf_task.operation.type)
+                except KeyError:
+                    op_type = None
+                if op_type == workload.OperationType.Search:
+                    op_name = leaf_task.operation.name
+                    param_source_name = op_name + "-randomized"
+                    params.register_param_source_for_name(
+                        param_source_name,
+                        self.create_param_source_lambda(op_name, get_standard_value=kwargs["get_standard_value"],
+                                                        get_standard_value_source=kwargs["get_standard_value_source"]))
+                    leaf_task.operation.param_source = param_source_name
+                    # Generate the right number of standard values for this field, if not already present
+                    for field_and_path in self.extract_fields_and_paths(leaf_task.operation.params):
+                        if generate_new_standard_values:
+                            params.generate_standard_values_if_absent(op_name, field_and_path[0], self.N)
         return input_workload
 
 class CompleteWorkloadParams:

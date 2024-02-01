@@ -69,7 +69,9 @@ def get_standard_value_source(op_name, field_name):
     try:
         return __STANDARD_VALUE_SOURCES[op_name][field_name]
     except KeyError:
-        raise exceptions.SystemSetupError("Could not find standard value source for operation {}, field {}! Make sure this is registered in workload.py".format(op_name, field_name))
+        raise exceptions.SystemSetupError(
+            "Could not find standard value source for operation {}, field {}! Make sure this is registered in workload.py"
+            .format(op_name, field_name))
 
 
 def ensure_valid_param_source(param_source):
@@ -103,8 +105,10 @@ def generate_standard_values_if_absent(op_name, field_name, n):
         try:
             standard_value_source = __STANDARD_VALUE_SOURCES[op_name][field_name]
         except KeyError:
-            raise exceptions.SystemSetupError("Cannot generate standard values for operation {}, field {}. Standard value source is missing".format(op_name, field_name))
-        for i in range(n):
+            raise exceptions.SystemSetupError(
+                "Cannot generate standard values for operation {}, field {}. Standard value source is missing"
+                .format(op_name, field_name))
+        for _i in range(n):
             __STANDARD_VALUES[op_name][field_name].append(standard_value_source())
 
 def get_standard_value(op_name, field_name, i):
@@ -113,7 +117,9 @@ def get_standard_value(op_name, field_name, i):
     except KeyError:
         raise exceptions.SystemSetupError("No standard values generated for operation {}, field {}".format(op_name, field_name))
     except IndexError:
-        raise exceptions.SystemSetupError("Standard value index {} out of range for operation {}, field name {} ({} values total)".format(i, op_name, field_name, len(__STANDARD_VALUES[op_name][field_name])))
+        raise exceptions.SystemSetupError(
+            "Standard value index {} out of range for operation {}, field name {} ({} values total)"
+            .format(i, op_name, field_name, len(__STANDARD_VALUES[op_name][field_name])))
 
 
 # only intended for tests

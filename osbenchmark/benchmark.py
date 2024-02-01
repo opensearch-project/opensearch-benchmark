@@ -573,11 +573,13 @@ def create_arg_parser():
         action="store_true")
     test_execution_parser.add_argument(
         "--randomization-rf",
-        help="The repeat_frequency for query randomization. Ignored if randomization is off (default: {workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_RF}).",
+        help=f"The repeat_frequency for query randomization. Ignored if randomization is off"
+             f"(default: {workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_RF}).",
         default=workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_RF)
     test_execution_parser.add_argument(
         "--randomization-n",
-        help="The number of standard values to generate for each field for query randomization. Ignored if randomization is off (default: {workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_N}).",
+        help=f"The number of standard values to generate for each field for query randomization."
+             f"Ignored if randomization is off (default: {workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_N}).",
         default=workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_N)
 
     ###############################################################################
@@ -887,14 +889,11 @@ def dispatch_sub_command(arg_parser, args, cfg):
                 "load_worker_coordinator_hosts",
                 opts.csv_to_list(args.load_worker_coordinator_hosts))
             cfg.add(config.Scope.applicationOverride, "workload", "test.mode.enabled", args.test_mode)
-<<<<<<< HEAD
             cfg.add(config.Scope.applicationOverride, "workload", "latency.percentiles", args.latency_percentiles)
             cfg.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", args.throughput_percentiles)
-=======
             cfg.add(config.Scope.applicationOverride, "workload", "randomization.enabled", args.randomization_enabled)
             cfg.add(config.Scope.applicationOverride, "workload", "randomization.rf", args.randomization_rf)
             cfg.add(config.Scope.applicationOverride, "workload", "randomization.n", args.randomization_n)
->>>>>>> randomized
             configure_workload_params(arg_parser, args, cfg)
             configure_connection_params(arg_parser, args, cfg)
             configure_telemetry_params(args, cfg)

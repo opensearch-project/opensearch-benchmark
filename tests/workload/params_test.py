@@ -1407,7 +1407,8 @@ class StandardValueSourceRegistrationTests(TestCase):
         return lambda : {"gte":gte, "lte":lte}
 
     def test_register_standard_value_source(self):
-        # Test the sequence: register standard value source -> generate saved standard values -> retrieve those values or generate new values from source
+        # Test the sequence: register standard value source -> generate saved standard values
+        # -> retrieve those values or generate new values from source
         op_name = "op-1"
         field_name_1 = "field-1"
         field_name_2 = "field-2"
@@ -1425,25 +1426,32 @@ class StandardValueSourceRegistrationTests(TestCase):
         self.assertEqual(params.get_standard_value_source(op_name, field_name_1)(), {"gte":gte_field_1, "lte":lte_field_1})
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            nonexistent_source = params.get_standard_value_source(op_name, field_name_2)
-            self.assertEqual("Could not find standard value source for operation {}, field {}! Make sure this is registered in workload.py".format(op_name, field_name_2), ctx.exception.args[0])
+            _ = params.get_standard_value_source(op_name, field_name_2)
+            self.assertEqual(
+                "Could not find standard value source for operation {}, field {}! Make sure this is registered in workload.py"
+                .format(op_name, field_name_2), ctx.exception.args[0])
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            standard_value = params.get_standard_value(op_name, field_name_1, 0)
+            _ = params.get_standard_value(op_name, field_name_1, 0)
             self.assertEqual("No standard values generated for operation {}, field {}".format(op_name, field_name_1), ctx.exception.args[0])
 
         params.generate_standard_values_if_absent(op_name, field_name_1, n)
         self.assertEqual(params.get_standard_value(op_name, field_name_1, 0), {"gte":gte_field_1, "lte":lte_field_1})
 
-        # check that running generate_standard_values_if_absent on the same inputs does nothing - we can do this by telling it to generate 2*n, but it won't because values are already present
+        # check that running generate_standard_values_if_absent on the same inputs does nothing
+        # we can do this by telling it to generate 2*n, but it won't because values are already present
         params.generate_standard_values_if_absent(op_name, field_name_1, 2*n)
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            standard_value = params.get_standard_value(op_name, field_name_1, n + 1)
-            self.assertEqual("Standard value index {} out of range for operation {}, field name {} ({} values total)".format(n+1, op_name, field_name_1, n), ctx.exception.args[0])
+            _ = params.get_standard_value(op_name, field_name_1, n + 1)
+            self.assertEqual(
+                "Standard value index {} out of range for operation {}, field name {} ({} values total)"
+                .format(n+1, op_name, field_name_1, n), ctx.exception.args[0])
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             params.generate_standard_values_if_absent(op_name, field_name_2, n)
-            self.assertEqual("Cannot generate standard values for operation {}, field {}. Standard value source is missing".format(op_name, field_name_2), ctx.exception.args[0])
+            self.assertEqual(
+                "Cannot generate standard values for operation {}, field {}. Standard value source is missing"
+                .format(op_name, field_name_2), ctx.exception.args[0])
 
         params.register_standard_value_source(op_name, field_name_2, self.get_mock_standard_value_source(gte_field_2, lte_field_2))
         self.assertEqual(params.get_standard_value_source(op_name, field_name_2)(), {"gte":gte_field_2, "lte":lte_field_2})
