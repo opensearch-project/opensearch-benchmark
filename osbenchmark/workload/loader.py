@@ -946,8 +946,8 @@ class WorkloadFileReader:
     COMMON_WORKLOAD_FORMAT_ERRORS = """
     ---------------------------------------------------------------------------------------------------------------------------
     [Common workload formatting errors:] \n
-    - Jinja2 expressions missing parameters (e.g. got {{search_clients}} but need {{search_clients | default(8)}})\n
-    - Jinja2 expressions missing \"tojson\" parameter when needed(e.g. got {{index_settings | default({})}} but need{{index_settings | default({}) | tojson}})\n
+    - Jinja2 expression missing parameters (e.g. got {{search_clients}} but needs {{search_clients | default(8)}})\n
+    - Jinja2 expression missing \"tojson\" parameter when needed(e.g. got {{index_settings | default({})}} but needs {{index_settings | default({}) | tojson}})\n
     - JSON file might not be correctly formatted after rendering Jinja2 (e.g. additional brackets (}, ]) or missing commas (,))
     ---------------------------------------------------------------------------------------------------------------------------
     """
@@ -1000,7 +1000,7 @@ class WorkloadFileReader:
             exception_message = f"Jinja2 Exception TemplateSyntaxError: {e}\n"
             if 'endif' in exception_message:
                 exception_message = exception_message + \
-                    "There is an extra Jinja2 \"endif\" somewhere in workload's files. " + \
+                    "There is an extra Jinja2 \"endif\" somewhere in the workload's files. " + \
                     "Please remove it so that the workload can be rendered and run.\n"
             if 'Missing end of raw directive' in exception_message:
                 exception_message += \
