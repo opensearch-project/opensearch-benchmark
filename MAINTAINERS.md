@@ -8,3 +8,5 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 | ----------------- | ----------------------------------------------------- | ----------- |
 | Ian Hoang         | [IanHoang](https://github.com/IanHoang)               | Amazon      |
 | Govind Kamat      | [gkamat](https://github.com/gkamat)                   | Amazon      |
+| Mingyang Shi      | [beaioun](https://github.com/beaioun)                 | OSCI        |
+| Chinmay Gadgil    | [cgchinmay](https://github.com/cgchinmay)             | Amazon      |
