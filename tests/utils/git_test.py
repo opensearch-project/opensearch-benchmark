@@ -44,12 +44,14 @@ class GitTests(TestCase):
             git.head_revision("/src")
         self.assertEqual("OpenSearch Benchmark requires at least version 2 of git.  You have git version 1.4.0.  Please update git.",
                          ctx.exception.args[0])
-        run_subprocess_with_out_and_err.assert_called_with("git -C /src --version")
+        run_subprocess_with_out_and_err.assert_called_with("git --version")
 
     @mock.patch("osbenchmark.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_out_and_err")
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
-    def test_clone_successful(self, run_subprocess_with_logging, ensure_dir):
+    def test_clone_successful(self, run_subprocess_with_logging, run_subprocess_with_out_and_err, ensure_dir):
         run_subprocess_with_logging.return_value = 0
+        run_subprocess_with_out_and_err.return_value = ("git version 2.0.0", "", 0)
         src = "/src"
         remote = "http://github.com/some/project"
 
@@ -59,9 +61,11 @@ class GitTests(TestCase):
         run_subprocess_with_logging.assert_called_with("git clone http://github.com/some/project /src")
 
     @mock.patch("osbenchmark.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_out_and_err")
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
-    def test_clone_with_error(self, run_subprocess_with_logging, ensure_dir):
+    def test_clone_with_error(self, run_subprocess_with_logging, run_subprocess_with_out_and_err, ensure_dir):
         run_subprocess_with_logging.return_value = 128
+        run_subprocess_with_out_and_err.return_value = ("git version 2.0.0", "", 0)
         src = "/src"
         remote = "http://github.com/some/project"
 
@@ -128,7 +132,7 @@ class GitTests(TestCase):
         git.pull("/src", remote="my-origin", branch="feature-branch")
         run_subprocess_with_out_and_err.assert_has_calls([
             # pull, fetch, rebase, checkout
-            mock.call("git -C /src --version")
+            mock.call("git --version")
             ] * 4)
         calls = [
             mock.call("git -C /src fetch --prune --tags my-origin"),
