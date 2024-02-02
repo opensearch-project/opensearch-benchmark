@@ -29,6 +29,7 @@ import os
 import random
 import socket
 import time
+import datetime
 
 import pytest
 
@@ -87,7 +88,7 @@ def osbenchmark(cfg, command_line):
     These commands may have different CLI options than test_execution.
     """
     cmd = osbenchmark_command_line_for(cfg, command_line)
-    print("\nInvoking OSB:", cmd)
+    print(f'\n{datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")} Invoking OSB: {cmd}')
     err, retcode = process.run_subprocess_with_stderr(cmd)
     if retcode != 0:
         print(err)

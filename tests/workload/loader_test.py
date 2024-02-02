@@ -235,7 +235,7 @@ class WorkloadPreparationTests(TestCase):
 
         with self.assertRaises(exceptions.DataError) as ctx:
             p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                                base_url="http://benchmarks.elasticsearch.org/corpora/unit-test",
+                                                                base_url="http://benchmarks.opensearch.org/corpora/unit-test",
                                                                 document_file="docs.json",
                                                                 document_archive="docs.json.bz2",
                                                                 number_of_documents=5,
@@ -275,7 +275,7 @@ class WorkloadPreparationTests(TestCase):
                                          decompressor=loader.Decompressor())
 
         p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                            base_url="http://benchmarks.elasticsearch.org/corpora/unit-test",
+                                                            base_url="http://benchmarks.opensearch.org/corpora/unit-test",
                                                             document_file="docs.json",
                                                             document_archive="docs.json.bz2",
                                                             number_of_documents=5,
@@ -285,8 +285,89 @@ class WorkloadPreparationTests(TestCase):
 
         ensure_dir.assert_called_with("/tmp")
         decompress.assert_called_with("/tmp/docs.json.bz2", "/tmp")
-        download.assert_called_with("http://benchmarks.elasticsearch.org/corpora/unit-test/docs.json.bz2",
+        download.assert_called_with("http://benchmarks.opensearch.org/corpora/unit-test/docs.json.bz2",
                                     "/tmp/docs.json.bz2", 200, progress_indicator=mock.ANY)
+        prepare_file_offset_table.assert_called_with("/tmp/docs.json")
+
+    @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
+    @mock.patch("osbenchmark.utils.io.decompress")
+    @mock.patch("osbenchmark.utils.net.download")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
+    @mock.patch("os.path.getsize")
+    @mock.patch("os.path.isfile")
+    def test_download_document_archive_with_source_url_compressed(self, is_file, get_size, ensure_dir, download, decompress,
+                                                                  prepare_file_offset_table):
+        # uncompressed file does not exist
+        # compressed file does not exist
+        # after download compressed file exists
+        # after download uncompressed file still does not exist (in main loop)
+        # after download compressed file exists (in main loop)
+        # after decompression, uncompressed file exists
+        is_file.side_effect = [False, False, True, False, True, True, True]
+        # compressed file size is 200 after download
+        # compressed file size is 200 after download (in main loop)
+        # uncompressed file size is 2000 after decompression
+        # uncompressed file size is 2000 after decompression (in main loop)
+        get_size.side_effect = [200, 200, 2000, 2000]
+
+        prepare_file_offset_table.return_value = 5
+
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
+                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         decompressor=loader.Decompressor())
+
+        p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
+                                                            base_url="http://benchmarks.opensearch.org/corpora",
+                                                    source_url="http://benchmarks.opensearch.org/corpora/unit-test/docs.json.bz2",
+                                                            document_file="docs.json",
+                                                            document_archive="docs.json.bz2",
+                                                            number_of_documents=5,
+                                                            compressed_size_in_bytes=200,
+                                                            uncompressed_size_in_bytes=2000),
+                               data_root="/tmp")
+
+        ensure_dir.assert_called_with("/tmp")
+        decompress.assert_called_with("/tmp/docs.json.bz2", "/tmp")
+        download.assert_called_with("http://benchmarks.opensearch.org/corpora/unit-test/docs.json.bz2",
+                                    "/tmp/docs.json.bz2", 200, progress_indicator=mock.ANY)
+        prepare_file_offset_table.assert_called_with("/tmp/docs.json")
+
+    @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
+    @mock.patch("osbenchmark.utils.io.decompress")
+    @mock.patch("osbenchmark.utils.net.download")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
+    @mock.patch("os.path.getsize")
+    @mock.patch("os.path.isfile")
+    def test_download_document_with_source_url_uncompressed(self, is_file, get_size, ensure_dir, download, decompress,
+                                                            prepare_file_offset_table):
+        # uncompressed file does not exist
+        # after download uncompressed file exists
+        # after download uncompressed file exists (main loop)
+        is_file.side_effect = [False, True, True]
+        # uncompressed file size is 2000
+        get_size.return_value = 2000
+        scheme = random.choice(["http", "https", "s3", "gs"])
+
+        prepare_file_offset_table.return_value = 5
+
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
+                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         decompressor=loader.Decompressor())
+
+        p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
+                                                    source_url=f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/docs.json",
+                                                            base_url=f"{scheme}://benchmarks.opensearch.org/corpora/",
+                                                            document_file="docs.json",
+                                                            # --> We don't provide a document archive here <--
+                                                            document_archive=None,
+                                                            number_of_documents=5,
+                                                            compressed_size_in_bytes=200,
+                                                            uncompressed_size_in_bytes=2000),
+                               data_root="/tmp")
+
+        ensure_dir.assert_called_with("/tmp")
+        download.assert_called_with(f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/docs.json",
+                                    "/tmp/docs.json", 2000, progress_indicator=mock.ANY)
         prepare_file_offset_table.assert_called_with("/tmp/docs.json")
 
     @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
@@ -312,7 +393,7 @@ class WorkloadPreparationTests(TestCase):
                                          decompressor=loader.Decompressor())
 
         p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                            base_url=f"{scheme}://benchmarks.elasticsearch.org/corpora/unit-test/",
+                                                            base_url=f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/",
                                                             document_file="docs.json",
                                                             # --> We don't provide a document archive here <--
                                                             document_archive=None,
@@ -322,7 +403,7 @@ class WorkloadPreparationTests(TestCase):
                                data_root="/tmp")
 
         ensure_dir.assert_called_with("/tmp")
-        download.assert_called_with(f"{scheme}://benchmarks.elasticsearch.org/corpora/unit-test/docs.json",
+        download.assert_called_with(f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/docs.json",
                                     "/tmp/docs.json", 2000, progress_indicator=mock.ANY)
         prepare_file_offset_table.assert_called_with("/tmp/docs.json")
 
@@ -346,7 +427,7 @@ class WorkloadPreparationTests(TestCase):
                                          decompressor=loader.Decompressor())
 
         p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                            base_url="http://benchmarks.elasticsearch.org/corpora/unit-test",
+                                                            base_url="http://benchmarks.opensearch.org/corpora/unit-test",
                                                             document_file="docs.json",
                                                             # --> We don't provide a document archive here <--
                                                             document_archive=None,
@@ -356,7 +437,7 @@ class WorkloadPreparationTests(TestCase):
                                data_root="/tmp")
 
         ensure_dir.assert_called_with("/tmp")
-        download.assert_called_with("http://benchmarks.elasticsearch.org/corpora/unit-test/docs.json",
+        download.assert_called_with("http://benchmarks.opensearch.org/corpora/unit-test/docs.json",
                                     "/tmp/docs.json", 2000, progress_indicator=mock.ANY)
         prepare_file_offset_table.assert_called_with("/tmp/docs.json")
 
@@ -373,7 +454,7 @@ class WorkloadPreparationTests(TestCase):
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                                base_url="http://benchmarks.elasticsearch.org/corpora/unit-test",
+                                                                base_url="http://benchmarks.opensearch.org/corpora/unit-test",
                                                                 document_file="docs.json",
                                                                 number_of_documents=5,
                                                                 uncompressed_size_in_bytes=2000),
@@ -443,7 +524,7 @@ class WorkloadPreparationTests(TestCase):
         # uncompressed file does not exist
         is_file.return_value = False
 
-        download.side_effect = urllib.error.HTTPError("http://benchmarks.elasticsearch.org.s3.amazonaws.com/corpora/unit-test/docs-1k.json",
+        download.side_effect = urllib.error.HTTPError("http://benchmarks.opensearch.org.s3.amazonaws.com/corpora/unit-test/docs-1k.json",
                                                       404, "", None, None)
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
@@ -452,7 +533,7 @@ class WorkloadPreparationTests(TestCase):
 
         with self.assertRaises(exceptions.DataError) as ctx:
             p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                                base_url="http://benchmarks.elasticsearch.org/corpora/unit-test",
+                                                                base_url="http://benchmarks.opensearch.org/corpora/unit-test",
                                                                 document_file="docs-1k.json",
                                                                 number_of_documents=5,
                                                                 uncompressed_size_in_bytes=None),
@@ -462,7 +543,7 @@ class WorkloadPreparationTests(TestCase):
                          "test mode and retry.", ctx.exception.args[0])
 
         ensure_dir.assert_called_with("/tmp")
-        download.assert_called_with("http://benchmarks.elasticsearch.org/corpora/unit-test/docs-1k.json",
+        download.assert_called_with("http://benchmarks.opensearch.org/corpora/unit-test/docs-1k.json",
                                     "/tmp/docs-1k.json", None, progress_indicator=mock.ANY)
 
     @mock.patch("osbenchmark.utils.net.download")
@@ -472,7 +553,7 @@ class WorkloadPreparationTests(TestCase):
         # uncompressed file does not exist
         is_file.return_value = False
 
-        download.side_effect = urllib.error.HTTPError("http://benchmarks.elasticsearch.org/corpora/unit-test/docs.json",
+        download.side_effect = urllib.error.HTTPError("http://benchmarks.opensearch.org/corpora/unit-test/docs.json",
                                                       500, "Internal Server Error", None, None)
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
@@ -481,17 +562,17 @@ class WorkloadPreparationTests(TestCase):
 
         with self.assertRaises(exceptions.DataError) as ctx:
             p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                                base_url="http://benchmarks.elasticsearch.org/corpora/unit-test",
+                                                                base_url="http://benchmarks.opensearch.org/corpora/unit-test",
                                                                 document_file="docs.json",
                                                                 number_of_documents=5,
                                                                 uncompressed_size_in_bytes=2000),
                                    data_root="/tmp")
 
-        self.assertEqual("Could not download [http://benchmarks.elasticsearch.org/corpora/unit-test/docs.json] "
+        self.assertEqual("Could not download [http://benchmarks.opensearch.org/corpora/unit-test/docs.json] "
                          "to [/tmp/docs.json] (HTTP status: 500, reason: Internal Server Error)", ctx.exception.args[0])
 
         ensure_dir.assert_called_with("/tmp")
-        download.assert_called_with("http://benchmarks.elasticsearch.org/corpora/unit-test/docs.json",
+        download.assert_called_with("http://benchmarks.opensearch.org/corpora/unit-test/docs.json",
                                     "/tmp/docs.json", 2000, progress_indicator=mock.ANY)
 
     @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
@@ -765,7 +846,7 @@ class TemplateSource(TestCase):
         {
           "version": 2,
           "description": "unittest workload",
-          "data-url": "http://benchmarks.elasticsearch.org.s3.amazonaws.com/corpora/geonames",
+          "data-url": "http://benchmarks.opensearch.org.s3.amazonaws.com/corpora/geonames",
           "indices": [
             {
               "name": "geonames",
@@ -775,7 +856,7 @@ class TemplateSource(TestCase):
           "corpora": [
             {
               "name": "geonames",
-              "base-url": "http://benchmarks.elasticsearch.org.s3.amazonaws.com/corpora/geonames",
+              "base-url": "http://benchmarks.opensearch.org.s3.amazonaws.com/corpora/geonames",
               "documents": [
                 {
                   "source-file": "documents-2.json.bz2",
@@ -809,7 +890,7 @@ class TemplateSource(TestCase):
             {
               "version": 2,
               "description": "unittest workload",
-              "data-url": "http://benchmarks.elasticsearch.org.s3.amazonaws.com/corpora/geonames",
+              "data-url": "http://benchmarks.opensearch.org.s3.amazonaws.com/corpora/geonames",
               "indices": [
                 {
                   "name": "geonames",
@@ -819,7 +900,7 @@ class TemplateSource(TestCase):
               "corpora": [
                 {
                   "name": "geonames",
-                  "base-url": "http://benchmarks.elasticsearch.org.s3.amazonaws.com/corpora/geonames",
+                  "base-url": "http://benchmarks.opensearch.org.s3.amazonaws.com/corpora/geonames",
                   "documents": [
                     {
                       "source-file": "documents-2.json.bz2",
