@@ -464,7 +464,7 @@ class Downloader:
         self.test_mode = test_mode
         self.logger = logging.getLogger(__name__)
 
-    def download(self, base_url, target_path, size_in_bytes):
+    def download(self, base_url, source_url, target_path, size_in_bytes):
         file_name = os.path.basename(target_path)
 
         if not base_url:
@@ -472,12 +472,15 @@ class Downloader:
         if self.offline:
             raise exceptions.SystemSetupError(f"Cannot find [{target_path}]. Please disable offline mode and retry.")
 
-        if base_url.endswith("/"):
-            separator = ""
+        if source_url:
+            data_url = source_url
         else:
-            separator = "/"
-        # join manually as `urllib.parse.urljoin` does not work with S3 or GS URL schemes.
-        data_url = f"{base_url}{separator}{file_name}"
+            if base_url.endswith("/"):
+                separator = ""
+            else:
+                separator = "/"
+            # join manually as `urllib.parse.urljoin` does not work with S3 or GS URL schemes.
+            data_url = f"{base_url}{separator}{file_name}"
         try:
             io.ensure_dir(os.path.dirname(target_path))
             if size_in_bytes:
@@ -573,7 +576,7 @@ class DocumentSetPreparator:
                     raise exceptions.BenchmarkAssertionError(f"Workload {self.workload_name} specifies documents but no corpus")
 
                 try:
-                    self.downloader.download(document_set.base_url, target_path, expected_size)
+                    self.downloader.download(document_set.base_url, document_set.source_url, target_path, expected_size)
                 except exceptions.DataError as e:
                     if e.message == "Cannot download data because no base URL is provided." and \
                        self.is_locally_available(target_path):
@@ -1489,6 +1492,7 @@ class WorkloadSpecificationReader:
                 source_format = self._r(doc_spec, "source-format", mandatory=False, default_value=default_source_format)
 
                 if source_format in workload.Documents.SUPPORTED_SOURCE_FORMAT:
+                    source_url = self._r(doc_spec, "source-url", mandatory=False)
                     docs = self._r(doc_spec, "source-file")
                     if io.is_archive(docs):
                         document_archive = docs
@@ -1541,6 +1545,7 @@ class WorkloadSpecificationReader:
                                            document_file=document_file,
                                            document_archive=document_archive,
                                            base_url=base_url,
+                                           source_url=source_url,
                                            includes_action_and_meta_data=includes_action_and_meta_data,
                                            number_of_documents=num_docs,
                                            compressed_size_in_bytes=compressed_bytes,
