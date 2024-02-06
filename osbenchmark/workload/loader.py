@@ -410,7 +410,7 @@ class DefaultWorkloadPreparator(WorkloadProcessor):
     @staticmethod
     def prepare_docs(cfg, workload, corpus, preparator):
         for document_set in corpus.documents:
-            if document_set.is_bulk:
+            if document_set.is_supported_source_format:
                 data_root = data_dir(cfg, workload.name, corpus.name)
                 logging.getLogger(__name__).info("Resolved data root directory for document corpus [%s] in workload [%s] "
                                                  "to [%s].", corpus.name, workload.name, data_root)
@@ -581,8 +581,8 @@ class DocumentSetPreparator:
                                                    f"because no base URL is provided.") from None
                     else:
                         raise
-
-        self.create_file_offset_table(doc_path, document_set.number_of_lines)
+        if document_set.support_file_offset_table:
+            self.create_file_offset_table(doc_path, document_set.number_of_lines)
 
     def prepare_bundled_document_set(self, document_set, data_root):
         """
@@ -1302,7 +1302,7 @@ class WorkloadSpecificationReader:
                 base_url = self._r(doc_spec, "base-url", mandatory=False, default_value=default_base_url)
                 source_format = self._r(doc_spec, "source-format", mandatory=False, default_value=default_source_format)
 
-                if source_format == workload.Documents.SOURCE_FORMAT_BULK:
+                if source_format in workload.Documents.SUPPORTED_SOURCE_FORMAT:
                     docs = self._r(doc_spec, "source-file")
                     if io.is_archive(docs):
                         document_archive = docs

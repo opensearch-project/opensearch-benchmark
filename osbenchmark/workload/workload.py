@@ -186,6 +186,7 @@ class ComponentTemplate:
 
 class Documents:
     SOURCE_FORMAT_BULK = "bulk"
+    SUPPORTED_SOURCE_FORMAT = [SOURCE_FORMAT_BULK]
 
     def __init__(self, source_format, document_file=None, document_archive=None, base_url=None,
                  includes_action_and_meta_data=False,
@@ -270,6 +271,16 @@ class Documents:
     @property
     def is_bulk(self):
         return self.source_format == Documents.SOURCE_FORMAT_BULK
+
+    @property
+    def support_file_offset_table(self):
+        # Will support create file offset table only for bulk source formats. In future we can move it to
+        # a list instead of checking bulk directly
+        return self.source_format == Documents.SOURCE_FORMAT_BULK
+
+    @property
+    def is_supported_source_format(self):
+        return self.source_format in Documents.SUPPORTED_SOURCE_FORMAT
 
     def __str__(self):
         return "%s documents from %s" % (self.source_format, self.document_file)
