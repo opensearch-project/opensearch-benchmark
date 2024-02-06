@@ -926,7 +926,7 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
     DEFAULT_N = 5000
     def __init__(self, cfg):
         self.randomization_enabled = cfg.opts("workload", "randomization.enabled", mandatory=False, default_value=False)
-        self.rf = float(cfg.opts("workload", "randomization.rf", mandatory=False, default_value=self.DEFAULT_RF))
+        self.rf = float(cfg.opts("workload", "randomization.repeat_frequency", mandatory=False, default_value=self.DEFAULT_RF))
         self.logger = logging.getLogger(__name__)
         self.N = int(cfg.opts("workload", "randomization.n", mandatory=False, default_value=self.DEFAULT_N))
         self.zipf_alpha = 1
@@ -949,7 +949,8 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
         # https://math.stackexchange.com/questions/53671/how-to-calculate-the-inverse-cdf-for-the-zipf-distribution
         # Precompute all values H_i,alpha for a fixed alpha and pass in as H_list
         if (u < 0 or u >= 1):
-            raise Exception("Input u must have 0 <= u < 1")
+            raise exceptions.ExecutorError(
+                "Input u must have 0 <= u < 1. This error shouldn't appear, please raise an issue if it does")
         n = len(H_list)
         candidate_return = 1
         denominator = self.H(n, H_list)
@@ -999,7 +1000,9 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
         try:
             root = params["body"]["query"]
         except KeyError:
-            raise exceptions.SystemSetupError("Cannot extract range query fields from these params, missing params[\"body\"][\"query\"]")
+            raise exceptions.SystemSetupError(
+                f"Cannot extract range query fields from these params: {params}\n, missing params[\"body\"][\"query\"]\n"
+                f"Make sure the operation in operations/default.json is well-formed")
         fields_and_paths = self.extract_fields_helper(root, [])
         return fields_and_paths
 
@@ -1056,7 +1059,9 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
 
     def on_after_load_workload(self, input_workload, **kwargs):
         if not self.randomization_enabled:
+            self.logger.info("Query randomization is disabled.")
             return input_workload
+        self.logger.info("Query randomization is enabled, with repeat frequency = {}, n = {}".format(self.rf, self.N))
 
         # By default, use params for standard values and generate new standard values the first time an op/field is seen.
         # In unit tests, we should be able to supply our own sources independent of params.
@@ -1072,7 +1077,7 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
         default_test_procedure = None
         for test_procedure in input_workload.test_procedures:
             if test_procedure.default:
-                default_test_procedure = test_procedure # TODO - not sure if this is correct
+                default_test_procedure = test_procedure
                 break
 
         for task in default_test_procedure.schedule:
@@ -1081,6 +1086,9 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
                     op_type = workload.OperationType.from_hyphenated_string(leaf_task.operation.type)
                 except KeyError:
                     op_type = None
+                    self.logger.warn(
+                        f"QueryRandomizerWorkloadProcessor found operation {leaf_task.operation.name} in default schedule"
+                        f" with type {leaf_task.operation.type}, which couldn't be converted to a known OperationType")
                 if op_type == workload.OperationType.Search:
                     op_name = leaf_task.operation.name
                     param_source_name = op_name + "-randomized"

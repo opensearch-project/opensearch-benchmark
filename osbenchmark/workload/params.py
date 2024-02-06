@@ -88,8 +88,6 @@ def register_param_source_for_name(name, param_source_class):
     ensure_valid_param_source(param_source_class)
     __PARAM_SOURCES_BY_NAME[name] = param_source_class
 
-# These may not belong in params.py - they're here for now by analogy with register_param_source
-
 def register_standard_value_source(op_name, field_name, standard_value_source):
     if op_name in __STANDARD_VALUE_SOURCES:
         __STANDARD_VALUE_SOURCES[op_name][field_name] = standard_value_source

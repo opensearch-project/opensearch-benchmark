@@ -1897,8 +1897,11 @@ class WorkloadRandomizationTests(TestCase):
         self.assertEqual(multiple_nested_range_query_result, multiple_nested_range_query_expected)
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            _ = processor.extract_fields_and_paths({"body":{"contents":["not_a_valid_query"]}})
-            self.assertEqual("Cannot extract range query fields from these params, missing params[\"body\"][\"query\"]",
+            params = {"body":{"contents":["not_a_valid_query"]}}
+            _ = processor.extract_fields_and_paths(params)
+            self.assertEqual(
+                f"Cannot extract range query fields from these params: {params}\n, missing params[\"body\"][\"query\"]\n"
+                f"Make sure the operation in operations/default.json is well-formed",
                          ctx.exception.args[0])
 
     def test_get_randomized_values(self):
@@ -1908,7 +1911,7 @@ class WorkloadRandomizationTests(TestCase):
             # first test where we always draw a saved value, not a new random one
             # next test where we always draw a new random value. We've made them distinct, to be able to tell which codepath is taken
             cfg = config.Config()
-            cfg.add(config.Scope.application, "workload", "randomization.rf", rf)
+            cfg.add(config.Scope.application, "workload", "randomization.repeat_frequency", rf)
             processor = loader.QueryRandomizerWorkloadProcessor(cfg)
             self.assertAlmostEqual(processor.rf, rf)
 
