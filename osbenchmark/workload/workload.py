@@ -186,7 +186,9 @@ class ComponentTemplate:
 
 class Documents:
     SOURCE_FORMAT_BULK = "bulk"
-    SUPPORTED_SOURCE_FORMAT = [SOURCE_FORMAT_BULK]
+    SOURCE_FORMAT_HDF5 = "hdf5"
+    SOURCE_FORMAT_BIG_ANN = "big-ann"
+    SUPPORTED_SOURCE_FORMAT = [SOURCE_FORMAT_BULK, SOURCE_FORMAT_HDF5, SOURCE_FORMAT_BIG_ANN]
 
     def __init__(self, source_format, document_file=None, document_archive=None, base_url=None,
                  includes_action_and_meta_data=False,
