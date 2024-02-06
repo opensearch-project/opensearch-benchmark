@@ -1061,7 +1061,7 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
         if not self.randomization_enabled:
             self.logger.info("Query randomization is disabled.")
             return input_workload
-        self.logger.info("Query randomization is enabled, with repeat frequency = {}, n = {}".format(self.rf, self.N))
+        self.logger.info("Query randomization is enabled, with repeat frequency = %d, n = %d",self.rf, self.N)
 
         # By default, use params for standard values and generate new standard values the first time an op/field is seen.
         # In unit tests, we should be able to supply our own sources independent of params.
@@ -1086,9 +1086,9 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
                     op_type = workload.OperationType.from_hyphenated_string(leaf_task.operation.type)
                 except KeyError:
                     op_type = None
-                    self.logger.warn(
-                        f"QueryRandomizerWorkloadProcessor found operation {leaf_task.operation.name} in default schedule"
-                        f" with type {leaf_task.operation.type}, which couldn't be converted to a known OperationType")
+                    self.logger.info(
+                        "Found operation %s in default schedule with type %s, which couldn't be converted to a known OperationType",
+                        leaf_task.operation.name, leaf_task.operation.type)
                 if op_type == workload.OperationType.Search:
                     op_name = leaf_task.operation.name
                     param_source_name = op_name + "-randomized"
