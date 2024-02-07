@@ -573,7 +573,7 @@ def create_arg_parser():
         action="store_true")
     test_execution_parser.add_argument(
         "--randomization-repeat-frequency",
-        "--randomization-rf",
+        "-rf",
         help=f"The repeat_frequency for query randomization. Ignored if randomization is off"
              f"(default: {workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_RF}).",
         default=workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_RF)
