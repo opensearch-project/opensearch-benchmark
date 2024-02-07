@@ -944,6 +944,15 @@ class CompleteWorkloadParams:
 class WorkloadFileReader:
     MINIMUM_SUPPORTED_TRACK_VERSION = 2
     MAXIMUM_SUPPORTED_TRACK_VERSION = 2
+    COMMON_WORKLOAD_FORMAT_ERRORS = """
+    ---------------------------------------------------------------------------------------------------------------------------
+    [Common workload formatting errors:] \n
+    - Jinja2 expression missing parameters (e.g. got {{search_clients}} but needs {{search_clients | default(8)}})\n
+    - Jinja2 expression missing \"tojson\" parameter when needed(e.g. got {{index_settings | default({})}} but needs {{index_settings | default({}) | tojson}})\n
+    - JSON file might not be correctly formatted after rendering Jinja2 (e.g. additional brackets (}, ]) or missing commas (,))
+    ---------------------------------------------------------------------------------------------------------------------------
+    """
+
     """
     Creates a workload from a workload file.
     """
@@ -983,9 +992,24 @@ class WorkloadFileReader:
                 f.write(rendered)
             self.logger.info("Final rendered workload for '%s' has been written to '%s'.", workload_spec_file, tmp.name)
             workload_spec = json.loads(rendered)
+
         except jinja2.exceptions.TemplateNotFound:
             self.logger.exception("Could not load [%s]", workload_spec_file)
             raise exceptions.SystemSetupError("Workload {} does not exist".format(workload_name))
+
+        except jinja2.exceptions.TemplateSyntaxError as e:
+            exception_message = f"Jinja2 Exception TemplateSyntaxError: {e}\n"
+            if 'endif' in exception_message:
+                exception_message = exception_message + \
+                    "There is an extra Jinja2 \"endif\" somewhere in the workload's files. " + \
+                    "Please remove it so that the workload can be rendered and run.\n"
+            if 'Missing end of raw directive' in exception_message:
+                exception_message += \
+                    "In the workload files, \"{% raw -%}\" was provided but is missing it's associated \"{% endraw -%}\" tag.\n"
+
+            raise exceptions.SystemSetupError(exception_message)
+
+
         except json.JSONDecodeError as e:
             self.logger.exception("Could not load [%s].", workload_spec_file)
             msg = "Could not load '{}': {}.".format(workload_spec_file, str(e))
@@ -998,11 +1022,22 @@ class WorkloadFileReader:
                 erroneous_lines = lines[ctx_start:ctx_end]
                 erroneous_lines.insert(line_idx - ctx_start + 1, "-" * (e.colno - 1) + "^ Error is here")
                 msg += " Lines containing the error:\n\n{}\n\n".format("\n".join(erroneous_lines))
-            msg += "The complete workload has been written to '{}' for diagnosis.".format(tmp.name)
+            msg += "The complete workload has been written to '{}' for diagnosis. \n\n".format(tmp.name)
+            console_message = f"Suggestion: Verify that [{workload_name}] workload has correctly formatted JSON files and " + \
+                "Jinja Templates. For Jinja2 errors, consider using a live Jinja2 parser. " + \
+                f"See common workload formatting errors:{WorkloadFileReader.COMMON_WORKLOAD_FORMAT_ERRORS}"
+            msg += console_message
             raise WorkloadSyntaxError(msg)
+
         except Exception as e:
+            # TypeErrors get logged here
             self.logger.exception("Could not load [%s].", workload_spec_file)
-            msg = "Could not load '{}'. The complete workload has been written to '{}' for diagnosis.".format(workload_spec_file, tmp.name)
+            msg = "Could not load '{}'. The complete workload has been written to '{}' for diagnosis. \n\n".format(
+                workload_spec_file, tmp.name)
+            console_message = f"Suggestion: Verify that [{workload_name}] workload has correctly formatted JSON files and " + \
+                "Jinja Templates. For Jinja2 errors, consider using a live Jinja2 parser. " + \
+                f"See common workload formatting errors:{WorkloadFileReader.COMMON_WORKLOAD_FORMAT_ERRORS}"
+            msg += console_message
             # Convert to string early on to avoid serialization errors with Jinja exceptions.
             raise WorkloadSyntaxError(msg, str(e))
         # check the workload version before even attempting to validate the JSON format to avoid bogus errors.

@@ -86,7 +86,9 @@ def osbenchmark(cfg, command_line):
     This method should be used for benchmark invocations of the all commands besides test_execution.
     These commands may have different CLI options than test_execution.
     """
-    err, retcode = process.run_subprocess_with_stderr(osbenchmark_command_line_for(cfg, command_line))
+    cmd = osbenchmark_command_line_for(cfg, command_line)
+    print("\nInvoking OSB:", cmd)
+    err, retcode = process.run_subprocess_with_stderr(cmd)
     if retcode != 0:
         print(err)
     return retcode

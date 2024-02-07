@@ -825,7 +825,8 @@ class VectorDataSetPartitionParamSource(ParamSource):
         data_set_path: Path to data set
         context: Context the data set will be used in.
         data_set: Structure containing meta data about data and ability to read
-        num_vectors: Number of vectors to use from the data set
+        total_num_vectors: Number of vectors to use from the data set
+        num_vectors: Number of vectors to use for given partition
         total: Number of vectors for the partition
         current: Current vector offset in data set
         infinite: Property of param source signalling that it can be exhausted
@@ -837,22 +838,16 @@ class VectorDataSetPartitionParamSource(ParamSource):
     def __init__(self, workload, params, context: Context, **kwargs):
         super().__init__(workload, params, **kwargs)
         self.field_name: str = parse_string_parameter("field", params)
-
         self.context = context
         self.data_set_format = parse_string_parameter("data_set_format", params)
         self.data_set_path = parse_string_parameter("data_set_path", params)
-        self.data_set: DataSet = get_data_set(
-            self.data_set_format, self.data_set_path, self.context)
-
-        num_vectors: int = parse_int_parameter(
-            "num_vectors", params, self.data_set.size())
-        # if value is -1 or greater than dataset size, use dataset size as num_vectors
-        self.num_vectors = self.data_set.size() if (
-                num_vectors < 0 or num_vectors > self.data_set.size()) else num_vectors
-        self.total = self.num_vectors
+        self.total_num_vectors: int = parse_int_parameter("num_vectors", params, -1)
+        self.num_vectors = 0
+        self.total = 1
         self.current = 0
         self.percent_completed = 0
         self.offset = 0
+        self.data_set: DataSet = None
 
     @property
     def infinite(self):
@@ -872,16 +867,25 @@ class VectorDataSetPartitionParamSource(ParamSource):
         Returns:
             The parameter source for this particular partition
         """
+        if self.data_set is None:
+            self.data_set: DataSet = get_data_set(
+                self.data_set_format, self.data_set_path, self.context)
+        # if value is -1 or greater than dataset size, use dataset size as num_vectors
+        if self.total_num_vectors < 0 or self.total_num_vectors > self.data_set.size():
+            self.total_num_vectors = self.data_set.size()
+        self.total = self.total_num_vectors
+
         partition_x = copy.copy(self)
 
-        num_vectors = int(self.num_vectors / total_partitions)
+        min_num_vectors_per_partition = int(self.total_num_vectors / total_partitions)
+        partition_x.offset = int(partition_index * min_num_vectors_per_partition)
+        partition_x.num_vectors = min_num_vectors_per_partition
 
         # if partition is not divided equally, add extra docs to the last partition
-        if self.num_vectors % total_partitions != 0 and self._is_last_partition(partition_index, total_partitions):
-            num_vectors += self.num_vectors - (num_vectors * total_partitions)
+        if self.total_num_vectors % total_partitions != 0 and self._is_last_partition(partition_index, total_partitions):
+            remaining_vectors = self.total_num_vectors - (min_num_vectors_per_partition * total_partitions)
+            partition_x.num_vectors += remaining_vectors
 
-        partition_x.num_vectors = num_vectors
-        partition_x.offset = int(partition_index * partition_x.num_vectors)
         # We need to create a new instance of the data set for each client
         partition_x.data_set = get_data_set(
             self.data_set_format,
@@ -934,10 +938,8 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         self.current_rep = 1
         self.neighbors_data_set_format = parse_string_parameter(
             self.PARAMS_NAME_NEIGHBORS_DATA_SET_FORMAT, params, self.data_set_format)
-        self.neighbors_data_set_path = parse_string_parameter(
-            self.PARAMS_NAME_NEIGHBORS_DATA_SET_PATH, params, self.data_set_path)
-        self.neighbors_data_set: DataSet = get_data_set(
-            self.neighbors_data_set_format, self.neighbors_data_set_path, Context.NEIGHBORS)
+        self.neighbors_data_set_path = params.get(self.PARAMS_NAME_NEIGHBORS_DATA_SET_PATH)
+        self.neighbors_data_set = None
         operation_type = parse_string_parameter(self.PARAMS_NAME_OPERATION_TYPE, params,
                                                 self.PARAMS_VALUE_VECTOR_SEARCH)
         self.query_params = query_params
@@ -961,10 +963,21 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         if self.PARAMS_NAME_SIZE not in body_params:
             body_params[self.PARAMS_NAME_SIZE] = self.k
         if self.PARAMS_NAME_QUERY in body_params:
-            self.logger.warning("[%s] param from body will be replaced with vector search query.", self.PARAMS_NAME_QUERY)
+            self.logger.warning(
+                "[%s] param from body will be replaced with vector search query.", self.PARAMS_NAME_QUERY)
         # override query params with vector search query
         body_params[self.PARAMS_NAME_QUERY] = self._build_vector_search_query_body(vector)
         self.query_params.update({self.PARAMS_NAME_BODY: body_params})
+
+    def partition(self, partition_index, total_partitions):
+        partition = super().partition(partition_index, total_partitions)
+        if not self.neighbors_data_set_path:
+            self.neighbors_data_set_path = self.data_set_path
+        # add neighbor instance to partition
+        partition.neighbors_data_set = get_data_set(
+            self.neighbors_data_set_format, self.neighbors_data_set_path, Context.NEIGHBORS)
+        partition.neighbors_data_set.seek(partition.offset)
+        return partition
 
     def params(self):
         """
@@ -974,6 +987,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
 
         if is_dataset_exhausted and self.current_rep < self.repetitions:
             self.data_set.seek(self.offset)
+            self.neighbors_data_set.seek(self.offset)
             self.current = self.offset
             self.current_rep += 1
         elif is_dataset_exhausted:
@@ -1058,7 +1072,6 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
         """
         Returns: A bulk index parameter with vectors from a data set.
         """
-        # TODO: Fix below logic to make sure we index only total number of documents as mentioned in the params.
         if self.current >= self.num_vectors + self.offset:
             raise StopIteration
 
@@ -1073,7 +1086,10 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
                 metadata.update({id_field_name: doc_id})
             return {bulk_action: metadata}
 
-        partition = self.data_set.read(self.bulk_size)
+        remaining_vectors_in_partition = self.num_vectors + self.offset - self.current
+        # update bulk size if number of vectors to read is less than actual bulk size
+        bulk_size = min(self.bulk_size, remaining_vectors_in_partition)
+        partition = self.data_set.read(bulk_size)
         body = self.bulk_transform(partition, action)
         size = len(body) // 2
         self.current += size

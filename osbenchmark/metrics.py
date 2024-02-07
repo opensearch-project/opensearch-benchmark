@@ -332,7 +332,13 @@ class MetaInfoScope(Enum):
 
 
 def calculate_results(store, test_execution):
-    calc = GlobalStatsCalculator(store, test_execution.workload, test_execution.scenario)
+    calc = GlobalStatsCalculator(
+        store,
+        test_execution.workload,
+        test_execution.scenario,
+        latency_percentiles=test_execution.latency_percentiles,
+        throughput_percentiles=test_execution.throughput_percentiles
+        )
     return calc()
 
 
@@ -1292,12 +1298,19 @@ def create_test_execution(cfg, workload, scenario, workload_revision=None):
     plugin_params = cfg.opts("builder", "plugin.params")
     benchmark_version = version.version()
     benchmark_revision = version.revision()
+    latency_percentiles = cfg.opts("workload", "latency.percentiles", mandatory=False,
+                                   default_value=GlobalStatsCalculator.DEFAULT_LATENCY_PERCENTILES)
+    throughput_percentiles = cfg.opts("workload", "throughput.percentiles", mandatory=False,
+                                      default_value=GlobalStatsCalculator.DEFAULT_THROUGHPUT_PERCENTILES)
+    # In tests, we don't get the default command-line arg value for percentiles,
+    # so supply them as defaults here as well
 
     return TestExecution(benchmark_version, benchmark_revision,
     environment, test_execution_id, test_execution_timestamp,
     pipeline, user_tags, workload,
     workload_params, scenario, provision_config_instance, provision_config_instance_params,
-    plugin_params, workload_revision)
+    plugin_params, workload_revision, latency_percentiles=latency_percentiles,
+    throughput_percentiles=throughput_percentiles)
 
 
 class TestExecution:
@@ -1307,7 +1320,7 @@ class TestExecution:
                  provision_config_instance_params, plugin_params,
                  workload_revision=None, provision_config_revision=None,
                  distribution_version=None, distribution_flavor=None,
-                 revision=None, results=None, meta_data=None):
+                 revision=None, results=None, meta_data=None, latency_percentiles=None, throughput_percentiles=None):
         if results is None:
             results = {}
         # this happens when the test execution is created initially
@@ -1317,6 +1330,11 @@ class TestExecution:
                 meta_data.update(workload.meta_data)
             if scenario:
                 meta_data.update(scenario.meta_data)
+        if latency_percentiles:
+            # split comma-separated string into list of floats
+            latency_percentiles = [float(value) for value in latency_percentiles.split(",")]
+        if throughput_percentiles:
+            throughput_percentiles = [float(value) for value in throughput_percentiles.split(",")]
         self.benchmark_version = benchmark_version
         self.benchmark_revision = benchmark_revision
         self.environment_name = environment_name
@@ -1337,6 +1355,9 @@ class TestExecution:
         self.revision = revision
         self.results = results
         self.meta_data = meta_data
+        self.latency_percentiles = latency_percentiles
+        self.throughput_percentiles = throughput_percentiles
+
 
     @property
     def workload_name(self):
@@ -1665,30 +1686,64 @@ def encode_float_key(k):
     return str(float(k)).replace(".", "_")
 
 
-def percentiles_for_sample_size(sample_size):
-    # if needed we can come up with something smarter but it'll do for now
+def filter_percentiles_by_sample_size(sample_size, percentiles):
+    # Don't show percentiles if there aren't enough samples for the value to be distinct.
+    # For example, we should only show p99.9, p45.6, or p0.01 if there are at least 1000 values.
+    # If nothing is suitable, default to just returning [100] rather than an empty list.
     if sample_size < 1:
         raise AssertionError("Percentiles require at least one sample")
-    elif sample_size == 1:
-        return [100]
-    elif 1 < sample_size < 10:
-        return [50, 100]
-    elif 10 <= sample_size < 100:
-        return [50, 90, 100]
-    elif 100 <= sample_size < 1000:
-        return [50, 90, 99, 100]
-    elif 1000 <= sample_size < 10000:
-        return [50, 90, 99, 99.9, 100]
-    else:
-        return [50, 90, 99, 99.9, 99.99, 100]
 
+    filtered_percentiles = []
+    # Treat the cases below 10 separately, to return p25, 50, 75, 100 if present
+    if sample_size == 1:
+        filtered_percentiles = [100]
+    elif sample_size < 4:
+        for p in [50, 100]:
+            if p in percentiles:
+                filtered_percentiles.append(p)
+    elif sample_size < 10:
+        for p in [25, 50, 75, 100]:
+            if p in percentiles:
+                filtered_percentiles.append(p)
+    else:
+        effective_sample_size = 10 ** (int(math.log10(sample_size))) # round down to nearest power of ten
+        delta = 0.000001 # If (p / 100) * effective_sample_size is within this value of a whole number,
+        # assume the discrepancy is due to floating point and allow it
+        for p in percentiles:
+            fraction = p / 100
+            # check if fraction * effective_sample_size is close enough to a whole number
+            if abs((effective_sample_size * fraction) - round(effective_sample_size*fraction)) < delta or p in [25, 75]:
+                filtered_percentiles.append(p)
+    # if no percentiles are suitable, just return 100
+    if len(filtered_percentiles) == 0:
+        return [100]
+    return filtered_percentiles
+
+def percentiles_for_sample_size(sample_size, percentiles_list=None):
+    # If latency_percentiles is present, as a list, display those values instead (assuming there are enough samples)
+    percentiles = []
+    if percentiles_list:
+        percentiles = percentiles_list # Defaults get overridden if a value is provided
+        percentiles.sort()
+    return filter_percentiles_by_sample_size(sample_size, percentiles)
 
 class GlobalStatsCalculator:
-    def __init__(self, store, workload, scenario):
+    DEFAULT_LATENCY_PERCENTILES = "50,90,99,99.9,99.99,100"
+    DEFAULT_LATENCY_PERCENTILES_LIST = [float(value) for value in DEFAULT_LATENCY_PERCENTILES.split(",")]
+
+    DEFAULT_THROUGHPUT_PERCENTILES = ""
+    DEFAULT_THROUGHPUT_PERCENTILES_LIST = []
+
+    OTHER_PERCENTILES = [50,90,99,99.9,99.99,100]
+    # Use these percentiles when the single_latency fn is called for something other than latency
+
+    def __init__(self, store, workload, scenario, latency_percentiles=None, throughput_percentiles=None):
         self.store = store
         self.logger = logging.getLogger(__name__)
         self.workload = workload
         self.scenario = scenario
+        self.latency_percentiles = latency_percentiles
+        self.throughput_percentiles = throughput_percentiles
 
     def __call__(self):
         result = GlobalStats()
@@ -1704,9 +1759,10 @@ class GlobalStatsCalculator:
                     result.add_op_metrics(
                         t,
                         task.operation.name,
-                        self.summary_stats("throughput", t, op_type),
+                        self.summary_stats("throughput", t, op_type, percentiles_list=self.throughput_percentiles),
                         self.single_latency(t, op_type),
                         self.single_latency(t, op_type, metric_name="service_time"),
+                        self.single_latency(t, op_type, metric_name="client_processing_time"),
                         self.single_latency(t, op_type, metric_name="processing_time"),
                         error_rate,
                         duration,
@@ -1782,13 +1838,15 @@ class GlobalStatsCalculator:
     def one(self, metric_name):
         return self.store.get_one(metric_name)
 
-    def summary_stats(self, metric_name, task_name, operation_type):
+    def summary_stats(self, metric_name, task_name, operation_type, percentiles_list=None):
         mean = self.store.get_mean(metric_name, task=task_name, operation_type=operation_type, sample_type=SampleType.Normal)
         median = self.store.get_median(metric_name, task=task_name, operation_type=operation_type, sample_type=SampleType.Normal)
         unit = self.store.get_unit(metric_name, task=task_name, operation_type=operation_type)
         stats = self.store.get_stats(metric_name, task=task_name, operation_type=operation_type, sample_type=SampleType.Normal)
+
+        result = {}
         if mean and median and stats:
-            return {
+            result = {
                 "min": stats["min"],
                 "mean": mean,
                 "median": median,
@@ -1796,13 +1854,27 @@ class GlobalStatsCalculator:
                 "unit": unit
             }
         else:
-            return {
+            result = {
                 "min": None,
                 "mean": None,
                 "median": None,
                 "max": None,
                 "unit": unit
             }
+
+        if percentiles_list: # modified from single_latency()
+            sample_size = stats["count"]
+            percentiles = self.store.get_percentiles(metric_name,
+                                                     task=task_name,
+                                                     operation_type=operation_type,
+                                                     sample_type=SampleType.Normal,
+                                                     percentiles=percentiles_for_sample_size(
+                                                         sample_size,
+                                                         percentiles_list=percentiles_list))
+            for k, v in percentiles.items():
+                # safely encode so we don't have any dots in field names
+                result[encode_float_key(k)] = v
+        return result
 
     def shard_stats(self, metric_name):
         values = self.store.get_raw(metric_name, mapper=lambda doc: doc["per-shard"])
@@ -1861,12 +1933,20 @@ class GlobalStatsCalculator:
         sample_type = SampleType.Normal
         stats = self.store.get_stats(metric_name, task=task, operation_type=operation_type, sample_type=sample_type)
         sample_size = stats["count"] if stats else 0
+        percentiles_list = self.OTHER_PERCENTILES
+        if metric_name == "latency":
+            percentiles_list = self.latency_percentiles
         if sample_size > 0:
+            # The custom latency percentiles have to be supplied here as the workload runs,
+            # or else they aren't present when results are published
             percentiles = self.store.get_percentiles(metric_name,
                                                      task=task,
                                                      operation_type=operation_type,
                                                      sample_type=sample_type,
-                                                     percentiles=percentiles_for_sample_size(sample_size))
+                                                     percentiles=percentiles_for_sample_size(
+                                                         sample_size,
+                                                         percentiles_list=percentiles_list
+                                                         ))
             mean = self.store.get_mean(metric_name,
                                        task=task,
                                        operation_type=operation_type,
@@ -1951,6 +2031,8 @@ class GlobalStats:
                         all_results.append(op_metrics(item, "latency"))
                     if "service_time" in item:
                         all_results.append(op_metrics(item, "service_time"))
+                    if "client_processing_time" in item:
+                        all_results.append(op_metrics(item, "client_processing_time"))
                     if "processing_time" in item:
                         all_results.append(op_metrics(item, "processing_time"))
                     if "error_rate" in item:
@@ -1995,13 +2077,15 @@ class GlobalStats:
     def v(self, d, k, default=None):
         return d.get(k, default) if d else default
 
-    def add_op_metrics(self, task, operation, throughput, latency, service_time, processing_time, error_rate, duration, meta):
+    def add_op_metrics(self, task, operation, throughput, latency, service_time, client_processing_time,
+                       processing_time, error_rate, duration, meta):
         doc = {
             "task": task,
             "operation": operation,
             "throughput": throughput,
             "latency": latency,
             "service_time": service_time,
+            "client_processing_time": client_processing_time,
             "processing_time": processing_time,
             "error_rate": error_rate,
             "duration": duration

@@ -89,11 +89,19 @@ class HDF5DataSet(DataSet):
     FORMAT_NAME = "hdf5"
 
     def __init__(self, dataset_path: str, context: Context):
-        file = h5py.File(dataset_path)
-        self.data = cast(h5py.Dataset, file[self.parse_context(context)])
+        self.dataset_path = dataset_path
+        self.context = self.parse_context(context)
         self.current = self.BEGINNING
+        self.data = None
+
+    def _load(self):
+        if self.data is None:
+            file = h5py.File(self.dataset_path)
+            self.data = cast(h5py.Dataset, file[self.context])
 
     def read(self, chunk_size: int):
+        # load file first before read
+        self._load()
         if self.current >= self.size():
             return None
 
@@ -106,7 +114,6 @@ class HDF5DataSet(DataSet):
         return vectors
 
     def seek(self, offset: int):
-
         if offset < self.BEGINNING:
             raise Exception("Offset must be greater than or equal to 0")
 
@@ -116,6 +123,8 @@ class HDF5DataSet(DataSet):
         self.current = offset
 
     def size(self):
+        # load file first before return size
+        self._load()
         return self.data.len()
 
     def reset(self):
@@ -152,7 +161,15 @@ class BigANNVectorDataSet(DataSet):
     BYTES_PER_FLOAT = 4
 
     def __init__(self, dataset_path: str):
-        self.file = open(dataset_path, 'rb')
+        self.dataset_path = dataset_path
+        self.file = None
+        self.current = BigANNVectorDataSet.BEGINNING
+        self.num_points = 0
+        self.dimension = 0
+        self.bytes_per_num = 0
+
+    def _init_internal_params(self):
+        self.file = open(self.dataset_path, 'rb')
         self.file.seek(BigANNVectorDataSet.BEGINNING, os.SEEK_END)
         num_bytes = self.file.tell()
         self.file.seek(BigANNVectorDataSet.BEGINNING)
@@ -163,17 +180,23 @@ class BigANNVectorDataSet(DataSet):
 
         self.num_points = int.from_bytes(self.file.read(4), "little")
         self.dimension = int.from_bytes(self.file.read(4), "little")
-        self.bytes_per_num = self._get_data_size(dataset_path)
+        self.bytes_per_num = self._get_data_size(self.dataset_path)
 
         if (num_bytes - BigANNVectorDataSet.DATA_SET_HEADER_LENGTH) != (
                 self.num_points * self.dimension * self.bytes_per_num):
             raise Exception("Invalid file. File size is not matching with expected estimated "
                             "value based on number of points, dimension and bytes per point")
 
-        self.reader = self._value_reader(dataset_path)
-        self.current = BigANNVectorDataSet.BEGINNING
+        self.reader = self._value_reader(self.dataset_path)
+
+    def _load(self):
+        # load file if it is not loaded yet
+        if self.file is None:
+            self._init_internal_params()
 
     def read(self, chunk_size: int):
+        # load file first before read
+        self._load()
         if self.current >= self.size():
             return None
 
@@ -188,15 +211,16 @@ class BigANNVectorDataSet(DataSet):
         return vectors
 
     def seek(self, offset: int):
-
+        # load file first before seek
+        self._load()
         if offset < self.BEGINNING:
             raise Exception("Offset must be greater than or equal to 0")
 
         if offset >= self.size():
             raise Exception("Offset must be less than the data set size")
 
-        bytes_offset = BigANNVectorDataSet.DATA_SET_HEADER_LENGTH + \
-                       self.dimension * self.bytes_per_num * offset
+        bytes_offset = BigANNVectorDataSet.DATA_SET_HEADER_LENGTH + (
+                self.dimension * self.bytes_per_num * offset)
         self.file.seek(bytes_offset)
         self.current = offset
 
@@ -205,14 +229,18 @@ class BigANNVectorDataSet(DataSet):
                            range(self.dimension)])
 
     def size(self):
+        # load file first before return size
+        self._load()
         return self.num_points
 
     def reset(self):
-        self.file.seek(BigANNVectorDataSet.DATA_SET_HEADER_LENGTH)
+        if self.file:
+            self.file.seek(BigANNVectorDataSet.DATA_SET_HEADER_LENGTH)
         self.current = BigANNVectorDataSet.BEGINNING
 
     def __del__(self):
-        self.file.close()
+        if self.file:
+            self.file.close()
 
     @staticmethod
     def _get_extension(file_name):
