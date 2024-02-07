@@ -893,7 +893,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "workload", "latency.percentiles", args.latency_percentiles)
             cfg.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", args.throughput_percentiles)
             cfg.add(config.Scope.applicationOverride, "workload", "randomization.enabled", args.randomization_enabled)
-            cfg.add(config.Scope.applicationOverride, "workload", "randomization.rf", args.randomization_rf)
+            cfg.add(config.Scope.applicationOverride, "workload", "randomization.repeat_frequency", args.randomization_repeat_frequency)
             cfg.add(config.Scope.applicationOverride, "workload", "randomization.n", args.randomization_n)
             configure_workload_params(arg_parser, args, cfg)
             configure_connection_params(arg_parser, args, cfg)
