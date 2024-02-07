@@ -566,6 +566,22 @@ def create_arg_parser():
              f"(default: {metrics.GlobalStatsCalculator.DEFAULT_THROUGHPUT_PERCENTILES}).",
         default=metrics.GlobalStatsCalculator.DEFAULT_THROUGHPUT_PERCENTILES
     )
+    test_execution_parser.add_argument(
+        "--randomization-enabled",
+        help="Runs the given workload with query randomization enabled (default: false).",
+        default=False,
+        action="store_true")
+    test_execution_parser.add_argument(
+        "--randomization-repeat-frequency",
+        "-rf",
+        help=f"The repeat_frequency for query randomization. Ignored if randomization is off"
+             f"(default: {workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_RF}).",
+        default=workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_RF)
+    test_execution_parser.add_argument(
+        "--randomization-n",
+        help=f"The number of standard values to generate for each field for query randomization."
+             f"Ignored if randomization is off (default: {workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_N}).",
+        default=workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_N)
 
     ###############################################################################
     #
@@ -876,6 +892,9 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "workload", "test.mode.enabled", args.test_mode)
             cfg.add(config.Scope.applicationOverride, "workload", "latency.percentiles", args.latency_percentiles)
             cfg.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", args.throughput_percentiles)
+            cfg.add(config.Scope.applicationOverride, "workload", "randomization.enabled", args.randomization_enabled)
+            cfg.add(config.Scope.applicationOverride, "workload", "randomization.repeat_frequency", args.randomization_repeat_frequency)
+            cfg.add(config.Scope.applicationOverride, "workload", "randomization.n", args.randomization_n)
             configure_workload_params(arg_parser, args, cfg)
             configure_connection_params(arg_parser, args, cfg)
             configure_telemetry_params(args, cfg)

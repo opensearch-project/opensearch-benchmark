@@ -1682,6 +1682,305 @@ class WorkloadFilterTests(TestCase):
         schedule = filtered.test_procedures[0].schedule
         self.assertEqual(expected_schedule, schedule)
 
+class WorkloadRandomizationTests(TestCase):
+
+    # Helper class used to set up queries with mock standard values for testing
+    # We want >1 op to ensure logic for giving different ops their own lambdas is working properly
+    class StandardValueHelper:
+        def __init__(self):
+            self.op_name_1 = "op-name-1"
+            self.op_name_2 = "op-name-2"
+            self.field_name_1 = "dummy_field_1"
+            self.field_name_2 = "dummy_field_2"
+            self.index_name = "dummy_index"
+
+            # Make the saved standard values different from the functions generating the new values,
+            # to be able to distinguish when we generate a new value vs draw an "existing" one.
+            # in actual usage, these would come from the same function with some randomness in it
+            self.saved_values = {
+                self.op_name_1:{
+                    self.field_name_1:{"lte":40, "gte":30},
+                    self.field_name_2:{"lte":"06/06/2016", "gte":"05/05/2016", "format":"dd/MM/yyyy"}
+                },
+                self.op_name_2:{
+                    self.field_name_1:{"lte":11, "gte":10}
+                }
+            }
+
+            # Used to generate new values, in the source function
+            self.new_values = {
+                self.op_name_1:{
+                    self.field_name_1:{"lte":41, "gte":31},
+                    self.field_name_2:{"lte":"04/04/2016", "gte":"03/03/2016", "format":"dd/MM/yyyy"}
+                },
+                self.op_name_2:{
+                    self.field_name_1:{"lte":15, "gte":14},
+                }
+            }
+
+            self.op_1_query = {
+                "name": self.op_name_1,
+                "operation-type": "search",
+                "body": {
+                    "size": 0,
+                    "query": {
+                        "bool": {
+                            "filter": {
+                                "range": {
+                                    self.field_name_1: {
+                                        "lt": 50,
+                                        "gte": 0
+                                    }
+                                },
+                                "must": [
+                                    {
+                                        "range": {
+                                            self.field_name_2: {
+                                                "gte": "01/01/2015",
+                                                "lte": "21/01/2015",
+                                                "format": "dd/MM/yyyy"
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+
+            self.op_2_query = {
+                "name": self.op_name_2,
+                "operation-type": "search",
+                "body": {
+                    "size": 0,
+                    "query": {
+                        "range": {
+                            self.field_name_1: {
+                                "lt": 50,
+                                "gte": 0
+                            }
+                        }
+                    }
+                }
+            }
+
+        def get_simple_workload(self):
+            # Modified from test_filters_tasks
+            workload_specification = {
+                "description": "description for unit test",
+                "indices": [{"name": self.index_name, "auto-managed": False}],
+                "operations": [
+                    {
+                        "name": "create-index",
+                        "operation-type": "create-index"
+                    },
+                    self.op_1_query,
+                    self.op_2_query
+                ],
+                "test_procedures": [
+                    {
+                        "name": "default-test_procedure",
+                        "schedule": [
+                            {
+                                "operation": "create-index"
+                            },
+                            {
+                                "name": "dummy-task-name-1",
+                                "operation": self.op_name_1,
+                            },
+                            {
+                                "name": "dummy-task-name-2",
+                                "operation": self.op_name_2,
+                            },
+                        ]
+                    }
+                ]
+            }
+            reader = loader.WorkloadSpecificationReader()
+            full_workload = reader("unittest", workload_specification, "/mappings")
+            return full_workload
+
+        def get_standard_value_source(self, op_name, field_name):
+            # Passed to the processor, to be able to find the standard value sources for all ops/fields.
+            # The actual source functions for the op/field pairs, which in a real application
+            # would be defined in the workload's workload.py and involve some randomization
+            return lambda: self.new_values[op_name][field_name]
+
+        def get_standard_value(self, op_name, field_name, index):
+            # Passed to the processor, to be able to retrive the saved standard values for all ops/fields.
+            return self.saved_values[op_name][field_name]
+
+    def test_range_finding_function(self):
+        cfg = config.Config()
+        processor = loader.QueryRandomizerWorkloadProcessor(cfg)
+        single_range_query = {
+            "name": "distance_amount_agg",
+            "operation-type": "search",
+            "body": {
+                "size": 0,
+                "query": {
+                "bool": {
+                    "filter": {
+                    "range": {
+                        "trip_distance": {
+                        "lt": 50,
+                        "gte": 0
+                        }
+                    }
+                    }
+                }
+                }
+            }
+        }
+        single_range_query_result = processor.extract_fields_and_paths(single_range_query)
+        single_range_query_expected = [("trip_distance", ["bool", "filter", "range"])]
+        self.assertEqual(single_range_query_result, single_range_query_expected)
+
+        multiple_nested_range_query = {
+            "name": "date_histogram_agg",
+            "operation-type": "search",
+            "body": {
+                "size": 0,
+                "query": {
+                    "range": {
+                        "dropoff_datetime": {
+                            "gte": "01/01/2015",
+                            "lte": "21/01/2015",
+                            "format": "dd/MM/yyyy"
+                        }
+                },
+                "bool": {
+                    "filter": {
+                        "range": {
+                            "dummy_field": {
+                                "lte": 50,
+                                "gt": 0
+                            }
+                        }
+                    },
+                    "must": [
+                        {
+                            "range": {
+                                "dummy_field_2": {
+                                    "gte": "1998-05-01T00:00:00Z",
+                                    "lt": "1998-05-02T00:00:00Z"
+                                }
+                            }
+                        },
+                        {
+                            "match": {
+                            "status": "400"
+                            }
+                        },
+                        {
+                            "range": {
+                                "dummy_field_3": {
+                                    "gt": 10,
+                                    "lt": 11
+                                }
+                            }
+                        }
+                    ]
+                }
+                }
+            }
+        }
+        multiple_nested_range_query_result = processor.extract_fields_and_paths(multiple_nested_range_query)
+        print("Multi result: ", multiple_nested_range_query_result)
+        multiple_nested_range_query_expected = [
+            ("dropoff_datetime", ["range"]),
+            ("dummy_field", ["bool", "filter", "range"]),
+            ("dummy_field_2", ["bool", "must", 0, "range"]),
+            ("dummy_field_3", ["bool", "must", 2, "range"])
+            ]
+        self.assertEqual(multiple_nested_range_query_result, multiple_nested_range_query_expected)
+
+        with self.assertRaises(exceptions.SystemSetupError) as ctx:
+            params = {"body":{"contents":["not_a_valid_query"]}}
+            _ = processor.extract_fields_and_paths(params)
+            self.assertEqual(
+                f"Cannot extract range query fields from these params: {params}\n, missing params[\"body\"][\"query\"]\n"
+                f"Make sure the operation in operations/default.json is well-formed",
+                         ctx.exception.args[0])
+
+    def test_get_randomized_values(self):
+        helper = self.StandardValueHelper()
+
+        for rf, expected_values_dict in zip([1.0, 0.0], [helper.saved_values, helper.new_values]):
+            # first test where we always draw a saved value, not a new random one
+            # next test where we always draw a new random value. We've made them distinct, to be able to tell which codepath is taken
+            cfg = config.Config()
+            cfg.add(config.Scope.application, "workload", "randomization.repeat_frequency", rf)
+            processor = loader.QueryRandomizerWorkloadProcessor(cfg)
+            self.assertAlmostEqual(processor.rf, rf)
+
+            # Test resulting params for operation 1
+            workload = helper.get_simple_workload()
+            modified_params = processor.get_randomized_values(workload, helper.op_1_query, op_name=helper.op_name_1,
+                                                            get_standard_value=helper.get_standard_value,
+                                                            get_standard_value_source=helper.get_standard_value_source)
+            modified_range_1 = modified_params["body"]["query"]["bool"]["filter"]["range"][helper.field_name_1]
+            modified_range_2 = modified_params["body"]["query"]["bool"]["filter"]["must"][0]["range"][helper.field_name_2]
+            self.assertEqual(modified_range_1["lt"], expected_values_dict[helper.op_name_1][helper.field_name_1]["lte"])
+            # Note it should keep whichever of lt/lte it found in the original query
+            self.assertEqual(modified_range_1["gte"], expected_values_dict[helper.op_name_1][helper.field_name_1]["gte"])
+
+            self.assertEqual(modified_range_2["lte"], expected_values_dict[helper.op_name_1][helper.field_name_2]["lte"])
+            self.assertEqual(modified_range_2["gte"], expected_values_dict[helper.op_name_1][helper.field_name_2]["gte"])
+            self.assertEqual(modified_range_2["format"], expected_values_dict[helper.op_name_1][helper.field_name_2]["format"])
+
+            self.assertEqual(modified_params["index"], helper.index_name)
+
+            # Test resulting params for operation 2
+            workload = helper.get_simple_workload()
+            modified_params = processor.get_randomized_values(workload, helper.op_2_query, op_name=helper.op_name_2,
+                                                            get_standard_value=helper.get_standard_value,
+                                                            get_standard_value_source=helper.get_standard_value_source)
+            modified_range_1 = modified_params["body"]["query"]["range"][helper.field_name_1]
+
+            self.assertEqual(modified_range_1["lt"], expected_values_dict[helper.op_name_2][helper.field_name_1]["lte"])
+            self.assertEqual(modified_range_1["gte"], expected_values_dict[helper.op_name_2][helper.field_name_1]["gte"])
+            self.assertEqual(modified_params["index"], helper.index_name)
+
+
+    def test_on_after_load_workload(self):
+        cfg = config.Config()
+        processor = loader.QueryRandomizerWorkloadProcessor(cfg)
+        # Do nothing with default config as randomization.enabled is false
+        helper = self.StandardValueHelper()
+        input_workload = helper.get_simple_workload()
+        self.assertEqual(
+            repr(input_workload),
+            repr(processor.on_after_load_workload(input_workload, get_standard_value=helper.get_standard_value,
+                                                            get_standard_value_source=helper.get_standard_value_source)))
+        # It seems that comparing the workloads directly will incorrectly call them equal, even if they have differences,
+        # so compare their string representations instead
+
+        cfg = config.Config()
+        cfg.add(config.Scope.application, "workload", "randomization.enabled", True)
+        processor = loader.QueryRandomizerWorkloadProcessor(cfg)
+        self.assertEqual(processor.randomization_enabled, True)
+        self.assertEqual(processor.N, loader.QueryRandomizerWorkloadProcessor.DEFAULT_N)
+        self.assertEqual(type(processor.N), int)
+        self.assertEqual(processor.rf, loader.QueryRandomizerWorkloadProcessor.DEFAULT_RF)
+        self.assertEqual(type(processor.rf), float)
+        input_workload = helper.get_simple_workload()
+        self.assertNotEqual(
+            repr(input_workload),
+            repr(processor.on_after_load_workload(input_workload, get_standard_value=helper.get_standard_value,
+                                                            get_standard_value_source=helper.get_standard_value_source)))
+        for test_procedure in input_workload.test_procedures:
+            for task in test_procedure.schedule:
+                for leaf_task in task:
+                    try:
+                        op_type = workload.OperationType.from_hyphenated_string(leaf_task.operation.type)
+                    except KeyError:
+                        op_type = None
+                    if op_type == workload.OperationType.Search:
+                        self.assertIsNotNone(leaf_task.operation.param_source)
+
+
 
 # pylint: disable=too-many-public-methods
 class WorkloadSpecificationReaderTests(TestCase):
@@ -3558,6 +3857,7 @@ class WorkloadProcessorRegistryTests(TestCase):
         expected_defaults = [
             loader.TaskFilterWorkloadProcessor,
             loader.TestModeWorkloadProcessor,
+            loader.QueryRandomizerWorkloadProcessor,
             loader.DefaultWorkloadPreparator
         ]
         actual_defaults = [proc.__class__ for proc in tpr.processors]
@@ -3573,6 +3873,7 @@ class WorkloadProcessorRegistryTests(TestCase):
         expected_processors = [
             loader.TaskFilterWorkloadProcessor,
             loader.TestModeWorkloadProcessor,
+            loader.QueryRandomizerWorkloadProcessor,
             MyMockWorkloadProcessor
         ]
         actual_processors = [proc.__class__ for proc in tpr.processors]
@@ -3589,6 +3890,7 @@ class WorkloadProcessorRegistryTests(TestCase):
         expected_processors = [
             loader.TaskFilterWorkloadProcessor,
             loader.TestModeWorkloadProcessor,
+            loader.QueryRandomizerWorkloadProcessor,
             MyMockWorkloadProcessor,
             loader.DefaultWorkloadPreparator
         ]
