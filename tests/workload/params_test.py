@@ -2595,6 +2595,89 @@ class VectorSearchParamSourceTests(TestCase):
             ).partition(0, 1)
         )
 
+    def test_corpus_not_found_in_workload(self):
+        corpora = [
+            workload.DocumentCorpus(name="sift-128", documents=[
+                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_HDF5,number_of_documents=10)
+            ]),
+        ]
+        test_param_source_params = {
+            "index": VectorSearchParamSourceTests.DEFAULT_INDEX_NAME,
+            "field": VectorSearchParamSourceTests.DEFAULT_FIELD_NAME,
+            "data_set_format": "hdf5",
+            "data_set_corpus": "sift-128-1"
+        }
+        self.assertRaises(
+            ConfigurationError,
+            lambda: self.TestVectorsFromDataSetParamSource(
+                workload.Workload(name="unit-test", corpora=corpora),
+                test_param_source_params,
+                self.DEFAULT_CONTEXT
+            ).partition(0, 1)
+        )
+
+    def test_corpus_contains_more_than_one_files(self):
+        corpus_name="sift-128"
+        corpora = [
+            workload.DocumentCorpus(name=corpus_name, documents=[
+                workload.Documents(
+                    source_format=workload.Documents.SOURCE_FORMAT_HDF5,
+                    number_of_documents=10,
+                    document_file="file1"
+                ),
+                workload.Documents(
+                    source_format=workload.Documents.SOURCE_FORMAT_HDF5,
+                    number_of_documents=10,
+                    document_file="file2"
+                )
+            ]),
+        ]
+        test_param_source_params = {
+            "index": VectorSearchParamSourceTests.DEFAULT_INDEX_NAME,
+            "field": VectorSearchParamSourceTests.DEFAULT_FIELD_NAME,
+            "data_set_format": "hdf5",
+            "data_set_corpus": corpus_name,
+        }
+        self.assertRaises(
+            ConfigurationError,
+            lambda: self.TestVectorsFromDataSetParamSource(
+                workload.Workload(name="unit-test", corpora=corpora),
+                test_param_source_params,
+                self.DEFAULT_CONTEXT
+            ).partition(0, 1)
+        )
+
+    def test_missing_data_set_path_or_corpus(self):
+        test_param_source_params = {
+            "index": VectorSearchParamSourceTests.DEFAULT_INDEX_NAME,
+            "field": VectorSearchParamSourceTests.DEFAULT_FIELD_NAME,
+            "data_set_format": "hdf5",
+        }
+        self.assertRaises(
+            ConfigurationError,
+            lambda: self.TestVectorsFromDataSetParamSource(
+                workload.Workload(name="unit-test"),
+                test_param_source_params,
+                self.DEFAULT_CONTEXT
+            ).partition(0, 1)
+        )
+
+    def test_missing_corpus(self):
+        test_param_source_params = {
+            "index": VectorSearchParamSourceTests.DEFAULT_INDEX_NAME,
+            "field": VectorSearchParamSourceTests.DEFAULT_FIELD_NAME,
+            "data_set_format": "hdf5",
+            "data_set_corpus": "sift-128"
+        }
+        self.assertRaises(
+            ConfigurationError,
+            lambda: self.TestVectorsFromDataSetParamSource(
+                workload.Workload(name="unit-test", corpora=[]),
+                test_param_source_params,
+                self.DEFAULT_CONTEXT
+            ).partition(0, 1)
+        )
+
     def test_invalid_data_set_path(self):
         invalid_data_set_path = "invalid-data-set-path"
         test_param_source_params = {
@@ -2610,6 +2693,46 @@ class VectorSearchParamSourceTests(TestCase):
                 test_param_source_params,
                 self.DEFAULT_CONTEXT
             ).partition(0, 1)
+        )
+
+    def test_partition_hdf5_corpus(self):
+        num_vectors = 100
+        num_partitions = 10
+        corpus_name = "random-hdf5-corpus"
+
+        hdf5_data_set_path = create_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            HDF5DataSet.FORMAT_NAME,
+            self.DEFAULT_CONTEXT,
+            self.data_set_dir
+        )
+        corpora = [
+            workload.DocumentCorpus(name=corpus_name, documents=[
+                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_HDF5,
+                                   number_of_documents=num_vectors,
+                                   document_file=hdf5_data_set_path)
+            ]),
+        ]
+
+        test_param_source_params = {
+            "index": self.DEFAULT_INDEX_NAME,
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": HDF5DataSet.FORMAT_NAME,
+            "data_set_corpus": corpus_name,
+        }
+        test_param_source = self.TestVectorsFromDataSetParamSource(
+            workload.Workload(name="unit-test", corpora=corpora),
+            test_param_source_params,
+            self.DEFAULT_CONTEXT
+        )
+
+        vectors_per_partition = num_vectors // num_partitions
+
+        self._test_partition(
+            test_param_source,
+            num_partitions,
+            vectors_per_partition
         )
 
     def test_partition_hdf5(self):
