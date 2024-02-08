@@ -2662,6 +2662,23 @@ class VectorSearchParamSourceTests(TestCase):
             ).partition(0, 1)
         )
 
+    def test_either_data_set_path_or_corpus(self):
+        test_param_source_params = {
+            "index": VectorSearchParamSourceTests.DEFAULT_INDEX_NAME,
+            "field": VectorSearchParamSourceTests.DEFAULT_FIELD_NAME,
+            "data_set_format": "hdf5",
+            "data_set_corpus": "corpus_name",
+            "data_set_path": "file-path",
+        }
+        self.assertRaises(
+            ConfigurationError,
+            lambda: self.TestVectorsFromDataSetParamSource(
+                workload.Workload(name="unit-test"),
+                test_param_source_params,
+                self.DEFAULT_CONTEXT
+            )
+        )
+
     def test_missing_corpus(self):
         test_param_source_params = {
             "index": VectorSearchParamSourceTests.DEFAULT_INDEX_NAME,
