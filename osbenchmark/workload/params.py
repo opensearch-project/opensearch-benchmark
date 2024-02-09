@@ -852,6 +852,7 @@ class VectorSearchParamSource(SearchParamSource):
     def __init__(self, workload, params, **kwargs):
         super().__init__(workload, params, **kwargs)
         self.delegate_param_source = VectorSearchPartitionParamSource(workload, params, self.query_params, **kwargs)
+        self.corpora = self.delegate_param_source.corpora
 
     def partition(self, partition_index, total_partitions):
         return self.delegate_param_source.partition(partition_index, total_partitions)
@@ -885,7 +886,9 @@ class VectorDataSetPartitionParamSource(ParamSource):
         self.field_name: str = parse_string_parameter("field", params)
         self.context = context
         self.data_set_format = parse_string_parameter("data_set_format", params)
-        self.data_set_path = parse_string_parameter("data_set_path", params)
+        self.data_set_path = parse_string_parameter("data_set_path", params, "")
+        self.data_set_corpus = parse_string_parameter("data_set_corpus", params, "")
+        self._validate_data_set(self.data_set_path, self.data_set_corpus)
         self.total_num_vectors: int = parse_int_parameter("num_vectors", params, -1)
         self.num_vectors = 0
         self.total = 1
@@ -893,13 +896,44 @@ class VectorDataSetPartitionParamSource(ParamSource):
         self.percent_completed = 0
         self.offset = 0
         self.data_set: DataSet = None
+        self.corpora = self.extract_corpora(self.data_set_corpus, self.data_set_format)
+
+    def _get_corpora_file_paths(self, name, source_format):
+        document_files = []
+        for corpus in self.corpora:
+            if corpus.name != name:
+                continue
+            filtered_corpus = corpus.filter(source_format=source_format)
+            document_files.extend([document.document_file for document in filtered_corpus.documents])
+        return document_files
 
     @property
     def infinite(self):
         return False
 
-    def _is_last_partition(self, partition_index, total_partitions):
+    @staticmethod
+    def _is_last_partition(partition_index, total_partitions):
         return partition_index == total_partitions - 1
+
+    @staticmethod
+    def _validate_data_set(file_path, corpus):
+        if not file_path and not corpus:
+            raise exceptions.ConfigurationError(
+                "Dataset is missing. Provide either dataset file path or valid corpus.")
+        if file_path and corpus:
+            raise exceptions.ConfigurationError(
+                "User provided both file path and corpus. "
+                "Provide either dataset file path '%s' or corpus '%s', "
+                "but not both" % (file_path, corpus))
+
+    @staticmethod
+    def _validate_data_set_corpus(data_set_path_list):
+        if not data_set_path_list:
+            raise exceptions.ConfigurationError(
+                "Dataset is missing. Provide either dataset file path or valid corpus.")
+        if data_set_path_list and len(data_set_path_list) > 1:
+            raise exceptions.ConfigurationError(
+                "Vector Search does not support more than one document file path '%s'." % data_set_path_list)
 
     def partition(self, partition_index, total_partitions):
         """
@@ -912,6 +946,10 @@ class VectorDataSetPartitionParamSource(ParamSource):
         Returns:
             The parameter source for this particular partition
         """
+        if self.data_set_corpus and not self.data_set_path:
+            data_set_path = self._get_corpora_file_paths(self.data_set_corpus, self.data_set_format)
+            self._validate_data_set_corpus(data_set_path)
+            self.data_set_path = data_set_path[0]
         if self.data_set is None:
             self.data_set: DataSet = get_data_set(
                 self.data_set_format, self.data_set_path, self.context)
@@ -947,6 +985,33 @@ class VectorDataSetPartitionParamSource(ParamSource):
         Returns: A single parameter from this source
         """
 
+    def extract_corpora(self, corpus_name, source_format):
+        """
+        Extracts corpora from available corpora in workload for given name and format.
+
+        @param corpus_name: filter corpora by this name
+        @param source_format: filter corpora by this source format
+        @return: corpora that matches given name and source format
+        """
+        if not corpus_name:
+            return []
+        corpora = []
+        workload_corpora_names = []
+        for corpus in self.workload.corpora:
+            workload_corpora_names.append(corpus.name)
+            if corpus.name != corpus_name:
+                continue
+            filtered_corpus = corpus.filter(source_format=source_format)
+            if filtered_corpus and filtered_corpus.number_of_documents(source_format=source_format) > 0:
+                corpora.append(filtered_corpus)
+            break
+
+        # the workload has corpora but none of them match
+        if workload_corpora_names and not corpora:
+            raise exceptions.ConfigurationError(
+                "The provided corpus %s does not match any of the corpora %s." % (corpus_name, workload_corpora_names))
+        return corpora
+
 
 class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
     """ Parameter source for k-NN. Queries are created from data set
@@ -968,6 +1033,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
     PARAMS_NAME_REPETITIONS = "repetitions"
     PARAMS_NAME_NEIGHBORS_DATA_SET_FORMAT = "neighbors_data_set_format"
     PARAMS_NAME_NEIGHBORS_DATA_SET_PATH = "neighbors_data_set_path"
+    PARAMS_NAME_NEIGHBORS_DATA_SET_CORPUS = "neighbors_data_set_corpus"
     PARAMS_NAME_OPERATION_TYPE = "operation-type"
     PARAMS_VALUE_VECTOR_SEARCH = "vector-search"
     PARAMS_NAME_ID_FIELD_NAME = "id-field-name"
@@ -984,6 +1050,8 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         self.neighbors_data_set_format = parse_string_parameter(
             self.PARAMS_NAME_NEIGHBORS_DATA_SET_FORMAT, params, self.data_set_format)
         self.neighbors_data_set_path = params.get(self.PARAMS_NAME_NEIGHBORS_DATA_SET_PATH)
+        self.neighbors_data_set_corpus = params.get(self.PARAMS_NAME_NEIGHBORS_DATA_SET_CORPUS)
+        self._validate_data_set(self.neighbors_data_set_path, self.neighbors_data_set_corpus)
         self.neighbors_data_set = None
         operation_type = parse_string_parameter(self.PARAMS_NAME_OPERATION_TYPE, params,
                                                 self.PARAMS_VALUE_VECTOR_SEARCH)
@@ -993,6 +1061,19 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
             self.PARAMS_NAME_OPERATION_TYPE: operation_type,
             self.PARAMS_NAME_ID_FIELD_NAME: params.get(self.PARAMS_NAME_ID_FIELD_NAME),
         })
+        # if neighbors data set is defined as corpus, extract corresponding corpus from workload
+        # and add it to corpora list
+        if self.neighbors_data_set_corpus:
+            neighbors_corpora = self.extract_corpora(self.neighbors_data_set_corpus, self.neighbors_data_set_format)
+            self.corpora.extend(corpora for corpora in neighbors_corpora if corpora not in self.corpora)
+
+    def _validate_neighbors_data_set(self):
+        if not self.data_set_path and not self.data_set_corpus:
+            raise exceptions.ConfigurationError(
+                "Dataset is missing. Provide either dataset file path or valid corpus.")
+        if self.data_set_path and self.data_set_corpus:
+            raise exceptions.ConfigurationError(
+                "Provide either dataset file path '%s' or corpus '%s'." % (self.data_set_path, self.data_set_corpus))
 
     def _update_request_params(self):
         request_params = self.query_params.get(self.PARAMS_NAME_REQUEST_PARAMS, {})
@@ -1016,6 +1097,11 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
 
     def partition(self, partition_index, total_partitions):
         partition = super().partition(partition_index, total_partitions)
+        if self.neighbors_data_set_corpus and not self.neighbors_data_set_path:
+            neighbors_data_set_path = self._get_corpora_file_paths(
+                self.neighbors_data_set_corpus, self.neighbors_data_set_format)
+            self._validate_data_set_corpus(neighbors_data_set_path)
+            self.neighbors_data_set_path = neighbors_data_set_path[0]
         if not self.neighbors_data_set_path:
             self.neighbors_data_set_path = self.data_set_path
         # add neighbor instance to partition
