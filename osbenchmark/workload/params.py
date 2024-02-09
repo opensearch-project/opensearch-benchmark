@@ -1030,6 +1030,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
     PARAMS_NAME_BODY = "body"
     PARAMS_NAME_SIZE = "size"
     PARAMS_NAME_QUERY = "query"
+    PARAMS_NAME_FILTER = "filter"
     PARAMS_NAME_REPETITIONS = "repetitions"
     PARAMS_NAME_NEIGHBORS_DATA_SET_FORMAT = "neighbors_data_set_format"
     PARAMS_NAME_NEIGHBORS_DATA_SET_PATH = "neighbors_data_set_path"
@@ -1061,6 +1062,10 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
             self.PARAMS_NAME_OPERATION_TYPE: operation_type,
             self.PARAMS_NAME_ID_FIELD_NAME: params.get(self.PARAMS_NAME_ID_FIELD_NAME),
         })
+        if self.PARAMS_NAME_FILTER in params:
+            self.query_params.update({
+                self.PARAMS_NAME_FILTER:  params.get(self.PARAMS_NAME_FILTER)
+            })
         # if neighbors data set is defined as corpus, extract corresponding corpus from workload
         # and add it to corpora list
         if self.neighbors_data_set_corpus:
@@ -1091,8 +1096,9 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         if self.PARAMS_NAME_QUERY in body_params:
             self.logger.warning(
                 "[%s] param from body will be replaced with vector search query.", self.PARAMS_NAME_QUERY)
+        efficient_filter=self.query_params.get(self.PARAMS_NAME_FILTER)
         # override query params with vector search query
-        body_params[self.PARAMS_NAME_QUERY] = self._build_vector_search_query_body(vector)
+        body_params[self.PARAMS_NAME_QUERY] = self._build_vector_search_query_body(vector, efficient_filter)
         self.query_params.update({self.PARAMS_NAME_BODY: body_params})
 
     def partition(self, partition_index, total_partitions):
@@ -1135,7 +1141,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         self.percent_completed = self.current / self.total
         return self.query_params
 
-    def _build_vector_search_query_body(self, vector) -> dict:
+    def _build_vector_search_query_body(self, vector, efficient_filter=None) -> dict:
         """Builds a k-NN request that can be used to execute an approximate nearest
         neighbor search against a k-NN plugin index
         Args:
@@ -1143,14 +1149,19 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         Returns:
             A dictionary containing the body used for search query
         """
+        query = {
+            "vector": vector,
+            "k": self.k,
+        }
+        if efficient_filter:
+            query.update({
+                "filter": efficient_filter,
+            })
         return {
-                "knn": {
-                    self.field_name: {
-                        "vector": vector,
-                        "k": self.k
-                    }
-                }
-            }
+            "knn": {
+                self.field_name: query,
+            },
+        }
 
 
 class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):

@@ -2917,6 +2917,9 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             Context.NEIGHBORS,
             self.data_set_dir
         )
+        filter_body = {
+            "key": "value"
+        }
 
         # Create a QueryVectorsFromDataSetParamSource with relevant params
         test_param_source_params = {
@@ -2924,7 +2927,8 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             "data_set_format": self.DEFAULT_TYPE,
             "data_set_path": data_set_path,
             "neighbors_data_set_path": neighbors_data_set_path,
-            "k": k
+            "k": k,
+            "filter": filter_body,
         }
         query_param_source = VectorSearchPartitionParamSource(
             workload.Workload(name="unit-test"),
@@ -2946,6 +2950,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
                 self.DEFAULT_DIMENSION,
                 k,
                 100,
+                filter_body,
             )
 
         # Assert last call creates stop iteration
@@ -2959,6 +2964,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             expected_dimension: int,
             expected_k: int,
             expected_size=None,
+            expected_filter=None,
     ):
         body = actual_params.get("body")
         self.assertIsInstance(body, dict)
@@ -2978,6 +2984,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
         self.assertEqual(len(neighbor), expected_dimension)
         size = body.get("size")
         self.assertEqual(size, expected_size if expected_size else expected_k)
+        self.assertEqual(field.get("filter"), expected_filter)
 
 
 class BulkVectorsFromDataSetParamSourceTestCase(TestCase):
