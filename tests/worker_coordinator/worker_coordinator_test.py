@@ -105,12 +105,12 @@ class WorkerCoordinatorTests(TestCase):
         self.cfg.add(config.Scope.application, "workload", "test.mode.enabled", True)
         self.cfg.add(config.Scope.application, "telemetry", "devices", [])
         self.cfg.add(config.Scope.application, "telemetry", "params", {"ccr-stats-indices": {"default": ["leader_index"]}})
-        self.cfg.add(config.Scope.application, "builder", "provision_config_instance.names", ["default"])
+        self.cfg.add(config.Scope.application, "builder", "cluster_config.names", ["default"])
         self.cfg.add(config.Scope.application, "builder", "skip.rest.api.check", True)
         self.cfg.add(config.Scope.application, "client", "hosts",
                      WorkerCoordinatorTests.Holder(all_hosts={"default": ["localhost:9200"]}))
         self.cfg.add(config.Scope.application, "client", "options", WorkerCoordinatorTests.Holder(all_client_options={"default": {}}))
-        self.cfg.add(config.Scope.application, "worker_coordinator", "load_worker_coordinator_hosts", ["localhost"])
+        self.cfg.add(config.Scope.application, "worker_coordinator", "worker_ips", ["localhost"])
         self.cfg.add(config.Scope.application, "results_publishing", "datastore.type", "in-memory")
 
         default_scenario = workload.Scenario("default", default=True, schedule=[
@@ -135,7 +135,7 @@ class WorkerCoordinatorTests(TestCase):
     @mock.patch("osbenchmark.utils.net.resolve")
     def test_start_benchmark_and_prepare_workload(self, resolve):
         # override load worker_coordinator host
-        self.cfg.add(config.Scope.applicationOverride, "worker_coordinator", "load_worker_coordinator_hosts", ["10.5.5.1", "10.5.5.2"])
+        self.cfg.add(config.Scope.applicationOverride, "worker_coordinator", "worker_ips", ["10.5.5.1", "10.5.5.2"])
         resolve.side_effect = ["10.5.5.1", "10.5.5.2"]
 
         target = self.create_test_worker_coordinator_target()

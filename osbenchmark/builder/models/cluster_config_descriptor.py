@@ -3,11 +3,11 @@ from typing import List
 
 from osbenchmark.builder.models.cluster_flavors import ClusterFlavor
 from osbenchmark.builder.models.cluster_infra_providers import ClusterInfraProvider
-from osbenchmark.builder.models.provision_config_instance_types import ProvisionConfigInstanceType
+from osbenchmark.builder.models.cluster_config_types import ClusterConfigType
 
 
 @dataclass
-class ProvisionConfigInstanceDescriptor:
+class ClusterConfigDescriptor:
     """
     A ProvisionConfigInstanceDescriptor represents a single source of provision config definition. These descriptors serve
     as an intermediary store of the cluster to be provisioned. Descriptors are created from each config source and played
@@ -25,7 +25,7 @@ class ProvisionConfigInstanceDescriptor:
 
     name: str
     description: str = ""
-    type: ProvisionConfigInstanceType = ProvisionConfigInstanceType.PROVISION_CONFIG_INSTANCE
+    type: ClusterConfigType = ClusterConfigType.PROVISION_CONFIG_INSTANCE
     root_paths: List[str] = field(default_factory=list)
     provider: ClusterInfraProvider = None
     flavor: ClusterFlavor = None

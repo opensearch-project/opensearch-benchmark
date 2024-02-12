@@ -16,10 +16,10 @@ class LocalProcessLauncher(Launcher):
     PROCESS_WAIT_TIMEOUT_SECONDS = 90
     PROCESS_WAIT_INTERVAL_SECONDS = 0.5
 
-    def __init__(self, provision_config_instance, shell_executor, metrics_store, clock=time.Clock):
+    def __init__(self, cluster_config, shell_executor, metrics_store, clock=time.Clock):
         super().__init__(shell_executor)
         self.logger = logging.getLogger(__name__)
-        self.provision_config_instance = provision_config_instance
+        self.cluster_config = cluster_config
         self.metrics_store = metrics_store
         self.waiter = PeriodicWaiter(LocalProcessLauncher.PROCESS_WAIT_INTERVAL_SECONDS,
                                      LocalProcessLauncher.PROCESS_WAIT_TIMEOUT_SECONDS, clock=clock)
@@ -33,9 +33,9 @@ class LocalProcessLauncher(Launcher):
         node_name = node_configuration.node_name
         binary_path = node_configuration.binary_path
 
-        java_major_version, java_home = java_resolver.java_home(node_configuration.provision_config_instance_runtime_jdks,
-                                                                self.provision_config_instance.variables["system"]["runtime"]["jdk"],
-                                                                node_configuration.provision_config_instance_provides_bundled_jdk)
+        java_major_version, java_home = java_resolver.java_home(node_configuration.cluster_config_runtime_jdks,
+                                                                self.cluster_config.variables["system"]["runtime"]["jdk"],
+                                                                node_configuration.cluster_config_provides_bundled_jdk)
         self.logger.info("Java major version: %s", java_major_version)
         self.logger.info("Java home: %s", java_home)
         self.logger.info("Starting node [%s].", node_name)
@@ -57,8 +57,8 @@ class LocalProcessLauncher(Launcher):
         data_paths = node_configuration.data_paths
         node_telemetry_dir = os.path.join(node_configuration.node_root_path, "telemetry")
 
-        enabled_devices = self.provision_config_instance.variables["telemetry"]["devices"]
-        telemetry_params = self.provision_config_instance.variables["telemetry"]["params"]
+        enabled_devices = self.cluster_config.variables["telemetry"]["devices"]
+        telemetry_params = self.cluster_config.variables["telemetry"]["params"]
 
         node_telemetry = [
             telemetry.FlightRecorder(telemetry_params, node_telemetry_dir, java_major_version),
@@ -74,7 +74,7 @@ class LocalProcessLauncher(Launcher):
 
     def _prepare_env(self, node_name, java_home, telemetry):
         env = {k: v for k, v in os.environ.items() if k in
-               opts.csv_to_list(self.provision_config_instance.variables["system"]["env"]["passenv"])}
+               opts.csv_to_list(self.cluster_config.variables["system"]["env"]["passenv"])}
         if java_home:
             self._set_env(env, "PATH", os.path.join(java_home, "bin"), separator=os.pathsep, prepend=True)
             # This property is the higher priority starting in ES 7.12.0, and is the only supported java home in >=8.0

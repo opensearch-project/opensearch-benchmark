@@ -359,7 +359,7 @@ class ComparisonResultsPublisher:
         print_internal("  TestExecution timestamp: %s" % r1.test_execution_timestamp)
         if r1.scenario_name:
             print_internal("  Scenario: %s" % r1.scenario_name)
-        print_internal("  ProvisionConfigInstance: %s" % r1.provision_config_instance_name)
+        print_internal("  ProvisionConfigInstance: %s" % r1.cluster_config_name)
         if r1.user_tags:
             r1_user_tags = ", ".join(["%s=%s" % (k, v) for k, v in sorted(r1.user_tags.items())])
             print_internal("  User tags: %s" % r1_user_tags)
@@ -369,7 +369,7 @@ class ComparisonResultsPublisher:
         print_internal("  TestExecution timestamp: %s" % r2.test_execution_timestamp)
         if r2.scenario_name:
             print_internal("  Scenario: %s" % r2.scenario_name)
-        print_internal("  ProvisionConfigInstance: %s" % r2.provision_config_instance_name)
+        print_internal("  ProvisionConfigInstance: %s" % r2.cluster_config_name)
         if r2.user_tags:
             r2_user_tags = ", ".join(["%s=%s" % (k, v) for k, v in sorted(r2.user_tags.items())])
             print_internal("  User tags: %s" % r2_user_tags)
