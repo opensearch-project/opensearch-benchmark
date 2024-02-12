@@ -1298,12 +1298,6 @@ def create_test_execution(cfg, workload, scenario, workload_revision=None):
     plugin_params = cfg.opts("builder", "plugin.params")
     benchmark_version = version.version()
     benchmark_revision = version.revision()
-    latency_percentiles = cfg.opts("workload", "latency.percentiles", mandatory=False,
-                                   default_value=GlobalStatsCalculator.DEFAULT_LATENCY_PERCENTILES)
-    throughput_percentiles = cfg.opts("workload", "throughput.percentiles", mandatory=False,
-                                      default_value=GlobalStatsCalculator.DEFAULT_THROUGHPUT_PERCENTILES)
-    # In tests, we don't get the default command-line arg value for percentiles,
-    # so supply them as defaults here as well
 
     return TestExecution(benchmark_version, benchmark_revision,
     environment, test_execution_id, test_execution_timestamp,
