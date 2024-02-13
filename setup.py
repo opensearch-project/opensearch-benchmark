@@ -101,11 +101,17 @@ install_requires = [
     # Licence: BSD-3-Clause
     "zstandard==0.22.0",
     # License: BSD
-    # Required for knnvector workload
+    # Required for vector search workload
     "h5py==3.10.0",
     # License: BSD
-    # Required for knnvector workload
+    # Required for vector search workload
     "numpy==1.24.2",
+    # License: Apache 2.0
+    # Required for vector search workload
+    "pyarrow===15.0.0",
+    # License: BSD
+    # Required for vector search workload
+    "pandas===2.0.0",
 ]
 
 tests_require = [
