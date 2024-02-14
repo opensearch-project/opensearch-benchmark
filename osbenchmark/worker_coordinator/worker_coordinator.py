@@ -1649,6 +1649,9 @@ class AsyncExecutor:
                 self.complete.set()
 
 
+request_context_holder = client.RequestContextHolder()
+
+
 async def execute_single(runner, opensearch, params, on_error):
     """
     Invokes the given runner once and provides the runner's return value in a uniform structure.
@@ -1675,6 +1678,7 @@ async def execute_single(runner, opensearch, params, on_error):
             total_ops_unit = "ops"
             request_meta_data = {"success": True}
     except opensearchpy.TransportError as e:
+        request_context_holder.on_client_request_end()
         # we *specifically* want to distinguish connection refused (a node died?) from connection timeouts
         # pylint: disable=unidiomatic-typecheck
         if type(e) is opensearchpy.ConnectionError:
@@ -1701,6 +1705,7 @@ async def execute_single(runner, opensearch, params, on_error):
                 error_description = str(e.error)
             request_meta_data["error-description"] = error_description
     except KeyError as e:
+        request_context_holder.on_client_request_end()
         logging.getLogger(__name__).exception("Cannot execute runner [%s]; most likely due to missing parameters.", str(runner))
         msg = "Cannot execute [%s]. Provided parameters are: %s. Error: [%s]." % (str(runner), list(params.keys()), str(e))
         console.error(msg)

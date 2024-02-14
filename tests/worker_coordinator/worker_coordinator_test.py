@@ -1578,8 +1578,9 @@ class AsyncExecutorTests(TestCase):
             "success": True
         }, request_meta_data)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_execute_single_with_connection_error_always_aborts(self):
+    async def test_execute_single_with_connection_error_always_aborts(self, on_client_request_end):
         for on_error in ["abort", "continue"]:
             with self.subTest():
                 opensearch = None
@@ -1593,8 +1594,9 @@ class AsyncExecutorTests(TestCase):
                     "Request returned an error. Error type: transport, Description: no route to host",
                     ctx.exception.args[0])
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_execute_single_with_http_400_aborts_when_specified(self):
+    async def test_execute_single_with_http_400_aborts_when_specified(self, on_client_request_end):
         opensearch = None
         params = None
         runner = mock.Mock(side_effect=
@@ -1606,9 +1608,9 @@ class AsyncExecutorTests(TestCase):
             "Request returned an error. Error type: transport, Description: not found (the requested document could not be found)",
             ctx.exception.args[0])
 
-
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_execute_single_with_http_400(self):
+    async def test_execute_single_with_http_400(self, on_client_request_end):
         opensearch = None
         params = None
         runner = mock.Mock(side_effect=
@@ -1626,8 +1628,9 @@ class AsyncExecutorTests(TestCase):
             "success": False
         }, request_meta_data)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_execute_single_with_http_413(self):
+    async def test_execute_single_with_http_413(self, on_client_request_end):
         opensearch = None
         params = None
         runner = mock.Mock(side_effect=
@@ -1645,8 +1648,9 @@ class AsyncExecutorTests(TestCase):
             "success": False
         }, request_meta_data)
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_execute_single_with_key_error(self):
+    async def test_execute_single_with_key_error(self, on_client_request_end):
         class FailingRunner:
             async def __call__(self, *args):
                 raise KeyError("bulk-size missing")
