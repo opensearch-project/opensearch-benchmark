@@ -888,6 +888,7 @@ class VectorDataSetPartitionParamSource(ParamSource):
         self.data_set_format = parse_string_parameter("data_set_format", params)
         self.data_set_path = parse_string_parameter("data_set_path", params, "")
         self.data_set_corpus = parse_string_parameter("data_set_corpus", params, "")
+        self.data_set_name = parse_string_parameter("data_set_name", params, "")
         self._validate_data_set(self.data_set_path, self.data_set_corpus)
         self.total_num_vectors: int = parse_int_parameter("num_vectors", params, -1)
         self.num_vectors = 0
@@ -952,7 +953,7 @@ class VectorDataSetPartitionParamSource(ParamSource):
             self.data_set_path = data_set_path[0]
         if self.data_set is None:
             self.data_set: DataSet = get_data_set(
-                self.data_set_format, self.data_set_path, self.context)
+                self.data_set_format, self.data_set_path, self.context, self.data_set_name)
         # if value is -1 or greater than dataset size, use dataset size as num_vectors
         if self.total_num_vectors < 0 or self.total_num_vectors > self.data_set.size():
             self.total_num_vectors = self.data_set.size()
@@ -973,7 +974,8 @@ class VectorDataSetPartitionParamSource(ParamSource):
         partition_x.data_set = get_data_set(
             self.data_set_format,
             self.data_set_path,
-            self.context
+            self.context,
+            self.data_set_name,
         )
         partition_x.data_set.seek(partition_x.offset)
         partition_x.current = partition_x.offset
@@ -1033,6 +1035,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
     PARAMS_NAME_FILTER = "filter"
     PARAMS_NAME_REPETITIONS = "repetitions"
     PARAMS_NAME_NEIGHBORS_DATA_SET_FORMAT = "neighbors_data_set_format"
+    PARAMS_NAME_NEIGHBORS_DATA_SET_NAME = "neighbors_data_set_name"
     PARAMS_NAME_NEIGHBORS_DATA_SET_PATH = "neighbors_data_set_path"
     PARAMS_NAME_NEIGHBORS_DATA_SET_CORPUS = "neighbors_data_set_corpus"
     PARAMS_NAME_OPERATION_TYPE = "operation-type"
@@ -1051,6 +1054,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         self.neighbors_data_set_format = parse_string_parameter(
             self.PARAMS_NAME_NEIGHBORS_DATA_SET_FORMAT, params, self.data_set_format)
         self.neighbors_data_set_path = params.get(self.PARAMS_NAME_NEIGHBORS_DATA_SET_PATH)
+        self.neighbors_data_set_name = params.get(self.PARAMS_NAME_NEIGHBORS_DATA_SET_NAME)
         self.neighbors_data_set_corpus = params.get(self.PARAMS_NAME_NEIGHBORS_DATA_SET_CORPUS)
         self._validate_neighbors_data_set(self.neighbors_data_set_path, self.neighbors_data_set_corpus)
         self.neighbors_data_set = None
@@ -1110,7 +1114,8 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
             self.neighbors_data_set_path = self.data_set_path
         # add neighbor instance to partition
         partition.neighbors_data_set = get_data_set(
-            self.neighbors_data_set_format, self.neighbors_data_set_path, Context.NEIGHBORS)
+            self.neighbors_data_set_format, self.neighbors_data_set_path,
+            Context.NEIGHBORS, self.neighbors_data_set_name)
         partition.neighbors_data_set.seek(partition.offset)
         return partition
 

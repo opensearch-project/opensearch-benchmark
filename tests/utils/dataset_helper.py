@@ -10,8 +10,9 @@ from abc import ABC, abstractmethod
 
 import h5py
 import numpy as np
+import pyarrow as pa
 
-from osbenchmark.utils.dataset import Context, BigANNVectorDataSet, HDF5DataSet
+from osbenchmark.utils.dataset import Context, BigANNVectorDataSet, HDF5DataSet, ParquetDataSet
 
 DEFAULT_RANDOM_STRING_LENGTH = 8
 
@@ -166,6 +167,39 @@ class BigANNBuilder(DataSetBuilder):
             context.vectors.tofile(f)
 
 
+class ParquetBuilder(DataSetBuilder):
+
+    def __init__(self, column_name):
+        super().__init__()
+        self.data_set_meta_data = dict()
+        self.column_name = column_name
+
+    def _validate_data_set_context(self, context: DataSetBuildContext):
+        if context.path not in self.data_set_meta_data.keys():
+            self.data_set_meta_data[context.path] = {
+                context.data_set_context: context
+            }
+            return
+
+        if context.data_set_context in \
+                self.data_set_meta_data[context.path].keys():
+            raise IllegalDataSetBuildContext("Path and context for data set "
+                                             "are already present in builder.")
+
+        self.data_set_meta_data[context.path][context.data_set_context] = context
+
+    @staticmethod
+    def _validate_extension(context: DataSetBuildContext):
+        ext = context.path.split('.')[-1]
+
+        if ext != ParquetDataSet.FORMAT_NAME:
+            raise IllegalDataSetBuildContext("Invalid file extension")
+
+    def _build_data_set(self, context: DataSetBuildContext):
+        pa_table = pa.Table.from_arrays(arrays=[context.vectors.tolist()], names=[self.column_name])
+        pa.parquet.write_table(pa_table, context.path)
+
+
 def create_random_2d_array(num_vectors: int, dimension: int) -> np.ndarray:
     rng = np.random.default_rng()
     return rng.random(size=(num_vectors, dimension), dtype=np.float32)
@@ -189,7 +223,8 @@ def create_data_set(
         extension: str,
         data_set_context: Context,
         data_set_dir,
-        file_path: str = None
+        file_path: str = None,
+        column_name="",
 ) -> str:
     if file_path:
         data_set_path = file_path
@@ -205,6 +240,8 @@ def create_data_set(
 
     if extension == HDF5DataSet.FORMAT_NAME:
         HDF5Builder().add_data_set_build_context(context).build()
+    elif extension == ParquetDataSet.FORMAT_NAME:
+        ParquetBuilder(column_name).add_data_set_build_context(context).build()
     else:
         BigANNBuilder().add_data_set_build_context(context).build()
 
