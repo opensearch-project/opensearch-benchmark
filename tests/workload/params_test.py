@@ -2862,12 +2862,13 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             Context.QUERY,
             self.data_set_dir
         )
-        neighbors_data_set_path = create_data_set(
+        create_data_set(
             self.DEFAULT_NUM_VECTORS,
             self.DEFAULT_DIMENSION,
             self.DEFAULT_TYPE,
             Context.NEIGHBORS,
-            self.data_set_dir
+            self.data_set_dir,
+            data_set_path
         )
 
         # Create a QueryVectorsFromDataSetParamSource with relevant params
@@ -2875,7 +2876,6 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             "field": self.DEFAULT_FIELD_NAME,
             "data_set_format": self.DEFAULT_TYPE,
             "data_set_path": data_set_path,
-            "neighbors_data_set_path": neighbors_data_set_path,
             "k": k
         }
         query_param_source = VectorSearchPartitionParamSource(

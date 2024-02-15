@@ -1052,7 +1052,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
             self.PARAMS_NAME_NEIGHBORS_DATA_SET_FORMAT, params, self.data_set_format)
         self.neighbors_data_set_path = params.get(self.PARAMS_NAME_NEIGHBORS_DATA_SET_PATH)
         self.neighbors_data_set_corpus = params.get(self.PARAMS_NAME_NEIGHBORS_DATA_SET_CORPUS)
-        self._validate_data_set(self.neighbors_data_set_path, self.neighbors_data_set_corpus)
+        self._validate_neighbors_data_set(self.neighbors_data_set_path, self.neighbors_data_set_corpus)
         self.neighbors_data_set = None
         operation_type = parse_string_parameter(self.PARAMS_NAME_OPERATION_TYPE, params,
                                                 self.PARAMS_VALUE_VECTOR_SEARCH)
@@ -1072,13 +1072,11 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
             neighbors_corpora = self.extract_corpora(self.neighbors_data_set_corpus, self.neighbors_data_set_format)
             self.corpora.extend(corpora for corpora in neighbors_corpora if corpora not in self.corpora)
 
-    def _validate_neighbors_data_set(self):
-        if not self.data_set_path and not self.data_set_corpus:
+    @staticmethod
+    def _validate_neighbors_data_set(file_path, corpus):
+        if file_path and corpus:
             raise exceptions.ConfigurationError(
-                "Dataset is missing. Provide either dataset file path or valid corpus.")
-        if self.data_set_path and self.data_set_corpus:
-            raise exceptions.ConfigurationError(
-                "Provide either dataset file path '%s' or corpus '%s'." % (self.data_set_path, self.data_set_corpus))
+                "Provide either neighbor's dataset file path '%s' or corpus '%s'." % (file_path, corpus))
 
     def _update_request_params(self):
         request_params = self.query_params.get(self.PARAMS_NAME_REQUEST_PARAMS, {})
