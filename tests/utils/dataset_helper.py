@@ -188,12 +188,16 @@ def create_data_set(
         dimension: int,
         extension: str,
         data_set_context: Context,
-        data_set_dir
+        data_set_dir,
+        file_path: str = None
 ) -> str:
-    file_name_base = ''.join(random.choice(string.ascii_letters) for _ in
-                             range(DEFAULT_RANDOM_STRING_LENGTH))
-    data_set_file_name = "{}.{}".format(file_name_base, extension)
-    data_set_path = os.path.join(data_set_dir, data_set_file_name)
+    if file_path:
+        data_set_path = file_path
+    else:
+        file_name_base = ''.join(random.choice(string.ascii_letters) for _ in
+                                 range(DEFAULT_RANDOM_STRING_LENGTH))
+        data_set_file_name = "{}.{}".format(file_name_base, extension)
+        data_set_path = os.path.join(data_set_dir, data_set_file_name)
     context = DataSetBuildContext(
         data_set_context,
         create_random_2d_array(num_vectors, dimension),
