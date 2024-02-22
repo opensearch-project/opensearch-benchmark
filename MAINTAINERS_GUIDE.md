@@ -1,23 +1,23 @@
 # Maintainers Guide
 
-### Responsibilities
+## Responsibilities
 
-#### Work on Current Issues and Create New Issues
+### Work on Current Issues and Create New Issues
 
 * Maintainers can choose any issues to work on and should make new issues when needed. Maintainers should add issues that they are working on to the the `In Progress` column of this [roadmap board](https://github.com/opensearch-project/opensearch-benchmark/projects/1). Any issue added to the `In Progress` column should be properly labeled. For more information on how to properly label issues and PRs, see the [labels](#labels) section of this document.
 
-#### Triage Issues
+### Triage Issues
 * Maintainers should meet biweekly to triage issues. This involves assessing new, current, and old issues and prioritize them based on this [roadmap board](https://github.com/opensearch-project/opensearch-benchmark/projects/1).
 
-#### Review Pull Requests
+### Review Pull Requests
 
 * Maintainers should review pull requests. Pull requests only require one maintainer to approve. The maintainer reviewing the PRs should be a subject matter expert (understand the context and purpose of the PR) and drive best practices in clean code and architecture.
 
-#### Drive Releases
+### Drive Releases
 * Maintainers drive releases. A week prior to the scheduled release, maintainers should announce a code freeze in the [#performance channel](https://opensearch.slack.com/archives/C0516H8EJ7R) within the OpenSearch Slack community. For more information on releases, see the [release guide](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/RELEASE_GUIDE.md>)
 
 
-### Labels
+## Labels
 
 Here are a few suggestions on how to use labels.
 
