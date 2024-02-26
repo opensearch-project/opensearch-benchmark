@@ -698,6 +698,7 @@ class ForceMerge(Runner):
                 tasks = await opensearch.tasks.list(params={"actions": "indices:admin/forcemerge"})
                 if len(tasks["nodes"]) == 0:
                     # empty nodes response indicates no tasks
+                    request_context_holder.on_client_request_end()
                     complete = True
         else:
             request_context_holder.on_client_request_start()
