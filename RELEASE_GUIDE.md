@@ -34,6 +34,9 @@ Releases are tagged with labels in the scheme `vN.N.N`, for instance `v1.0.0`, `
 
 The release process is standard across repositories in this open-source project and is run by a release manager volunteering from amongst the [maintainers](MAINTAINERS.md).
 
+## Backport PRs
+Add backport labels to  PRs and commits so that changes can be added to `main` branch and other related major and minor version branches. For example, if a PR is published as a patch fix for OSB version 1.3.0, it  should be labeled with a backport label called `backport-1.3` so that it backports to `1.3` branch. 
+
 ## Prerequisites
 
 * Since releases are only done on Thursdays, maintainers should ensure all changes are merged by Tuesday.
@@ -51,7 +54,8 @@ NOTE: The version number below is in semantic format, for instance, `1.2.0`.
 
 1. Create a tag: `git tag <VERSION> main`
     1. Ensure that this is done in the main official opensearch-benchmark repository
-    2. This should be the new version that you have in version.txt.
+    2. This should be the new version that matches the version in version.txt.
+    3. For patch releases: Change `main` to the major and minor version branch name
 
 2. Push the tag: `git push origin <VERSION>`
     1. This starts a workflow in Jenkins and creates an automated issue in the OSB repository. The issue needs to be commented on by a maintainer of the repository for the release process to proceed.
@@ -68,6 +72,7 @@ NOTE: The version number below is in semantic format, for instance, `1.2.0`.
         4. Run `opensearch-benchmark --help`
         5. Run `opensearch-benchmark list workloads`
         6. Run a basic workload on Linux and MacOS:  `opensearch-benchmark execute-test --workload pmc --test-mode`
+        7. If you are aware of a change going into the version being released, you can run `python3 -m site` (assuming you installed the latest version that was just released) and get the path for Python. Visit the `osbenchmark` directory and verify that the change exists in the associated OSB files.
 
     3. Verify Docker Hub Staging OSB Image Works:
         1. The staging images are at https://hub.docker.com/r/opensearchstaging/opensearch-benchmark/tags.
@@ -109,7 +114,7 @@ Send this message in the following channels in OpenSearch Community Slack:
     1. Unless you released a major version, update main branch’s `version.txt` to the next minor version. For instance, if `1.1.0` was just released, the file in the `main` branch should be updated to `1.2.0`.
     2. Update the `version.txt` in the branch for the version that was just released with the current version but patch version incremented. For instance, if 1.1.0 was just released, the file in the `1.1` branch should be updated to `1.1.1`.
     3. Previous minor version is now stale
-    4. For patch releases, ensure that the `main` branch and branch of the same major and minor version has its `version.txt` file updated. For instsance, if `1.1.1` was just released, we need to update the file in the `1.1` branch to be `1.1.2`.
+    4. For patch releases only: Ensure that the `main` branch will not need to have its version.txt updated since it's already pointing to the nexts major version. However, the branch with the major and minor version should have its `version.txt` file updated. For example, if `1.3.1` patch was just released, we'll need to visit the `1.3` branch and update the `version.txt` file to now point to `1.3.2`. However, we won't need to update `version.txt` in `main` branch since it's already pointing to the next minor release, i.e. `1.4.0`.
 
 ## Error Handling
 
