@@ -10,3 +10,4 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 | Govind Kamat      | [gkamat](https://github.com/gkamat)                   | Amazon      |
 | Mingyang Shi      | [beaioun](https://github.com/beaioun)                 | OSCI        |
 | Chinmay Gadgil    | [cgchinmay](https://github.com/cgchinmay)             | Amazon      |
+| Rishabh Singh     | [rishabh6788](https://github.com/rishabh6788)         | Amazon      |
