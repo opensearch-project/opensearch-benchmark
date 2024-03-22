@@ -70,7 +70,7 @@ install_requires = [
     # License: MIT
     "jsonschema==3.1.1",
     # License: BSD
-    "Jinja2==2.11.3",
+    "Jinja2==3.1.3",
     # License: BSD
     "markupsafe==2.0.1",
     # License: MIT
