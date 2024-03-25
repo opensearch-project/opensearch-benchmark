@@ -60,7 +60,7 @@ install_requires = [
     # transitive dependencies:
     #   urllib3: MIT
     #   aiohttp: Apache 2.0
-    "opensearch-py[async]==2.4.1",
+    "opensearch-py[async]==2.5.0",
     # License: BSD
     "psutil==5.8.0",
     # License: MIT
