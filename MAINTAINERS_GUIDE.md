@@ -15,8 +15,8 @@ Maintainers should create new issues as needed.
 
 * Maintainers should regularly review the backlog of pull requests. Pull requests only require one maintainer to approve. The maintainer reviewing the PRs should be a subject matter expert (understand the context and purpose of the PR) and drive best practices in clean code and architecture.
 * Only use GitHub's squash-and-merge to merge into `main`.  Else, the backport workflow can fail -- it does not handle multiple commits as with rebases.  Merges lead to an undesired merge commit.
-* Use the `backport 3` label for every PR, since main should be the image of `3` (This is not the case now, so we'll need to fix this by hand.). Add other branch labels appropriately, almost certainly `backport 2` will also be needed.
-* Close out the backport PRs in chronological order.  If you close out a PR on `main`, please close out the branch PRs as well.
+* Use the `backport 3` label for every PR, since main should be the image of `3`, at least until OpenSearch version 3 is officially released.  Add other branch labels appropriately; almost certainly `backport 2` will also be needed, since this is the current OpenSearch version.
+* Close out the backport PRs in chronological order. If you close out a PR on `main`, please close out the associated branch PRs as well. They get generated in a few minutes by the automated backport workflow. Once they are merged in, the backport branches can be deleted as well.
 
 ### Drive Releases
 * Maintainers drive releases. A week prior to the scheduled release, maintainers should announce a code freeze in the [#performance channel](https://opensearch.slack.com/archives/C0516H8EJ7R) within the OpenSearch Slack community. For more information on the release process, see the [release guide](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/RELEASE_GUIDE.md>)
