@@ -63,7 +63,8 @@ NOTE: The version number below is in semantic format, for instance, `1.2.0`.
 
 3. Maintainer needs to comment on Automated Issue: Once the maintainer has commented, the workflow uploads OSB to PyPI and OSB Docker Hub Staging account. Once the workflows are finished publishing OSB to PyPI and OSB Docker Hub staging account, the maintainer who pushed the tag should visit both PyPI and Docker Hub staging to perform the following steps to verify that the artifacts have been properly uploaded.
     1. Check the progress of release here in the Jenkins console:: https://build.ci.opensearch.org/job/opensearch-benchmark-release/
-        1. If failed, inspect the logs.
+        1. For a more detailed look at what's happening, you can take the Build ID (which is the number highlighted in blue beneath "Stage View") and substitute it into this URL: https://build.ci.opensearch.org/blue/organizations/jenkins/opensearch-benchmark-release/detail/opensearch-benchmark-release/<Build ID>/pipeline/
+ 	 2. If failed, inspect the logs.
 
     2. Verify PyPI:
         1. Download the OSB distribution build from PyPI: https://pypi.org/project/opensearch-benchmark/#files.  This is a `wheel` file with the extension `.whl`.
@@ -98,7 +99,6 @@ NOTE: The version number below is in semantic format, for instance, `1.2.0`.
 
 What’s changed?
   * Read here: https://github.com/opensearch-project/opensearch-benchmark/releases/tag/1.2.0
-  * This version includes several enhancements and fixes contributed by OSCI participants
   * Documentation: https://opensearch.org/docs/latest/benchmark
 Wow! Where can I get this?
   * PyPI: https://pypi.org/project/opensearch-benchmark
