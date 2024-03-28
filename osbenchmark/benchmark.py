@@ -822,6 +822,9 @@ def configure_results_publishing_params(args, cfg):
     cfg.add(config.Scope.applicationOverride, "results_publishing", "numbers.align", args.results_numbers_align)
 
 
+def print_test_execution_id(args):
+    console.info(f"[Test Execution ID]: {args.test_execution_id}")
+
 def dispatch_sub_command(arg_parser, args, cfg):
     sub_command = args.subcommand
 
@@ -860,6 +863,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             configure_builder_params(args, cfg)
             builder.install(cfg)
         elif sub_command == "start":
+            print_test_execution_id(args)
             cfg.add(config.Scope.applicationOverride, "system", "test_execution.id", args.test_execution_id)
             cfg.add(config.Scope.applicationOverride, "system", "install.id", args.installation_id)
             cfg.add(config.Scope.applicationOverride, "builder", "runtime.jdk", args.runtime_jdk)
@@ -874,6 +878,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             # in this section that actually belong to dedicated subcommands (like install, start or stop). Over time
             # these duplicated parameters will vanish as we move towards dedicated subcommands and use "execute-test" only
             # to run the actual benchmark (i.e. generating load).
+            print_test_execution_id(args)
             if args.effective_start_date:
                 cfg.add(config.Scope.applicationOverride, "system", "time.start", args.effective_start_date)
             cfg.add(config.Scope.applicationOverride, "system", "test_execution.id", args.test_execution_id)
