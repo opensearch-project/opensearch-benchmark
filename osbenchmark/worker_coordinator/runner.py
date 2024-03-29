@@ -78,6 +78,7 @@ def register_default_runners():
     # We treat the following as administrative commands and thus already start to wrap them in a retry.
     register_runner(workload.OperationType.ClusterHealth, Retry(ClusterHealth()), async_runner=True)
     register_runner(workload.OperationType.PutPipeline, Retry(PutPipeline()), async_runner=True)
+    register_runner(workload.OperationType.DeletePipeline, Retry(DeletePipeline()), async_runner=True)
     register_runner(workload.OperationType.Refresh, Retry(Refresh()), async_runner=True)
     register_runner(workload.OperationType.CreateIndex, Retry(CreateIndex()), async_runner=True)
     register_runner(workload.OperationType.DeleteIndex, Retry(DeleteIndex()), async_runner=True)
@@ -100,6 +101,9 @@ def register_default_runners():
     register_runner(workload.OperationType.WaitForTransform, Retry(WaitForTransform()), async_runner=True)
     register_runner(workload.OperationType.DeleteTransform, Retry(DeleteTransform()), async_runner=True)
     register_runner(workload.OperationType.CreateSearchPipeline, Retry(CreateSearchPipeline()), async_runner=True)
+    register_runner(workload.OperationType.DeleteMlModel, Retry(DeleteMlModel()), async_runner=True)
+    register_runner(workload.OperationType.RegisterMlModel, Retry(RegisterMlModel()), async_runner=True)
+    register_runner(workload.OperationType.DeployMlModel, Retry(DeployMlModel()), async_runner=True)
 
 
 def runner_for(operation_type):
@@ -152,7 +156,6 @@ def register_runner(operation_type, runner, **kwargs):
         cluster_aware_runner = _single_cluster_runner(runner, str(runner))
 
     __RUNNERS[operation_type] = _with_completion(_with_assertions(cluster_aware_runner))
-
 
 # Only intended for unit-testing!
 def remove_runner(operation_type):
@@ -216,9 +219,11 @@ request_context_holder = RequestContextHolder()
 def time_func(func):
     async def advised(*args, **kwargs):
         request_context_holder.on_client_request_start()
-        response = await func(*args, **kwargs)
-        request_context_holder.on_client_request_end()
-        return response
+        try:
+            response = await func(*args, **kwargs)
+            return response
+        finally:
+            request_context_holder.on_client_request_end()
     return advised
 
 
@@ -1271,6 +1276,20 @@ class PutPipeline(Runner):
 
     def __repr__(self, *args, **kwargs):
         return "put-pipeline"
+
+class DeletePipeline(Runner):
+    @time_func
+    async def __call__(self, opensearch, params):
+        try:
+            await opensearch.ingest.delete_pipeline(id=mandatory(params, "id", self),
+                                                    master_timeout=params.get("master-timeout"),
+                                                    timeout=params.get("timeout"),
+                                                    )
+        except:
+            pass # no current pipeline
+
+    def __repr__(self, *args, **kwargs):
+        return "delete-pipeline"
 
 # TODO: refactor it after python client support search pipeline https://github.com/opensearch-project/opensearch-py/issues/474
 class CreateSearchPipeline(Runner):
@@ -2358,3 +2377,116 @@ class Retry(Runner, Delegator):
 
     def __repr__(self, *args, **kwargs):
         return "retryable %s" % repr(self.delegate)
+
+class DeleteMlModel(Runner):
+    @time_func
+    async def __call__(self, opensearch, params):
+        body= {
+            "query": {
+                "match_phrase": {
+                    "name": {
+                        "query": params.get('model-name')
+                    }
+                }
+            },
+            "size": 1000
+        }
+
+        model_ids = set()
+        try:
+            resp = await opensearch.transport.perform_request('POST', '/_plugins/_ml/models/_search', body=body)
+            for item in resp['hits']['hits']:
+                doc = item.get('_source')
+                if doc:
+                    id = doc.get('model_id')
+                    if id:
+                        model_ids.add(id)
+        except:
+            pass # no current model
+
+        for model_id in model_ids:
+            resp=await opensearch.transport.perform_request('POST', '/_plugins/_ml/models/' + model_id + '/_undeploy')
+            resp=await opensearch.transport.perform_request('DELETE', '/_plugins/_ml/models/' + model_id)
+
+    def __repr__(self, *args, **kwargs):
+        return "delete-ml-model"
+
+class RegisterMlModel(Runner):
+    @time_func
+    async def __call__(self, opensearch, params):
+        config_file = params.get('model-config-file')
+        if config_file:
+            with open(config_file, 'r') as f:
+                body = json.loads(f.read())
+        else:
+            body = {
+                "name": params.get('model-name'),
+                "version": params.get('model-version'),
+                "model_format": params.get('model-format')
+            }
+        search_body = {
+            "query": {
+                "match": {
+                    "name": body['name']
+                }
+            },
+            "size": 1000
+        }
+        model_id = None
+        try:
+            resp = await opensearch.transport.perform_request('POST', '/_plugins/_ml/models/_search', body=search_body)
+            for item in resp['hits']['hits']:
+                doc = item.get('_source')
+                if doc:
+                    model_id = doc.get('model_id')
+                    if model_id:
+                        break
+        except:
+            pass
+
+        if not model_id:
+            resp = await opensearch.transport.perform_request('POST', '_plugins/_ml/models/_register', body=body)
+            task_id = resp.get('task_id')
+            timeout = params.get('timeout', 120)
+            end = time.time() + timeout
+            state = 'CREATED'
+            while state == 'CREATED' and time.time() < end:
+                await asyncio.sleep(5)
+                resp = await opensearch.transport.perform_request('GET', '_plugins/_ml/tasks/' + task_id)
+                state = resp.get('state')
+            if state == 'FAILED':
+                raise exceptions.BenchmarkError("Failed to register ml-model. Error: {}".format(resp['error']))
+            if state == 'CREATED':
+                raise TimeoutError("Timeout when registering ml-model.")
+            model_id = resp.get('model_id')
+
+        with open('model_id.json', 'w') as f:
+            d = { 'model_id': model_id }
+            f.write(json.dumps(d))
+
+    def __repr__(self, *args, **kwargs):
+        return "register-ml-model"
+
+class DeployMlModel(Runner):
+    @time_func
+    async def __call__(self, opensearch, params):
+        with open('model_id.json', 'r') as f:
+            d = json.loads(f.read())
+            model_id = d['model_id']
+
+        resp = await opensearch.transport.perform_request('POST', '_plugins/_ml/models/' + model_id + '/_deploy')
+        task_id = resp.get('task_id')
+        timeout = params.get('timeout', 120)
+        end = time.time() + timeout
+        state = 'RUNNING'
+        while state == 'RUNNING' and time.time() < end:
+            await asyncio.sleep(5)
+            resp = await opensearch.transport.perform_request('GET', '_plugins/_ml/tasks/' + task_id)
+            state = resp.get('state')
+        if state == 'FAILED':
+            raise exceptions.BenchmarkError("Failed to deploy ml-model. Error: {}".format(resp['error']))
+        if state == 'RUNNING':
+            raise TimeoutError("Timeout when deploying ml-model.")
+
+    def __repr__(self, *args, **kwargs):
+        return "deploy-ml-model"

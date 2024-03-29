@@ -606,12 +606,13 @@ class OperationType(Enum):
     ForceMerge = 1001
     ClusterHealth = 1002
     PutPipeline = 1003
-    Refresh = 1004
-    CreateIndex = 1005
-    DeleteIndex = 1006
-    CreateIndexTemplate = 1007
-    DeleteIndexTemplate = 1008
-    ShrinkIndex = 1009
+    DeletePipeline = 1004
+    Refresh = 1005
+    CreateIndex = 1006
+    DeleteIndex = 1007
+    CreateIndexTemplate = 1008
+    DeleteIndexTemplate = 1009
+    ShrinkIndex = 1010
     Sleep = 1018
     DeleteSnapshotRepository = 1019
     CreateSnapshotRepository = 1020
@@ -629,6 +630,9 @@ class OperationType(Enum):
     CreateComponentTemplate = 1032
     DeleteComponentTemplate = 1033
     CreateSearchPipeline = 1040
+    DeleteMlModel = 1041
+    RegisterMlModel = 1042
+    DeployMlModel = 1043
 
     @property
     def admin_op(self):
@@ -670,6 +674,8 @@ class OperationType(Enum):
             return OperationType.RawRequest
         elif v == "put-pipeline":
             return OperationType.PutPipeline
+        elif v == "delete-pipeline":
+            return OperationType.DeletePipeline
         elif v == "refresh":
             return OperationType.Refresh
         elif v == "create-index":
@@ -734,6 +740,12 @@ class OperationType(Enum):
             return OperationType.ListAllPointInTime
         elif v == "create-search-pipeline":
             return OperationType.CreateSearchPipeline
+        elif v == "delete-ml-model":
+            return OperationType.DeleteMlModel
+        elif v == "register-ml-model":
+            return OperationType.RegisterMlModel
+        elif v == "deploy-ml-model":
+            return OperationType.DeployMlModel
         else:
             raise KeyError(f"No enum value for [{v}]")
 
