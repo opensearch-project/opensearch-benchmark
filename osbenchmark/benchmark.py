@@ -198,6 +198,11 @@ def create_arg_parser():
         required=True,
         help=f"TestExecution ID of the contender (see {PROGRAM_NAME} list test_executions).")
     compare_parser.add_argument(
+        "--percentiles",
+        help=f"A comma-separated list of percentiles to report for latency and service time"
+             f"(default: {metrics.GlobalStatsCalculator.DEFAULT_LATENCY_PERCENTILES}).",
+        default=metrics.GlobalStatsCalculator.DEFAULT_LATENCY_PERCENTILES)
+    compare_parser.add_argument(
         "--results-format",
         help="Define the output format for the command line results (default: markdown).",
         choices=["markdown", "csv"],
@@ -820,6 +825,7 @@ def configure_results_publishing_params(args, cfg):
     cfg.add(config.Scope.applicationOverride, "results_publishing", "values", args.show_in_results)
     cfg.add(config.Scope.applicationOverride, "results_publishing", "output.path", args.results_file)
     cfg.add(config.Scope.applicationOverride, "results_publishing", "numbers.align", args.results_numbers_align)
+    cfg.add(config.Scope.applicationOverride, "results_publishing", "percentiles", args.percentiles)
 
 
 def print_test_execution_id(args):
