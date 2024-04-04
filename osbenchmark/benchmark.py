@@ -825,7 +825,6 @@ def configure_results_publishing_params(args, cfg):
     cfg.add(config.Scope.applicationOverride, "results_publishing", "values", args.show_in_results)
     cfg.add(config.Scope.applicationOverride, "results_publishing", "output.path", args.results_file)
     cfg.add(config.Scope.applicationOverride, "results_publishing", "numbers.align", args.results_numbers_align)
-    cfg.add(config.Scope.applicationOverride, "results_publishing", "percentiles", args.percentiles)
 
 
 def print_test_execution_id(args):
@@ -840,6 +839,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
     try:
         if sub_command == "compare":
             configure_results_publishing_params(args, cfg)
+            cfg.add(config.Scope.applicationOverride, "results_publishing", "percentiles", args.percentiles)
             results_publisher.compare(cfg, args.baseline, args.contender)
         elif sub_command == "list":
             cfg.add(config.Scope.applicationOverride, "system", "list.config.option", args.configuration)
