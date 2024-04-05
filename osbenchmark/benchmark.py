@@ -198,6 +198,11 @@ def create_arg_parser():
         required=True,
         help=f"TestExecution ID of the contender (see {PROGRAM_NAME} list test_executions).")
     compare_parser.add_argument(
+        "--percentiles",
+        help=f"A comma-separated list of percentiles to report latency and service time."
+             f"(default: {metrics.GlobalStatsCalculator.DEFAULT_LATENCY_PERCENTILES}).",
+        default=metrics.GlobalStatsCalculator.DEFAULT_LATENCY_PERCENTILES)
+    compare_parser.add_argument(
         "--results-format",
         help="Define the output format for the command line results (default: markdown).",
         choices=["markdown", "csv"],
@@ -834,6 +839,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
     try:
         if sub_command == "compare":
             configure_results_publishing_params(args, cfg)
+            cfg.add(config.Scope.applicationOverride, "results_publishing", "percentiles", args.percentiles)
             results_publisher.compare(cfg, args.baseline, args.contender)
         elif sub_command == "list":
             cfg.add(config.Scope.applicationOverride, "system", "list.config.option", args.configuration)

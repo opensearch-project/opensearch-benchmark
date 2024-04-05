@@ -480,6 +480,7 @@ class BulkIndex(Runner):
         The following keys are optional:
 
         * ``pipeline``: If present, runs the the specified ingest pipeline for this bulk.
+        * ``request-params``: If present, they will be passed as parameters of bulk.
         * ``detailed-results``: If ``True``, the runner will analyze the response and add detailed meta-data. Defaults to ``False``. Note
         that this has a very significant impact on performance and will very
         likely cause a bottleneck in the benchmark worker_coordinator so please
@@ -491,11 +492,16 @@ class BulkIndex(Runner):
          ``None`` and potentially falls back to the global timeout setting.
         """
         detailed_results = params.get("detailed-results", False)
-        api_kwargs = self._default_kw_params(params)
 
         bulk_params = {}
         if "pipeline" in params:
             bulk_params["pipeline"] = params["pipeline"]
+
+        if "request-params" in params:
+            bulk_params.update(params["request-params"])
+            params.pop( "request-params" )
+
+        api_kwargs = self._default_kw_params(params)
 
         with_action_metadata = mandatory(params, "action-metadata-present", self)
         bulk_size = mandatory(params, "bulk-size", self)
