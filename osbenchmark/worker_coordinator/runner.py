@@ -1675,10 +1675,13 @@ class Sleep(Runner):
     """
 
     async def __call__(self, opensearch, params):
+        sleep_duration = mandatory(params, "duration", "sleep")
         opensearch.on_request_start()
         try:
-            await asyncio.sleep(mandatory(params, "duration", "sleep"))
+            request_context_holder.on_client_request_start()
+            await asyncio.sleep(sleep_duration)
         finally:
+            request_context_holder.on_client_request_end()
             opensearch.on_request_end()
 
     def __repr__(self, *args, **kwargs):

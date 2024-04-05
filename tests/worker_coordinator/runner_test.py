@@ -3927,10 +3927,12 @@ class RawRequestRunnerTests(TestCase):
 
 class SleepTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     # To avoid real sleeps in unit tests
     @mock.patch("asyncio.sleep", return_value=as_future())
     @run_async
-    async def test_missing_parameter(self, sleep, opensearch):
+    async def test_missing_parameter(self, sleep, on_client_request_start, on_client_request_end, opensearch):
         r = runner.Sleep()
         with self.assertRaisesRegex(exceptions.DataError,
                                     "Parameter source for operation 'sleep' did not provide the mandatory parameter "
@@ -3938,21 +3940,27 @@ class SleepTests(TestCase):
             await r(opensearch, params={})
 
         self.assertEqual(0, opensearch.call_count)
-        self.assertEqual(1, opensearch.on_request_start.call_count)
-        self.assertEqual(1, opensearch.on_request_end.call_count)
+        self.assertEqual(0, opensearch.on_request_start.call_count)
+        self.assertEqual(0, opensearch.on_request_end.call_count)
+        self.assertEqual(0, on_client_request_start.call_count)
+        self.assertEqual(0, on_client_request_end.call_count)
         self.assertEqual(0, sleep.call_count)
 
     @mock.patch("opensearchpy.OpenSearch")
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     # To avoid real sleeps in unit tests
     @mock.patch("asyncio.sleep", return_value=as_future())
     @run_async
-    async def test_sleep(self, sleep, opensearch):
+    async def test_sleep(self, sleep, on_client_request_start, on_client_request_end, opensearch):
         r = runner.Sleep()
         await r(opensearch, params={"duration": 4.3})
 
         self.assertEqual(0, opensearch.call_count)
         self.assertEqual(1, opensearch.on_request_start.call_count)
         self.assertEqual(1, opensearch.on_request_end.call_count)
+        self.assertEqual(1, on_client_request_start.call_count)
+        self.assertEqual(1, on_client_request_end.call_count)
         sleep.assert_called_once_with(4.3)
 
 
