@@ -199,7 +199,7 @@ def create_arg_parser():
         help=f"TestExecution ID of the contender (see {PROGRAM_NAME} list test_executions).")
     compare_parser.add_argument(
         "--percentiles",
-        help=f"A comma-separated list of percentiles to report for latency and service time"
+        help=f"A comma-separated list of percentiles to report latency and service time."
              f"(default: {metrics.GlobalStatsCalculator.DEFAULT_LATENCY_PERCENTILES}).",
         default=metrics.GlobalStatsCalculator.DEFAULT_LATENCY_PERCENTILES)
     compare_parser.add_argument(
