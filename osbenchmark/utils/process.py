@@ -141,6 +141,15 @@ def is_benchmark_process(p):
          os.path.basename(cmdline[1]) == "opensearch-benchmark")
 
 
+def is_benchmark_observer_process(p):
+    cmdline = p.cmdline()
+    return is_benchmark_process(p) and len(cmdline) > 2 and cmdline[2] == "tuning"
+
+
+def is_benchmark_but_not_observer_process(p):
+    return is_benchmark_process(p) and not is_benchmark_observer_process(p)
+
+
 def find_all_other_benchmark_processes():
     others = []
     for_all_other_processes(is_benchmark_process, others.append)
@@ -174,4 +183,4 @@ def for_all_other_processes(predicate, action):
 
 
 def kill_running_benchmark_instances():
-    kill_all(is_benchmark_process)
+    kill_all(is_benchmark_but_not_observer_process)

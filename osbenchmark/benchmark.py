@@ -40,6 +40,7 @@ from osbenchmark import version, actor, config, paths, \
 from osbenchmark.builder import provision_config, builder
 from osbenchmark.workload_generator import workload_generator
 from osbenchmark.utils import io, convert, process, console, net, opts, versions
+from osbenchmark.tuning import optimal_finder
 
 
 def create_arg_parser():
@@ -220,6 +221,42 @@ def create_arg_parser():
         "--show-in-results",
         help="Whether to include the comparison in the results file.",
         default=True)
+
+    tuning_parser = subparsers.add_parser("tuning", help="Run benchmarks with different combinations of "
+                                                         "arguments, then compare results to find one which leads "
+                                                         "to optimal result.")
+    tuning_parser.add_argument("--bulk-size",
+                               type=int,
+                               default=100,
+                               help="A fixed bulk size used in benchmark")
+    tuning_parser.add_argument("--bulk-size-schedule",
+                               help="A schedule for a series of bulk size used in benchmark, see "
+                                    "'https://tiny.amazon.com/zgliokjl' on the schedule pattern")
+    tuning_parser.add_argument("--client",
+                               type=int,
+                               default=1,
+                               help="A fixed number of clients used in benchmark")
+    tuning_parser.add_argument("--client-schedule",
+                               help="A schedule for a series of number of client used in benchmark, see "
+                                    "'https://tiny.amazon.com/zgliokjl' on the schedule pattern")
+    # hide these two variables until batch ingestion feature is launched
+    # https://github.com/opensearch-project/OpenSearch/issues/12457
+    tuning_parser.add_argument("--batch-size",
+                               type=int,
+                               default=1,
+                               help=argparse.SUPPRESS)
+    tuning_parser.add_argument("--batch-size-schedule",
+                               help=argparse.SUPPRESS)
+    tuning_parser.add_argument("--remote-ml-server-type",
+                               default="unknown",
+                               choices=["sagemaker", "cohere", "openai", "unknown"],
+                               help=argparse.SUPPRESS)
+    tuning_parser.add_argument("--allowed-error-rate",
+                               type=float,
+                               default=0,
+                               help="The maximum allowed error rate from a single test within which could indicate a "
+                                    "successful run")
+    add_workload_source(tuning_parser)
 
     download_parser = subparsers.add_parser("download", help="Downloads an artifact")
     download_parser.add_argument(
@@ -469,20 +506,24 @@ def create_arg_parser():
         help="Define a comma-separated list of key:value pairs that are injected verbatim to all plugins as variables.",
         default=""
     )
-    test_execution_parser.add_argument(
-        "--target-hosts",
-        help="Define a comma-separated list of host:port pairs which should be targeted if using the pipeline 'benchmark-only' "
-             "(default: localhost:9200).",
-        default="")  # actually the default is pipeline specific and it is set later
+
     test_execution_parser.add_argument(
         "--load-worker-coordinator-hosts",
         help="Define a comma-separated list of hosts which should generate load (default: localhost).",
         default="localhost")
-    test_execution_parser.add_argument(
-        "--client-options",
-        help=f"Define a comma-separated list of client options to use. The options will be passed to the OpenSearch "
-             f"Python client (default: {opts.ClientOptions.DEFAULT_CLIENT_OPTIONS}).",
-        default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS)
+
+    for p in [test_execution_parser, tuning_parser]:
+        p.add_argument(
+            "--target-hosts",
+            help="Define a comma-separated list of host:port pairs which should be targeted if using the pipeline 'benchmark-only' "
+                 "(default: localhost:9200).",
+            default="")  # actually the default is pipeline specific and it is set later
+        p.add_argument(
+            "--client-options",
+            help=f"Define a comma-separated list of client options to use. The options will be passed to the OpenSearch "
+                 f"Python client (default: {opts.ClientOptions.DEFAULT_CLIENT_OPTIONS}).",
+            default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS)
+
     test_execution_parser.add_argument("--on-error",
                              choices=["continue", "abort"],
                              help="Controls how Benchmark behaves on response errors (default: continue).",
@@ -608,7 +649,7 @@ def create_arg_parser():
         default=False)
 
     for p in [list_parser, test_execution_parser, compare_parser, download_parser, install_parser,
-              start_parser, stop_parser, info_parser, create_workload_parser]:
+              start_parser, stop_parser, info_parser, create_workload_parser, tuning_parser]:
         # This option is needed to support a separate configuration for the integration tests on the same machine
         p.add_argument(
             "--configuration-name",
@@ -934,6 +975,8 @@ def dispatch_sub_command(arg_parser, args, cfg):
         elif sub_command == "info":
             configure_workload_params(arg_parser, args, cfg)
             workload.workload_info(cfg)
+        elif sub_command == "tuning":
+            optimal_finder.run(args)
         else:
             raise exceptions.SystemSetupError(f"Unknown subcommand [{sub_command}]")
         return True
