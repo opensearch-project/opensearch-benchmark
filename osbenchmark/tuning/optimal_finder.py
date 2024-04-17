@@ -1,3 +1,27 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# The OpenSearch Contributors require contributions made to
+# this file be licensed under the Apache-2.0 license or a
+# compatible open source license.
+# Modifications Copyright OpenSearch Contributors. See
+# GitHub history for details.
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 import os
 import sys
 import csv
@@ -20,7 +44,10 @@ def get_benchmark_params(args, batch_size, bulk_size, number_of_client, temp_out
     # we only test remote cluster
     params["--pipeline"] = "benchmark-only"
     params["--telemetry"] = "node-stats"
-    params["--telemetry-params"] = "node-stats-include-indices:true,node-stats-sample-interval:10,node-stats-include-mem:true,node-stats-include-process:true"
+    params["--telemetry-params"] = ("node-stats-include-indices:true,"
+                                    "node-stats-sample-interval:10,"
+                                    "node-stats-include-mem:true,"
+                                    "node-stats-include-process:true")
     params["--workload-path"] = args.workload_path
     params["--workload-params"] = get_workload_params(batch_size, bulk_size, number_of_client)
     # generate output
@@ -52,7 +79,7 @@ def run_benchmark(params):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE)
 
-        stdout, stderr = proc.communicate()
+        _, stderr = proc.communicate()
         return proc.returncode == 0, stderr.decode('ascii')
     except KeyboardInterrupt as e:
         proc.terminate()
@@ -67,10 +94,10 @@ def generate_random_index_name():
 def run_batch_bulk_client_tests(args, test_id, batch, bulk, client):
     logger = logging.getLogger(__name__)
     result = Result(test_id, batch, bulk, client)
-    new_file, filename = tempfile.mkstemp()
+    _, filename = tempfile.mkstemp()
     params = get_benchmark_params(args, batch, bulk, client, filename)
 
-    logger.info(f"test_id: {test_id}, batch: {batch}, bulk:{bulk}, client:{client}")
+    logger.info("test_id: %s, batch: %d, bulk: %d, client: %d", test_id, batch, bulk, client)
     success = False
     err = None
     start = timer()
@@ -79,7 +106,7 @@ def run_batch_bulk_client_tests(args, test_id, batch, bulk, client):
     finally:
         end = timer()
         if success:
-            with open(filename, newline='') as csvfile:
+            with open(filename, 'r', newline='') as csvfile:
                 line_reader = csv.reader(csvfile, delimiter=',')
                 output = {}
                 for row in line_reader:
@@ -102,7 +129,6 @@ def batch_bulk_client_tuning(args):
     batches = batch_schedule.steps
     bulks = bulk_schedule.steps
     number_of_clients = client_schedule.steps
-    success_result_ids = []
 
     total = len(batches) * len(bulks) * len(number_of_clients)
     print(f"There will be {total} tests to run with {len(batches)} batch sizes, { len(bulks)} bulk sizes, "
@@ -110,12 +136,23 @@ def batch_bulk_client_tuning(args):
 
     schedule_runner = ScheduleRunner(args, batch_schedule, bulk_schedule, client_schedule)
     results = schedule_runner.run(run_batch_bulk_client_tests)
-    optimal = find_optimal_result([results[id] for id in success_result_ids])
+
+    successful_result_ids = get_successful_ids(results, float(args.allowed_error_rate))
+    optimal = find_optimal_result([results[result_id] for result_id in successful_result_ids])
     if not optimal:
         print("All tests failed, couldn't find any results!")
     else:
-        print(f"the optimal batch size is: {optimal.batch_size}")
+        print(f"the optimal variable combination is: bulk size: {optimal.bulk_size}, "
+              f"batch size: {optimal.batch_size}, number of clients: {optimal.number_of_client}")
     return results
+
+
+def get_successful_ids(results, allowed_error_rate):
+    successful_ids = []
+    for result in results:
+        if result.success and result.error_rate <= allowed_error_rate:
+            successful_ids.append(result.test_id)
+    return successful_ids
 
 
 def find_optimal_result(results):
