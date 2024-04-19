@@ -60,52 +60,53 @@ install_requires = [
     # transitive dependencies:
     #   urllib3: MIT
     #   aiohttp: Apache 2.0
-    "opensearch-py[async]==2.5.0",
+    "opensearch-py[async]>=2.5.0",
     # License: BSD
-    "psutil==5.8.0",
+    "psutil>=5.8.0",
     # License: MIT
-    "py-cpuinfo==7.0.0",
+    "py-cpuinfo>=7.0.0",
     # License: MIT
-    "tabulate==0.9.0",
+    "tabulate>=0.9.0",
     # License: MIT
-    "jsonschema==3.1.1",
+    "jsonschema>=3.1.1",
     # License: BSD
-    "Jinja2==3.1.3",
+    "Jinja2>=3.1.3",
     # License: BSD
-    "markupsafe==2.0.1",
+    "markupsafe>=2.0.1",
     # License: MIT
-    "thespian==3.10.1",
+    # With 3.10.7, we get InvalidActorAddress exception while initialize Actor
+    "thespian>=3.10.1,<3.10.7",
     # recommended library for thespian to identify actors more easily with `ps`
     # "setproctitle==1.1.10",
     # always use the latest version, these are certificate files...
     # License: MPL 2.0
     "certifi",
     # License: Apache 2.0
-    "yappi==1.4.0",
+    "yappi>=1.4.0",
     # License: BSD
-    "ijson==2.6.1",
+    "ijson>=2.6.1",
     # License: Apache 2.0
     # transitive dependencies:
     #   google-crc32c: Apache 2.0
-    "google-resumable-media==1.1.0",
+    "google-resumable-media>=1.1.0",
     # License: Apache 2.0
-    "google-auth==1.22.1",
+    "google-auth>=1.22.1",
     # License: MIT
-    "wheel==0.38.4",
+    "wheel>=0.38.4",
     # License: Apache 2.0
     # transitive dependencies:
     #   botocore: Apache 2.0
     #   jmespath: MIT
     #   s3transfer: Apache 2.0
-    "boto3==1.28.62",
+    "boto3>=1.28.62",
     # Licence: BSD-3-Clause
-    "zstandard==0.22.0",
+    "zstandard>=0.22.0",
     # License: BSD
     # Required for knnvector workload
-    "h5py==3.10.0",
+    "h5py>=3.10.0",
     # License: BSD
     # Required for knnvector workload
-    "numpy==1.24.2",
+    "numpy>=1.24.2",
 ]
 
 tests_require = [
