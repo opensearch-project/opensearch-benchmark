@@ -690,10 +690,11 @@ class ForceMerge(Runner):
         merge_params = self._default_kw_params(params)
         if max_num_segments:
             merge_params["max_num_segments"] = max_num_segments
+        # Request end time will not be 100% accurate, since we are using polling
+        # to check whether task status is completed or not.
         if mode == "polling":
-            if params.get(self.PARAM_WAIT_FOR_COMPLETION):
-                self.logger.warning(
-                    "%s is set for polling. It will be updated to false", self.PARAM_WAIT_FOR_COMPLETION)
+            self.logger.warning(
+                "%s will be updated to false to run force merge in asynchronous way", self.PARAM_WAIT_FOR_COMPLETION)
             merge_params[self.PARAM_WAIT_FOR_COMPLETION] = "false"
             request_context_holder.on_client_request_start()
             response_task = await opensearch.indices.forcemerge(**merge_params)
