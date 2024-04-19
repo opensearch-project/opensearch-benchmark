@@ -1292,7 +1292,7 @@ class DeletePipeline(Runner):
                                                     master_timeout=params.get("master-timeout"),
                                                     timeout=params.get("timeout"),
                                                     )
-        except NotFoundError as e:
+        except NotFoundError:
             self.logger.info("No current pipeline [%s] to delete.", params.get("id"))
 
     def __repr__(self, *args, **kwargs):
