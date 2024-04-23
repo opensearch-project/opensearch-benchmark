@@ -688,30 +688,39 @@ class ForceMerge(Runner):
     Runs a force merge operation against OpenSearch.
     """
 
+    PARAM_WAIT_FOR_COMPLETION = "wait_for_completion"
+
     async def __call__(self, opensearch, params):
-        # pylint: disable=import-outside-toplevel
-        import opensearchpy
         max_num_segments = params.get("max-num-segments")
         mode = params.get("mode")
         merge_params = self._default_kw_params(params)
         if max_num_segments:
             merge_params["max_num_segments"] = max_num_segments
+        # Request end time will not be 100% accurate, since we are using polling
+        # to check whether task status is completed or not.
         if mode == "polling":
-            complete = False
-            try:
-                request_context_holder.on_client_request_start()
-                await opensearch.indices.forcemerge(**merge_params)
-                request_context_holder.on_client_request_end()
-                complete = True
-            except opensearchpy.ConnectionTimeout:
-                pass
-            while not complete:
-                await asyncio.sleep(params.get("poll-period"))
-                tasks = await opensearch.tasks.list(params={"actions": "indices:admin/forcemerge"})
-                if len(tasks["nodes"]) == 0:
-                    # empty nodes response indicates no tasks
+            self.logger.warning(
+                "%s will be updated to false to run force merge in asynchronous way", self.PARAM_WAIT_FOR_COMPLETION)
+            merge_params[self.PARAM_WAIT_FOR_COMPLETION] = "false"
+            request_context_holder.on_client_request_start()
+            response_task = await opensearch.indices.forcemerge(**merge_params)
+            while True:
+                force_merge_task_id = response_task['task']
+                task = await opensearch.tasks.get(task_id=force_merge_task_id)
+                if not task:
+                    self.logger.error("Failed to get task for task id: [%s]", force_merge_task_id)
                     request_context_holder.on_client_request_end()
-                    complete = True
+                    raise exceptions.BenchmarkAssertionError(
+                        "Force merge request failure: task was expected but not found in the get tasks api response.")
+                if 'completed' not in task:
+                    request_context_holder.on_client_request_end()
+                    raise exceptions.BenchmarkAssertionError(
+                        "Force merge request failure: 'completed' was expected but not found "
+                        "in the get task api response.")
+                if task['completed']:
+                    request_context_holder.on_client_request_end()
+                    break
+                await asyncio.sleep(params.get("poll-period"))
         else:
             request_context_holder.on_client_request_start()
             await opensearch.indices.forcemerge(**merge_params)
