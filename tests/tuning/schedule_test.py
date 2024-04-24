@@ -60,5 +60,5 @@ class TestScheduleRunner(TestCase):
         schedule2 = FakeSchedule([4, 5])
         args = {}
         runner = ScheduleRunner(args, schedule1, schedule2)
-        results = runner.run(fake_callback).values()
+        results = runner.run(fake_callback)
         self.assertEqual({(result["arg1"], result["arg2"]) for result in results}, {(1,4), (2,4), (1,5), (2,5)})

@@ -41,6 +41,7 @@ from osbenchmark.builder import provision_config, builder
 from osbenchmark.workload_generator import workload_generator
 from osbenchmark.utils import io, convert, process, console, net, opts, versions
 from osbenchmark.tuning import optimal_finder
+from osbenchmark.tuning.publisher import TuningPublisher
 
 
 def create_arg_parser():
@@ -523,6 +524,20 @@ def create_arg_parser():
             help=f"Define a comma-separated list of client options to use. The options will be passed to the OpenSearch "
                  f"Python client (default: {opts.ClientOptions.DEFAULT_CLIENT_OPTIONS}).",
             default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS)
+        p.add_argument(
+            "--results-format",
+            help="Define the output format for the command line results (default: markdown).",
+            choices=["markdown", "csv"],
+            default="markdown")
+        p.add_argument(
+            "--results-numbers-align",
+            help="Define the output column number alignment for the command line results (default: right).",
+            choices=["right", "center", "left", "decimal"],
+            default="right")
+        p.add_argument(
+            "--results-file",
+            help="Write the command line results also to the provided file.",
+            default="")
 
     test_execution_parser.add_argument("--on-error",
                              choices=["continue", "abort"],
@@ -556,24 +571,10 @@ def create_arg_parser():
              "Example: intention:baseline-ticket-12345",
         default="")
     test_execution_parser.add_argument(
-        "--results-format",
-        help="Define the output format for the command line results (default: markdown).",
-        choices=["markdown", "csv"],
-        default="markdown")
-    test_execution_parser.add_argument(
-        "--results-numbers-align",
-        help="Define the output column number alignment for the command line results (default: right).",
-        choices=["right", "center", "left", "decimal"],
-        default="right")
-    test_execution_parser.add_argument(
         "--show-in-results",
         help="Define which values are shown in the summary results published (default: available).",
         choices=["available", "all-percentiles", "all"],
         default="available")
-    test_execution_parser.add_argument(
-        "--results-file",
-        help="Write the command line results also to the provided file.",
-        default="")
     test_execution_parser.add_argument(
         "--preserve-install",
         help=f"Keep the benchmark candidate and its index. (default: {str(preserve_install).lower()}).",
@@ -976,7 +977,9 @@ def dispatch_sub_command(arg_parser, args, cfg):
             configure_workload_params(arg_parser, args, cfg)
             workload.workload_info(cfg)
         elif sub_command == "tuning":
-            optimal_finder.run(args)
+            configure_results_publishing_params(args, cfg)
+            results = optimal_finder.run(args)
+            TuningPublisher(cfg).publish(results)
         else:
             raise exceptions.SystemSetupError(f"Unknown subcommand [{sub_command}]")
         return True

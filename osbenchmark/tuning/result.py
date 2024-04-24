@@ -23,6 +23,7 @@
 # under the License.
 
 ERROR_RATE_KEY = "error rate"
+VALUE_KEY = "Value"
 
 
 class Result:
@@ -42,4 +43,8 @@ class Result:
         if not output:
             return
         self.output = output
-        self.error_rate = float(output[ERROR_RATE_KEY]) if ERROR_RATE_KEY in output else 0 # percentage
+        if output and ERROR_RATE_KEY in output:
+            self.error_rate = float(output[ERROR_RATE_KEY][VALUE_KEY])
+
+    def __str__(self):
+        return f"bulk size: {self.bulk_size}, batch size: {self.batch_size}, number of clients: {self.number_of_client}"

@@ -23,7 +23,7 @@
 # under the License.
 
 import pytest
-from osbenchmark.tuning.optimal_finder import find_optimal_result, get_successful_ids
+from osbenchmark.tuning.optimal_finder import find_optimal_result, get_successful_results
 from osbenchmark.tuning.result import Result
 
 
@@ -44,19 +44,19 @@ def test_find_optimal_result(results):
     assert find_optimal_result(results).test_id == "id2"
 
 
-def test_get_successful_ids_all_failed(results):
+def test_get_successful_results_all_failed(results):
     results[0].set_output(False, 25, None)
     results[1].set_output(False, 15, None)
     results[2].set_output(False, 45, None)
     results[3].set_output(False, 125, None)
-    assert len(get_successful_ids(results, 0)) == 0
+    assert len(get_successful_results(results, 0)) == 0
 
 
 def test_get_successful_ids_error_rate(results):
-    results[0].set_output(False, 25, {"error rate": 0.1})
-    results[1].set_output(True, 15, {"error rate": 0.2})
-    results[2].set_output(True, 45, {"error rate": 0.3})
-    results[3].set_output(True, 125, {"error rate": 0.4})
-    assert len(get_successful_ids(results, 0.21)) == 1
-    assert len(get_successful_ids(results, 0.31)) == 2
-    assert len(get_successful_ids(results, 0.4)) == 3
+    results[0].set_output(False, 25, {"error rate": {"Value": 0.1}})
+    results[1].set_output(True, 15, {"error rate": {"Value": 0.2}})
+    results[2].set_output(True, 45, {"error rate": {"Value": 0.3}})
+    results[3].set_output(True, 125, {"error rate": {"Value": 0.4}})
+    assert len(get_successful_results(results, 0.21)) == 1
+    assert len(get_successful_results(results, 0.31)) == 2
+    assert len(get_successful_results(results, 0.4)) == 3

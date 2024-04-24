@@ -121,11 +121,10 @@ class ScheduleRunner:
         self.args = args
 
     def run(self, callback):
-        results = {}
-
+        results = []
         schedule_list = [schedule.steps for schedule in self.schedules]
         for args in list(itertools.product(*schedule_list)):
             test_id = str(uuid.uuid4())
             result = callback(self.args, test_id, *args)
-            results[test_id] = result
+            results.append(result)
         return results

@@ -31,8 +31,12 @@ import tempfile
 import subprocess
 from datetime import datetime
 from timeit import default_timer as timer
+from osbenchmark.utils import console
 from osbenchmark.tuning.schedule import BatchSizeSchedule, BulkSizeSchedule, ClientSchedule, ScheduleRunner
 from osbenchmark.tuning.result import Result
+
+METRIC_KEY = "Metric"
+TOTAL_TIME_KEY = "Total time"
 
 
 def get_benchmark_params(args, batch_size, bulk_size, number_of_client, temp_output_file):
@@ -83,7 +87,7 @@ def run_benchmark(params):
         return proc.returncode == 0, stderr.decode('ascii')
     except KeyboardInterrupt as e:
         proc.terminate()
-        print("Process is terminated!")
+        console.info("Process is terminated!")
         raise e
 
 
@@ -97,29 +101,29 @@ def run_batch_bulk_client_tests(args, test_id, batch, bulk, client):
     _, filename = tempfile.mkstemp()
     params = get_benchmark_params(args, batch, bulk, client, filename)
 
-    logger.info("test_id: %s, batch: %d, bulk: %d, client: %d", test_id, batch, bulk, client)
+    console.info(f"Running benchmark with: bulk size: {bulk}, number of clients: {client}, batch size: {batch}")
     success = False
     err = None
     start = timer()
     try:
         success, err = run_benchmark(params)
     finally:
-        end = timer()
+        total_time = int(timer() - start)
         if success:
             with open(filename, 'r', newline='') as csvfile:
-                line_reader = csv.reader(csvfile, delimiter=',')
+                line_reader = csv.DictReader(csvfile, delimiter=',')
                 output = {}
                 for row in line_reader:
-                    output[row[0]] = row[2]
-                result.set_output(True, int(end - start), output)
+                    output[row[METRIC_KEY]] = row
+                output[TOTAL_TIME_KEY] = {METRIC_KEY: TOTAL_TIME_KEY, "Task": "", "Value": str(total_time), "Unit": "s"}
+                result.set_output(True, total_time, output)
         else:
             logger.error(err)
-            result.set_output(False, int(end - start), None)
+            result.set_output(False, total_time, None)
 
     if os.path.exists(filename):
         os.remove(filename)
-
-    return result, success, err
+    return result
 
 
 def batch_bulk_client_tuning(args):
@@ -131,28 +135,27 @@ def batch_bulk_client_tuning(args):
     number_of_clients = client_schedule.steps
 
     total = len(batches) * len(bulks) * len(number_of_clients)
-    print(f"There will be {total} tests to run with {len(batches)} batch sizes, { len(bulks)} bulk sizes, "
+    console.info(f"There will be {total} tests to run with {len(bulks)} bulk sizes, {len(batches)} batch sizes, "
           f"{len(number_of_clients)} client numbers.")
 
     schedule_runner = ScheduleRunner(args, batch_schedule, bulk_schedule, client_schedule)
     results = schedule_runner.run(run_batch_bulk_client_tests)
-
-    successful_result_ids = get_successful_ids(results, float(args.allowed_error_rate))
-    optimal = find_optimal_result([results[result_id] for result_id in successful_result_ids])
+    successful_results = get_successful_results(results, float(args.allowed_error_rate))
+    optimal = find_optimal_result(successful_results)
     if not optimal:
-        print("All tests failed, couldn't find any results!")
+        console.info("All tests failed, couldn't find any results!")
     else:
-        print(f"the optimal variable combination is: bulk size: {optimal.bulk_size}, "
+        console.info(f"The optimal variable combination is: bulk size: {optimal.bulk_size}, "
               f"batch size: {optimal.batch_size}, number of clients: {optimal.number_of_client}")
     return results
 
 
-def get_successful_ids(results, allowed_error_rate):
-    successful_ids = []
+def get_successful_results(results, allowed_error_rate):
+    successful_results = []
     for result in results:
         if result.success and result.error_rate <= allowed_error_rate:
-            successful_ids.append(result.test_id)
-    return successful_ids
+            successful_results.append(result)
+    return successful_results
 
 
 def find_optimal_result(results):
@@ -166,4 +169,4 @@ def find_optimal_result(results):
 
 
 def run(args):
-    batch_bulk_client_tuning(args)
+    return batch_bulk_client_tuning(args)
