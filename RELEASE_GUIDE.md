@@ -44,6 +44,7 @@ Add backport labels to  PRs and commits so that changes can be added to `main` b
 ```
 OpenSearch Benchmark release is scheduled for 1/25 and a code freeze will be put in place starting on 1/23.
 ```
+* Maintainers should create a release issue before each release. These issues should contain important dates related to announcement for code freeze and release dates on the public slack channel, freeze date, and release date. It should also include a list of features issues and bug issues that are labeled with the same release version.
 * Ensure that version.txt matches the new release version before proceeding. If not, open a PR that updates the version in version.txt and merge it in before proceeding with the following steps. For example, if OSB is currently at version `0.3.0` and we want to release the next version as `0.4.0`, update `version.txt` from `0.3.0` to `0.4.0`.
 * Ensure you have cloned the official OpenSearch Benchmark git repository with the ssh address.
 * Ensure that all new committed changes in OSB that are visible by users are added to the documentation
