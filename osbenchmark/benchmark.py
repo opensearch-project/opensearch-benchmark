@@ -526,7 +526,7 @@ def create_arg_parser():
         default="right")
     test_execution_parser.add_argument(
         "--show-in-results",
-        help="Define which values are shown in the summary publish (default: available).",
+        help="Define which values are shown in the summary results published (default: available).",
         choices=["available", "all-percentiles", "all"],
         default="available")
     test_execution_parser.add_argument(
