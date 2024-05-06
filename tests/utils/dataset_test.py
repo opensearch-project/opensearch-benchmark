@@ -8,7 +8,7 @@ from unittest import TestCase
 
 from osbenchmark.utils.dataset import Context, get_data_set, HDF5DataSet, BigANNVectorDataSet
 from osbenchmark.utils.parse import ConfigurationError
-from tests.utils.dataset_helper import create_data_set
+from tests.utils.dataset_helper import create_data_set, create_ground_truth
 
 DEFAULT_INDEX_NAME = "test-index"
 DEFAULT_FIELD_NAME = "test-field"
@@ -47,6 +47,21 @@ class DataSetTestCase(TestCase):
         data_set_instance = get_data_set("bigann", valid_data_set_path, Context.INDEX)
         self.assertEqual(data_set_instance.FORMAT_NAME, BigANNVectorDataSet.FORMAT_NAME)
         self.assertEqual(data_set_instance.size(), DEFAULT_NUM_VECTORS)
+
+    def testBigANNGroundTruthAsAcceptableDataSetFormat(self):
+        bin_extension = "bin"
+        data_set_dir = tempfile.mkdtemp()
+
+        valid_data_set_path = create_ground_truth(
+            100,
+            10,
+            bin_extension,
+            Context.NEIGHBORS,
+            data_set_dir
+        )
+        data_set_instance = get_data_set("bigann", valid_data_set_path, Context.NEIGHBORS)
+        self.assertEqual(data_set_instance.FORMAT_NAME, BigANNVectorDataSet.FORMAT_NAME)
+        self.assertEqual(data_set_instance.size(), 100)
 
     def testUnSupportedDataSetFormat(self):
         with self.assertRaises(ConfigurationError) as _:

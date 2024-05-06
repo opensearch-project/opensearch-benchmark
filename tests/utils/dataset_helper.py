@@ -11,7 +11,7 @@ from abc import ABC, abstractmethod
 import h5py
 import numpy as np
 
-from osbenchmark.utils.dataset import Context, BigANNVectorDataSet, HDF5DataSet
+from osbenchmark.utils.dataset import Context, BigANNVectorDataSet, HDF5DataSet, BigANNGroundTruthDataSet
 
 DEFAULT_RANDOM_STRING_LENGTH = 8
 
@@ -30,10 +30,10 @@ class DataSetBuildContext:
         self.vectors: np.ndarray = vectors  # TODO: Validate shape
         self.path: str = path
 
-    def get_num_vectors(self) -> int:
+    def get_num_rows(self) -> int:
         return self.vectors.shape[0]
 
-    def get_dimension(self) -> int:
+    def get_row_length(self) -> int:
         return self.vectors.shape[1]
 
     def get_type(self) -> np.dtype:
@@ -126,7 +126,7 @@ class HDF5Builder(DataSetBuilder):
             )
 
 
-class BigANNBuilder(DataSetBuilder):
+class BigANNVectorBuilder(DataSetBuilder):
 
     def _validate_data_set_context(self, context: DataSetBuildContext):
         self._validate_extension(context)
@@ -152,17 +152,45 @@ class BigANNBuilder(DataSetBuilder):
 
         if ext == BigANNVectorDataSet.FBIN_EXTENSION and context.get_type() != \
                 np.float32:
-            print(context.get_type())
             raise IllegalDataSetBuildContext("Invalid data type for {} ext."
                                              .format(BigANNVectorDataSet
                                                      .FBIN_EXTENSION))
 
     def _build_data_set(self, context: DataSetBuildContext):
-        num_vectors = context.get_num_vectors()
-        dimension = context.get_dimension()
+        num_vectors = context.get_num_rows()
+        dimension = context.get_row_length()
         with open(context.path, 'wb') as f:
             f.write(int.to_bytes(num_vectors, 4, "little"))
             f.write(int.to_bytes(dimension, 4, "little"))
+            context.vectors.tofile(f)
+
+
+class BigANNGroundTruthBuilder(BigANNVectorBuilder):
+
+    @staticmethod
+    def _validate_extension(context: DataSetBuildContext):
+        ext = context.path.split('.')[-1]
+
+        if ext not in [BigANNGroundTruthDataSet.BIN_EXTENSION]:
+            raise IllegalDataSetBuildContext("Invalid file extension: {}".format(ext))
+
+        if context.get_type() != np.float32:
+            raise IllegalDataSetBuildContext("Invalid data type for {} ext."
+                                             .format(BigANNGroundTruthDataSet
+                                                     .BIN_EXTENSION))
+
+    def _build_data_set(self, context: DataSetBuildContext):
+        num_queries = context.get_num_rows()
+        k = context.get_row_length()
+        with open(context.path, 'wb') as f:
+            # Writing number of queries
+            f.write(int.to_bytes(num_queries, 4, "little"))
+            # Writing number of neighbors in a query
+            f.write(int.to_bytes(k, 4, "little"))
+            # Writing ids of neighbors
+            context.vectors.tofile(f)
+            # Writing distance of neighbors. For simplicity, we are rewriting the ids to fill the
+            # file with distance.
             context.vectors.tofile(f)
 
 
@@ -206,6 +234,30 @@ def create_data_set(
     if extension == HDF5DataSet.FORMAT_NAME:
         HDF5Builder().add_data_set_build_context(context).build()
     else:
-        BigANNBuilder().add_data_set_build_context(context).build()
+        BigANNVectorBuilder().add_data_set_build_context(context).build()
 
+    return data_set_path
+
+
+def create_ground_truth(
+        num_queries: int,
+        k: int,
+        extension: str,
+        data_set_context: Context,
+        data_set_dir,
+        file_path: str = None
+) -> str:
+    if file_path:
+        data_set_path = file_path
+    else:
+        file_name_base = ''.join(random.choice(string.ascii_letters) for _ in
+                                 range(DEFAULT_RANDOM_STRING_LENGTH))
+        data_set_file_name = "{}.{}".format(file_name_base, extension)
+        data_set_path = os.path.join(data_set_dir, data_set_file_name)
+    context = DataSetBuildContext(
+        data_set_context,
+        create_random_2d_array(num_queries, k),
+        data_set_path)
+
+    BigANNGroundTruthBuilder().add_data_set_build_context(context).build()
     return data_set_path
