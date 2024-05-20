@@ -2400,6 +2400,14 @@ class Retry(Runner, Delegator):
 class DeleteMlModel(Runner):
     @time_func
     async def __call__(self, opensearch, params):
+        async def _is_deployed(model_id):
+            resp = await opensearch.transport.perform_request('GET', '_plugins/_ml/models/' + model_id)
+            state = resp.get('model_state')
+            if state == 'PARTIALLY_DEPLOYED' or state == 'DEPLOYED':
+                return True
+            else:
+                return False
+
         body= {
             "query": {
                 "match_phrase": {
@@ -2422,8 +2430,15 @@ class DeleteMlModel(Runner):
                     model_ids.add(id)
 
         for model_id in model_ids:
-            resp=await opensearch.transport.perform_request('POST', '/_plugins/_ml/models/' + model_id + '/_undeploy')
-            resp=await opensearch.transport.perform_request('DELETE', '/_plugins/_ml/models/' + model_id)
+            deployed = await _is_deployed(model_id)
+            if deployed:
+                await opensearch.transport.perform_request('POST', '/_plugins/_ml/models/' + model_id + '/_undeploy')
+                while deployed:
+                    time.sleep(1)
+                    resp = await opensearch.transport.perform_request('GET', '_plugins/_ml/models/' + model_id)
+                    deployed = await _is_deployed(model_id)
+
+            await opensearch.transport.perform_request('DELETE', '/_plugins/_ml/models/' + model_id)
 
     def __repr__(self, *args, **kwargs):
         return "delete-ml-model"
