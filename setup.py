@@ -135,12 +135,19 @@ first_supported_version = "{}.{}".format(supported_python_versions[0][0], suppor
 first_unsupported_version = "{}.{}".format(supported_python_versions[-1][0], supported_python_versions[-1][1] + 1)
 
 setup(name="opensearch-benchmark",
-      maintainer="Ian Hoang, Govind Kamat",
-      maintainer_email="hoangia@amazon.com, govkamat@amazon.com",
+      author="Ian Hoang, Govind Kamat, Mingyang Shi, Chinmay Gadgil, Rishabh Singh, Vijayan Balasubramanian",
+      author_email="ianhoang16@gmail.com, govind_kamat@yahoo.com, mmyyshi@gmail.com, chinmay5j@gmail.com, rishabhksingh@gmail.com, vijayan.balasubramanian@gmail.com",
+      maintainer="Ian Hoang, Govind Kamat, Mingyang Shi, Chinmay Gadgil, Rishabh Singh, Vijayan Balasubramanian",
+      maintainer_email="ianhoang16@gmail.com, govind_kamat@yahoo.com, mmyyshi@gmail.com, chinmay5j@gmail.com, rishabhksingh@gmail.com, vijayan.balasubramanian@gmail.com",
       version=__versionstr__,
       description="Macrobenchmarking framework for OpenSearch",
       long_description=long_description,
       long_description_content_type='text/markdown',
+      project_urls={
+        "Documentation": "https://opensearch.org/docs/benchmark",
+        "Source Code": "https://github.com/opensearch-project/OpenSearch-Benchmark",
+        "Issue Tracker": "https://github.com/opensearch-project/OpenSearch-Benchmark/issues",
+      },
       url="https://github.com/opensearch-project/OpenSearch-Benchmark",
       license="Apache License, Version 2.0",
       packages=find_packages(
