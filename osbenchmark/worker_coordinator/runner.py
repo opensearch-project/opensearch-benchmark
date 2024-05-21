@@ -2403,10 +2403,7 @@ class DeleteMlModel(Runner):
         async def _is_deployed(model_id):
             resp = await opensearch.transport.perform_request('GET', '_plugins/_ml/models/' + model_id)
             state = resp.get('model_state')
-            if state == 'PARTIALLY_DEPLOYED' or state == 'DEPLOYED':
-                return True
-            else:
-                return False
+            return state == 'PARTIALLY_DEPLOYED' or state == 'DEPLOYED'
 
         body= {
             "query": {
