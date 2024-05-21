@@ -1,7 +1,7 @@
-OpenSearch Benchmark
+OpenSearch Benchmark 
 ====================
 
-OpenSearch Benchmark is the macrobenchmarking framework for OpenSearch.
+OpenSearch Benchmark is the macrobenchmarking framework for OpenSearch. 
 
 What is OpenSearch Benchmark?
 -----------------------------
