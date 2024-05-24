@@ -2431,7 +2431,7 @@ class DeleteMlModel(Runner):
 
         for model_id in model_ids:
             while await _is_deployed(model_id):
-                time.sleep(1)
+                await asyncio.sleep(1)
             await opensearch.transport.perform_request('DELETE', '/_plugins/_ml/models/' + model_id)
 
     def __repr__(self, *args, **kwargs):
