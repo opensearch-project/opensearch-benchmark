@@ -19,7 +19,7 @@ from osbenchmark import PROGRAM_NAME, exceptions
 from osbenchmark.client import OsClientFactory
 from osbenchmark.workload_generator.config import CustomWorkload, Index, Corpus
 from osbenchmark.workload_generator.helpers import QueryProcessor, CustomWorkloadWriter
-from osbenchmark.workload_generator.index_extractor import IndexExtractor
+from osbenchmark.workload_generator.extractors import IndexExtractor, SynchronousCorpusExtractor
 from osbenchmark.utils import io, opts, console
 
 def create_workload(cfg):
@@ -45,6 +45,7 @@ def create_workload(cfg):
     query_processor = QueryProcessor(unprocessed_queries)
     custom_workload_writer = CustomWorkloadWriter(root_path, workload_name, templates_path)
     index_extractor = IndexExtractor(indices, client)
+    corpus_extractor = SynchronousCorpusExtractor(client, custom_workload.workload_path)
 
     # Process Queries
     processed_queries = query_processor.process_queries()
@@ -57,5 +58,7 @@ def create_workload(cfg):
     index_extractor.extract_indices(custom_workload.workload_path)
 
     # Extract Corpora
+    for index in custom_workload.indices:
+        corpus_extractor.extract(index.name, index.limit_documents)
 
     # Product Workload

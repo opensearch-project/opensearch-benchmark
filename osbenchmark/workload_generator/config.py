@@ -6,19 +6,21 @@ class Index:
     name: str
     settings: dict
     mappings: dict
-
-@dataclass
-class Corpus:
-    index_name: str
     document_frequency: int
     limit_documents: int
+
+# @dataclass
+# class Corpus:
+#     index_name: str
+#     document_frequency: int
+#     limit_documents: int
 
 @dataclass
 class CustomWorkload:
     workload_name: str
     root_path: str
     indices: List[Index]
-    corpus: List[Corpus]
+    failed_corpus: List[Index]
     queries: List[str]
     workload_path: str
     operations_path: str
