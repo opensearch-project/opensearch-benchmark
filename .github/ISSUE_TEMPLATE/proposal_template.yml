@@ -19,14 +19,14 @@ body:
     id: what-users-have-asked-for-this-feature
     attributes:
       label: What users have asked for this feature?
-      description: Highlight any research, proposals, requests or anecdotes that signal this is the right thing to build. Include links to GitHub Issues, Forums, Stack Overflow, Twitter, Etc
+      description: Highlight any research, proposals, requests or anecdotes that signal this is the right thing to build. Include links to GitHub Issues, Forums, Stack Overflow, X (Twitter), Etc
     validations:
       required: true
   - type: textarea
     id: what-problems-are-you-trying-to-solve
     attributes:
       label: What problems are you trying to solve?
-      description: Summarize the core use cases and user problems and needs you are trying to solve. Describe the most important user needs, pain points and jobs as expressed by the user asks above.
+      description: Summarize use cases, user problems, and needs you are trying to solve. Describe the most important user needs, pain points and jobs as expressed by the user asks above.
   - type: textarea
     id: what-will-developer-experience-be-like
     attributes:
@@ -46,7 +46,7 @@ body:
     id: what-will-the-user-experience-be-like
     attributes:
       label: What will the user experience be like?
-      description: Describe the feature requirements and or user stories. You may include low-fidelity sketches, wireframes, APIs stubs, or other examples of how a user would use the feature via CLI. Using a bulleted list or simple diagrams to outline features is okay. If this is net new functionality, call this out as well.
+      description: Describe the feature requirements and/or user stories. You may include low-fidelity sketches, wireframes, APIs stubs, or other examples of how a user would use the feature via CLI. Using a bulleted list or simple diagrams to outline features is okay. If this is net new functionality, call this out as well.
   - type: textarea
     id: are-there-breaking-changes-to-user-experience
     attributes:
@@ -66,4 +66,4 @@ body:
     id: any-remaining-open-questions
     attributes:
       label: Any remaining open questions?
-      description: What are known enhancements to this feature? Any enhancements that may be out of scope but that we will want to track long term? List any other open questions that may need to be answered before proceeding with an implementation.
+      description: What are the known enhancements to this feature? Are there any enhancements that may be out of scope but which we will want to track long term? List any other open questions that may need to be answered before proceeding with an implementation.

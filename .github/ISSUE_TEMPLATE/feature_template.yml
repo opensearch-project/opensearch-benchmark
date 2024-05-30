@@ -1,6 +1,6 @@
 ---
-name: Feature request 🎆 
-description: Suggest an idea for this project
+name: Feature request 🎆
+description: Suggest a new feature or an idea you have for this project
 labels: [enhancement, untriaged]
 body:
   - type: markdown
