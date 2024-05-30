@@ -15,13 +15,14 @@ from abc import ABC, abstractmethod
 from opensearchpy import OpenSearchException
 
 from osbenchmark.utils import console
+from osbenchmark.workload_generator.custom_workload_generator import CustomWorkload
 
 DOCS_COMPRESSOR = bz2.BZ2Compressor
 COMP_EXT = ".bz2"
 
 class IndexExtractor:
-    def __init__(self, indices, client):
-        self.indices = indices
+    def __init__(self, custom_workload, client):
+        self.custom_workload: CustomWorkload = custom_workload
         self.client = client
 
         self.INDEX_SETTINGS_EPHEMERAL_KEYS = ["uuid",
@@ -37,8 +38,8 @@ class IndexExtractor:
 
     def extract_indices(self, workload_path):
         try:
-            for index in self.indices:
-                self.extract(workload_path, index)
+            for index in self.custom_workload.indices:
+                self.extract(workload_path, index.name)
         except OpenSearchException:
             self.logger("Failed at extracting index [%s]", index)
 
@@ -129,9 +130,9 @@ class CorpusExtractor(ABC):
 
 
 class SynchronousCorpusExtractor(CorpusExtractor):
-    def __init__(self, client, output_path):
+    def __init__(self, custom_workload, client):
+        self.custom_workload: CustomWorkload = custom_workload
         self.client = client
-        self.output_path = output_path
 
     def template_vars(self,index_name, out_path, doc_count):
         comp_outpath = out_path + COMP_EXT
@@ -165,9 +166,9 @@ class SynchronousCorpusExtractor(CorpusExtractor):
 
         if documents_to_extract > 0:
             logger.info("[%d] total docs in index [%s]. Extracting [%s] docs.", total_documents, index, documents_to_extract)
-            docs_path = self._get_doc_outpath(self.output_path, index)
+            docs_path = self._get_doc_outpath(self.custom_workload.workload_path, index)
             # Create test mode corpora
-            self.dump_documents(self.client, index, self._get_doc_outpath(self.output_path, index, "-1k"), min(documents_to_extract, 1000), " for test mode")
+            self.dump_documents(self.client, index, self._get_doc_outpath(self.custom_workload.workload_path, index, "-1k"), min(documents_to_extract, 1000), " for test mode")
             # Create full corpora
             self.dump_documents(self.client, index, docs_path, documents_to_extract)
 
