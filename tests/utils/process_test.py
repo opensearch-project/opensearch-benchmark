@@ -124,7 +124,7 @@ class ProcessTests(TestCase):
         other_process = ProcessTests.Process(104, "init", ["/usr/sbin/init"])
         benchmark_process_p = ProcessTests.Process(105, "python3", ["/usr/bin/python3", "~/.local/bin/opensearch-benchmark"])
         # On Linux, the process name is truncated to 15 characters.
-        benchmark_process_l = ProcessTests.Process(106, "opensearch-benc", ["/usr/bin/python3", "~/.local/bin/osbenchmark"])
+        benchmark_process_l = ProcessTests.Process(106, "opensearch-benc", ["/usr/bin/python3", "~/.local/bin/opensearch-benchmark"])
         benchmark_process_e = ProcessTests.Process(107, "opensearch-benchmark", ["/usr/bin/python3", "~/.local/bin/opensearch-benchmark"])
         benchmark_process_mac = ProcessTests.Process(108, "Python", ["/Python.app/Contents/MacOS/Python",
                                                                      "~/.local/bin/opensearch-benchmark"])
