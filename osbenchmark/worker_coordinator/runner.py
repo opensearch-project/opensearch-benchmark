@@ -2430,8 +2430,12 @@ class DeleteMlModel(Runner):
             await opensearch.transport.perform_request('POST', '/_plugins/_ml/models/' + model_id + '/_undeploy')
 
         for model_id in model_ids:
+            timeout = params.get('undeploy-timeout', 10)
+            end = time.time() + timeout
             while await _is_deployed(model_id):
                 await asyncio.sleep(1)
+                if time.time() > end:
+                    raise TimeoutError("Timeout when undeploying ml-model.")
             await opensearch.transport.perform_request('DELETE', '/_plugins/_ml/models/' + model_id)
 
     def __repr__(self, *args, **kwargs):
