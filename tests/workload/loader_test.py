@@ -261,12 +261,12 @@ class WorkloadPreparationTests(TestCase):
         # after download uncompressed file still does not exist (in main loop)
         # after download compressed file exists (in main loop)
         # after decompression, uncompressed file exists
-        is_file.side_effect = [False, False, True, False, True, True, True]
+        is_file.side_effect = [False, False, True, False, True, True, True, True]
         # compressed file size is 200 after download
         # compressed file size is 200 after download (in main loop)
         # uncompressed file size is 2000 after decompression
         # uncompressed file size is 2000 after decompression (in main loop)
-        get_size.side_effect = [200, 200, 2000, 2000]
+        get_size.side_effect = [200, 200, 2000, 2000, None]
 
         prepare_file_offset_table.return_value = 5
 
@@ -285,8 +285,11 @@ class WorkloadPreparationTests(TestCase):
 
         ensure_dir.assert_called_with("/tmp")
         decompress.assert_called_with("/tmp/docs.json.bz2", "/tmp")
-        download.assert_called_with("http://benchmarks.opensearch.org/corpora/unit-test/docs.json.bz2",
-                                    "/tmp/docs.json.bz2", 200, progress_indicator=mock.ANY)
+        calls = [ mock.call("http://benchmarks.opensearch.org/corpora/unit-test/docs.json.bz2",
+                            "/tmp/docs.json.bz2", 200, progress_indicator=mock.ANY),
+                  mock.call("http://benchmarks.opensearch.org/corpora/unit-test/docs.json.offset",
+                            "/tmp/docs.json.offset", None, progress_indicator=mock.ANY) ]
+        download.assert_has_calls(calls)
         prepare_file_offset_table.assert_called_with("/tmp/docs.json")
 
     @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
@@ -303,12 +306,12 @@ class WorkloadPreparationTests(TestCase):
         # after download uncompressed file still does not exist (in main loop)
         # after download compressed file exists (in main loop)
         # after decompression, uncompressed file exists
-        is_file.side_effect = [False, False, True, False, True, True, True]
+        is_file.side_effect = [False, False, True, False, True, True, True, True]
         # compressed file size is 200 after download
         # compressed file size is 200 after download (in main loop)
         # uncompressed file size is 2000 after decompression
         # uncompressed file size is 2000 after decompression (in main loop)
-        get_size.side_effect = [200, 200, 2000, 2000]
+        get_size.side_effect = [200, 200, 2000, 2000, None]
 
         prepare_file_offset_table.return_value = 5
 
@@ -381,7 +384,7 @@ class WorkloadPreparationTests(TestCase):
         # uncompressed file does not exist
         # after download uncompressed file exists
         # after download uncompressed file exists (main loop)
-        is_file.side_effect = [False, True, True]
+        is_file.side_effect = [False, True, True, True]
         # uncompressed file size is 2000
         get_size.return_value = 2000
         scheme = random.choice(["http", "https", "s3", "gs"])
@@ -403,8 +406,11 @@ class WorkloadPreparationTests(TestCase):
                                data_root="/tmp")
 
         ensure_dir.assert_called_with("/tmp")
-        download.assert_called_with(f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/docs.json",
-                                    "/tmp/docs.json", 2000, progress_indicator=mock.ANY)
+        calls = [ mock.call(f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/docs.json", \
+                            "/tmp/docs.json", 2000, progress_indicator=mock.ANY),
+                  mock.call(f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/docs.json.offset", \
+                            "/tmp/docs.json.offset", None, progress_indicator=mock.ANY) ]
+        download.assert_has_calls(calls)
         prepare_file_offset_table.assert_called_with("/tmp/docs.json")
 
     @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
@@ -416,7 +422,7 @@ class WorkloadPreparationTests(TestCase):
         # uncompressed file does not exist
         # after download uncompressed file exists
         # after download uncompressed file exists (main loop)
-        is_file.side_effect = [False, True, True]
+        is_file.side_effect = [False, True, True, True]
         # uncompressed file size is 2000
         get_size.return_value = 2000
 
@@ -437,8 +443,11 @@ class WorkloadPreparationTests(TestCase):
                                data_root="/tmp")
 
         ensure_dir.assert_called_with("/tmp")
-        download.assert_called_with("http://benchmarks.opensearch.org/corpora/unit-test/docs.json",
-                                    "/tmp/docs.json", 2000, progress_indicator=mock.ANY)
+        calls = [ mock.call("http://benchmarks.opensearch.org/corpora/unit-test/docs.json", \
+                            "/tmp/docs.json", 2000, progress_indicator=mock.ANY),
+                  mock.call("http://benchmarks.opensearch.org/corpora/unit-test/docs.json.offset", \
+                            "/tmp/docs.json.offset", None, progress_indicator=mock.ANY) ]
+        download.assert_has_calls(calls)
         prepare_file_offset_table.assert_called_with("/tmp/docs.json")
 
     @mock.patch("osbenchmark.utils.net.download")

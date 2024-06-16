@@ -490,7 +490,8 @@ class Downloader:
                 self.logger.info("Downloading data from [%s] to [%s].", data_url, target_path)
 
             # we want to have a bit more accurate download progress as these files are typically very large
-            progress = net.Progress("[INFO] Downloading workload data", accuracy=1)
+            progress = net.Progress("[INFO] Downloading workload data: " + os.path.basename(target_path),
+                                    accuracy=1)
             net.download(data_url, target_path, size_in_bytes, progress_indicator=progress)
             progress.finish()
             self.logger.info("Downloaded data from [%s] to [%s].", data_url, target_path)
@@ -504,7 +505,7 @@ class Downloader:
                     msg += f" (HTTP status: {e.code}, reason: {e.reason})"
                 else:
                     msg += f" (HTTP status: {e.code})"
-                raise exceptions.DataError(msg) from e
+                raise exceptions.DataError(msg, e) from None
         except urllib.error.URLError as e:
             raise exceptions.DataError(f"Could not download [{data_url}] to [{target_path}].") from e
 
@@ -523,6 +524,7 @@ class DocumentSetPreparator:
         self.workload_name = workload_name
         self.downloader = downloader
         self.decompressor = decompressor
+        self.logger = logging.getLogger(__name__)
 
     def is_locally_available(self, file_name):
         return os.path.isfile(file_name)
@@ -586,6 +588,12 @@ class DocumentSetPreparator:
                     else:
                         raise
         if document_set.support_file_offset_table:
+            if not document_set.source_url:
+                try:
+                    self.downloader.download(document_set.base_url, None, doc_path + '.offset', None)
+                except exceptions.DataError as e:
+                    if isinstance(e.cause, urllib.error.HTTPError) and (e.cause.code == 403 or e.cause.code == 404):
+                        self.logger.info("Pre-generated offset file not found, will generate from corpus data")
             self.create_file_offset_table(doc_path, document_set.number_of_lines)
 
     def prepare_bundled_document_set(self, document_set, data_root):

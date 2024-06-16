@@ -1,0 +1,69 @@
+---
+name: Proposal
+description: Suggest an idea for a specific feature you wish to propose to the community for comment
+title: '[RFC/PROPOSAL]: '
+labels: [RFC, untriaged]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this RFC / Proposal!
+  - type: textarea
+    id: what-are-you-proposing
+    attributes:
+      label: What are you proposing?
+      description: In a few sentences, describe the feature and its core capabilities.
+    validations:
+      required: true
+  - type: textarea
+    id: what-users-have-asked-for-this-feature
+    attributes:
+      label: What users have asked for this feature?
+      description: Highlight any research, proposals, requests or anecdotes that signal this is the right thing to build. Include links to GitHub Issues, Forums, Stack Overflow, X (Twitter), Etc
+    validations:
+      required: true
+  - type: textarea
+    id: what-problems-are-you-trying-to-solve
+    attributes:
+      label: What problems are you trying to solve?
+      description: Summarize use cases, user problems, and needs you are trying to solve. Describe the most important user needs, pain points and jobs as expressed by the user asks above.
+  - type: textarea
+    id: what-will-developer-experience-be-like
+    attributes:
+      label: What will the developer experience be like?
+      description: Does this have a REST API? If so, please describe the API and any impact it may have to existing APIs. In a brief summary (not a spec), highlight what new REST APIs or changes to REST APIs are planned. as well as any other API, CLI or Configuration changes that are planned as part of this feature.
+  - type: textarea
+    id: are-there-any-security-coniderations
+    attributes:
+      label: Are there any security considerations?
+      description: Describe if the feature has any security considerations or impact. What is the security model of the new APIs? Features should be integrated into the OpenSearch security suite and so if they are not, we should highlight the reasons here
+  - type: textarea
+    id: are-there-any-breaking-changes
+    attributes:
+      label: Are there any breaking changes?
+      description: If this feature will require breaking changes to any APIs, ouline what those are and why they are needed. What is the path to minimizing impact? (example, add new API and deprecate the old one)
+  - type: textarea
+    id: what-will-the-user-experience-be-like
+    attributes:
+      label: What will the user experience be like?
+      description: Describe the feature requirements and/or user stories. You may include low-fidelity sketches, wireframes, APIs stubs, or other examples of how a user would use the feature via CLI. Using a bulleted list or simple diagrams to outline features is okay. If this is net new functionality, call this out as well.
+  - type: textarea
+    id: are-there-breaking-changes-to-user-experience
+    attributes:
+      label: Are there breaking changes to user experience?
+      description: Will this change the existing user experience? Will this be a breaking change from a user flow or user experience perspective?
+  - type: textarea
+    id: why-should-it-be-built
+    attributes:
+      label: Why should it be built? Any reason not to?
+      description: Describe the value that this feature will bring to the OpenSearch community, as well as what impact it has if it isn't built, or new risks if it is. Highlight opportunities for additional research.
+  - type: textarea
+    id: what-will-it-take-to-execute
+    attributes:
+      label: What will it take to execute?
+      description: Describe what it will take to build this feature. Are there any assumptions you may be making that could limit scope or add limitations? Are there performance, cost, or technical constraints that may impact the user experience? Does this feature depend on other feature work? What additional risks are there?
+  - type: textarea
+    id: any-remaining-open-questions
+    attributes:
+      label: Any remaining open questions?
+      description: What are the known enhancements to this feature? Are there any enhancements that may be out of scope but which we will want to track long term? List any other open questions that may need to be answered before proceeding with an implementation.

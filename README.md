@@ -1,5 +1,4 @@
-OpenSearch Benchmark
-====================
+<img src="https://github.com/opensearch-project/opensearch-benchmark/blob/main/opensearch_benchmark.png?raw=true"  height="64px" alt="OpenSearch Benchmark">
 
 OpenSearch Benchmark is the macrobenchmarking framework for OpenSearch.
 
