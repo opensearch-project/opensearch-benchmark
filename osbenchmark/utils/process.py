@@ -133,12 +133,7 @@ def run_subprocess_with_logging(command_line, header=None, level=logging.INFO, s
 
 def is_benchmark_process(p):
     cmdline = p.cmdline()
-    # On Linux, /proc/PID/status truncates the command name to 15 characters which matches both opensearch-benchmark
-    # and opensearch-benchmarkd. Hence, checking command line to exclude opensearch-benchmarkd process.
     return p.name() == "opensearch-benchmark" or \
-        (p.name() == "opensearch-benc" and
-         len(cmdline) > 1 and
-         os.path.basename(cmdline[1]) != "opensearch-benchmarkd") or \
         (len(cmdline) > 1 and
          os.path.basename(cmdline[0].lower()).startswith("python") and
          os.path.basename(cmdline[1]) == "opensearch-benchmark")
