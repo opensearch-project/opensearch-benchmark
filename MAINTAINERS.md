@@ -4,11 +4,11 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 
 ## Current Maintainers
 
-| Maintainer              | GitHub ID                                             | Affiliation |
-| ----------------------- | ----------------------------------------------------- | ----------- |
-| Ian Hoang               | [IanHoang](https://github.com/IanHoang)               | Amazon      |
-| Govind Kamat            | [gkamat](https://github.com/gkamat)                   | Amazon      |
-| Mingyang Shi            | [beaioun](https://github.com/beaioun)                 | OSCI        |
-| Chinmay Gadgil          | [cgchinmay](https://github.com/cgchinmay)             | Amazon      |
-| Rishabh Singh           | [rishabh6788](https://github.com/rishabh6788)         | Amazon      |
-| Vijayan Balasubramanian | [VijayanB](https://github.com/VijayanB)               | Amazon      |
+| Maintainer              | GitHub ID                                             | Affiliation | Email Address                     |
+| ----------------------- | ----------------------------------------------------- | ----------- | --------------------------------- |
+| Ian Hoang               | [IanHoang](https://github.com/IanHoang)               | Amazon      | ianhoang16@gmail.com              |
+| Govind Kamat            | [gkamat](https://github.com/gkamat)                   | Amazon      | govind_kamat@yahoo.com            |
+| Mingyang Shi            | [beaioun](https://github.com/beaioun)                 | OSCI        | mmyyshi@gmail.com                 |
+| Chinmay Gadgil          | [cgchinmay](https://github.com/cgchinmay)             | Amazon      | chinmay5j@gmail.com               |
+| Rishabh Singh           | [rishabh6788](https://github.com/rishabh6788)         | Amazon      | rishabhksingh@gmail.com           |
+| Vijayan Balasubramanian | [VijayanB](https://github.com/VijayanB)               | Amazon      | vijayan.balasubramanian@gmail.com |
