@@ -105,8 +105,7 @@ def register_default_runners():
     register_runner(workload.OperationType.DeleteMlModel, Retry(DeleteMlModel()), async_runner=True)
     register_runner(workload.OperationType.RegisterMlModel, Retry(RegisterMlModel()), async_runner=True)
     register_runner(workload.OperationType.DeployMlModel, Retry(DeployMlModel()), async_runner=True)
-    register_runner(workload.OperationType.TrainKnnModel, Retry(TrainKnnModel()), async_runner=True)
-    register_runner(workload.OperationType.DeleteKnnModel, Retry(DeleteKnnModel()), async_runner=True)
+    register_runner(workload.OperationType.TrainKNNModel, Retry(TrainKNNModel()), async_runner=True)
 
 def runner_for(operation_type):
     try:
@@ -652,6 +651,72 @@ class BulkIndex(Runner):
     def __repr__(self, *args, **kwargs):
         return "bulk-index"
 
+class TrainKNNModel(Runner): 
+    """
+    Trains model named model_id until training is complete or timeout is exceeded. 
+    """
+
+    NAME = "train-knn-model"
+    
+    async def __call__(self, opensearch, params):
+        """
+        Create and train one model named model_id. 
+        
+        :param opensearch: The OpenSearch client.
+        :param params: A hash with all parameters. See below for details.
+        :return: A hash with meta data for this bulk operation. See below for details.
+        :raises: Exception if training fails, times out, or a different error occurs. 
+        It expects a parameter dict with the following mandatory keys:
+
+        * ``body``: containing parameters to pass on to the train engine. 
+            See https://opensearch.org/docs/latest/search-plugins/knn/api/#train-a-model for information. 
+        * ``retries``: Maximum number of retries allowed for the training to complete (seconds).
+        * ``polling-interval``: Polling interval to see if the model has been trained yet (seconds). 
+        * ``model_id``: ID of the model to train. 
+        """
+        body = params["body"]
+        model_id = parse_string_parameter("model_id", params)
+        max_retries = parse_int_parameter("retries", params)
+        poll_period = parse_float_parameter("poll_period", params)
+
+        method = "POST"
+        model_uri = "/_plugins/_knn/models/{}".format(model_id)
+
+        await opensearch.transport.perform_request(method, "{}/_train".format(model_uri), body=body)
+        
+        current_number_retries = 0
+        while True: 
+            model_response = await opensearch.transport.perform_request("GET", model_uri)
+
+            if 'state' not in model_response.keys() or current_number_retries > max_retries:
+                request_context_holder.on_client_request_end()
+                self.logger.error(f"Failed to create model {model_id} within {max_retries} retries.")
+                raise Exception('Failed to create model: {} within {} retries'
+                        .format(model_id, max_retries))
+            
+            if model_response['state'] == 'training':
+                current_number_retries += 1
+                await asyncio.sleep(poll_period)
+                continue
+
+            request_context_holder.on_client_request_end() # at this point, training either failed or finished. 
+            if model_response['state'] == 'created':
+                self.logger.info(f"Training model {model_id} was completed successfully.")
+                break
+            else:
+                # training failed.
+                self.logger.error(f"Training for model {model_id} failed. Response: {model_response}")
+                raise Exception("Failed to create model: {}".format(model_response))
+
+    def inspect_model_response(model_response):
+        if model_response['state'] == 'created':
+            return 1, "models_trained"
+
+        if model_response['state'] == 'failed':
+            raise Exception("Failed to create model: {}".format(model_response))
+            
+    def __repr__(self, *args, **kwargs):
+        return self.NAME
 
 class DeleteKnnModel(Runner):
     """
