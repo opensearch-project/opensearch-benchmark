@@ -31,7 +31,6 @@ from unittest import TestCase
 
 import opensearchpy
 import pytest
-
 from osbenchmark import client, exceptions
 from osbenchmark.worker_coordinator import runner
 from tests import run_async, as_future
@@ -2257,6 +2256,270 @@ class QueryRunnerTests(TestCase):
             headers=None
         )
         opensearch.clear_scroll.assert_not_called()
+
+
+class TrainKNNModelRunnerTests(TestCase):
+    model_id = "test-model-id"
+    retries = 120
+    poll_period = 0.5 # seconds
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("asyncio.sleep", return_value=as_future())
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_train_success(self, opensearch, sleep, on_client_request_start, on_client_request_end):
+        request = {
+            "index": "unittest",
+            "operation-type": "train-knn-model",
+            "model_id": self.model_id,
+            "poll_period": self.poll_period,
+            "retries": self.retries,
+            "body": {   
+                "training_index": "test_train_index_name", 
+                "training_field": "test_train_index_name", 
+                "search_size": 500,
+                "dimension": 10, 
+                "max_training_vector_count": 100,
+                
+                "method": {
+                    "name":"ivf",
+                    "engine":"faiss",
+                    "space_type": "l2",
+                    "parameters": {
+                        "nlist": 10,
+                        "nprobes": 5 
+                    }
+                }
+            }
+        }
+
+        train_api_status_response = {
+            "model_id": "1",
+            "model_blob": "",
+            "state": "created",
+            "timestamp": "2024-06-17T23:03:02.475277Z",
+            "description": "My model description",
+            "space_type": "l2",
+            "dimension": 10,
+            "engine": "faiss",
+            "training_node_assignment": "4QQIfIL3RzSWlPPf9K8b9w",
+            "model_definition": {
+                "name": "ivf",
+                "parameters": {
+                    "nprobes": 5,
+                    "nlist": 10
+                }
+            }
+        }
+
+        train_status_check_response = {
+            
+                'weight': 1, 'unit': 'ops', 'success': True
+        }
+
+        train_api_first_mock = as_future(train_status_check_response)
+        train_api_status_mock =as_future(train_api_status_response)
+        
+        opensearch.transport.perform_request.side_effect = [ train_api_first_mock, train_api_status_mock ]
+
+        runner_under_test = runner.TrainKNNModel()
+        async with runner_under_test:
+            result = await runner_under_test(opensearch, request)
+    
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("asyncio.sleep", return_value=as_future())
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_train_failure(self, opensearch, sleep, on_client_request_start, on_client_request_end):
+        request = {
+            "index": "unittest",
+            "operation-type": "train-knn-model",
+            "model_id":self.model_id,
+            "poll_period": self.poll_period,
+            "retries": self.retries,
+            "body": {   
+                "training_index": "test_train_index_name", 
+                "training_field": "test_train_index_name", 
+                "search_size": 500,
+                "dimension": 10, 
+                "max_training_vector_count": 100,
+                
+                "method": {
+                    "name":"ivf",
+                    "engine":"faiss",
+                    "space_type": "l2",
+                    "parameters": {
+                        "nlist": 10,
+                        "nprobes": 5 
+                    }
+                }
+            }
+        }
+
+        train_api_status_response = {
+            "model_id": self.model_id,
+            "model_blob": "",
+            "state": "failed",
+            "timestamp": "2024-06-17T23:03:02.475277Z",
+            "description": "My model description",
+            "space_type": "l2",
+            "dimension": 10,
+            "engine": "faiss",
+            "training_node_assignment": "4QQIfIL3RzSWlPPf9K8b9w",
+            "model_definition": {
+                "name": "ivf",
+                "parameters": {
+                    "nprobes": 5,
+                    "nlist": 10
+                }
+            }
+        }
+
+        train_status_check_response = {
+            
+                'weight': 1, 'unit': 'ops', 'success': True
+        }
+
+        train_api_first_mock = as_future(train_status_check_response)
+        train_api_status_mock =as_future(train_api_status_response)
+        
+        opensearch.transport.perform_request.side_effect = [ train_api_first_mock, train_api_status_mock ]
+
+ 
+        runner_under_test = runner.TrainKNNModel()
+        
+        with self.assertRaisesRegex(Exception, f"Failed to create model: {train_api_status_response}"):
+            await runner_under_test(opensearch, request)
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')    
+    @mock.patch("asyncio.sleep", return_value=as_future())
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_train_error_response(self,opensearch, sleep, on_client_request_start, on_client_request_end): 
+        error_response = {
+            "error": {
+                    "root_cause": 
+                        {
+                            "type": "index_not_found_exception",
+                            "reason": "no such index [.opensearch-knn-models]",
+                            "index": ".opensearch-knn-models",
+                            "resource.id": ".opensearch-knn-models",
+                            "resource.type": "index_expression",
+                            "index_uuid": "_na_"
+                        }
+                    ,
+                    "type": "index_not_found_exception",
+                    "reason": "no such index [.opensearch-knn-models]",
+                    "index": ".opensearch-knn-models",
+                    "resource.id": ".opensearch-knn-models",
+                    "resource.type": "index_expression",
+                    "index_uuid": "_na_"
+                },
+                "status": 404
+        }
+
+
+
+        train_status_check_response = ({
+            
+                'weight': 1, 'unit': 'ops', 'success': True
+        })
+        side_effect_list = [as_future(train_status_check_response), as_future(error_response)]
+        opensearch.transport.perform_request.side_effect = side_effect_list 
+        runner_under_test = runner.TrainKNNModel()
+        request = {
+            "index": "unittest",
+            "operation-type": "train-knn-model",
+            "model_id": self.model_id, 
+            "poll_period": self.poll_period,
+            "retries": self.retries,
+            "body": {   
+                "training_index": "test_train_index_name", 
+                "training_field": "test_train_index_name", 
+                "search_size": 500,
+                "dimension": 10, 
+                "max_training_vector_count": 100,
+                
+                "method": {
+                    "name":"ivf",
+                    "engine":"faiss",
+                    "space_type": "l2",
+                    "parameters": {
+                        "nlist": 10,
+                        "nprobes": 5 
+                    }
+                }
+            }
+        }
+        
+        with self.assertRaises(Exception):
+           await runner_under_test(opensearch, request) 
+
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')    
+    @mock.patch("asyncio.sleep", return_value=as_future())
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_train_timeout(self,opensearch, sleep, on_client_request_start, on_client_request_end): 
+        
+
+        still_training_response = ({
+            "model_id": self.model_id,
+            "model_blob": "",
+            "state": "training",
+            "timestamp": "2024-06-17T23:03:02.475277Z",
+            "description": "My model description",
+            "space_type": "l2",
+            "dimension": 10,
+            "engine": "faiss",
+            "training_node_assignment": "4QQIfIL3RzSWlPPf9K8b9w",
+            "model_definition": {
+                "name": "ivf",
+                "parameters": {
+                    "nprobes": 5,
+                    "nlist": 10
+                }
+            }
+        })
+
+        train_status_check_response = ({
+            
+                'weight': 1, 'unit': 'ops', 'success': True
+        })
+        side_effect_list = [as_future(train_status_check_response)] + [as_future(still_training_response) for _ in range(self.retries + 2)]
+        opensearch.transport.perform_request.side_effect = side_effect_list 
+        runner_under_test = runner.TrainKNNModel()
+        request = {
+            "index": "unittest",
+            "operation-type": "train-knn-model",
+            "model_id": self.model_id, 
+            "poll_period": self.poll_period,
+            "retries": self.retries,
+            "body": {   
+                "training_index": "test_train_index_name", 
+                "training_field": "test_train_index_name", 
+                "search_size": 500,
+                "dimension": 10, 
+                "max_training_vector_count": 100,
+                
+                "method": {
+                    "name":"ivf",
+                    "engine":"faiss",
+                    "space_type": "l2",
+                    "parameters": {
+                        "nlist": 10,
+                        "nprobes": 5 
+                    }
+                }
+            }
+        }
+        # Set model state = Training. 
+        with self.assertRaisesRegex(Exception, f'Failed to create model: {self.model_id} within {self.retries} retries'):
+           await runner_under_test(opensearch, request) 
 
 
 class VectorSearchQueryRunnerTests(TestCase):
