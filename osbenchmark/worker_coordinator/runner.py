@@ -105,7 +105,7 @@ def register_default_runners():
     register_runner(workload.OperationType.DeleteMlModel, Retry(DeleteMlModel()), async_runner=True)
     register_runner(workload.OperationType.RegisterMlModel, Retry(RegisterMlModel()), async_runner=True)
     register_runner(workload.OperationType.DeployMlModel, Retry(DeployMlModel()), async_runner=True)
-    register_runner(workload.OperationType.TrainKNNModel, Retry(TrainKNNModel()), async_runner=True)
+    register_runner(workload.OperationType.TrainKnnModel, Retry(TrainKnnModel()), async_runner=True)
 
 def runner_for(operation_type):
     try:
@@ -651,13 +651,14 @@ class BulkIndex(Runner):
     def __repr__(self, *args, **kwargs):
         return "bulk-index"
 
-class TrainKNNModel(Runner): 
+
+class TrainKnnModel(Runner):
     """
-    Trains model named model_id until training is complete or timeout is exceeded. 
+    Trains model named model_id until training is complete or retries are exhausted. 
     """
 
     NAME = "train-knn-model"
-    
+
     async def __call__(self, opensearch, params):
         """
         Create and train one model named model_id. 
@@ -680,41 +681,45 @@ class TrainKNNModel(Runner):
         poll_period = parse_float_parameter("poll_period", params)
 
         method = "POST"
-        model_uri = "/_plugins/_knn/models/{}".format(model_id)
+        model_uri = f"/_plugins/_knn/models/{model_id}"
+        request_context_holder.on_client_request_start()
+        await opensearch.transport.perform_request(method, f"{model_uri}/_train", body=body)
 
-        await opensearch.transport.perform_request(method, "{}/_train".format(model_uri), body=body)
-        
         current_number_retries = 0
-        while True: 
+        while True:
             model_response = await opensearch.transport.perform_request("GET", model_uri)
 
-            if 'state' not in model_response.keys() or current_number_retries > max_retries:
+            if 'state' not in model_response.keys():
                 request_context_holder.on_client_request_end()
-                self.logger.error(f"Failed to create model {model_id} within {max_retries} retries.")
-                raise Exception('Failed to create model: {} within {} retries'
-                        .format(model_id, max_retries))
-            
+                self.logger.error(
+                    "Failed to create model [%s] with error response: [%s]", model_id, model_response)
+                raise Exception(
+                    f"Failed to create model {model_id} with error response: {model_response}")
+
+            if current_number_retries > max_retries:
+                request_context_holder.on_client_request_end()
+                self.logger.error(
+                    "Failed to create model [%s] within [%i] retries.", model_id, max_retries)
+                raise TimeoutError(
+                    f'Failed to create model: {model_id} within {max_retries} retries')
+
             if model_response['state'] == 'training':
                 current_number_retries += 1
                 await asyncio.sleep(poll_period)
                 continue
 
-            request_context_holder.on_client_request_end() # at this point, training either failed or finished. 
+            # at this point, training either failed or finished.
+            request_context_holder.on_client_request_end()
             if model_response['state'] == 'created':
-                self.logger.info(f"Training model {model_id} was completed successfully.")
+                self.logger.info(
+                    "Training model [%s] was completed successfully.", model_id)
                 break
-            else:
-                # training failed.
-                self.logger.error(f"Training for model {model_id} failed. Response: {model_response}")
-                raise Exception("Failed to create model: {}".format(model_response))
 
-    def inspect_model_response(model_response):
-        if model_response['state'] == 'created':
-            return 1, "models_trained"
+            # training failed.
+            self.logger.error(
+                "Training for model [%s] failed. Response: [%s]", model_id, model_response)
+            raise Exception(f"Failed to create model: {model_response}")
 
-        if model_response['state'] == 'failed':
-            raise Exception("Failed to create model: {}".format(model_response))
-            
     def __repr__(self, *args, **kwargs):
         return self.NAME
 
