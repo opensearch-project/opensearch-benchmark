@@ -2432,7 +2432,44 @@ class TrainKnnModelRunnerTests(TestCase):
             train_api_first_mock, train_api_status_mock]
         runner_under_test = runner.TrainKnnModel()
 
-        with self.assertRaisesRegex(Exception, f"Failed to create model: {train_api_status_response}"):
+        with self.assertRaisesRegex(Exception, f"Failed to create model {self.model_id}: {train_api_status_response}"):
+            await runner_under_test(opensearch, self.request)
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("asyncio.sleep", return_value=as_future())
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_train_illegal_model_state(self, opensearch, sleep, on_client_request_start, on_client_request_end):
+        illegal_state = "dummy state that is not supported"
+        train_api_status_response = {
+            "model_id": self.model_id,
+            "model_blob": "",
+            "state": "dummy state that is not supported",
+            "timestamp": "2024-06-17T23:03:02.475277Z",
+            "description": "My model description",
+            "space_type": "l2",
+            "dimension": 10,
+            "engine": "faiss",
+            "training_node_assignment": "4QQIfIL3RzSWlPPf9K8b9w",
+            "model_definition": {
+                "name": "ivf",
+                "parameters": {
+                    "nprobes": 5,
+                    "nlist": 10
+                }
+            }
+        }
+
+        train_api_first_mock = as_future(self.train_status_check_response)
+        train_api_status_mock = as_future(train_api_status_response)
+
+        opensearch.transport.perform_request.side_effect = [
+            train_api_first_mock, train_api_status_mock]
+        runner_under_test = runner.TrainKnnModel()
+
+        with self.assertRaisesRegex(Exception,
+                                    f"Model {self.model_id} in unknown state {illegal_state}, response: {train_api_status_response}"):
             await runner_under_test(opensearch, self.request)
 
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
