@@ -935,12 +935,13 @@ class TestModeWorkloadProcessor(WorkloadProcessor):
 class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
     DEFAULT_RF = 0.3
     DEFAULT_N = 5000
+    DEFAULT_ALPHA = 1
     def __init__(self, cfg):
         self.randomization_enabled = cfg.opts("workload", "randomization.enabled", mandatory=False, default_value=False)
         self.rf = float(cfg.opts("workload", "randomization.repeat_frequency", mandatory=False, default_value=self.DEFAULT_RF))
         self.logger = logging.getLogger(__name__)
         self.N = int(cfg.opts("workload", "randomization.n", mandatory=False, default_value=self.DEFAULT_N))
-        self.zipf_alpha = 1
+        self.zipf_alpha = float(cfg.opts("workload", "randomization.alpha", mandatory=False, default_value=self.DEFAULT_ALPHA))
         self.H_list = self.precompute_H(self.N, self.zipf_alpha)
 
     # Helper functions for computing Zipf distribution
