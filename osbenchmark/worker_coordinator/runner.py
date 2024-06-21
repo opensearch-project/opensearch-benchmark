@@ -673,11 +673,11 @@ class DeleteKnnModel(Runner):
         if "error" in response.keys() and response["status"] == 404:
             self.logger.debug("Model [%s] does not already exist, skipping delete.", model_id)
             return
-        
+
         if "error" in response.keys():
             self.logger.error("Request to delete model [%s] failed with error: with error response: [%s]", model_id, response)
             raise Exception(f"Request to delete model {model_id} failed with error: with error response: {response}")
-        
+
         self.logger.debug("Model [%s] deleted successfully.", model_id)
 
     def __repr__(self, *args, **kwargs):
@@ -744,12 +744,15 @@ class TrainKnnModel(Runner):
             if model_response['state'] == 'created':
                 self.logger.info(
                     "Training model [%s] was completed successfully.", model_id)
-                break
+                return
 
-            # training failed.
-            self.logger.error(
-                "Training for model [%s] failed. Response: [%s]", model_id, model_response)
-            raise Exception(f"Failed to create model: {model_response}")
+            if model_response['state'] == 'failed':
+                self.logger.error(
+                    "Training for model [%s] failed. Response: [%s]", model_id, model_response)
+                raise Exception(f"Failed to create model {model_id}: {model_response}")
+
+            self.logger.error("Model [%s] in unknown state [%s], response: [%s]", model_id, model_response["state"], model_response)
+            raise Exception(f"Model {model_id} in unknown state {model_response['state']}, response: {model_response}")
 
     def __repr__(self, *args, **kwargs):
         return self.NAME
