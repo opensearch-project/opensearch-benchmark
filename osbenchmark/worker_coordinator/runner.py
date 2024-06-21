@@ -106,6 +106,7 @@ def register_default_runners():
     register_runner(workload.OperationType.RegisterMlModel, Retry(RegisterMlModel()), async_runner=True)
     register_runner(workload.OperationType.DeployMlModel, Retry(DeployMlModel()), async_runner=True)
     register_runner(workload.OperationType.TrainKnnModel, Retry(TrainKnnModel()), async_runner=True)
+    register_runner(workload.OperationType.DeleteKnnModel, Retry(DeleteKnnModel()), async_runner=True)
 
 def runner_for(operation_type):
     try:
@@ -651,7 +652,37 @@ class BulkIndex(Runner):
     def __repr__(self, *args, **kwargs):
         return "bulk-index"
 
+class DeleteKnnModel(Runner):
+    """
+    Deletes the K-NN model named model_id. 
+    """
+    NAME = "delete-knn-model"
 
+    async def __call__(self, opensearch, params):
+        model_id = parse_string_parameter("model_id", params)
+
+        method = "DELETE"
+        model_uri = f"/_plugins/_knn/models/{model_id}"
+
+        request_context_holder.on_client_request_start()
+
+        response = await opensearch.transport.perform_request(method, model_uri)
+
+        request_context_holder.on_client_request_end()
+
+        if "error" in response.keys() and response["status"] == 404:
+            self.logger.debug("Model [%s] does not already exist, skipping delete.", model_id)
+            return
+        
+        if "error" in response.keys():
+            self.logger.error("Request to delete model [%s] failed with error: with error response: [%s]", model_id, response)
+            raise Exception(f"Request to delete model {model_id} failed with error: with error response: {response}")
+        
+        self.logger.debug("Model [%s] deleted successfully.", model_id)
+
+    def __repr__(self, *args, **kwargs):
+        return self.NAME
+    
 class TrainKnnModel(Runner):
     """
     Trains model named model_id until training is complete or retries are exhausted. 

@@ -2258,6 +2258,78 @@ class QueryRunnerTests(TestCase):
         opensearch.clear_scroll.assert_not_called()
 
 
+class DeleteKnnModelRunnerTests(TestCase):
+    model_id = "test-model-id"
+
+    request = {
+        "index": "unittest",
+        "operation-type": "train-knn-model",
+        "model_id": model_id
+    }
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_delete_knn_success(self, opensearch, on_client_request_start, on_client_request_end):
+        response = {
+            "model_id": "test-model",
+            "result": "deleted"
+        }
+        opensearch.transport.perform_request.return_value = as_future(response)
+        runner_under_test = runner.DeleteKnnModel()
+        async with runner_under_test:
+            await runner_under_test(opensearch, self.request)
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_delete_knn_404(self, opensearch, on_client_request_start, on_client_request_end):
+
+        response = {
+            "error": {
+                "root_cause": [
+                    {
+                        "type": "resource_not_found_exception",
+                        "reason": "Unable to delete model [test-model]. Model does not exist"
+                    }
+                ],
+                "type": "resource_not_found_exception",
+                "reason": "Unable to delete model [test-model]. Model does not exist"
+            },
+            "status": 404
+        }
+        opensearch.transport.perform_request.return_value = as_future(response)
+        runner_under_test = runner.DeleteKnnModel()
+        async with runner_under_test:
+            await runner_under_test(opensearch, self.request)
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_delete_knn_400(self, opensearch, on_client_request_start, on_client_request_end):
+
+        response = {
+            "error": {
+                "root_cause": [
+                    {
+                        "type": "resource_not_found_exception",
+                        "reason": "Unable to delete model [test-model]. Model does not exist"
+                    }
+                ],
+                "type": "resource_not_found_exception",
+                "reason": "Unable to delete model [test-model]. Model does not exist"
+            },
+            "status": 400
+        }
+        opensearch.transport.perform_request.return_value = as_future(response)
+        runner_under_test = runner.DeleteKnnModel()
+        with self.assertRaises(Exception):
+            await runner_under_test(opensearch, self.request)
+
+
 class TrainKnnModelRunnerTests(TestCase):
     model_id = "test-model-id"
     retries = 120
