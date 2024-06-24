@@ -666,15 +666,12 @@ class DeleteKnnModel(Runner):
 
         request_context_holder.on_client_request_start()
 
-        response = await opensearch.transport.perform_request(method, model_uri)
+        # 404 indicates the model has not been created.
+        response = await opensearch.transport.perform_request(method, model_uri, params={"ignore": [404]})
 
         request_context_holder.on_client_request_end()
-
-        if "error" in response.keys() and response["status"] == 404:
-            self.logger.debug("Model [%s] does not already exist, skipping delete.", model_id)
-            return
-
-        if "error" in response.keys():
+ 
+        if "error" in response.keys() and response["status"] != 404:
             self.logger.error("Request to delete model [%s] failed with error: with error response: [%s]", model_id, response)
             raise Exception(f"Request to delete model {model_id} failed with error: with error response: {response}")
 
@@ -682,7 +679,7 @@ class DeleteKnnModel(Runner):
 
     def __repr__(self, *args, **kwargs):
         return self.NAME
-    
+
 class TrainKnnModel(Runner):
     """
     Trains model named model_id until training is complete or retries are exhausted. 
