@@ -2505,7 +2505,7 @@ class TrainKnnModelRunnerTests(TestCase):
         runner_under_test = runner.TrainKnnModel()
 
         with self.assertRaises(Exception):
-           await runner_under_test(opensearch, self.request)
+            await runner_under_test(opensearch, self.request)
 
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
@@ -2540,7 +2540,7 @@ class TrainKnnModelRunnerTests(TestCase):
 
         # Set model state = Training.
         with self.assertRaisesRegex(TimeoutError, f'Failed to create model: {self.model_id} within {self.retries} retries'):
-           await runner_under_test(opensearch, self.request)
+            await runner_under_test(opensearch, self.request)
 
 
 class VectorSearchQueryRunnerTests(TestCase):
