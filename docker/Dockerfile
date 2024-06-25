@@ -15,7 +15,7 @@ RUN apt-get -y update && \
 RUN groupadd --gid 1000 opensearch-benchmark && \
     useradd -d /opensearch-benchmark -m -k /dev/null -g 1000 -N -u 1000 -l -s /bin/bash benchmark
 
-RUN if [ -z "$VERSION" ] ; then python3 -m pip install opensearch-benchmark ; else python3 -m pip install opensearch-benchmark==$VERSION ; fi
+RUN python3 -m pip install h5py==3.10.0; if [ -z "$VERSION" ] ; then python3 -m pip install opensearch-benchmark ; else python3 -m pip install opensearch-benchmark==$VERSION ; fi
 
 WORKDIR /opensearch-benchmark
 
