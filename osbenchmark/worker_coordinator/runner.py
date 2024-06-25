@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+# 	http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -652,10 +652,12 @@ class BulkIndex(Runner):
     def __repr__(self, *args, **kwargs):
         return "bulk-index"
 
+
 class DeleteKnnModel(Runner):
     """
-    Deletes the K-NN model named model_id. 
+    Deletes the K-NN model named model_id.
     """
+
     NAME = "delete-knn-model"
 
     async def __call__(self, opensearch, params):
@@ -667,41 +669,50 @@ class DeleteKnnModel(Runner):
         request_context_holder.on_client_request_start()
 
         # 404 indicates the model has not been created.
-        response = await opensearch.transport.perform_request(method, model_uri, params={"ignore": [404]})
+        response = await opensearch.transport.perform_request(
+            method, model_uri, params={"ignore": [404]}
+        )
 
         request_context_holder.on_client_request_end()
- 
+
         if "error" in response.keys() and response["status"] != 404:
-            self.logger.error("Request to delete model [%s] failed with error: with error response: [%s]", model_id, response)
-            raise Exception(f"Request to delete model {model_id} failed with error: with error response: {response}")
+            self.logger.error(
+                "Request to delete model [%s] failed with error: with error response: [%s]",
+                model_id,
+                response,
+            )
+            raise Exception(
+                f"Request to delete model {model_id} failed with error: with error response: {response}"
+            )
 
         self.logger.debug("Model [%s] deleted successfully.", model_id)
 
     def __repr__(self, *args, **kwargs):
         return self.NAME
 
+
 class TrainKnnModel(Runner):
     """
-    Trains model named model_id until training is complete or retries are exhausted. 
+    Trains model named model_id until training is complete or retries are exhausted.
     """
 
     NAME = "train-knn-model"
 
     async def __call__(self, opensearch, params):
         """
-        Create and train one model named model_id. 
-        
+        Create and train one model named model_id.
+
         :param opensearch: The OpenSearch client.
         :param params: A hash with all parameters. See below for details.
         :return: A hash with meta data for this bulk operation. See below for details.
-        :raises: Exception if training fails, times out, or a different error occurs. 
+        :raises: Exception if training fails, times out, or a different error occurs.
         It expects a parameter dict with the following mandatory keys:
 
-        * ``body``: containing parameters to pass on to the train engine. 
-            See https://opensearch.org/docs/latest/search-plugins/knn/api/#train-a-model for information. 
+        * ``body``: containing parameters to pass on to the train engine.
+            See https://opensearch.org/docs/latest/search-plugins/knn/api/#train-a-model for information.
         * ``retries``: Maximum number of retries allowed for the training to complete (seconds).
-        * ``polling-interval``: Polling interval to see if the model has been trained yet (seconds). 
-        * ``model_id``: ID of the model to train. 
+        * ``polling-interval``: Polling interval to see if the model has been trained yet (seconds).
+        * ``model_id``: ID of the model to train.
         """
         body = params["body"]
         model_id = parse_string_parameter("model_id", params)
@@ -711,48 +722,72 @@ class TrainKnnModel(Runner):
         method = "POST"
         model_uri = f"/_plugins/_knn/models/{model_id}"
         request_context_holder.on_client_request_start()
-        await opensearch.transport.perform_request(method, f"{model_uri}/_train", body=body)
+        await opensearch.transport.perform_request(
+            method, f"{model_uri}/_train", body=body
+        )
 
         current_number_retries = 0
         while True:
-            model_response = await opensearch.transport.perform_request("GET", model_uri)
+            model_response = await opensearch.transport.perform_request(
+                "GET", model_uri
+            )
 
-            if 'state' not in model_response.keys():
+            if "state" not in model_response.keys():
                 request_context_holder.on_client_request_end()
                 self.logger.error(
-                    "Failed to create model [%s] with error response: [%s]", model_id, model_response)
+                    "Failed to create model [%s] with error response: [%s]",
+                    model_id,
+                    model_response,
+                )
                 raise Exception(
-                    f"Failed to create model {model_id} with error response: {model_response}")
+                    f"Failed to create model {model_id} with error response: {model_response}"
+                )
 
             if current_number_retries > max_retries:
                 request_context_holder.on_client_request_end()
                 self.logger.error(
-                    "Failed to create model [%s] within [%i] retries.", model_id, max_retries)
+                    "Failed to create model [%s] within [%i] retries.",
+                    model_id,
+                    max_retries,
+                )
                 raise TimeoutError(
-                    f'Failed to create model: {model_id} within {max_retries} retries')
+                    f"Failed to create model: {model_id} within {max_retries} retries"
+                )
 
-            if model_response['state'] == 'training':
+            if model_response["state"] == "training":
                 current_number_retries += 1
                 await asyncio.sleep(poll_period)
                 continue
 
             # at this point, training either failed or finished.
             request_context_holder.on_client_request_end()
-            if model_response['state'] == 'created':
+            if model_response["state"] == "created":
                 self.logger.info(
-                    "Training model [%s] was completed successfully.", model_id)
+                    "Training model [%s] was completed successfully.", model_id
+                )
                 return
 
-            if model_response['state'] == 'failed':
+            if model_response["state"] == "failed":
                 self.logger.error(
-                    "Training for model [%s] failed. Response: [%s]", model_id, model_response)
+                    "Training for model [%s] failed. Response: [%s]",
+                    model_id,
+                    model_response,
+                )
                 raise Exception(f"Failed to create model {model_id}: {model_response}")
 
-            self.logger.error("Model [%s] in unknown state [%s], response: [%s]", model_id, model_response["state"], model_response)
-            raise Exception(f"Model {model_id} in unknown state {model_response['state']}, response: {model_response}")
+            self.logger.error(
+                "Model [%s] in unknown state [%s], response: [%s]",
+                model_id,
+                model_response["state"],
+                model_response,
+            )
+            raise Exception(
+                f"Model {model_id} in unknown state {model_response['state']}, response: {model_response}"
+            )
 
     def __repr__(self, *args, **kwargs):
         return self.NAME
+
 
 # TODO: Add retry logic to BulkIndex, so that we can remove BulkVectorDataSet and use BulkIndex.
 class BulkVectorDataSet(Runner):
