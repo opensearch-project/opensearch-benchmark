@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+
+dir=`python3 -c 'import osbenchmark; print(osbenchmark.__path__[0])'`
+os=`uname`
+arch=`uname -m`
+
+exec $dir/decompressors/pbzip2-$os-$arch "$@"
+

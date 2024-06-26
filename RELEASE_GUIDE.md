@@ -90,7 +90,7 @@ NOTE: The version number below is in semantic format, for instance, `1.2.0`.
         4. repository: opensearchstaging, image: opensearch-benchmark:<VERSION> → repository: public.ecr.aws/opensearchproject, image: opensearch-benchmark:latest
 
 5. See if OpenSearch-Benchmark Tags is Published:
-    1. Check that the version appears in GitHub (https://github.com/opensearch-project/opensearch-benchmark/releases) and is marked as the “latest” release.  There should be an associated changelog as well.  Clicking on the “Tags” tab should indicate the version number is one of the project’s tags and its timestamp should match that of the last commit.
+    1. Check that the version appears in GitHub (https://github.com/opensearch-project/opensearch-benchmark/releases) and is marked as the “latest” release.  There should be an associated changelog as well.  Clicking on the “Tags” tab should indicate the version number is one of the project’s tags and its timestamp should match that of the last commit.  If there was an error that prevented the release from being published, but this was fixed manually, click on the edit button (pencil icon) next to the release.  This will provide options to generate the release notes, publish the release and label it as the "latest" one.
     2. Check Docker Hub Production: https://hub.docker.com/r/opensearchproject/opensearch-benchmark.  Both “latest” and the published release should appear on the page along with the appropriate publication timestamp.
     3. Check ECR: https://gallery.ecr.aws/opensearchproject/opensearch-benchmark.  The dropdown box at the top should list both “latest” and the published release as entries.  The publication time is also indicated.
 
