@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-# 	http://www.apache.org/licenses/LICENSE-2.0
+#	http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -662,6 +662,7 @@ class DeleteKnnModel(Runner):
 
     async def __call__(self, opensearch, params):
         model_id = parse_string_parameter("model_id", params)
+        should_ignore_if_model_DNE = params.get("ignore-if-model-does-not-exist", False)
 
         method = "DELETE"
         model_uri = f"/_plugins/_knn/models/{model_id}"
@@ -675,17 +676,29 @@ class DeleteKnnModel(Runner):
 
         request_context_holder.on_client_request_end()
 
+        if (
+            "error" in response.keys()
+            and response["status"] == 404
+            and not should_ignore_if_model_DNE
+        ):
+            self.logger.error(
+                "Request to delete model [%s] failed because the model does not exist "\
+                "and ignore-if-model-does-not-exist was set to True. Response: [%s]",
+                model_id,
+                response,
+            )
+            return {"success": False}
+
         if "error" in response.keys() and response["status"] != 404:
             self.logger.error(
                 "Request to delete model [%s] failed with error: with error response: [%s]",
                 model_id,
                 response,
             )
-            raise Exception(
-                f"Request to delete model {model_id} failed with error: with error response: {response}"
-            )
+            return {"success": False}
 
         self.logger.debug("Model [%s] deleted successfully.", model_id)
+        return {"success": True}
 
     def __repr__(self, *args, **kwargs):
         return self.NAME
@@ -697,6 +710,8 @@ class TrainKnnModel(Runner):
     """
 
     NAME = "train-knn-model"
+    DEFAULT_RETRIES = 1000
+    DEFAULT_POLL_PERIOD = 0.5
 
     async def __call__(self, opensearch, params):
         """
@@ -716,8 +731,10 @@ class TrainKnnModel(Runner):
         """
         body = params["body"]
         model_id = parse_string_parameter("model_id", params)
-        max_retries = parse_int_parameter("retries", params)
-        poll_period = parse_float_parameter("poll_period", params)
+        max_retries = parse_int_parameter("retries", params, self.DEFAULT_RETRIES)
+        poll_period = parse_float_parameter(
+            "poll_period", params, self.DEFAULT_POLL_PERIOD
+        )
 
         method = "POST"
         model_uri = f"/_plugins/_knn/models/{model_id}"
