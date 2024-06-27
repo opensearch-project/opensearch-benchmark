@@ -601,6 +601,8 @@ class OperationType(Enum):
     ListAllPointInTime = 16
     VectorSearch = 17
     BulkVectorDataSet = 18
+    TrainKnnModel = 19
+    DeleteKnnModel = 20
 
     # administrative actions
     ForceMerge = 1001
@@ -746,6 +748,10 @@ class OperationType(Enum):
             return OperationType.RegisterMlModel
         elif v == "deploy-ml-model":
             return OperationType.DeployMlModel
+        elif v == "train-knn-model":
+            return OperationType.TrainKnnModel
+        elif v == "delete-knn-model":
+            return OperationType.DeleteKnnModel
         else:
             raise KeyError(f"No enum value for [{v}]")
 
