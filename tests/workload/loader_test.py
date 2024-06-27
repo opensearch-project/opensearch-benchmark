@@ -51,6 +51,22 @@ class StaticClock:
         return None
 
 
+class InstanceOf:
+    "Tests whether an object belongs to a specified class."
+
+    def __init__(self, cls):
+        self.cls = cls
+
+    def __eq__(self, other):
+        return isinstance(other, self.cls)
+
+    def __ne__(self, other):
+        return not isinstance(other, self.cls)
+
+    def __repr__(self):
+        return f"<{self.cls.__name__} object at {hex(id(self))}>"
+
+
 class SimpleWorkloadRepositoryTests(TestCase):
     @mock.patch("os.path.exists")
     @mock.patch("os.path.isdir")
@@ -166,7 +182,7 @@ class WorkloadPreparationTests(TestCase):
                                                             uncompressed_size_in_bytes=2000),
                                data_root="/tmp")
 
-        prepare_file_offset_table.assert_called_with("/tmp/docs.json")
+        prepare_file_offset_table.assert_called_with("/tmp/docs.json", None, None, InstanceOf(loader.Downloader))
 
     @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
     @mock.patch("os.path.getsize")
@@ -188,7 +204,7 @@ class WorkloadPreparationTests(TestCase):
                                                             uncompressed_size_in_bytes=2000),
                                data_root="/tmp")
 
-        prepare_file_offset_table.assert_called_with("/tmp/docs.json")
+        prepare_file_offset_table.assert_called_with("/tmp/docs.json", None, None, InstanceOf(loader.Downloader))
 
     @mock.patch("osbenchmark.utils.io.decompress")
     @mock.patch("os.path.getsize")
@@ -286,11 +302,10 @@ class WorkloadPreparationTests(TestCase):
         ensure_dir.assert_called_with("/tmp")
         decompress.assert_called_with("/tmp/docs.json.bz2", "/tmp")
         calls = [ mock.call("http://benchmarks.opensearch.org/corpora/unit-test/docs.json.bz2",
-                            "/tmp/docs.json.bz2", 200, progress_indicator=mock.ANY),
-                  mock.call("http://benchmarks.opensearch.org/corpora/unit-test/docs.json.offset",
-                            "/tmp/docs.json.offset", None, progress_indicator=mock.ANY) ]
+                            "/tmp/docs.json.bz2", 200, progress_indicator=mock.ANY) ]
         download.assert_has_calls(calls)
-        prepare_file_offset_table.assert_called_with("/tmp/docs.json")
+        prepare_file_offset_table.assert_called_with("/tmp/docs.json", 'http://benchmarks.opensearch.org/corpora/unit-test',
+                                                     None, InstanceOf(loader.Downloader))
 
     @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
     @mock.patch("osbenchmark.utils.io.decompress")
@@ -333,7 +348,9 @@ class WorkloadPreparationTests(TestCase):
         decompress.assert_called_with("/tmp/docs.json.bz2", "/tmp")
         download.assert_called_with("http://benchmarks.opensearch.org/corpora/unit-test/docs.json.bz2",
                                     "/tmp/docs.json.bz2", 200, progress_indicator=mock.ANY)
-        prepare_file_offset_table.assert_called_with("/tmp/docs.json")
+        prepare_file_offset_table.assert_called_with("/tmp/docs.json", 'http://benchmarks.opensearch.org/corpora',
+                                                     'http://benchmarks.opensearch.org/corpora/unit-test/docs.json.bz2',
+                                                     InstanceOf(loader.Downloader))
 
     @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
     @mock.patch("osbenchmark.utils.io.decompress")
@@ -371,7 +388,9 @@ class WorkloadPreparationTests(TestCase):
         ensure_dir.assert_called_with("/tmp")
         download.assert_called_with(f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/docs.json",
                                     "/tmp/docs.json", 2000, progress_indicator=mock.ANY)
-        prepare_file_offset_table.assert_called_with("/tmp/docs.json")
+        prepare_file_offset_table.assert_called_with("/tmp/docs.json", f"{scheme}://benchmarks.opensearch.org/corpora/",
+                                                     f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/docs.json",
+                                                     InstanceOf(loader.Downloader))
 
     @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
     @mock.patch("osbenchmark.utils.io.decompress")
@@ -407,11 +426,10 @@ class WorkloadPreparationTests(TestCase):
 
         ensure_dir.assert_called_with("/tmp")
         calls = [ mock.call(f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/docs.json", \
-                            "/tmp/docs.json", 2000, progress_indicator=mock.ANY),
-                  mock.call(f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/docs.json.offset", \
-                            "/tmp/docs.json.offset", None, progress_indicator=mock.ANY) ]
+                            "/tmp/docs.json", 2000, progress_indicator=mock.ANY) ]
         download.assert_has_calls(calls)
-        prepare_file_offset_table.assert_called_with("/tmp/docs.json")
+        prepare_file_offset_table.assert_called_with("/tmp/docs.json", f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/",
+                                                     None, InstanceOf(loader.Downloader))
 
     @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
     @mock.patch("osbenchmark.utils.net.download")
@@ -444,11 +462,10 @@ class WorkloadPreparationTests(TestCase):
 
         ensure_dir.assert_called_with("/tmp")
         calls = [ mock.call("http://benchmarks.opensearch.org/corpora/unit-test/docs.json", \
-                            "/tmp/docs.json", 2000, progress_indicator=mock.ANY),
-                  mock.call("http://benchmarks.opensearch.org/corpora/unit-test/docs.json.offset", \
-                            "/tmp/docs.json.offset", None, progress_indicator=mock.ANY) ]
+                            "/tmp/docs.json", 2000, progress_indicator=mock.ANY) ]
         download.assert_has_calls(calls)
-        prepare_file_offset_table.assert_called_with("/tmp/docs.json")
+        prepare_file_offset_table.assert_called_with("/tmp/docs.json", 'http://benchmarks.opensearch.org/corpora/unit-test',
+                                                     None, InstanceOf(loader.Downloader))
 
     @mock.patch("osbenchmark.utils.net.download")
     @mock.patch("osbenchmark.utils.io.ensure_dir")
@@ -606,7 +623,7 @@ class WorkloadPreparationTests(TestCase):
                                                                                     uncompressed_size_in_bytes=2000),
                                                        data_root="."))
 
-        prepare_file_offset_table.assert_called_with("./docs.json")
+        prepare_file_offset_table.assert_called_with("./docs.json", None, None, InstanceOf(loader.Downloader))
 
     @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
     @mock.patch("osbenchmark.utils.io.decompress")
@@ -791,7 +808,7 @@ class WorkloadPreparationTests(TestCase):
                                                                                     uncompressed_size_in_bytes=2000),
                                                        data_root="."))
 
-        prepare_file_offset_table.assert_called_with("./docs.json")
+        prepare_file_offset_table.assert_called_with("./docs.json", None, None, InstanceOf(loader.Downloader))
 
     @mock.patch("os.path.getsize")
     @mock.patch("os.path.isfile")
