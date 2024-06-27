@@ -78,7 +78,7 @@ check-venv:
 
 install-user: venv-create
 	. $(VENV_ACTIVATE_FILE); $(PIP_WRAPPER) install --upgrade pip setuptools wheel
-	. $(VENV_ACTIVATE_FILE); $(PIP_WRAPPER) install -e .
+	. $(VENV_ACTIVATE_FILE); PIP_ONLY_BINARY=h5py $(PIP_WRAPPER) install -e .
 
 install: install-user
 	# Also install development dependencies
