@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+# 	http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -659,46 +659,71 @@ class DeleteKnnModel(Runner):
     """
 
     NAME = "delete-knn-model"
+    MODEL_DOES_NOT_EXIST_STATUS_CODE = 404
 
     async def __call__(self, opensearch, params):
         model_id = parse_string_parameter("model_id", params)
-        should_ignore_if_model_DNE = params.get("ignore-if-model-does-not-exist", False)
+        ignore_if_model_does_not_exist = params.get(
+            "ignore-if-model-does-not-exist", False
+        )
 
         method = "DELETE"
         model_uri = f"/_plugins/_knn/models/{model_id}"
 
         request_context_holder.on_client_request_start()
 
-        # 404 indicates the model has not been created.
+        # 404 indicates the model has not been created. The runner's response depends on ignore_if_model_does_not_exist.
         response = await opensearch.transport.perform_request(
-            method, model_uri, params={"ignore": [404]}
+            method,
+            model_uri,
+            params={"ignore": [self.MODEL_DOES_NOT_EXIST_STATUS_CODE]},
         )
 
         request_context_holder.on_client_request_end()
 
-        if (
-            "error" in response.keys()
-            and response["status"] == 404
-            and not should_ignore_if_model_DNE
-        ):
-            self.logger.error(
-                "Request to delete model [%s] failed because the model does not exist "\
-                "and ignore-if-model-does-not-exist was set to True. Response: [%s]",
+        # success condition.
+        if "result" in response.keys() and response["result"] == "deleted":
+            self.logger.debug("Model [%s] deleted successfully.", model_id)
+            return {"weight": 1, "unit": "ops", "success": True}
+
+        if "error" not in response.keys():
+            self.logger.warning(
+                "Request to delete model [%s] failed but no error, response: [%s]",
                 model_id,
                 response,
             )
-            return {"success": False}
+            return {"weight": 1, "unit": "ops", "success": False}
 
-        if "error" in response.keys() and response["status"] != 404:
-            self.logger.error(
-                "Request to delete model [%s] failed with error: with error response: [%s]",
+        if response["status"] != self.MODEL_DOES_NOT_EXIST_STATUS_CODE:
+            self.logger.warning(
+                "Request to delete model [%s] failed with status [%s] and response: [%s]",
                 model_id,
+                response["status"],
                 response,
             )
-            return {"success": False}
+            return {"weight": 1, "unit": "ops", "success": False}
 
-        self.logger.debug("Model [%s] deleted successfully.", model_id)
-        return {"success": True}
+        if ignore_if_model_does_not_exist:
+            self.logger.debug(
+                (
+                    "Model [%s] does not exist so it could not be deleted, "
+                    "however ignore-if-model-does-not-exist is True so the "
+                    "DeleteKnnModel operation succeeded."
+                ),
+                model_id,
+            )
+
+            return {"weight": 1, "unit": "ops", "success": True}
+
+        self.logger.warning(
+            (
+                "Request to delete model [%s] failed because the model does not exist "
+                "and ignore-if-model-does-not-exist was set to False. Response: [%s]"
+            ),
+            model_id,
+            response,
+        )
+        return {"weight": 1, "unit": "ops", "success": False}
 
     def __repr__(self, *args, **kwargs):
         return self.NAME
