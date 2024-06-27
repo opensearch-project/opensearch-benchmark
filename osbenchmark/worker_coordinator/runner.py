@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-# 	http://www.apache.org/licenses/LICENSE-2.0
+#	http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -672,7 +672,7 @@ class DeleteKnnModel(Runner):
 
         request_context_holder.on_client_request_start()
 
-        # 404 indicates the model has not been created. The runner's response depends on ignore_if_model_does_not_exist.
+        # 404 indicates the model has not been created. In that case, the runner's response depends on ignore_if_model_does_not_exist.
         response = await opensearch.transport.perform_request(
             method,
             model_uri,
