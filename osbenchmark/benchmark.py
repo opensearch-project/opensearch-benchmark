@@ -590,7 +590,7 @@ def create_arg_parser():
     test_execution_parser.add_argument(
         "--randomization-alpha",
         help=f"The alpha parameter used for the Zipf distribution for query randomization. Low values spread the distribution out, "
-             f"high values favor the most common queries more. "
+             f"high values favor the most common queries. "
              f"Ignored if randomization is off (default: {workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_ALPHA}).",
         default=workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_ALPHA)
 
