@@ -587,6 +587,12 @@ def create_arg_parser():
         help=f"The number of standard values to generate for each field for query randomization."
              f"Ignored if randomization is off (default: {workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_N}).",
         default=workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_N)
+    test_execution_parser.add_argument(
+        "--randomization-alpha",
+        help=f"The alpha parameter used for the Zipf distribution for query randomization. Low values spread the distribution out, "
+             f"high values favor the most common queries. "
+             f"Ignored if randomization is off (default: {workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_ALPHA}).",
+        default=workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_ALPHA)
 
     ###############################################################################
     #
@@ -906,6 +912,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "workload", "randomization.enabled", args.randomization_enabled)
             cfg.add(config.Scope.applicationOverride, "workload", "randomization.repeat_frequency", args.randomization_repeat_frequency)
             cfg.add(config.Scope.applicationOverride, "workload", "randomization.n", args.randomization_n)
+            cfg.add(config.Scope.applicationOverride, "workload", "randomization.alpha", args.randomization_alpha)
             configure_workload_params(arg_parser, args, cfg)
             configure_connection_params(arg_parser, args, cfg)
             configure_telemetry_params(args, cfg)
