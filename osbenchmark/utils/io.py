@@ -26,17 +26,16 @@ import bz2
 import gzip
 import logging
 import os
+import mmap
 import shutil
 import subprocess
 import tarfile
 import zipfile
+import urllib.error
 from contextlib import suppress
-
-import mmap
-
-
 import zstandard as zstd
 
+from osbenchmark import exceptions
 from osbenchmark.utils import console
 
 
@@ -560,7 +559,7 @@ class FileOffsetTable:
         os.remove(f"{data_file_path}.offset")
 
 
-def prepare_file_offset_table(data_file_path):
+def prepare_file_offset_table(data_file_path, base_url, source_url, downloader):
     """
     Creates a file that contains a mapping from line numbers to file offsets for the provided path. This file is used internally by
     #skip_lines(data_file_path, data_file) to speed up line skipping.
@@ -569,6 +568,14 @@ def prepare_file_offset_table(data_file_path):
     :return The number of lines read or ``None`` if it did not have to build the file offset table.
     """
     file_offset_table = FileOffsetTable.create_for_data_file(data_file_path)
+    if not file_offset_table.is_valid():
+        if not source_url:
+            try:
+                downloader.download(base_url, None, data_file_path + '.offset', None)
+            except exceptions.DataError as e:
+                if isinstance(e.cause, urllib.error.HTTPError) and (e.cause.code == 403 or e.cause.code == 404):
+                    logging.getLogger(__name__).info("Pre-generated offset file not found, will generate from corpus data")
+
     if not file_offset_table.is_valid():
         console.info("Preparing file offset table for [%s] ... " % data_file_path, end="", flush=True)
         line_number = 0
