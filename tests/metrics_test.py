@@ -1436,97 +1436,105 @@ class OsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": "123abc",
                 "environment": "unittest",
-                "test-execution-id": OsResultsStoreTests.TEST_EXECUTION_ID,
+                "test-execution-id": "6ebc6e53-ee20-4b0c-99b4-09697987e9f4",
                 "test-execution-timestamp": "20160131T000000Z",
-                "distribution-flavor": "oss",
                 "distribution-version": "5.0.0",
-                "distribution-major-version": 5,
-                "user-tags": {
-                    "os": "Linux"
-                },
+                "distribution-flavor": "oss",
+                "user-tags": {"os": "Linux"},
                 "workload": "unittest-workload",
-                "provision-config-revision": "123ab",
-                "workload-revision": "abc1",
                 "test_procedure": "index",
                 "provision-config-instance": "4gheap",
-                "plugin-params": {
-                    "some-param": True
-                },
                 "active": True,
-                "name": "old_gc_time",
-                "value": {
-                    "single": 5
-                },
+                "distribution-major-version": 5,
+                "provision-config-revision": "123ab",
+                "workload-revision": "abc1",
+                "plugin-params": {"some-param": True},
                 "meta": {
                     "workload-type": "saturation-degree",
                     "saturation": "70% saturated"
-                }
+                },
+                "name": "kpi_metrics",
+                "value": {"single": []}
             },
             {
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": "123abc",
                 "environment": "unittest",
-                "test-execution-id": OsResultsStoreTests.TEST_EXECUTION_ID,
+                "test-execution-id": "6ebc6e53-ee20-4b0c-99b4-09697987e9f4",
                 "test-execution-timestamp": "20160131T000000Z",
-                "distribution-flavor": "oss",
                 "distribution-version": "5.0.0",
-                "distribution-major-version": 5,
-                "user-tags": {
-                    "os": "Linux"
-                },
+                "distribution-flavor": "oss",
+                "user-tags": {"os": "Linux"},
                 "workload": "unittest-workload",
-                "provision-config-revision": "123ab",
-                "workload-revision": "abc1",
                 "test_procedure": "index",
                 "provision-config-instance": "4gheap",
-                "plugin-params": {
-                    "some-param": True
-                },
                 "active": True,
-                "name": "throughput",
+                "distribution-major-version": 5,
+                "provision-config-revision": "123ab",
+                "workload-revision": "abc1",
+                "plugin-params": {"some-param": True},
+                "meta": {
+                    "workload-type": "saturation-degree",
+                    "saturation": "70% saturated"
+                },
+                "name": "old_gc_time",
+                "value": {"single": 5}
+            },
+            {
+                "benchmark-version": "0.4.4",
+                "benchmark-revision": "123abc",
+                "environment": "unittest",
+                "test-execution-id": "6ebc6e53-ee20-4b0c-99b4-09697987e9f4",
+                "test-execution-timestamp": "20160131T000000Z",
+                "distribution-version": "5.0.0",
+                "distribution-flavor": "oss",
+                "user-tags": {"os": "Linux"},
+                "workload": "unittest-workload",
+                "test_procedure": "index",
+                "provision-config-instance": "4gheap",
+                "active": True,
+                "distribution-major-version": 5,
+                "provision-config-revision": "123ab",
+                "workload-revision": "abc1",
+                "plugin-params": {"some-param": True},
+                "meta": {
+                    "workload-type": "saturation-degree",
+                    "saturation": "70% saturated",
+                    "op-type": "bulk"
+                },
                 "task": "index #1",
                 "operation": "index",
+                "name": "throughput",
                 "value": {
                     "min": 1000,
                     "median": 1250,
                     "max": 1500,
                     "unit": "docs/s"
-                },
-                "meta": {
-                    "workload-type": "saturation-degree",
-                    "saturation": "70% saturated",
-                    "op-type": "bulk"
                 }
             },
             {
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": "123abc",
                 "environment": "unittest",
-                "test-execution-id": OsResultsStoreTests.TEST_EXECUTION_ID,
+                "test-execution-id": "6ebc6e53-ee20-4b0c-99b4-09697987e9f4",
                 "test-execution-timestamp": "20160131T000000Z",
-                "distribution-flavor": "oss",
                 "distribution-version": "5.0.0",
-                "distribution-major-version": 5,
-                "user-tags": {
-                    "os": "Linux"
-                },
+                "distribution-flavor": "oss",
+                "user-tags": {"os": "Linux"},
                 "workload": "unittest-workload",
-                "provision-config-revision": "123ab",
-                "workload-revision": "abc1",
                 "test_procedure": "index",
                 "provision-config-instance": "4gheap",
-                "plugin-params": {
-                    "some-param": True
-                },
                 "active": True,
-                "name": "young_gc_time",
-                "value": {
-                    "single": 100
-                },
+                "distribution-major-version": 5,
+                "provision-config-revision": "123ab",
+                "workload-revision": "abc1",
+                "plugin-params": {"some-param": True},
                 "meta": {
                     "workload-type": "saturation-degree",
                     "saturation": "70% saturated"
-                }
+                },
+                "name": "young_gc_time",
+                "value": {"single": 100}
             }
         ]
         self.es_mock.bulk_index.assert_called_with(
@@ -1588,85 +1596,97 @@ class OsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": None,
                 "environment": "unittest",
-                "test-execution-id": OsResultsStoreTests.TEST_EXECUTION_ID,
+                "test-execution-id": "6ebc6e53-ee20-4b0c-99b4-09697987e9f4",
                 "test-execution-timestamp": "20160131T000000Z",
-                "distribution-flavor": None,
                 "distribution-version": None,
-                "user-tags": {
-                    "os": "Linux"
-                },
+                "distribution-flavor": None,
+                "user-tags": {"os": "Linux"},
                 "workload": "unittest-workload",
-                "provision-config-revision": "123ab",
-                "workload-revision": "abc1",
                 "test_procedure": "index",
                 "provision-config-instance": "4gheap",
                 "active": True,
-                "name": "old_gc_time",
-                "value": {
-                    "single": 5
-                },
+                "provision-config-revision": "123ab",
+                "workload-revision": "abc1",
                 "meta": {
                     "workload-type": "saturation-degree",
                     "saturation": "70% saturated"
-                }
+                },
+                "name": "kpi_metrics",
+                "value": {"single": []}
             },
             {
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": None,
                 "environment": "unittest",
-                "test-execution-id": OsResultsStoreTests.TEST_EXECUTION_ID,
+                "test-execution-id": "6ebc6e53-ee20-4b0c-99b4-09697987e9f4",
                 "test-execution-timestamp": "20160131T000000Z",
-                "distribution-flavor": None,
                 "distribution-version": None,
-                "user-tags": {
-                    "os": "Linux"
-                },
+                "distribution-flavor": None,
+                "user-tags": {"os": "Linux"},
                 "workload": "unittest-workload",
-                "provision-config-revision": "123ab",
-                "workload-revision": "abc1",
                 "test_procedure": "index",
                 "provision-config-instance": "4gheap",
                 "active": True,
-                "name": "throughput",
+                "provision-config-revision": "123ab",
+                "workload-revision": "abc1",
+                "meta": {
+                    "workload-type": "saturation-degree",
+                    "saturation": "70% saturated"
+                },
+                "name": "old_gc_time",
+                "value": {"single": 5}
+            },
+            {
+                "benchmark-version": "0.4.4",
+                "benchmark-revision": None,
+                "environment": "unittest",
+                "test-execution-id": "6ebc6e53-ee20-4b0c-99b4-09697987e9f4",
+                "test-execution-timestamp": "20160131T000000Z",
+                "distribution-version": None,
+                "distribution-flavor": None,
+                "user-tags": {"os": "Linux"},
+                "workload": "unittest-workload",
+                "test_procedure": "index",
+                "provision-config-instance": "4gheap",
+                "active": True,
+                "provision-config-revision": "123ab",
+                "workload-revision": "abc1",
+                "meta": {
+                    "workload-type": "saturation-degree",
+                    "saturation": "70% saturated",
+                    "op-type": "bulk"
+                },
                 "task": "index #1",
                 "operation": "index",
+                "name": "throughput",
                 "value": {
                     "min": 1000,
                     "median": 1250,
                     "max": 1500,
                     "unit": "docs/s"
-                },
-                "meta": {
-                    "workload-type": "saturation-degree",
-                    "saturation": "70% saturated",
-                    "op-type": "bulk"
                 }
             },
             {
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": None,
                 "environment": "unittest",
-                "test-execution-id": OsResultsStoreTests.TEST_EXECUTION_ID,
+                "test-execution-id": "6ebc6e53-ee20-4b0c-99b4-09697987e9f4",
                 "test-execution-timestamp": "20160131T000000Z",
-                "distribution-flavor": None,
                 "distribution-version": None,
-                "user-tags": {
-                    "os": "Linux"
-                },
+                "distribution-flavor": None,
+                "user-tags": {"os": "Linux"},
                 "workload": "unittest-workload",
-                "provision-config-revision": "123ab",
-                "workload-revision": "abc1",
                 "test_procedure": "index",
                 "provision-config-instance": "4gheap",
                 "active": True,
-                "name": "young_gc_time",
-                "value": {
-                    "single": 100
-                },
+                "provision-config-revision": "123ab",
+                "workload-revision": "abc1",
                 "meta": {
                     "workload-type": "saturation-degree",
                     "saturation": "70% saturated"
-                }
+                },
+                "name": "young_gc_time",
+                "value": {"single": 100}
             }
         ]
         self.es_mock.bulk_index.assert_called_with(index="benchmark-results-2016-01", doc_type="_doc", items=expected_docs)

@@ -156,6 +156,12 @@ class SummaryResultsPublisher:
             metrics_table.extend(self._publish_error_rate(record, task))
             self.add_warnings(warnings, record, task)
 
+        for record in stats.kpi_metrics:
+            task = record["task"]
+            res = self._publish_recall(record, task)
+            if res:
+                metrics_table.extend(res)
+
         self.write_results(metrics_table)
 
         if warnings:
@@ -200,14 +206,27 @@ class SummaryResultsPublisher:
     def _publish_processing_time(self, values, task):
         return self._publish_percentiles("processing time", task, values["processing_time"])
 
-    def _publish_percentiles(self, name, task, value):
+    def _publish_recall(self, values, task):
+        recall_k = values["recall@k"]
+        recall_1 = values["recall@1"]
+
+        try:
+            return self._join(
+                self._line("Mean recall@k", task, recall_k["mean"], "", lambda v: "%.2f" % v),
+                self._line("Mean recall@1", task, recall_1["mean"], "", lambda v: "%.2f" % v),
+                *self._publish_percentiles("recall_k percentiles", task, recall_k, unit="")
+            )
+        except KeyError:
+            return None
+
+    def _publish_percentiles(self, name, task, value, unit="ms"):
         lines = []
         percentiles = self.display_percentiles.get(name, metrics.GlobalStatsCalculator.OTHER_PERCENTILES)
 
         if value:
             for percentile in metrics.percentiles_for_sample_size(sys.maxsize, percentiles_list=percentiles):
                 percentile_value = value.get(metrics.encode_float_key(percentile))
-                a_line = self._line("%sth percentile %s" % (percentile, name), task, percentile_value, "ms",
+                a_line = self._line("%sth percentile %s" % (percentile, name), task, percentile_value, unit,
                                     force=self.publish_all_percentile_values)
                 self._append_non_empty(lines, a_line)
         return lines

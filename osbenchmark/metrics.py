@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+# 	http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -1754,15 +1754,23 @@ class GlobalStatsCalculator:
                 op_type = task.operation.type
                 error_rate = self.error_rate(t, op_type)
                 duration = self.duration(t)
+
                 if task.operation.include_in_results_publishing or error_rate > 0:
                     self.logger.debug("Gathering request metrics for [%s].", t)
                     result.add_op_metrics(
                         t,
                         task.operation.name,
-                        self.summary_stats("throughput", t, op_type, percentiles_list=self.throughput_percentiles),
+                        self.summary_stats(
+                            "throughput",
+                            t,
+                            op_type,
+                            percentiles_list=self.throughput_percentiles,
+                        ),
                         self.single_latency(t, op_type),
                         self.single_latency(t, op_type, metric_name="service_time"),
-                        self.single_latency(t, op_type, metric_name="client_processing_time"),
+                        self.single_latency(
+                            t, op_type, metric_name="client_processing_time"
+                        ),
                         self.single_latency(t, op_type, metric_name="processing_time"),
                         error_rate,
                         duration,
@@ -1770,8 +1778,20 @@ class GlobalStatsCalculator:
                             self.workload.meta_data,
                             self.test_procedure.meta_data,
                             task.operation.meta_data,
-                            task.meta_data)
+                            task.meta_data,
+                        ),
                     )
+
+                    result.add_kpi_metrics(
+                        t,
+                        task.operation.name,
+                        self.single_latency(t, op_type, metric_name="recall@k"),
+                        self.single_latency(t, op_type, metric_name="recall@1"),
+                        self.single_latency(t, op_type, metric_name="recall_time_ms"),
+                        error_rate,
+                        duration,
+                    )
+
         self.logger.debug("Gathering indexing metrics.")
         result.total_time = self.sum("indexing_total_time")
         result.total_time_per_shard = self.shard_stats("indexing_total_time")
@@ -1966,6 +1986,7 @@ class GlobalStatsCalculator:
 class GlobalStats:
     def __init__(self, d=None):
         self.op_metrics = self.v(d, "op_metrics", default=[])
+        self.kpi_metrics = self.v(d, "kpi_metrics", default=[])
         self.total_time = self.v(d, "total_time")
         self.total_time_per_shard = self.v(d, "total_time_per_shard", default={})
         self.indexing_throttle_time = self.v(d, "indexing_throttle_time")
@@ -2093,6 +2114,18 @@ class GlobalStats:
         if meta:
             doc["meta"] = meta
         self.op_metrics.append(doc)
+
+    def add_kpi_metrics(self, task, operation, recall_at_k_stats, recall_at_1_stats, recall_time_ms_stats, error_rate, duration):
+        self.kpi_metrics.append({
+            "task": task,
+            "operation": operation,
+            "recall@k": recall_at_k_stats,
+            "recall@1":recall_at_1_stats,
+            "recall_time_ms": recall_time_ms_stats,
+            "error_rate": error_rate,
+            "duration": duration
+            }
+            )
 
     def tasks(self):
         # ensure we can read test_execution.json files before Benchmark 0.8.0

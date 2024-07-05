@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+# 	http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -46,7 +46,6 @@ from osbenchmark.worker_coordinator import runner, scheduler
 from osbenchmark.workload import WorkloadProcessorRegistry, load_workload, load_workload_plugins
 from osbenchmark.utils import convert, console, net
 from osbenchmark.worker_coordinator.errors import parse_error
-
 ##################################
 #
 # Messages sent between worker_coordinators
@@ -847,6 +846,50 @@ class SamplePostprocessor:
         start = total_start
         final_sample_count = 0
         for idx, sample in enumerate(raw_samples):
+            self.logger.debug(
+                "All sample meta data: [%s],[%s],[%s],[%s],[%s]",
+                self.workload_meta_data,
+                self.test_procedure_meta_data,
+                sample.operation_meta_data,
+                sample.task.meta_data,
+                sample.request_meta_data,
+            )
+
+            # if request_meta_data exists then it will have {"success": true/false} as a parameter.
+            if sample.request_meta_data and len(sample.request_meta_data) > 1:
+                self.logger.debug("Found: %s", sample.request_meta_data)
+                recall_metric_names = ["recall@k", "recall@1"]
+
+                for recall_metric_name in recall_metric_names:
+                    if recall_metric_name in sample.request_meta_data:
+                        meta_data = self.merge(
+                            self.workload_meta_data,
+                            self.test_procedure_meta_data,
+                            sample.operation_meta_data,
+                            sample.task.meta_data,
+                            sample.request_meta_data,
+                        )
+
+                        self.logger.debug(
+                            "Here are the sample stats: Task: %s, operation: %s, operation_type; %s, sample_type: %s",
+                            sample.task.name,
+                            sample.operation_name,
+                            sample.operation_type,
+                            sample.sample_type,
+                        )
+                        self.metrics_store.put_value_cluster_level(
+                            name=recall_metric_name,
+                            value=sample.request_meta_data[recall_metric_name],
+                            unit="",
+                            task=sample.task.name,  # todo change unit to segment count unit...
+                            operation=sample.operation_name,
+                            operation_type=sample.operation_type,
+                            sample_type=sample.sample_type,
+                            absolute_time=sample.absolute_time,
+                            relative_time=sample.relative_time,
+                            meta_data=meta_data,
+                        )
+
             if idx % self.downsample_factor == 0:
                 final_sample_count += 1
                 meta_data = self.merge(
@@ -895,7 +938,7 @@ class SamplePostprocessor:
         end = time.perf_counter()
         self.logger.debug("Calculating throughput took [%f] seconds.", (end - start))
         start = end
-        for task, samples in aggregates.items():
+        for task, samples in aggregates.items(): # returns dict of task, and samples.
             meta_data = self.merge(
                 self.workload_meta_data,
                 self.test_procedure_meta_data,
@@ -1190,6 +1233,7 @@ class Sampler:
     def add(self, task, client_id, sample_type, meta_data, absolute_time, request_start, latency, service_time,
             client_processing_time, processing_time, throughput, ops, ops_unit, time_period, percent_completed,
             dependent_timing=None):
+        self.logger.debug("Logging with metadata: [%s]", meta_data)
         try:
             self.q.put_nowait(
                 Sample(client_id, absolute_time, request_start, self.start_timestamp, task, sample_type, meta_data,
@@ -1369,7 +1413,7 @@ class ThroughputCalculator:
             self.task_stats[task] = ThroughputCalculator.TaskStats(bucket_interval=bucket_interval_secs,
                                                                    sample_type=first_sample.sample_type,
                                                                    start_time=first_sample.absolute_time - first_sample.time_period)
-        current = self.task_stats[task]
+        current = self.task_stats[task] # TaskStats object
         count = current.total_count
         last_sample = None
         for sample in current_samples:
