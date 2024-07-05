@@ -34,6 +34,7 @@ import tempfile
 import unittest.mock as mock
 import uuid
 from unittest import TestCase
+from collections import namedtuple
 
 import opensearchpy.exceptions
 import pytest
@@ -1735,6 +1736,26 @@ class InMemoryMetricsStoreTests(TestCase):
 
         self.assertEqual(1, self.metrics_store.get_one("indexing_throughput", sample_type=metrics.SampleType.Warmup))
         self.assertEqual(throughput, self.metrics_store.get_one("indexing_throughput", sample_type=metrics.SampleType.Normal))
+
+    @mock.patch("osbenchmark.utils.console.warn")
+    @mock.patch("psutil.virtual_memory")
+    def test_out_of_memory(self, virt_mem, console_warn):
+        vmem = namedtuple('vmem', ("available", "total"))
+        virt_mem.return_value = vmem(250, 1000)
+        throughput = 5000
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_EXECUTION_ID, InMemoryMetricsStoreTests.TEST_EXECUTION_TIMESTAMP,
+                                "test", "append-no-conflicts", "defaults", create=True)
+        self.metrics_store.put_value_cluster_level("indexing_throughput", 1, "docs/s", sample_type=metrics.SampleType.Warmup)
+        self.metrics_store.put_value_cluster_level("indexing_throughput", throughput, "docs/s")
+        self.metrics_store.put_value_cluster_level("final_index_size", 1000, "GB")
+        console_warn.assert_has_calls([ mock.call(
+            "Memory threshold exceeded by in-memory metrics store, not adding additional entries",
+            logger=mock.ANY) ])
+        self.metrics_store.to_externalizable(clear=True)
+        console_warn.assert_has_calls([ mock.call(
+            "Memory threshold exceeded by in-memory metrics store, skipping summary generation for current operation",
+            logger=mock.ANY) ])
+        self.metrics_store.close()
 
     def test_get_percentile(self):
         self.metrics_store.open(InMemoryMetricsStoreTests.TEST_EXECUTION_ID, InMemoryMetricsStoreTests.TEST_EXECUTION_TIMESTAMP,

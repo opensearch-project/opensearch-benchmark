@@ -36,6 +36,7 @@ import time
 import zlib
 from enum import Enum, IntEnum
 from http.client import responses
+import psutil
 import opensearchpy.helpers
 import tabulate
 
@@ -1092,6 +1093,17 @@ class OsMetricsStore(MetricsStore):
 
 
 class InMemoryMetricsStore(MetricsStore):
+    # Note that this implementation can run out of memory; generally, this can occur when ingesting very large corpora.
+
+    # Approx size of a metrics doc (after tracking memory consumption during ingestion.
+    DOC_SIZE_IN_BYTES = 1500
+
+    # Warn when memory consumption crosses this threshold (percentage usage).
+    MEMORY_WARNING_THRESHOLD = 85
+
+    # Check memory usage every-so-many docs.
+    MEMORY_CHECK_FREQUENCY = 10000
+
     def __init__(self, cfg, clock=time.Clock, meta_info=None):
         """
 
@@ -1103,6 +1115,10 @@ class InMemoryMetricsStore(MetricsStore):
         """
         super().__init__(cfg=cfg, clock=clock, meta_info=meta_info)
         self.docs = []
+        self.doc_count = 0
+        self.logger = logging.getLogger(__name__)
+        self.out_of_memory = False
+        self.memory_available_threshold = psutil.virtual_memory().total * (100 - self.MEMORY_WARNING_THRESHOLD) / 100
 
     def __del__(self):
         """
@@ -1111,7 +1127,15 @@ class InMemoryMetricsStore(MetricsStore):
         del self.docs
 
     def _add(self, doc):
+        if self.out_of_memory:
+            return
+        if self.doc_count % self.MEMORY_CHECK_FREQUENCY == 0 and psutil.virtual_memory().available < self.memory_available_threshold:
+            console.warn("Memory threshold exceeded by in-memory metrics store, not adding additional entries", logger=self.logger)
+            self.out_of_memory = True
+            return
         self.docs.append(doc)
+        self.doc_count += 1
+
 
     def flush(self, refresh=True):
         pass
@@ -1120,6 +1144,12 @@ class InMemoryMetricsStore(MetricsStore):
         docs = self.docs
         if clear:
             self.docs = []
+            self.doc_count = 0
+            self.out_of_memory = False
+        if len(docs) * self.DOC_SIZE_IN_BYTES > psutil.virtual_memory().available - self.memory_available_threshold:
+            console.warn("Memory threshold exceeded by in-memory metrics store, skipping summary generation for current operation",
+                         logger=self.logger)
+            return None
         compressed = zlib.compress(pickle.dumps(docs))
         self.logger.debug("Compression changed size of metric store from [%d] bytes to [%d] bytes",
                          sys.getsizeof(docs, -1), sys.getsizeof(compressed, -1))
