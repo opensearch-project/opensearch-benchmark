@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+# 	http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -3120,14 +3120,13 @@ class BulkVectorsFromDataSetParamSourceTestCase(TestCase):
                 continue
             self.assertTrue(expected_id_field in req_body)
 
-class BulkVectorsNestedCase(TestCase):
-    
+
+class VectorsNestedCase(TestCase):
 
     # TODO: figure out how to unit test the nested cases.
     # basically create a nested field list with different vectors and partitions
-    # 
+    #
 
-    
     DEFAULT_INDEX_NAME = "test-partition-index"
     DEFAULT_VECTOR_FIELD_NAME = "nested.test-vector-field"
     DEFAULT_CONTEXT = Context.INDEX
@@ -3144,7 +3143,9 @@ class BulkVectorsNestedCase(TestCase):
     def tearDown(self):
         shutil.rmtree(self.data_set_dir)
 
-    def _test_params_default(self, bulk_size, data_set_path, parent_data_set_path, num_vectors):
+    def _test_params_default(
+        self, bulk_size, data_set_path, parent_data_set_path, num_vectors
+    ):
         test_param_source_params = {
             "index": self.DEFAULT_INDEX_NAME,
             "field": self.DEFAULT_VECTOR_FIELD_NAME,
@@ -3154,9 +3155,10 @@ class BulkVectorsNestedCase(TestCase):
             "id-field-name": self.DEFAULT_ID_FIELD_NAME,
         }
         bulk_param_source = BulkVectorsFromDataSetParamSource(
-            workload.Workload(name="unit-test"), test_param_source_params)
+            workload.Workload(name="unit-test"), test_param_source_params
+        )
         bulk_param_source.parent_data_set_path = parent_data_set_path
-        bulk_param_source_partition = bulk_param_source.partition(0, 1, should_nest=True)
+        bulk_param_source_partition = bulk_param_source.partition(0, 1)
         # Check each payload returned
         vectors_consumed = 0
         while vectors_consumed < num_vectors:
@@ -3183,7 +3185,6 @@ class BulkVectorsNestedCase(TestCase):
 
         bulk_sizes = [1, 3, 4, 10, 50]
 
-
         num_vectors = 49
         # bulk_size = 10
         data_set_path = create_data_set(
@@ -3191,66 +3192,31 @@ class BulkVectorsNestedCase(TestCase):
             self.DEFAULT_DIMENSION,
             self.DEFAULT_TYPE,
             Context.INDEX,
-            self.data_set_dir
+            self.data_set_dir,
         )
         parent_data_set_path = create_parent_data_set(
             num_vectors,
             self.DEFAULT_DIMENSION,
             self.DEFAULT_TYPE,
             Context.PARENTS,
-            self.data_set_dir
+            self.data_set_dir,
         )
 
         for bulk_size in bulk_sizes:
             with self.subTest(bulk_size=bulk_size):
-                self._test_params_default(bulk_size, data_set_path, parent_data_set_path, num_vectors)
-        # test_param_source_params = {
-        #     "index": self.DEFAULT_INDEX_NAME,
-        #     "field": self.DEFAULT_VECTOR_FIELD_NAME,
-        #     "data_set_format": self.DEFAULT_TYPE,
-        #     "data_set_path": data_set_path,
-        #     "bulk_size": bulk_size,
-        #     "id-field-name": self.DEFAULT_ID_FIELD_NAME,
-        # }
-        # bulk_param_source = BulkVectorsFromDataSetParamSource(
-        #     workload.Workload(name="unit-test"), test_param_source_params)
-        # bulk_param_source.parent_data_set_path = parent_data_set_path
-        # bulk_param_source_partition = bulk_param_source.partition(0, 1, should_nest=True)
-        # # Check each payload returned
-        # vectors_consumed = 0
-        # while vectors_consumed < num_vectors:
-        #     expected_num_vectors = min(num_vectors - vectors_consumed, bulk_size)
-        #     # actual_params = bulk_param_source_partition.params()
-
-
-        #     actual_params = bulk_param_source_partition.params()
-        #     expected_num_docs = len(actual_params["body"]) // 2
-
-        #     self._check_params_nested(
-        #         actual_params,
-        #         self.DEFAULT_INDEX_NAME,
-        #         self.DEFAULT_VECTOR_FIELD_NAME,
-        #         self.DEFAULT_DIMENSION,
-        #         expected_num_vectors,
-        #         expected_num_docs, # todo placeholder... but we expect 1 document per run.
-        #         self.DEFAULT_ID_FIELD_NAME,
-        #     )
-        #     vectors_consumed += expected_num_vectors
-
-        # # Assert last call creates stop iteration
-        # with self.assertRaises(StopIteration):
-        #     bulk_param_source_partition.params()
+                self._test_params_default(
+                    bulk_size, data_set_path, parent_data_set_path, num_vectors
+                )
 
     def test_params_custom(self):
         num_vectors = 49
         bulk_size = 15
-        num_vectors_per_doc = 10 # 10 nested vectors per document
         data_set_path = create_data_set(
             num_vectors,
             self.DEFAULT_DIMENSION,
             self.DEFAULT_TYPE,
             Context.INDEX,
-            self.data_set_dir
+            self.data_set_dir,
         )
 
         parent_data_set_path = create_parent_data_set(
@@ -3258,7 +3224,7 @@ class BulkVectorsNestedCase(TestCase):
             self.DEFAULT_DIMENSION,
             self.DEFAULT_TYPE,
             Context.PARENTS,
-            self.data_set_dir
+            self.data_set_dir,
         )
 
         test_param_source_params = {
@@ -3271,9 +3237,10 @@ class BulkVectorsNestedCase(TestCase):
             "id-field-name": "id",
         }
 
-        # todo is it weird with the parent data set path? 
+        # todo is it weird with the parent data set path?
         bulk_param_source = BulkVectorsFromDataSetParamSource(
-            workload.Workload(name="unit-test"), test_param_source_params)
+            workload.Workload(name="unit-test"), test_param_source_params
+        )
         bulk_param_source.parent_data_set_path = parent_data_set_path
         bulk_param_source_partition = bulk_param_source.partition(0, 1)
         # Check each payload returned
@@ -3290,25 +3257,108 @@ class BulkVectorsNestedCase(TestCase):
                 self.DEFAULT_VECTOR_FIELD_NAME,
                 self.DEFAULT_DIMENSION,
                 expected_num_vectors,
-                expected_num_docs, # todo placeholder... but we expect 1 document per run.
+                expected_num_docs,
                 "id",
             )
             vectors_consumed += expected_num_vectors
 
         # Assert last call creates stop iteration
-        # TODO: It's actually failing here. Figure out why the StopIteration isn't being called in params. 
         with self.assertRaises(StopIteration):
             bulk_param_source_partition.params()
 
-    def _check_params_nested(
+    def test_build_vector_search_query_body(self):
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+
+         # Create a QueryVectorsFromDataSetParamSource with relevant params
+        test_param_source_params = {
+            "field": self.DEFAULT_VECTOR_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "k": k
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+            }
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+
+        # Check each
+        for _ in range(DEFAULT_NUM_VECTORS):
+            self._check_query_params(
+                query_param_source_partition.params(),
+                self.DEFAULT_VECTOR_FIELD_NAME,
+                self.DEFAULT_DIMENSION,
+                k,
+            )
+
+        # Assert last call creates stop iteration
+        with self.assertRaises(StopIteration):
+            query_param_source_partition.params()
+
+    def _check_query_params(
             self,
             actual_params: dict,
-            expected_index: str,
-            expected_vector_field: str,
+            expected_field: str,
             expected_dimension: int,
-            expected_num_vectors_in_payload: int,
-            expected_num_docs_in_payload: int,
-            expected_id_field: str,
+            expected_k: int,
+            expected_size=None,
+            expected_filter=None,
+    ):
+        body = actual_params.get("body")
+        self.assertIsInstance(body, dict)
+        query = body.get("query")
+        self.assertIsInstance(query, dict)
+        nested = query.get("nested")
+        self.assertIsInstance(nested, dict)
+
+        outer, _inner = expected_field.split(".")
+
+        path = nested.get("path")
+        self.assertEqual(path, outer)
+
+        query_knn = nested.get("query").get("knn")
+
+        field = query_knn.get(expected_field)
+        self.assertIsInstance(field, dict)
+        vector = field.get("vector")
+        self.assertIsInstance(vector, np.ndarray)
+        self.assertEqual(len(list(vector)), expected_dimension)
+        k = field.get("k")
+        self.assertEqual(k, expected_k)
+        neighbor = actual_params.get("neighbors")
+        self.assertIsInstance(neighbor, list)
+        self.assertEqual(len(neighbor), expected_dimension)
+        size = body.get("size")
+        self.assertEqual(size, expected_size if expected_size else expected_k)
+        self.assertEqual(field.get("filter"), expected_filter)
+
+    def _check_params_nested(
+        self,
+        actual_params: dict,
+        expected_index: str,
+        expected_vector_field: str,
+        expected_dimension: int,
+        _expected_num_vectors_in_payload: int,
+        expected_num_docs_in_payload: int,
+        expected_id_field: str,
     ):
         size = actual_params.get("size")
         self.assertEqual(size, expected_num_docs_in_payload)
@@ -3325,16 +3375,16 @@ class BulkVectorsNestedCase(TestCase):
 
             index_name = index.get("_index")
             self.assertEqual(index_name, expected_index)
-            # here, need to iterate over all of the nested fields. 
+            # here, need to iterate over all of the nested fields.
             outer, inner = expected_vector_field.split(".")
             vector_list = req_body.get(outer)
             self.assertIsInstance(vector_list, list)
             for vec in vector_list:
                 actual_vec = vec.get(inner)
                 self.assertIsInstance(actual_vec, list)
-            
+
                 self.assertEqual(len(actual_vec), expected_dimension)
-            
+
             if expected_id_field in index:
                 self.assertEqual(self.DEFAULT_ID_FIELD_NAME, expected_id_field)
                 self.assertFalse(expected_id_field in req_body)
@@ -3342,5 +3392,5 @@ class BulkVectorsNestedCase(TestCase):
             self.assertTrue(expected_id_field in req_body)
 
     def test_nested_vector_query_body(self):
-        # assert that _build_vector_search_query_body returns the correct thing. 
+        # assert that _build_vector_search_query_body returns the correct thing.
         pass

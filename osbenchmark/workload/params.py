@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-# 	http://www.apache.org/licenses/LICENSE-2.0
+#	http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -1207,9 +1207,7 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
 
         self.logger = logging.getLogger(__name__)
 
-    def partition(
-        self, partition_index, total_partitions, should_nest=False
-    ):  # TODO should_nest is a hack.
+    def partition(self, partition_index, total_partitions):
         partition = super().partition(partition_index, total_partitions)
         if self.parent_data_set_corpus and not self.parent_data_set_path:
             parent_data_set_path = self._get_corpora_file_paths(
@@ -1349,7 +1347,8 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
         size = len(body) // 2
 
         if not self.is_nested:
-            # in the nested case, we may have irregular number of vectors ingested, so we calculate self.current within bulk_transform method when self.is_nested.
+            # in the nested case, we may have irregular number of vectors ingested,
+            # so we calculate self.current within bulk_transform method when self.is_nested.
             self.current += size
         self.percent_completed = self.current / self.total
 
