@@ -12,21 +12,21 @@ from osbenchmark.workload_generator.config import CustomWorkload
 
 class CustomWorkloadWriter:
     def __init__(self, custom_workload: CustomWorkload, templates_path: str):
-        self.custom_workload: CustomWorkload = custom_workload
-        self.templates_path: str = templates_path
+        self.custom_workload = custom_workload
+        self.templates_path = templates_path
 
-        self.custom_workload.workload_path = os.path.abspath(os.path.join(io.normalize_path(self.root_path), self.workload_name))
-        self.custom_workload.operations_path = os.path.join(self.workload_path, "operations")
-        self.custom_workload.test_procedures_path = os.path.join(self.workload_path, "test_procedures")
+        self.custom_workload.workload_path = os.path.abspath(os.path.join(io.normalize_path(self.custom_workload.root_path), self.custom_workload.workload_name))
+        self.custom_workload.operations_path = os.path.join(self.custom_workload.workload_path, "operations")
+        self.custom_workload.test_procedures_path = os.path.join(self.custom_workload.workload_path, "test_procedures")
         self.logger = logging.getLogger(__name__)
 
     def make_workload_directory(self):
-        if os.path.exists(self.workload_path):
+        if os.path.exists(self.custom_workload.workload_path):
             try:
-                self.logger.info("Workload already exists. Removing existing workload [%s] in path [%s]", self.workload_name, self.workload_path)
-                shutil.rmtree(self.workload_path)
+                self.logger.info("Workload already exists. Removing existing workload [%s] in path [%s]", self.custom_workload.workload_name, self.custom_workload.workload_path)
+                shutil.rmtree(self.custom_workload.workload_path)
             except OSError:
-                self.logger.error("Had issues removing existing workload [%s] in path [%s]", self.workload_name, self.workload_path)
+                self.logger.error("Had issues removing existing workload [%s] in path [%s]", self.custom_workload.workload_name, self.custom_workload.workload_path)
 
         io.ensure_dir(self.custom_workload.workload_path)
         io.ensure_dir(self.custom_workload.operations_path)

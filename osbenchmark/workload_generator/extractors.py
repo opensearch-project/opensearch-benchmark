@@ -149,7 +149,7 @@ class SynchronousCorpusExtractor(CorpusExtractor):
         return os.path.join(outdir, f"{name}-documents{suffix}.json")
 
 
-    def extract(self, index, documents_limit=None):
+    def extract_documents(self, index, documents_limit=None):
         """
         Scroll an index with a match-all query, dumping document source to ``outdir/documents.json``.
 
