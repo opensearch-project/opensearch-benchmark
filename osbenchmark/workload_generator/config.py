@@ -20,6 +20,7 @@ class CustomWorkload:
     root_path: str
     indices: List[Index]
     failed_indices: List[Index]
+    corpora: List[dict]
     queries: List[str]
     workload_path: str
     operations_path: str

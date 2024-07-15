@@ -55,7 +55,6 @@ def create_workload(cfg):
     custom_workload.operations_path = os.path.join(custom_workload.workload_path, "operations")
     custom_workload.test_procedures_path = os.path.join(custom_workload.workload_path, "test_procedures")
 
-
     query_processor = QueryProcessor(unprocessed_queries)
     custom_workload_writer = CustomWorkloadWriter(root_path, workload_name, templates_path)
     index_extractor = IndexExtractor(custom_workload, client)
@@ -64,18 +63,53 @@ def create_workload(cfg):
     # Process Queries
     processed_queries = query_processor.process_queries()
     custom_workload.queries = processed_queries
+    logger.info("Processed custom queries [%s]", custom_workload.queries)
 
     # Create Workload Output Path
     custom_workload_writer.make_workload_directory()
+    logger.info("Created workload output path at [%s]", custom_workload.workload_path)
 
     # Extract Index Settings and Mappings
     index_extractor.extract_indices(custom_workload.workload_path)
+    logger.info("Extracted index settings and mappings from [%s]", custom_workload.indices)
 
     # Extract Corpora
     for index in custom_workload.indices:
-        corpus_extractor.extract(index.name, index.limit_documents)
+        index_corpora = corpus_extractor.extract_documents(index.name, index.limit_documents)
+        custom_workload.corpora.append(index_corpora)
+    logger.info("Extracted all corpora [%s]", custom_workload.corpora)
 
-    # Product Workload
+    if len(custom_workload.corpora) == 0:
+        raise exceptions.BenchmarkError("Failed to extract corpora for any indices for workload!")
+
+    template_vars = {
+        "workload_name": custom_workload.workload_name,
+        "indices": indices, # use this instead of custom_workload.workload_name because we need the names only
+        "corpora": custom_workload.corpora,
+        "custom_queries": custom_workload.queries
+    }
+
+    logger.info("Template vars [%s]", template_vars)
+
+    # Create Workload
+    workload_file_path = os.path.join(custom_workload.workload_path, "workload.json")
+    operations_file_path = os.path.join(custom_workload.operations_path, "default.json")
+    test_procedures_file_path = os.path.join(custom_workload.test_procedures_path, "default.json")
+
+    # Render all templates
+    logger.info("Rendering templates")
+    custom_workload_writer.render_templates(
+        workload_file_path,
+        operations_file_path,
+        test_procedures_file_path,
+        templates_path,
+        template_vars,
+        custom_workload.queries
+    )
+
+    console.println("")
+    console.info(f"Workload {workload_name} has been created. Run it with: {PROGRAM_NAME} --workload-path={custom_workload.workload_path}")
+
 
 def process_indices(indices, document_frequency, limit_documents):
     processed_indices = []
@@ -85,9 +119,9 @@ def process_indices(indices, document_frequency, limit_documents):
             document_frequency=document_frequency,
             limit_documents=limit_documents
         )
-        process_indices.append(index)
+        processed_indices.append(index)
 
-    return process_indices
+    return processed_indices
 
 
 def validate_index_documents_map(indices, indices_docs_map):
