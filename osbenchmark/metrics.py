@@ -1410,7 +1410,6 @@ class TestExecution:
         if self.plugin_params:
             d["plugin-params"] = self.plugin_params
         return d
-
     def to_result_dicts(self):
         """
         :return: a list of dicts, suitable for persisting the results of this test execution in a format that is Kibana-friendly.
@@ -2071,7 +2070,7 @@ class GlobalStats:
                             "max": item["max"]
                         }
                     })
-            elif metric == "correctness_metrics":
+            elif metric == "kpi_metrics":
                 for item in value:
                     if "recall@k" in item:
                         all_results.append({
