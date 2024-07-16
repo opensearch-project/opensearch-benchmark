@@ -157,14 +157,13 @@ class SummaryResultsPublisher:
             self.add_warnings(warnings, record, task)
 
         for record in stats.correctness_metrics:
+        for record in stats.correctness_metrics:
             task = record["task"]
 
             keys = record.keys()
             recall_keys_in_task_dict = "recall@1" in keys and "recall@k" in keys
-            if recall_keys_in_task_dict and record["recall@1"] and record["recall@k"]:
-                res = self._publish_recall(record, task)
-                if res:
-                    metrics_table.extend(res)
+            if recall_keys_in_task_dict and "mean" in record["recall@1"] and "mean" in record["recall@k"]:
+                metrics_table.extend(self._publish_recall(record, task))
 
         self.write_results(metrics_table)
 
@@ -211,16 +210,13 @@ class SummaryResultsPublisher:
         return self._publish_percentiles("processing time", task, values["processing_time"])
 
     def _publish_recall(self, values, task):
-        recall_k = values["recall@k"]
-        recall_1 = values["recall@1"]
+        recall_k_mean = values["recall@k"]["mean"]
+        recall_1_mean = values["recall@1"]["mean"]
 
-        try:
-            return self._join(
-                self._line("Mean recall@k", task, recall_k["mean"], "", lambda v: "%.2f" % v),
-                self._line("Mean recall@1", task, recall_1["mean"], "", lambda v: "%.2f" % v)
-            )
-        except KeyError:
-            return None
+        return self._join(
+            self._line("Mean recall@k", task, recall_k_mean, "", lambda v: "%.2f" % v),
+            self._line("Mean recall@1", task, recall_1_mean, "", lambda v: "%.2f" % v)
+        )
 
     def _publish_percentiles(self, name, task, value, unit="ms"):
         lines = []

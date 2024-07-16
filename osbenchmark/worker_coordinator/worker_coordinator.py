@@ -1233,7 +1233,6 @@ class Sampler:
     def add(self, task, client_id, sample_type, meta_data, absolute_time, request_start, latency, service_time,
             client_processing_time, processing_time, throughput, ops, ops_unit, time_period, percent_completed,
             dependent_timing=None):
-        self.logger.debug("Logging with metadata: [%s]", meta_data)
         try:
             self.q.put_nowait(
                 Sample(client_id, absolute_time, request_start, self.start_timestamp, task, sample_type, meta_data,
@@ -1413,7 +1412,7 @@ class ThroughputCalculator:
             self.task_stats[task] = ThroughputCalculator.TaskStats(bucket_interval=bucket_interval_secs,
                                                                    sample_type=first_sample.sample_type,
                                                                    start_time=first_sample.absolute_time - first_sample.time_period)
-        current = self.task_stats[task] # TaskStats object
+        current = self.task_stats[task]
         count = current.total_count
         last_sample = None
         for sample in current_samples:
