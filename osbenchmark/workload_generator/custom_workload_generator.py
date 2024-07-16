@@ -31,10 +31,12 @@ def create_workload(cfg):
     root_path: str = cfg.opts("generator", "output.path")
     target_hosts: opts.TargetHosts = cfg.opts("client", "hosts")
     client_options: opts.ClientOptions = cfg.opts("client", "options")
-    document_frequency: int = cfg.opts("generator", "document_frequency")
-    limit_documents: dict = cfg.opts("generator", "limit_documents") # Replaces number_of_docs, a map with key of index name and value of documents count to extract
+    # document_frequency: int = cfg.opts("generator", "document_frequency") # Enable later
+    document_frequency: int = 0
+    limit_documents: dict = cfg.opts("generator", "number_of_docs") # Replaces number_of_docs, a map with key of index name and value of documents count to extract
     unprocessed_queries: dict = cfg.opts("workload", "custom_queries")
     templates_path: str = os.path.join(cfg.opts("node", "benchmark.root"), "resources")
+
 
     # Validation
     validate_index_documents_map(indices, limit_documents)
@@ -56,7 +58,7 @@ def create_workload(cfg):
     custom_workload.test_procedures_path = os.path.join(custom_workload.workload_path, "test_procedures")
 
     query_processor = QueryProcessor(unprocessed_queries)
-    custom_workload_writer = CustomWorkloadWriter(root_path, workload_name, templates_path)
+    custom_workload_writer = CustomWorkloadWriter(custom_workload, templates_path)
     index_extractor = IndexExtractor(custom_workload, client)
     corpus_extractor = SynchronousCorpusExtractor(custom_workload, client)
 
@@ -70,7 +72,7 @@ def create_workload(cfg):
     logger.info("Created workload output path at [%s]", custom_workload.workload_path)
 
     # Extract Index Settings and Mappings
-    index_extractor.extract_indices(custom_workload.workload_path)
+    custom_workload.extracted_indices, custom_workload.failed_indices = index_extractor.extract_indices(custom_workload.workload_path)
     logger.info("Extracted index settings and mappings from [%s]", custom_workload.indices)
 
     # Extract Corpora
@@ -84,25 +86,14 @@ def create_workload(cfg):
 
     template_vars = {
         "workload_name": custom_workload.workload_name,
-        "indices": indices, # use this instead of custom_workload.workload_name because we need the names only
+        "indices": custom_workload.extracted_indices, # use this instead of custom_workload.workload_name because we need the names only
         "corpora": custom_workload.corpora,
         "custom_queries": custom_workload.queries
     }
-
     logger.info("Template vars [%s]", template_vars)
 
-    # Create Workload
-    workload_file_path = os.path.join(custom_workload.workload_path, "workload.json")
-    operations_file_path = os.path.join(custom_workload.operations_path, "default.json")
-    test_procedures_file_path = os.path.join(custom_workload.test_procedures_path, "default.json")
-
     # Render all templates
-    logger.info("Rendering templates")
     custom_workload_writer.render_templates(
-        workload_file_path,
-        operations_file_path,
-        test_procedures_file_path,
-        templates_path,
         template_vars,
         custom_workload.queries
     )
@@ -125,7 +116,10 @@ def process_indices(indices, document_frequency, limit_documents):
 
 
 def validate_index_documents_map(indices, indices_docs_map):
-    if indices_docs_map is not None and len(indices_docs_map) > 0:
+    logger = logging.getLogger(__name__)
+    logger.info("Indices Docs Map: [%s]", indices_docs_map)
+    documents_limited = indices_docs_map is not None and len(indices_docs_map) > 0
+    if not documents_limited:
         return
 
     if len(indices) < len(indices_docs_map):

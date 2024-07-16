@@ -37,11 +37,15 @@ class IndexExtractor:
         self.logger = logging.getLogger(__name__)
 
     def extract_indices(self, workload_path):
+        extracted_indices, failed_indices = [], []
         try:
             for index in self.custom_workload.indices:
-                self.extract(workload_path, index.name)
+                extracted_indices += self.extract(workload_path, index.name)
         except OpenSearchException:
             self.logger("Failed at extracting index [%s]", index)
+            failed_indices += index
+
+        return extracted_indices, failed_indices
 
     def extract(self, outdir, index_pattern):
         """

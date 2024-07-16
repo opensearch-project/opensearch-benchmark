@@ -10,7 +10,15 @@ from osbenchmark import PROGRAM_NAME, exceptions
 from osbenchmark.utils import io, opts, console
 from osbenchmark.workload_generator.config import CustomWorkload
 
+BASE_WORKLOAD = "base-workload"
+CUSTOM_OPERATIONS = "custom-operations"
+CUSTOM_TEST_PROCEDURES = "custom-test-procedures"
+DEFAULT_OPERATIONS = "default-operations"
+DEFAULT_TEST_PROCEDURES = "default-test-procedures"
+TEMPLATE_EXT = ".json.j2"
+
 class CustomWorkloadWriter:
+
     def __init__(self, custom_workload: CustomWorkload, templates_path: str):
         self.custom_workload = custom_workload
         self.templates_path = templates_path
@@ -32,26 +40,27 @@ class CustomWorkloadWriter:
         io.ensure_dir(self.custom_workload.operations_path)
         io.ensure_dir(self.custom_workload.test_procedures_path)
 
-    def render_templates(self,
-                        template_vars: dict,
-                        custom_queries: dict):
+    def render_templates(self, template_vars: dict, custom_queries: dict):
+        workload_file_path = os.path.join(self.custom_workload.workload_path, "workload.json")
+        operations_file_path = os.path.join(self.custom_workload.operations_path, "default.json")
+        test_procedures_file_path = os.path.join(self.custom_workload.test_procedures_path, "default.json")
 
-        self._write_template(template_vars, "base-workload")
+        self._write_template(template_vars, BASE_WORKLOAD, workload_file_path)
 
         if custom_queries:
-            self._write_template(template_vars, "custom-operations")
-            self._write_template(template_vars, "custom-test-procedures")
+            self._write_template(template_vars, CUSTOM_OPERATIONS, operations_file_path)
+            self._write_template(template_vars, CUSTOM_TEST_PROCEDURES, test_procedures_file_path)
         else:
-            self._write_template(template_vars, "default-operations")
-            self._write_template(template_vars, "default-test-procedures")
+            self._write_template(template_vars, DEFAULT_OPERATIONS, operations_file_path)
+            self._write_template(template_vars, DEFAULT_TEST_PROCEDURES, test_procedures_file_path)
 
-    def _write_template(self, template_vars: dict, template_file: str):
+    def _write_template(self, template_vars: dict, template_file: str, output_path: str):
         template = self._get_default_template(template_file)
-        with open(self.workload_path, "w") as f:
+        with open(output_path, "w") as f:
             f.write(template.render(template_vars))
 
     def _get_default_template(self, template_file: str):
-        template_file_name = template_file  + ".json.j2"
+        template_file_name = template_file  + TEMPLATE_EXT
 
         env = Environment(loader=FileSystemLoader(self.templates_path), autoescape=select_autoescape(['html', 'xml']))
 
