@@ -3,10 +3,10 @@ from typing import List
 
 @dataclass
 class Index:
-    name: str
-    settings_and_mappings: dict
-    document_frequency: int
-    limit_documents: int
+    name: str = None
+    document_frequency: int = 1
+    limit_documents: int = None
+    settings_and_mappings: dict = field(default_factory=dict)
 
 # @dataclass
 # class Corpus:
@@ -16,12 +16,13 @@ class Index:
 
 @dataclass
 class CustomWorkload:
-    workload_name: str
-    root_path: str
-    indices: List[Index]
-    failed_indices: List[Index]
-    corpora: List[dict]
-    queries: List[str]
-    workload_path: str
-    operations_path: str
-    test_procedures_path: str
+    workload_name: str = None
+    root_path: str = None
+    workload_path: str = None
+    operations_path: str = None
+    test_procedures_path: str = None
+    indices: List[Index] = field(default_factory=list)
+    extracted_indices: List[str] = field(default_factory=list)
+    failed_indices: List[str] = field(default_factory=list)
+    corpora: List[dict] = field(default_factory=list)
+    queries: List[dict] = field(default_factory=list)
