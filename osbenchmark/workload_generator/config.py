@@ -5,14 +5,14 @@ from typing import List
 class Index:
     name: str = None
     document_frequency: int = 1
-    limit_documents: int = None
+    number_of_docs: int = None
     settings_and_mappings: dict = field(default_factory=dict)
 
 # @dataclass
 # class Corpus:
 #     index_name: str
 #     document_frequency: int
-#     limit_documents: int
+#     number_of_docs: int
 
 @dataclass
 class CustomWorkload:
