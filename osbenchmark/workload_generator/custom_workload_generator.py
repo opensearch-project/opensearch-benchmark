@@ -9,11 +9,6 @@
 
 import logging
 import os
-import shutil
-import json
-
-from opensearchpy import OpenSearchException
-from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from osbenchmark import PROGRAM_NAME, exceptions
 from osbenchmark.client import OsClientFactory
@@ -33,20 +28,19 @@ def create_workload(cfg):
     client_options: opts.ClientOptions = cfg.opts("client", "options")
     # document_frequency: int = cfg.opts("generator", "document_frequency") # Enable later
     document_frequency: int = 0
-    limit_documents: dict = cfg.opts("generator", "number_of_docs") # Replaces number_of_docs, a map with key of index name and value of documents count to extract
+    number_of_docs: dict = cfg.opts("generator", "number_of_docs")
     unprocessed_queries: dict = cfg.opts("workload", "custom_queries")
     templates_path: str = os.path.join(cfg.opts("node", "benchmark.root"), "resources")
 
-
     # Validation
-    validate_index_documents_map(indices, limit_documents)
+    validate_index_documents_map(indices, number_of_docs)
 
     client = OsClientFactory(hosts=target_hosts.all_hosts[opts.TargetHosts.DEFAULT],
                              client_options=client_options.all_client_options[opts.TargetHosts.DEFAULT]).create()
     info = client.info()
     console.info(f"Connected to OpenSearch cluster [{info['name']}] version [{info['version']['number']}].\n", logger=logger)
 
-    processed_indices = process_indices(indices, document_frequency, limit_documents)
+    processed_indices = process_indices(indices, document_frequency, number_of_docs)
 
     custom_workload = CustomWorkload(
         workload_name=workload_name,
@@ -77,7 +71,7 @@ def create_workload(cfg):
 
     # Extract Corpora
     for index in custom_workload.indices:
-        index_corpora = corpus_extractor.extract_documents(index.name, index.limit_documents)
+        index_corpora = corpus_extractor.extract_documents(index.name, index.number_of_docs)
         custom_workload.corpora.append(index_corpora)
     logger.info("Extracted all corpora [%s]", custom_workload.corpora)
 
@@ -93,22 +87,19 @@ def create_workload(cfg):
     logger.info("Template vars [%s]", template_vars)
 
     # Render all templates
-    custom_workload_writer.render_templates(
-        template_vars,
-        custom_workload.queries
-    )
+    custom_workload_writer.render_templates(template_vars, custom_workload.queries)
 
     console.println("")
     console.info(f"Workload {workload_name} has been created. Run it with: {PROGRAM_NAME} --workload-path={custom_workload.workload_path}")
 
 
-def process_indices(indices, document_frequency, limit_documents):
+def process_indices(indices, document_frequency, number_of_docs):
     processed_indices = []
     for index_name in indices:
         index = Index(
             name=index_name,
             document_frequency=document_frequency,
-            limit_documents=limit_documents
+            number_of_docs=number_of_docs
         )
         processed_indices.append(index)
 
