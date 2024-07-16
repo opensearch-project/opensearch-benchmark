@@ -881,7 +881,7 @@ class SamplePostprocessor:
                             name=recall_metric_name,
                             value=sample.request_meta_data[recall_metric_name],
                             unit="",
-                            task=sample.task.name,  # todo change unit to segment count unit...
+                            task=sample.task.name,
                             operation=sample.operation_name,
                             operation_type=sample.operation_type,
                             sample_type=sample.sample_type,

@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-# 	http://www.apache.org/licenses/LICENSE-2.0
+#	http://www.apache.org/licenses/LICENSE-2.
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -1782,12 +1782,11 @@ class GlobalStatsCalculator:
                         ),
                     )
 
-                    result.add_kpi_metrics(
+                    result.add_correctness_metrics(
                         t,
                         task.operation.name,
                         self.single_latency(t, op_type, metric_name="recall@k"),
                         self.single_latency(t, op_type, metric_name="recall@1"),
-                        self.single_latency(t, op_type, metric_name="recall_time_ms"),
                         error_rate,
                         duration,
                     )
@@ -1986,7 +1985,7 @@ class GlobalStatsCalculator:
 class GlobalStats:
     def __init__(self, d=None):
         self.op_metrics = self.v(d, "op_metrics", default=[])
-        self.kpi_metrics = self.v(d, "kpi_metrics", default=[])
+        self.correctness_metrics = self.v(d, "correctness_metrics", default=[])
         self.total_time = self.v(d, "total_time")
         self.total_time_per_shard = self.v(d, "total_time_per_shard", default={})
         self.indexing_throttle_time = self.v(d, "indexing_throttle_time")
@@ -2072,6 +2071,22 @@ class GlobalStats:
                             "max": item["max"]
                         }
                     })
+            elif metric == "correctness_metrics":
+                for item in value:
+                    if "recall@k" in item:
+                        all_results.append({
+                            "task": item["task"],
+                            "operation": item["operation"],
+                            "name": "recall@k",
+                            "value": item["recall@k"]
+                        })
+                    if "recall@1" in item:
+                        all_results.append({
+                            "task": item["task"],
+                            "operation": item["operation"],
+                            "name": "recall@1",
+                            "value": item["recall@1"]
+                        })
             elif metric.startswith("total_transform_") and value is not None:
                 for item in value:
                     all_results.append({
@@ -2115,13 +2130,12 @@ class GlobalStats:
             doc["meta"] = meta
         self.op_metrics.append(doc)
 
-    def add_kpi_metrics(self, task, operation, recall_at_k_stats, recall_at_1_stats, recall_time_ms_stats, error_rate, duration):
-        self.kpi_metrics.append({
+    def add_correctness_metrics(self, task, operation, recall_at_k_stats, recall_at_1_stats, error_rate, duration):
+        self.correctness_metrics.append({
             "task": task,
             "operation": operation,
             "recall@k": recall_at_k_stats,
             "recall@1":recall_at_1_stats,
-            "recall_time_ms": recall_time_ms_stats,
             "error_rate": error_rate,
             "duration": duration
             }
