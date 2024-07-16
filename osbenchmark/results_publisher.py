@@ -156,11 +156,15 @@ class SummaryResultsPublisher:
             metrics_table.extend(self._publish_error_rate(record, task))
             self.add_warnings(warnings, record, task)
 
-        for record in stats.kpi_metrics:
+        for record in stats.correctness_metrics:
             task = record["task"]
-            res = self._publish_recall(record, task)
-            if res:
-                metrics_table.extend(res)
+
+            keys = record.keys()
+            recall_keys_in_task_dict = "recall@1" in keys and "recall@k" in keys
+            if recall_keys_in_task_dict and record["recall@1"] and record["recall@k"]:
+                res = self._publish_recall(record, task)
+                if res:
+                    metrics_table.extend(res)
 
         self.write_results(metrics_table)
 
@@ -213,8 +217,7 @@ class SummaryResultsPublisher:
         try:
             return self._join(
                 self._line("Mean recall@k", task, recall_k["mean"], "", lambda v: "%.2f" % v),
-                self._line("Mean recall@1", task, recall_1["mean"], "", lambda v: "%.2f" % v),
-                *self._publish_percentiles("recall_k percentiles", task, recall_k, unit="")
+                self._line("Mean recall@1", task, recall_1["mean"], "", lambda v: "%.2f" % v)
             )
         except KeyError:
             return None

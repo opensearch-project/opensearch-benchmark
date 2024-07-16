@@ -2070,7 +2070,7 @@ class GlobalStats:
                             "max": item["max"]
                         }
                     })
-            elif metric == "kpi_metrics":
+            elif metric == "correctness_metrics":
                 for item in value:
                     if "recall@k" in item:
                         all_results.append({
