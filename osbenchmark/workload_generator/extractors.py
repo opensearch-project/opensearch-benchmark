@@ -133,7 +133,7 @@ class CorpusExtractor(ABC):
         pass
 
 
-class SynchronousCorpusExtractor(CorpusExtractor):
+class SequentialCorpusExtractor(CorpusExtractor):
     def __init__(self, custom_workload, client):
         self.custom_workload: CustomWorkload = custom_workload
         self.client = client
