@@ -30,11 +30,14 @@ from osbenchmark.workload_generator.extractors import IndexExtractor
 
 class TestIndexExtractor(TestCase):
 
-    @patch("opensearchpy.OpenSearch")
-    def setUp(self, client):
+    def setUp(self):
         self.mock_custom_workload = Mock(spec=CustomWorkload())
-        self.mock_client = client
+        self.mock_client = self.create_mock_client()
         self.index_extractor =  IndexExtractor(self.mock_custom_workload, self.mock_client)
+
+    @patch("opensearchpy.OpenSearch")
+    def create_mock_client(self, client):
+        return client
 
     def test_index_setting_filter(self):
         unfiltered_index_settings = {

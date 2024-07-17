@@ -129,7 +129,7 @@ class IndexExtractor:
 class CorpusExtractor(ABC):
 
     @abstractmethod
-    def extract_documents(self):
+    def extract_documents(self, index, documents_limit=None):
         pass
 
 
@@ -158,7 +158,8 @@ class SequentialCorpusExtractor(CorpusExtractor):
         Scroll an index with a match-all query, dumping document source to ``outdir/documents.json``.
 
         :param index: Name of index to dump
-        :param documents_limit: The number of documents to extract. Must be equal to or less than the total number of documents that exists in the index
+        :param documents_limit: The number of documents to extract. Must be equal
+        to or less than the total number of documents that exists in the index
         :return: dict of properties describing the corpus for templates
         """
 
@@ -172,7 +173,12 @@ class SequentialCorpusExtractor(CorpusExtractor):
             logger.info("[%d] total docs in index [%s]. Extracting [%s] docs.", total_documents, index, documents_to_extract)
             docs_path = self._get_doc_outpath(self.custom_workload.workload_path, index)
             # Create test mode corpora
-            self.dump_documents(self.client, index, self._get_doc_outpath(self.custom_workload.workload_path, index, "-1k"), min(documents_to_extract, 1000), " for test mode")
+            self.dump_documents(
+                self.client,
+                index,
+                self._get_doc_outpath(self.custom_workload.workload_path, index, "-1k"),
+                min(documents_to_extract, 1000),
+                " for test mode")
             # Create full corpora
             self.dump_documents(self.client, index, docs_path, documents_to_extract)
 
@@ -215,4 +221,3 @@ class SequentialCorpusExtractor(CorpusExtractor):
             msg = f"Extracting documents for index [{index}]{progress_message_suffix}..."
             percent = (cur * 100) / total
             progress.print(msg, f"{cur}/{total} docs [{percent:.1f}% done]")
-

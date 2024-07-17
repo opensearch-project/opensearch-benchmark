@@ -23,19 +23,22 @@
 # under the License.
 import json
 from unittest import mock, TestCase
-from unittest.mock import call, Mock, patch
+from unittest.mock import call, Mock
 
 from osbenchmark.workload_generator.config import CustomWorkload
 from osbenchmark.workload_generator.extractors import SequentialCorpusExtractor
 
 class TestSequentialCorpusExtractor(TestCase):
 
-    @mock.patch("opensearchpy.OpenSearch")
-    def setUp(self, client):
+    def setUp(self):
         self.mock_custom_workload = Mock(spec=CustomWorkload)
         self.mock_custom_workload.workload_path = "/abs/outpath/to/workloads/"
-        self.mock_client = client
+        self.mock_client = self.create_mock_client()
         self.corpus_extractor = SequentialCorpusExtractor(self.mock_custom_workload, self.mock_client)
+
+    @mock.patch("opensearchpy.OpenSearch")
+    def create_mock_client(self, client):
+        return client
 
     def serialize_doc(self, doc):
         return (json.dumps(doc, separators=(",", ":")) + "\n").encode("utf-8")
@@ -81,7 +84,6 @@ class TestSequentialCorpusExtractor(TestCase):
         self.mock_client.scroll.return_value = {}
 
         index = "test"
-        outdir = "/abs/outpath/to/workloads/"
 
         with mock.patch("os.stat") as osstat:
             osstat.side_effect = set_corp_size

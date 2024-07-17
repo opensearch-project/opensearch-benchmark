@@ -11,11 +11,10 @@ import os
 import logging
 import shutil
 
-from opensearchpy import OpenSearchException
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from osbenchmark import PROGRAM_NAME, exceptions
-from osbenchmark.utils import io, opts, console
+from osbenchmark import exceptions
+from osbenchmark.utils import io
 from osbenchmark.workload_generator.config import CustomWorkload, Index
 
 BASE_WORKLOAD = "base-workload"
@@ -31,7 +30,9 @@ class CustomWorkloadWriter:
         self.custom_workload = custom_workload
         self.templates_path = templates_path
 
-        self.custom_workload.workload_path = os.path.abspath(os.path.join(io.normalize_path(self.custom_workload.root_path), self.custom_workload.workload_name))
+        self.custom_workload.workload_path = os.path.abspath(
+            os.path.join(io.normalize_path(self.custom_workload.root_path),
+                         self.custom_workload.workload_name))
         self.custom_workload.operations_path = os.path.join(self.custom_workload.workload_path, "operations")
         self.custom_workload.test_procedures_path = os.path.join(self.custom_workload.workload_path, "test_procedures")
         self.logger = logging.getLogger(__name__)
@@ -39,10 +40,12 @@ class CustomWorkloadWriter:
     def make_workload_directory(self):
         if os.path.exists(self.custom_workload.workload_path):
             try:
-                self.logger.info("Workload already exists. Removing existing workload [%s] in path [%s]", self.custom_workload.workload_name, self.custom_workload.workload_path)
+                self.logger.info("Workload already exists. Removing existing workload [%s] in path [%s]",
+                                 self.custom_workload.workload_name, self.custom_workload.workload_path)
                 shutil.rmtree(self.custom_workload.workload_path)
             except OSError:
-                self.logger.error("Had issues removing existing workload [%s] in path [%s]", self.custom_workload.workload_name, self.custom_workload.workload_path)
+                self.logger.error("Had issues removing existing workload [%s] in path [%s]",
+                                  self.custom_workload.workload_name, self.custom_workload.workload_path)
 
         io.ensure_dir(self.custom_workload.workload_path)
         io.ensure_dir(self.custom_workload.operations_path)
@@ -124,4 +127,3 @@ def validate_index_documents_map(indices, indices_docs_map):
                 "Index from <index>:<doc_count> pair was not found in --indices. " +
                 "Ensure that indices from all <index>:<doc_count> pairs exist in --indices."
             )
-
