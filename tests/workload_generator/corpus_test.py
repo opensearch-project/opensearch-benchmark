@@ -33,6 +33,7 @@ class TestSequentialCorpusExtractor(TestCase):
     def setUp(self):
         self.mock_custom_workload = Mock(spec=CustomWorkload)
         self.mock_custom_workload.workload_path = "/abs/outpath/to/workloads/"
+        # pylint: disable=no-value-for-parameter
         self.mock_client = self.create_mock_client()
         self.corpus_extractor = SequentialCorpusExtractor(self.mock_custom_workload, self.mock_client)
 
