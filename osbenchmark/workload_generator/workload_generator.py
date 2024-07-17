@@ -13,7 +13,7 @@ import os
 from osbenchmark import PROGRAM_NAME, exceptions
 from osbenchmark.client import OsClientFactory
 from osbenchmark.workload_generator.config import CustomWorkload, Index
-from osbenchmark.workload_generator.helpers import QueryProcessor, CustomWorkloadWriter
+from osbenchmark.workload_generator.helpers import QueryProcessor, CustomWorkloadWriter, process_indices, validate_index_documents_map
 from osbenchmark.workload_generator.extractors import IndexExtractor, SequentialCorpusExtractor
 from osbenchmark.utils import io, opts, console
 
@@ -80,7 +80,7 @@ def create_workload(cfg):
 
     template_vars = {
         "workload_name": custom_workload.workload_name,
-        "indices": custom_workload.extracted_indices, # use this instead of custom_workload.workload_name because we need the names only
+        "indices": custom_workload.extracted_indices,
         "corpora": custom_workload.corpora,
         "custom_queries": custom_workload.queries
     }
@@ -91,38 +91,3 @@ def create_workload(cfg):
 
     console.println("")
     console.info(f"Workload {workload_name} has been created. Run it with: {PROGRAM_NAME} --workload-path={custom_workload.workload_path}")
-
-
-def process_indices(indices, document_frequency, number_of_docs):
-    processed_indices = []
-    for index_name in indices:
-        index = Index(
-            name=index_name,
-            document_frequency=document_frequency,
-            number_of_docs=number_of_docs
-        )
-        processed_indices.append(index)
-
-    return processed_indices
-
-
-def validate_index_documents_map(indices, indices_docs_map):
-    logger = logging.getLogger(__name__)
-    logger.info("Indices Docs Map: [%s]", indices_docs_map)
-    documents_limited = indices_docs_map is not None and len(indices_docs_map) > 0
-    if not documents_limited:
-        return
-
-    if len(indices) < len(indices_docs_map):
-        raise exceptions.SystemSetupError(
-            "Number of <index>:<doc_count> pairs exceeds number of indices in --indices. " +
-            "Ensure number of <index>:<doc_count> pairs is less than or equal to number of indices in --indices."
-        )
-
-    for index_name in indices_docs_map:
-        if index_name not in indices:
-            raise exceptions.SystemSetupError(
-                "Index from <index>:<doc_count> pair was not found in --indices. " +
-                "Ensure that indices from all <index>:<doc_count> pairs exist in --indices."
-            )
-
