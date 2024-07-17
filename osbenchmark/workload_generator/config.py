@@ -8,12 +8,6 @@ class Index:
     number_of_docs: int = None
     settings_and_mappings: dict = field(default_factory=dict)
 
-# @dataclass
-# class Corpus:
-#     index_name: str
-#     document_frequency: int
-#     number_of_docs: int
-
 @dataclass
 class CustomWorkload:
     workload_name: str = None
