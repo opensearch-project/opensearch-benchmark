@@ -14,7 +14,7 @@ from osbenchmark import PROGRAM_NAME, exceptions
 from osbenchmark.client import OsClientFactory
 from osbenchmark.workload_generator.config import CustomWorkload, Index
 from osbenchmark.workload_generator.helpers import QueryProcessor, CustomWorkloadWriter
-from osbenchmark.workload_generator.extractors import IndexExtractor, SynchronousCorpusExtractor
+from osbenchmark.workload_generator.extractors import IndexExtractor, SequentialCorpusExtractor
 from osbenchmark.utils import io, opts, console
 
 def create_workload(cfg):
@@ -54,7 +54,7 @@ def create_workload(cfg):
     query_processor = QueryProcessor(unprocessed_queries)
     custom_workload_writer = CustomWorkloadWriter(custom_workload, templates_path)
     index_extractor = IndexExtractor(custom_workload, client)
-    corpus_extractor = SynchronousCorpusExtractor(custom_workload, client)
+    corpus_extractor = SequentialCorpusExtractor(custom_workload, client)
 
     # Process Queries
     processed_queries = query_processor.process_queries()
