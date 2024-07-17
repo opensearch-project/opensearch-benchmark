@@ -15,7 +15,7 @@ from abc import ABC, abstractmethod
 from opensearchpy import OpenSearchException
 
 from osbenchmark.utils import console
-from osbenchmark.workload_generator.custom_workload_generator import CustomWorkload
+from osbenchmark.workload_generator.config import CustomWorkload
 
 DOCS_COMPRESSOR = bz2.BZ2Compressor
 COMP_EXT = ".bz2"
