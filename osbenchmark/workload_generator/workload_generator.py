@@ -6,7 +6,6 @@
 # Modifications Copyright OpenSearch Contributors. See
 # GitHub history for details.
 
-
 import logging
 import os
 
