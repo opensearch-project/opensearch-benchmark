@@ -8,7 +8,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from osbenchmark import PROGRAM_NAME, exceptions
 from osbenchmark.utils import io, opts, console
-from osbenchmark.workload_generator.config import CustomWorkload
+from osbenchmark.workload_generator.config import CustomWorkload, Index
 
 BASE_WORKLOAD = "base-workload"
 CUSTOM_OPERATIONS = "custom-operations"
@@ -83,3 +83,37 @@ class QueryProcessor:
                 raise exceptions.SystemSetupError(f"Ensure JSON schema is valid and queries are contained in a list: {err}")
 
         return processed_queries
+
+def process_indices(indices, document_frequency, number_of_docs):
+    processed_indices = []
+    for index_name in indices:
+        index = Index(
+            name=index_name,
+            document_frequency=document_frequency,
+            number_of_docs=number_of_docs
+        )
+        processed_indices.append(index)
+
+    return processed_indices
+
+
+def validate_index_documents_map(indices, indices_docs_map):
+    logger = logging.getLogger(__name__)
+    logger.info("Indices Docs Map: [%s]", indices_docs_map)
+    documents_limited = indices_docs_map is not None and len(indices_docs_map) > 0
+    if not documents_limited:
+        return
+
+    if len(indices) < len(indices_docs_map):
+        raise exceptions.SystemSetupError(
+            "Number of <index>:<doc_count> pairs exceeds number of indices in --indices. " +
+            "Ensure number of <index>:<doc_count> pairs is less than or equal to number of indices in --indices."
+        )
+
+    for index_name in indices_docs_map:
+        if index_name not in indices:
+            raise exceptions.SystemSetupError(
+                "Index from <index>:<doc_count> pair was not found in --indices. " +
+                "Ensure that indices from all <index>:<doc_count> pairs exist in --indices."
+            )
+
