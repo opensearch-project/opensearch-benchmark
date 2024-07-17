@@ -32,6 +32,7 @@ class TestIndexExtractor(TestCase):
 
     def setUp(self):
         self.mock_custom_workload = Mock(spec=CustomWorkload())
+        # pylint: disable=no-value-for-parameter
         self.mock_client = self.create_mock_client()
         self.index_extractor =  IndexExtractor(self.mock_custom_workload, self.mock_client)
 
