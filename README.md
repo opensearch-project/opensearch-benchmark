@@ -4,7 +4,6 @@
 ![Chat](https://img.shields.io/badge/chat-on%20forums-blue)](https://forum.opensearch.org/categories)
 ![PRs welcome!](https://img.shields.io/badge/PRs-welcome!-success)
 
-
 <img src="https://github.com/opensearch-project/opensearch-benchmark/blob/main/opensearch_benchmark.png?raw=true"  height="64px" alt="OpenSearch Benchmark">
 
 OpenSearch Benchmark is the macrobenchmarking framework for OpenSearch.
