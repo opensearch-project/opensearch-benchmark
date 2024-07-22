@@ -3122,11 +3122,6 @@ class BulkVectorsFromDataSetParamSourceTestCase(TestCase):
 
 
 class VectorsNestedCase(TestCase):
-
-    # TODO: figure out how to unit test the nested cases.
-    # basically create a nested field list with different vectors and partitions
-    #
-
     DEFAULT_INDEX_NAME = "test-partition-index"
     DEFAULT_VECTOR_FIELD_NAME = "nested.test-vector-field"
     DEFAULT_CONTEXT = Context.INDEX
@@ -3135,13 +3130,31 @@ class VectorsNestedCase(TestCase):
     DEFAULT_DIMENSION = 10
     DEFAULT_RANDOM_STRING_LENGTH = 8
     DEFAULT_ID_FIELD_NAME = "_id"
-    # NESTED_FIELD_NAME = "nested.vector_field"
 
     def setUp(self) -> None:
         self.data_set_dir = tempfile.mkdtemp()
 
     def tearDown(self):
         shutil.rmtree(self.data_set_dir)
+
+    def test_invalid_nesting_scheme(self):
+        # Test with 0 "." in the vector field, with 2 "." in the vector field, and with a different separator.
+        invalid_nesting_schemes = ["a", "a.b.c", "a.b.c.d"]
+        for nesting_scheme in invalid_nesting_schemes:
+            with self.subTest(nesting_scheme=nesting_scheme):
+                bulk_param_source = BulkVectorsFromDataSetParamSource(
+                    workload.Workload(name="unit-test"),
+                    {
+                        "index": self.DEFAULT_INDEX_NAME,
+                        "field": nesting_scheme,
+                        "data_set_format": self.DEFAULT_TYPE,
+                        "data_set_path": "path",
+                        "bulk_size": 10,
+                        "id-field-name": self.DEFAULT_ID_FIELD_NAME,
+                    },
+                )
+                with self.assertRaises(ValueError):
+                    bulk_param_source.get_split_fields()
 
     def _test_params_default(
         self, bulk_size, data_set_path, parent_data_set_path, num_vectors
@@ -3284,7 +3297,7 @@ class VectorsNestedCase(TestCase):
             data_set_path
         )
 
-         # Create a QueryVectorsFromDataSetParamSource with relevant params
+        # Create a QueryVectorsFromDataSetParamSource with relevant params
         test_param_source_params = {
             "field": self.DEFAULT_VECTOR_FIELD_NAME,
             "data_set_format": self.DEFAULT_TYPE,

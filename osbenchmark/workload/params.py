@@ -33,7 +33,7 @@ import random
 import time
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 import numpy as np
 
@@ -884,7 +884,8 @@ class VectorDataSetPartitionParamSource(ParamSource):
     def __init__(self, workload, params, context: Context, **kwargs):
         super().__init__(workload, params, **kwargs)
         self.field_name: str = parse_string_parameter("field", params)
-        self.is_nested = "." in self.field_name # in base class because used for both bulk ingest and queries.
+        self.NESTED_FIELD_SEPARATOR = "."
+        self.is_nested = self.NESTED_FIELD_SEPARATOR in self.field_name # in base class because used for both bulk ingest and queries.
         self.context = context
         self.data_set_format = parse_string_parameter("data_set_format", params)
         self.data_set_path = parse_string_parameter("data_set_path", params, "")
@@ -979,6 +980,15 @@ class VectorDataSetPartitionParamSource(ParamSource):
         partition_x.data_set.seek(partition_x.offset)
         partition_x.current = partition_x.offset
         return partition_x
+
+    def get_split_fields(self) -> Tuple[str, str]:
+        fields_as_array = self.field_name.split(self.NESTED_FIELD_SEPARATOR)
+        if len(fields_as_array) != 2:
+            raise ValueError(
+                f"Field name {self.field_name} is not a nested field name"
+            )
+        return fields_as_array[0], fields_as_array[1]
+
 
     @abstractmethod
     def params(self):
@@ -1157,20 +1167,22 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
                 "filter": efficient_filter,
             })
 
-        if self.is_nested:
-            outer_field_name, _inner_field_name = self.field_name.split(".")
-            return {
-                "nested": {
-                    "path": outer_field_name,
-                    "query": {"knn": {self.field_name: query}},
-                }
-            }
-
-        return {
+        knn_search_query = {
             "knn": {
                 self.field_name: query,
             },
         }
+
+        if self.is_nested:
+            outer_field_name, _inner_field_name = self.get_split_fields()
+            return {
+                "nested": {
+                    "path": outer_field_name,
+                    "query": knn_search_query
+                }
+            }
+
+        return knn_search_query
 
 
 class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
@@ -1226,6 +1238,33 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
 
         return partition
 
+    def bulk_transform_non_nested(self, partition: np.ndarray, action) -> List[Dict[str, Any]]:
+        """
+        Create bulk ingest actions for data with a non-nested field.
+        """
+        actions = []
+
+        _ = [
+                actions.extend([action(self.id_field_name, i + self.current), None])
+                for i in range(len(partition))
+            ]
+        bulk_contents = []
+
+        add_id_field_to_body = self.id_field_name != self.DEFAULT_ID_FIELD_NAME
+        for vec, identifier in zip(
+            partition.tolist(), range(self.current, self.current + len(partition))
+        ):
+            row = {self.field_name: vec}
+            if add_id_field_to_body:
+                row.update({self.id_field_name: identifier})
+            bulk_contents.append(row)
+
+        actions[1::2] = bulk_contents
+
+        self.logger.info("Actions: %s", actions)
+        return actions
+
+
     def bulk_transform(
         self, partition: np.ndarray, action, parents_ids: Optional[np.ndarray]
     ) -> List[Dict[str, Any]]:
@@ -1238,32 +1277,13 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
         Returns:
             An array of transformed vectors in bulk format.
         """
-        actions = []
 
         if not self.is_nested:
-            _ = [
-                actions.extend([action(self.id_field_name, i + self.current), None])
-                for i in range(len(partition))
-            ]
-            bulk_contents = []
+            return self.bulk_transform_non_nested(partition, action)
 
-            add_id_field_to_body = self.id_field_name != self.DEFAULT_ID_FIELD_NAME
-            for vec, identifier in zip(
-                partition.tolist(), range(self.current, self.current + len(partition))
-            ):
-                row = {self.field_name: vec}
-                if add_id_field_to_body:
-                    row.update({self.id_field_name: identifier})
-                bulk_contents.append(row)
+        actions = []
 
-            actions[1::2] = bulk_contents
-
-            self.logger.info("Actions: %s", actions)
-            return actions
-
-        self.logger.debug("Bulk transform called with a nested field.")
-
-        outer_field_name, inner_field_name = self.field_name.split(".")
+        outer_field_name, inner_field_name = self.get_split_fields()
 
         add_id_field_to_body = self.id_field_name != self.DEFAULT_ID_FIELD_NAME
 
