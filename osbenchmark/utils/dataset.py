@@ -24,7 +24,7 @@ class Context(Enum):
     INDEX = 1
     QUERY = 2
     NEIGHBORS = 3
-    PARENTS = 4
+    PARENTS = 6
 
 
 class DataSet(ABC):
