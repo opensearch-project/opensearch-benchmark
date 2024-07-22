@@ -983,9 +983,12 @@ class VectorDataSetPartitionParamSource(ParamSource):
 
     def get_split_fields(self) -> Tuple[str, str]:
         fields_as_array = self.field_name.split(self.NESTED_FIELD_SEPARATOR)
+
+        # TODO: Add support to multiple levels of nesting if a future benchmark requires it.
+
         if len(fields_as_array) != 2:
             raise ValueError(
-                f"Field name {self.field_name} is not a nested field name"
+                f"Field name {self.field_name} is not a nested field name. Currently we support only 1 level of nesting."
             )
         return fields_as_array[0], fields_as_array[1]
 
