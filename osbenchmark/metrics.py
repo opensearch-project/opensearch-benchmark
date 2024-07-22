@@ -1759,17 +1759,10 @@ class GlobalStatsCalculator:
                     result.add_op_metrics(
                         t,
                         task.operation.name,
-                        self.summary_stats(
-                            "throughput",
-                            t,
-                            op_type,
-                            percentiles_list=self.throughput_percentiles,
-                        ),
+                        self.summary_stats("throughput", t, op_type, percentiles_list=self.throughput_percentiles),
                         self.single_latency(t, op_type),
                         self.single_latency(t, op_type, metric_name="service_time"),
-                        self.single_latency(
-                            t, op_type, metric_name="client_processing_time"
-                        ),
+                        self.single_latency(t, op_type, metric_name="client_processing_time"),
                         self.single_latency(t, op_type, metric_name="processing_time"),
                         error_rate,
                         duration,

@@ -1528,7 +1528,6 @@ class OsResultsStoreTests(TestCase):
                     "saturation": "70% saturated"
                 }
             }
-            
         ]
         self.es_mock.bulk_index.assert_called_with(
             index="benchmark-results-2016-01",

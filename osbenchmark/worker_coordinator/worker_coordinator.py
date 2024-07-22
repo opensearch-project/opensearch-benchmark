@@ -938,7 +938,7 @@ class SamplePostprocessor:
         end = time.perf_counter()
         self.logger.debug("Calculating throughput took [%f] seconds.", (end - start))
         start = end
-        for task, samples in aggregates.items(): # returns dict of task, and samples.
+        for task, samples in aggregates.items():
             meta_data = self.merge(
                 self.workload_meta_data,
                 self.test_procedure_meta_data,
