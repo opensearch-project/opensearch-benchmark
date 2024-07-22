@@ -1,7 +1,7 @@
 [![CI](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/main.yml/badge.svg)](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/main.yml)
 [![Integration](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/manual-integ.yml/badge.svg)](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/manual-integ.yml)
 [![Release](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/release-drafter.yml/badge.svg)](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/release-drafter.yml)
-![[Chat](https://img.shields.io/badge/chat-on%21forums-blue)](https://forum.opensearch.org/categories)
+[![Chat](https://img.shields.io/badge/chat-on%21forums-blue)](https://forum.opensearch.org/categories)
 ![PRs welcome!](https://img.shields.io/badge/PRs-welcome!-success)
 
 <img src="https://github.com/opensearch-project/opensearch-benchmark/blob/main/opensearch_benchmark.png?raw=true"  height="64px" alt="OpenSearch Benchmark">
