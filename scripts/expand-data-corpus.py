@@ -19,12 +19,9 @@ import configparser
 
 help_msg = """
 
-NOTE: This is a beta feature.  The user model, interface and options
-are subject to change.
-
 This tool is intended for the purpose of expanding the size of the
-data corpus associated an OSB workload.  Currently, this capability is
-implemented only for the http_logs workload.
+data corpus associated with an OSB workload.  Currently, this capability
+is implemented only for the http_logs workload.
 
 TLDR: to generate a 100 GB corpus and then run a test against it:
 
@@ -106,6 +103,12 @@ Usage:
 def handler(signum, frame):
     sys.exit(1)
 
+
+def error_exit(script_name, message):
+    print(f'{script_name}: {message}', file=sys.stderr)
+    sys.exit(1)
+
+
 class DocGenerator:
 
     def __init__(self,
@@ -150,7 +153,8 @@ class ArgParser(argparse.ArgumentParser):
         self.usage_msg()
 
 
-def generate_docs(workload: str,
+def generate_docs(script_name: str,
+                  workload: str,
                   repository: str,
                   input_file: str,
                   output_file_suffix: str,
@@ -165,12 +169,17 @@ def generate_docs(workload: str,
     #
     config = configparser.ConfigParser()
     benchmark_home = os.environ.get('BENCHMARK_HOME') or os.environ['HOME']
-    config.read(benchmark_home + '/.benchmark/benchmark.ini')
+    benchmark_ini = benchmark_home + '/.benchmark/benchmark.ini'
+    if not os.path.isfile(benchmark_ini):
+        error_exit(script_name, f"could not find OSB config file {benchmark_ini}, run a workload first to create it")
+    config.read(benchmark_ini)
 
     root_dir = config['node']['root.dir']
     workload_dir= root_dir + '/workloads/' + repository + '/' + workload
     data_dir = config['benchmarks']['local.dataset.cache'] + '/' + workload
 
+    if not os.path.exists(data_dir):
+        error_exit(script_name, f"workload data directory {data_dir} does not exist, run the appropriate workload first to create it")
     output_file = data_dir + '/documents-' + output_file_suffix + '.json'
     if '/' not in input_file:
         input_file = data_dir + '/' + input_file
@@ -274,8 +283,6 @@ def main(args: list) -> None:
     output_file_suffix = args.output_file_suffix
     n_docs = args.number_of_docs
     corpus_size = args.corpus_size
-    interval = args.interval if args.interval is not None else \
-			corpus_size * -2
     start_timestamp = args.start_timestamp
     batch_size = args.batch_size
 
@@ -286,12 +293,14 @@ def main(args: list) -> None:
     elif not n_docs and not corpus_size:
         parser.usage_msg(script_name +
                      ": must specify number of documents or corpus size")
-
+    interval = args.interval if args.interval is not None else \
+			corpus_size * -2
     if workload != 'http_logs':
         parser.usage_msg(script_name +
                      ': only the "http_logs" workload is currently supported')
 
-    generate_docs(workload,
+    generate_docs(script_name,
+                  workload,
                   repository,
                   input_file,
                   output_file_suffix,
