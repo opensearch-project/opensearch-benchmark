@@ -107,7 +107,8 @@ def register_default_runners():
     register_runner(workload.OperationType.DeployMlModel, Retry(DeployMlModel()), async_runner=True)
     register_runner(workload.OperationType.TrainKnnModel, Retry(TrainKnnModel()), async_runner=True)
     register_runner(workload.OperationType.DeleteKnnModel, Retry(DeleteKnnModel()), async_runner=True)
-    register_runner(workload.OperationType.EnableConcurrentSegmentSearch, Retry(EnableConcurrentSegmentSearch()), async_runner=True)
+    register_runner(workload.OperationType.UpdateConcurrentSegmentSearchSettings,
+                    Retry(UpdateConcurrentSegmentSearchSettings()), async_runner=True)
 
 def runner_for(operation_type):
     try:
@@ -2698,16 +2699,19 @@ class DeployMlModel(Runner):
     def __repr__(self, *args, **kwargs):
         return "deploy-ml-model"
 
-class EnableConcurrentSegmentSearch(Runner):
+class UpdateConcurrentSegmentSearchSettings(Runner):
     @time_func
     async def __call__(self, opensearch, params):
         enable_setting = params.get("enable", "false")
+        max_slice_count = params.get("max_slice_count", None)
         body = {
             "persistent": {
                 "search.concurrent_segment_search.enabled": enable_setting
             }
         }
+        if max_slice_count is not None:
+            body["persistent"]["search.concurrent_segment_search.max_slice_count"] = max_slice_count
         await opensearch.cluster.put_settings(body=body)
 
     def __repr__(self, *args, **kwargs):
-        return "enable-concurrent-segment-search"
+        return "update-concurrent-segment-search-settings"

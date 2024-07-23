@@ -6786,7 +6786,7 @@ class CreateSearchPipelineRunnerTests(TestCase):
 
         self.assertEqual(0, opensearch.transport.perform_request.call_count)
 
-class EnableConcurrentSegmentSearchTests(TestCase):
+class UpdateConcurrentSegmentSearchSettingsTests(TestCase):
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
@@ -6797,11 +6797,52 @@ class EnableConcurrentSegmentSearchTests(TestCase):
             "enable": "true"
         }
 
-        r = runner.EnableConcurrentSegmentSearch()
+        r = runner.UpdateConcurrentSegmentSearchSettings()
         await r(opensearch, params)
 
         opensearch.cluster.put_settings.assert_called_once_with(body={
             "persistent": {
                 "search.concurrent_segment_search.enabled": "true"
+            }
+        })
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_max_slice_count(self, opensearch, on_client_request_start, on_client_request_end):
+        opensearch.cluster.put_settings.return_value = as_future()
+        params = {
+            "max_slice_count": 2
+        }
+
+        r = runner.UpdateConcurrentSegmentSearchSettings()
+        await r(opensearch, params)
+
+        opensearch.cluster.put_settings.assert_called_once_with(body={
+            "persistent": {
+                "search.concurrent_segment_search.enabled": "false",
+                "search.concurrent_segment_search.max_slice_count": 2
+            }
+        })
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_concurrent_segment_search_settings(self, opensearch, on_client_request_start, on_client_request_end):
+        opensearch.cluster.put_settings.return_value = as_future()
+        params = {
+            "enable": "true",
+            "max_slice_count": 2
+        }
+
+        r = runner.UpdateConcurrentSegmentSearchSettings()
+        await r(opensearch, params)
+
+        opensearch.cluster.put_settings.assert_called_once_with(body={
+            "persistent": {
+                "search.concurrent_segment_search.enabled": "true",
+                "search.concurrent_segment_search.max_slice_count": 2
             }
         })
