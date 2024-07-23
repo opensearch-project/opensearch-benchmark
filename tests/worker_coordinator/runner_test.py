@@ -6801,7 +6801,7 @@ class EnableConcurrentSegmentSearchTests(TestCase):
         await r(opensearch, params)
 
         opensearch.cluster.put_settings.assert_called_once_with(body={
-            "transient": {
+            "persistent": {
                 "search.concurrent_segment_search.enabled": "true"
-            } 
+            }
         })

@@ -107,6 +107,7 @@ def register_default_runners():
     register_runner(workload.OperationType.DeployMlModel, Retry(DeployMlModel()), async_runner=True)
     register_runner(workload.OperationType.TrainKnnModel, Retry(TrainKnnModel()), async_runner=True)
     register_runner(workload.OperationType.DeleteKnnModel, Retry(DeleteKnnModel()), async_runner=True)
+    register_runner(workload.OperationType.EnableConcurrentSegmentSearch, Retry(EnableConcurrentSegmentSearch()), async_runner=True)
 
 def runner_for(operation_type):
     try:
@@ -2702,10 +2703,10 @@ class EnableConcurrentSegmentSearch(Runner):
     async def __call__(self, opensearch, params):
         enable_setting = params.get("enable", "false")
         body = {
-            "transient": {
+            "persistent": {
                 "search.concurrent_segment_search.enabled": enable_setting
-              } 
             }
+        }
         await opensearch.cluster.put_settings(body=body)
 
     def __repr__(self, *args, **kwargs):
