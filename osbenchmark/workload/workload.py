@@ -635,6 +635,7 @@ class OperationType(Enum):
     DeleteMlModel = 1041
     RegisterMlModel = 1042
     DeployMlModel = 1043
+    EnableConcurrentSegmentSearch = 1044
 
     @property
     def admin_op(self):
@@ -752,6 +753,8 @@ class OperationType(Enum):
             return OperationType.TrainKnnModel
         elif v == "delete-knn-model":
             return OperationType.DeleteKnnModel
+        elif v == "enable-concurrent-segment-search":
+            return OperationType.EnableConcurrentSegmentSearch
         else:
             raise KeyError(f"No enum value for [{v}]")
 

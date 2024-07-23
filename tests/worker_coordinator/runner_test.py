@@ -6785,3 +6785,23 @@ class CreateSearchPipelineRunnerTests(TestCase):
             await r(opensearch, params)
 
         self.assertEqual(0, opensearch.transport.perform_request.call_count)
+
+class EnableConcurrentSegmentSearchTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_enable_concurrent_segment_search(self, opensearch, on_client_request_start, on_client_request_end):
+        opensearch.cluster.put_settings.return_value = as_future()
+        params = {
+            "enable": "true"
+        }
+
+        r = runner.EnableConcurrentSegmentSearch()
+        await r(opensearch, params)
+
+        opensearch.cluster.put_settings.assert_called_once_with(body={
+            "transient": {
+                "search.concurrent_segment_search.enabled": "true"
+            } 
+        })

@@ -2696,3 +2696,17 @@ class DeployMlModel(Runner):
 
     def __repr__(self, *args, **kwargs):
         return "deploy-ml-model"
+
+class EnableConcurrentSegmentSearch(Runner):
+    @time_func
+    async def __call__(self, opensearch, params):
+        enable_setting = params.get("enable", "false")
+        body = {
+            "transient": {
+                "search.concurrent_segment_search.enabled": enable_setting
+              } 
+            }
+        await opensearch.cluster.put_settings(body=body)
+
+    def __repr__(self, *args, **kwargs):
+        return "enable-concurrent-segment-search"
