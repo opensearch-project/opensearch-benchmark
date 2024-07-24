@@ -870,13 +870,6 @@ class SamplePostprocessor:
                             sample.request_meta_data,
                         )
 
-                        self.logger.debug(
-                            "Here are the sample stats: Task: %s, operation: %s, operation_type; %s, sample_type: %s",
-                            sample.task.name,
-                            sample.operation_name,
-                            sample.operation_type,
-                            sample.sample_type,
-                        )
                         self.metrics_store.put_value_cluster_level(
                             name=recall_metric_name,
                             value=sample.request_meta_data[recall_metric_name],
