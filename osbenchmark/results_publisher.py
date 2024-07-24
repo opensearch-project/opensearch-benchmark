@@ -157,7 +157,6 @@ class SummaryResultsPublisher:
             self.add_warnings(warnings, record, task)
 
         for record in stats.correctness_metrics:
-        for record in stats.correctness_metrics:
             task = record["task"]
 
             keys = record.keys()
