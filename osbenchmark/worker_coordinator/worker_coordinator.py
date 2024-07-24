@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+# 	http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -46,7 +46,6 @@ from osbenchmark.worker_coordinator import runner, scheduler
 from osbenchmark.workload import WorkloadProcessorRegistry, load_workload, load_workload_plugins
 from osbenchmark.utils import convert, console, net
 from osbenchmark.worker_coordinator.errors import parse_error
-
 ##################################
 #
 # Messages sent between worker_coordinators
@@ -847,6 +846,43 @@ class SamplePostprocessor:
         start = total_start
         final_sample_count = 0
         for idx, sample in enumerate(raw_samples):
+            self.logger.debug(
+                "All sample meta data: [%s],[%s],[%s],[%s],[%s]",
+                self.workload_meta_data,
+                self.test_procedure_meta_data,
+                sample.operation_meta_data,
+                sample.task.meta_data,
+                sample.request_meta_data,
+            )
+
+            # if request_meta_data exists then it will have {"success": true/false} as a parameter.
+            if sample.request_meta_data and len(sample.request_meta_data) > 1:
+                self.logger.debug("Found: %s", sample.request_meta_data)
+                recall_metric_names = ["recall@k", "recall@1"]
+
+                for recall_metric_name in recall_metric_names:
+                    if recall_metric_name in sample.request_meta_data:
+                        meta_data = self.merge(
+                            self.workload_meta_data,
+                            self.test_procedure_meta_data,
+                            sample.operation_meta_data,
+                            sample.task.meta_data,
+                            sample.request_meta_data,
+                        )
+
+                        self.metrics_store.put_value_cluster_level(
+                            name=recall_metric_name,
+                            value=sample.request_meta_data[recall_metric_name],
+                            unit="",
+                            task=sample.task.name,
+                            operation=sample.operation_name,
+                            operation_type=sample.operation_type,
+                            sample_type=sample.sample_type,
+                            absolute_time=sample.absolute_time,
+                            relative_time=sample.relative_time,
+                            meta_data=meta_data,
+                        )
+
             if idx % self.downsample_factor == 0:
                 final_sample_count += 1
                 meta_data = self.merge(
