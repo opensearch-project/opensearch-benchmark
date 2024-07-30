@@ -1318,7 +1318,7 @@ class Query(Runner):
                     if predictions[j] in truth_set:
                         correct += 1.0
 
-                return float(correct) / min_num_of_results
+                return correct / min_num_of_results
 
             result = {
                 "weight": 1,
