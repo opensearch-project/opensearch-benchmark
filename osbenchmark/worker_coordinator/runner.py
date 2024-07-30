@@ -2710,7 +2710,7 @@ class UpdateConcurrentSegmentSearchSettings(Runner):
             }
         }
         if max_slice_count is not None:
-            body["persistent"]["search.concurrent_segment_search.max_slice_count"] = max_slice_count
+            body["persistent"]["search.concurrent.max_slice_count"] = max_slice_count
         await opensearch.cluster.put_settings(body=body)
 
     def __repr__(self, *args, **kwargs):
