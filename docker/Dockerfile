@@ -1,13 +1,15 @@
-###############################################################################
-# Install OpenSearch Benchmark from PyPI to build a Docker image
-###############################################################################
+ARG VERSION
+ARG BUILD_ENV=production
 
-FROM python:3.11.2-slim
-ARG VERSION=testing
+FROM python:3.11.2-slim as build_env_testing
+ONBUILD COPY opensearch-benchmark-git/ ./
 
-ENV BENCHMARK_RUNNING_IN_DOCKER=True
+FROM python:3.11.2-slim as build_env_production
+ONBUILD RUN echo Production Environment
 
+FROM build_env_${BUILD_ENV}
 WORKDIR /opensearch-benchmark
+ENV BENCHMARK_RUNNING_IN_DOCKER=True
 
 RUN apt-get -y update && \
     apt-get install -y curl git gcc pbzip2 pigz && \
@@ -18,15 +20,8 @@ RUN groupadd --gid 1000 opensearch-benchmark && \
     useradd -d /opensearch-benchmark -m -k /dev/null -g 1000 -N -u 1000 -l -s /bin/bash benchmark
 
 ENV PIP_ONLY_BINARY=h5py
-
-# Copy file for test purpose and will remove during prod publishing
-COPY opensearch-benchmark-git/ ./opensearch-benchmark-git
-
-# Currently we always have the $VERSION arg substituted during prod publishing
-# Default VERSION=testing to enter test mode based on user inputs.
-RUN if [ "$VERSION" = "testing" ] ; then echo Testing; cp -a opensearch-benchmark-git/* ./; ls -l; python3 -m pip install -e . ; \
-    else echo Production; rm -rf opensearch-benchmark-git; ls -l; python3 -m pip install opensearch-benchmark==$VERSION ; fi
-
+RUN if [ "$BUILD_ENV" = "testing" ] ; then echo Testing; ls -l; python3 -m pip install -e . ; \
+    else echo Production; if [ -z "$VERSION" ] ; then python3 -m pip install opensearch-benchmark ; else python3 -m pip install opensearch-benchmark==$VERSION ; fi; fi
 
 RUN mkdir -p /opensearch-benchmark/.benchmark && \
     chown -R 1000:0 /opensearch-benchmark/.benchmark
