@@ -1,3 +1,7 @@
+########################################################
+# Install OpenSearch Benchmark to build a Docker image #
+########################################################
+
 ARG VERSION
 ARG BUILD_ENV=production
 
