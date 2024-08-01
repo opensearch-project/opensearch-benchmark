@@ -6822,7 +6822,7 @@ class UpdateConcurrentSegmentSearchSettingsTests(TestCase):
         opensearch.cluster.put_settings.assert_called_once_with(body={
             "persistent": {
                 "search.concurrent_segment_search.enabled": "false",
-                "search.concurrent_segment_search.max_slice_count": 2
+                "search.concurrent.max_slice_count": 2
             }
         })
 
@@ -6843,6 +6843,6 @@ class UpdateConcurrentSegmentSearchSettingsTests(TestCase):
         opensearch.cluster.put_settings.assert_called_once_with(body={
             "persistent": {
                 "search.concurrent_segment_search.enabled": "true",
-                "search.concurrent_segment_search.max_slice_count": 2
+                "search.concurrent.max_slice_count": 2
             }
         })
