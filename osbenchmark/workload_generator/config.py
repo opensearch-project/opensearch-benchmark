@@ -19,7 +19,7 @@ class Index:
 @dataclass
 class CustomWorkload:
     workload_name: str = None
-    root_path: str = None
+    output_path: str = None
     workload_path: str = None
     operations_path: str = None
     test_procedures_path: str = None
