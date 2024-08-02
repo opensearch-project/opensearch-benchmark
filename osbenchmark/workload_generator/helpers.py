@@ -52,13 +52,13 @@ class CustomWorkloadWriter:
                 input_text = f"A workload already exists at {self.custom_workload.workload_path}. " \
                 + "Would you like to remove it? (y/n): "
                 user_decision = input(input_text)
-                while "y" != user_decision and "n" != user_decision:
+                while user_decision not in ('y', 'n'):
                     user_decision = input("Provide y for yes or n for no. " + input_text)
 
                 if user_decision == "y":
                     self.logger.info("Removing existing workload [%s] in path [%s]",
                                     self.custom_workload.workload_name, self.custom_workload.workload_path)
-                    console.info(f"Removing workload of the same name.")
+                    console.info("Removing workload of the same name.")
                     shutil.rmtree(self.custom_workload.workload_path)
                 elif user_decision == "n":
                     logging_info = "Keeping workload of the same name at existing path. Cancelling create-workload."
