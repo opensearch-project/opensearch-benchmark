@@ -22,7 +22,7 @@ def create_workload(cfg):
     # All inputs provided by user
     workload_name: str = cfg.opts("workload", "workload.name")
     indices: list = cfg.opts("generator", "indices")
-    root_path: str = cfg.opts("generator", "output.path")
+    output_path: str = cfg.opts("generator", "output.path")
     target_hosts: opts.TargetHosts = cfg.opts("client", "hosts")
     client_options: opts.ClientOptions = cfg.opts("client", "options")
     # document_frequency: int = cfg.opts("generator", "document_frequency") # Enable later
@@ -43,10 +43,10 @@ def create_workload(cfg):
 
     custom_workload = CustomWorkload(
         workload_name=workload_name,
-        root_path=root_path,
+        output_path=output_path,
         indices=processed_indices,
     )
-    custom_workload.workload_path = os.path.abspath(os.path.join(io.normalize_path(root_path), workload_name))
+    custom_workload.workload_path = os.path.abspath(os.path.join(io.normalize_path(output_path), workload_name))
     custom_workload.operations_path = os.path.join(custom_workload.workload_path, "operations")
     custom_workload.test_procedures_path = os.path.join(custom_workload.workload_path, "test_procedures")
 

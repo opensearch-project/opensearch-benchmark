@@ -9,13 +9,15 @@
 import json
 import os
 import logging
+import sys
 import shutil
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from osbenchmark import exceptions
-from osbenchmark.utils import io
+from osbenchmark.utils import io, console
 from osbenchmark.workload_generator.config import CustomWorkload, Index
+
 
 BASE_WORKLOAD = "base-workload"
 CUSTOM_OPERATIONS = "custom-operations"
@@ -31,18 +33,40 @@ class CustomWorkloadWriter:
         self.templates_path = templates_path
 
         self.custom_workload.workload_path = os.path.abspath(
-            os.path.join(io.normalize_path(self.custom_workload.root_path),
+            os.path.join(io.normalize_path(self.custom_workload.output_path),
                          self.custom_workload.workload_name))
         self.custom_workload.operations_path = os.path.join(self.custom_workload.workload_path, "operations")
         self.custom_workload.test_procedures_path = os.path.join(self.custom_workload.workload_path, "test_procedures")
         self.logger = logging.getLogger(__name__)
 
     def make_workload_directory(self):
+        if not self._has_write_permission(self.custom_workload.workload_path):
+            error_suggestion = "Workload output path does not have write permissions. " \
+                + "Please update the permissions for the specified output path or choose a different output path."
+            self.logger.error(error_suggestion)
+            console.error(error_suggestion)
+
+        # Check if a workload of the same name already exists in output path
         if os.path.exists(self.custom_workload.workload_path):
             try:
-                self.logger.info("Workload already exists. Removing existing workload [%s] in path [%s]",
-                                 self.custom_workload.workload_name, self.custom_workload.workload_path)
-                shutil.rmtree(self.custom_workload.workload_path)
+                input_text = f"A workload already exists at {self.custom_workload.workload_path}. " \
+                + "Would you like to remove it? (y/n): "
+                user_decision = input(input_text)
+                while "y" != user_decision and "n" != user_decision:
+                    user_decision = input("Provide y for yes or n for no. " + input_text)
+
+                if user_decision == "y":
+                    self.logger.info("Removing existing workload [%s] in path [%s]",
+                                    self.custom_workload.workload_name, self.custom_workload.workload_path)
+                    console.info(f"Removing workload of the same name.")
+                    shutil.rmtree(self.custom_workload.workload_path)
+                elif user_decision == "n":
+                    logging_info = "Keeping workload of the same name at existing path. Cancelling create-workload."
+                    self.logger.info(logging_info)
+                    console.println("")
+                    console.info(logging_info)
+                    sys.exit(0)
+
             except OSError:
                 self.logger.error("Had issues removing existing workload [%s] in path [%s]",
                                   self.custom_workload.workload_name, self.custom_workload.workload_path)
@@ -50,6 +74,12 @@ class CustomWorkloadWriter:
         io.ensure_dir(self.custom_workload.workload_path)
         io.ensure_dir(self.custom_workload.operations_path)
         io.ensure_dir(self.custom_workload.test_procedures_path)
+
+    def _has_write_permission(self, directory):
+        """
+        Verify if output directory for workload has write permissions
+        """
+        return os.access(directory, os.W_OK)
 
     def render_templates(self, template_vars: dict, custom_queries: dict):
         workload_file_path = os.path.join(self.custom_workload.workload_path, "workload.json")

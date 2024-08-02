@@ -49,10 +49,12 @@ class IndexExtractor:
 
     def extract(self, outdir, index_pattern):
         """
-        Request index information to format in "index.json" for Benchmark
+        Extracts and writes index settings and
+        mappings to "index.json" in a workload
         :param outdir: destination directory
-        :param index_pattern: name of index
-        :return: Dict of template variables representing the index for use in workload
+        :param index_pattern: name of index or index pattern
+        :return: Dictionary of template variables corresponding to the
+        specified index / indices
         """
         results = []
 
@@ -72,10 +74,11 @@ class IndexExtractor:
 
     def extract_index_mapping_and_settings(self, index_pattern):
         """
-        Calls index GET to retrieve mapping + settings, filtering settings
-        so they can be used to re-create this index
-        :param index_pattern: name of index
-        :return: index creation dictionary
+        Uses client to retrieve mapping + settings, filtering settings
+        related to index / indices. They will be used to re-create
+        index / indices
+        :param index_pattern: name of index or index pattern
+        :return: dictionary of index / indices mappings and settings
         """
         results = {}
         logger = logging.getLogger(__name__)
@@ -100,7 +103,8 @@ class IndexExtractor:
 
     def filter_ephemeral_index_settings(self, settings):
         """
-        Some of the 'settings' published by OpenSearch for an index are
+        Some of the 'settings' (like uuid, creation-date, etc.)
+        published by OpenSearch for an index are
         ephemeral values, not useful for re-creating the index.
         :param settings: Index settings published by index.get()
         :return: settings with ephemeral keys removed
@@ -202,15 +206,15 @@ class SequentialCorpusExtractor(CorpusExtractor):
             with open(comp_outpath, "wb") as comp_outfile:
                 logger.info("Dumping corpus for index [%s] to [%s].", index, out_path)
                 query = {"query": {"match_all": {}}}
-                for n, doc in enumerate(helpers.scan(client, query=query, index=index)):
-                    if n >= number_of_docs:
+                for i, doc in enumerate(helpers.scan(client, query=query, index=index)):
+                    if i >= number_of_docs:
                         break
                     data = (json.dumps(doc["_source"], separators=(",", ":")) + "\n").encode("utf-8")
 
                     outfile.write(data)
                     comp_outfile.write(compressor.compress(data))
 
-                    self.render_progress(progress, progress_message_suffix, index, n + 1, number_of_docs, freq)
+                    self.render_progress(progress, progress_message_suffix, index, i + 1, number_of_docs, freq)
 
                 comp_outfile.write(compressor.flush())
         progress.finish()
