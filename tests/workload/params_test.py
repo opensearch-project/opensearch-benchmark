@@ -2957,6 +2957,93 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
         with self.assertRaises(StopIteration):
             query_param_source_partition.params()
 
+    def test_params_when_multiple_query_type_provided_then_raise_exception(self):
+        # Create a data set
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        neighbors_data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir
+        )
+
+        test_param_source_params_1 = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "neighbors_data_set_path": neighbors_data_set_path,
+            "k": 10,
+            "min_score": 0.5,
+        }
+
+        with self.assertRaisesRegex(ValueError, "Only one of k, max_distance, or min_score can be specified in vector search."):
+            query_param_source = VectorSearchPartitionParamSource(
+                workload.Workload(name="unit-test"),
+                test_param_source_params_1, {
+                    "index": self.DEFAULT_INDEX_NAME,
+                    "request-params": {},
+                    "body": {
+                        "size": 100,
+                    }
+                }
+            )
+            # This line won't be executed if exception is raised during initialization
+            query_param_source.partition(0, 1)
+
+        test_param_source_params_2 = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "neighbors_data_set_path": neighbors_data_set_path,
+            "k": 10,
+            "max_distance": 100.0,
+        }
+
+        with self.assertRaisesRegex(ValueError, "Only one of k, max_distance, or min_score can be specified in vector search."):
+            query_param_source = VectorSearchPartitionParamSource(
+                workload.Workload(name="unit-test"),
+                test_param_source_params_2, {
+                    "index": self.DEFAULT_INDEX_NAME,
+                    "request-params": {},
+                    "body": {
+                        "size": 100,
+                    }
+                }
+            )
+            # This line won't be executed if exception is raised during initialization
+            query_param_source.partition(0, 1)
+
+        test_param_source_params_3 = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "neighbors_data_set_path": neighbors_data_set_path,
+            "min_score": 0.5,
+            "max_distance": 100.0,
+            "k": 10,
+        }
+
+        with self.assertRaisesRegex(ValueError, "Only one of k, max_distance, or min_score can be specified in vector search."):
+            query_param_source = VectorSearchPartitionParamSource(
+                workload.Workload(name="unit-test"),
+                test_param_source_params_3, {
+                    "index": self.DEFAULT_INDEX_NAME,
+                    "request-params": {},
+                    "body": {
+                        "size": 100,
+                    }
+                }
+            )
+            # This line won't be executed if exception is raised during initialization
+            query_param_source.partition(0, 1)
+
     def _check_params(
             self,
             actual_params: dict,

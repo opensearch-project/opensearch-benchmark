@@ -1232,13 +1232,6 @@ class Query(Runner):
             Perform vector search and report recall@k , recall@r and time taken to perform recall in ms as
             meta object.
             """
-            result = {
-                "weight": 1,
-                "unit": "ops",
-                "success": True,
-                "recall@k": 0,
-                "recall@1": 0,
-            }
 
             def _is_empty_search_results(content):
                 if content is None:
@@ -1261,7 +1254,7 @@ class Query(Runner):
                     return _get_field_value(content["_source"], field_name)
                 return None
 
-            def calculate_recall(predictions, neighbors, top_k):
+            def calculate_topk_search_recall(predictions, neighbors, top_k):
                 """
                 Calculates the recall by comparing top_k neighbors with predictions.
                 recall = Sum of matched neighbors from predictions / total number of neighbors from ground truth
@@ -1289,9 +1282,71 @@ class Query(Runner):
 
                 return correct / min_num_of_results
 
+            def calculate_radial_search_recall(predictions, neighbors, enable_top_1_recall=False):
+                """
+                Calculates the recall by comparing max_distance/min_score threshold neighbors with predictions.
+                recall = Sum of matched neighbors from predictions / total number of neighbors from ground truth
+                Args:
+                    predictions: list containing ids of results returned by OpenSearch.
+                    neighbors: list containing ids of the actual neighbors for a set of queries
+                    enable_top_1_recall: boolean to calculate recall@1
+                Returns:
+                    Recall between predictions and top k neighbors from ground truth
+                """
+                correct = 0.0
+                try:
+                    n = neighbors.index('-1')
+                    # Slice the list to have a length of n
+                    truth_set = neighbors[:n]
+                except ValueError:
+                    # If '-1' is not found in the list, use the entire list
+                    truth_set = neighbors
+                min_num_of_results = len(truth_set)
+                if min_num_of_results == 0:
+                    self.logger.info("No neighbors are provided for recall calculation")
+                    return 1
+
+                if enable_top_1_recall:
+                    min_num_of_results = 1
+
+                for j in range(min_num_of_results):
+                    if j >= len(predictions):
+                        self.logger.info("No more neighbors in prediction to compare against ground truth.\n"
+                                         "Total neighbors in prediction: [%d].\n"
+                                         "Total neighbors in ground truth: [%d]", len(predictions), min_num_of_results)
+                        break
+                    if predictions[j] in truth_set:
+                        correct += 1.0
+
+                return correct / min_num_of_results
+
+            result = {
+                "weight": 1,
+                "unit": "ops",
+                "success": True,
+            }
+            # Add recall@k and recall@1 to the initial result only if k is present in the params
+            if "k" in params:
+                result.update({
+                    "recall@k": 0,
+                    "recall@1": 0
+                })
+            # Add recall@max_distance and recall@max_distance_1 to the initial result only if max_distance is present in the params
+            elif "max_distance" in params:
+                result.update({
+                    "recall@max_distance": 0,
+                    "recall@max_distance_1": 0
+                })
+            # Add recall@min_score and recall@min_score_1 to the initial result only if min_score is present in the params
+            elif "min_score" in params:
+                result.update({
+                    "recall@min_score": 0,
+                    "recall@min_score_1": 0
+                })
+
             doc_type = params.get("type")
             response = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
-            recall_processing_start = time.perf_counter()
+
             if detailed_results:
                 props = parse(response, ["hits.total", "hits.total.value", "hits.total.relation", "timed_out", "took"])
                 hits_total = props.get("hits.total.value", props.get("hits.total", 0))
@@ -1305,6 +1360,8 @@ class Query(Runner):
                     "timed_out": timed_out,
                     "took": took
                 })
+
+            recall_processing_start = time.perf_counter()
             response_json = json.loads(response.getvalue())
             if _is_empty_search_results(response_json):
                 self.logger.info("Vector search query returned no results.")
@@ -1318,12 +1375,23 @@ class Query(Runner):
                     continue
                 candidates.append(field_value)
             neighbors_dataset = params["neighbors"]
-            num_neighbors = params.get("k", 1)
-            recall_k = calculate_recall(candidates, neighbors_dataset, num_neighbors)
-            result.update({"recall@k": recall_k})
 
-            recall_1 = calculate_recall(candidates, neighbors_dataset, 1)
-            result.update({"recall@1": recall_1})
+            if "k" in params:
+                num_neighbors = params.get("k", 1)
+                recall_top_k = calculate_topk_search_recall(candidates, neighbors_dataset, num_neighbors)
+                recall_top_1 = calculate_topk_search_recall(candidates, neighbors_dataset, 1)
+                result.update({"recall@k": recall_top_k})
+                result.update({"recall@1": recall_top_1})
+
+            if "max_distance" in params or "min_score" in params:
+                recall_threshold = calculate_radial_search_recall(candidates, neighbors_dataset)
+                recall_top_1 = calculate_radial_search_recall(candidates, neighbors_dataset, True)
+                if "min_score" in params:
+                    result.update({"recall@min_score": recall_threshold})
+                    result.update({"recall@min_score_1": recall_top_1})
+                elif "max_distance" in params:
+                    result.update({"recall@max_distance": recall_threshold})
+                    result.update({"recall@max_distance_1": recall_top_1})
 
             recall_processing_end = time.perf_counter()
             recall_processing_time = convert.seconds_to_ms(recall_processing_end - recall_processing_start)
