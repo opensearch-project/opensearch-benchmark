@@ -20,7 +20,7 @@ jobs:
           echo "which uses 'docker compose' command to replace 'docker-compose'"
           echo "this would cause issues in our test validation so we enforce v1 here"
           echo "https://github.com/actions/runner-images/commit/2a4bc14da46f1f8e358aa902a69edb9bef135472"
-          apt-get uninstall -y docker-compose-plugin
+          apt-get remove -y docker-compose-plugin
           pip install docker-compose==1.29.2
           docker --version
           docker-compose --version
