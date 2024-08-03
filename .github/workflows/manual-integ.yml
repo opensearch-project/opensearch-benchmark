@@ -14,6 +14,19 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+      - uses: KengoTODA/actions-setup-docker-compose@v1
+        with:
+          version: '1.29.2'
+#      - name: Enforce docker-compose v1
+#        run: |
+#          echo "GitHub starts to switch runners to include docker-compose v2"
+#          echo "which uses 'docker compose' command to replace 'docker-compose'"
+#          echo "this would cause issues in our test validation so we enforce v1 here"
+#          echo "https://github.com/actions/runner-images/commit/2a4bc14da46f1f8e358aa902a69edb9bef135472"
+#          sudo apt-get remove -y docker-compose-plugin
+#          sudo pip install docker-compose==1.29.2
+#          docker --version
+#          docker-compose --version
       - name: Check out repository code
         uses: actions/checkout@v2
       - name: Clone pyenv
