@@ -27,6 +27,8 @@ import csv
 import io
 import logging
 import sys
+import re
+from enum import Enum
 
 import tabulate
 
@@ -43,6 +45,11 @@ FINAL_SCORE = r"""
 ------------------------------------------------------
             """
 
+class Throughput(Enum):
+    MEAN = "mean"
+    MAX = "max"
+    MIN = "min"
+    MEDIAN = "median"
 
 def summarize(results, cfg):
     SummaryResultsPublisher(results, cfg).publish()
@@ -127,6 +134,16 @@ class SummaryResultsPublisher:
             "latency": comma_separated_string_to_number_list(config.opts("workload", "latency.percentiles", mandatory=False))
         }
 
+    def publish_operational_statistics(self, metrics_table: list, warnings: list, record, task):
+        metrics_table.extend(self._publish_throughput(record, task))
+        metrics_table.extend(self._publish_latency(record, task))
+        metrics_table.extend(self._publish_service_time(record, task))
+        # this is mostly needed for debugging purposes but not so relevant to end users
+        if self.show_processing_time:
+            metrics_table.extend(self._publish_processing_time(record, task))
+        metrics_table.extend(self._publish_error_rate(record, task))
+        self.add_warnings(warnings, record, task)
+
     def publish(self):
         print_header(FINAL_SCORE)
 
@@ -145,16 +162,33 @@ class SummaryResultsPublisher:
 
         metrics_table.extend(self._publish_transform_stats(stats))
 
+        max_throughput = -1
+        record_with_best_throughput = None
+
+        throughput_pattern = r"_(\d+)_clients$"
+
+
         for record in stats.op_metrics:
             task = record["task"]
-            metrics_table.extend(self._publish_throughput(record, task))
-            metrics_table.extend(self._publish_latency(record, task))
-            metrics_table.extend(self._publish_service_time(record, task))
-            # this is mostly needed for debugging purposes but not so relevant to end users
-            if self.show_processing_time:
-                metrics_table.extend(self._publish_processing_time(record, task))
-            metrics_table.extend(self._publish_error_rate(record, task))
-            self.add_warnings(warnings, record, task)
+            maybe_match_task_is_part_of_throughput_testing = re.search(throughput_pattern, task)
+            if maybe_match_task_is_part_of_throughput_testing:
+
+                # assumption: all units are the same and only maximizing throughput over one operation (i.e. not both ingest and search).
+                # To maximize throughput over multiple operations, would need a list/dictionary of maximum throughputs.
+                task_throughput = record["throughput"][Throughput.MEAN.value]
+                logger = logging.getLogger(__name__)
+                logger.info("Task %s has throughput %s", task, task_throughput)
+                if task_throughput > max_throughput:
+                    max_throughput = task_throughput
+                    record_with_best_throughput = record
+
+            else:
+                self.publish_operational_statistics(metrics_table=metrics_table, warnings=warnings, record=record, task=task)
+
+        if max_throughput != -1 and record_with_best_throughput is not None:
+            self.publish_operational_statistics(metrics_table=metrics_table, warnings=warnings, record=record_with_best_throughput,
+                                                task=record_with_best_throughput["task"])
+            metrics_table.extend(self._publish_best_client_settings(record_with_best_throughput, record_with_best_throughput["task"]))
 
         for record in stats.correctness_metrics:
             task = record["task"]
@@ -216,6 +250,10 @@ class SummaryResultsPublisher:
             self._line("Mean recall@k", task, recall_k_mean, "", lambda v: "%.2f" % v),
             self._line("Mean recall@1", task, recall_1_mean, "", lambda v: "%.2f" % v)
         )
+
+    def _publish_best_client_settings(self, record, task):
+        num_clients = re.search(r"_(\d+)_clients$", task).group(1)
+        return self._join(self._line("Num clients that achieved maximium throughput", "", num_clients, ""))
 
     def _publish_percentiles(self, name, task, value, unit="ms"):
         lines = []
