@@ -173,6 +173,8 @@ Integration tests are expected to run for approximately **20-30 mins** and can b
   * Amazon Linux 2
   * MacOS
 
+Integration tests run against the standard [OpenSearch Benchmark workloads](https://github.com/opensearch-project/opensearch-benchmark-workloads).  Sometimes, it may be necessary to run integration tests against a modified forked copy of these workloads.  In that case, please follow the instructions [here](https://github.com/opensearch-project/opensearch-benchmark-workloads/blob/main/README.md#testing-the-workload).
+
 Invoke integration tests by running the following command within the root directory of the repository:
 
 ```
