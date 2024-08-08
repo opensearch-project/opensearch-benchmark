@@ -50,7 +50,7 @@ class IndexExtractor:
     def extract(self, outdir, index_pattern):
         """
         Extracts and writes index settings and
-        mappings to "index.json" in a workload
+        mappings to "<index_name>.json" in a workload
         :param outdir: destination directory
         :param index_pattern: name of index or index pattern
         :return: Dictionary of template variables corresponding to the
@@ -85,7 +85,7 @@ class IndexExtractor:
         # the response might contain multiple indices if a wildcard was provided
         response = self.client.indices.get(index_pattern)
         for index, details in response.items():
-            valid, reason = self.is_valid(index)
+            valid, reason = self.is_valid_index(index)
             if valid:
                 mappings = details["mappings"]
                 index_settings = self.filter_ephemeral_index_settings(details["settings"]["index"])
@@ -122,7 +122,7 @@ class IndexExtractor:
                 settings[s] = param.format(orig=orig_value)
 
 
-    def is_valid(self, index_name):
+    def is_valid_index(self, index_name):
         if len(index_name) == 0:
             return False, "Index name is empty"
         if index_name.startswith("."):
