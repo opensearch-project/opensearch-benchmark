@@ -1596,11 +1596,22 @@ class WorkloadSpecificationReader:
             schedule = []
 
             for op in self._r(test_procedure_spec, "schedule", error_ctx=name):
-                if "parallel" in op:
-                    task = self.parse_parallel(op["parallel"], ops, name)
+                if "clients_list" in op:
+                    self.logger.info("Clients list specified, running multiple search tasks with %s clients.", op["clients_list"])
+                    for client in op["clients_list"]:
+                        op["clients"] = client
+
+                        new_name = name + "_" + str(client) + "_clients"
+                        new_task = self.parse_task(op, ops, new_name)
+                        new_task.name = new_name
+                        schedule.append(new_task)
                 else:
-                    task = self.parse_task(op, ops, name)
-                schedule.append(task)
+                    if "parallel" in op:
+                        task = self.parse_parallel(op["parallel"], ops, name)
+                    else:
+                        task = self.parse_task(op, ops, name)
+
+                    schedule.append(task)
 
             # verify we don't have any duplicate task names (which can be confusing / misleading in results_publishing).
             known_task_names = set()

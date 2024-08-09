@@ -2477,6 +2477,52 @@ class WorkloadSpecificationReaderTests(TestCase):
         self.assertEqual("search-two-clients", schedule[1].name)
         self.assertEqual("search", schedule[1].operation.name)
 
+    def test_parse_clients_list(self):
+        workload_specification = {
+            "description": "description for unit test",
+            "operations": [
+                {
+                    "name": "search",
+                    "operation-type": "search",
+                    "index": "_all"
+                }
+            ],
+            "test_procedure": {
+                "name": "default-test_procedure",
+                "schedule": [
+                    {
+                        "name": "search-one-client",
+                        "operation": "search",
+                        "clients": 1,
+                        "clients_list": [1,2,3]
+                    },
+                    {
+                        "name": "search-two-clients",
+                        "operation": "search",
+                        "clients": 2
+                    }
+                ]
+            }
+        }
+
+        reader = loader.WorkloadSpecificationReader(selected_test_procedure="default-test_procedure")
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("unittest", resulting_workload.name)
+        test_procedure = resulting_workload.test_procedures[0]
+        self.assertTrue(test_procedure.selected)
+        schedule = test_procedure.schedule
+        self.assertEqual(4, len(schedule))
+
+        self.assertEqual("default-test_procedure_1_clients", schedule[0].name)
+        self.assertEqual("search", schedule[0].operation.name)
+        self.assertEqual("default-test_procedure_2_clients", schedule[1].name)
+        self.assertEqual("search", schedule[1].operation.name)
+        self.assertEqual("default-test_procedure_3_clients", schedule[2].name)
+        self.assertEqual("search", schedule[2].operation.name)
+
+        self.assertEqual("search-two-clients", schedule[3].name)
+        self.assertEqual("search", schedule[3].operation.name)
+
     def test_parse_indices_valid_workload_specification(self):
         workload_specification = {
             "description": "description for unit test",
