@@ -253,7 +253,7 @@ class SummaryResultsPublisher:
 
     def _publish_best_client_settings(self, record, task):
         num_clients = re.search(r"_(\d+)_clients$", task).group(1)
-        return self._join(self._line("Num clients that achieved maximium throughput", "", num_clients, ""))
+        return self._join(self._line("Num clients to reach max throughput", "", num_clients, ""))
 
     def _publish_percentiles(self, name, task, value, unit="ms"):
         lines = []
