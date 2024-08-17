@@ -34,12 +34,13 @@ import time
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import List, Dict, Any, Optional, Tuple
+import json
 
 import numpy as np
 
 from osbenchmark import exceptions
 from osbenchmark.utils import io
-from osbenchmark.utils.dataset import DataSet, get_data_set, Context
+from osbenchmark.utils.dataset import DataSet, get_data_set, Context, HDF5DataSet
 from osbenchmark.utils.parse import parse_string_parameter, parse_int_parameter
 from osbenchmark.workload import workload
 
@@ -643,12 +644,21 @@ class BulkIndexParamSource(ParamSource):
 
         for corpus in self.corpora:
             for document_set in corpus.documents:
-                if document_set.includes_action_and_meta_data and self.id_conflicts != IndexIdConflict.NoConflicts:
+                if (document_set.includes_action_and_meta_data and self.id_conflicts != IndexIdConflict.NoConflicts) or (
+                    document_set.generate_increasing_vector_ids and self.id_conflicts != IndexIdConflict.NoConflicts
+                    ):
                     file_name = document_set.document_archive if document_set.has_compressed_corpus() else document_set.document_file
 
                     raise exceptions.InvalidSyntax("Cannot generate id conflicts [%s] as [%s] in document corpus [%s] already contains an "
                                                    "action and meta-data line." % (id_conflicts, file_name, corpus))
+                if document_set.includes_action_and_meta_data and document_set.generate_increasing_vector_ids:
+                    file_name = document_set.document_archive if document_set.has_compressed_corpus() else document_set.document_file
 
+                    raise exceptions.InvalidSyntax(
+                        """Cannot specify generate_increasing_vector_ids=True and includes_action_and_meta_data=True
+                        for file [%s] in document corpus [%s]."""
+                        % (file_name, corpus)
+                    )
         self.pipeline = params.get("pipeline", None)
         try:
             self.bulk_size = int(params["bulk-size"])
@@ -671,6 +681,7 @@ class BulkIndexParamSource(ParamSource):
             raise exceptions.InvalidSyntax("'batch-size' must be numeric")
 
         self.ingest_percentage = self.float_param(params, name="ingest-percentage", default_value=100, min_value=0, max_value=100)
+
         self.param_source = PartitionBulkIndexParamSource(self.corpora, self.batch_size, self.bulk_size,
                                                           self.ingest_percentage, self.id_conflicts,
                                                           self.conflict_probability, self.on_conflict,
@@ -691,15 +702,16 @@ class BulkIndexParamSource(ParamSource):
         corpora = []
         workload_corpora_names = [corpus.name for corpus in t.corpora]
         corpora_names = params.get("corpora", workload_corpora_names)
+        source_format = params.get("source_format", workload.Documents.SOURCE_FORMAT_BULK)
         if isinstance(corpora_names, str):
             corpora_names = [corpora_names]
-
         for corpus in t.corpora:
             if corpus.name in corpora_names:
-                filtered_corpus = corpus.filter(source_format=workload.Documents.SOURCE_FORMAT_BULK,
+                filtered_corpus = corpus.filter(source_format=source_format,
                                                 target_indices=params.get("indices"),
                                                 target_data_streams=params.get("data-streams"))
-                if filtered_corpus.number_of_documents(source_format=workload.Documents.SOURCE_FORMAT_BULK) > 0:
+
+                if filtered_corpus.number_of_documents(source_format=source_format) > 0:
                     corpora.append(filtered_corpus)
 
         # the workload has corpora but none of them match
@@ -753,6 +765,8 @@ class PartitionBulkIndexParamSource:
         # use a value > 0 so percent_completed returns a sensible value
         self.total_bulks = 1
         self.infinite = False
+        self.dataset_context = original_params.get("vector_dataset_context", None)
+        logging.getLogger(__name__).info("dataset context: %s", self.dataset_context)
 
     def partition(self, partition_index, total_partitions):
         if self.total_partitions is None:
@@ -770,6 +784,7 @@ class PartitionBulkIndexParamSource:
         if self.current_bulk == self.total_bulks:
             raise StopIteration()
         self.current_bulk += 1
+
         return next(self.internal_params)
 
     def _init_internal_params(self):
@@ -777,11 +792,12 @@ class PartitionBulkIndexParamSource:
         self.partitions = sorted(self.partitions)
         start_index = self.partitions[0]
         end_index = self.partitions[-1]
-
+        # must convert file into corpus to use bulk API.
+        # self.internal_params is now a generator of different bulks.
         self.internal_params = bulk_data_based(self.total_partitions, start_index, end_index, self.corpora,
                                                self.batch_size, self.bulk_size, self.id_conflicts,
                                                self.conflict_probability, self.on_conflict, self.recency,
-                                               self.pipeline, self.original_params, self.create_reader)
+                                               self.pipeline, self.original_params, self.create_reader, self.dataset_context)
 
         all_bulks = number_of_bulks(self.corpora, start_index, end_index, self.total_partitions, self.bulk_size)
         self.total_bulks = math.ceil((all_bulks * self.ingest_percentage) / 100)
@@ -972,6 +988,7 @@ class VectorDataSetPartitionParamSource(ParamSource):
             partition_x.num_vectors += remaining_vectors
 
         # We need to create a new instance of the data set for each client
+        # Here3
         partition_x.data_set = get_data_set(
             self.data_set_format,
             self.data_set_path,
@@ -1532,8 +1549,7 @@ def chain(*iterables):
 
 
 def create_default_reader(docs, offset, num_lines, num_docs, batch_size, bulk_size, id_conflicts, conflict_probability,
-                          on_conflict, recency):
-    source = Slice(io.MmapSource, offset, num_lines)
+                          on_conflict, recency, dataset_context=None):
     target = None
     use_create = False
     if docs.target_index:
@@ -1545,8 +1561,20 @@ def create_default_reader(docs, offset, num_lines, num_docs, batch_size, bulk_si
             # can only create docs in data streams
             raise exceptions.BenchmarkError("Conflicts cannot be generated with append only data streams")
 
-    if docs.includes_action_and_meta_data:
-        return SourceOnlyIndexDataReader(docs.document_file, batch_size, bulk_size, source, target, docs.target_type)
+    if dataset_context is None:
+        dataset_context = "index"
+    if docs.source_format == workload.Documents.SOURCE_FORMAT_HDF5:
+        if docs.generate_increasing_vector_ids:
+            source = HDF5SourceGenerateIds(offset, num_lines, dataset_context, target, docs.id_field_name, docs.vector_field_name)
+        else:
+            source = HDF5Source(offset, num_lines, dataset_context, target, docs.id_field_name, docs.vector_field_name)
+    else:
+        source = Slice(io.MmapSource, offset, num_lines)
+
+    if docs.includes_action_and_meta_data or docs.generate_increasing_vector_ids:
+        return SourceOnlyIndexDataReader(docs.document_file, batch_size, bulk_size, source, target, docs.target_type,
+                                         docs.generate_increasing_vector_ids)
+
     else:
         am_handler = GenerateActionMetaData(target, docs.target_type,
                                             build_conflicting_ids(id_conflicts, num_docs, offset), conflict_probability,
@@ -1555,7 +1583,7 @@ def create_default_reader(docs, offset, num_lines, num_docs, batch_size, bulk_si
 
 
 def create_readers(num_clients, start_client_index, end_client_index, corpora, batch_size, bulk_size, id_conflicts,
-                   conflict_probability, on_conflict, recency, create_reader):
+                   conflict_probability, on_conflict, recency, create_reader, dataset_context=None):
     logger = logging.getLogger(__name__)
     readers = []
     for corpus in corpora:
@@ -1570,7 +1598,7 @@ def create_readers(num_clients, start_client_index, end_client_index, corpora, b
                             "from corpus [%s].", start_client_index, end_client_index, num_docs, offset,
                             target, corpus.name)
                 readers.append(create_reader(docs, offset, num_lines, num_docs, batch_size, bulk_size, id_conflicts,
-                                             conflict_probability, on_conflict, recency))
+                                             conflict_probability, on_conflict, recency, dataset_context))
             else:
                 logger.info("Task-relative clients at index [%d-%d] skip [%s] (no documents to read).",
                             start_client_index, end_client_index, corpus.name)
@@ -1630,7 +1658,8 @@ def bulk_generator(readers, pipeline, original_params):
 
 
 def bulk_data_based(num_clients, start_client_index, end_client_index, corpora, batch_size, bulk_size, id_conflicts,
-                    conflict_probability, on_conflict, recency, pipeline, original_params, create_reader=create_default_reader):
+                    conflict_probability, on_conflict, recency, pipeline, original_params, create_reader=create_default_reader,
+                    context=None):
     """
     Calculates the necessary schedule for bulk operations.
 
@@ -1654,7 +1683,7 @@ def bulk_data_based(num_clients, start_client_index, end_client_index, corpora, 
     :return: A generator for the bulk operations of the given client.
     """
     readers = create_readers(num_clients, start_client_index, end_client_index, corpora, batch_size, bulk_size,
-                             id_conflicts, conflict_probability, on_conflict, recency, create_reader)
+                             id_conflicts, conflict_probability, on_conflict, recency, create_reader, context)
     return bulk_generator(chain(*readers), pipeline, original_params)
 
 
@@ -1779,6 +1808,122 @@ class Slice:
         return "%s[%d;%d]" % (self.source, self.offset, self.offset + self.number_of_lines)
 
 
+class HDF5Source:
+    def __init__(self, offset, number_of_lines, dataset_context, index, id_field_name, vector_field_name):
+        self.offset = offset
+        self.number_of_lines = number_of_lines
+        self.current_line = 0
+        self.dataset_context = dataset_context
+        self.index_name = index
+        self.id_field_name = id_field_name
+        self.vector_field_name : str = vector_field_name
+        self.logger = logging.getLogger(__name__)
+        self.dataset = None
+
+    def open(self, file_name, mode, bulk_size):
+        self.source: HDF5DataSet = HDF5DataSet(file_name, Context.INDEX)
+
+        # bulk size used in the read method
+        self.bulk_size = bulk_size
+
+        if self.offset >= self.source.size():
+            self.logger.error("Offset [%d] is out of range for dataset of size [%d].", self.offset, self.source.size())
+            raise IndexError(f"Offset {self.offset} is out of range for dataset of size {self.source.size()}.")
+
+        self.logger.info("Will read [%d] lines from [%s] starting from line [%d] with bulk size [%d].",
+                         self.number_of_lines, file_name, self.offset, self.bulk_size)
+
+        start = time.perf_counter()
+        self.source.seek(self.offset)
+        end = time.perf_counter()
+
+        self.logger.debug("Skipping [%d] lines took [%f] s.", self.offset, end - start)
+        return self
+
+    def close(self):
+        self.logger.info("Unimplemented HDF5 close.")
+        self.source = None
+
+    def __iter__(self):
+        return self
+
+    def encode_dict(self, input: Dict):
+        return (json.dumps(input) + "\n").encode("utf-8")
+
+    def __next__(self):
+        if self.current_line >= self.number_of_lines:
+            raise StopIteration()
+        else:
+            vectors = self.source.read(min(self.bulk_size, self.number_of_lines - self.current_line))
+
+            if len(vectors) == 0:
+                raise StopIteration()
+
+            to_return = [self.encode_dict({self.vector_field_name : vector.tolist() }) for vector in vectors]
+
+            self.current_line += len(vectors)
+
+            return to_return
+
+class HDF5SourceGenerateIds(HDF5Source):
+    def __init__(self, offset, number_of_lines, dataset_context, index, id_field_name, vector_field_name, attributes_list=None):
+        super().__init__(offset, number_of_lines, dataset_context, index, id_field_name, vector_field_name)
+        self.DEFAULT_ID_FIELD_NAME = "_id"
+
+    def bulk_transform(self, partition: np.ndarray, action) -> List[Dict[str, Any]]:
+        """Partitions and transforms a list of vectors into OpenSearch's bulk
+        injection format.
+        Args:
+            offset: to start counting from
+            partition: An array of vectors to transform.
+            action: Bulk API action.
+        Returns:
+            An array of transformed vectors in bulk format.
+        """
+        self.current = self.current_line
+
+        actions = []
+        _ = [
+            actions.extend([action(self.id_field_name, i + self.current + self.offset), None])
+            for i in range(len(partition))
+        ]
+        bulk_contents = []
+        add_id_field_to_body = self.id_field_name != self.DEFAULT_ID_FIELD_NAME
+        for vec, identifier in zip(partition.tolist(), range(self.current, self.current + len(partition))):
+            row = {self.vector_field_name: vec}
+            if add_id_field_to_body:
+                row.update({self.id_field_name: identifier})
+            bulk_contents.append(self.encode_dict(row))
+        actions[1::2] = bulk_contents
+        return actions
+
+    def __next__(self):
+        if self.current_line >= self.number_of_lines:
+            raise StopIteration()
+        else:
+
+            def action(id_field_name, doc_id):
+                # support only index operation
+                bulk_action = 'index'
+                metadata = {
+                    '_index': self.index_name
+                }
+                # Add id field to metadata only if it is _id
+                if id_field_name == self.DEFAULT_ID_FIELD_NAME:
+                    metadata.update({id_field_name: doc_id})
+                return self.encode_dict({bulk_action: metadata})
+
+            # ensure we don't read past the allowed number of lines.
+            vectors = self.source.read(min(self.bulk_size, self.number_of_lines - self.current_line))
+
+            if len(vectors) == 0:
+                raise StopIteration()
+
+            to_return = self.bulk_transform(vectors, action)
+
+            self.current_line += len(vectors)
+            return to_return
+
 class IndexDataReader:
     """
     Reads a file in bulks into an array and also adds a meta-data line before each document if necessary.
@@ -1869,7 +2014,9 @@ class MetadataIndexDataReader(IndexDataReader):
             action_metadata_item = next(self.action_metadata)
             if action_metadata_item:
                 action_type, action_metadata_line = action_metadata_item
+
                 current_bulk.append(action_metadata_line.encode("utf-8"))
+
                 if action_type == "update":
                     # remove the trailing "\n" as the doc needs to fit on one line
                     doc = doc.strip()
@@ -1882,10 +2029,15 @@ class MetadataIndexDataReader(IndexDataReader):
 
 
 class SourceOnlyIndexDataReader(IndexDataReader):
-    def __init__(self, data_file, batch_size, bulk_size, file_source, index_name, type_name):
-        # keep batch size as it only considers documents read, not lines read but increase the bulk size as
-        # documents are only on every other line.
-        super().__init__(data_file, batch_size, bulk_size * 2, file_source, index_name, type_name)
+    def __init__(self, data_file, batch_size, bulk_size, file_source, index_name, type_name, is_vector_generate_ids=False):
+        if is_vector_generate_ids:
+            # in this case, the source contains exclusively vectors and the HDF5SourceGenerateIds object
+            # will generate id metadata for each line of the bulk.
+            super().__init__(data_file, batch_size, bulk_size, file_source, index_name, type_name)
+        else:
+            # keep batch size as it only considers documents read, not lines read but increase the bulk size as
+            # documents are only on every other line.
+            super().__init__(data_file, batch_size, bulk_size * 2, file_source, index_name, type_name)
 
     def read_bulk(self):
         bulk_items = next(self.file_source)

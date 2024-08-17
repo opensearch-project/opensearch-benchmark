@@ -9,7 +9,6 @@ import struct
 from abc import ABC, ABCMeta, abstractmethod
 from enum import Enum
 from typing import cast
-
 import h5py
 import numpy as np
 
@@ -158,6 +157,20 @@ class HDF5DataSet(DataSet):
             return "attributes"
 
         raise Exception("Unsupported context")
+
+def context_string_to_context(context_string: str) -> Context:
+    if context_string == "neighbors":
+        return Context.NEIGHBORS
+    elif context_string == "train":
+        return Context.INDEX
+    elif context_string == "test":
+        return Context.QUERY
+    elif context_string == "max_distance_neighbors":
+        return Context.MAX_DISTANCE_NEIGHBORS
+    elif context_string == "min_score_neighbors":
+        return Context.MIN_SCORE_NEIGHBORS
+    else:
+        raise ValueError(f"Invalid context string: {context_string}")
 
 
 class BigANNDataSet(DataSet):
