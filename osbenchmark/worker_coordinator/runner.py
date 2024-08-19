@@ -47,7 +47,7 @@ from osbenchmark import exceptions, workload
 from osbenchmark.utils import convert
 from osbenchmark.client import RequestContextHolder
 # Mapping from operation type to specific runner
-from osbenchmark.utils.parse import parse_int_parameter, parse_string_parameter
+from osbenchmark.utils.parse import parse_int_parameter, parse_string_parameter, parse_float_parameter
 
 __RUNNERS = {}
 
@@ -105,7 +105,10 @@ def register_default_runners():
     register_runner(workload.OperationType.DeleteMlModel, Retry(DeleteMlModel()), async_runner=True)
     register_runner(workload.OperationType.RegisterMlModel, Retry(RegisterMlModel()), async_runner=True)
     register_runner(workload.OperationType.DeployMlModel, Retry(DeployMlModel()), async_runner=True)
-
+    register_runner(workload.OperationType.TrainKnnModel, Retry(TrainKnnModel()), async_runner=True)
+    register_runner(workload.OperationType.DeleteKnnModel, Retry(DeleteKnnModel()), async_runner=True)
+    register_runner(workload.OperationType.UpdateConcurrentSegmentSearchSettings,
+                    Retry(UpdateConcurrentSegmentSearchSettings()), async_runner=True)
 
 def runner_for(operation_type):
     try:
@@ -652,6 +655,184 @@ class BulkIndex(Runner):
         return "bulk-index"
 
 
+class DeleteKnnModel(Runner):
+    """
+    Deletes the K-NN model named model_id.
+    """
+
+    NAME = "delete-knn-model"
+    MODEL_DOES_NOT_EXIST_STATUS_CODE = 404
+
+    async def __call__(self, opensearch, params):
+        model_id = parse_string_parameter("model_id", params)
+        ignore_if_model_does_not_exist = params.get(
+            "ignore-if-model-does-not-exist", False
+        )
+
+        method = "DELETE"
+        model_uri = f"/_plugins/_knn/models/{model_id}"
+
+        request_context_holder.on_client_request_start()
+
+        # 404 indicates the model has not been created. In that case, the runner's response depends on ignore_if_model_does_not_exist.
+        response = await opensearch.transport.perform_request(
+            method,
+            model_uri,
+            params={"ignore": [self.MODEL_DOES_NOT_EXIST_STATUS_CODE]},
+        )
+
+        request_context_holder.on_client_request_end()
+
+        # success condition.
+        if "result" in response.keys() and response["result"] == "deleted":
+            self.logger.debug("Model [%s] deleted successfully.", model_id)
+            return {"weight": 1, "unit": "ops", "success": True}
+
+        if "error" not in response.keys():
+            self.logger.warning(
+                "Request to delete model [%s] failed but no error, response: [%s]",
+                model_id,
+                response,
+            )
+            return {"weight": 1, "unit": "ops", "success": False}
+
+        if response["status"] != self.MODEL_DOES_NOT_EXIST_STATUS_CODE:
+            self.logger.warning(
+                "Request to delete model [%s] failed with status [%s] and response: [%s]",
+                model_id,
+                response["status"],
+                response,
+            )
+            return {"weight": 1, "unit": "ops", "success": False}
+
+        if ignore_if_model_does_not_exist:
+            self.logger.debug(
+                (
+                    "Model [%s] does not exist so it could not be deleted, "
+                    "however ignore-if-model-does-not-exist is True so the "
+                    "DeleteKnnModel operation succeeded."
+                ),
+                model_id,
+            )
+
+            return {"weight": 1, "unit": "ops", "success": True}
+
+        self.logger.warning(
+            (
+                "Request to delete model [%s] failed because the model does not exist "
+                "and ignore-if-model-does-not-exist was set to False. Response: [%s]"
+            ),
+            model_id,
+            response,
+        )
+        return {"weight": 1, "unit": "ops", "success": False}
+
+    def __repr__(self, *args, **kwargs):
+        return self.NAME
+
+
+class TrainKnnModel(Runner):
+    """
+    Trains model named model_id until training is complete or retries are exhausted.
+    """
+
+    NAME = "train-knn-model"
+    DEFAULT_RETRIES = 1000
+    DEFAULT_POLL_PERIOD = 0.5
+
+    async def __call__(self, opensearch, params):
+        """
+        Create and train one model named model_id.
+
+        :param opensearch: The OpenSearch client.
+        :param params: A hash with all parameters. See below for details.
+        :return: A hash with meta data for this bulk operation. See below for details.
+        :raises: Exception if training fails, times out, or a different error occurs.
+        It expects a parameter dict with the following mandatory keys:
+
+        * ``body``: containing parameters to pass on to the train engine.
+            See https://opensearch.org/docs/latest/search-plugins/knn/api/#train-a-model for information.
+        * ``retries``: Maximum number of retries allowed for the training to complete (seconds).
+        * ``polling-interval``: Polling interval to see if the model has been trained yet (seconds).
+        * ``model_id``: ID of the model to train.
+        """
+        body = params["body"]
+        model_id = parse_string_parameter("model_id", params)
+        max_retries = parse_int_parameter("retries", params, self.DEFAULT_RETRIES)
+        poll_period = parse_float_parameter(
+            "poll_period", params, self.DEFAULT_POLL_PERIOD
+        )
+
+        method = "POST"
+        model_uri = f"/_plugins/_knn/models/{model_id}"
+        request_context_holder.on_client_request_start()
+        await opensearch.transport.perform_request(
+            method, f"{model_uri}/_train", body=body
+        )
+
+        current_number_retries = 0
+        while True:
+            model_response = await opensearch.transport.perform_request(
+                "GET", model_uri
+            )
+
+            if "state" not in model_response.keys():
+                request_context_holder.on_client_request_end()
+                self.logger.error(
+                    "Failed to create model [%s] with error response: [%s]",
+                    model_id,
+                    model_response,
+                )
+                raise Exception(
+                    f"Failed to create model {model_id} with error response: {model_response}"
+                )
+
+            if current_number_retries > max_retries:
+                request_context_holder.on_client_request_end()
+                self.logger.error(
+                    "Failed to create model [%s] within [%i] retries.",
+                    model_id,
+                    max_retries,
+                )
+                raise TimeoutError(
+                    f"Failed to create model: {model_id} within {max_retries} retries"
+                )
+
+            if model_response["state"] == "training":
+                current_number_retries += 1
+                await asyncio.sleep(poll_period)
+                continue
+
+            # at this point, training either failed or finished.
+            request_context_holder.on_client_request_end()
+            if model_response["state"] == "created":
+                self.logger.info(
+                    "Training model [%s] was completed successfully.", model_id
+                )
+                return
+
+            if model_response["state"] == "failed":
+                self.logger.error(
+                    "Training for model [%s] failed. Response: [%s]",
+                    model_id,
+                    model_response,
+                )
+                raise Exception(f"Failed to create model {model_id}: {model_response}")
+
+            self.logger.error(
+                "Model [%s] in unknown state [%s], response: [%s]",
+                model_id,
+                model_response["state"],
+                model_response,
+            )
+            raise Exception(
+                f"Model {model_id} in unknown state {model_response['state']}, response: {model_response}"
+            )
+
+    def __repr__(self, *args, **kwargs):
+        return self.NAME
+
+
 # TODO: Add retry logic to BulkIndex, so that we can remove BulkVectorDataSet and use BulkIndex.
 class BulkVectorDataSet(Runner):
     """
@@ -1051,13 +1232,6 @@ class Query(Runner):
             Perform vector search and report recall@k , recall@r and time taken to perform recall in ms as
             meta object.
             """
-            result = {
-                "weight": 1,
-                "unit": "ops",
-                "success": True,
-                "recall@k": 0,
-                "recall@1": 0,
-            }
 
             def _is_empty_search_results(content):
                 if content is None:
@@ -1080,7 +1254,7 @@ class Query(Runner):
                     return _get_field_value(content["_source"], field_name)
                 return None
 
-            def calculate_recall(predictions, neighbors, top_k):
+            def calculate_topk_search_recall(predictions, neighbors, top_k):
                 """
                 Calculates the recall by comparing top_k neighbors with predictions.
                 recall = Sum of matched neighbors from predictions / total number of neighbors from ground truth
@@ -1108,9 +1282,71 @@ class Query(Runner):
 
                 return correct / min_num_of_results
 
+            def calculate_radial_search_recall(predictions, neighbors, enable_top_1_recall=False):
+                """
+                Calculates the recall by comparing max_distance/min_score threshold neighbors with predictions.
+                recall = Sum of matched neighbors from predictions / total number of neighbors from ground truth
+                Args:
+                    predictions: list containing ids of results returned by OpenSearch.
+                    neighbors: list containing ids of the actual neighbors for a set of queries
+                    enable_top_1_recall: boolean to calculate recall@1
+                Returns:
+                    Recall between predictions and top k neighbors from ground truth
+                """
+                correct = 0.0
+                try:
+                    n = neighbors.index('-1')
+                    # Slice the list to have a length of n
+                    truth_set = neighbors[:n]
+                except ValueError:
+                    # If '-1' is not found in the list, use the entire list
+                    truth_set = neighbors
+                min_num_of_results = len(truth_set)
+                if min_num_of_results == 0:
+                    self.logger.info("No neighbors are provided for recall calculation")
+                    return 1
+
+                if enable_top_1_recall:
+                    min_num_of_results = 1
+
+                for j in range(min_num_of_results):
+                    if j >= len(predictions):
+                        self.logger.info("No more neighbors in prediction to compare against ground truth.\n"
+                                         "Total neighbors in prediction: [%d].\n"
+                                         "Total neighbors in ground truth: [%d]", len(predictions), min_num_of_results)
+                        break
+                    if predictions[j] in truth_set:
+                        correct += 1.0
+
+                return correct / min_num_of_results
+
+            result = {
+                "weight": 1,
+                "unit": "ops",
+                "success": True,
+            }
+            # Add recall@k and recall@1 to the initial result only if k is present in the params
+            if "k" in params:
+                result.update({
+                    "recall@k": 0,
+                    "recall@1": 0
+                })
+            # Add recall@max_distance and recall@max_distance_1 to the initial result only if max_distance is present in the params
+            elif "max_distance" in params:
+                result.update({
+                    "recall@max_distance": 0,
+                    "recall@max_distance_1": 0
+                })
+            # Add recall@min_score and recall@min_score_1 to the initial result only if min_score is present in the params
+            elif "min_score" in params:
+                result.update({
+                    "recall@min_score": 0,
+                    "recall@min_score_1": 0
+                })
+
             doc_type = params.get("type")
             response = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
-            recall_processing_start = time.perf_counter()
+
             if detailed_results:
                 props = parse(response, ["hits.total", "hits.total.value", "hits.total.relation", "timed_out", "took"])
                 hits_total = props.get("hits.total.value", props.get("hits.total", 0))
@@ -1124,6 +1360,8 @@ class Query(Runner):
                     "timed_out": timed_out,
                     "took": took
                 })
+
+            recall_processing_start = time.perf_counter()
             response_json = json.loads(response.getvalue())
             if _is_empty_search_results(response_json):
                 self.logger.info("Vector search query returned no results.")
@@ -1137,12 +1375,23 @@ class Query(Runner):
                     continue
                 candidates.append(field_value)
             neighbors_dataset = params["neighbors"]
-            num_neighbors = params.get("k", 1)
-            recall_k = calculate_recall(candidates, neighbors_dataset, num_neighbors)
-            result.update({"recall@k": recall_k})
 
-            recall_1 = calculate_recall(candidates, neighbors_dataset, 1)
-            result.update({"recall@1": recall_1})
+            if "k" in params:
+                num_neighbors = params.get("k", 1)
+                recall_top_k = calculate_topk_search_recall(candidates, neighbors_dataset, num_neighbors)
+                recall_top_1 = calculate_topk_search_recall(candidates, neighbors_dataset, 1)
+                result.update({"recall@k": recall_top_k})
+                result.update({"recall@1": recall_top_1})
+
+            if "max_distance" in params or "min_score" in params:
+                recall_threshold = calculate_radial_search_recall(candidates, neighbors_dataset)
+                recall_top_1 = calculate_radial_search_recall(candidates, neighbors_dataset, True)
+                if "min_score" in params:
+                    result.update({"recall@min_score": recall_threshold})
+                    result.update({"recall@min_score_1": recall_top_1})
+                elif "max_distance" in params:
+                    result.update({"recall@max_distance": recall_threshold})
+                    result.update({"recall@max_distance_1": recall_top_1})
 
             recall_processing_end = time.perf_counter()
             recall_processing_time = convert.seconds_to_ms(recall_processing_end - recall_processing_start)
@@ -2517,3 +2766,20 @@ class DeployMlModel(Runner):
 
     def __repr__(self, *args, **kwargs):
         return "deploy-ml-model"
+
+class UpdateConcurrentSegmentSearchSettings(Runner):
+    @time_func
+    async def __call__(self, opensearch, params):
+        enable_setting = params.get("enable", "false")
+        max_slice_count = params.get("max_slice_count", None)
+        body = {
+            "persistent": {
+                "search.concurrent_segment_search.enabled": enable_setting
+            }
+        }
+        if max_slice_count is not None:
+            body["persistent"]["search.concurrent.max_slice_count"] = max_slice_count
+        await opensearch.cluster.put_settings(body=body)
+
+    def __repr__(self, *args, **kwargs):
+        return "update-concurrent-segment-search-settings"

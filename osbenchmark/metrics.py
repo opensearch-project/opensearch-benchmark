@@ -1440,7 +1440,6 @@ class TestExecution:
         if self.plugin_params:
             d["plugin-params"] = self.plugin_params
         return d
-
     def to_result_dicts(self):
         """
         :return: a list of dicts, suitable for persisting the results of this test execution in a format that is Kibana-friendly.
@@ -1784,6 +1783,7 @@ class GlobalStatsCalculator:
                 op_type = task.operation.type
                 error_rate = self.error_rate(t, op_type)
                 duration = self.duration(t)
+
                 if task.operation.include_in_results_publishing or error_rate > 0:
                     self.logger.debug("Gathering request metrics for [%s].", t)
                     result.add_op_metrics(
@@ -1800,8 +1800,19 @@ class GlobalStatsCalculator:
                             self.workload.meta_data,
                             self.test_procedure.meta_data,
                             task.operation.meta_data,
-                            task.meta_data)
+                            task.meta_data,
+                        ),
                     )
+
+                    result.add_correctness_metrics(
+                        t,
+                        task.operation.name,
+                        self.single_latency(t, op_type, metric_name="recall@k"),
+                        self.single_latency(t, op_type, metric_name="recall@1"),
+                        error_rate,
+                        duration,
+                    )
+
         self.logger.debug("Gathering indexing metrics.")
         result.total_time = self.sum("indexing_total_time")
         result.total_time_per_shard = self.shard_stats("indexing_total_time")
@@ -1996,6 +2007,7 @@ class GlobalStatsCalculator:
 class GlobalStats:
     def __init__(self, d=None):
         self.op_metrics = self.v(d, "op_metrics", default=[])
+        self.correctness_metrics = self.v(d, "correctness_metrics", default=[])
         self.total_time = self.v(d, "total_time")
         self.total_time_per_shard = self.v(d, "total_time_per_shard", default={})
         self.indexing_throttle_time = self.v(d, "indexing_throttle_time")
@@ -2081,6 +2093,22 @@ class GlobalStats:
                             "max": item["max"]
                         }
                     })
+            elif metric == "correctness_metrics":
+                for item in value:
+                    if "recall@k" in item:
+                        all_results.append({
+                            "task": item["task"],
+                            "operation": item["operation"],
+                            "name": "recall@k",
+                            "value": item["recall@k"]
+                        })
+                    if "recall@1" in item:
+                        all_results.append({
+                            "task": item["task"],
+                            "operation": item["operation"],
+                            "name": "recall@1",
+                            "value": item["recall@1"]
+                        })
             elif metric.startswith("total_transform_") and value is not None:
                 for item in value:
                     all_results.append({
@@ -2123,6 +2151,17 @@ class GlobalStats:
         if meta:
             doc["meta"] = meta
         self.op_metrics.append(doc)
+
+    def add_correctness_metrics(self, task, operation, recall_at_k_stats, recall_at_1_stats, error_rate, duration):
+        self.correctness_metrics.append({
+            "task": task,
+            "operation": operation,
+            "recall@k": recall_at_k_stats,
+            "recall@1":recall_at_1_stats,
+            "error_rate": error_rate,
+            "duration": duration
+            }
+            )
 
     def tasks(self):
         # ensure we can read test_execution.json files before Benchmark 0.8.0

@@ -31,7 +31,6 @@ from unittest import TestCase
 
 import opensearchpy
 import pytest
-
 from osbenchmark import client, exceptions
 from osbenchmark.worker_coordinator import runner
 from tests import run_async, as_future
@@ -2259,6 +2258,327 @@ class QueryRunnerTests(TestCase):
         opensearch.clear_scroll.assert_not_called()
 
 
+class DeleteKnnModelRunnerTests(TestCase):
+    model_id = "test-model-id"
+
+    request = {
+        "index": "unittest",
+        "operation-type": "train-knn-model",
+        "model_id": model_id
+    }
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_delete_knn_success(self, opensearch, on_client_request_start, on_client_request_end):
+        response = {
+            "model_id": "test-model",
+            "result": "deleted"
+        }
+        opensearch.transport.perform_request.return_value = as_future(response)
+        runner_under_test = runner.DeleteKnnModel()
+
+        async with runner_under_test:
+            result = await runner_under_test(opensearch, self.request)
+
+        self.assertEqual(True, result["success"])
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_delete_knn_404_success_when_ignore_if_model_DNE(self, opensearch, on_client_request_start, on_client_request_end):
+        request = {
+            "index": "unittest",
+            "operation-type": "train-knn-model",
+            "model_id": self.model_id,
+            "ignore-if-model-does-not-exist": True
+        }
+        response = {
+            "error": {
+                "root_cause": [
+                    {
+                        "type": "resource_not_found_exception",
+                        "reason": "Unable to delete model [test-model]. Model does not exist"
+                    }
+                ],
+                "type": "resource_not_found_exception",
+                "reason": "Unable to delete model [test-model]. Model does not exist"
+            },
+            "status": 404
+        }
+        opensearch.transport.perform_request.return_value = as_future(response)
+        runner_under_test = runner.DeleteKnnModel()
+        async with runner_under_test:
+            result = await runner_under_test(opensearch, request)
+
+        self.assertEqual(True, result["success"])
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_delete_knn_404_fails_if_model_DNE(self, opensearch, on_client_request_start, on_client_request_end):
+        response = {
+            "error": {
+                "root_cause": [
+                    {
+                        "type": "resource_not_found_exception",
+                        "reason": "Unable to delete model [test-model]. Model does not exist"
+                    }
+                ],
+                "type": "resource_not_found_exception",
+                "reason": "Unable to delete model [test-model]. Model does not exist"
+            },
+            "status": 404
+        }
+        opensearch.transport.perform_request.return_value = as_future(response)
+        runner_under_test = runner.DeleteKnnModel()
+        async with runner_under_test:
+            result = await runner_under_test(opensearch, self.request)
+
+        self.assertEqual(False, result["success"])
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_delete_knn_400(self, opensearch, on_client_request_start, on_client_request_end):
+
+        response = {
+            "error": {
+                "root_cause": [
+                    {
+                        "type": "resource_not_found_exception",
+                        "reason": "Unable to delete model [test-model]. Model does not exist"
+                    }
+                ],
+                "type": "resource_not_found_exception",
+                "reason": "Unable to delete model [test-model]. Model does not exist"
+            },
+            "status": 400
+        }
+        opensearch.transport.perform_request.return_value = as_future(response)
+        runner_under_test = runner.DeleteKnnModel()
+        async with runner_under_test:
+            result = await runner_under_test(opensearch, self.request)
+
+        self.assertEqual(False, result["success"])
+
+class TrainKnnModelRunnerTests(TestCase):
+    model_id = "test-model-id"
+    retries = 120
+    poll_period = 0.5  # seconds
+
+    request = {
+        "index": "unittest",
+        "operation-type": "train-knn-model",
+        "model_id": model_id,
+        "poll_period": poll_period,
+        "retries": retries,
+        "body": {
+            "training_index": "test_train_index_name",
+            "training_field": "test_train_index_name",
+            "search_size": 500,
+            "dimension": 10,
+            "max_training_vector_count": 100,
+
+            "method": {
+                "name": "ivf",
+                "engine": "faiss",
+                "space_type": "l2",
+                "parameters": {
+                        "nlist": 10,
+                        "nprobes": 5
+                }
+            }
+        }
+    }
+    train_status_check_response = {
+
+        'weight': 1, 'unit': 'ops', 'success': True
+    }
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("asyncio.sleep", return_value=as_future())
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_train_success(self, opensearch, sleep, on_client_request_start, on_client_request_end):
+
+        train_api_status_response = {
+            "model_id": "1",
+            "model_blob": "",
+            "state": "created",
+            "timestamp": "2024-06-17T23:03:02.475277Z",
+            "description": "My model description",
+            "space_type": "l2",
+            "dimension": 10,
+            "engine": "faiss",
+            "training_node_assignment": "4QQIfIL3RzSWlPPf9K8b9w",
+            "model_definition": {
+                "name": "ivf",
+                "parameters": {
+                    "nprobes": 5,
+                    "nlist": 10
+                }
+            }
+        }
+
+        train_api_first_mock = as_future(self.train_status_check_response)
+        train_api_status_mock = as_future(train_api_status_response)
+
+        opensearch.transport.perform_request.side_effect = [
+            train_api_first_mock, train_api_status_mock]
+
+        runner_under_test = runner.TrainKnnModel()
+        async with runner_under_test:
+            await runner_under_test(opensearch, self.request)
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("asyncio.sleep", return_value=as_future())
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_train_failure(self, opensearch, sleep, on_client_request_start, on_client_request_end):
+        train_api_status_response = {
+            "model_id": self.model_id,
+            "model_blob": "",
+            "state": "failed",
+            "timestamp": "2024-06-17T23:03:02.475277Z",
+            "description": "My model description",
+            "space_type": "l2",
+            "dimension": 10,
+            "engine": "faiss",
+            "training_node_assignment": "4QQIfIL3RzSWlPPf9K8b9w",
+            "model_definition": {
+                "name": "ivf",
+                "parameters": {
+                    "nprobes": 5,
+                    "nlist": 10
+                }
+            }
+        }
+
+        train_api_first_mock = as_future(self.train_status_check_response)
+        train_api_status_mock = as_future(train_api_status_response)
+
+        opensearch.transport.perform_request.side_effect = [
+            train_api_first_mock, train_api_status_mock]
+        runner_under_test = runner.TrainKnnModel()
+
+        with self.assertRaisesRegex(Exception, f"Failed to create model {self.model_id}: {train_api_status_response}"):
+            await runner_under_test(opensearch, self.request)
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("asyncio.sleep", return_value=as_future())
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_train_illegal_model_state(self, opensearch, sleep, on_client_request_start, on_client_request_end):
+        illegal_state = "dummy state that is not supported"
+        train_api_status_response = {
+            "model_id": self.model_id,
+            "model_blob": "",
+            "state": "dummy state that is not supported",
+            "timestamp": "2024-06-17T23:03:02.475277Z",
+            "description": "My model description",
+            "space_type": "l2",
+            "dimension": 10,
+            "engine": "faiss",
+            "training_node_assignment": "4QQIfIL3RzSWlPPf9K8b9w",
+            "model_definition": {
+                "name": "ivf",
+                "parameters": {
+                    "nprobes": 5,
+                    "nlist": 10
+                }
+            }
+        }
+
+        train_api_first_mock = as_future(self.train_status_check_response)
+        train_api_status_mock = as_future(train_api_status_response)
+
+        opensearch.transport.perform_request.side_effect = [
+            train_api_first_mock, train_api_status_mock]
+        runner_under_test = runner.TrainKnnModel()
+
+        with self.assertRaisesRegex(Exception,
+                                    f"Model {self.model_id} in unknown state {illegal_state}, response: {train_api_status_response}"):
+            await runner_under_test(opensearch, self.request)
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("asyncio.sleep", return_value=as_future())
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_train_error_response(self, opensearch, sleep, on_client_request_start, on_client_request_end):
+        error_response = {
+            "error": {
+                "root_cause":
+                {
+                    "type": "index_not_found_exception",
+                            "reason": "no such index [.opensearch-knn-models]",
+                            "index": ".opensearch-knn-models",
+                            "resource.id": ".opensearch-knn-models",
+                            "resource.type": "index_expression",
+                            "index_uuid": "_na_"
+                },
+                    "type": "index_not_found_exception",
+                    "reason": "no such index [.opensearch-knn-models]",
+                    "index": ".opensearch-knn-models",
+                    "resource.id": ".opensearch-knn-models",
+                    "resource.type": "index_expression",
+                    "index_uuid": "_na_"
+            },
+            "status": 404
+        }
+
+        side_effect_list = [
+            as_future(self.train_status_check_response), as_future(error_response)]
+        opensearch.transport.perform_request.side_effect = side_effect_list
+        runner_under_test = runner.TrainKnnModel()
+
+        with self.assertRaises(Exception):
+            await runner_under_test(opensearch, self.request)
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("asyncio.sleep", return_value=as_future())
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_train_timeout(self, opensearch, sleep, on_client_request_start, on_client_request_end):
+
+        still_training_response = ({
+            "model_id": self.model_id,
+            "model_blob": "",
+            "state": "training",
+            "timestamp": "2024-06-17T23:03:02.475277Z",
+            "description": "My model description",
+            "space_type": "l2",
+            "dimension": 10,
+            "engine": "faiss",
+            "training_node_assignment": "4QQIfIL3RzSWlPPf9K8b9w",
+            "model_definition": {
+                "name": "ivf",
+                "parameters": {
+                    "nprobes": 5,
+                    "nlist": 10
+                }
+            }
+        })
+
+        side_effect_list = [as_future(self.train_status_check_response)] + [
+            as_future(still_training_response) for _ in range(self.retries + 2)]
+        opensearch.transport.perform_request.side_effect = side_effect_list
+        runner_under_test = runner.TrainKnnModel()
+
+        # Set model state = Training.
+        with self.assertRaisesRegex(TimeoutError, f'Failed to create model: {self.model_id} within {self.retries} retries'):
+            await runner_under_test(opensearch, self.request)
+
+
 class VectorSearchQueryRunnerTests(TestCase):
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
@@ -2791,6 +3111,164 @@ class VectorSearchQueryRunnerTests(TestCase):
         self.assertEqual(result["recall@k"], 1.0)
         self.assertIn("recall@1", result.keys())
         self.assertEqual(result["recall@1"], 1.0)
+        self.assertNotIn("error-type", result.keys())
+
+        opensearch.transport.perform_request.assert_called_once_with(
+            "GET",
+            "/unittest/_search",
+            params={},
+            body=params["body"],
+            headers={"Accept-Encoding": "identity"}
+        )
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_query_vector_radial_search_with_min_score(self, opensearch, on_client_request_start, on_client_request_end):
+        search_response = {
+            "timed_out": False,
+            "took": 5,
+            "hits": {
+                "total": {
+                    "value": 3,
+                    "relation": "eq"
+                },
+                "hits": [
+                    {
+                        "_id": 101,
+                        "_score": 0.95
+                    },
+                    {
+                        "_id": 102,
+                        "_score": 0.88
+                    },
+                    {
+                        "_id": 103,
+                        "_score": 0.87
+                    }
+                ]
+            }
+        }
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+
+        query_runner = runner.Query()
+
+        params = {
+            "index": "unittest",
+            "operation-type": "vector-search",
+            "detailed-results": True,
+            "response-compression-enabled": False,
+            "min_score": 0.80,
+            "neighbors": [101, 102, 103],
+            "body": {
+                "query": {
+                    "knn": {
+                        "location": {
+                            "vector": [
+                                5,
+                                4
+                            ],
+                            "min_score": 0.80,
+                        }
+                    }
+                }
+            }
+        }
+
+        async with query_runner:
+            result = await query_runner(opensearch, params)
+
+        self.assertEqual(1, result["weight"])
+        self.assertEqual("ops", result["unit"])
+        self.assertEqual(3, result["hits"])
+        self.assertEqual("eq", result["hits_relation"])
+        self.assertFalse(result["timed_out"])
+        self.assertEqual(5, result["took"])
+        self.assertIn("recall_time_ms", result.keys())
+        self.assertIn("recall@min_score", result.keys())
+        self.assertEqual(result["recall@min_score"], 1.0)
+        self.assertIn("recall@min_score_1", result.keys())
+        self.assertEqual(result["recall@min_score_1"], 1.0)
+        self.assertNotIn("error-type", result.keys())
+
+        opensearch.transport.perform_request.assert_called_once_with(
+            "GET",
+            "/unittest/_search",
+            params={},
+            body=params["body"],
+            headers={"Accept-Encoding": "identity"}
+        )
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_query_vector_radial_search_with_max_distance(self, opensearch, on_client_request_start, on_client_request_end):
+        search_response = {
+            "timed_out": False,
+            "took": 5,
+            "hits": {
+                "total": {
+                    "value": 3,
+                    "relation": "eq"
+                },
+                "hits": [
+                    {
+                        "_id": 101,
+                        "_score": 0.95
+                    },
+                    {
+                        "_id": 102,
+                        "_score": 0.88
+                    },
+                    {
+                        "_id": 103,
+                        "_score": 0.87
+                    }
+                ]
+            }
+        }
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+
+        query_runner = runner.Query()
+
+        params = {
+            "index": "unittest",
+            "operation-type": "vector-search",
+            "detailed-results": True,
+            "response-compression-enabled": False,
+            "max_distance": 15.0,
+            "neighbors": [101, 102, 103, 104],
+            "body": {
+                "query": {
+                    "knn": {
+                        "location": {
+                            "vector": [
+                                5,
+                                4
+                            ],
+                            "max_distance": 15.0,
+                        }
+                    }
+                }
+            }
+        }
+
+        async with query_runner:
+            result = await query_runner(opensearch, params)
+
+        self.assertEqual(1, result["weight"])
+        self.assertEqual("ops", result["unit"])
+        self.assertEqual(3, result["hits"])
+        self.assertEqual("eq", result["hits_relation"])
+        self.assertFalse(result["timed_out"])
+        self.assertEqual(5, result["took"])
+        self.assertIn("recall_time_ms", result.keys())
+        self.assertIn("recall@max_distance", result.keys())
+        self.assertEqual(result["recall@max_distance"], 0.75)
+        self.assertIn("recall@max_distance_1", result.keys())
+        self.assertEqual(result["recall@max_distance_1"], 1.0)
         self.assertNotIn("error-type", result.keys())
 
         opensearch.transport.perform_request.assert_called_once_with(
@@ -6465,3 +6943,64 @@ class CreateSearchPipelineRunnerTests(TestCase):
             await r(opensearch, params)
 
         self.assertEqual(0, opensearch.transport.perform_request.call_count)
+
+class UpdateConcurrentSegmentSearchSettingsTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_enable_concurrent_segment_search(self, opensearch, on_client_request_start, on_client_request_end):
+        opensearch.cluster.put_settings.return_value = as_future()
+        params = {
+            "enable": "true"
+        }
+
+        r = runner.UpdateConcurrentSegmentSearchSettings()
+        await r(opensearch, params)
+
+        opensearch.cluster.put_settings.assert_called_once_with(body={
+            "persistent": {
+                "search.concurrent_segment_search.enabled": "true"
+            }
+        })
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_max_slice_count(self, opensearch, on_client_request_start, on_client_request_end):
+        opensearch.cluster.put_settings.return_value = as_future()
+        params = {
+            "max_slice_count": 2
+        }
+
+        r = runner.UpdateConcurrentSegmentSearchSettings()
+        await r(opensearch, params)
+
+        opensearch.cluster.put_settings.assert_called_once_with(body={
+            "persistent": {
+                "search.concurrent_segment_search.enabled": "false",
+                "search.concurrent.max_slice_count": 2
+            }
+        })
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_concurrent_segment_search_settings(self, opensearch, on_client_request_start, on_client_request_end):
+        opensearch.cluster.put_settings.return_value = as_future()
+        params = {
+            "enable": "true",
+            "max_slice_count": 2
+        }
+
+        r = runner.UpdateConcurrentSegmentSearchSettings()
+        await r(opensearch, params)
+
+        opensearch.cluster.put_settings.assert_called_once_with(body={
+            "persistent": {
+                "search.concurrent_segment_search.enabled": "true",
+                "search.concurrent.max_slice_count": 2
+            }
+        })

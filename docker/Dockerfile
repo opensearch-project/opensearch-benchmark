@@ -1,11 +1,19 @@
-###############################################################################
-# Install OpenSearch Benchmark from PyPI to build a Docker image
-###############################################################################
+########################################################
+# Install OpenSearch Benchmark to build a Docker image #
+########################################################
 
-FROM python:3.11.2-slim
 ARG VERSION
+ARG BUILD_ENV=production
 
-ENV BENCHMARK_RUNNING_IN_DOCKER True
+FROM python:3.11.2-slim as build_env_testing
+ONBUILD COPY opensearch-benchmark-git/ ./
+
+FROM python:3.11.2-slim as build_env_production
+ONBUILD RUN echo Production Environment
+
+FROM build_env_${BUILD_ENV}
+WORKDIR /opensearch-benchmark
+ENV BENCHMARK_RUNNING_IN_DOCKER=True
 
 RUN apt-get -y update && \
     apt-get install -y curl git gcc pbzip2 pigz && \
@@ -15,9 +23,9 @@ RUN apt-get -y update && \
 RUN groupadd --gid 1000 opensearch-benchmark && \
     useradd -d /opensearch-benchmark -m -k /dev/null -g 1000 -N -u 1000 -l -s /bin/bash benchmark
 
-RUN if [ -z "$VERSION" ] ; then python3 -m pip install opensearch-benchmark ; else python3 -m pip install opensearch-benchmark==$VERSION ; fi
-
-WORKDIR /opensearch-benchmark
+ENV PIP_ONLY_BINARY=h5py
+RUN if [ "$BUILD_ENV" = "testing" ] ; then echo Testing; ls -l; python3 -m pip install -e . ; \
+    else echo Production; if [ -z "$VERSION" ] ; then python3 -m pip install opensearch-benchmark ; else python3 -m pip install opensearch-benchmark==$VERSION ; fi; fi
 
 RUN mkdir -p /opensearch-benchmark/.benchmark && \
     chown -R 1000:0 /opensearch-benchmark/.benchmark

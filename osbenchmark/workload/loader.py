@@ -691,6 +691,13 @@ class TemplateSource:
         return ",\n".join(source)
 
 
+# A Jinja filter that tests if a version string lies within a specified range.
+# For instance, "1.2.3" lies between "1.0.0" and "2.0.0".
+def version_between(version, frm, to):
+    return list(map(int, version.split('.'))) >= list(map(int, frm.split('.'))) and \
+        list(map(int, version.split('.'))) <= list(map(int, to.split('.')))
+
+
 def default_internal_template_vars(glob_helper=lambda f: [], clock=time.Clock):
     """
     Dict of internal global variables used by our jinja2 renderers
@@ -751,6 +758,7 @@ def render_template(template_source, template_vars=None, template_internal_vars=
             for env_global_key, env_global_value in template_internal_vars[macro_type].items():
                 getattr(env, macro_type)[env_global_key] = env_global_value
 
+    env.filters["version_between"] = version_between
     template = env.from_string(template_source)
     return template.render()
 
