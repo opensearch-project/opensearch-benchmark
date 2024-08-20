@@ -62,6 +62,14 @@ def install(cfg):
     master_nodes = cfg.opts("builder", "master.nodes")
     seed_hosts = cfg.opts("builder", "seed.hosts")
 
+    # Ensure node_name and master_nodes match, using node_name as the default
+    if node_name not in master_nodes:
+        print(
+            f"The provided --node-name '{node_name}' and --master-nodes '{master_nodes}' are different. "
+            f"Using '{node_name}' for both node name and initial master node."
+        )
+        master_nodes = [node_name]
+
     if build_type == "tar":
         binary_supplier = supplier.create(cfg, sources, distribution, provision_config_instance, plugins)
         p = provisioner.local(cfg=cfg, provision_config_instance=provision_config_instance, plugins=plugins, ip=ip, http_port=http_port,
