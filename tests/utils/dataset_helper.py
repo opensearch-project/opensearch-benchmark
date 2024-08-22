@@ -193,6 +193,12 @@ class BigANNGroundTruthBuilder(BigANNVectorBuilder):
             # file with distance.
             context.vectors.tofile(f)
 
+def create_parent_ids(num_vectors: int, group_size: int = 10) -> np.ndarray:
+    num_ids = (num_vectors + group_size - 1) // group_size  # Calculate total number of different IDs needed
+    ids = np.arange(1, num_ids + 1)  # Create an array of IDs starting from 1
+    parent_ids = np.repeat(ids, group_size)[:num_vectors]  # Repeat each ID 'group_size' times and trim to 'num_vectors'
+    return parent_ids
+
 
 def create_random_2d_array(num_vectors: int, dimension: int) -> np.ndarray:
     rng = np.random.default_rng()
@@ -237,6 +243,35 @@ def create_data_set(
         BigANNVectorBuilder().add_data_set_build_context(context).build()
 
     return data_set_path
+
+
+def create_parent_data_set(
+        num_vectors: int,
+        dimension: int,
+        extension: str,
+        data_set_context: Context,
+        data_set_dir,
+        file_path: str = None
+) -> str:
+    if file_path:
+        data_set_path = file_path
+    else:
+        file_name_base = ''.join(random.choice(string.ascii_letters) for _ in
+                                 range(DEFAULT_RANDOM_STRING_LENGTH))
+        data_set_file_name = "{}.{}".format(file_name_base, extension)
+        data_set_path = os.path.join(data_set_dir, data_set_file_name)
+    context = DataSetBuildContext(
+        data_set_context,
+        create_parent_ids(num_vectors),
+        data_set_path)
+
+    if extension == HDF5DataSet.FORMAT_NAME:
+        HDF5Builder().add_data_set_build_context(context).build()
+    else:
+        BigANNVectorBuilder().add_data_set_build_context(context).build()
+
+    return data_set_path
+
 
 
 def create_ground_truth(

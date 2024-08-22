@@ -26,6 +26,7 @@ class Context(Enum):
     NEIGHBORS = 3
     MAX_DISTANCE_NEIGHBORS = 4
     MIN_SCORE_NEIGHBORS = 5
+    PARENTS = 6
 
 
 class DataSet(ABC):
@@ -143,6 +144,8 @@ class HDF5DataSet(DataSet):
         if context == Context.QUERY:
             return "test"
 
+        if context == Context.PARENTS:
+            return "parents" # used in nested benchmarks to get the parent document id associated with each vector.
         if context == Context.MAX_DISTANCE_NEIGHBORS:
             return "max_distance_neighbors"
 
