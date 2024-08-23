@@ -1597,11 +1597,14 @@ class WorkloadSpecificationReader:
 
             for op in self._r(test_procedure_spec, "schedule", error_ctx=name):
                 if "clients_list" in op:
-                    self.logger.info("Clients list specified, running multiple search tasks with %s clients.", op["clients_list"])
-                    for client in op["clients_list"]:
-                        op["clients"] = client
+                    self.logger.info("Clients list specified: %s. Running multiple search tasks, "\
+                                     "each scheduled with the corresponding number of clients from the list.", op["clients_list"])
+                    for num_clients in op["clients_list"]:
+                        op["clients"] = num_clients
 
-                        new_name = name + "_" + str(client) + "_clients"
+                        new_name = self._rename_task_based_on_num_clients(name, num_clients)
+
+                        new_name = name + "_" + str(num_clients) + "_clients"
                         new_task = self.parse_task(op, ops, new_name)
                         new_task.name = new_name
                         schedule.append(new_task)
@@ -1645,6 +1648,18 @@ class WorkloadSpecificationReader:
                 "No default test_procedure specified. Please edit the workload and add \"default\": true to one of the test_procedures %s."
                         % ", ".join([c.name for c in test_procedures]))
         return test_procedures
+
+    def _rename_task_based_on_num_clients(self, name: str, num_clients: int) -> str:
+        has_underscore = "_" in name
+        has_hyphen = "-" in name
+        if has_underscore and has_hyphen:
+            self.logger.warning("The test procedure name %s contains a mix of _ and -. "\
+                                "Consider changing the name to avoid frustrating bugs in the future.", name)
+            return name + "_" + str(num_clients) + "_clients"
+        elif has_hyphen:
+            return name + "-" + str(num_clients) + "-clients"
+        else:
+            return name + "_" + str(num_clients) + "_clients"
 
     def _get_test_procedure_specs(self, workload_spec):
         schedule = self._r(workload_spec, "schedule", mandatory=False)

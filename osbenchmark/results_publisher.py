@@ -133,6 +133,7 @@ class SummaryResultsPublisher:
             "throughput":comma_separated_string_to_number_list(config.opts("workload", "throughput.percentiles", mandatory=False)),
             "latency": comma_separated_string_to_number_list(config.opts("workload", "latency.percentiles", mandatory=False))
         }
+        self.logger = logging.getLogger(__name__)
 
     def publish_operational_statistics(self, metrics_table: list, warnings: list, record, task):
         metrics_table.extend(self._publish_throughput(record, task))
@@ -162,6 +163,7 @@ class SummaryResultsPublisher:
 
         metrics_table.extend(self._publish_transform_stats(stats))
 
+        # These variables are used with the clients_list parameter in test_procedures to find the max throughput.
         max_throughput = -1
         record_with_best_throughput = None
 
@@ -170,14 +172,12 @@ class SummaryResultsPublisher:
 
         for record in stats.op_metrics:
             task = record["task"]
-            maybe_match_task_is_part_of_throughput_testing = re.search(throughput_pattern, task)
-            if maybe_match_task_is_part_of_throughput_testing:
-
+            is_task_part_of_throughput_testing = re.search(throughput_pattern, task)
+            if is_task_part_of_throughput_testing:
                 # assumption: all units are the same and only maximizing throughput over one operation (i.e. not both ingest and search).
                 # To maximize throughput over multiple operations, would need a list/dictionary of maximum throughputs.
                 task_throughput = record["throughput"][Throughput.MEAN.value]
-                logger = logging.getLogger(__name__)
-                logger.info("Task %s has throughput %s", task, task_throughput)
+                self.logger.info("Task %s has throughput %s", task, task_throughput)
                 if task_throughput > max_throughput:
                     max_throughput = task_throughput
                     record_with_best_throughput = record
@@ -185,6 +185,7 @@ class SummaryResultsPublisher:
             else:
                 self.publish_operational_statistics(metrics_table=metrics_table, warnings=warnings, record=record, task=task)
 
+        # The following code is run when the clients_list parameter is specified and publishes the max throughput.
         if max_throughput != -1 and record_with_best_throughput is not None:
             self.publish_operational_statistics(metrics_table=metrics_table, warnings=warnings, record=record_with_best_throughput,
                                                 task=record_with_best_throughput["task"])
@@ -253,7 +254,7 @@ class SummaryResultsPublisher:
 
     def _publish_best_client_settings(self, record, task):
         num_clients = re.search(r"_(\d+)_clients$", task).group(1)
-        return self._join(self._line("Num clients to reach max throughput", "", num_clients, ""))
+        return self._join(self._line("Number of clients that achieved max throughput", "", num_clients, ""))
 
     def _publish_percentiles(self, name, task, value, unit="ms"):
         lines = []
