@@ -27,6 +27,7 @@ class Context(Enum):
     MAX_DISTANCE_NEIGHBORS = 4
     MIN_SCORE_NEIGHBORS = 5
     PARENTS = 6
+    ATTRIBUTES = 7
 
 
 class DataSet(ABC):
@@ -133,6 +134,7 @@ class HDF5DataSet(DataSet):
     def reset(self):
         self.current = self.BEGINNING
 
+    # pylint: disable=R0911
     @staticmethod
     def parse_context(context: Context) -> str:
         if context == Context.NEIGHBORS:
@@ -151,6 +153,9 @@ class HDF5DataSet(DataSet):
 
         if context == Context.MIN_SCORE_NEIGHBORS:
             return "min_score_neighbors"
+
+        if context == Context.ATTRIBUTES:
+            return "attributes"
 
         raise Exception("Unsupported context")
 
