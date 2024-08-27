@@ -1626,7 +1626,8 @@ class AsyncExecutor:
                 async with self.opensearch["default"].new_request_context() as request_context:
                     # add num_clients to the parameter so that vector search runner can skip calculating recall
                     # if num_clients > cpu_count().
-                    params.update({"num_clients": self.task.clients})
+                    if params:
+                        params.update({"num_clients": self.task.clients})
                     total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch, params, self.on_error)
                     request_start = request_context.request_start
                     request_end = request_context.request_end

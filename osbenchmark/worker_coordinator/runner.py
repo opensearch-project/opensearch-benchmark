@@ -37,7 +37,7 @@ from enum import Enum
 from functools import total_ordering
 from io import BytesIO
 from os.path import commonprefix
-from os import cpu_count as os_cpu_count
+import os
 from typing import List, Optional
 
 import ijson
@@ -1345,7 +1345,7 @@ class Query(Runner):
                 num_clients = params.get("num_clients", 0)
                 if num_clients == 0:
                     self.logger.debug("Expected num_clients to be specified but was not.")
-                cpu_count = os_cpu_count()
+                cpu_count = os.cpu_count()
                 if cpu_count < num_clients:
                     self.logger.warning("Number of clients, %s, specified is greater than the number of CPUs, %s, available."\
                                         "This will lead to unperformant context switching on load generation host. Performance "\
