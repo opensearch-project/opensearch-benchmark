@@ -2291,7 +2291,6 @@ class SearchParamSourceTests(TestCase):
 
     def test_uses_data_stream(self):
         ds1 = workload.DataStream(name="data-stream-1")
-
         source = params.SearchParamSource(workload=workload.Workload(name="unit-test", data_streams=[ds1]), params={
             "body": {
                 "query": {

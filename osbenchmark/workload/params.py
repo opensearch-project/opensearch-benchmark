@@ -852,6 +852,8 @@ class ForceMergeParamSource(ParamSource):
 
 class VectorSearchParamSource(SearchParamSource):
     def __init__(self, workload, params, **kwargs):
+        # print workload
+        logging.getLogger(__name__).info("Workload: [%s], params: [%s]", workload, params)
         super().__init__(workload, params, **kwargs)
         self.delegate_param_source = VectorSearchPartitionParamSource(workload, params, self.query_params, **kwargs)
         self.corpora = self.delegate_param_source.corpora

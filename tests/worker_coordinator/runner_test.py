@@ -3283,128 +3283,133 @@ class VectorSearchQueryRunnerTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
     async def test_query_vector_search_should_skip_calculate_recall(self, opensearch, on_client_request_start, on_client_request_end):
-        with mock.patch("os.cpu_count", return_value=8):
-            num_clients = 9
-            class WorkerCoordinatorTestParamSource:
-                def __init__(self, workload=None, params=None, **kwargs):
-                    if params is None:
-                        params = {}
-                    self._indices = workload.indices
-                    self._params = params
-                    self._current = 1
-                    self._total = params.get("size")
-                    self.infinite = self._total is None
+        num_clients = 9
+        class WorkerCoordinatorTestParamSource:
+            def __init__(self, workload=None, params=None, **kwargs):
+                if params is None:
+                    params = {}
+                self._indices = workload.indices
+                self._params = params
+                self._current = 1
+                self._total = params.get("size")
+                self.infinite = self._total is None
 
-                def partition(self, partition_index, total_partitions):
-                    return self
+            def partition(self, partition_index, total_partitions):
+                return self
 
-                @property
-                def percent_completed(self):
-                    if self.infinite:
-                        return None
-                    return self._current / self._total
+            @property
+            def percent_completed(self):
+                if self.infinite:
+                    return None
+                return self._current / self._total
 
-                def params(self):
-                    if not self.infinite and self._current > self._total:
-                        raise StopIteration()
-                    self._current += 1
-                    return self._params
-            # pylint: disable=C0415
-            from osbenchmark.worker_coordinator import worker_coordinator
-            # pylint: disable=C0415
-            from osbenchmark.workload import params
-            # pylint: disable=C0415
-            from osbenchmark import workload
+            def params(self):
+                if not self.infinite and self._current > self._total:
+                    raise StopIteration()
+                self._current += 1
+                return self._params
+        # pylint: disable=C0415
+        from osbenchmark.worker_coordinator import worker_coordinator
+        # pylint: disable=C0415
+        from osbenchmark.workload import params
+        # pylint: disable=C0415
+        from osbenchmark import workload, config
 
-            # create task here
-            # sampler is mock
-            # create actual schedule w new params
+        # create task here
+        # sampler is mock
+        # create actual schedule w new params
 
-            opensearch.init_request_context.return_value = {
-                "client_request_start": 0,
-                "request_start": 1,
-                "request_end": 11,
-                "client_request_end": 12
-            }
+        opensearch.init_request_context.return_value = {
+            "client_request_start": 0,
+            "request_start": 1,
+            "request_end": 11,
+            "client_request_end": 12
+        }
 
-            search_response = {
-                "timed_out": False,
-                "took": 5,
-                "hits": {
-                    "total": {
-                        "value": 3,
-                        "relation": "eq"
-                    },
-                    "hits": [
-                        {
-                            "_id": 101,
-                            "_score": 0.95
-                        },
-                        {
-                            "_id": 102,
-                            "_score": 0.88
-                        },
-                        {
-                            "_id": 103,
-                            "_score": 0.1
-                        }
-                    ]
-                }
-            }
-            opensearch.transport.perform_request = mock.AsyncMock(return_value=io.StringIO(json.dumps(search_response)))
-
-            params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
-            test_workload = workload.Workload(name="unittest", description="unittest workload",
-                                    indices=None,
-                                    test_procedures=None)
-
-            task = workload.Task("time-based", workload.Operation("time-based",
-                workload.OperationType.VectorSearch.to_hyphenated_string(),
-                params={
-                    "index": "_all",
-                    "type": None,
-                    "operation-type": "vector-search",
-                    "detailed-results": True,
-                    "response-compression-enabled": False,
-                    "k": 3,
-                    "neighbors": [101, 102, 103],
-                    "body": {
-                        "query": {
-                            "knn": {
-                                "location": {
-                                    "vector": [
-                                        5,
-                                        4
-                                    ],
-                                    "k": 3
-                                }
-                            }}
-                    },
-                    "request-params": {},
-                    "cache": False
+        search_response = {
+            "timed_out": False,
+            "took": 5,
+            "hits": {
+                "total": {
+                    "value": 3,
+                    "relation": "eq"
                 },
-                param_source="worker-coordinator-test-param-source"),
-                warmup_time_period=0.5, time_period=0.5, clients=num_clients,
-                params={ "clients": num_clients},
-                completes_parent=False)
+                "hits": [
+                    {
+                        "_id": 101,
+                        "_score": 0.95
+                    },
+                    {
+                        "_id": 102,
+                        "_score": 0.88
+                    },
+                    {
+                        "_id": 103,
+                        "_score": 0.1
+                    }
+                ]
+            }
+        }
+        opensearch.transport.perform_request = mock.AsyncMock(return_value=io.StringIO(json.dumps(search_response)))
 
-            sampler = worker_coordinator.Sampler(start_timestamp=0)
+        params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
+        test_workload = workload.Workload(name="unittest", description="unittest workload",
+                                indices=None,
+                                test_procedures=None)
 
-            runner.register_runner(operation_type=workload.OperationType.VectorSearch, runner=runner.Query(), async_runner=True)
-            param_source = workload.operation_parameters(test_workload, task)
-            # pylint: disable=C0415
-            import threading
-            schedule = worker_coordinator.schedule_for(task, 0, param_source)
-            executor = worker_coordinator.AsyncExecutor(client_id=0, task=task, schedule=schedule, opensearch={"default": opensearch},
-                                                        sampler=sampler, cancel=threading.Event(), complete=threading.Event(),
-                                                        on_error="continue")
-            # will run executor + vector search query runner.
-            await executor()
+        task = workload.Task("time-based", workload.Operation("time-based",
+            workload.OperationType.VectorSearch.to_hyphenated_string(),
+            params={
+                "index": "_all",
+                "type": None,
+                "operation-type": "vector-search",
+                "detailed-results": True,
+                "response-compression-enabled": False,
+                "k": 3,
+                "neighbors": [101, 102, 103],
+                "body": {
+                    "query": {
+                        "knn": {
+                            "location": {
+                                "vector": [
+                                    5,
+                                    4
+                                ],
+                                "k": 3
+                            }
+                        }}
+                },
+                "request-params": {},
+                "cache": False
+            },
+            param_source="worker-coordinator-test-param-source"),
+            warmup_time_period=0.5, time_period=0.5, clients=num_clients,
+            params={ "clients": num_clients},
+            completes_parent=False)
 
-            # make copy of samples since they disappear once first accessed.
-            samples = sampler.samples
-            recall_k = samples[0].request_meta_data.get("recall@k")
-            self.assertEqual(recall_k, None)
+        sampler = worker_coordinator.Sampler(start_timestamp=0)
+
+        runner.register_runner(operation_type=workload.OperationType.VectorSearch, runner=runner.Query(), async_runner=True)
+        param_source = workload.operation_parameters(test_workload, task)
+        # pylint: disable=C0415
+        import threading
+        schedule = worker_coordinator.schedule_for(task, 0, param_source)
+        # pylint: disable=C0415
+        def create_config():
+            cfg = config.Config()
+            cfg.add(config.Scope.application, "system", "available.cores", 8)
+            return cfg
+        cfg = create_config()
+        executor = worker_coordinator.AsyncExecutor(client_id=0, task=task, schedule=schedule, opensearch={"default": opensearch},
+                                                    sampler=sampler, cancel=threading.Event(), complete=threading.Event(),
+                                                    on_error="continue", config=cfg)
+        # will run executor + vector search query runner.
+        await executor()
+
+        # make copy of samples since they disappear once first accessed.
+        samples = sampler.samples
+        recall_k = samples[0].request_meta_data.get("recall@k")
+        self.assertEqual(recall_k, None)
 
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
@@ -3443,7 +3448,7 @@ class VectorSearchQueryRunnerTests(TestCase):
             # pylint: disable=C0415
             from osbenchmark.workload import params
             # pylint: disable=C0415
-            from osbenchmark import workload
+            from osbenchmark import workload, config
 
             # create task here
             # sampler is mock
@@ -3524,9 +3529,14 @@ class VectorSearchQueryRunnerTests(TestCase):
             # pylint: disable=C0415
             import threading
             schedule = worker_coordinator.schedule_for(task, 0, param_source)
+            def create_config():
+                cfg = config.Config()
+                cfg.add(config.Scope.application, "system", "available.cores", 8)
+                return cfg
+            cfg = create_config()
             executor = worker_coordinator.AsyncExecutor(client_id=0, task=task, schedule=schedule, opensearch={"default": opensearch},
                                                         sampler=sampler, cancel=threading.Event(), complete=threading.Event(),
-                                                        on_error="continue")
+                                                        on_error="continue",config=cfg)
             # will run executor + vector search query runner.
             await executor()
 

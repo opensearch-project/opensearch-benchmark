@@ -37,7 +37,7 @@ from enum import Enum
 from functools import total_ordering
 from io import BytesIO
 from os.path import commonprefix
-import os
+import multiprocessing
 from typing import List, Optional
 
 import ijson
@@ -1342,10 +1342,12 @@ class Query(Runner):
                     })
 
             def _get_should_calculate_recall(params: dict) -> bool:
+                # set in global config (benchmark.ini) and passed by AsyncExecutor
                 num_clients = params.get("num_clients", 0)
                 if num_clients == 0:
                     self.logger.debug("Expected num_clients to be specified but was not.")
-                cpu_count = os.cpu_count()
+                # default is set for runner unit tests based on default logic for available.cores in worker_coordinator
+                cpu_count = params.get("num_cores", multiprocessing.cpu_count())
                 if cpu_count < num_clients:
                     self.logger.warning("Number of clients, %s, specified is greater than the number of CPUs, %s, available."\
                                         "This will lead to unperformant context switching on load generation host. Performance "\

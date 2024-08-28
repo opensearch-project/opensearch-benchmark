@@ -1525,7 +1525,7 @@ class AsyncIoAdapter:
             schedule = schedule_for(task, task_allocation.client_index_in_task, params_per_task[task])
             async_executor = AsyncExecutor(
                 client_id, task, schedule, opensearch, self.sampler, self.cancel, self.complete,
-                task.error_behavior(self.abort_on_error))
+                task.error_behavior(self.abort_on_error), self.cfg)
             final_executor = AsyncProfiler(async_executor) if self.profiling_enabled else async_executor
             aws.append(final_executor())
         run_start = time.perf_counter()
@@ -1577,7 +1577,7 @@ class AsyncProfiler:
 
 
 class AsyncExecutor:
-    def __init__(self, client_id, task, schedule, opensearch, sampler, cancel, complete, on_error):
+    def __init__(self, client_id, task, schedule, opensearch, sampler, cancel, complete, on_error, config=None):
         """
         Executes tasks according to the schedule for a given operation.
 
@@ -1599,6 +1599,7 @@ class AsyncExecutor:
         self.complete = complete
         self.on_error = on_error
         self.logger = logging.getLogger(__name__)
+        self.cfg = config
 
     async def __call__(self, *args, **kwargs):
         task_completes_parent = self.task.completes_parent
@@ -1627,7 +1628,11 @@ class AsyncExecutor:
                     # add num_clients to the parameter so that vector search runner can skip calculating recall
                     # if num_clients > cpu_count().
                     if params:
-                        params.update({"num_clients": self.task.clients})
+                        if params.get("operation-type") == "vector-search":
+                            available_cores = int(self.cfg.opts("system", "available.cores", mandatory=False,
+                                default_value=multiprocessing.cpu_count()))
+                            params.update({"num_clients": self.task.clients, "num_cores": available_cores})
+
                     total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch, params, self.on_error)
                     request_start = request_context.request_start
                     request_end = request_context.request_end
