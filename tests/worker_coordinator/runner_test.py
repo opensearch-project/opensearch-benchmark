@@ -3125,7 +3125,7 @@ class VectorSearchQueryRunnerTests(TestCase):
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_query_vector_radial_search_with_min_score(self, opensearch, on_client_request_start, on_client_request_end):
+    async def test_calculate_recall_with_negative_one_neighbors(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -3142,10 +3142,6 @@ class VectorSearchQueryRunnerTests(TestCase):
                     {
                         "_id": 102,
                         "_score": 0.88
-                    },
-                    {
-                        "_id": 103,
-                        "_score": 0.87
                     }
                 ]
             }
@@ -3159,8 +3155,8 @@ class VectorSearchQueryRunnerTests(TestCase):
             "operation-type": "vector-search",
             "detailed-results": True,
             "response-compression-enabled": False,
-            "min_score": 0.80,
-            "neighbors": [101, 102, 103],
+            "k": 4,
+            "neighbors": [101, 102, -1, -1],
             "body": {
                 "query": {
                     "knn": {
@@ -3169,27 +3165,19 @@ class VectorSearchQueryRunnerTests(TestCase):
                                 5,
                                 4
                             ],
-                            "min_score": 0.80,
+                            "k": 3
                         }
-                    }
-                }
+                    }}
             }
         }
 
         async with query_runner:
             result = await query_runner(opensearch, params)
 
-        self.assertEqual(1, result["weight"])
-        self.assertEqual("ops", result["unit"])
-        self.assertEqual(3, result["hits"])
-        self.assertEqual("eq", result["hits_relation"])
-        self.assertFalse(result["timed_out"])
-        self.assertEqual(5, result["took"])
+        self.assertEqual(result["recall@k"], 1.0)
         self.assertIn("recall_time_ms", result.keys())
-        self.assertIn("recall@min_score", result.keys())
-        self.assertEqual(result["recall@min_score"], 1.0)
-        self.assertIn("recall@min_score_1", result.keys())
-        self.assertEqual(result["recall@min_score_1"], 1.0)
+        self.assertIn("recall@1", result.keys())
+        self.assertEqual(result["recall@1"], 1)
         self.assertNotIn("error-type", result.keys())
 
         opensearch.transport.perform_request.assert_called_once_with(
@@ -3204,7 +3192,7 @@ class VectorSearchQueryRunnerTests(TestCase):
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_query_vector_radial_search_with_max_distance(self, opensearch, on_client_request_start, on_client_request_end):
+    async def test_calculate_recall_with_some_negative_one_neighbors(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
             "took": 5,
@@ -3221,10 +3209,6 @@ class VectorSearchQueryRunnerTests(TestCase):
                     {
                         "_id": 102,
                         "_score": 0.88
-                    },
-                    {
-                        "_id": 103,
-                        "_score": 0.87
                     }
                 ]
             }
@@ -3238,8 +3222,8 @@ class VectorSearchQueryRunnerTests(TestCase):
             "operation-type": "vector-search",
             "detailed-results": True,
             "response-compression-enabled": False,
-            "max_distance": 15.0,
-            "neighbors": [101, 102, 103, 104],
+            "k": 6,
+            "neighbors": [101, 102, 103, 104, -1, -1],
             "body": {
                 "query": {
                     "knn": {
@@ -3248,27 +3232,87 @@ class VectorSearchQueryRunnerTests(TestCase):
                                 5,
                                 4
                             ],
-                            "max_distance": 15.0,
+                            "k": 3
                         }
-                    }
-                }
+                    }}
             }
         }
 
         async with query_runner:
             result = await query_runner(opensearch, params)
 
-        self.assertEqual(1, result["weight"])
-        self.assertEqual("ops", result["unit"])
-        self.assertEqual(3, result["hits"])
-        self.assertEqual("eq", result["hits_relation"])
-        self.assertFalse(result["timed_out"])
-        self.assertEqual(5, result["took"])
+        self.assertEqual(result["recall@k"], 0.5)
         self.assertIn("recall_time_ms", result.keys())
-        self.assertIn("recall@max_distance", result.keys())
-        self.assertEqual(result["recall@max_distance"], 0.75)
-        self.assertIn("recall@max_distance_1", result.keys())
-        self.assertEqual(result["recall@max_distance_1"], 1.0)
+        self.assertIn("recall@1", result.keys())
+        self.assertEqual(result["recall@1"], 1)
+        self.assertNotIn("error-type", result.keys())
+
+        opensearch.transport.perform_request.assert_called_once_with(
+            "GET",
+            "/unittest/_search",
+            params={},
+            body=params["body"],
+            headers={"Accept-Encoding": "identity"}
+        )
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_calculate_recall_with_intermediate_negative_one_neighbors(self, opensearch,
+                                                                             on_client_request_start, on_client_request_end):
+        search_response = {
+            "timed_out": False,
+            "took": 5,
+            "hits": {
+                "total": {
+                    "value": 3,
+                    "relation": "eq"
+                },
+                "hits": [
+                    {
+                        "_id": 101,
+                        "_score": 0.95
+                    },
+                    {
+                        "_id": 102,
+                        "_score": 0.88
+                    }
+                ]
+            }
+        }
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+
+        query_runner = runner.Query()
+
+        params = {
+            "index": "unittest",
+            "operation-type": "vector-search",
+            "detailed-results": True,
+            "response-compression-enabled": False,
+            "k": 4,
+            "neighbors": [101, 103,102, 104, -1],
+            "body": {
+                "query": {
+                    "knn": {
+                        "location": {
+                            "vector": [
+                                5,
+                                4
+                            ],
+                            "k": 3
+                        }
+                    }}
+            }
+        }
+
+        async with query_runner:
+            result = await query_runner(opensearch, params)
+
+        self.assertEqual(result["recall@k"], 0.5)
+        self.assertIn("recall_time_ms", result.keys())
+        self.assertIn("recall@1", result.keys())
+        self.assertEqual(result["recall@1"], 1)
         self.assertNotIn("error-type", result.keys())
 
         opensearch.transport.perform_request.assert_called_once_with(
