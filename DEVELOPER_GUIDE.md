@@ -23,7 +23,7 @@ This document will walk you through on what's needed to start contributing code 
 
 ### Prerequisites
 
-  - **Pyenv** : Install `pyenv` and follow the instructions in the output of `pyenv init` to set up your shell and restart it before proceeding.
+  - **Pyenv**: Install `pyenv` and follow the instructions in the output of `pyenv init` to set up your shell and restart it before proceeding.
     For more details please refer to the [PyEnv installation instructions](https://github.com/pyenv/pyenv#installation).
 
     **Optional Step:** For Debian-based systems, install the following modules to continue with the next steps: 
@@ -54,15 +54,8 @@ For those working on WSL2, it is recommended to clone the repository and set up 
 After you git cloned the forked copy of OpenSearch Benchmark, use the following command-line instructions to set up OpenSearch Benchmark for development:
 ```
 cd opensearch-benchmark
-make prereq
-make install
+make install-devel
 ```
-
-NOTE: `make prereq` produces the following message.
-```
-IMPORTANT: please add `eval "$(pyenv init -)"` to your bash profile and restart your terminal before proceeding any further.
-```
-This line is commonly thought of as an error message but rather it's just a warning. Unless you haven't already added `eval "$(pyenv init -)"` to your bash profile and restarted your terminal, then feel free to proceed forward. This eval statement is necessary in the startup configuration as it allows Pyenv to manage python versions by adding python shims to your path. If you experience any issues, please see https://github.com/pyenv/pyenv.
 
 Depending on the platform and shell you have, use the following command to activate the virtual environment:
 
