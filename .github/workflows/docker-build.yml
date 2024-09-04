@@ -1,4 +1,4 @@
-name: Docker Build and Test
+name: Docker Build
 on:
   pull_request:
   workflow_dispatch:
@@ -28,14 +28,12 @@ jobs:
         with:
           version: 'v0.9.1'
       - uses: actions/checkout@v4
-        with:
-          path: 'opensearch-benchmark-git'
+
       - name: Docker Build ${{ matrix.platform }}
         run: |
             docker buildx version
-            cp -a opensearch-benchmark-git/* ./
-            echo "Disable VERSION arg to enter docker build test mode"
-            PLATFORM=${{ matrix.platform }}
-            PLATFORM=`echo $PLATFORM | tr '/' '-'`
-            docker buildx build --platform ${{ matrix.platform }} --build-arg BUILD_ENV=testing --build-arg BUILD_DATE=`date -u +%Y-%m-%dT%H:%M:%SZ` -f "docker/Dockerfile" -t "osb/osb-$PLATFORM" -o type=docker .
-            docker images | grep "osb/osb-$PLATFORM"
+            tag=osb/osb-`echo ${{ matrix.platform }} | tr '/' '-'`
+            set -x
+            docker buildx build --platform ${{ matrix.platform }} --build-arg VERSION=`cat version.txt` --build-arg BUILD_DATE=`date -u +%Y-%m-%dT%H:%M:%SZ` -f docker/Dockerfile -t "$tag" -o type=docker .
+            set +x
+            docker images | grep "$tag"

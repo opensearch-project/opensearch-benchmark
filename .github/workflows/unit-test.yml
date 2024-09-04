@@ -1,5 +1,5 @@
-name: CI Actions
-on: [pull_request]
+name: Run Unit Tests
+on: [workflow_dispatch, pull_request]
 jobs:
   Unit-Tests:
     strategy:
@@ -8,11 +8,14 @@ jobs:
           - ubuntu-latest
           - macos-latest
     runs-on: ${{ matrix.os }}
+
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
+
       - name: Clone pyenv
         run: git clone https://github.com/pyenv/pyenv.git ~/.pyenv
+
       - name: Run the CI build script
         run: bash .ci/build.sh build
         env:
