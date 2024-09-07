@@ -6,7 +6,6 @@
 # Stage 1: build packages and compile where needed
 #
 FROM python:3.11.2-slim AS build-stage
-WORKDIR /opensearch-benchmark
 
 RUN apt-get -y update && \
     apt-get install -y curl git gcc pbzip2 pigz make jq && \
@@ -14,31 +13,34 @@ RUN apt-get -y update && \
 
 COPY . opensearch-benchmark
 
-RUN cd opensearch-benchmark; make wheel
+# There is no binary package currently available for yappi on ARM.
+RUN cd opensearch-benchmark; \
+    make build; \
+    if test "`uname -m`" = aarch64; then pip wheel yappi && cp yappi-*.whl dist; fi
 
 
 #
 # Stage 2: create image
 #
 FROM python:3.11.2-slim AS image-stage
-WORKDIR /opensearch-benchmark
 ENV BENCHMARK_RUNNING_IN_DOCKER=True
 
 RUN groupadd --gid 1000 opensearch-benchmark && \
     useradd -d /opensearch-benchmark -m -k /dev/null -g 1000 -N -u 1000 -l -s /bin/bash benchmark
 
+WORKDIR /opensearch-benchmark
+
 RUN mkdir -p /opensearch-benchmark/.benchmark && \
     chown -R 1000:0 /opensearch-benchmark/.benchmark
 
-COPY --from=build-stage /opensearch-benchmark/opensearch-benchmark/yappi-*.whl /opensearch-benchmark/opensearch-benchmark/opensearch_benchmark-*.whl ./
+COPY --from=build-stage /opensearch-benchmark/dist/*.whl ./
 
-# There is no binary package currently available for yappi on ARM.
 RUN set -ex; \
     apt-get -y update; \
     apt-get install -y git pbzip2; \
     apt-get -y upgrade; \
     rm -rf /var/lib/apt/lists/*; \
-    PIP_ONLY_BINARY=h5py pip install yappi-*.whl opensearch_benchmark-*.whl; \
+    PIP_ONLY_BINARY=h5py pip install *.whl; \
     rm *.whl
 
 USER 1000
