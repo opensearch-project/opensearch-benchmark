@@ -16,10 +16,13 @@
 # under the License.
 
 SHELL = /bin/bash
+PYTHON = python3
 PIP = pip3
 VERSIONS = $(shell jq -r '.python_versions | .[]' .ci/variables.json | sed '$$d')
 VERSION38 = $(shell jq -r '.python_versions | .[]' .ci/variables.json | sed '$$d' | grep 3\.8)
 PYENV_ERROR = "\033[0;31mIMPORTANT\033[0m: Please install pyenv and run \033[0;31meval \"\$$(pyenv init -)\"\033[0m.\n"
+
+all: develop
 
 pyinst:
 	@which pyenv > /dev/null 2>&1 || { printf $(PYENV_ERROR); exit 1; }
@@ -31,6 +34,10 @@ pyinst38:
 	pyenv install --skip-existing $(VERSION38)
 	pyenv local $(VERSION38)
 
+check-pip:
+	# Install pyenv if the Python environment is externally managed.
+	@if ! $(PIP) > /dev/null 2>&1 || ! $(PIP) install pip > /dev/null 2>&1; then make pyinst38; fi
+
 check-java:
 	@if ! test "$(JAVA_HOME)" || ! java --version > /dev/null 2>&1 || ! javadoc --help > /dev/null 2>&1; then \
 	    echo "Java installation issues for running integration tests" >&2; \
@@ -40,23 +47,22 @@ check-java:
 	    echo "NOTE: Java version 17 required to have all integration tests pass" >&2; \
 	fi
 
-install-deps: pyinst38
-	# @if test `uname` = Darwin -o `python3 --version | sed 's/.* 3.\([0-9]*\).*/3\1/'` -lt 38; then make pyinst38; fi
+install-deps: check-pip
 	$(PIP) install --upgrade pip setuptools wheel
 
-install-user: install-deps
-	PIP_ONLY_BINARY=h5py $(PIP) install -e .
+# pylint does not work with Python versions >3.8:
+#   Value 'Optional' is unsubscriptable (unsubscriptable-object)
+develop: pyinst38 install-deps
+	PIP_ONLY_BINARY=h5py $(PIP) install -e .[develop]
 
-install-devel: install-deps
-	$(PIP) install -e .[develop]
+build: install-deps
+	$(PIP) install --upgrade build
+	$(PYTHON) -m build
 
-wheel:
-	$(PIP) install --upgrade pip setuptools wheel
-	PIP_ONLY_BINARY=h5py $(PIP) wheel .
-
-install: wheel
-	PIP_ONLY_BINARY=h5py $(PIP) install opensearch_benchmark-*.whl
-	rm -r *.whl *.egg-info
+# Builds a wheel from source, then installs it.
+install: build
+	PIP_ONLY_BINARY=h5py $(PIP) install dist/opensearch_benchmark-*.whl
+	rm -rf dist
 
 clean:
 	rm -rf .benchmarks .eggs .tox .benchmark_it .cache build dist *.egg-info logs junit-py*.xml *.whl NOTICE.txt
@@ -75,7 +81,7 @@ tox-env-clean:
 lint:
 	@find osbenchmark benchmarks scripts tests it -name "*.py" -exec pylint -j0 -rn --load-plugins pylint_quotes --rcfile=$(CURDIR)/.pylintrc \{\} +
 
-test:
+test: develop
 	pytest tests/
 
 it: pyinst check-java python-caches-clean tox-env-clean
