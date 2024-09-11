@@ -1428,7 +1428,7 @@ class TestExecution:
             }
         }
         if self.results:
-            d["results"] = self.results.as_dict()
+            d["results"] = self.results if isinstance(self.results, dict) else self.results.as_dict()
         if self.workload_revision:
             d["workload-revision"] = self.workload_revision
         if not self.test_procedure.auto_generated:
