@@ -16,38 +16,20 @@
 # under the License.
 
 SHELL = /bin/bash
-# We assume an active virtualenv for development
-PYENV_REGEX = .pyenv/shims
-PY_BIN = python3
-PY_PREFIX = python
-# https://github.com/pypa/pip/issues/5599
-PIP_WRAPPER = $(PY_BIN) -m pip
-export PY38 = $(shell jq -r '.python_versions.PY38' .ci/variables.json)
-export PY38_BIN = $(PY_PREFIX)$(shell cut -d '.'  -f 1,2 <<< $(PY38))
-export PY39 = $(shell jq -r '.python_versions.PY39' .ci/variables.json)
-export PY39_BIN = $(PY_PREFIX)$(shell cut -d '.'  -f 1,2 <<< $(PY39))
-export PY310 = $(shell jq -r '.python_versions.PY310' .ci/variables.json)
-export PY310_BIN = $(PY_PREFIX)$(shell cut -d '.'  -f 1,2 <<< $(PY310))
-export PY311 = $(shell jq -r '.python_versions.PY311' .ci/variables.json)
-export PY311_BIN = $(PY_PREFIX)$(shell cut -d '.'  -f 1,2 <<< $(PY311))
-VENV_NAME ?= .venv
-VENV_ACTIVATE_FILE = $(VENV_NAME)/bin/activate
-VENV_ACTIVATE = . $(VENV_ACTIVATE_FILE)
-VEPYTHON = $(VENV_NAME)/bin/$(PY_BIN)
-VEPYLINT = $(VENV_NAME)/bin/pylint
-PYENV_ERROR = "\033[0;31mIMPORTANT\033[0m: Please install pyenv.\n"
-PYENV_PREREQ_HELP = "\033[0;31mIMPORTANT\033[0m: If you haven't already, please add \033[0;31meval \"\$$(pyenv init -)\"\033[0m to your bash profile and restart your terminal before proceeding any further.\n"
-VE_MISSING_HELP = "\033[0;31mIMPORTANT\033[0m: Couldn't find $(PWD)/$(VENV_NAME); have you executed make venv-create?\033[0m\n"
+PIP = pip3
+VERSIONS = $(shell jq -r '.python_versions | .[]' .ci/variables.json | sed '$$d')
+VERSION38 = $(shell jq -r '.python_versions | .[]' .ci/variables.json | sed '$$d' | grep 3\.8)
+PYENV_ERROR = "\033[0;31mIMPORTANT\033[0m: Please install pyenv and run \033[0;31meval \"\$$(pyenv init -)\"\033[0m.\n"
 
-prereq:
-	pyenv install --skip-existing $(PY38)
-	pyenv install --skip-existing $(PY39)
-	pyenv install --skip-existing $(PY310)
-	pyenv install --skip-existing $(PY311)
-	pyenv local $(PY38)
-	@# Ensure all Python versions are registered for this project
-	@ jq -r '.python_versions | [.[] | tostring] | join("\n")' .ci/variables.json > .python-version
-	-@ printf $(PYENV_PREREQ_HELP)
+pyinst:
+	@which pyenv > /dev/null 2>&1 || { printf $(PYENV_ERROR); exit 1; }
+	@for i in $(VERSIONS); do pyenv install --skip-existing $$i; done
+	pyenv local $(VERSIONS)
+
+pyinst38:
+	@which pyenv > /dev/null 2>&1 || { printf $(PYENV_ERROR); exit 1; }
+	pyenv install --skip-existing $(VERSION38)
+	pyenv local $(VERSION38)
 
 check-java:
 	@if ! test "$(JAVA_HOME)" || ! java --version > /dev/null 2>&1 || ! javadoc --help > /dev/null 2>&1; then \
@@ -58,87 +40,64 @@ check-java:
 	    echo "NOTE: Java version 17 required to have all integration tests pass" >&2; \
 	fi
 
-venv-create:
-	@if [[ ! -x $$(command -v pyenv) ]]; then \
-		printf $(PYENV_ERROR); \
-		exit 1; \
-	fi;
-	@if [[ ! -f $(VENV_ACTIVATE_FILE) ]]; then \
-		eval "$$(pyenv init -)" && eval "$$(pyenv init --path)" && $(PY38_BIN) -mvenv $(VENV_NAME); \
-		eval "$$(pyenv init -)" && eval "$$(pyenv init --path)" && $(PY39_BIN) -mvenv $(VENV_NAME); \
-		eval "$$(pyenv init -)" && eval "$$(pyenv init --path)" && $(PY310_BIN) -mvenv $(VENV_NAME); \
-		eval "$$(pyenv init -)" && eval "$$(pyenv init --path)" && $(PY311_BIN) -mvenv $(VENV_NAME); \
-		printf "Created python3 venv under $(PWD)/$(VENV_NAME).\n"; \
-	fi;
+install-deps: pyinst38
+	# @if test `uname` = Darwin -o `python3 --version | sed 's/.* 3.\([0-9]*\).*/3\1/'` -lt 38; then make pyinst38; fi
+	$(PIP) install --upgrade pip setuptools wheel
 
-check-venv:
-	@if [[ ! -f $(VENV_ACTIVATE_FILE) ]]; then \
-	printf $(VE_MISSING_HELP); \
-	fi
+install-user: install-deps
+	PIP_ONLY_BINARY=h5py $(PIP) install -e .
 
-install-user: venv-create
-	. $(VENV_ACTIVATE_FILE); $(PIP_WRAPPER) install --upgrade pip setuptools wheel
-	. $(VENV_ACTIVATE_FILE); PIP_ONLY_BINARY=h5py $(PIP_WRAPPER) install -e .
+install-devel: install-deps
+	$(PIP) install -e .[develop]
 
-install: install-user
-	# Also install development dependencies
-	. $(VENV_ACTIVATE_FILE); $(PIP_WRAPPER) install -e .[develop]
+wheel:
+	$(PIP) install --upgrade pip setuptools wheel
+	PIP_ONLY_BINARY=h5py $(PIP) wheel .
 
-clean: nondocs-clean docs-clean
+install: wheel
+	PIP_ONLY_BINARY=h5py $(PIP) install opensearch_benchmark-*.whl
+	rm -r *.whl *.egg-info
 
-nondocs-clean:
-	rm -rf .benchmarks .eggs .tox .benchmark_it .cache build dist osbenchmark.egg-info logs junit-py*.xml NOTICE.txt
-
-docs-clean:
-	cd docs && $(MAKE) clean
+clean:
+	rm -rf .benchmarks .eggs .tox .benchmark_it .cache build dist *.egg-info logs junit-py*.xml *.whl NOTICE.txt
 
 # Avoid conflicts between .pyc/pycache related files created by local Python interpreters and other interpreters in Docker
 python-caches-clean:
 	-@find . -name "__pycache__" -prune -exec rm -rf -- \{\} \;
 	-@find . -name ".pyc" -prune -exec rm -rf -- \{\} \;
 
-# Force recreation of the virtual environment used by tox.
-#
-# See https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md:
-#
-# > Note pip will not update project dependencies (specified either in the install_requires or the extras
-# > section of the setup.py) if any version already exists in the virtual environment; therefore we recommend
-# > to recreate your environments whenever your project dependencies change.
+# Note: pip will not update project dependencies (specified either in the install_requires or the extras
+# section of the setup.py) if any version is already installed; therefore we recommend
+# recreating your environments whenever your project dependencies change.
 tox-env-clean:
 	rm -rf .tox
 
-lint: check-venv
-	@find osbenchmark benchmarks scripts tests it -name "*.py" -exec $(VEPYLINT) -j0 -rn --load-plugins pylint_quotes --rcfile=$(CURDIR)/.pylintrc \{\} +
+lint:
+	@find osbenchmark benchmarks scripts tests it -name "*.py" -exec pylint -j0 -rn --load-plugins pylint_quotes --rcfile=$(CURDIR)/.pylintrc \{\} +
 
-docs: check-venv
-	@. $(VENV_ACTIVATE_FILE); cd docs && $(MAKE) html
+test:
+	pytest tests/
 
-serve-docs: check-venv
-	@. $(VENV_ACTIVATE_FILE); cd docs && $(MAKE) serve
+it: pyinst check-java python-caches-clean tox-env-clean
+	@which tox || $(PIP) install tox
+	tox
 
-test: check-venv
-	. $(VENV_ACTIVATE_FILE); pytest tests/
+it38 it39 it310 it311: pyinst check-java python-caches-clean tox-env-clean
+	@which tox || $(PIP) install tox
+	tox -e $(@:it%=py%)
 
-precommit: lint
+benchmark:
+	pytest benchmarks/
 
-it: check-java check-venv python-caches-clean tox-env-clean
-	. $(VENV_ACTIVATE_FILE); tox
+coverage:
+	coverage run setup.py test
+	coverage html
 
-it38 it39 it310 it311: check-java check-venv python-caches-clean tox-env-clean
-	. $(VENV_ACTIVATE_FILE); tox -e $(@:it%=py%)
-
-benchmark: check-venv
-	. $(VENV_ACTIVATE_FILE); pytest benchmarks/
-
-coverage: check-venv
-	. $(VENV_ACTIVATE_FILE); coverage run setup.py test
-	. $(VENV_ACTIVATE_FILE); coverage html
-
-release-checks: check-venv
-	. $(VENV_ACTIVATE_FILE); ./release-checks.sh $(release_version) $(next_version)
+release-checks:
+	./release-checks.sh $(release_version) $(next_version)
 
 # usage: e.g. make release release_version=0.9.2 next_version=0.9.3
-release: check-venv release-checks clean docs it
-	. $(VENV_ACTIVATE_FILE); ./release.sh $(release_version) $(next_version)
+release: release-checks clean it
+	./release.sh $(release_version) $(next_version)
 
-.PHONY: install clean nondocs-clean docs-clean python-caches-clean tox-env-clean docs serve-docs test it it38 benchmark coverage release release-checks prereq venv-create check-env
+.PHONY: install clean python-caches-clean tox-env-clean test it it38 benchmark coverage release release-checks pyinst

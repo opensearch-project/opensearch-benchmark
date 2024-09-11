@@ -225,6 +225,7 @@ def create_arg_parser():
     aggregate_parser = subparsers.add_parser("aggregate", help="Aggregate multiple test_executions")
     aggregate_parser.add_argument(
         "--test-executions",
+        "--t",
         type=non_empty_list,
         required=True,
         help="Comma-separated list of TestExecution IDs to aggregate")

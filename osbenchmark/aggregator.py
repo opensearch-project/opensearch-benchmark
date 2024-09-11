@@ -1,28 +1,5 @@
-# SPDX-License-Identifier: Apache-2.0
-#
-# The OpenSearch Contributors require contributions made to
-# this file be licensed under the Apache-2.0 license or a
-# compatible open source license.
-# Modifications Copyright OpenSearch Contributors. See
-# GitHub history for details.
-# Licensed to Elasticsearch B.V. under one or more contributor
-# license agreements. See the NOTICE file distributed with
-# this work for additional information regarding copyright
-# ownership. Elasticsearch B.V. licenses this file to you under
-# the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#	http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
-
 from typing import Any, Dict, List, Union
+import uuid
 
 from osbenchmark.metrics import FileTestExecutionStore
 from osbenchmark import metrics, workload, config
@@ -89,7 +66,7 @@ class Aggregator:
 
         values = [get_nested_value(json, key_path) for json in all_jsons]
         return aggregate_helper(values)
-    
+
     # construct aggregated results dict
     def build_aggregated_results(self, test_store):
         test_exe = test_store.find_by_test_execution_id(list(self.test_executions.keys())[0])
@@ -153,13 +130,17 @@ class Aggregator:
         current_timestamp = self.config.opts("system", "time.start")
 
         # add values to the configuration object
-        self.config.add(config.Scope.applicationOverride, "builder", "provision_config_instance.names", first_test_execution.provision_config_instance)
-        self.config.add(config.Scope.applicationOverride, "system", "env.name", first_test_execution.environment_name)
-        self.config.add(config.Scope.applicationOverride, "system", "test_execution.id", "12345")  # You can generate a new ID or use a specific value
+        self.config.add(config.Scope.applicationOverride, "builder",
+                        "provision_config_instance.names", first_test_execution.provision_config_instance)
+        self.config.add(config.Scope.applicationOverride, "system",
+                        "env.name", first_test_execution.environment_name)
+        self.config.add(config.Scope.applicationOverride, "system", "test_execution.id",
+                        f"aggregate_results_{first_test_execution.workload}_{str(uuid.uuid4())}")
         self.config.add(config.Scope.applicationOverride, "system", "time.start", current_timestamp)
         self.config.add(config.Scope.applicationOverride, "test_execution", "pipeline", first_test_execution.pipeline)
         self.config.add(config.Scope.applicationOverride, "workload", "params", first_test_execution.workload_params)
-        self.config.add(config.Scope.applicationOverride, "builder", "provision_config_instance.params", first_test_execution.provision_config_instance_params)
+        self.config.add(config.Scope.applicationOverride, "builder",
+                        "provision_config_instance.params", first_test_execution.provision_config_instance_params)
         self.config.add(config.Scope.applicationOverride, "builder", "plugin.params", first_test_execution.plugin_params)
         self.config.add(config.Scope.applicationOverride, "workload", "latency.percentiles", first_test_execution.latency_percentiles)
         self.config.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", first_test_execution.throughput_percentiles)
@@ -215,7 +196,7 @@ class Aggregator:
             else:
                 raise ValueError("Test execution not found: ", id)
         return True
-    
+
     # driver code
     def aggregate(self) -> None:
         test_execution_store = metrics.test_execution_store(self.config)

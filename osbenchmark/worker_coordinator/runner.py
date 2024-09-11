@@ -1254,6 +1254,17 @@ class Query(Runner):
                     return _get_field_value(content["_source"], field_name)
                 return None
 
+            def binary_search_for_last_negative_1(neighbors):
+                low = 0
+                high = len(neighbors)
+                while low < high:
+                    mid = (low + high) // 2
+                    if neighbors[mid] == "-1":
+                        high = mid
+                    else:
+                        low = mid + 1
+                return low - 1
+
             def calculate_topk_search_recall(predictions, neighbors, top_k):
                 """
                 Calculates the recall by comparing top_k neighbors with predictions.
@@ -1270,7 +1281,20 @@ class Query(Runner):
                     self.logger.info("No neighbors are provided for recall calculation")
                     return 0.0
                 min_num_of_results = min(top_k, len(neighbors))
+                last_neighbor_is_negative_1 = int(neighbors[min_num_of_results-1]) == -1
                 truth_set = neighbors[:min_num_of_results]
+                if last_neighbor_is_negative_1:
+                    self.logger.debug("Last neighbor is -1")
+                    last_neighbor_idx = binary_search_for_last_negative_1(truth_set)
+
+                    # Note: we do - 1 since list indexing is inclusive, and we want to ignore the first '-1' in neighbors.
+                    truth_set = truth_set[:last_neighbor_idx-1]
+                    if not truth_set:
+                        self.logger.info("No true neighbors after filtering, returning recall = 1.\n"
+                                         "Total neighbors in prediction: [%d].", len(predictions))
+                        return 1.0
+
+
                 for j in range(min_num_of_results):
                     if j >= len(predictions):
                         self.logger.info("No more neighbors in prediction to compare against ground truth.\n"
@@ -1280,7 +1304,7 @@ class Query(Runner):
                     if predictions[j] in truth_set:
                         correct += 1.0
 
-                return correct / min_num_of_results
+                return correct / len(truth_set)
 
             def calculate_radial_search_recall(predictions, neighbors, enable_top_1_recall=False):
                 """

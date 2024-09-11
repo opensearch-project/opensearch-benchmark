@@ -1,11 +1,8 @@
-import unittest
+from unittest.mock import patch, Mock
 import pytest
-from unittest.mock import mock_open, patch, MagicMock, Mock
 
 from osbenchmark import config
 from osbenchmark.aggregator import Aggregator
-from osbenchmark.metrics import TestExecution
-from osbenchmark.workload.workload import TestProcedure, Workload
 
 @pytest.fixture
 def mock_config():
@@ -28,10 +25,10 @@ def test_iterations(aggregator):
     mock_operation = Mock(name="op1", iterations=5)
     mock_task.schedule = [mock_operation]
     mock_workload.test_procedures = [mock_task]
-    
+
     with patch('osbenchmark.workload.load_workload', return_value=mock_workload):
         aggregator.iterations()
-    
+
     assert aggregator.accumulated_iterations == {mock_operation.name: 5}
 
 def test_results(aggregator):
@@ -50,12 +47,12 @@ def test_results(aggregator):
             }
         ]
     }
-    
+
     aggregator.results(mock_test_execution)
-    
+
     assert "task1" in aggregator.accumulated_results
-    assert all(metric in aggregator.accumulated_results["task1"] for metric in 
-               ["throughput", "latency", "service_time", "client_processing_time", 
+    assert all(metric in aggregator.accumulated_results["task1"] for metric in
+               ["throughput", "latency", "service_time", "client_processing_time",
                 "processing_time", "error_rate", "duration"])
 
 def test_aggregate_json_by_key(aggregator):
@@ -64,10 +61,10 @@ def test_aggregate_json_by_key(aggregator):
         Mock(results={"key1": {"nested": 10}}),
         Mock(results={"key1": {"nested": 20}})
     ]
-    
+
     with patch('osbenchmark.metrics.test_execution_store', return_value=mock_test_store):
         result = aggregator.aggregate_json_by_key("key1.nested")
-    
+
     assert result == 15
 
 def test_calculate_weighted_average(aggregator):
@@ -76,9 +73,9 @@ def test_calculate_weighted_average(aggregator):
         "latency": [{"avg": 10, "unit": "ms"}, {"avg": 20, "unit": "ms"}]
     }
     iterations = 2
-    
+
     result = aggregator.calculate_weighted_average(task_metrics, iterations)
-    
+
     assert result["throughput"] == 150
     assert result["latency"]["avg"] == 15
     assert result["latency"]["unit"] == "ms"
@@ -90,8 +87,8 @@ def test_compatibility_check(aggregator):
         Mock(workload="workload1"),
         Mock(workload="workload1")
     ]
-    
-    assert aggregator.compatibility_check(mock_test_store) == True
+
+    assert aggregator.compatibility_check(mock_test_store)
 
 def test_compatibility_check_incompatible(aggregator):
     mock_test_store = Mock()
@@ -100,6 +97,6 @@ def test_compatibility_check_incompatible(aggregator):
         Mock(workload="workload2"),
         Mock(workload="workload1")
     ]
-    
+
     with pytest.raises(ValueError):
         aggregator.compatibility_check(mock_test_store)
