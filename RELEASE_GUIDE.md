@@ -55,7 +55,7 @@ NOTE: The version number below is in semantic format, for instance, `1.2.0`.
 
 1. Create a tag: `git tag <VERSION> main`
     1. Ensure that this is done in the main official opensearch-benchmark repository
-    2. This should be the `<VERSION>` tag matches the version in version.txt.
+    2. This should be the `<VERSION>` tag that matches the entry in version.txt.
     3. For patch releases: Change `main` to the major and minor version branch name
 
 2. Push the tag: `git push origin <VERSION>`
