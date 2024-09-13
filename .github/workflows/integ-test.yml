@@ -42,6 +42,4 @@ jobs:
       - run: echo "JAVA17_HOME=$JAVA_HOME" >> $GITHUB_ENV
 
       - name: Run the CI build script
-        run: bash .ci/build.sh build_it ${{ matrix.python-version }}
-        env:
-          BENCHMARK_HOME: env.GITHUB_WORKSPACE
+        run: bash .ci/build.sh run_it ${{ matrix.python-version }}

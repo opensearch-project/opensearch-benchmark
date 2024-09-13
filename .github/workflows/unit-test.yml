@@ -17,6 +17,4 @@ jobs:
         run: git clone https://github.com/pyenv/pyenv.git ~/.pyenv
 
       - name: Run the CI build script
-        run: bash .ci/build.sh build
-        env:
-          BENCHMARK_HOME: env.GITHUB_WORKSPACE
+        run: bash .ci/build.sh build_and_unit_test
