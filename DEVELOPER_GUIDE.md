@@ -23,14 +23,27 @@ This document will walk you through on what's needed to start contributing code 
 
 ### Prerequisites
 
-  - **Pyenv** : Install `pyenv` and follow the instructions in the output of `pyenv init` to set up your shell and restart it before proceeding.
-    For more details please refer to the [PyEnv installation instructions](https://github.com/pyenv/pyenv#installation).
+  - **pyenv**: Install `pyenv` and follow the instructions in the output of `pyenv init` to set up your shell and restart it before proceeding.
+    For more details please refer to the [pyenv installation instructions](https://github.com/pyenv/pyenv#installation).
 
-    **Optional Step:** For Debian-based systems, install the following modules to continue with the next steps: 
+    `pyenv` requires that the C compiler and development libraries be installed, so that the specified Python versions can be build from source.  The installation instructions vary from platform to platform.
+
+    For Debian-based systems, install the following modules to continue with the next steps: 
     ```
     sudo apt-get install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
     libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
     xz-utils tk-dev libffi-dev liblzma-dev git
+    ```
+
+    For Amazon Linux 2023, run the following command:
+    ```
+    sudo yum -y install gcc openssl-devel bzip2-devel libffi-devel ncurses-devel sqlite-devel readline-devel zlib-devel xz-devel
+    ```
+
+    On the Mac platform, XCode needs to be installed as well as some additional required libraries:
+    ```
+    xcode-select --install
+    brew install pyenv jq zlib xz
     ```
 
   - **JDK**: Although OSB is a Python application, it optionally builds and provisions OpenSearch clusters.  JDK version 17 is used to build the current version of OpenSearch.  Please refer to the [build setup requirements](https://github.com/opensearch-project/OpenSearch/blob/ca564fd04f5059cf9e3ce8aba442575afb3d99f1/DEVELOPER_GUIDE.md#install-prerequisites).
@@ -54,15 +67,8 @@ For those working on WSL2, it is recommended to clone the repository and set up 
 After you git cloned the forked copy of OpenSearch Benchmark, use the following command-line instructions to set up OpenSearch Benchmark for development:
 ```
 cd opensearch-benchmark
-make prereq
-make install
+make develop
 ```
-
-NOTE: `make prereq` produces the following message.
-```
-IMPORTANT: please add `eval "$(pyenv init -)"` to your bash profile and restart your terminal before proceeding any further.
-```
-This line is commonly thought of as an error message but rather it's just a warning. Unless you haven't already added `eval "$(pyenv init -)"` to your bash profile and restarted your terminal, then feel free to proceed forward. This eval statement is necessary in the startup configuration as it allows Pyenv to manage python versions by adding python shims to your path. If you experience any issues, please see https://github.com/pyenv/pyenv.
 
 Depending on the platform and shell you have, use the following command to activate the virtual environment:
 
