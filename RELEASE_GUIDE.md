@@ -35,7 +35,7 @@ Releases are tagged with labels in the scheme `vN.N.N`, for instance `v1.0.0`, `
 The release process is standard across repositories in this open-source project and is run by a release manager volunteering from amongst the [maintainers](MAINTAINERS.md).
 
 ## Backport PRs
-Add backport labels to  PRs and commits so that changes can be added to `main` branch and other related major and minor version branches. For example, if a PR is published as a patch fix for OSB version 1.3.0, it  should be labeled with a backport label called `backport-1.3` so that it backports to `1.3` branch. 
+Add backport labels to  PRs and commits so that changes can be added to `main` branch and other related major and minor version branches. For example, if a PR is published as a patch fix for OSB version 1.3.0, it  should be labeled with a backport label called `backport-1.3` so that it backports to `1.3` branch.
 
 ## Prerequisites
 
@@ -55,7 +55,7 @@ NOTE: The version number below is in semantic format, for instance, `1.2.0`.
 
 1. Create a tag: `git tag <VERSION> main`
     1. Ensure that this is done in the main official opensearch-benchmark repository
-    2. This should be the new version that matches the version in version.txt.
+    2. This should be the `<VERSION>` tag that matches the entry in version.txt.
     3. For patch releases: Change `main` to the major and minor version branch name
 
 2. Push the tag: `git push origin <VERSION>`
@@ -119,11 +119,23 @@ Send this message in the following channels in OpenSearch Community Slack:
 
 ## Error Handling
 
+### Remove a tag
+
 If error occurs during build process and need to retrigger the workflow, do the following:
 
-* Delete the tag locally `git tag -d <VERSION>`
+* Delete the tag locally `git tag -d <VERSION>` and `git push --delete origin <VERSION>` to remove in remote repository
 * Delete the tag on Github
 * Delete draft-release on Github
 
 Then, create the tag again and push it.
 
+
+### Rename a tag
+
+If you published an incorrect tag name, then follow these steps:
+
+1. Run `git tag new_tag_name old_tag_name` to move old tag references to new tag alias
+2. Run `git tag -d old_tag_name` to delete old tag locally
+3. Ensure your remote is correct with `git remote -v`. Run `git push origin :refs/tags/old_tag_name` to remove old tag references in remote repository
+4. Run `git push origin --tags` to make remote tags look like local tags
+5. Verify that the release draft is pointing to the new tag
