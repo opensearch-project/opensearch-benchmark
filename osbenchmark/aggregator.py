@@ -1,39 +1,41 @@
+import os
 from typing import Any, Dict, List, Union
 import uuid
 
 from osbenchmark.metrics import FileTestExecutionStore
 from osbenchmark import metrics, workload, config
+from osbenchmark.utils import io as rio
 
 class Aggregator:
-    def __init__(self, cfg, test_executions_dict):
+    def __init__(self, cfg, test_executions_dict, args):
         self.config = cfg
+        self.args = args
         self.test_executions = test_executions_dict
         self.accumulated_results: Dict[str, Dict[str, List[Any]]] = {}
         self.accumulated_iterations: Dict[str, int] = {}
+        self.statistics = ["throughput", "latency", "service_time", "client_processing_time", "processing_time", "error_rate", "duration"]
+        self.test_store = metrics.test_execution_store(self.config)
+        self.cwd = cfg.opts("node", "benchmark.cwd")
 
-    # count iterations for each operation in the workload
-    def iterations(self) -> None:
+    def count_iterations_for_each_op(self) -> None:
         loaded_workload = workload.load_workload(self.config)
-        for task in loaded_workload.test_procedures:
-            for operation in task.schedule:
-                operation_name = operation.name
-                iterations = operation.iterations or 1
-                self.accumulated_iterations.setdefault(operation_name, 0)
-                self.accumulated_iterations[operation_name] += iterations
+        for test_procedure in loaded_workload.test_procedures:
+            if test_procedure.name == self.config.opts("workload", "test_procedure.name"):
+                for task in test_procedure.schedule:
+                    task_name = task.name
+                    iterations = task.iterations or 1
+                    self.accumulated_iterations[task_name] = self.accumulated_iterations.get(task_name, 0) + iterations
 
-    # accumulate metrics for each task from test execution results
-    def results(self, test_execution: Any) -> None:
+    def accumulate_results(self, test_execution: Any) -> None:
         for item in test_execution.results.get("op_metrics", []):
             task = item.get("task", "")
             self.accumulated_results.setdefault(task, {})
-            for metric in ["throughput", "latency", "service_time", "client_processing_time", "processing_time", "error_rate", "duration"]:
+            for metric in self.statistics:
                 self.accumulated_results[task].setdefault(metric, [])
                 self.accumulated_results[task][metric].append(item.get(metric))
 
-    # aggregate values from multiple test execution result JSON objects by a specified key path
     def aggregate_json_by_key(self, key_path: Union[str, List[str]]) -> Any:
-        test_store = metrics.test_execution_store(self.config)
-        all_jsons = [test_store.find_by_test_execution_id(id).results for id in self.test_executions.keys()]
+        all_jsons = [self.test_store.find_by_test_execution_id(id).results for id in self.test_executions.keys()]
 
         # retrieve nested value from a dictionary given a key path
         def get_nested_value(obj: Dict[str, Any], path: List[str]) -> Any:
@@ -46,7 +48,6 @@ class Aggregator:
                     return None
             return obj
 
-        # recursively aggregate values, handling different data types
         def aggregate_helper(objects: List[Any]) -> Any:
             if not objects:
                 return None
@@ -67,9 +68,8 @@ class Aggregator:
         values = [get_nested_value(json, key_path) for json in all_jsons]
         return aggregate_helper(values)
 
-    # construct aggregated results dict
-    def build_aggregated_results(self, test_store):
-        test_exe = test_store.find_by_test_execution_id(list(self.test_executions.keys())[0])
+    def build_aggregated_results(self):
+        test_exe = self.test_store.find_by_test_execution_id(list(self.test_executions.keys())[0])
         aggregated_results = {
             "op-metrics": [],
             "correctness_metrics": self.aggregate_json_by_key("correctness_metrics"),
@@ -125,31 +125,42 @@ class Aggregator:
             aggregated_results["op-metrics"].append(op_metric)
 
         # extract the necessary data from the first test execution, since the configurations should be identical for all test executions
-        test_exe_store = metrics.test_execution_store(self.config)
-        first_test_execution = test_exe_store.find_by_test_execution_id(list(self.test_executions.keys())[0])
         current_timestamp = self.config.opts("system", "time.start")
+
+        if hasattr(self.args, 'results_file') and self.args.results_file != "":
+            normalized_results_file = rio.normalize_path(self.args.results_file, self.cwd)
+            # ensure that the parent folder already exists when we try to write the file...
+            rio.ensure_dir(rio.dirname(normalized_results_file))
+            test_execution_id = os.path.basename(normalized_results_file)
+            self.config.add(config.Scope.applicationOverride, "system", "test_execution.id", normalized_results_file)
+        elif hasattr(self.args, 'test_execution_id') and self.args.test_execution_id:
+            test_execution_id = f"aggregate_results_{test_exe.workload}_{self.args.test_execution_id}"
+            self.config.add(config.Scope.applicationOverride, "system", "test_execution.id", test_execution_id)
+        else:
+            test_execution_id = f"aggregate_results_{test_exe.workload}_{str(uuid.uuid4())}"
+            self.config.add(config.Scope.applicationOverride, "system", "test_execution.id", test_execution_id)
+
+        print("Aggregate test execution ID: ", test_execution_id)
 
         # add values to the configuration object
         self.config.add(config.Scope.applicationOverride, "builder",
-                        "provision_config_instance.names", first_test_execution.provision_config_instance)
+                        "provision_config_instance.names", test_exe.provision_config_instance)
         self.config.add(config.Scope.applicationOverride, "system",
-                        "env.name", first_test_execution.environment_name)
-        self.config.add(config.Scope.applicationOverride, "system", "test_execution.id",
-                        f"aggregate_results_{first_test_execution.workload}_{str(uuid.uuid4())}")
+                        "env.name", test_exe.environment_name)
         self.config.add(config.Scope.applicationOverride, "system", "time.start", current_timestamp)
-        self.config.add(config.Scope.applicationOverride, "test_execution", "pipeline", first_test_execution.pipeline)
-        self.config.add(config.Scope.applicationOverride, "workload", "params", first_test_execution.workload_params)
+        self.config.add(config.Scope.applicationOverride, "test_execution", "pipeline", test_exe.pipeline)
+        self.config.add(config.Scope.applicationOverride, "workload", "params", test_exe.workload_params)
         self.config.add(config.Scope.applicationOverride, "builder",
-                        "provision_config_instance.params", first_test_execution.provision_config_instance_params)
-        self.config.add(config.Scope.applicationOverride, "builder", "plugin.params", first_test_execution.plugin_params)
-        self.config.add(config.Scope.applicationOverride, "workload", "latency.percentiles", first_test_execution.latency_percentiles)
-        self.config.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", first_test_execution.throughput_percentiles)
+                        "provision_config_instance.params", test_exe.provision_config_instance_params)
+        self.config.add(config.Scope.applicationOverride, "builder", "plugin.params", test_exe.plugin_params)
+        self.config.add(config.Scope.applicationOverride, "workload", "latency.percentiles", test_exe.latency_percentiles)
+        self.config.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", test_exe.throughput_percentiles)
 
         loaded_workload = workload.load_workload(self.config)
-        test_procedure = loaded_workload.find_test_procedure_or_default(first_test_execution.test_procedure)
+        test_procedure = loaded_workload.find_test_procedure_or_default(test_exe.test_procedure)
 
-        test_execution = metrics.create_test_execution(self.config, loaded_workload, test_procedure, first_test_execution.workload_revision)
-        test_execution.add_results(aggregated_results)
+        test_execution = metrics.create_test_execution(self.config, loaded_workload, test_procedure, test_exe.workload_revision)
+        test_execution.add_results(AggregatedResults(aggregated_results))
         test_execution.distribution_version = test_exe.distribution_version
         test_execution.revision = test_exe.revision
         test_execution.distribution_flavor = test_exe.distribution_flavor
@@ -157,7 +168,6 @@ class Aggregator:
 
         return test_execution
 
-    # calculate weighted averages for task metrics
     def calculate_weighted_average(self, task_metrics: Dict[str, List[Any]], iterations: int) -> Dict[str, Any]:
         weighted_metrics = {}
 
@@ -184,33 +194,45 @@ class Aggregator:
                     weighted_metrics[metric] = sum(values) / len(values)
         return weighted_metrics
 
-    # verify that all test executions have the same workload
-    def compatibility_check(self, test_store) -> None:
-        first_test_execution = test_store.find_by_test_execution_id(list(self.test_executions.keys())[0])
+    def test_execution_compatibility_check(self) -> None:
+        first_test_execution = self.test_store.find_by_test_execution_id(list(self.test_executions.keys())[0])
         workload = first_test_execution.workload
+        test_procedure = first_test_execution.test_procedure
         for id in self.test_executions.keys():
-            test_execution = test_store.find_by_test_execution_id(id)
+            test_execution = self.test_store.find_by_test_execution_id(id)
             if test_execution:
                 if test_execution.workload != workload:
                     raise ValueError(f"Incompatible workload: test {id} has workload '{test_execution.workload}' instead of '{workload}'")
+                if test_execution.test_procedure != test_procedure:
+                    raise ValueError(
+                        f"Incompatible test procedure: test {id} has test procedure '{test_execution.test_procedure}'\n"
+                        f"instead of '{test_procedure}'"
+                    )
             else:
                 raise ValueError("Test execution not found: ", id)
+
+        self.config.add(config.Scope.applicationOverride, "workload", "test_procedure.name", first_test_execution.test_procedure)
         return True
 
-    # driver code
     def aggregate(self) -> None:
-        test_execution_store = metrics.test_execution_store(self.config)
-        if self.compatibility_check(test_execution_store):
+        if self.test_execution_compatibility_check():
             for id in self.test_executions.keys():
-                test_execution = test_execution_store.find_by_test_execution_id(id)
+                test_execution = self.test_store.find_by_test_execution_id(id)
                 if test_execution:
-                    self.config.add(config.Scope.applicationOverride, "workload", "repository.name", "default")
+                    self.config.add(config.Scope.applicationOverride, "workload", "repository.name", self.args.workload_repository)
                     self.config.add(config.Scope.applicationOverride, "workload", "workload.name", test_execution.workload)
-                    self.iterations()
-                    self.results(test_execution)
+                    self.count_iterations_for_each_op()
+                    self.accumulate_results(test_execution)
 
-            aggregated_results = self.build_aggregated_results(test_execution_store)
+            aggregated_results = self.build_aggregated_results()
             file_test_exe_store = FileTestExecutionStore(self.config)
             file_test_exe_store.store_test_execution(aggregated_results)
         else:
             raise ValueError("Incompatible test execution results")
+
+class AggregatedResults:
+    def __init__(self, results):
+        self.results = results
+
+    def as_dict(self):
+        return self.results

@@ -6,7 +6,9 @@ from osbenchmark.aggregator import Aggregator
 
 @pytest.fixture
 def mock_config():
-    return Mock(spec=config.Config)
+    mock_cfg = Mock(spec=config.Config)
+    mock_cfg.opts.side_effect = lambda *args: "/path/to/root" if args == ("node", "root.dir") else None
+    return mock_cfg
 
 @pytest.fixture
 def mock_test_executions():
@@ -16,20 +18,41 @@ def mock_test_executions():
     }
 
 @pytest.fixture
-def aggregator(mock_config, mock_test_executions):
-    return Aggregator(mock_config, mock_test_executions)
+def mock_args():
+    return Mock(
+        results_file="",
+        test_execution_id="",
+        workload_repository="default"
+    )
 
-def test_iterations(aggregator):
+@pytest.fixture
+def mock_test_store():
+    mock_store = Mock()
+    mock_store.find_by_test_execution_id.side_effect = [
+        Mock(results={"key1": {"nested": 10}}),
+        Mock(results={"key1": {"nested": 20}})
+    ]
+    return mock_store
+
+@pytest.fixture
+def aggregator(mock_config, mock_test_executions, mock_args, mock_test_store):
+    aggregator = Aggregator(mock_config, mock_test_executions, mock_args)
+    aggregator.test_store = mock_test_store
+    return aggregator
+
+def test_iterations(aggregator, mock_args):
     mock_workload = Mock()
-    mock_task = Mock()
-    mock_operation = Mock(name="op1", iterations=5)
-    mock_task.schedule = [mock_operation]
+    mock_schedule = [Mock(name="op1", iterations=5)]
+    mock_task = Mock(name="task1", schedule=mock_schedule)
     mock_workload.test_procedures = [mock_task]
 
-    with patch('osbenchmark.workload.load_workload', return_value=mock_workload):
-        aggregator.iterations()
+    # Mock the config.opts call to return the same test_procedure.name
+    aggregator.config.opts.side_effect = lambda *args: mock_task.name if args == ("workload", "test_procedure.name") else None
 
-    assert aggregator.accumulated_iterations == {mock_operation.name: 5}
+    with patch('osbenchmark.workload.load_workload', return_value=mock_workload):
+        aggregator.count_iterations_for_each_op()
+
+    assert list(aggregator.accumulated_iterations.values())[0] == 5
 
 def test_results(aggregator):
     mock_test_execution = Mock()
@@ -48,7 +71,7 @@ def test_results(aggregator):
         ]
     }
 
-    aggregator.results(mock_test_execution)
+    aggregator.accumulate_results(mock_test_execution)
 
     assert "task1" in aggregator.accumulated_results
     assert all(metric in aggregator.accumulated_results["task1"] for metric in
@@ -56,15 +79,7 @@ def test_results(aggregator):
                 "processing_time", "error_rate", "duration"])
 
 def test_aggregate_json_by_key(aggregator):
-    mock_test_store = Mock()
-    mock_test_store.find_by_test_execution_id.side_effect = [
-        Mock(results={"key1": {"nested": 10}}),
-        Mock(results={"key1": {"nested": 20}})
-    ]
-
-    with patch('osbenchmark.metrics.test_execution_store', return_value=mock_test_store):
-        result = aggregator.aggregate_json_by_key("key1.nested")
-
+    result = aggregator.aggregate_json_by_key("key1.nested")
     assert result == 15
 
 def test_calculate_weighted_average(aggregator):
@@ -81,14 +96,16 @@ def test_calculate_weighted_average(aggregator):
     assert result["latency"]["unit"] == "ms"
 
 def test_compatibility_check(aggregator):
+    mock_test_procedure = Mock(name="test_procedure")
     mock_test_store = Mock()
     mock_test_store.find_by_test_execution_id.side_effect = [
-        Mock(workload="workload1"),
-        Mock(workload="workload1"),
-        Mock(workload="workload1")
+        Mock(workload="workload1", test_procedure=mock_test_procedure),
+        Mock(workload="workload1", test_procedure=mock_test_procedure),
+        Mock(workload="workload1", test_procedure=mock_test_procedure)
     ]
+    aggregator.test_store = mock_test_store
+    assert aggregator.test_execution_compatibility_check()
 
-    assert aggregator.compatibility_check(mock_test_store)
 
 def test_compatibility_check_incompatible(aggregator):
     mock_test_store = Mock()
@@ -97,6 +114,6 @@ def test_compatibility_check_incompatible(aggregator):
         Mock(workload="workload2"),
         Mock(workload="workload1")
     ]
-
+    aggregator.test_store = mock_test_store
     with pytest.raises(ValueError):
-        aggregator.compatibility_check(mock_test_store)
+        aggregator.test_execution_compatibility_check()

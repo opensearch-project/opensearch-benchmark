@@ -229,6 +229,18 @@ def create_arg_parser():
         type=non_empty_list,
         required=True,
         help="Comma-separated list of TestExecution IDs to aggregate")
+    aggregate_parser.add_argument(
+        "--test-execution-id",
+        help="Define a unique id for this aggregated test_execution.",
+        default="")
+    aggregate_parser.add_argument(
+        "--results-file",
+        help="Write the aggregated results to the provided file.",
+        default="")
+    aggregate_parser.add_argument(
+        "--workload-repository",
+        help="Define the repository from where OSB will load workloads (default: default).",
+        default="default")
 
     download_parser = subparsers.add_parser("download", help="Downloads an artifact")
     download_parser.add_argument(
@@ -841,10 +853,11 @@ def configure_results_publishing_params(args, cfg):
     cfg.add(config.Scope.applicationOverride, "results_publishing", "output.path", args.results_file)
     cfg.add(config.Scope.applicationOverride, "results_publishing", "numbers.align", args.results_numbers_align)
 
-def prepare_test_executions_dict(test_executions_arg):
+def prepare_test_executions_dict(args, cfg):
+    cfg.add(config.Scope.applicationOverride, "results_publishing", "output.path", args.results_file)
     test_executions_dict = {}
-    if test_executions_arg:
-        for execution in test_executions_arg:
+    if args.test_executions:
+        for execution in args.test_executions:
             execution = execution.strip()
             if execution:
                 test_executions_dict[execution] = None
@@ -865,8 +878,8 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "results_publishing", "percentiles", args.percentiles)
             results_publisher.compare(cfg, args.baseline, args.contender)
         elif sub_command == "aggregate":
-            test_executions_dict = prepare_test_executions_dict(args.test_executions)
-            aggregator_instance = aggregator.Aggregator(cfg, test_executions_dict)
+            test_executions_dict = prepare_test_executions_dict(args, cfg)
+            aggregator_instance = aggregator.Aggregator(cfg, test_executions_dict, args)
             aggregator_instance.aggregate()
         elif sub_command == "list":
             cfg.add(config.Scope.applicationOverride, "system", "list.config.option", args.configuration)
