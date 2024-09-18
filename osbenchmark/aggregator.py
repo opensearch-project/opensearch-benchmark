@@ -13,24 +13,33 @@ class Aggregator:
         self.test_executions = test_executions_dict
         self.accumulated_results: Dict[str, Dict[str, List[Any]]] = {}
         self.accumulated_iterations: Dict[str, int] = {}
-        self.statistics = ["throughput", "latency", "service_time", "client_processing_time", "processing_time", "error_rate", "duration"]
+        self.metrics = ["throughput", "latency", "service_time", "client_processing_time", "processing_time", "error_rate", "duration"]
         self.test_store = metrics.test_execution_store(self.config)
         self.cwd = cfg.opts("node", "benchmark.cwd")
 
     def count_iterations_for_each_op(self) -> None:
         loaded_workload = workload.load_workload(self.config)
+        test_procedure_name = self.config.opts("workload", "test_procedure.name")
+        test_procedure_found = False
+
         for test_procedure in loaded_workload.test_procedures:
-            if test_procedure.name == self.config.opts("workload", "test_procedure.name"):
+            if test_procedure.name == test_procedure_name:
+                test_procedure_found = True
                 for task in test_procedure.schedule:
                     task_name = task.name
                     iterations = task.iterations or 1
                     self.accumulated_iterations[task_name] = self.accumulated_iterations.get(task_name, 0) + iterations
+            else:
+                continue  # skip to the next test procedure if the name doesn't match
+
+        if not test_procedure_found:
+            raise ValueError(f"Test procedure '{test_procedure_name}' not found in the loaded workload.")
 
     def accumulate_results(self, test_execution: Any) -> None:
         for item in test_execution.results.get("op_metrics", []):
             task = item.get("task", "")
             self.accumulated_results.setdefault(task, {})
-            for metric in self.statistics:
+            for metric in self.metrics:
                 self.accumulated_results[task].setdefault(metric, [])
                 self.accumulated_results[task][metric].append(item.get(metric))
 
@@ -202,14 +211,17 @@ class Aggregator:
             test_execution = self.test_store.find_by_test_execution_id(id)
             if test_execution:
                 if test_execution.workload != workload:
-                    raise ValueError(f"Incompatible workload: test {id} has workload '{test_execution.workload}' instead of '{workload}'")
+                    raise ValueError(
+                        f"Incompatible workload: test {id} has workload '{test_execution.workload}' instead of '{workload}'. "
+                        f"Ensure that all test IDs have the same workload."
+                    )
                 if test_execution.test_procedure != test_procedure:
                     raise ValueError(
-                        f"Incompatible test procedure: test {id} has test procedure '{test_execution.test_procedure}'\n"
-                        f"instead of '{test_procedure}'"
+                        f"Incompatible test procedure: test {id} has test procedure '{test_execution.test_procedure}' "
+                        f"instead of '{test_procedure}'. Ensure that all test IDs have the same test procedure from the same workload."
                     )
             else:
-                raise ValueError("Test execution not found: ", id)
+                raise ValueError(f"Test execution not found: {id}. Ensure that all provided test IDs are valid.")
 
         self.config.add(config.Scope.applicationOverride, "workload", "test_procedure.name", first_test_execution.test_procedure)
         return True
