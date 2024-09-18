@@ -40,6 +40,7 @@ from osbenchmark import version, actor, config, paths, \
 from osbenchmark.builder import provision_config, builder
 from osbenchmark.workload_generator import workload_generator
 from osbenchmark.utils import io, convert, process, console, net, opts, versions
+from osbenchmark import aggregator
 
 
 def create_arg_parser():
@@ -220,6 +221,26 @@ def create_arg_parser():
         "--show-in-results",
         help="Whether to include the comparison in the results file.",
         default=True)
+
+    aggregate_parser = subparsers.add_parser("aggregate", help="Aggregate multiple test_executions")
+    aggregate_parser.add_argument(
+        "--test-executions",
+        "--t",
+        type=non_empty_list,
+        required=True,
+        help="Comma-separated list of TestExecution IDs to aggregate")
+    aggregate_parser.add_argument(
+        "--test-execution-id",
+        help="Define a unique id for this aggregated test_execution.",
+        default="")
+    aggregate_parser.add_argument(
+        "--results-file",
+        help="Write the aggregated results to the provided file.",
+        default="")
+    aggregate_parser.add_argument(
+        "--workload-repository",
+        help="Define the repository from where OSB will load workloads (default: default).",
+        default="default")
 
     download_parser = subparsers.add_parser("download", help="Downloads an artifact")
     download_parser.add_argument(
@@ -613,7 +634,7 @@ def create_arg_parser():
         action="store_true",
         default=False)
 
-    for p in [list_parser, test_execution_parser, compare_parser, download_parser, install_parser,
+    for p in [list_parser, test_execution_parser, compare_parser, aggregate_parser, download_parser, install_parser,
               start_parser, stop_parser, info_parser, create_workload_parser]:
         # This option is needed to support a separate configuration for the integration tests on the same machine
         p.add_argument(
@@ -832,6 +853,15 @@ def configure_results_publishing_params(args, cfg):
     cfg.add(config.Scope.applicationOverride, "results_publishing", "output.path", args.results_file)
     cfg.add(config.Scope.applicationOverride, "results_publishing", "numbers.align", args.results_numbers_align)
 
+def prepare_test_executions_dict(args, cfg):
+    cfg.add(config.Scope.applicationOverride, "results_publishing", "output.path", args.results_file)
+    test_executions_dict = {}
+    if args.test_executions:
+        for execution in args.test_executions:
+            execution = execution.strip()
+            if execution:
+                test_executions_dict[execution] = None
+    return test_executions_dict
 
 def print_test_execution_id(args):
     console.info(f"[Test Execution ID]: {args.test_execution_id}")
@@ -847,6 +877,10 @@ def dispatch_sub_command(arg_parser, args, cfg):
             configure_results_publishing_params(args, cfg)
             cfg.add(config.Scope.applicationOverride, "results_publishing", "percentiles", args.percentiles)
             results_publisher.compare(cfg, args.baseline, args.contender)
+        elif sub_command == "aggregate":
+            test_executions_dict = prepare_test_executions_dict(args, cfg)
+            aggregator_instance = aggregator.Aggregator(cfg, test_executions_dict, args)
+            aggregator_instance.aggregate()
         elif sub_command == "list":
             cfg.add(config.Scope.applicationOverride, "system", "list.config.option", args.configuration)
             cfg.add(config.Scope.applicationOverride, "system", "list.test_executions.max_results", args.limit)
