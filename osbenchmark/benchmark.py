@@ -28,6 +28,7 @@ import logging
 import os
 import platform
 import sys
+import threading
 import time
 import uuid
 
@@ -634,8 +635,18 @@ def create_arg_parser():
         action="store_true",
         default=False)
 
-    for p in [list_parser, test_execution_parser, compare_parser, aggregate_parser, download_parser, install_parser,
-              start_parser, stop_parser, info_parser, create_workload_parser]:
+    auto_aggregate_parser = subparsers.add_parser("auto-aggregate",
+                                                  add_help=False,
+                                                  help="Run multiple test executions with the same configuration and aggregate the results",
+                                                  parents=[test_execution_parser])
+    auto_aggregate_parser.add_argument(
+        "--test-iterations",
+        type=int,
+        required=True,
+        help="Number of test executions to run and aggregate")
+
+    for p in [list_parser, test_execution_parser, compare_parser, aggregate_parser, auto_aggregate_parser,
+              download_parser, install_parser, start_parser, stop_parser, info_parser, create_workload_parser]:
         # This option is needed to support a separate configuration for the integration tests on the same machine
         p.add_argument(
             "--configuration-name",
@@ -863,6 +874,30 @@ def prepare_test_executions_dict(args, cfg):
                 test_executions_dict[execution] = None
     return test_executions_dict
 
+def run_and_aggregate(arg_parser, args, cfg):
+    semaphore = threading.Semaphore(1)
+    test_exes = []
+    args.subcommand = "execute-test"
+    aggregate_id = args.test_execution_id
+
+    for _ in range(args.test_iterations):
+        console.info(f"Running test {_ + 1}...")
+        args.test_execution_id = str(uuid.uuid4()) # we reuse the same args for each test so need to refresh the id
+        test_exes.append(args.test_execution_id)
+        with semaphore:
+            dispatch_sub_command(arg_parser, args, cfg)
+
+    console.info(f"Test executions: {', '.join(test_exes)}")
+    console.info("Aggregating results...")
+    aggregate_args = arg_parser.parse_args([
+    "aggregate",
+    f"--test-executions={','.join(test_exes)}",
+    f"--test-execution-id={aggregate_id}",
+    f"--results-file={args.results_file}",
+    f"--workload-repository={args.workload_repository}"
+    ])
+    dispatch_sub_command(arg_parser, aggregate_args, cfg)
+
 def print_test_execution_id(args):
     console.info(f"[Test Execution ID]: {args.test_execution_id}")
 
@@ -881,6 +916,8 @@ def dispatch_sub_command(arg_parser, args, cfg):
             test_executions_dict = prepare_test_executions_dict(args, cfg)
             aggregator_instance = aggregator.Aggregator(cfg, test_executions_dict, args)
             aggregator_instance.aggregate()
+        elif sub_command == "auto-aggregate":
+            run_and_aggregate(arg_parser, args, cfg)
         elif sub_command == "list":
             cfg.add(config.Scope.applicationOverride, "system", "list.config.option", args.configuration)
             cfg.add(config.Scope.applicationOverride, "system", "list.test_executions.max_results", args.limit)
