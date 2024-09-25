@@ -80,7 +80,7 @@ class Aggregator:
     def build_aggregated_results(self):
         test_exe = self.test_store.find_by_test_execution_id(list(self.test_executions.keys())[0])
         aggregated_results = {
-            "op-metrics": [],
+            "op_metrics": [],
             "correctness_metrics": self.aggregate_json_by_key("correctness_metrics"),
             "total_time": self.aggregate_json_by_key("total_time"),
             "total_time_per_shard": self.aggregate_json_by_key("total_time_per_shard"),
@@ -131,7 +131,7 @@ class Aggregator:
                 "error_rate": aggregated_task_metrics["error_rate"],
                 "duration": aggregated_task_metrics["duration"]
             }
-            aggregated_results["op-metrics"].append(op_metric)
+            aggregated_results["op_metrics"].append(op_metric)
 
         # extract the necessary data from the first test execution, since the configurations should be identical for all test executions
         current_timestamp = self.config.opts("system", "time.start")
