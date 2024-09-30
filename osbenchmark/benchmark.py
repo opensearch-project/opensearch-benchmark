@@ -158,24 +158,29 @@ def create_arg_parser():
     create_workload_parser = subparsers.add_parser("create-workload", help="Create a Benchmark workload from existing data")
     create_workload_parser.add_argument(
         "--workload",
+        "-w",
         required=True,
         help="Name of the generated workload")
     create_workload_parser.add_argument(
         "--indices",
+        "-i",
         type=non_empty_list,
         required=True,
         help="Comma-separated list of indices to include in the workload")
     create_workload_parser.add_argument(
         "--target-hosts",
+        "-th",
         default="",
         required=True,
         help="Comma-separated list of host:port pairs which should be targeted")
     create_workload_parser.add_argument(
         "--client-options",
+        "-co",
         default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS,
         help=f"Comma-separated list of client options to use. (default: {opts.ClientOptions.DEFAULT_CLIENT_OPTIONS})")
     create_workload_parser.add_argument(
         "--output-path",
+        "-op",
         default=os.path.join(os.getcwd(), "workloads"),
         help="Workload output directory (default: workloads/)")
     create_workload_parser.add_argument(
@@ -193,10 +198,12 @@ def create_arg_parser():
     compare_parser = subparsers.add_parser("compare", help="Compare two test_executions")
     compare_parser.add_argument(
         "--baseline",
+        "-b",
         required=True,
         help=f"TestExecution ID of the baseline (see {PROGRAM_NAME} list test_executions).")
     compare_parser.add_argument(
         "--contender",
+        "-c",
         required=True,
         help=f"TestExecution ID of the contender (see {PROGRAM_NAME} list test_executions).")
     compare_parser.add_argument(
@@ -206,6 +213,7 @@ def create_arg_parser():
         default=metrics.GlobalStatsCalculator.DEFAULT_LATENCY_PERCENTILES)
     compare_parser.add_argument(
         "--results-format",
+        "-rfo",
         help="Define the output format for the command line results (default: markdown).",
         choices=["markdown", "csv"],
         default="markdown")
@@ -216,6 +224,7 @@ def create_arg_parser():
         default="right")
     compare_parser.add_argument(
         "--results-file",
+        "-rfi",
         help="Write the command line results also to the provided file.",
         default="")
     compare_parser.add_argument(
@@ -232,7 +241,6 @@ def create_arg_parser():
         help="Comma-separated list of TestExecution IDs to aggregate")
     aggregate_parser.add_argument(
         "--test-execution-id",
-        "-tid",
         help="Define a unique id for this aggregated test_execution.",
         default="")
     aggregate_parser.add_argument(
@@ -439,6 +447,7 @@ def create_arg_parser():
 
     test_execution_parser.add_argument(
         "--test-execution-id",
+        "-tid",
         help="Define a unique id for this test_execution.",
         default=str(uuid.uuid4()))
     test_execution_parser.add_argument(
