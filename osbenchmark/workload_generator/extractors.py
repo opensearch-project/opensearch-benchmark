@@ -177,8 +177,6 @@ class SequentialCorpusExtractor(CorpusExtractor):
 
         total_documents = self.client.count(index=index)["count"]
 
-        logger.info("Total documents in index: %s, number of docs user requested: %s", total_documents, documents_limit)
-
         documents_to_extract = total_documents if not documents_limit else min(total_documents, documents_limit)
 
         if documents_limit:
@@ -191,10 +189,10 @@ class SequentialCorpusExtractor(CorpusExtractor):
 
             # Notify users when they specified more documents than available in index
             if documents_limit > total_documents:
-                documents_to_extract_msg = f"User requested to extract {documents_limit} documents " + \
+                documents_to_extract_warning_msg = f"User requested to extract {documents_limit} documents " + \
                     f"but there are only {total_documents} documents in {index}. " + \
                     f"Will only extract {total_documents} documents from {index}."
-                console.warn(documents_to_extract_msg)
+                console.warn(documents_to_extract_warning_msg)
 
         if documents_to_extract > 0:
             logger.info("[%d] total docs in index [%s]. Extracting [%s] docs.", total_documents, index, documents_to_extract)
