@@ -42,7 +42,7 @@ class IndexExtractor:
         try:
             for index in self.custom_workload.indices:
                 extracted_indices += self.extract(workload_path, index.name)
-        except opensearchpy.exceptions.NotFoundError as e:
+        except opensearchpy.exceptions.NotFoundError:
             raise exceptions.SystemSetupError(f"Index [{index.name}] does not exist.")
         except opensearchpy.OpenSearchException:
             self.logger.error("Failed at extracting index [%s]", index)
@@ -177,7 +177,7 @@ class SequentialCorpusExtractor(CorpusExtractor):
 
         total_documents = self.client.count(index=index)["count"]
 
-        logger.info("total documents: %s, documents limit: %s", total_documents, documents_limit)
+        logger.info("Total documents in index: %s, number of docs user requested: %s", total_documents, documents_limit)
 
         documents_to_extract = total_documents if not documents_limit else min(total_documents, documents_limit)
 
@@ -185,7 +185,7 @@ class SequentialCorpusExtractor(CorpusExtractor):
             # Only time when documents-1k.json will be less than 1K documents is
             # when the documents_limit is < 1k documents or source index has less than 1k documents
             if documents_limit < self.DEFAULT_TEST_MODE_DOC_COUNT:
-                test_mode_warning_msg = f"Due to --number-of-docs set by user, " + \
+                test_mode_warning_msg = "Due to --number-of-docs set by user, " + \
                     f"test-mode docs will be less than the default {self.DEFAULT_TEST_MODE_DOC_COUNT} documents."
                 console.warn(test_mode_warning_msg)
 
