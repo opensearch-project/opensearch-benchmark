@@ -133,6 +133,9 @@ def process_indices(indices, document_frequency, indices_docs_mapping):
             number_of_docs_for_index = None
             if indices_docs_mapping and index_name in indices_docs_mapping:
                 number_of_docs_for_index = int(indices_docs_mapping[index_name])
+                if number_of_docs_for_index <= 0:
+                    raise exceptions.SystemSetupError(
+                        "If using --number-of-docs, ensure values are greater than 0")
 
             index = Index(
                 name=index_name,
@@ -162,6 +165,6 @@ def validate_index_documents_map(indices, indices_docs_map):
     for index_name in indices_docs_map:
         if index_name not in indices:
             raise exceptions.SystemSetupError(
-                "Index from <index>:<doc_count> pair was not found in --indices. " +
-                "Ensure that indices from all <index>:<doc_count> pairs exist in --indices."
+                "Index name mentioned in --number-of-docs was not found in --indices. " +
+                "Ensure that indices in --number-of-docs are present in --indices."
             )

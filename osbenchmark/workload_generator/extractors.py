@@ -12,8 +12,9 @@ import logging
 import os
 from abc import ABC, abstractmethod
 
-from opensearchpy import OpenSearchException
+import opensearchpy.exceptions
 
+from osbenchmark import exceptions
 from osbenchmark.utils import console
 from osbenchmark.workload_generator.config import CustomWorkload
 
@@ -41,8 +42,10 @@ class IndexExtractor:
         try:
             for index in self.custom_workload.indices:
                 extracted_indices += self.extract(workload_path, index.name)
-        except OpenSearchException:
-            self.logger("Failed at extracting index [%s]", index)
+        except opensearchpy.exceptions.NotFoundError as e:
+            raise exceptions.SystemSetupError(f"Index {index.name} does not exist.")
+        except opensearchpy.OpenSearchException:
+            self.logger.error("Failed at extracting index [%s]", index)
             failed_indices += index
 
         return extracted_indices, failed_indices
