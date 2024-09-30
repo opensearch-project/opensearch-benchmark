@@ -125,18 +125,26 @@ class QueryProcessor:
 
         return processed_queries
 
-def process_indices(indices, document_frequency, number_of_docs):
+def process_indices(indices, document_frequency, indices_docs_mapping):
     processed_indices = []
     for index_name in indices:
-        index = Index(
-            name=index_name,
-            document_frequency=document_frequency,
-            number_of_docs=number_of_docs
-        )
-        processed_indices.append(index)
+        try:
+            # Check if user provided number of docs for index
+            number_of_docs_for_index = None
+            if indices_docs_mapping and index_name in indices_docs_mapping:
+                number_of_docs_for_index = int(indices_docs_mapping[index_name])
+
+            index = Index(
+                name=index_name,
+                document_frequency=document_frequency,
+                number_of_docs=number_of_docs_for_index
+            )
+            processed_indices.append(index)
+
+        except ValueError as e:
+            raise exceptions.SystemSetupError("Ensure you are using use integers if providing number of docs.", e)
 
     return processed_indices
-
 
 def validate_index_documents_map(indices, indices_docs_map):
     logger = logging.getLogger(__name__)
@@ -147,8 +155,8 @@ def validate_index_documents_map(indices, indices_docs_map):
 
     if len(indices) < len(indices_docs_map):
         raise exceptions.SystemSetupError(
-            "Number of <index>:<doc_count> pairs exceeds number of indices in --indices. " +
-            "Ensure number of <index>:<doc_count> pairs is less than or equal to number of indices in --indices."
+            "Number of <index>:<doc_count> pairs in --number-of-docs exceeds number of indices in --indices. " +
+            "Ensure number of <index>:<doc_count> pairs is less than or equal to number of indices."
         )
 
     for index_name in indices_docs_map:

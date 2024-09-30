@@ -138,6 +138,9 @@ class CorpusExtractor(ABC):
 
 
 class SequentialCorpusExtractor(CorpusExtractor):
+    DEFAULT_TEST_MODE_DOC_COUNT = 1000
+    DEFAULT_TEST_MODE_SUFFIX = "-1k"
+
     def __init__(self, custom_workload, client):
         self.custom_workload: CustomWorkload = custom_workload
         self.client = client
@@ -171,7 +174,24 @@ class SequentialCorpusExtractor(CorpusExtractor):
 
         total_documents = self.client.count(index=index)["count"]
 
+        logger.info("total documents: %s, documents limit: %s", total_documents, documents_limit)
+
         documents_to_extract = total_documents if not documents_limit else min(total_documents, documents_limit)
+
+        if documents_limit:
+            # Only time when documents-1k.json will be less than 1K documents is
+            # when the documents_limit is < 1k documents or source index has less than 1k documents
+            if documents_limit < self.DEFAULT_TEST_MODE_DOC_COUNT:
+                test_mode_warning_msg = f"Due to --number-of-docs set by user, " + \
+                    f"test-mode docs will be less than the default {self.DEFAULT_TEST_MODE_DOC_COUNT} documents."
+                console.warn(test_mode_warning_msg)
+
+            # Notify users when they specified more documents than available in index
+            if documents_limit > total_documents:
+                documents_to_extract_msg = f"User requested to extract {documents_limit} documents " + \
+                    f"but there are only {total_documents} documents in {index}. " + \
+                    f"Will only extract {total_documents} documents from {index}."
+                console.warn(documents_to_extract_msg)
 
         if documents_to_extract > 0:
             logger.info("[%d] total docs in index [%s]. Extracting [%s] docs.", total_documents, index, documents_to_extract)
@@ -180,8 +200,8 @@ class SequentialCorpusExtractor(CorpusExtractor):
             self.dump_documents(
                 self.client,
                 index,
-                self._get_doc_outpath(self.custom_workload.workload_path, index, "-1k"),
-                min(documents_to_extract, 1000),
+                self._get_doc_outpath(self.custom_workload.workload_path, index, self.DEFAULT_TEST_MODE_SUFFIX),
+                min(documents_to_extract, self.DEFAULT_TEST_MODE_DOC_COUNT),
                 " for test mode")
             # Create full corpora
             self.dump_documents(self.client, index, docs_path, documents_to_extract)

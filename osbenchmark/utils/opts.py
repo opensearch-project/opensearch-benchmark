@@ -125,7 +125,11 @@ class StoreKeyPairAsDict(argparse.Action):
     """
     def __call__(self, parser, namespace, values, option_string=None):
         custom_dict = {}
-        for kv in values:
+
+        # If values contains spaces, user provided 2+ key value pairs
+        kv_pairs = values[0].split(" ")
+
+        for kv in kv_pairs:
             try:
                 k,v = kv.split(":")
                 custom_dict[k] = v

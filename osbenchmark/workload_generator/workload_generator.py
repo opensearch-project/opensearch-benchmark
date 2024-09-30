@@ -40,6 +40,7 @@ def create_workload(cfg):
     console.info(f"Connected to OpenSearch cluster [{info['name']}] version [{info['version']['number']}].\n", logger=logger)
 
     processed_indices = process_indices(indices, document_frequency, number_of_docs)
+    logger.info("Processed Indices: %s", processed_indices)
 
     custom_workload = CustomWorkload(
         workload_name=workload_name,
