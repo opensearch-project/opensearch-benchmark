@@ -1005,6 +1005,8 @@ def dispatch_sub_command(arg_parser, args, cfg):
             elif args.test_iterations == 1:
                 configure_test(arg_parser, args, cfg)
                 execute_test(cfg, args.kill_running_processes)
+            else:
+                console.info("Please enter a valid number of test iterations")
         elif sub_command == "create-workload":
             cfg.add(config.Scope.applicationOverride, "generator", "indices", args.indices)
             cfg.add(config.Scope.applicationOverride, "generator", "number_of_docs", args.number_of_docs)
