@@ -129,13 +129,13 @@ def process_indices(indices, document_frequency, indices_docs_mapping):
     processed_indices = []
     for index_name in indices:
         try:
-            # Setting equal to None means OSB will grab all docs available in index
+            #Setting number_of_docs_for_index to None means OSB will grab all docs available in index
             number_of_docs_for_index = None
             if indices_docs_mapping and index_name in indices_docs_mapping:
                 number_of_docs_for_index = int(indices_docs_mapping[index_name])
                 if number_of_docs_for_index <= 0:
                     raise exceptions.SystemSetupError(
-                        "If using --number-of-docs, ensure values are greater than 0")
+                        "Values specified with --number-of-docs must be greater than 0")
 
             index = Index(
                 name=index_name,
@@ -145,7 +145,7 @@ def process_indices(indices, document_frequency, indices_docs_mapping):
             processed_indices.append(index)
 
         except ValueError as e:
-            raise exceptions.SystemSetupError("Ensure you are using use integers if providing number of docs.", e)
+            raise exceptions.SystemSetupError("Ensure you are using integers if providing --number-of-docs.", e)
 
     return processed_indices
 
@@ -165,6 +165,6 @@ def validate_index_documents_map(indices, indices_docs_map):
     for index_name in indices_docs_map:
         if index_name not in indices:
             raise exceptions.SystemSetupError(
-                "Index name mentioned in --number-of-docs was not found in --indices. " +
-                "Ensure that indices in --number-of-docs are present in --indices."
+                f"Index {index_name} provided in --number-of-docs was not found in --indices. " +
+                "Ensure that all indices in --number-of-docs are present in --indices."
             )

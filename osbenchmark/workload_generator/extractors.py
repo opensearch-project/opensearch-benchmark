@@ -189,7 +189,7 @@ class SequentialCorpusExtractor(CorpusExtractor):
 
             # Notify users when they specified more documents than available in index
             if documents_limit > total_documents:
-                documents_to_extract_warning_msg = f"User requested to extract {documents_limit} documents " + \
+                documents_to_extract_warning_msg = f"User requested extraction of {documents_limit} documents " + \
                     f"but there are only {total_documents} documents in {index}. " + \
                     f"Will only extract {total_documents} documents from {index}."
                 console.warn(documents_to_extract_warning_msg)
