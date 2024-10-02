@@ -169,7 +169,9 @@ class Aggregator:
         test_procedure = loaded_workload.find_test_procedure_or_default(test_exe.test_procedure)
 
         test_execution = metrics.create_test_execution(self.config, loaded_workload, test_procedure, test_exe.workload_revision)
-        test_execution.user_tags = list(self.test_executions.keys())
+        test_execution.user_tags = {
+            "aggregation-of-runs": list(self.test_executions.keys())
+        }
         test_execution.add_results(AggregatedResults(aggregated_results))
         test_execution.distribution_version = test_exe.distribution_version
         test_execution.revision = test_exe.revision

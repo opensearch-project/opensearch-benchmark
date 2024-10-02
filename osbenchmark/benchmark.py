@@ -631,7 +631,6 @@ def create_arg_parser():
         "--cancel-on-error",
         action="store_true",
         help="Stop executing tests if an error occurs in one of the test iterations (default: false).",
-        default=False
     )
 
     ###############################################################################
@@ -987,10 +986,10 @@ def dispatch_sub_command(arg_parser, args, cfg):
                 test_exes = []
                 for _ in range(iterations):
                     try:
-                        test_exes.append(args.test_execution_id)
                         configure_test(arg_parser, args, cfg)
                         execute_test(cfg, args.kill_running_processes)
                         time.sleep(int(args.sleep_timer))
+                        test_exes.append(args.test_execution_id)
                         args.test_execution_id = str(uuid.uuid4())
                     except Exception as e:
                         console.error(f"Error occurred during test execution {_+1}: {str(e)}")
@@ -1006,8 +1005,6 @@ def dispatch_sub_command(arg_parser, args, cfg):
             elif args.test_iterations == 1:
                 configure_test(arg_parser, args, cfg)
                 execute_test(cfg, args.kill_running_processes)
-            else:
-                console.info("Please enter a valid number of test iterations")
         elif sub_command == "create-workload":
             cfg.add(config.Scope.applicationOverride, "generator", "indices", args.indices)
             cfg.add(config.Scope.applicationOverride, "generator", "number_of_docs", args.number_of_docs)
