@@ -125,18 +125,29 @@ class QueryProcessor:
 
         return processed_queries
 
-def process_indices(indices, document_frequency, number_of_docs):
+def process_indices(indices, document_frequency, indices_docs_mapping):
     processed_indices = []
     for index_name in indices:
-        index = Index(
-            name=index_name,
-            document_frequency=document_frequency,
-            number_of_docs=number_of_docs
-        )
-        processed_indices.append(index)
+        try:
+            #Setting number_of_docs_for_index to None means OSB will grab all docs available in index
+            number_of_docs_for_index = None
+            if indices_docs_mapping and index_name in indices_docs_mapping:
+                number_of_docs_for_index = int(indices_docs_mapping[index_name])
+                if number_of_docs_for_index <= 0:
+                    raise exceptions.SystemSetupError(
+                        "Values specified with --number-of-docs must be greater than 0")
+
+            index = Index(
+                name=index_name,
+                document_frequency=document_frequency,
+                number_of_docs=number_of_docs_for_index
+            )
+            processed_indices.append(index)
+
+        except ValueError as e:
+            raise exceptions.SystemSetupError("Ensure you are using integers if providing --number-of-docs.", e)
 
     return processed_indices
-
 
 def validate_index_documents_map(indices, indices_docs_map):
     logger = logging.getLogger(__name__)
@@ -147,13 +158,13 @@ def validate_index_documents_map(indices, indices_docs_map):
 
     if len(indices) < len(indices_docs_map):
         raise exceptions.SystemSetupError(
-            "Number of <index>:<doc_count> pairs exceeds number of indices in --indices. " +
-            "Ensure number of <index>:<doc_count> pairs is less than or equal to number of indices in --indices."
+            "Number of <index>:<doc_count> pairs in --number-of-docs exceeds number of indices in --indices. " +
+            "Ensure number of <index>:<doc_count> pairs is less than or equal to number of indices."
         )
 
     for index_name in indices_docs_map:
         if index_name not in indices:
             raise exceptions.SystemSetupError(
-                "Index from <index>:<doc_count> pair was not found in --indices. " +
-                "Ensure that indices from all <index>:<doc_count> pairs exist in --indices."
+                f"Index {index_name} provided in --number-of-docs was not found in --indices. " +
+                "Ensure that all indices in --number-of-docs are present in --indices."
             )

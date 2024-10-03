@@ -12,8 +12,9 @@ import logging
 import os
 from abc import ABC, abstractmethod
 
-from opensearchpy import OpenSearchException
+import opensearchpy.exceptions
 
+from osbenchmark import exceptions
 from osbenchmark.utils import console
 from osbenchmark.workload_generator.config import CustomWorkload
 
@@ -41,8 +42,10 @@ class IndexExtractor:
         try:
             for index in self.custom_workload.indices:
                 extracted_indices += self.extract(workload_path, index.name)
-        except OpenSearchException:
-            self.logger("Failed at extracting index [%s]", index)
+        except opensearchpy.exceptions.NotFoundError:
+            raise exceptions.SystemSetupError(f"Index [{index.name}] does not exist.")
+        except opensearchpy.OpenSearchException:
+            self.logger.error("Failed at extracting index [%s]", index)
             failed_indices += index
 
         return extracted_indices, failed_indices
@@ -138,6 +141,9 @@ class CorpusExtractor(ABC):
 
 
 class SequentialCorpusExtractor(CorpusExtractor):
+    DEFAULT_TEST_MODE_DOC_COUNT = 1000
+    DEFAULT_TEST_MODE_SUFFIX = "-1k"
+
     def __init__(self, custom_workload, client):
         self.custom_workload: CustomWorkload = custom_workload
         self.client = client
@@ -173,6 +179,21 @@ class SequentialCorpusExtractor(CorpusExtractor):
 
         documents_to_extract = total_documents if not documents_limit else min(total_documents, documents_limit)
 
+        if documents_limit:
+            # Only time when documents-1k.json will be less than 1K documents is
+            # when the documents_limit is < 1k documents or source index has less than 1k documents
+            if documents_limit < self.DEFAULT_TEST_MODE_DOC_COUNT:
+                test_mode_warning_msg = "Due to --number-of-docs set by user, " + \
+                    f"test-mode docs will be less than the default {self.DEFAULT_TEST_MODE_DOC_COUNT} documents."
+                console.warn(test_mode_warning_msg)
+
+            # Notify users when they specified more documents than available in index
+            if documents_limit > total_documents:
+                documents_to_extract_warning_msg = f"User requested extraction of {documents_limit} documents " + \
+                    f"but there are only {total_documents} documents in {index}. " + \
+                    f"Will only extract {total_documents} documents from {index}."
+                console.warn(documents_to_extract_warning_msg)
+
         if documents_to_extract > 0:
             logger.info("[%d] total docs in index [%s]. Extracting [%s] docs.", total_documents, index, documents_to_extract)
             docs_path = self._get_doc_outpath(self.custom_workload.workload_path, index)
@@ -180,8 +201,8 @@ class SequentialCorpusExtractor(CorpusExtractor):
             self.dump_documents(
                 self.client,
                 index,
-                self._get_doc_outpath(self.custom_workload.workload_path, index, "-1k"),
-                min(documents_to_extract, 1000),
+                self._get_doc_outpath(self.custom_workload.workload_path, index, self.DEFAULT_TEST_MODE_SUFFIX),
+                min(documents_to_extract, self.DEFAULT_TEST_MODE_DOC_COUNT),
                 " for test mode")
             # Create full corpora
             self.dump_documents(self.client, index, docs_path, documents_to_extract)
