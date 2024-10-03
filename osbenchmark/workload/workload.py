@@ -191,7 +191,7 @@ class Documents:
     SUPPORTED_SOURCE_FORMAT = [SOURCE_FORMAT_BULK, SOURCE_FORMAT_HDF5, SOURCE_FORMAT_BIG_ANN]
 
     def __init__(self, source_format, document_file=None, document_archive=None, base_url=None, source_url=None,
-                 includes_action_and_meta_data=False,
+                 includes_action_and_meta_data=False, generate_increasing_vector_ids=False, id_field_name=None, vector_field_name=None,
                  number_of_documents=0, compressed_size_in_bytes=0, uncompressed_size_in_bytes=0, target_index=None,
                  target_data_stream=None, target_type=None, meta_data=None):
         """
@@ -227,6 +227,9 @@ class Documents:
         self.base_url = base_url
         self.source_url = source_url
         self.includes_action_and_meta_data = includes_action_and_meta_data
+        self.generate_increasing_vector_ids = generate_increasing_vector_ids
+        self.id_field_name = id_field_name
+        self.vector_field_name = vector_field_name
         self._number_of_documents = number_of_documents
         self._compressed_size_in_bytes = compressed_size_in_bytes
         self._uncompressed_size_in_bytes = uncompressed_size_in_bytes
@@ -296,19 +299,61 @@ class Documents:
         return ", ".join(r)
 
     def __hash__(self):
-        return hash(self.source_format) ^ hash(self.document_file) ^ hash(self.document_archive) ^ hash(self.base_url) ^ \
-               hash(self.source_url) ^ hash(self.includes_action_and_meta_data) ^ hash(self.number_of_documents) ^ \
-               hash(self.compressed_size_in_bytes) ^ hash(self.uncompressed_size_in_bytes) ^ hash(self.target_index) ^ \
-               hash(self.target_data_stream) ^ hash(self.target_type) ^ hash(frozenset(self.meta_data.items()))
+        return (
+            hash(self.source_format)
+            ^ hash(self.document_file)
+            ^ hash(self.document_archive)
+            ^ hash(self.base_url)
+            ^ hash(self.source_url)
+            ^ hash(self.includes_action_and_meta_data)
+            ^ hash(self.id_field_name)
+            ^ hash(self.vector_field_name)
+            ^ hash(self.generate_increasing_vector_ids)
+            ^ hash(self.number_of_documents)
+            ^ hash(self.compressed_size_in_bytes)
+            ^ hash(self.uncompressed_size_in_bytes)
+            ^ hash(self.target_index)
+            ^ hash(self.target_data_stream)
+            ^ hash(self.target_type)
+            ^ hash(frozenset(self.meta_data.items()))
+        )
 
     def __eq__(self, othr):
-        return (isinstance(othr, type(self)) and
-                (self.source_format, self.document_file, self.document_archive, self.base_url, self.source_url,
-                 self.includes_action_and_meta_data, self.number_of_documents, self.compressed_size_in_bytes,
-                 self.uncompressed_size_in_bytes, self.target_type, self.target_data_stream, self.target_type, self.meta_data) ==
-                (othr.source_format, othr.document_file, othr.document_archive, othr.base_url, self.source_url,
-                 othr.includes_action_and_meta_data, othr.number_of_documents, othr.compressed_size_in_bytes,
-                 othr.uncompressed_size_in_bytes, othr.target_type, othr.target_data_stream, othr.target_type, othr.meta_data))
+        return isinstance(othr, type(self)) and (
+            self.source_format,
+            self.document_file,
+            self.document_archive,
+            self.base_url,
+            self.source_url,
+            self.includes_action_and_meta_data,
+            self.generate_increasing_vector_ids,
+            self.id_field_name,
+            self.vector_field_name,
+            self.number_of_documents,
+            self.compressed_size_in_bytes,
+            self.uncompressed_size_in_bytes,
+            self.target_type,
+            self.target_data_stream,
+            self.target_type,
+            self.meta_data,
+        ) == (
+            othr.source_format,
+            othr.document_file,
+            othr.document_archive,
+            othr.base_url,
+            self.source_url,
+            othr.includes_action_and_meta_data,
+            othr.generate_increasing_vector_ids,
+            othr.id_field_name,
+            othr.vector_field_name,
+            othr.number_of_documents,
+            othr.compressed_size_in_bytes,
+            othr.uncompressed_size_in_bytes,
+            othr.target_type,
+            othr.target_data_stream,
+            othr.target_type,
+            othr.meta_data,
+        )
 
 
 class DocumentCorpus:

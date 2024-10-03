@@ -27,6 +27,8 @@ import random
 import shutil
 import tempfile
 from unittest import TestCase
+import re
+import json
 
 import numpy as np
 
@@ -1157,6 +1159,591 @@ class BulkIndexParamSourceTests(TestCase):
             })
 
         self.assertEqual("'conflict-probability' must be numeric", ctx.exception.args[0])
+
+
+class HDF5SourceTests(TestCase):
+    DEFAULT_INDEX_NAME = "test-partition-index"
+    DEFAULT_FIELD_NAME = "test-vector-field"
+    DEFAULT_CONTEXT = Context.INDEX
+    # DEFAULT_CONTEXT = "train"
+    DEFAULT_TYPE = HDF5DataSet.FORMAT_NAME
+    DEFAULT_NUM_VECTORS = 10
+    DEFAULT_DIMENSION = 10
+    DEFAULT_RANDOM_STRING_LENGTH = 8
+    DEFAULT_ID_FIELD_NAME = "_id"
+
+    def setUp(self) -> None:
+        self.data_set_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.data_set_dir)
+
+    def test_hdf5_source_with_source_larger_than_slice(self):
+        # Create a dataset with DEFAULT_NUM_VECTORS vectors of DEFAULT_DIMENSION dimension
+        data_set_path = create_data_set(
+            num_vectors=self.DEFAULT_NUM_VECTORS,
+            dimension=self.DEFAULT_DIMENSION,
+            extension=self.DEFAULT_TYPE,
+            data_set_context=self.DEFAULT_CONTEXT,
+            data_set_dir=self.data_set_dir,
+        )
+
+        source = params.HDF5Source(
+            offset=2,
+            number_of_lines=5,
+            dataset_context=self.DEFAULT_CONTEXT,
+            index=self.DEFAULT_INDEX_NAME,
+            id_field_name=self.DEFAULT_ID_FIELD_NAME,
+            vector_field_name=self.DEFAULT_FIELD_NAME,
+        )
+
+        source.open(data_set_path, "r", 2)  # Open with bulk size of 2
+
+        # Collect the data read from the source
+        result = list(next(source))
+
+        # Define the regular expression to match the JSON output with float values
+        float_vector_regex = re.compile(
+            r'\{"'
+            + re.escape(self.DEFAULT_FIELD_NAME)
+            + r'": \[([-+]?\d*\.\d+|\d+)(, [-+]?\d*\.\d+|\d+)*\]\}\n'
+        )
+
+        # Assert that each line in the result matches the expected pattern
+        for line in result:
+            # line_str = line.decode()
+
+            self.assertRegex(line.decode(), float_vector_regex)
+
+        source.close()
+
+    def test_hdf5_source_with_slice_larger_than_source(self):
+        # Create a dataset with 3 vectors of DEFAULT_DIMENSION
+        data_set_path = create_data_set(
+            num_vectors=3,
+            dimension=self.DEFAULT_DIMENSION,
+            extension=self.DEFAULT_TYPE,
+            data_set_context=self.DEFAULT_CONTEXT,
+            data_set_dir=self.data_set_dir,
+        )
+
+        source = params.HDF5Source(
+            offset=0,
+            number_of_lines=10,
+            dataset_context=self.DEFAULT_CONTEXT,
+            index=self.DEFAULT_INDEX_NAME,
+            id_field_name=self.DEFAULT_ID_FIELD_NAME,
+            vector_field_name=self.DEFAULT_FIELD_NAME,
+        )
+
+        source.open(data_set_path, "r", 5)  # Open with bulk size of 5
+
+        result = list(next(source))
+        # Replace with actual expected vector values
+        # expected_result = [
+        #     b'{"' + self.DEFAULT_FIELD_NAME.encode() + b'": [some_values]}\n',
+        #     # Add more expected results according to the dataset created
+        # ]
+
+        self.assertEqual(len(result), 3)
+        source.close()
+
+    def test_hdf5_source_with_offset_greater_than_dataset_size(self):
+        # Create a dataset with 3 vectors of DEFAULT_DIMENSION
+        data_set_path = create_data_set(
+            num_vectors=3,
+            dimension=self.DEFAULT_DIMENSION,
+            extension=self.DEFAULT_TYPE,
+            data_set_context=self.DEFAULT_CONTEXT,
+            data_set_dir=self.data_set_dir,
+        )
+
+        source = params.HDF5Source(
+            offset=10,
+            number_of_lines=5,
+            dataset_context=self.DEFAULT_CONTEXT,
+            index=self.DEFAULT_INDEX_NAME,
+            id_field_name=self.DEFAULT_ID_FIELD_NAME,
+            vector_field_name=self.DEFAULT_FIELD_NAME,
+        )
+        with self.assertRaises(IndexError):
+            source.open(data_set_path, "r", 2)  # Open with bulk size of 2
+
+    def test_hdf5_source_happy_path(self):
+        # Create a valid dataset with DEFAULT_NUM_VECTORS vectors of DEFAULT_DIMENSION dimension
+        data_set_path = create_data_set(
+            num_vectors=self.DEFAULT_NUM_VECTORS,
+            dimension=self.DEFAULT_DIMENSION,
+            extension=self.DEFAULT_TYPE,
+            data_set_context=self.DEFAULT_CONTEXT,
+            data_set_dir=self.data_set_dir,
+        )
+
+        source = params.HDF5Source(
+            offset=0,
+            number_of_lines=self.DEFAULT_NUM_VECTORS,
+            dataset_context=self.DEFAULT_CONTEXT,
+            index=self.DEFAULT_INDEX_NAME,
+            id_field_name=self.DEFAULT_ID_FIELD_NAME,
+            vector_field_name=self.DEFAULT_FIELD_NAME,
+        )
+
+        source.open(data_set_path, "r", 5)  # Open with a bulk size of 5
+
+        # Collect the data read from the source
+        result = list(next(source))
+
+        # Define the regular expression to match the JSON output with float values
+        float_vector_regex = re.compile(
+            r'\{"'
+            + re.escape(self.DEFAULT_FIELD_NAME)
+            + r'": \[([-+]?\d*\.\d+|\d+)(, [-+]?\d*\.\d+|\d+)*\]\}\n'
+        )
+
+        # Assert that each line in the result matches the expected pattern
+        for line in result:
+            # line_str = line.decode()
+
+            self.assertRegex(line.decode(), float_vector_regex)
+
+        source.close()
+
+
+class HDF5SourceGenerateIdsTests(TestCase):
+    DEFAULT_INDEX_NAME = "test-partition-index"
+    DEFAULT_FIELD_NAME = "test-vector-field"
+    DEFAULT_CONTEXT = Context.INDEX
+    DEFAULT_TYPE = HDF5DataSet.FORMAT_NAME
+    DEFAULT_NUM_VECTORS = 10
+    DEFAULT_DIMENSION = 10
+    DEFAULT_ID_FIELD_NAME = "_id"
+
+    def setUp(self) -> None:
+        self.data_set_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.data_set_dir)
+
+    def test_hdf5_source_generate_ids_with_source_larger_than_slice(self):
+        # Create a dataset with DEFAULT_NUM_VECTORS vectors of DEFAULT_DIMENSION dimension
+        data_set_path = create_data_set(
+            num_vectors=self.DEFAULT_NUM_VECTORS,
+            dimension=self.DEFAULT_DIMENSION,
+            extension=self.DEFAULT_TYPE,
+            data_set_context=self.DEFAULT_CONTEXT,
+            data_set_dir=self.data_set_dir,
+        )
+
+        source = params.HDF5SourceGenerateIds(
+            offset=2,
+            number_of_lines=5,
+            dataset_context=self.DEFAULT_CONTEXT,
+            index=self.DEFAULT_INDEX_NAME,
+            id_field_name=self.DEFAULT_ID_FIELD_NAME,
+            vector_field_name=self.DEFAULT_FIELD_NAME,
+        )
+
+        source.open(data_set_path, "r", 2)  # Open with bulk size of 2
+
+        # Collect the data read from the source
+        result = list(next(source))
+        # Optimized regex for metadata lines
+        metadata_regex = re.compile(
+            r'\{"index":\s*\{"_index":\s*"'
+            + re.escape(self.DEFAULT_INDEX_NAME)
+            + r'"\s*,\s*"_id":\s*\d+\s*\}\}\n'
+        )
+
+        # Optimized regex for vector data lines
+        vector_data_regex = re.compile(
+            r'\{"%s":\s*\[(?:-?\d+(?:\.\d+)?\s*,\s*)*-?\d+(?:\.\d+)?\s*\]\}\n'
+            % re.escape(self.DEFAULT_FIELD_NAME)
+        )
+        # Assert that each line matches either the metadata pattern or the vector data pattern
+        for i, line in enumerate(result):
+            if i % 2 == 0:  # Metadata line
+                self.assertRegex(line.decode(), metadata_regex)
+            else:  # Vector data line
+                self.assertRegex(line.decode(), vector_data_regex)
+
+        source.close()
+
+    def test_hdf5_source_generate_ids_with_slice_larger_than_source(self):
+        # Create a dataset with 3 vectors of DEFAULT_DIMENSION
+        data_set_path = create_data_set(
+            num_vectors=3,
+            dimension=self.DEFAULT_DIMENSION,
+            extension=self.DEFAULT_TYPE,
+            data_set_context=self.DEFAULT_CONTEXT,
+            data_set_dir=self.data_set_dir,
+        )
+
+        source = params.HDF5SourceGenerateIds(
+            offset=0,
+            number_of_lines=10,
+            dataset_context=self.DEFAULT_CONTEXT,
+            index=self.DEFAULT_INDEX_NAME,
+            id_field_name=self.DEFAULT_ID_FIELD_NAME,
+            vector_field_name=self.DEFAULT_FIELD_NAME,
+        )
+
+        source.open(data_set_path, "r", 5)  # Open with bulk size of 5
+
+        result = list(next(source))
+
+        self.assertEqual(len(result), 6)
+        source.close()
+
+    def test_hdf5_source_generate_ids_with_offset_greater_than_dataset_size(self):
+        # Create a dataset with 3 vectors of DEFAULT_DIMENSION
+        data_set_path = create_data_set(
+            num_vectors=3,
+            dimension=self.DEFAULT_DIMENSION,
+            extension=self.DEFAULT_TYPE,
+            data_set_context=self.DEFAULT_CONTEXT,
+            data_set_dir=self.data_set_dir,
+        )
+
+        source = params.HDF5SourceGenerateIds(
+            offset=10,
+            number_of_lines=5,
+            dataset_context=self.DEFAULT_CONTEXT,
+            index=self.DEFAULT_INDEX_NAME,
+            id_field_name=self.DEFAULT_ID_FIELD_NAME,
+            vector_field_name=self.DEFAULT_FIELD_NAME,
+        )
+
+        with self.assertRaises(IndexError):
+            source.open(data_set_path, "r", 2)  # Open with bulk size of 2
+
+    def test_hdf5_source_generate_ids_happy_path(self):
+        # Create a valid dataset with DEFAULT_NUM_VECTORS vectors of DEFAULT_DIMENSION dimension
+        data_set_path = create_data_set(
+            num_vectors=self.DEFAULT_NUM_VECTORS,
+            dimension=self.DEFAULT_DIMENSION,
+            extension=self.DEFAULT_TYPE,
+            data_set_context=self.DEFAULT_CONTEXT,
+            data_set_dir=self.data_set_dir,
+        )
+
+        source = params.HDF5SourceGenerateIds(
+            offset=0,
+            number_of_lines=self.DEFAULT_NUM_VECTORS,
+            dataset_context=self.DEFAULT_CONTEXT,
+            index=self.DEFAULT_INDEX_NAME,
+            id_field_name=self.DEFAULT_ID_FIELD_NAME,
+            vector_field_name=self.DEFAULT_FIELD_NAME,
+        )
+
+        source.open(data_set_path, "r", 5)  # Open with a bulk size of 5
+
+        # Collect the data read from the source
+        result = list(next(source))
+
+        metadata_regex = re.compile(
+            r'\{"index":\s*\{"_index":\s*"'
+            + re.escape(self.DEFAULT_INDEX_NAME)
+            + r'"\s*,\s*"_id":\s*\d+\s*\}\}\n'
+        )
+
+        # Optimized regex for vector data lines
+        vector_data_regex = re.compile(
+            r'\{"%s":\s*\[(?:-?\d+(?:\.\d+)?\s*,\s*)*-?\d+(?:\.\d+)?\s*\]\}\n'
+            % re.escape(self.DEFAULT_FIELD_NAME)
+        )
+        # Assert that each line matches either the metadata pattern or the vector data pattern
+        for i, line in enumerate(result):
+            if i % 2 == 0:  # Metadata line
+                self.assertRegex(line.decode(), metadata_regex)
+            else:  # Vector data line
+                self.assertRegex(line.decode(), vector_data_regex)
+
+        source.close()
+
+
+class BulkIndexWithHDF5Tests(TestCase):
+    DEFAULT_INDEX_NAME = "test-partition-index"
+    DEFAULT_VECTOR_FIELD_NAME = "test-vector-field"
+    DEFAULT_CONTEXT = Context.INDEX
+    DEFAULT_TYPE = HDF5DataSet.FORMAT_NAME
+    DEFAULT_NUM_VECTORS = 10
+    DEFAULT_DIMENSION = 10
+    DEFAULT_RANDOM_STRING_LENGTH = 8
+    DEFAULT_ID_FIELD_NAME = "_id"
+
+    def setUp(self) -> None:
+        self.data_set_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.data_set_dir)
+
+    def test_from_VectorSearchParamSourceTests(self):
+        num_vectors = 100
+        num_partitions = 10
+        corpus_name = "random-hdf5-corpus"
+
+        hdf5_data_set_path = create_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            HDF5DataSet.FORMAT_NAME,
+            self.DEFAULT_CONTEXT,
+            self.data_set_dir,
+        )
+
+        corpora = [
+            workload.DocumentCorpus(
+                name=corpus_name,
+                documents=[
+                    workload.Documents(
+                        source_format=workload.Documents.SOURCE_FORMAT_HDF5,
+                        number_of_documents=num_vectors,
+                        document_file=hdf5_data_set_path,
+                    )
+                ],
+            ),
+        ]
+
+        test_param_source = params.BulkIndexParamSource(
+            workload=workload.Workload(name="unit-test", corpora=corpora),
+            params={
+                "index": self.DEFAULT_INDEX_NAME,
+                "field": self.DEFAULT_VECTOR_FIELD_NAME,
+                "data_set_format": HDF5DataSet.FORMAT_NAME,
+                "data_set_path": hdf5_data_set_path,
+                "bulk-size": 5,
+                "source_format": workload.Documents.SOURCE_FORMAT_HDF5,
+                "context": "neighbors",
+            },
+        )
+
+        vectors_per_partition = num_vectors // num_partitions
+
+        self._test_partition(test_param_source, num_partitions, vectors_per_partition)
+
+    def _test_partition(
+        self,
+        test_param_source: params.BulkIndexParamSource,
+        num_partitions: int,
+        vec_per_partition: int,
+    ):
+        def schedule(param_source):
+            while True:
+                try:
+                    yield param_source.params()
+                except StopIteration:
+                    return
+
+        for i in range(num_partitions):
+            partition = test_param_source.partition(i, num_partitions)
+
+            partition._init_internal_params()
+
+            bulk_schedule = list(schedule(partition))
+            self.assertEqual(2, len(bulk_schedule))
+
+    def test_params_default(self):
+        num_vectors = 49
+        bulk_size = 10
+        data_set_path = create_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.INDEX,
+            self.data_set_dir,
+        )
+        corpus_name = "random-hdf5-corpus"
+
+        corpora = [
+            workload.DocumentCorpus(
+                name=corpus_name,
+                documents=[
+                    workload.Documents(
+                        source_format=workload.Documents.SOURCE_FORMAT_HDF5,
+                        number_of_documents=num_vectors,
+                        document_file=data_set_path,
+                    )
+                ],
+            ),
+        ]
+
+        bulk_param_source = params.BulkIndexParamSource(
+            workload=workload.Workload(name="unit-test", corpora=corpora),
+            params={
+                "index": self.DEFAULT_INDEX_NAME,
+                "field": self.DEFAULT_VECTOR_FIELD_NAME,
+                "data_set_format": self.DEFAULT_TYPE,
+                "bulk-size": bulk_size,
+                "id-field-name": self.DEFAULT_ID_FIELD_NAME,
+                "source_format": workload.Documents.SOURCE_FORMAT_HDF5,
+                "context": "neighbors",
+            },
+        )
+        # bulk_param_source = BulkVectorsFromDataSetParamSource(
+        #     workload.Workload(name="unit-test"), test_param_source_params)
+        bulk_param_source_partition = bulk_param_source.partition(0, 1)
+        # Check each payload returned
+        vectors_consumed = 0
+        while vectors_consumed < num_vectors:
+            expected_num_vectors = min(num_vectors - vectors_consumed, bulk_size)
+            actual_params = bulk_param_source_partition.params()
+            self._check_params_no_ids(
+                actual_params,
+                "None",
+                "null",
+                self.DEFAULT_DIMENSION,
+                expected_num_vectors,
+                "None",
+            )
+            vectors_consumed += expected_num_vectors
+
+        # Assert last call creates stop iteration
+        with self.assertRaises(StopIteration):
+            bulk_param_source_partition.params()
+
+    def test_params_generate_ids(self):
+        num_vectors = 49
+        bulk_size = 10
+        data_set_path = create_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.INDEX,
+            self.data_set_dir,
+        )
+        corpus_name = "random-hdf5-corpus"
+
+        corpora = [
+            workload.DocumentCorpus(
+                name=corpus_name,
+                documents=[
+                    workload.Documents(
+                        source_format=workload.Documents.SOURCE_FORMAT_HDF5,
+                        number_of_documents=num_vectors,
+                        document_file=data_set_path,
+                        generate_increasing_vector_ids=True,
+                        id_field_name=self.DEFAULT_ID_FIELD_NAME,
+                        vector_field_name=self.DEFAULT_VECTOR_FIELD_NAME,
+                        target_index=self.DEFAULT_INDEX_NAME,
+                    )
+                ],
+            ),
+        ]
+
+        bulk_param_source = params.BulkIndexParamSource(
+            workload=workload.Workload(name="unit-test", corpora=corpora),
+            params={
+                "index": self.DEFAULT_INDEX_NAME,
+                "field": self.DEFAULT_VECTOR_FIELD_NAME,
+                "data_set_format": self.DEFAULT_TYPE,
+                "bulk-size": bulk_size,
+                "id-field-name": self.DEFAULT_ID_FIELD_NAME,
+                "source_format": workload.Documents.SOURCE_FORMAT_HDF5,
+                "context": "neighbors",
+            },
+        )
+        # bulk_param_source = BulkVectorsFromDataSetParamSource(
+        #     workload.Workload(name="unit-test"), test_param_source_params)
+        bulk_param_source_partition = bulk_param_source.partition(0, 1)
+        # Check each payload returned
+        vectors_consumed = 0
+        while vectors_consumed < num_vectors:
+            expected_num_vectors = min(num_vectors - vectors_consumed, bulk_size)
+            actual_params = bulk_param_source_partition.params()
+            self._check_params(
+                actual_params,
+                self.DEFAULT_INDEX_NAME,
+                self.DEFAULT_VECTOR_FIELD_NAME,
+                self.DEFAULT_DIMENSION,
+                expected_num_vectors,
+                self.DEFAULT_ID_FIELD_NAME,
+            )
+            vectors_consumed += expected_num_vectors
+
+        # Assert last call creates stop iteration
+        with self.assertRaises(StopIteration):
+            bulk_param_source_partition.params()
+
+    def _check_params_no_ids(
+        self,
+        actual_params: dict,
+        expected_index: str,
+        expected_vector_field: str,
+        expected_dimension: int,
+        expected_num_vectors_in_payload: int,
+        expected_id_field: str,
+    ):
+        # size = actual_params.get("size")
+        # self.assertEqual(size, expected_num_vectors_in_payload)
+        body_bytes = actual_params.get("body")
+        self.assertIsInstance(body_bytes, bytes)
+        body_string = body_bytes.decode()
+        self.assertIsInstance(body_string, str)
+        body = body_string.split("\n")
+        self.assertEqual(len(body) // 2, expected_num_vectors_in_payload)
+
+        # Bulk payload has 2 parts: first one is the header and the second one
+        # is the body. The header will have the index name and the body will
+        # have the vector
+        for header, req_body in (
+            (json.loads(h), json.loads(b)) for h, b in zip(*[iter(body)] * 2)
+        ):
+
+            index = header.get("index")
+            self.assertIsInstance(index, dict)
+
+            index_name = index.get("_index")
+            self.assertEqual(index_name, expected_index)
+
+            vector = req_body.get(expected_vector_field)
+            self.assertIsInstance(vector, list)
+            self.assertEqual(len(vector), expected_dimension)
+            # Below only happens for HDF5SourceGenerateIds
+            # if expected_id_field in index:
+            #     self.assertEqual(self.DEFAULT_ID_FIELD_NAME, expected_id_field)
+            #     self.assertFalse(expected_id_field in req_body)
+            #     continue
+            # self.assertTrue(expected_id_field in req_body)
+
+    def _check_params(
+        self,
+        actual_params: dict,
+        expected_index: str,
+        expected_vector_field: str,
+        expected_dimension: int,
+        expected_num_vectors_in_payload: int,
+        expected_id_field: str,
+    ):
+        # size = actual_params.get("size")
+        # self.assertEqual(size, expected_num_vectors_in_payload)
+        body_bytes = actual_params.get("body")
+        self.assertIsInstance(body_bytes, bytes)
+        body_string = body_bytes.decode()
+        self.assertIsInstance(body_string, str)
+        body = body_string.split("\n")
+        self.assertEqual(len(body) // 2, expected_num_vectors_in_payload)
+
+        # Bulk payload has 2 parts: first one is the header and the second one
+        # is the body. The header will have the index name and the body will
+        # have the vector
+        for header, req_body in (
+            (json.loads(h), json.loads(b)) for h, b in zip(*[iter(body)] * 2)
+        ):
+
+            index = header.get("index")
+            self.assertIsInstance(index, dict)
+
+            index_name = index.get("_index")
+            self.assertEqual(index_name, expected_index)
+
+            vector = req_body.get(expected_vector_field)
+            self.assertIsInstance(vector, list)
+            self.assertEqual(len(vector), expected_dimension)
+            # Below only happens for HDF5SourceGenerateIds
+            if expected_id_field in index:
+                self.assertEqual(self.DEFAULT_ID_FIELD_NAME, expected_id_field)
+                self.assertFalse(expected_id_field in req_body)
+                continue
+            self.assertTrue(expected_id_field in req_body)
 
 
 class BulkDataGeneratorTests(TestCase):

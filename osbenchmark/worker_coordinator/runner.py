@@ -515,7 +515,6 @@ class BulkIndex(Runner):
         if not detailed_results:
             opensearch.return_raw_response()
         request_context_holder.on_client_request_start()
-
         if with_action_metadata:
             api_kwargs.pop("index", None)
             # only half of the lines are documents

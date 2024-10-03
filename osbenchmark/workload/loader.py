@@ -1477,6 +1477,12 @@ class WorkloadSpecificationReader:
                                             default_value=workload.Documents.SOURCE_FORMAT_BULK)
             default_action_and_meta_data = self._r(corpus_spec, "includes-action-and-meta-data", mandatory=False,
                                                    default_value=False)
+            default_generate_increasing_vector_ids = self._r(corpus_spec, "generate-increasing-vector-ids", mandatory=False,
+                                                   default_value=False)
+            default_id_field_name =  self._r(corpus_spec, "id-field-name", mandatory=False,
+                                                            default_value=None)
+            default_vector_field_name =  self._r(corpus_spec, "vector-field-name", mandatory=False,
+                                                            default_value=None)
             corpus_target_idx = None
             corpus_target_ds = None
             corpus_target_type = None
@@ -1518,6 +1524,12 @@ class WorkloadSpecificationReader:
 
                     includes_action_and_meta_data = self._r(doc_spec, "includes-action-and-meta-data", mandatory=False,
                                                             default_value=default_action_and_meta_data)
+                    generate_increasing_vector_ids = self._r(doc_spec, "generate-increasing-vector-ids", mandatory=False,
+                                                            default_value=default_generate_increasing_vector_ids)
+                    id_field_name = self._r(doc_spec, "id-field-name", mandatory=False,
+                                                            default_value=default_id_field_name)
+                    vector_field_name =  self._r(doc_spec, "vector-field-name", mandatory=False,
+                                                            default_value=default_vector_field_name)
                     if includes_action_and_meta_data:
                         target_idx = None
                         target_type = None
@@ -1558,6 +1570,9 @@ class WorkloadSpecificationReader:
                                            base_url=base_url,
                                            source_url=source_url,
                                            includes_action_and_meta_data=includes_action_and_meta_data,
+                                           generate_increasing_vector_ids=generate_increasing_vector_ids,
+                                           id_field_name = id_field_name,
+                                           vector_field_name = vector_field_name,
                                            number_of_documents=num_docs,
                                            compressed_size_in_bytes=compressed_bytes,
                                            uncompressed_size_in_bytes=uncompressed_bytes,
