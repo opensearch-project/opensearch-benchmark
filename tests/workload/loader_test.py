@@ -863,6 +863,50 @@ class WorkloadPreparationTests(TestCase):
         self.assertEqual(0, prepare_file_offset_table.call_count)
 
 
+class WorkloadPreparationTests_1(TestCase):
+    @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
+    @mock.patch("osbenchmark.utils.net.download")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
+    @mock.patch("os.path.getsize")
+    @mock.patch("os.path.isfile")
+    def test_download_document_file_from_part_files(self, is_file, get_size, ensure_dir, download, prepare_file_offset_table):
+        # uncompressed file does not exist
+        # after download uncompressed file exists
+        # after download uncompressed file exists (main loop)
+        is_file.side_effect = [False, True, True, True, True]
+        # uncompressed file size is 2000
+        get_size.side_effect = [1000, 600, 400, 2000]
+
+        prepare_file_offset_table.return_value = 5
+
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
+                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         decompressor=loader.Decompressor())
+
+        mo = mock.mock_open()
+        with mock.patch("builtins.open", mo):
+            p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
+                                                            base_url="http://benchmarks.opensearch.org/corpora/unit-test",
+                                                            document_file="docs.json",
+                                                            document_file_parts=[ {"name": "xaa", "size": 1000 },
+                                                                                  {"name": "xab", "size": 600 },
+                                                                                  {"name": "xac", "size": 400 } ],
+                                                            # --> We don't provide a document archive here <--
+                                                            document_archive=None,
+                                                            number_of_documents=5,
+                                                            compressed_size_in_bytes=200,
+                                                            uncompressed_size_in_bytes=2000),
+                               data_root="/tmp")
+
+        ensure_dir.assert_called_with("/tmp")
+        calls = [ mock.call('http://benchmarks.opensearch.org/corpora/unit-test/xaa', '/tmp/xaa', 1000, progress_indicator=mock.ANY),
+                  mock.call('http://benchmarks.opensearch.org/corpora/unit-test/xab', '/tmp/xab', 600, progress_indicator=mock.ANY),
+                  mock.call('http://benchmarks.opensearch.org/corpora/unit-test/xac', '/tmp/xac', 400, progress_indicator=mock.ANY) ]
+
+        download.assert_has_calls(calls)
+        prepare_file_offset_table.assert_called_with("/tmp/docs.json", 'http://benchmarks.opensearch.org/corpora/unit-test',
+                                                     None, InstanceOf(loader.Downloader))
+
 class TemplateSource(TestCase):
     @mock.patch("osbenchmark.utils.io.dirname")
     @mock.patch.object(loader.TemplateSource, "read_glob_files")

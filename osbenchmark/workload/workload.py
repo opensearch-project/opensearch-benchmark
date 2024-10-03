@@ -190,7 +190,7 @@ class Documents:
     SOURCE_FORMAT_BIG_ANN = "big-ann"
     SUPPORTED_SOURCE_FORMAT = [SOURCE_FORMAT_BULK, SOURCE_FORMAT_HDF5, SOURCE_FORMAT_BIG_ANN]
 
-    def __init__(self, source_format, document_file=None, document_archive=None, base_url=None, source_url=None,
+    def __init__(self, source_format, document_file=None, document_file_parts=None, document_archive=None, base_url=None, source_url=None,
                  includes_action_and_meta_data=False,
                  number_of_documents=0, compressed_size_in_bytes=0, uncompressed_size_in_bytes=0, target_index=None,
                  target_data_stream=None, target_type=None, meta_data=None):
@@ -199,6 +199,7 @@ class Documents:
         :param source_format: The format of these documents. Mandatory.
         :param document_file: The file name of benchmark documents after decompression. Optional (e.g. for percolation we
         just need a mapping but no documents)
+        :param document_file_parts: If the document file is provided as parts, a list of dicts, each holding the filename and file size.
         :param document_archive: The file name of the compressed benchmark document name on the remote server. Optional (e.g. for
         percolation we just need a mapping but no documents)
         :param base_url: The URL from which to load data if they are not available locally. Excludes the file or object name. Optional.
@@ -223,6 +224,7 @@ class Documents:
 
         self.source_format = source_format
         self.document_file = document_file
+        self.document_file_parts = document_file_parts
         self.document_archive = document_archive
         self.base_url = base_url
         self.source_url = source_url
