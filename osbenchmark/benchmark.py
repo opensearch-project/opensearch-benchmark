@@ -83,7 +83,6 @@ def create_arg_parser():
         )
         workload_source_group.add_argument(
             "--workload-path",
-            "-wlp",
             help="Define the path to a workload.")
         subparser.add_argument(
             "--workload-revision",
@@ -133,6 +132,7 @@ def create_arg_parser():
     add_workload_source(info_parser)
     info_parser.add_argument(
         "--workload",
+        "-w",
         help=f"Define the workload to use. List possible workloads with `{PROGRAM_NAME} list workloads`."
         # we set the default value later on because we need to determine whether the user has provided this value.
         # default="geonames"
@@ -140,6 +140,7 @@ def create_arg_parser():
 
     info_parser.add_argument(
         "--workload-params",
+        "-wp",
         help="Define a comma-separated list of key:value pairs that are injected verbatim to the workload as variables.",
         default=""
     )
@@ -169,18 +170,17 @@ def create_arg_parser():
         help="Comma-separated list of indices to include in the workload")
     create_workload_parser.add_argument(
         "--target-hosts",
-        "-th",
+        "-t",
         default="",
         required=True,
         help="Comma-separated list of host:port pairs which should be targeted")
     create_workload_parser.add_argument(
         "--client-options",
-        "-co",
+        "-c",
         default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS,
         help=f"Comma-separated list of client options to use. (default: {opts.ClientOptions.DEFAULT_CLIENT_OPTIONS})")
     create_workload_parser.add_argument(
         "--output-path",
-        "-op",
         default=os.path.join(os.getcwd(), "workloads"),
         help="Workload output directory (default: workloads/)")
     create_workload_parser.add_argument(
@@ -213,7 +213,6 @@ def create_arg_parser():
         default=metrics.GlobalStatsCalculator.DEFAULT_LATENCY_PERCENTILES)
     compare_parser.add_argument(
         "--results-format",
-        "-rfo",
         help="Define the output format for the command line results (default: markdown).",
         choices=["markdown", "csv"],
         default="markdown")
@@ -224,7 +223,6 @@ def create_arg_parser():
         default="right")
     compare_parser.add_argument(
         "--results-file",
-        "-rfi",
         help="Write the command line results also to the provided file.",
         default="")
     compare_parser.add_argument(
@@ -235,12 +233,12 @@ def create_arg_parser():
     aggregate_parser = subparsers.add_parser("aggregate", help="Aggregate multiple test_executions")
     aggregate_parser.add_argument(
         "--test-executions",
-        "--t",
         type=non_empty_list,
         required=True,
         help="Comma-separated list of TestExecution IDs to aggregate")
     aggregate_parser.add_argument(
         "--test-execution-id",
+        "-tid",
         help="Define a unique id for this aggregated test_execution.",
         default="")
     aggregate_parser.add_argument(
@@ -391,6 +389,7 @@ def create_arg_parser():
         default="")
     start_parser.add_argument(
         "--test-execution-id",
+        "-tid",
         required=True,
         help="Define a unique id for this test_execution.",
         default="")
@@ -428,7 +427,6 @@ def create_arg_parser():
     for p in [list_parser, test_execution_parser]:
         p.add_argument(
             "--distribution-version",
-            "-dv",
             type=supported_os_version,
             help="Define the version of the OpenSearch distribution to download. "
                  "Check https://opensearch.org/docs/version-history/ for released versions.",
@@ -452,7 +450,6 @@ def create_arg_parser():
         default=str(uuid.uuid4()))
     test_execution_parser.add_argument(
         "--pipeline",
-        "-p",
         help="Select the pipeline to run.",
         # the default will be dynamically derived by
         # test_execution_orchestrator based on the
@@ -479,7 +476,6 @@ def create_arg_parser():
     )
     test_execution_parser.add_argument(
         "--test-procedure",
-        "-tp",
         help=f"Define the test_procedure to use. List possible test_procedures for workloads with `{PROGRAM_NAME} list workloads`.")
     test_execution_parser.add_argument(
         "--provision-config-instance",
@@ -508,7 +504,7 @@ def create_arg_parser():
     )
     test_execution_parser.add_argument(
         "--target-hosts",
-        "-th",
+        "-t",
         help="Define a comma-separated list of host:port pairs which should be targeted if using the pipeline 'benchmark-only' "
              "(default: localhost:9200).",
         default="")  # actually the default is pipeline specific and it is set later
@@ -518,7 +514,7 @@ def create_arg_parser():
         default="localhost")
     test_execution_parser.add_argument(
         "--client-options",
-        "-co",
+        "-c",
         help=f"Define a comma-separated list of client options to use. The options will be passed to the OpenSearch "
              f"Python client (default: {opts.ClientOptions.DEFAULT_CLIENT_OPTIONS}).",
         default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS)
@@ -544,11 +540,9 @@ def create_arg_parser():
     task_filter_group = test_execution_parser.add_mutually_exclusive_group()
     task_filter_group.add_argument(
         "--include-tasks",
-        "-it",
         help="Defines a comma-separated list of tasks to run. By default all tasks of a test_procedure are run.")
     task_filter_group.add_argument(
         "--exclude-tasks",
-        "-et",
         help="Defines a comma-separated list of tasks not to run. By default all tasks of a test_procedure are run.")
     test_execution_parser.add_argument(
         "--user-tag",
@@ -557,7 +551,6 @@ def create_arg_parser():
         default="")
     test_execution_parser.add_argument(
         "--results-format",
-        "-rfo",
         help="Define the output format for the command line results (default: markdown).",
         choices=["markdown", "csv"],
         default="markdown")
@@ -573,7 +566,6 @@ def create_arg_parser():
         default="available")
     test_execution_parser.add_argument(
         "--results-file",
-        "-rfi",
         help="Write the command line results also to the provided file.",
         default="")
     test_execution_parser.add_argument(
@@ -598,7 +590,7 @@ def create_arg_parser():
         action="store_true")
     test_execution_parser.add_argument(
         "--kill-running-processes",
-        "-krp",
+        "-k",
         action="store_true",
         default=False,
         help="If any processes is running, it is going to kill them and allow Benchmark to continue to run."
@@ -622,7 +614,6 @@ def create_arg_parser():
         action="store_true")
     test_execution_parser.add_argument(
         "--randomization-repeat-frequency",
-        "-rf",
         help=f"The repeat_frequency for query randomization. Ignored if randomization is off"
              f"(default: {workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_RF}).",
         default=workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_RF)
