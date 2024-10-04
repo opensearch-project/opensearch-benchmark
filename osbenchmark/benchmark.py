@@ -102,7 +102,7 @@ def create_arg_parser():
                                      description=BANNER + "\n\n A benchmarking tool for OpenSearch",
                                      epilog="Find out more about Benchmark at {}".format(console.format.link(doc_link())),
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--version', action='version', version="%(prog)s " + version.version())
+    parser.add_argument('-v', '--version', action='version', version="%(prog)s " + version.version())
 
     if len(sys.argv) == 1:
         parser.print_help()
