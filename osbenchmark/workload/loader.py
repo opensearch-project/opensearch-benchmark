@@ -28,6 +28,7 @@ import os
 import random
 import re
 import sys
+import shutil
 import tempfile
 import urllib.error
 
@@ -578,7 +579,17 @@ class DocumentSetPreparator:
                     raise exceptions.BenchmarkAssertionError(f"Workload {self.workload_name} specifies documents but no corpus")
 
                 try:
-                    self.downloader.download(document_set.base_url, document_set.source_url, target_path, expected_size)
+                    if document_set.document_file_parts:
+                        for part in document_set.document_file_parts:
+                            self.downloader.download(document_set.base_url, None, os.path.join(data_root, part["name"]), part["size"])
+                        with open(target_path, "wb") as outfile:
+                            console.info(f"Concatenating file parts {', '.join([p['name'] for p in document_set.document_file_parts])}"
+                                         "into {os.path.basename(target_path)}", flush=True, logger=self.logger)
+                            for part in document_set.document_file_parts:
+                                with open(os.path.join(data_root, part["name"]), "rb") as infile:
+                                    shutil.copyfileobj(infile, outfile)
+                    else:
+                        self.downloader.download(document_set.base_url, document_set.source_url, target_path, expected_size)
                 except exceptions.DataError as e:
                     if e.message == "Cannot download data because no base URL is provided." and \
                        self.is_locally_available(target_path):
@@ -1505,6 +1516,9 @@ class WorkloadSpecificationReader:
                 if source_format in workload.Documents.SUPPORTED_SOURCE_FORMAT:
                     source_url = self._r(doc_spec, "source-url", mandatory=False)
                     docs = self._r(doc_spec, "source-file")
+                    document_file_parts = list()
+                    for parts in self._r(doc_spec, "source-file-parts", mandatory=False, default_value=[]):
+                        document_file_parts.append( { "name": self._r(parts, "name"), "size": self._r(parts, "size") } )
                     if io.is_archive(docs):
                         document_archive = docs
                         document_file = io.splitext(docs)[0]
@@ -1554,6 +1568,7 @@ class WorkloadSpecificationReader:
 
                     docs = workload.Documents(source_format=source_format,
                                            document_file=document_file,
+                                           document_file_parts=document_file_parts,
                                            document_archive=document_archive,
                                            base_url=base_url,
                                            source_url=source_url,
