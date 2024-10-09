@@ -869,7 +869,8 @@ class WorkloadPreparationTests_1(TestCase):
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("os.path.getsize")
     @mock.patch("os.path.isfile")
-    def test_download_document_file_from_part_files(self, is_file, get_size, ensure_dir, download, prepare_file_offset_table):
+    @mock.patch("os.remove")
+    def test_download_document_file_from_part_files(self, rm_file, is_file, get_size, ensure_dir, download, prepare_file_offset_table):
         # uncompressed file does not exist
         # after download uncompressed file exists
         # after download uncompressed file exists (main loop)

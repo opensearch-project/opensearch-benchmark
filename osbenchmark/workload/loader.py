@@ -582,12 +582,17 @@ class DocumentSetPreparator:
                     if document_set.document_file_parts:
                         for part in document_set.document_file_parts:
                             self.downloader.download(document_set.base_url, None, os.path.join(data_root, part["name"]), part["size"])
-                        with open(target_path, "wb") as outfile:
-                            console.info(f"Concatenating file parts {', '.join([p['name'] for p in document_set.document_file_parts])}"
-                                         "into {os.path.basename(target_path)}", flush=True, logger=self.logger)
-                            for part in document_set.document_file_parts:
-                                with open(os.path.join(data_root, part["name"]), "rb") as infile:
-                                    shutil.copyfileobj(infile, outfile)
+                        try:
+                            with open(target_path, "wb") as outfile:
+                                console.info(f"Concatenating file parts {', '.join([p['name'] for p in document_set.document_file_parts])}"
+                                             f" into {os.path.basename(target_path)}", flush=True, logger=self.logger)
+                                for part in document_set.document_file_parts:
+                                    part_name = os.path.join(data_root, part["name"])
+                                    with open(part_name, "rb") as infile:
+                                        shutil.copyfileobj(infile, outfile)
+                                        os.remove(part_name)
+                        except Exception as e:
+                            raise exceptions.DataError(f"Encountered exception {repr(e)} when building corpus file from parts")
                     else:
                         self.downloader.download(document_set.base_url, document_set.source_url, target_path, expected_size)
                 except exceptions.DataError as e:
