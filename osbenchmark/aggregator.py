@@ -241,7 +241,7 @@ class Aggregator:
 
             aggregated_results = self.build_aggregated_results()
             file_test_exe_store = FileTestExecutionStore(self.config)
-            file_test_exe_store.store_test_execution(aggregated_results)
+            file_test_exe_store.store_aggregated_execution(aggregated_results)
         else:
             raise ValueError("Incompatible test execution results")
 
