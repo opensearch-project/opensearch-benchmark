@@ -1550,6 +1550,14 @@ class FileTestExecutionStore(TestExecutionStore):
         with open(self._test_execution_file(), mode="wt", encoding="utf-8") as f:
             f.write(json.dumps(doc, indent=True, ensure_ascii=False))
 
+    def store_aggregated_execution(self, test_execution):
+        doc = test_execution.as_dict()
+        aggregated_execution_path = paths.aggregated_results_root(self.cfg, test_execution_id=test_execution.test_execution_id)
+        io.ensure_dir(aggregated_execution_path)
+        aggregated_file = os.path.join(aggregated_execution_path, "test_execution.json")
+        with open(aggregated_file, mode="wt", encoding="utf-8") as f:
+            f.write(json.dumps(doc, indent=True, ensure_ascii=False))
+
     def _test_execution_file(self, test_execution_id=None):
         return os.path.join(paths.test_execution_root(cfg=self.cfg, test_execution_id=test_execution_id), "test_execution.json")
 

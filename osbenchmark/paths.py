@@ -42,6 +42,10 @@ def test_execution_root(cfg, test_execution_id=None):
         test_execution_id = cfg.opts("system", "test_execution.id")
     return os.path.join(test_excecutions_root(cfg), test_execution_id)
 
+def aggregated_results_root(cfg, test_execution_id=None):
+    if not test_execution_id:
+        test_execution_id = cfg.opts("system", "test_execution.id")
+    return os.path.join(cfg.opts("node", "root.dir"), "aggregated_results", test_execution_id)
 
 def install_root(cfg=None):
     install_id = cfg.opts("system", "install.id")
