@@ -127,11 +127,18 @@ class Aggregator:
             }
             for metric in self.metrics:
                 op_metric[metric] = aggregated_task_metrics[metric]
+
+                # Handle standard metrics (like latency, service_time) which are stored as dictionaries
                 if isinstance(aggregated_task_metrics[metric], dict):
+                    # Calculate RSD for the mean values across all test executions
+                    # We use mean here as it's more sensitive to outliers, which is desirable for assessing variability
                     mean_values = [v['mean'] for v in task_metrics[metric]]
                     rsd = self.calculate_rsd(mean_values)
                     op_metric[metric]['mean_rsd'] = rsd
+
+                # Handle derived metrics (like error_rate, duration) which are stored as simple values
                 else:
+                    # Calculate RSD directly from the metric values across all test executions
                     rsd = self.calculate_rsd(task_metrics[metric])
                     op_metric[f"{metric}_rsd"] = rsd
 
@@ -195,30 +202,26 @@ class Aggregator:
                         weighted_metrics[metric][item_key] = values[0][item_key]
                     else:
                         item_values = [value.get(item_key, 0) for value in values]
-                        if iterations > 1:
-                            weighted_sum = sum(value * iterations for value in item_values)
-                            total_iterations = iterations * len(values)
-                            weighted_avg = weighted_sum / total_iterations
-                        else:
-                            weighted_avg = sum(item_values) / len(item_values)
+                        weighted_sum = sum(value * iterations for value in item_values)
+                        total_iterations = iterations * len(item_values)
+                        weighted_avg = weighted_sum / total_iterations
                         weighted_metrics[metric][item_key] = weighted_avg
             else:
-                if iterations > 1:
-                    weighted_sum = sum(value * iterations for value in values)
-                    total_iterations = iterations * len(values)
-                    weighted_avg = weighted_sum / total_iterations
-                else:
-                    weighted_avg = sum(values) / len(values)
+                weighted_sum = sum(value * iterations for value in values)
+                total_iterations = iterations * len(values)
+                weighted_avg = weighted_sum / total_iterations
                 weighted_metrics[metric] = weighted_avg
 
         return weighted_metrics
 
     def calculate_rsd(self, values):
         if not values:
-            return 0
+            raise ValueError("Cannot calculate RSD for an empty list of values")
+        if len(values) == 1:
+            return "NA"  # RSD is not applicable for a single value
         mean = statistics.mean(values)
-        std_dev = statistics.stdev(values) if len(values) > 1 else 0
-        return (std_dev / mean) * 100 if mean != 0 else 0
+        std_dev = statistics.stdev(values)
+        return (std_dev / mean) * 100 if mean != 0 else float('inf')
 
     def test_execution_compatibility_check(self) -> None:
         first_test_execution = self.test_store.find_by_test_execution_id(list(self.test_executions.keys())[0])
