@@ -133,13 +133,13 @@ class Aggregator:
                     # Calculate RSD for the mean values across all test executions
                     # We use mean here as it's more sensitive to outliers, which is desirable for assessing variability
                     mean_values = [v['mean'] for v in task_metrics[metric]]
-                    rsd = self.calculate_rsd(mean_values)
+                    rsd = self.calculate_rsd(mean_values, f"{task}.{metric}.mean")
                     op_metric[metric]['mean_rsd'] = rsd
 
                 # Handle derived metrics (like error_rate, duration) which are stored as simple values
                 else:
                     # Calculate RSD directly from the metric values across all test executions
-                    rsd = self.calculate_rsd(task_metrics[metric])
+                    rsd = self.calculate_rsd(task_metrics[metric], f"{task}.{metric}")
                     op_metric[f"{metric}_rsd"] = rsd
 
             aggregated_results["op_metrics"].append(op_metric)
@@ -214,9 +214,9 @@ class Aggregator:
 
         return weighted_metrics
 
-    def calculate_rsd(self, values):
+    def calculate_rsd(self, values, metric_name: str):
         if not values:
-            raise ValueError("Cannot calculate RSD for an empty list of values")
+            raise ValueError(f"Cannot calculate RSD for metric '{metric_name}': empty list of values")
         if len(values) == 1:
             return "NA"  # RSD is not applicable for a single value
         mean = statistics.mean(values)
