@@ -1558,16 +1558,22 @@ class FileTestExecutionStore(TestExecutionStore):
         with open(aggregated_file, mode="wt", encoding="utf-8") as f:
             f.write(json.dumps(doc, indent=True, ensure_ascii=False))
 
-    def _test_execution_file(self, test_execution_id=None):
-        return os.path.join(paths.test_execution_root(cfg=self.cfg, test_execution_id=test_execution_id), "test_execution.json")
+    def _test_execution_file(self, test_execution_id=None, is_aggregated=False):
+        if is_aggregated:
+            return os.path.join(paths.aggregated_results_root(cfg=self.cfg, test_execution_id=test_execution_id),
+                                "aggregated_test_execution.json")
+        else:
+            return os.path.join(paths.test_execution_root(cfg=self.cfg, test_execution_id=test_execution_id), "test_execution.json")
 
     def list(self):
         results = glob.glob(self._test_execution_file(test_execution_id="*"))
-        all_test_executions = self._to_test_executions(results)
+        aggregated_results = glob.glob(self._test_execution_file(test_execution_id="*", is_aggregated=True))
+        all_test_executions = self._to_test_executions(results + aggregated_results)
         return all_test_executions[:self._max_results()]
 
     def find_by_test_execution_id(self, test_execution_id):
-        test_execution_file = self._test_execution_file(test_execution_id=test_execution_id)
+        is_aggregated = test_execution_id.startswith('aggregate')
+        test_execution_file = self._test_execution_file(test_execution_id=test_execution_id, is_aggregated=is_aggregated)
         if io.exists(test_execution_file):
             test_executions = self._to_test_executions([test_execution_file])
             if test_executions:
