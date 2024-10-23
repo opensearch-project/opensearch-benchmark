@@ -2271,7 +2271,8 @@ class SearchParamSourceTests(TestCase):
         })
         p = source.params()
 
-        self.assertEqual(10, len(p))
+        self.assertEqual(11, len(p))
+        self.assertEqual(True, p["calculate-recall"])
         self.assertEqual("index1", p["index"])
         self.assertIsNone(p["type"])
         self.assertIsNone(p["request-timeout"])
@@ -2290,7 +2291,6 @@ class SearchParamSourceTests(TestCase):
 
     def test_uses_data_stream(self):
         ds1 = workload.DataStream(name="data-stream-1")
-
         source = params.SearchParamSource(workload=workload.Workload(name="unit-test", data_streams=[ds1]), params={
             "body": {
                 "query": {
@@ -2307,7 +2307,8 @@ class SearchParamSourceTests(TestCase):
         })
         p = source.params()
 
-        self.assertEqual(10, len(p))
+        self.assertEqual(11, len(p))
+        self.assertEqual(True, p["calculate-recall"])
         self.assertEqual("data-stream-1", p["index"])
         self.assertIsNone(p["type"])
         self.assertEqual(1.0, p["request-timeout"])
@@ -2354,7 +2355,8 @@ class SearchParamSourceTests(TestCase):
         })
         p = source.params()
 
-        self.assertEqual(10, len(p))
+        self.assertEqual(11, len(p))
+        self.assertEqual(True, p["calculate-recall"])
         self.assertEqual("index1", p["index"])
         self.assertIsNone(p["type"])
         self.assertIsNone(p["request-timeout"])
@@ -2390,7 +2392,8 @@ class SearchParamSourceTests(TestCase):
         })
         p = source.params()
 
-        self.assertEqual(10, len(p))
+        self.assertEqual(11, len(p))
+        self.assertEqual(True, p["calculate-recall"])
         self.assertEqual("_all", p["index"])
         self.assertEqual("type1", p["type"])
         self.assertDictEqual({}, p["request-params"])
@@ -2423,7 +2426,8 @@ class SearchParamSourceTests(TestCase):
         })
         p = source.params()
 
-        self.assertEqual(10, len(p))
+        self.assertEqual(11, len(p))
+        self.assertEqual(True, p["calculate-recall"])
         self.assertEqual("data-stream-2", p["index"])
         self.assertIsNone(p["type"])
         self.assertEqual(1.0, p["request-timeout"])
