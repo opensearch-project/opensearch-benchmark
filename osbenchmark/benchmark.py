@@ -101,7 +101,7 @@ def create_arg_parser():
                                      description=BANNER + "\n\n A benchmarking tool for OpenSearch",
                                      epilog="Find out more about Benchmark at {}".format(console.format.link(doc_link())),
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--version', action='version', version="%(prog)s " + version.version())
+    parser.add_argument('-v', '--version', action='version', version="%(prog)s " + version.version())
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -132,6 +132,7 @@ def create_arg_parser():
     add_workload_source(info_parser)
     info_parser.add_argument(
         "--workload",
+        "-w",
         help=f"Define the workload to use. List possible workloads with `{PROGRAM_NAME} list workloads`."
         # we set the default value later on because we need to determine whether the user has provided this value.
         # default="geonames"
@@ -139,6 +140,7 @@ def create_arg_parser():
 
     info_parser.add_argument(
         "--workload-params",
+        "-wp",
         help="Define a comma-separated list of key:value pairs that are injected verbatim to the workload as variables.",
         default=""
     )
@@ -157,20 +159,24 @@ def create_arg_parser():
     create_workload_parser = subparsers.add_parser("create-workload", help="Create a Benchmark workload from existing data")
     create_workload_parser.add_argument(
         "--workload",
+        "-w",
         required=True,
         help="Name of the generated workload")
     create_workload_parser.add_argument(
         "--indices",
+        "-i",
         type=non_empty_list,
         required=True,
         help="Comma-separated list of indices to include in the workload")
     create_workload_parser.add_argument(
         "--target-hosts",
+        "-t",
         default="",
         required=True,
         help="Comma-separated list of host:port pairs which should be targeted")
     create_workload_parser.add_argument(
         "--client-options",
+        "-c",
         default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS,
         help=f"Comma-separated list of client options to use. (default: {opts.ClientOptions.DEFAULT_CLIENT_OPTIONS})")
     create_workload_parser.add_argument(
@@ -192,10 +198,12 @@ def create_arg_parser():
     compare_parser = subparsers.add_parser("compare", help="Compare two test_executions")
     compare_parser.add_argument(
         "--baseline",
+        "-b",
         required=True,
         help=f"TestExecution ID of the baseline (see {PROGRAM_NAME} list test_executions).")
     compare_parser.add_argument(
         "--contender",
+        "-c",
         required=True,
         help=f"TestExecution ID of the contender (see {PROGRAM_NAME} list test_executions).")
     compare_parser.add_argument(
@@ -225,12 +233,12 @@ def create_arg_parser():
     aggregate_parser = subparsers.add_parser("aggregate", help="Aggregate multiple test_executions")
     aggregate_parser.add_argument(
         "--test-executions",
-        "--t",
         type=non_empty_list,
         required=True,
         help="Comma-separated list of TestExecution IDs to aggregate")
     aggregate_parser.add_argument(
         "--test-execution-id",
+        "-tid",
         help="Define a unique id for this aggregated test_execution.",
         default="")
     aggregate_parser.add_argument(
@@ -381,6 +389,7 @@ def create_arg_parser():
         default="")
     start_parser.add_argument(
         "--test-execution-id",
+        "-tid",
         required=True,
         help="Define a unique id for this test_execution.",
         default="")
@@ -436,6 +445,7 @@ def create_arg_parser():
 
     test_execution_parser.add_argument(
         "--test-execution-id",
+        "-tid",
         help="Define a unique id for this test_execution.",
         default=str(uuid.uuid4()))
     test_execution_parser.add_argument(
@@ -455,10 +465,12 @@ def create_arg_parser():
     add_workload_source(test_execution_parser)
     test_execution_parser.add_argument(
         "--workload",
+        "-w",
         help=f"Define the workload to use. List possible workloads with `{PROGRAM_NAME} list workloads`."
     )
     test_execution_parser.add_argument(
         "--workload-params",
+        "-wp",
         help="Define a comma-separated list of key:value pairs that are injected verbatim to the workload as variables.",
         default=""
     )
@@ -492,6 +504,7 @@ def create_arg_parser():
     )
     test_execution_parser.add_argument(
         "--target-hosts",
+        "-t",
         help="Define a comma-separated list of host:port pairs which should be targeted if using the pipeline 'benchmark-only' "
              "(default: localhost:9200).",
         default="")  # actually the default is pipeline specific and it is set later
@@ -501,6 +514,7 @@ def create_arg_parser():
         default="localhost")
     test_execution_parser.add_argument(
         "--client-options",
+        "-c",
         help=f"Define a comma-separated list of client options to use. The options will be passed to the OpenSearch "
              f"Python client (default: {opts.ClientOptions.DEFAULT_CLIENT_OPTIONS}).",
         default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS)
@@ -576,6 +590,7 @@ def create_arg_parser():
         action="store_true")
     test_execution_parser.add_argument(
         "--kill-running-processes",
+        "-k",
         action="store_true",
         default=False,
         help="If any processes is running, it is going to kill them and allow Benchmark to continue to run."
@@ -599,7 +614,6 @@ def create_arg_parser():
         action="store_true")
     test_execution_parser.add_argument(
         "--randomization-repeat-frequency",
-        "-rf",
         help=f"The repeat_frequency for query randomization. Ignored if randomization is off"
              f"(default: {workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_RF}).",
         default=workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_RF)
