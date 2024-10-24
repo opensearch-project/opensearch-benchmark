@@ -1315,6 +1315,45 @@ def list_test_executions(cfg):
         console.println("")
         console.println("No recent test_executions found.")
 
+def list_aggregated_test_results(cfg):
+    def format_dict(d):
+        if d:
+            items = sorted(d.items())
+            return ", ".join(["%s=%s" % (k, v) for k, v in items])
+        else:
+            return None
+
+    aggregated_test_executions = []
+    for test_execution in test_execution_store(cfg).list_aggregations():
+        aggregated_test_executions.append([
+            test_execution.test_execution_id,
+            time.to_iso8601(test_execution.test_execution_timestamp),
+            test_execution.workload,
+            format_dict(test_execution.workload_params),
+            test_execution.test_procedure_name,
+            test_execution.provision_config_instance_name,
+            format_dict(test_execution.user_tags),
+            test_execution.workload_revision,
+            test_execution.provision_config_revision])
+
+    if len(aggregated_test_executions) > 0:
+        console.println("\nRecent aggregated test executions:\n")
+        console.println(tabulate.tabulate(
+            aggregated_test_executions,
+            headers=[
+                "TestExecution ID",
+                "TestExecution Timestamp",
+                "Workload",
+                "Workload Parameters",
+                "TestProcedure",
+                "ProvisionConfigInstance",
+                "User Tags",
+                "workload Revision",
+                "Provision Config Revision"
+                ]))
+    else:
+        console.println("")
+        console.println("No recent aggregate tests found.")
 
 def create_test_execution(cfg, workload, test_procedure, workload_revision=None):
     provision_config_instance = cfg.opts("builder", "provision_config_instance.names")
@@ -1567,9 +1606,12 @@ class FileTestExecutionStore(TestExecutionStore):
 
     def list(self):
         results = glob.glob(self._test_execution_file(test_execution_id="*"))
-        aggregated_results = glob.glob(self._test_execution_file(test_execution_id="*", is_aggregated=True))
-        all_test_executions = self._to_test_executions(results + aggregated_results)
+        all_test_executions = self._to_test_executions(results)
         return all_test_executions[:self._max_results()]
+
+    def list_aggregations(self):
+        aggregated_results = glob.glob(self._test_execution_file(test_execution_id="*", is_aggregated=True))
+        return self._to_test_executions(aggregated_results)
 
     def find_by_test_execution_id(self, test_execution_id):
         is_aggregated = test_execution_id.startswith('aggregate')
