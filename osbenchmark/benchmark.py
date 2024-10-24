@@ -699,7 +699,7 @@ def dispatch_list(cfg):
     elif what == "test_executions":
         metrics.list_test_executions(cfg)
     elif what == "aggregated_results":
-        metrics.list_aggregated_test_results(cfg)
+        metrics.list_aggregated_results(cfg)
     elif what == "provision_config_instances":
         provision_config.list_provision_config_instances(cfg)
     elif what == "opensearch-plugins":
