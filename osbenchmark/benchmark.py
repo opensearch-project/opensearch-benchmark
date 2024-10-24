@@ -120,7 +120,7 @@ def create_arg_parser():
         metavar="configuration",
         help="The configuration for which Benchmark should show the available options. "
              "Possible values are: telemetry, workloads, pipelines, test_executions, provision_config_instances, opensearch-plugins",
-        choices=["telemetry", "workloads", "pipelines", "test_executions", "aggregations",
+        choices=["telemetry", "workloads", "pipelines", "test_executions", "aggregated_results",
                  "provision_config_instances", "opensearch-plugins"])
     list_parser.add_argument(
         "--limit",
@@ -698,7 +698,7 @@ def dispatch_list(cfg):
         test_execution_orchestrator.list_pipelines()
     elif what == "test_executions":
         metrics.list_test_executions(cfg)
-    elif what == "aggregations":
+    elif what == "aggregated_results":
         metrics.list_aggregated_test_results(cfg)
     elif what == "provision_config_instances":
         provision_config.list_provision_config_instances(cfg)
