@@ -1275,7 +1275,7 @@ def results_store(cfg):
         return NoopResultsStore()
 
 
-def list_test_executions(cfg):
+def list_test_helper(store_item, title):
     def format_dict(d):
         if d:
             items = sorted(d.items())
@@ -1284,7 +1284,7 @@ def list_test_executions(cfg):
             return None
 
     test_executions = []
-    for test_execution in test_execution_store(cfg).list():
+    for test_execution in store_item:
         test_executions.append([
             test_execution.test_execution_id,
             time.to_iso8601(test_execution.test_execution_timestamp),
@@ -1297,7 +1297,7 @@ def list_test_executions(cfg):
             test_execution.provision_config_revision])
 
     if len(test_executions) > 0:
-        console.println("\nRecent test_executions:\n")
+        console.println(f"\nRecent {title}:\n")
         console.println(tabulate.tabulate(
             test_executions,
             headers=[
@@ -1313,47 +1313,13 @@ def list_test_executions(cfg):
                 ]))
     else:
         console.println("")
-        console.println("No recent test_executions found.")
+        console.println(f"No recent {title} found.")
 
-def list_aggregated_test_results(cfg):
-    def format_dict(d):
-        if d:
-            items = sorted(d.items())
-            return ", ".join(["%s=%s" % (k, v) for k, v in items])
-        else:
-            return None
+def list_test_executions(cfg):
+    list_test_helper(test_execution_store(cfg).list(), "test_executions")
 
-    aggregated_test_executions = []
-    for test_execution in test_execution_store(cfg).list_aggregations():
-        aggregated_test_executions.append([
-            test_execution.test_execution_id,
-            time.to_iso8601(test_execution.test_execution_timestamp),
-            test_execution.workload,
-            format_dict(test_execution.workload_params),
-            test_execution.test_procedure_name,
-            test_execution.provision_config_instance_name,
-            format_dict(test_execution.user_tags),
-            test_execution.workload_revision,
-            test_execution.provision_config_revision])
-
-    if len(aggregated_test_executions) > 0:
-        console.println("\nRecent aggregated test executions:\n")
-        console.println(tabulate.tabulate(
-            aggregated_test_executions,
-            headers=[
-                "TestExecution ID",
-                "TestExecution Timestamp",
-                "Workload",
-                "Workload Parameters",
-                "TestProcedure",
-                "ProvisionConfigInstance",
-                "User Tags",
-                "workload Revision",
-                "Provision Config Revision"
-                ]))
-    else:
-        console.println("")
-        console.println("No recent aggregate tests found.")
+def list_aggregated_results(cfg):
+    list_test_helper(test_execution_store(cfg).list_aggregations(), "aggregated_results")
 
 def create_test_execution(cfg, workload, test_procedure, workload_revision=None):
     provision_config_instance = cfg.opts("builder", "provision_config_instance.names")
