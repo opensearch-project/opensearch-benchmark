@@ -1,0 +1,26 @@
+---
+name: Documentation request 📖
+description: Suggest new documentation or improvements to existing documentation
+labels: [documentation, untriaged]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to submit a documentation request!
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Please provide details on how and where the documentation can be improved
+      description: A clear and concise description of the issue. For instance, "I'm unable to find documentation on [...]"
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: Provide references
+      description: List out links to existing documentation if applicable
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context
+      description: Add any other context or screenshots about the documentation request here.
