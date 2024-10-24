@@ -214,7 +214,7 @@ class Aggregator:
 
         return weighted_metrics
 
-    def calculate_rsd(self, values, metric_name: str):
+    def calculate_rsd(self, values: List[Union[int, float]], metric_name: str):
         if not values:
             raise ValueError(f"Cannot calculate RSD for metric '{metric_name}': empty list of values")
         if len(values) == 1:
