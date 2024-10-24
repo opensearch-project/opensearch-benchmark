@@ -10,8 +10,8 @@ body:
   - type: textarea
     id: suggestion
     attributes:
-      label: Is there a problem with the current documentation
-      description: A clear and concise description of what the problem is. Ex. I'm unable to find documentation on [...]
+      label: Please provide details on how and where the documentation can be improved
+      description: A clear and concise description of the issue. For instance, "I'm unable to find documentation on [...]"
     validations:
       required: true
   - type: textarea
