@@ -1275,7 +1275,7 @@ def results_store(cfg):
         return NoopResultsStore()
 
 
-def list_test_executions(cfg):
+def list_test_helper(store_item, title):
     def format_dict(d):
         if d:
             items = sorted(d.items())
@@ -1284,7 +1284,7 @@ def list_test_executions(cfg):
             return None
 
     test_executions = []
-    for test_execution in test_execution_store(cfg).list():
+    for test_execution in store_item:
         test_executions.append([
             test_execution.test_execution_id,
             time.to_iso8601(test_execution.test_execution_timestamp),
@@ -1297,7 +1297,7 @@ def list_test_executions(cfg):
             test_execution.provision_config_revision])
 
     if len(test_executions) > 0:
-        console.println("\nRecent test_executions:\n")
+        console.println(f"\nRecent {title}:\n")
         console.println(tabulate.tabulate(
             test_executions,
             headers=[
@@ -1313,8 +1313,13 @@ def list_test_executions(cfg):
                 ]))
     else:
         console.println("")
-        console.println("No recent test_executions found.")
+        console.println(f"No recent {title} found.")
 
+def list_test_executions(cfg):
+    list_test_helper(test_execution_store(cfg).list(), "test_executions")
+
+def list_aggregated_results(cfg):
+    list_test_helper(test_execution_store(cfg).list_aggregations(), "aggregated_results")
 
 def create_test_execution(cfg, workload, test_procedure, workload_revision=None):
     provision_config_instance = cfg.opts("builder", "provision_config_instance.names")
@@ -1550,16 +1555,33 @@ class FileTestExecutionStore(TestExecutionStore):
         with open(self._test_execution_file(), mode="wt", encoding="utf-8") as f:
             f.write(json.dumps(doc, indent=True, ensure_ascii=False))
 
-    def _test_execution_file(self, test_execution_id=None):
-        return os.path.join(paths.test_execution_root(cfg=self.cfg, test_execution_id=test_execution_id), "test_execution.json")
+    def store_aggregated_execution(self, test_execution):
+        doc = test_execution.as_dict()
+        aggregated_execution_path = paths.aggregated_results_root(self.cfg, test_execution_id=test_execution.test_execution_id)
+        io.ensure_dir(aggregated_execution_path)
+        aggregated_file = os.path.join(aggregated_execution_path, "aggregated_test_execution.json")
+        with open(aggregated_file, mode="wt", encoding="utf-8") as f:
+            f.write(json.dumps(doc, indent=True, ensure_ascii=False))
+
+    def _test_execution_file(self, test_execution_id=None, is_aggregated=False):
+        if is_aggregated:
+            return os.path.join(paths.aggregated_results_root(cfg=self.cfg, test_execution_id=test_execution_id),
+                                "aggregated_test_execution.json")
+        else:
+            return os.path.join(paths.test_execution_root(cfg=self.cfg, test_execution_id=test_execution_id), "test_execution.json")
 
     def list(self):
         results = glob.glob(self._test_execution_file(test_execution_id="*"))
         all_test_executions = self._to_test_executions(results)
         return all_test_executions[:self._max_results()]
 
+    def list_aggregations(self):
+        aggregated_results = glob.glob(self._test_execution_file(test_execution_id="*", is_aggregated=True))
+        return self._to_test_executions(aggregated_results)
+
     def find_by_test_execution_id(self, test_execution_id):
-        test_execution_file = self._test_execution_file(test_execution_id=test_execution_id)
+        is_aggregated = test_execution_id.startswith('aggregate')
+        test_execution_file = self._test_execution_file(test_execution_id=test_execution_id, is_aggregated=is_aggregated)
         if io.exists(test_execution_file):
             test_executions = self._to_test_executions([test_execution_file])
             if test_executions:
