@@ -464,16 +464,16 @@ class ComparisonResultsPublisher:
                             data_plain=metrics_table, data_rich=metrics_table_console)
 
     def _publish_throughput(self, baseline_stats, contender_stats, task):
-        b_min = baseline_stats.metrics(task)["throughput"]["min"]
+        b_min = baseline_stats.metrics(task)["throughput"].get("overall_min") or baseline_stats.metrics(task)["throughput"]["min"]
         b_mean = baseline_stats.metrics(task)["throughput"]["mean"]
         b_median = baseline_stats.metrics(task)["throughput"]["median"]
-        b_max = baseline_stats.metrics(task)["throughput"]["max"]
+        b_max = baseline_stats.metrics(task)["throughput"].get("overall_max") or baseline_stats.metrics(task)["throughput"]["max"]
         b_unit = baseline_stats.metrics(task)["throughput"]["unit"]
 
-        c_min = contender_stats.metrics(task)["throughput"]["min"]
+        c_min = contender_stats.metrics(task)["throughput"].get("overall_min") or contender_stats.metrics(task)["throughput"]["min"]
         c_mean = contender_stats.metrics(task)["throughput"]["mean"]
         c_median = contender_stats.metrics(task)["throughput"]["median"]
-        c_max = contender_stats.metrics(task)["throughput"]["max"]
+        c_max = contender_stats.metrics(task)["throughput"].get("overall_max") or contender_stats.metrics(task)["throughput"]["max"]
 
         return self._join(
             self._line("Min Throughput", b_min, c_min, task, b_unit, treat_increase_as_improvement=True),

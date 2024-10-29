@@ -202,15 +202,22 @@ class Aggregator:
                         weighted_metrics[metric][item_key] = values[0][item_key]
                     else:
                         item_values = [value.get(item_key, 0) for value in values]
-                        weighted_sum = sum(value * iterations for value in item_values)
-                        total_iterations = iterations * len(item_values)
-                        weighted_avg = weighted_sum / total_iterations
-                        weighted_metrics[metric][item_key] = weighted_avg
+                        if item_key == 'min':
+                            weighted_metrics[metric]['overall_min'] = min(item_values)
+                        elif item_key == 'max':
+                            weighted_metrics[metric]['overall_max'] = max(item_values)
+                        elif item_key == 'median':
+                            weighted_sum = sum(value * iterations for value in item_values)
+                            total_iterations = iterations * len(item_values)
+                            weighted_metrics[metric][item_key] = weighted_sum / total_iterations
+                        else:
+                            weighted_sum = sum(value * iterations for value in item_values)
+                            total_iterations = iterations * len(item_values)
+                            weighted_metrics[metric][item_key] = weighted_sum / total_iterations
             else:
                 weighted_sum = sum(value * iterations for value in values)
                 total_iterations = iterations * len(values)
-                weighted_avg = weighted_sum / total_iterations
-                weighted_metrics[metric] = weighted_avg
+                weighted_metrics[metric] = weighted_sum / total_iterations
 
         return weighted_metrics
 
