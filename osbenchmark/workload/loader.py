@@ -1278,7 +1278,11 @@ class WorkloadFileReader:
                         ve.instance, indent=4, sort_keys=True),
                         ve.absolute_path, ve.absolute_schema_path))
 
-        current_workload = self.read_workload(workload_name, workload_spec, mapping_dir)
+        try:
+            current_workload = self.read_workload(workload_name, workload_spec, mapping_dir)
+        except Exception as e:
+            console.error(e)
+            raise
 
         unused_user_defined_workload_params = self.complete_workload_params.unused_user_defined_workload_params()
         if len(unused_user_defined_workload_params) > 0:

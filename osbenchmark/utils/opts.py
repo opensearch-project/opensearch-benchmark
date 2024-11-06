@@ -84,7 +84,7 @@ def kv_to_map(kvs):
 
 
 def to_dict(arg, default_parser=kv_to_map):
-    if io.has_extension(arg, ".json"):
+    if io.has_extension(arg, ".json") and ',' not in arg and ':' not in arg:
         with open(io.normalize_path(arg), mode="rt", encoding="utf-8") as f:
             return json.load(f)
     elif arg.startswith("{"):
