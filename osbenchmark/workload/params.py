@@ -1122,11 +1122,6 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         body_params = self.query_params.get(self.PARAMS_NAME_BODY) or dict()
         if self.PARAMS_NAME_SIZE not in body_params:
             body_params[self.PARAMS_NAME_SIZE] = self.k
-        if self.PARAMS_NAME_QUERY in body_params:
-            self.logger.warning(
-                "[%s] param from body will be replaced with vector search query.", self.PARAMS_NAME_QUERY)
-
-        self.logger.info("Here, we have query_params: %s ", self.query_params)
         filter_type=self.query_params.get(self.PARAMS_NAME_FILTER_TYPE)
         filter_body=self.query_params.get(self.PARAMS_NAME_FILTER_BODY)
         efficient_filter = filter_body if filter_type == "efficient" else None
@@ -1326,8 +1321,6 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
             bulk_contents.append(row)
 
         actions[1::2] = bulk_contents
-
-        self.logger.info("Actions: %s", actions)
         return actions
 
 
@@ -1353,8 +1346,6 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
             bulk_contents.append(row)
 
         actions[1::2] = bulk_contents
-
-        self.logger.info("Actions: %s", actions)
         return actions
 
 
