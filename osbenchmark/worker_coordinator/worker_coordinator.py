@@ -1523,6 +1523,7 @@ class AsyncIoAdapter:
             # Now we need to ensure that we start partitioning parameters correctly in both cases. And that means we
             # need to start from (client) index 0 in both cases instead of 0 for indexA and 4 for indexB.
             schedule = schedule_for(task, task_allocation.client_index_in_task, params_per_task[task])
+            self.logger.info("Client ID for AsyncExecutor: %s", client_id)
             async_executor = AsyncExecutor(
                 client_id, task, schedule, opensearch, self.sampler, self.cancel, self.complete,
                 task.error_behavior(self.abort_on_error))
@@ -1647,6 +1648,7 @@ class AsyncExecutor:
                 # * The runner should be rate-limited as each runner call will result in one throughput sample.
                 #
                 throughput = request_meta_data.pop("throughput", None)
+                self.logger.info("Request metadata: %s", request_meta_data)
                 # Do not calculate latency separately when we run unthrottled. This metric is just confusing then.
                 latency = request_end - absolute_expected_schedule_time if throughput_throttled else service_time
                 # If this task completes the parent task we should *not* check for completion by another client but
@@ -1951,6 +1953,7 @@ def schedule_for(task, client_index, parameter_source):
         logger.info("Choosing [%s] for [%s].", sched, task)
     runner_for_op = runner.runner_for(op.type)
     params_for_op = parameter_source.partition(client_index, num_clients)
+    logger.info("Runner_for_op %s, params source %s", runner_for_op, parameter_source)
     if hasattr(sched, "parameter_source"):
         if client_index == 0:
             logger.debug("Setting parameter source [%s] for scheduler [%s]", params_for_op, sched)

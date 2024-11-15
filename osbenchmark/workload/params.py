@@ -1081,7 +1081,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
 
         self.filter_type = self.query_params.get(self.PARAMS_NAME_FILTER_TYPE)
         self.filter_body = self.query_params.get(self.PARAMS_NAME_FILTER_BODY)
-
+        self.logger = logging.getLogger(__name__)
 
         if self.PARAMS_NAME_FILTER in params:
             self.query_params.update({
@@ -1127,11 +1127,13 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         efficient_filter = filter_body if filter_type == "efficient" else None
 
         # override query params with vector search query
+        self.logger.info("BUILDING VECTORSEARCH QUERY BODY")
         body_params[self.PARAMS_NAME_QUERY] = self._build_vector_search_query_body(vector, efficient_filter, filter_type, filter_body)
+        self.logger.info("Vectorsearch query: %s", body_params[self.PARAMS_NAME_QUERY])
 
         if filter_type == "post_filter":
             body_params["post_filter"] = filter_body
-
+        self.logger.info("Running update with query params")
         self.query_params.update({self.PARAMS_NAME_BODY: body_params})
 
     def partition(self, partition_index, total_partitions):
@@ -1886,6 +1888,8 @@ class SourceOnlyIndexDataReader(IndexDataReader):
 register_param_source_for_operation(workload.OperationType.Bulk, BulkIndexParamSource)
 register_param_source_for_operation(workload.OperationType.BulkVectorDataSet, BulkVectorsFromDataSetParamSource)
 register_param_source_for_operation(workload.OperationType.Search, SearchParamSource)
+logger = logging.getLogger(__name__)
+logger.info("Registering param source for vector search")
 register_param_source_for_operation(workload.OperationType.VectorSearch, VectorSearchParamSource)
 register_param_source_for_operation(workload.OperationType.CreateIndex, CreateIndexParamSource)
 register_param_source_for_operation(workload.OperationType.DeleteIndex, DeleteIndexParamSource)
