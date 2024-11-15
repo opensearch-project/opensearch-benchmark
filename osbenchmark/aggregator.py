@@ -199,18 +199,18 @@ class Aggregator:
         for metric, values in task_metrics.items():
             if isinstance(values[0], dict):
                 weighted_metrics[metric] = {}
-                for item_key in values[0].keys():
-                    if item_key == 'unit':
-                        weighted_metrics[metric][item_key] = values[0][item_key]
-                    elif item_key == 'min':
-                        weighted_metrics[metric]['overall_min'] = min(value.get(item_key, 0) for value in values)
-                    elif item_key == 'max':
-                        weighted_metrics[metric]['overall_max'] = max(value.get(item_key, 0) for value in values)
+                for metric_field in values[0].keys():
+                    if metric_field == 'unit':
+                        weighted_metrics[metric][metric_field] = values[0][metric_field]
+                    elif metric_field == 'min':
+                        weighted_metrics[metric]['overall_min'] = min(value.get(metric_field, 0) for value in values)
+                    elif metric_field == 'max':
+                        weighted_metrics[metric]['overall_max'] = max(value.get(metric_field, 0) for value in values)
                     else:
-                        # for items like median or percentile values
-                        item_values = [value.get(item_key, 0) for value in values]
+                        # for items like median or containing percentile values
+                        item_values = [value.get(metric_field, 0) for value in values]
                         weighted_sum = sum(value * iterations for value in item_values)
-                        weighted_metrics[metric][item_key] = weighted_sum / total_iterations
+                        weighted_metrics[metric][metric_field] = weighted_sum / total_iterations
             else:
                 weighted_sum = sum(value * iterations for value in values)
                 weighted_metrics[metric] = weighted_sum / total_iterations
