@@ -127,7 +127,6 @@ class Aggregator:
         }
 
         for task, task_metrics in self.accumulated_results.items():
-            iterations = self.accumulated_iterations.get(task, 1)
             aggregated_task_metrics = self.calculate_weighted_average(task_metrics, task)
             op_metric = {
                 "task": task,
@@ -201,10 +200,9 @@ class Aggregator:
 
     def calculate_weighted_average(self, task_metrics: Dict[str, List[Any]], task_name: str) -> Dict[str, Any]:
         weighted_metrics = {}
-        num_executions = len(next(iter(task_metrics.values())))
-        
+
         # Get iterations for each test execution
-        iterations_per_execution = [self.accumulated_iterations[test_id][task_name] 
+        iterations_per_execution = [self.accumulated_iterations[test_id][task_name]
                                     for test_id in self.test_executions.keys()]
         total_iterations = sum(iterations_per_execution)
 
