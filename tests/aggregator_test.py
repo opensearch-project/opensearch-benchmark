@@ -50,15 +50,18 @@ def test_count_iterations_for_each_op(aggregator):
     mock_test_procedure.schedule = mock_schedule
     mock_workload.test_procedures = [mock_test_procedure]
 
-    # Update the config mock to return the correct test_procedure_name
+    mock_test_execution = Mock(test_execution_id="test1", workload_params={})
+
+    # update the config mock to return the correct test_procedure_name
     aggregator.config.opts.side_effect = lambda *args: \
         mock_test_procedure.name if args == ("workload", "test_procedure.name") else "/path/to/root"
     with patch('osbenchmark.workload.load_workload', return_value=mock_workload):
-        aggregator.count_iterations_for_each_op()
+        aggregator.count_iterations_for_each_op(mock_test_execution)
 
-    print(f"accumulated_iterations: {aggregator.accumulated_iterations}")  # Debug print
-    assert "op1" in aggregator.accumulated_iterations, "op1 not found in accumulated_iterations"
-    assert aggregator.accumulated_iterations["op1"] == 5
+    print(f"accumulated_iterations: {aggregator.accumulated_iterations}")
+    assert "test1" in aggregator.accumulated_iterations, "test1 not found in accumulated_iterations"
+    assert "op1" in aggregator.accumulated_iterations["test1"], "op1 not found in accumulated_iterations for test1"
+    assert aggregator.accumulated_iterations["test1"]["op1"] == 5
 
 def test_accumulate_results(aggregator):
     mock_test_execution = Mock()
@@ -103,12 +106,19 @@ def test_calculate_weighted_average(aggregator):
         "throughput": [100, 200],
         "latency": [{"avg": 10, "unit": "ms"}, {"avg": 20, "unit": "ms"}]
     }
-    iterations = 2
+    task_name = "op1"
 
-    result = aggregator.calculate_weighted_average(task_metrics, iterations)
+    # set up accumulated_iterations
+    aggregator.accumulated_iterations = {
+        "test1": {"op1": 2},
+        "test2": {"op1": 3}
+    }
+    aggregator.test_executions = {"test1": Mock(), "test2": Mock()}
 
-    assert result["throughput"] == 150
-    assert result["latency"]["avg"] == 15
+    result = aggregator.calculate_weighted_average(task_metrics, task_name)
+
+    assert result["throughput"] == 160  # (100*2 + 200*3) / (2+3)
+    assert result["latency"]["avg"] == 16  # (10*2 + 20*3) / (2+3)
     assert result["latency"]["unit"] == "ms"
 
 def test_calculate_rsd(aggregator):
@@ -140,6 +150,12 @@ def test_aggregate(aggregator):
 
         mock_store = mock_store_class.return_value
         mock_store.store_aggregated_execution.side_effect = lambda x: print(f"Storing aggregated execution: {x}")
+
+        # mock test_store to return a Mock object for each test execution
+        aggregator.test_store.find_by_test_execution_id.side_effect = [
+            Mock(test_execution_id="test1", workload_params={}),
+            Mock(test_execution_id="test2", workload_params={})
+        ]
 
         aggregator.aggregate()
 
