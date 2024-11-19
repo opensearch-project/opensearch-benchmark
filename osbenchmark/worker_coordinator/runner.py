@@ -1393,7 +1393,7 @@ class Query(Runner):
 
             recall_processing_start = time.perf_counter()
             response_json = json.loads(response.getvalue())
-            self.logger.info("Response JSON from Vector Search Query: %s")
+            self.logger.info("Response JSON from Vector Search Query: %s", response_json)
             if _is_empty_search_results(response_json):
                 self.logger.info("Vector search query returned no results.")
                 return result
