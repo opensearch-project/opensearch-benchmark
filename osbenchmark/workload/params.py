@@ -542,6 +542,7 @@ class CreateComponentTemplateParamSource(CreateTemplateParamSource):
 class SearchParamSource(ParamSource):
     def __init__(self, workload, params, **kwargs):
         super().__init__(workload, params, **kwargs)
+        self.logger = logging.getLogger(__name__)
         target_name = get_target(workload, params)
         type_name = params.get("type")
         if params.get("data-stream") and type_name:
@@ -565,6 +566,8 @@ class SearchParamSource(ParamSource):
             "response-compression-enabled": response_compression_enabled,
             "body": query_body
         }
+
+        self.logger.info("Query Params: %s", self.query_params)
 
         if not target_name:
             raise exceptions.InvalidSyntax(
@@ -855,6 +858,7 @@ class VectorSearchParamSource(SearchParamSource):
         self.corpora = self.delegate_param_source.corpora
 
     def partition(self, partition_index, total_partitions):
+        self.logger.info("Vector Search Param Source Partition Method")
         return self.delegate_param_source.partition(partition_index, total_partitions)
 
     def params(self):

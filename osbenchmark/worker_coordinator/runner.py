@@ -1063,6 +1063,7 @@ class Query(Runner):
     def __init__(self):
         super().__init__()
         self._extractor = SearchAfterExtractor()
+        self.logger = logging.getLogger(__name__)
 
     async def __call__(self, opensearch, params):
         request_params, headers = self._transport_request_params(params)
@@ -1276,6 +1277,7 @@ class Query(Runner):
                 Returns:
                     Recall between predictions and top k neighbors from ground truth
                 """
+                self.logger.info("CALCULATING RECALL")
                 correct = 0.0
                 if neighbors is None:
                     self.logger.info("No neighbors are provided for recall calculation")
