@@ -1171,6 +1171,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         vector = self.data_set.read(1)[0]
         neighbor = self.neighbors_data_set.read(1)[0]
         true_neighbors = list(map(str, neighbor[:self.k]))
+        self.logger.info("Updating true neighbors in query params")
         self.query_params.update({
             "neighbors": true_neighbors,
         })

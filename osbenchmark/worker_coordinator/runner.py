@@ -1278,6 +1278,9 @@ class Query(Runner):
                     Recall between predictions and top k neighbors from ground truth
                 """
                 self.logger.info("CALCULATING RECALL")
+                self.logger.info("Predictions: %s", predictions)
+                self.logger.info("Neighbors: %s", neighbors)
+                self.logger.info("Top k: %s", top_k)
                 correct = 0.0
                 if neighbors is None:
                     self.logger.info("No neighbors are provided for recall calculation")
@@ -1372,7 +1375,8 @@ class Query(Runner):
 
             doc_type = params.get("type")
             response = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
-
+            logger = logging.getLogger(__name__)
+            logger.info("Response from Vector Search Query that was issued: %s: ", response)
             if detailed_results:
                 props = parse(response, ["hits.total", "hits.total.value", "hits.total.relation", "timed_out", "took"])
                 hits_total = props.get("hits.total.value", props.get("hits.total", 0))
@@ -1389,6 +1393,7 @@ class Query(Runner):
 
             recall_processing_start = time.perf_counter()
             response_json = json.loads(response.getvalue())
+            self.logger.info("Response JSON from Vector Search Query: %s")
             if _is_empty_search_results(response_json):
                 self.logger.info("Vector search query returned no results.")
                 return result
@@ -1403,6 +1408,7 @@ class Query(Runner):
             neighbors_dataset = params["neighbors"]
 
             if "k" in params:
+                self.logger.info("Params before calculating K: %s", params)
                 num_neighbors = params.get("k", 1)
                 recall_top_k = calculate_topk_search_recall(candidates, neighbors_dataset, num_neighbors)
                 recall_top_1 = calculate_topk_search_recall(candidates, neighbors_dataset, 1)
@@ -1434,6 +1440,8 @@ class Query(Runner):
                                                 "and will be removed in a future release. Use 'scroll-search' instead.")
             return await _scroll_query(opensearch, params)
         elif search_method == "vector-search":
+            logger = logging.getLogger(__name__)
+            logger.info("Starting vectorsearch query")
             return await _vector_search_query_with_recall(opensearch, params)
         else:
             return await _request_body_query(opensearch, params)

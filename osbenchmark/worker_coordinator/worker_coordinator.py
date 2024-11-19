@@ -1019,6 +1019,7 @@ ClientAllocation = collections.namedtuple("ClientAllocation", ["client_id", "tas
 class ClientAllocations:
     def __init__(self):
         self.allocations = []
+        self.logger = logging.getLogger(__name__)
 
     def add(self, client_id, tasks):
         self.allocations.append({
@@ -1035,6 +1036,7 @@ class ClientAllocations:
             tasks_at_index = allocation["tasks"][task_index]
             if remove_empty and tasks_at_index is not None:
                 current_tasks.append(ClientAllocation(allocation["client_id"], tasks_at_index))
+        self.logger.info("Client Allocations: %s", self.allocations)
         return current_tasks
 
 
@@ -1820,6 +1822,7 @@ class Allocator:
 
     def __init__(self, schedule):
         self.schedule = schedule
+        self.logger = logging.getLogger(__name__)
 
     @property
     def allocations(self):
@@ -1872,6 +1875,9 @@ class Allocator:
             for client_index in range(max_clients):
                 allocations[client_index].append(next_join_point)
             join_point_id += 1
+
+        self.logger.info("Max Clients: %s", max_clients)
+        self.logger.info("ALLOCATIONS: %s", allocations)
         return allocations
 
     @property
