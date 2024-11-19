@@ -13,23 +13,31 @@ class Aggregator:
         self.args = args
         self.test_executions = test_executions_dict
         self.accumulated_results: Dict[str, Dict[str, List[Any]]] = {}
-        self.accumulated_iterations: Dict[str, int] = {}
+        self.accumulated_iterations: Dict[str, Dict[str, int]] = {}
         self.metrics = ["throughput", "latency", "service_time", "client_processing_time", "processing_time", "error_rate", "duration"]
         self.test_store = metrics.test_execution_store(self.config)
         self.cwd = cfg.opts("node", "benchmark.cwd")
 
-    def count_iterations_for_each_op(self) -> None:
+    def count_iterations_for_each_op(self, test_execution) -> None:
         loaded_workload = workload.load_workload(self.config)
         test_procedure_name = self.config.opts("workload", "test_procedure.name")
         test_procedure_found = False
+        workload_params = {} if getattr(test_execution, 'workload_params') is None else test_execution.workload_params
+
+        test_execution_id = test_execution.test_execution_id
+        self.accumulated_iterations[test_execution_id] = {}
 
         for test_procedure in loaded_workload.test_procedures:
             if test_procedure.name == test_procedure_name:
                 test_procedure_found = True
                 for task in test_procedure.schedule:
                     task_name = task.name
-                    iterations = task.iterations or 1
-                    self.accumulated_iterations[task_name] = self.accumulated_iterations.get(task_name, 0) + iterations
+                    custom_key = f"{task_name}_iterations"
+                    if custom_key in workload_params:
+                        iterations = int(workload_params[custom_key])
+                    else:
+                        iterations = task.iterations or 1
+                    self.accumulated_iterations[test_execution_id][task_name] = iterations
             else:
                 continue  # skip to the next test procedure if the name doesn't match
 
@@ -120,7 +128,7 @@ class Aggregator:
 
         for task, task_metrics in self.accumulated_results.items():
             iterations = self.accumulated_iterations.get(task, 1)
-            aggregated_task_metrics = self.calculate_weighted_average(task_metrics, iterations)
+            aggregated_task_metrics = self.calculate_weighted_average(task_metrics, task)
             op_metric = {
                 "task": task,
                 "operation": task,
@@ -191,10 +199,14 @@ class Aggregator:
 
         return test_execution
 
-    def calculate_weighted_average(self, task_metrics: Dict[str, List[Any]], iterations: int) -> Dict[str, Any]:
+    def calculate_weighted_average(self, task_metrics: Dict[str, List[Any]], task_name: str) -> Dict[str, Any]:
         weighted_metrics = {}
         num_executions = len(next(iter(task_metrics.values())))
-        total_iterations = iterations * num_executions
+        
+        # Get iterations for each test execution
+        iterations_per_execution = [self.accumulated_iterations[test_id][task_name] 
+                                    for test_id in self.test_executions.keys()]
+        total_iterations = sum(iterations_per_execution)
 
         for metric, values in task_metrics.items():
             if isinstance(values[0], dict):
@@ -209,10 +221,10 @@ class Aggregator:
                     else:
                         # for items like median or containing percentile values
                         item_values = [value.get(metric_field, 0) for value in values]
-                        weighted_sum = sum(value * iterations for value in item_values)
+                        weighted_sum = sum(value * iterations for value, iterations in zip(item_values, iterations_per_execution))
                         weighted_metrics[metric][metric_field] = weighted_sum / total_iterations
             else:
-                weighted_sum = sum(value * iterations for value in values)
+                weighted_sum = sum(value * iterations for value, iterations in zip(values, iterations_per_execution))
                 weighted_metrics[metric] = weighted_sum / total_iterations
 
         return weighted_metrics
@@ -256,7 +268,7 @@ class Aggregator:
                 if test_execution:
                     self.config.add(config.Scope.applicationOverride, "workload", "repository.name", self.args.workload_repository)
                     self.config.add(config.Scope.applicationOverride, "workload", "workload.name", test_execution.workload)
-                    self.count_iterations_for_each_op()
+                    self.count_iterations_for_each_op(test_execution)
                     self.accumulate_results(test_execution)
 
             aggregated_results = self.build_aggregated_results()
