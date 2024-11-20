@@ -1374,12 +1374,12 @@ class Query(Runner):
                 })
 
             doc_type = params.get("type")
+            logger = logging.getLogger(__name__)
             logger.info("BODY FOR REQUEST: %s", body)
             logger.info("REQUEST PARAMS: %s", request_params)
             response = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
-            logger = logging.getLogger(__name__)
             # logger.info("Request Cache in Vectorsearch Query: %s", request_params["cache"])
-            logger.info("Response from Vector Search Query that was issued: %s: ", response)
+            # logger.info("Response from Vector Search Query that was issued: %s: ", response)
             if detailed_results:
                 props = parse(response, ["hits.total", "hits.total.value", "hits.total.relation", "timed_out", "took"])
                 hits_total = props.get("hits.total.value", props.get("hits.total", 0))
