@@ -1413,6 +1413,8 @@ class Query(Runner):
                 candidates.append(field_value)
             neighbors_dataset = params["neighbors"]
 
+            logger.info("Candidates from %s and neighbors from %s", request_id, request_id)
+
             if "k" in params:
                 self.logger.info("Params before calculating K: %s", params)
                 num_neighbors = params.get("k", 1)
