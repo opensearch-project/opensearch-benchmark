@@ -1378,10 +1378,9 @@ class Query(Runner):
             logger = logging.getLogger(__name__)
             logger.info("BODY FOR REQUEST: %s", body)
             logger.info("REQUEST PARAMS: %s", request_params)
-            if headers is None:
-                headers = {}
-                request_id = str(uuid.uuid4())
-                headers['X-Request-Id'] = request_id
+            headers = {}
+            request_id = str(uuid.uuid4())
+            headers['X-Request-Id'] = request_id
             logger.info("HEADERS: %s", headers)
             response = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
             # logger.info("Request Cache in Vectorsearch Query: %s", request_params["cache"])
