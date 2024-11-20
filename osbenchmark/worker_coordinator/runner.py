@@ -1377,6 +1377,7 @@ class Query(Runner):
             logger = logging.getLogger(__name__)
             logger.info("BODY FOR REQUEST: %s", body)
             logger.info("REQUEST PARAMS: %s", request_params)
+            logger.info("HEADERS: %s", headers)
             response = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
             # logger.info("Request Cache in Vectorsearch Query: %s", request_params["cache"])
             # logger.info("Response from Vector Search Query that was issued: %s: ", response)
