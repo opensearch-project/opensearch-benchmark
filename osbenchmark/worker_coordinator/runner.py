@@ -1378,10 +1378,8 @@ class Query(Runner):
             logger = logging.getLogger(__name__)
             logger.info("BODY FOR REQUEST: %s", body)
             logger.info("REQUEST PARAMS: %s", request_params)
-            headers = {}
-            request_id = str(uuid.uuid4())
-            headers['X-Request-Id'] = request_id
-            logger.info("HEADERS: %s", headers)
+            request_id = str(uuid.uuid5())
+            logger.info("Sending request with request id: %s", request_id)
             response = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
             # logger.info("Request Cache in Vectorsearch Query: %s", request_params["cache"])
             # logger.info("Response from Vector Search Query that was issued: %s: ", response)
@@ -1401,8 +1399,8 @@ class Query(Runner):
 
             recall_processing_start = time.perf_counter()
             response_json = json.loads(response.getvalue())
-            logger.info("Response headers: %s", response_json["headers"])
-            self.logger.info("Response JSON from Vector Search Query: %s", response_json)
+            logger.info("Request ID %s response headers: %s", response_json["headers"])
+            self.logger.info("Request ID %s response JSON from Vector Search Query: %s", request_id, response_json)
             if _is_empty_search_results(response_json):
                 self.logger.info("Vector search query returned no results.")
                 return result
