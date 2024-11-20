@@ -1380,7 +1380,7 @@ class Query(Runner):
             logger.info("REQUEST PARAMS: %s", request_params)
             request_id = str(uuid.uuid4())
             logger.info("Sending request with request id: %s", request_id)
-            response = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
+            response, response_request_id = await self._raw_search(opensearch, doc_type, index, body, request_params, request_id, headers=headers)
             # logger.info("Request Cache in Vectorsearch Query: %s", request_params["cache"])
             # logger.info("Response from Vector Search Query that was issued: %s: ", response)
             if detailed_results:
@@ -1399,7 +1399,7 @@ class Query(Runner):
 
             recall_processing_start = time.perf_counter()
             response_json = json.loads(response.getvalue())
-            self.logger.info("Request ID %s response JSON from Vector Search Query: %s", request_id, response_json)
+            self.logger.info("Request ID %s response JSON from Vector Search Query: %s", response_request_id, response_json)
             if _is_empty_search_results(response_json):
                 self.logger.info("Vector search query returned no results.")
                 return result
@@ -1413,7 +1413,7 @@ class Query(Runner):
                 candidates.append(field_value)
             neighbors_dataset = params["neighbors"]
 
-            logger.info("Candidates from %s and neighbors from %s", request_id, request_id)
+            logger.info("Candidates from %s and neighbors from %s", response_request_id, request_id)
 
             if "k" in params:
                 self.logger.info("Params before calculating K: %s", params)
@@ -1454,7 +1454,7 @@ class Query(Runner):
         else:
             return await _request_body_query(opensearch, params)
 
-    async def _raw_search(self, opensearch, doc_type, index, body, params, headers=None):
+    async def _raw_search(self, opensearch, doc_type, index, body, params, request_id, headers=None):
         components = []
         if index:
             components.append(index)
@@ -1465,7 +1465,7 @@ class Query(Runner):
         request_context_holder.on_client_request_start()
         response = await opensearch.transport.perform_request("GET", "/" + path, params=params, body=body, headers=headers)
         request_context_holder.on_client_request_end()
-        return response
+        return response, request_id
 
     def _query_headers(self, params):
         # reduces overhead due to decompression of very large responses
