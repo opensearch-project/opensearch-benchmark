@@ -1417,7 +1417,7 @@ class Query(Runner):
                 self.logger.info("Params before calculating K: %s", params)
                 num_neighbors = params.get("k", 1)
                 recall_top_k = calculate_topk_search_recall(candidates, neighbors_dataset, num_neighbors, request_id)
-                recall_top_1 = calculate_topk_search_recall(candidates, neighbors_dataset, 1)
+                recall_top_1 = calculate_topk_search_recall(candidates, neighbors_dataset, 1, request_id)
                 result.update({"recall@k": recall_top_k})
                 result.update({"recall@1": recall_top_1})
 
