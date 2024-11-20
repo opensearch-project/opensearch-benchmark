@@ -31,6 +31,7 @@ import re
 import sys
 import time
 import types
+import uuid
 from collections import Counter, OrderedDict
 from copy import deepcopy
 from enum import Enum
@@ -1377,6 +1378,10 @@ class Query(Runner):
             logger = logging.getLogger(__name__)
             logger.info("BODY FOR REQUEST: %s", body)
             logger.info("REQUEST PARAMS: %s", request_params)
+            if headers is None:
+                headers = {}
+                request_id = str(uuid.uuid4())
+                headers['X-Request-Id'] = request_id
             logger.info("HEADERS: %s", headers)
             response = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
             # logger.info("Request Cache in Vectorsearch Query: %s", request_params["cache"])
@@ -1397,6 +1402,7 @@ class Query(Runner):
 
             recall_processing_start = time.perf_counter()
             response_json = json.loads(response.getvalue())
+            logger.info("Response headers: %s", response_json["headers"])
             self.logger.info("Response JSON from Vector Search Query: %s", response_json)
             if _is_empty_search_results(response_json):
                 self.logger.info("Vector search query returned no results.")
