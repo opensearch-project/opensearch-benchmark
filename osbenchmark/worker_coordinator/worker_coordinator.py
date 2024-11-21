@@ -1567,17 +1567,31 @@ class AsyncProfiler:
         finally:
             yappi.stop()
             s = python_io.StringIO()
-            yappi.get_func_stats().print_all(out=s, columns={
-                0: ("name", 140),
-                1: ("ncall", 8),
-                2: ("tsub", 8),
-                3: ("ttot", 8),
-                4: ("tavg", 8)
-            })
+            # yappi.get_func_stats().print_all(out=s, columns={
+            #     0: ("name", 140),
+            #     1: ("ncall", 8),
+            #     2: ("tsub", 8),
+            #     3: ("ttot", 8),
+            #     4: ("tavg", 8)
+            # })
 
-            profile = f"\n=== Profile Start for client id {self.client_id} and task {self.task} ===\n"
+            # Return stats in desc order for ncalls
+            stats = yappi.get_func_stats.sort(
+                    sort_type='ncall', sort_order='desc')
+
+            # Print all results to
+            stats.print_all(out=s, columns={
+                    0: ("name", 140),
+                    1: ("ncall", 8),
+                    2: ("tsub", 8),
+                    3: ("ttot", 8),
+                    4: ("tavg", 8)
+                }
+            )
+
+            profile = f"\n=== Profile start for client id [{self.client_id}] and task [{self.task}] ===\n"
             profile += s.getvalue()
-            profile += "=== Profile END ==="
+            profile += "\n=== Profile END ===\n"
             self.profile_logger.info(profile)
 
 
