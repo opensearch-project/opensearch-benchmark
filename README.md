@@ -1,6 +1,7 @@
 [![CI](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/main.yml/badge.svg)](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/main.yml)
 [![Integration](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/manual-integ.yml/badge.svg)](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/manual-integ.yml)
-[![Release](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/release-drafter.yml/badge.svg)](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/release-drafter.yml)
+[![Release](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/publish-release.yml/badge.svg)](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/publish-release.yml)
+![PyPI Downloads](https://static.pepy.tech/badge/opensearch-benchmark)
 [![Chat](https://img.shields.io/badge/chat-on%20forums-blue)](https://forum.opensearch.org/categories)
 ![PRs welcome!](https://img.shields.io/badge/PRs-welcome!-success)
 
