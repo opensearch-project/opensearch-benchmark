@@ -1529,7 +1529,7 @@ class AsyncIoAdapter:
             async_executor = AsyncExecutor(
                 client_id, task, schedule, opensearch, self.sampler, self.cancel, self.complete,
                 task.error_behavior(self.abort_on_error))
-            final_executor = AsyncProfiler(async_executor) if self.profiling_enabled else async_executor
+            final_executor = AsyncProfiler(async_executor, client_id, task) if self.profiling_enabled else async_executor
             aws.append(final_executor())
         run_start = time.perf_counter()
         try:
@@ -1547,11 +1547,13 @@ class AsyncIoAdapter:
 
 
 class AsyncProfiler:
-    def __init__(self, target):
+    def __init__(self, target, client_id, task):
         """
         :param target: The actual executor which should be profiled.
         """
         self.target = target
+        self.client_id = client_id
+        self.task = task
         self.profile_logger = logging.getLogger("benchmark.profile")
 
     async def __call__(self, *args, **kwargs):
@@ -1573,7 +1575,7 @@ class AsyncProfiler:
                 4: ("tavg", 8)
             })
 
-            profile = "\n=== Profile START ===\n"
+            profile = f"\n=== Profile Start for client id {self.client_id} and task {self.task} ===\n"
             profile += s.getvalue()
             profile += "=== Profile END ==="
             self.profile_logger.info(profile)
