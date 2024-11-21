@@ -1576,6 +1576,8 @@ class AsyncProfiler:
             # })
 
             # Return stats in desc order for ncalls
+            stats = yappi.get_func_stats()
+            print(type(stats))
             stats = yappi.get_func_stats.sort(
                     sort_type='ncall', sort_order='desc')
 
