@@ -1469,6 +1469,7 @@ class AsyncIoAdapter:
         self.complete = complete
         self.abort_on_error = abort_on_error
         self.profiling_enabled = self.cfg.opts("worker_coordinator", "profiling")
+        self.profiling_sort_type = self.cfg.opts("worker_coordinator", "profiling_sort_type")
         self.assertions_enabled = self.cfg.opts("worker_coordinator", "assertions")
         self.debug_event_loop = self.cfg.opts("system", "async.debug", mandatory=False, default_value=False)
         self.logger = logging.getLogger(__name__)
@@ -1529,7 +1530,7 @@ class AsyncIoAdapter:
             async_executor = AsyncExecutor(
                 client_id, task, schedule, opensearch, self.sampler, self.cancel, self.complete,
                 task.error_behavior(self.abort_on_error))
-            final_executor = AsyncProfiler(async_executor, client_id, task) if self.profiling_enabled else async_executor
+            final_executor = AsyncProfiler(async_executor, client_id, task, sort_type=self.profiling_sort_type) if self.profiling_enabled else async_executor
             aws.append(final_executor())
         run_start = time.perf_counter()
         try:
@@ -1547,14 +1548,17 @@ class AsyncIoAdapter:
 
 
 class AsyncProfiler:
-    def __init__(self, target, client_id, task):
+    SORT_TYPES = ["ncall", "ttot"]
+    def __init__(self, target, client_id, task, sort_type):
         """
         :param target: The actual executor which should be profiled.
         """
         self.target = target
         self.client_id = client_id
         self.task = task
+        self.sort_type = sort_type
         self.profile_logger = logging.getLogger("benchmark.profile")
+        self.logger = logging.getLogger(__name__)
 
     async def __call__(self, *args, **kwargs):
         # initialize lazily, we don't need it in the majority of cases
@@ -1567,28 +1571,36 @@ class AsyncProfiler:
         finally:
             yappi.stop()
             s = python_io.StringIO()
-            # yappi.get_func_stats().print_all(out=s, columns={
-            #     0: ("name", 140),
-            #     1: ("ncall", 8),
-            #     2: ("tsub", 8),
-            #     3: ("ttot", 8),
-            #     4: ("tavg", 8)
-            # })
 
-            # Return stats in desc order for ncalls
-            stats = yappi.get_func_stats()
-            # print(type(stats))
-            stats.sort(sort_type='ncall', sort_order='desc')
+            if self.sort_type:
+                if self.sort_type not in self.SORT_TYPES:
+                    raise Exception(f"{self.sort_type} not in available sort types for async profiler: [{[sort_type for sort_type in self.SORT_TYPES]}]")
 
-            # Print all results to
-            stats.print_all(out=s, columns={
+                self.logger.info("Using Async Profiler and sort type: %s", self.sort_type)
+
+                # Return stats in desc order for ncalls
+                stats = yappi.get_func_stats()
+                stats.sort(sort_type=self.sort_type, sort_order='desc')
+
+                # Print all results
+                stats.print_all(out=s, columns={
+                        0: ("name", 140),
+                        1: ("ncall", 8),
+                        2: ("tsub", 8),
+                        3: ("ttot", 8),
+                        4: ("tavg", 8)
+                    }
+                )
+            else:
+                self.logger.info("Using Async Profiler")
+                yappi.get_func_stats().print_all(out=s, columns={
                     0: ("name", 140),
                     1: ("ncall", 8),
                     2: ("tsub", 8),
                     3: ("ttot", 8),
                     4: ("tavg", 8)
-                }
-            )
+                })
+
 
             profile = f"\n=== Profile start for client id [{self.client_id}] and task [{self.task}] ===\n"
             profile += s.getvalue()

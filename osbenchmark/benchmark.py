@@ -585,6 +585,10 @@ def create_arg_parser():
         default=False,
         action="store_true")
     test_execution_parser.add_argument(
+        "--profiling-sort-type",
+        help="Only effective if profiling worker coordinator",
+        default=None)
+    test_execution_parser.add_argument(
         "--enable-assertions",
         help="Enables assertion checks for tasks (default: false).",
         default=False,
@@ -912,6 +916,7 @@ def configure_test(arg_parser, args, cfg):
     cfg.add(config.Scope.applicationOverride, "test_execution", "pipeline", args.pipeline)
     cfg.add(config.Scope.applicationOverride, "test_execution", "user.tag", args.user_tag)
     cfg.add(config.Scope.applicationOverride, "worker_coordinator", "profiling", args.enable_worker_coordinator_profiling)
+    cfg.add(config.Scope.applicationOverride, "worker_coordinator", "profiling_sort_type", args.profiling_sort_type)
     cfg.add(config.Scope.applicationOverride, "worker_coordinator", "assertions", args.enable_assertions)
     cfg.add(config.Scope.applicationOverride, "worker_coordinator", "on.error", args.on_error)
     cfg.add(

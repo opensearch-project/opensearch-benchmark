@@ -858,7 +858,8 @@ class VectorSearchParamSource(SearchParamSource):
         self.corpora = self.delegate_param_source.corpora
 
     def partition(self, partition_index, total_partitions):
-        self.logger.info("Vector Search Param Source Partition Method")
+        self.logger.info("Vector Search Param Source Partition Method.")
+        self.logger.info("Partition index %s, total partitions %s", partition_index, total_partitions)
         return self.delegate_param_source.partition(partition_index, total_partitions)
 
     def params(self):
