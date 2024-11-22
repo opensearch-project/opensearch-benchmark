@@ -1552,6 +1552,9 @@ class AsyncProfiler:
     def __init__(self, target, client_id, task, sort_type):
         """
         :param target: The actual executor which should be profiled.
+        :param client_id: The client that is being profiled.
+        :param task: The task in the workload that is being profiled.
+        :param sort_type: If not None, the column to sort profiled results on.
         """
         self.target = target
         self.client_id = client_id
