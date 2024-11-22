@@ -1577,7 +1577,7 @@ class AsyncProfiler:
 
             if self.sort_type:
                 if self.sort_type not in self.SORT_TYPES:
-                    raise Exception(
+                    raise exceptions.SystemSetupError(
                         f"{self.sort_type} is an invalid sort type. Available sort types in Async Profiler are: {[sort_type for sort_type in self.SORT_TYPES]}"
                     )
 
