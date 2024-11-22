@@ -465,6 +465,7 @@ class WorkloadPreparationActor(actor.BenchmarkActor):
         # the workload might have been loaded on a different machine (the coordinator machine) so we force a workload
         # update to ensure we use the latest version of plugins.
         load_workload(self.cfg)
+        self.logger.info("Preparing plugins for workload now")
         load_workload_plugins(self.cfg, self.workload.name, register_workload_processor=tpr.register_workload_processor,
                            force_update=True)
         # we expect on_prepare_workload can take a long time. seed a queue of tasks and delegate to child workers
