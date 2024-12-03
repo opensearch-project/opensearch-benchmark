@@ -17,8 +17,8 @@ class Aggregator:
         self.metrics = ["throughput", "latency", "service_time", "client_processing_time", "processing_time", "error_rate", "duration"]
         self.test_store = metrics.test_execution_store(self.config)
         self.cwd = cfg.opts("node", "benchmark.cwd")
-        self.test_execution = self.test_store.find_by_test_execution_id(list(self.test_executions.keys())[0])
-        self.test_procedure_name = self.test_execution.test_procedure
+        self.test_execution = None
+        self.test_procedure_name = None
         self.loaded_workload = None
 
     def count_iterations_for_each_op(self, test_execution) -> None:
@@ -257,6 +257,8 @@ class Aggregator:
 
     def aggregate(self) -> None:
         if self.test_execution_compatibility_check():
+            self.test_execution = self.test_store.find_by_test_execution_id(list(self.test_executions.keys())[0])
+            self.test_procedure_name = self.test_execution.test_procedure
             self.config.add(config.Scope.applicationOverride, "workload", "repository.name", self.args.workload_repository)
             self.config.add(config.Scope.applicationOverride, "workload", "workload.name", self.test_execution.workload)
             self.loaded_workload = workload.load_workload(self.config)

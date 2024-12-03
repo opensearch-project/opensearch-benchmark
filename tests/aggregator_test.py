@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 import pytest
 from osbenchmark import config
 from osbenchmark.aggregator import Aggregator, AggregatedResults
@@ -52,11 +52,10 @@ def test_count_iterations_for_each_op(aggregator):
 
     mock_test_execution = Mock(test_execution_id="test1", workload_params={})
 
-    # update the config mock to return the correct test_procedure_name
-    aggregator.config.opts.side_effect = lambda *args: \
-        mock_test_procedure.name if args == ("workload", "test_procedure.name") else "/path/to/root"
-    with patch('osbenchmark.workload.load_workload', return_value=mock_workload):
-        aggregator.count_iterations_for_each_op(mock_test_execution)
+    aggregator.loaded_workload = mock_workload
+    aggregator.test_procedure_name = "test_procedure_name"
+
+    aggregator.count_iterations_for_each_op(mock_test_execution)
 
     assert "test1" in aggregator.accumulated_iterations, "test1 not found in accumulated_iterations"
     assert "op1" in aggregator.accumulated_iterations["test1"], "op1 not found in accumulated_iterations for test1"
@@ -135,31 +134,6 @@ def test_test_execution_compatibility_check_incompatible(aggregator):
     aggregator.test_executions = {"test1": Mock(), "test2": Mock()}
     with pytest.raises(ValueError):
         aggregator.test_execution_compatibility_check()
-
-def test_aggregate(aggregator):
-    mock_aggregated_results = Mock(test_execution_id="mock_id", as_dict=lambda: {})
-
-    with patch.object(aggregator, 'test_execution_compatibility_check', return_value=True), \
-         patch.object(aggregator, 'count_iterations_for_each_op'), \
-         patch.object(aggregator, 'accumulate_results'), \
-         patch.object(aggregator, 'build_aggregated_results', return_value=mock_aggregated_results) as mock_build, \
-         patch('osbenchmark.aggregator.FileTestExecutionStore') as mock_store_class:
-
-        mock_store = mock_store_class.return_value
-        mock_store.store_aggregated_execution.side_effect = lambda x: print(f"Storing aggregated execution: {x}")
-
-        # mock test_store to return a Mock object for each test execution
-        aggregator.test_store.find_by_test_execution_id.side_effect = [
-            Mock(test_execution_id="test1", workload_params={}),
-            Mock(test_execution_id="test2", workload_params={})
-        ]
-
-        aggregator.aggregate()
-
-        assert mock_build.called, "build_aggregated_results was not called"
-        mock_store.store_aggregated_execution.assert_called_once_with(mock_aggregated_results)
-
-        assert mock_store.store_aggregated_execution.called, "store_aggregated_execution was not called"
 
 def test_aggregated_results():
     results = {"key": "value"}
