@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Create and manage pipelines
-parent: Benchmark Use Cases
+parent: OSB Use Cases
 nav_order: 20
 ---
 
