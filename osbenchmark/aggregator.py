@@ -22,25 +22,19 @@ class Aggregator:
         self.loaded_workload = None
 
     def count_iterations_for_each_op(self, test_execution) -> None:
-        matching_test_procedure = next((tp for tp in self.loaded_workload.test_procedures if tp.name == self.test_procedure_name), None)
+        """Count iterations for each operation in the test execution."""
         workload_params = test_execution.workload_params if test_execution.workload_params else {}
-
         test_execution_id = test_execution.test_execution_id
         self.accumulated_iterations[test_execution_id] = {}
 
-        if matching_test_procedure:
-            for task in matching_test_procedure.schedule:
-                task_name = task.name
-                task_name_iterations = f"{task_name}_iterations"
-                if task_name_iterations in workload_params:
-                    iterations = int(workload_params[task_name_iterations])
-                else:
-                    iterations = task.iterations or 1
-                self.accumulated_iterations[test_execution_id][task_name] = iterations
-        else:
-            raise ValueError(f"Test procedure '{self.test_procedure_name}' not found in the loaded workload.")
+        for task in self.loaded_workload.find_test_procedure_or_default(self.test_procedure_name).schedule:
+            task_name = task.name
+            task_name_iterations = f"{task_name}_iterations"
+            iterations = int(workload_params.get(task_name_iterations, task.iterations or 1))
+            self.accumulated_iterations[test_execution_id][task_name] = iterations
 
     def accumulate_results(self, test_execution: Any) -> None:
+        """Accumulate results from a single test execution."""
         for item in test_execution.results.get("op_metrics", []):
             task = item.get("task", "")
             self.accumulated_results.setdefault(task, {})
@@ -49,9 +43,9 @@ class Aggregator:
                 self.accumulated_results[task][metric].append(item.get(metric))
 
     def aggregate_json_by_key(self, key_path: Union[str, List[str]]) -> Any:
+        """Aggregate JSON results by a given key path."""
         all_jsons = [self.test_store.find_by_test_execution_id(id).results for id in self.test_executions.keys()]
 
-        # retrieve nested value from a dictionary given a key path
         def get_nested_value(obj: Dict[str, Any], path: List[str]) -> Any:
             for key in path:
                 if isinstance(obj, dict):
@@ -66,8 +60,7 @@ class Aggregator:
             if not objects:
                 return None
             if all(isinstance(obj, (int, float)) for obj in objects):
-                avg = sum(objects) / len(objects)
-                return avg
+                return sum(objects) / len(objects)
             if all(isinstance(obj, dict) for obj in objects):
                 keys = set().union(*objects)
                 return {key: aggregate_helper([obj.get(key) for obj in objects]) for key in keys}
