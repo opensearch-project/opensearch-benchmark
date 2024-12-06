@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Execute Test
-parent: Benchmark API
+parent: OSB API
 nav_order: 10
 ---
 
@@ -23,10 +23,10 @@ Argument | Description | Required
 :--- | :--- |:---
 `workload` | The dataset and operations that execute during a test. See [OpenSearch Benchmark Workloads repository](https://github.com/opensearch-project/opensearch-benchmark-workloads) for more details on workloads. | Yes
 `workload-params` | Parameters defined within each workload that can be overwritten. These parameters are outlined in the README of each workload. You can find an example of the parameters for the eventdata workload [here](https://github.com/opensearch-project/opensearch-benchmark-workloads/tree/main/eventdata#parameters).  | No
-`test_procedure` | Test Procedures define the sequence of operations and parameters for a specific workload. When no `test_procedure` is specified, Benchmark selects the default for the workload. You can find an example test procedure [here](https://github.com/opensearch-project/opensearch-benchmark-workloads/blob/main/eventdata/test_procedures/default.json). | No
+`test_procedure` | Test Procedures define the sequence of operations and parameters for a specific workload. When no `test_procedure` is specified, OSB selects the default for the workload. You can find an example test procedure [here](https://github.com/opensearch-project/opensearch-benchmark-workloads/blob/main/eventdata/test_procedures/default.json). | No
 `client-options` | Options for the [OpenSearch Python client](https://opensearch.org/docs/latest/clients/python/). Required if testing against a cluster with security enabled. | No
 `pipeline` | Steps required to execute a test, including provisioning an OpenSearch from source code or a specified distribution. Defaults to `from-sources` which provisions an OpenSearch cluster from source code. | No
-`distribution-version` | The OpenSearch version to use for a given test. Defining a version can be useful when using a `pipeline` that includes provisioning. When using a `pipeline` without provisioning, Benchmark will automatically determine the version | No
+`distribution-version` | The OpenSearch version to use for a given test. Defining a version can be useful when using a `pipeline` that includes provisioning. When using a `pipeline` without provisioning, OSB will automatically determine the version | No
 `target-hosts` | The OpenSearch endpoint(s) to execute a test against. This should only be specified with  `--pipeline=benchmark-only`  | No
 `test-mode` | Run a single iteration of each operation in the test procedure. The test provides a quick way for sanity checking a testing configuration. Therefore, do not use `test-mode` for actual benchmarking. | No
 `kill-running-processes` | Kill any running OpenSearch Benchmark processes on the local machine before the test executes. | No
@@ -62,14 +62,14 @@ Argument | Description | Required
 :--- | :--- |:---
 `distribution-version` | Define the version of the OpenSearch distribution to download. Check https://opensearch.org/docs/version-history/ for released versions. | No
 `provision-config-path` | Define the path to the provision_config_instance and plugin configurations to use. | No
-`provision-config-repository` | Define repository from where Benchmark will load provision_configs and provision_config_instances (default: `default`). | No
-`provision-config-revision` | Define a specific revision in the provision_config repository that Benchmark should use. | No
+`provision-config-repository` | Define repository from where OSB will load provision_configs and provision_config_instances (default: `default`). | No
+`provision-config-revision` | Define a specific revision in the provision_config repository that OSB should use. | No
 `test-execution-id` | Define a unique id for this test_execution. | No
 `pipeline` | Select the pipeline to run. | No
 `revision` | Define the source code revision for building the benchmark candidate. 'current' uses the source tree as is, 'latest' fetches the latest version on main. It is also possible to specify a commit id or an ISO timestamp. The timestamp must be specified as: "@ts" where "ts" must be a valid ISO 8601 timestamp, e.g. "@2013-07-27T10:37:00Z" (default: `current`). | No
-`workload-repository` | Define the repository from where Benchmark will load workloads (default: `default`). | No
+`workload-repository` | Define the repository from where OSB will load workloads (default: `default`). | No
 `workload-path` | Define the path to a workload. | No
-`workload-revision` | Define a specific revision in the workload repository that Benchmark should use. | No
+`workload-revision` | Define a specific revision in the workload repository that OSB should use. | No
 `workload` | Define the workload to use. List possible workloads with `opensearch-benchmark list workloads`. | No
 `workload-params` | Define a comma-separated list of key:value pairs that are injected verbatim to the workload as variables. | No
 `test-procedure` | Define the test_procedure to use. List possible test_procedures for workloads with `opensearch-benchmark list workloads`. | No
@@ -81,7 +81,7 @@ Argument | Description | Required
 `target-hosts` | Define a comma-separated list of host:port pairs which should be targeted if using the pipeline 'benchmark-only' (default: `localhost:9200`). | No
 `load-worker-coordinator-hosts` | Define a comma-separated list of hosts which should generate load (default: `localhost`). | No
 `client-options` | Define a comma-separated list of client options to use. The options will be passed to the OpenSearch Python client (default: `timeout:60`). | No
-`on-error` | Controls how Benchmark behaves on response errors. Options are `continue` and `abort` (default: `continue`). | No
+`on-error` | Controls how OSB behaves on response errors. Options are `continue` and `abort` (default: `continue`). | No
 `telemetry` | Enable the provided telemetry devices, provided as a comma-separated list. List possible telemetry devices with `opensearch-benchmark list telemetry`. | No
 `telemetry-params` | Define a comma-separated list of key:value pairs that are injected verbatim to the telemetry devices as parameters. | No
 `distribution-repository` | Define the repository from where the OpenSearch distribution should be downloaded (default: `release`). | No
@@ -94,9 +94,9 @@ Argument | Description | Required
 `results-file` | Write the command line results also to the provided file. | No
 `preserve-install` | Keep the benchmark candidate and its index. (default: false). | No
 `test-mode` | Runs the given workload in 'test mode'. Meant to check a workload for errors but not for real benchmarks (default: false). | No
-`enable-worker-coordinator-profiling` | Enables a profiler for analyzing the performance of calls in Benchmark's worker coordinator (default: false). | No
+`enable-worker-coordinator-profiling` | Enables a profiler for analyzing the performance of calls in OSB's worker coordinator (default: false). | No
 `enable-assertions` | Enables assertion checks for tasks (default: false). | No
-`kill-running-processes` | If any processes is running, it is going to kill them and allow Benchmark to continue to run. | No
+`kill-running-processes` | If any processes is running, it is going to kill them and allow OSB to continue to run. | No
 `quiet` | Suppress as much as output as possible (default: false). | No
-`offline` | Assume that Benchmark has no connection to the Internet (default: false). | No
+`offline` | Assume that OSB has no connection to the Internet (default: false). | No
 

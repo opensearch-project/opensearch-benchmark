@@ -1,6 +1,6 @@
 ---
 layout: default
 title: Test Mode
-parent: Benchmark API
+parent: OSB API
 nav_order: 13
 ---

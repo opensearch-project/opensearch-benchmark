@@ -77,7 +77,7 @@ def create_arg_parser():
         workload_source_group = subparser.add_mutually_exclusive_group()
         workload_source_group.add_argument(
             "--workload-repository",
-            help="Define the repository from where Benchmark will load workloads (default: default).",
+            help="Define the repository from where OSB will load workloads (default: default).",
             # argparse is smart enough to use this default only if the user did not use --workload-path and also did not specify anything
             default="default"
         )
@@ -86,7 +86,7 @@ def create_arg_parser():
             help="Define the path to a workload.")
         subparser.add_argument(
             "--workload-revision",
-            help="Define a specific revision in the workload repository that Benchmark should use.",
+            help="Define a specific revision in the workload repository that OSB should use.",
             default=None)
 
     # try to preload configurable defaults, but this does not work together with `--configuration-name` (which is undocumented anyway)
@@ -99,7 +99,7 @@ def create_arg_parser():
 
     parser = argparse.ArgumentParser(prog=PROGRAM_NAME,
                                      description=BANNER + "\n\n A benchmarking tool for OpenSearch",
-                                     epilog="Find out more about Benchmark at {}".format(console.format.link(doc_link())),
+                                     epilog="Find out more about OSB at {}".format(console.format.link(doc_link())),
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-v', '--version', action='version', version="%(prog)s " + version.version())
 
@@ -118,7 +118,7 @@ def create_arg_parser():
     list_parser.add_argument(
         "configuration",
         metavar="configuration",
-        help="The configuration for which Benchmark should show the available options. "
+        help="The configuration for which OSB should show the available options. "
              "Possible values are: telemetry, workloads, pipelines, test_executions, provision_config_instances, opensearch-plugins",
         choices=["telemetry", "workloads", "pipelines", "test_executions", "aggregated_results",
                  "provision_config_instances", "opensearch-plugins"])
@@ -157,7 +157,7 @@ def create_arg_parser():
         "--exclude-tasks",
         help="Defines a comma-separated list of tasks not to run. By default all tasks of a test_procedure are run.")
 
-    create_workload_parser = subparsers.add_parser("create-workload", help="Create a Benchmark workload from existing data")
+    create_workload_parser = subparsers.add_parser("create-workload", help="Create a OSB workload from existing data")
     create_workload_parser.add_argument(
         "--workload",
         "-w",
@@ -254,11 +254,11 @@ def create_arg_parser():
     download_parser = subparsers.add_parser("download", help="Downloads an artifact")
     download_parser.add_argument(
         "--provision-config-repository",
-        help="Define the repository from where Benchmark will load provision_configs and provision_config_instances (default: default).",
+        help="Define the repository from where OSB will load provision_configs and provision_config_instances (default: default).",
         default="default")
     download_parser.add_argument(
         "--provision-config-revision",
-        help="Define a specific revision in the provision_config repository that Benchmark should use.",
+        help="Define a specific revision in the provision_config repository that OSB should use.",
         default=None)
     download_parser.add_argument(
         "--provision-config-path",
@@ -309,11 +309,11 @@ def create_arg_parser():
         default="tar")
     install_parser.add_argument(
         "--provision-config-repository",
-        help="Define the repository from where Benchmark will load provision_configs and provision_config_instances (default: default).",
+        help="Define the repository from where OSB will load provision_configs and provision_config_instances (default: default).",
         default="default")
     install_parser.add_argument(
         "--provision-config-revision",
-        help="Define a specific revision in the provision_config repository that Benchmark should use.",
+        help="Define a specific revision in the provision_config repository that OSB should use.",
         default=None)
     install_parser.add_argument(
         "--provision-config-path",
@@ -437,11 +437,11 @@ def create_arg_parser():
             help="Define the path to the provision_config_instance and plugin configurations to use.")
         p.add_argument(
             "--provision-config-repository",
-            help="Define repository from where Benchmark will load provision_configs and provision_config_instances (default: default).",
+            help="Define repository from where OSB will load provision_configs and provision_config_instances (default: default).",
             default="default")
         p.add_argument(
             "--provision-config-revision",
-            help="Define a specific revision in the provision_config repository that Benchmark should use.",
+            help="Define a specific revision in the provision_config repository that OSB should use.",
             default=None)
 
     test_execution_parser.add_argument(
@@ -521,7 +521,7 @@ def create_arg_parser():
         default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS)
     test_execution_parser.add_argument("--on-error",
                              choices=["continue", "abort"],
-                             help="Controls how Benchmark behaves on response errors (default: continue).",
+                             help="Controls how OSB behaves on response errors (default: continue).",
                              default="continue")
     test_execution_parser.add_argument(
         "--telemetry",
@@ -581,7 +581,7 @@ def create_arg_parser():
         action="store_true")
     test_execution_parser.add_argument(
         "--enable-worker-coordinator-profiling",
-        help="Enables a profiler for analyzing the performance of calls in Benchmark's worker coordinator (default: false).",
+        help="Enables a profiler for analyzing the performance of calls in OSB's worker coordinator (default: false).",
         default=False,
         action="store_true")
     test_execution_parser.add_argument(
@@ -594,7 +594,7 @@ def create_arg_parser():
         "-k",
         action="store_true",
         default=False,
-        help="If any processes is running, it is going to kill them and allow Benchmark to continue to run."
+        help="If any processes is running, it is going to kill them and allow OSB to continue to run."
     )
     test_execution_parser.add_argument(
         "--latency-percentiles",
@@ -653,7 +653,7 @@ def create_arg_parser():
     # The options below are undocumented and can be removed or changed at any time.
     #
     ###############################################################################
-    # This option is intended to tell Benchmark to assume a different start date than 'now'. This is effectively just useful for things like
+    # This option is intended to tell OSB to assume a different start date than 'now'. This is effectively just useful for things like
     # backtesting or a benchmark run across environments (think: comparison of EC2 and bare metal) but never for the typical user.
     test_execution_parser.add_argument(
         "--effective-start-date",
@@ -681,7 +681,7 @@ def create_arg_parser():
             action="store_true")
         p.add_argument(
             "--offline",
-            help="Assume that Benchmark has no connection to the Internet (default: false).",
+            help="Assume that OSB has no connection to the Internet (default: false).",
             default=False,
             action="store_true")
 
@@ -723,23 +723,23 @@ def execute_test(cfg, kill_running_processes=False):
     logger = logging.getLogger(__name__)
 
     if kill_running_processes:
-        logger.info("Killing running Benchmark processes")
+        logger.info("Killing running OSB processes")
 
-        # Kill any lingering Benchmark processes before attempting to continue - the actor system needs to be a singleton on this machine
+        # Kill any lingering OSB processes before attempting to continue - the actor system needs to be a singleton on this machine
         # noinspection PyBroadException
         try:
             process.kill_running_benchmark_instances()
         except BaseException:
             logger.exception(
-                "Could not terminate potentially running Benchmark instances correctly. Attempting to go on anyway.")
+                "Could not terminate potentially running OSB instances correctly. Attempting to go on anyway.")
     else:
         other_benchmark_processes = process.find_all_other_benchmark_processes()
         if other_benchmark_processes:
             pids = [p.pid for p in other_benchmark_processes]
 
-            msg = f"There are other Benchmark processes running on this machine (PIDs: {pids}) but only one Benchmark " \
+            msg = f"There are other OSB processes running on this machine (PIDs: {pids}) but only one OSB " \
                   f"benchmark is allowed to run at the same time.\n\nYou can use --kill-running-processes flag " \
-                  f"to kill running processes automatically and allow Benchmark to continue to run a new benchmark. " \
+                  f"to kill running processes automatically and allow OSB to continue to run a new benchmark. " \
                   f"Otherwise, you need to manually kill them."
             raise exceptions.BenchmarkError(msg)
 
@@ -797,7 +797,7 @@ def with_actor_system(runnable, cfg):
                 except KeyboardInterrupt:
                     times_interrupted += 1
                     logger.warning("User interrupted shutdown of internal actor system.")
-                    console.info("Please wait a moment for Benchmark's internal components to shutdown.")
+                    console.info("Please wait a moment for OSB's internal components to shutdown.")
             if not shutdown_complete and times_interrupted > 0:
                 logger.warning("Terminating after user has interrupted actor system shutdown explicitly for [%d] times.",
                                times_interrupted)
@@ -810,7 +810,7 @@ def with_actor_system(runnable, cfg):
                 console.println("")
             elif not shutdown_complete:
                 console.warn("Could not terminate all internal processes within timeout. Please check and force-terminate "
-                             "all Benchmark processes.")
+                             "all OSB processes.")
 
 
 
@@ -1090,7 +1090,7 @@ def main():
 
     logger.info("OS [%s]", str(platform.uname()))
     logger.info("Python [%s]", str(sys.implementation))
-    logger.info("Benchmark version [%s]", version.version())
+    logger.info("OSB version [%s]", version.version())
     logger.debug("Command line arguments: %s", args)
     # Configure networking
     net.init()

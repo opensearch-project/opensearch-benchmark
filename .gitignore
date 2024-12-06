@@ -100,7 +100,7 @@ target/
 # pyenv
 .python-version
 
-# Benchmark specific
+# OSB specific
 .benchmark_it/
 # Virtualenv for development
 .venv*/
