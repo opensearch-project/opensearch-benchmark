@@ -195,7 +195,7 @@ class Runner:
         return False
 
     def _default_kw_params(self, params):
-        # map of API kwargs to Benchmark config parameters
+        # map of API kwargs to OSB config parameters
         kw_dict = {
             "body": "body",
             "headers": "headers",
@@ -1048,7 +1048,7 @@ class Query(Runner):
     The following meta data are always returned:
 
     * ``weight``: operation-agnostic representation of the "weight" of an
-                  operation (used internally by Benchmark for throughput calculation).
+                  operation (used internally by OSB for throughput calculation).
                   Always 1 for normal queries and the number of retrieved pages for scroll queries.
     * ``unit``: The unit in which to interpret ``weight``. Always "ops".
     * ``hits``: Total number of hits for this operation.
@@ -2500,7 +2500,7 @@ class CompositeContext:
 
 class Composite(Runner):
     """
-    Executes a complex request structure which is measured by Benchmark as one composite operation.
+    Executes a complex request structure which is measured by OSB as one composite operation.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

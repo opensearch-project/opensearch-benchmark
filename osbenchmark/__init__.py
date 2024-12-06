@@ -30,7 +30,7 @@ import pkg_resources
 
 __version__ = pkg_resources.require("opensearch-benchmark")[0].version
 
-# Allow an alternative program name be set in case Benchmark is invoked a wrapper script
+# Allow an alternative program name be set in case OSB is invoked a wrapper script
 PROGRAM_NAME = os.getenv("BENCHMARK_ALTERNATIVE_BINARY_NAME", os.path.basename(sys.argv[0]))
 
 DOC_LINK = "https://opensearch.org/docs"
@@ -80,7 +80,7 @@ $$$$$$$$$$""""           ""$$$$$$$$$$$"
 
 def check_python_version():
     if sys.version_info.major != 3 or sys.version_info.minor < 8:
-        raise RuntimeError("Benchmark requires at least Python 3.8 but you are using:\n\nPython %s" % str(sys.version))
+        raise RuntimeError("OSB requires at least Python 3.8 but you are using:\n\nPython %s" % str(sys.version))
 
 
 def doc_link(path=None):

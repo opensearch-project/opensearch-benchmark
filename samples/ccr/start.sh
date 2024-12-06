@@ -8,7 +8,7 @@
 # 1. Sets up 2 single node (leader and follower) clusters.
 # 2. Starts a single node cluster for metrics store. We can use Kibana attached to the metric store cluster to see the metrics..
 # 3. Configures the seed nodes on the follower cluster and starts replication using autofollow pattern.
-# 4. Runs the eventdata benchmark on the replication setup. Benchmark metrics can be seen on the Kiabana.
+# 4. Runs the eventdata benchmark on the replication setup. OSB metrics can be seen on the Kiabana.
 # 5. To tear down everything, execute ./stop.sh.
 set -e
 

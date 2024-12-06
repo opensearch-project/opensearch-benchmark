@@ -24,7 +24,7 @@ set -u
 # fail on pipeline errors, e.g. when grepping
 set -o pipefail
 
-# We assume here that this script will stay in the Benchmark git root directory (it does not make sense in any other place anyway)
+# We assume here that this script will stay in the OSB git root directory (it does not make sense in any other place anyway)
 
 SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
@@ -40,7 +40,7 @@ cd "${BENCHMARK_SRC_HOME}" >/dev/null 2>&1
 
 # set variables that are needed for run.sh
 __BENCHMARK_INTERNAL_BINARY_NAME="osbenchmark"
-__BENCHMARK_INTERNAL_HUMAN_NAME="Benchmark"
+__BENCHMARK_INTERNAL_HUMAN_NAME="OpenSearch Benchmark"
 
 source run.sh
 

@@ -35,7 +35,7 @@ from osbenchmark import exceptions
 __SCHEDULERS = {}
 
 """
-The scheduler module defines an API to determine *when* Benchmark should issue a request. There are two types of schedulers:
+The scheduler module defines an API to determine *when* OSB should issue a request. There are two types of schedulers:
 
 # Simple Schedulers
 
@@ -51,7 +51,7 @@ A simple scheduler has the following signature::
 In ``__init__`` the current task and the precalculated target throughput denoted in requests per second is provided.
 
 The implementation of ``next`` gets passed the previous point in time in seconds, starting from zero and needs to
-return the next point in time when Benchmark should issue a request.
+return the next point in time when OSB should issue a request.
 
 # Regular Schedulers
 
@@ -72,16 +72,16 @@ class MyScheduler:
 
 * In ``__init__`` the current task is provided. Implementations need to calculate the target throughput themselves based
   on the task's properties.
-* ``before_request`` is invoked by Benchmark before a request is executed. ``now`` provides the current timestamp in seconds.
-* Similarly, ``after_request`` is invoked by Benchmark after a response has been received. ``now`` is the current timestamp,
-  ``weight``, ``unit`` and ``request_meta_data`` are passed from the respective runner. For a bulk request, Benchmark
+* ``before_request`` is invoked by OSB before a request is executed. ``now`` provides the current timestamp in seconds.
+* Similarly, ``after_request`` is invoked by OSB after a response has been received. ``now`` is the current timestamp,
+  ``weight``, ``unit`` and ``request_meta_data`` are passed from the respective runner. For a bulk request, OSB
   passes e.g. ``weight=5000, unit="docs"`` or for a search request ``weight=1, unit="ops"``. Note that when a request
   has finished with an error, the ``weight`` might be zero (depending on the type of error).
 * ``next`` needs to behave identical to simple schedulers.
 
 ``before_request`` and ``after_request`` can be used to adjust the target throughput based on feedback from the runner.
 
-If the scheduler also needs access to the parameter source, provide a ``parameter_source`` property. Benchmark injects the
+If the scheduler also needs access to the parameter source, provide a ``parameter_source`` property. OSB injects the
 task's parameter source into this property.
 """
 
