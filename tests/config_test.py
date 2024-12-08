@@ -296,7 +296,7 @@ class ConfigMigrationTests(TestCase):
 
         config_file.store(sample_config)
         with self.assertRaisesRegex(exceptions.ConfigError,
-                                    "The config file.*is too old. Please delete it and reconfigure Benchmark from scratch"):
+                                    "The config file.*is too old. Please delete it and reconfigure OSB from scratch"):
             config.migrate(config_file, config.Config.EARLIEST_SUPPORTED_VERSION - 1, config.Config.CURRENT_CONFIG_VERSION, out=null_output)
 
     # catch all test, migrations are checked in more detail in the other tests
