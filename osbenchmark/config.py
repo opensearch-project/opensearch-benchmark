@@ -292,7 +292,7 @@ def migrate(config_file, current_version, target_version, out=print, i=input):
         return
     if current_version < Config.EARLIEST_SUPPORTED_VERSION:
         raise exceptions.ConfigError(f"The config file in {config_file.location} is too old. Please delete it "
-                                     f"and reconfigure Benchmark from scratch with {PROGRAM_NAME} configure.")
+                                     f"and reconfigure OSB from scratch with {PROGRAM_NAME} configure.")
 
     logger.info("Upgrading configuration from version [%s] to [%s].", current_version, target_version)
     # Something is really fishy. We don't want to downgrade the configuration.
