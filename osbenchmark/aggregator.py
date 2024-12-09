@@ -23,7 +23,7 @@ class Aggregator:
 
     def count_iterations_for_each_op(self, test_execution) -> None:
         matching_test_procedure = next((tp for tp in self.loaded_workload.test_procedures if tp.name == self.test_procedure_name), None)
-        workload_params = getattr(test_execution, 'workload_params', {})
+        workload_params = test_execution.workload_params if test_execution.workload_params else {}
 
         test_execution_id = test_execution.test_execution_id
         self.accumulated_iterations[test_execution_id] = {}
