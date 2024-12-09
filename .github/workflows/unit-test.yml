@@ -10,6 +10,12 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+      - name: Install bz2 development package
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libbz2-dev
+
       - name: Check out repository code
         uses: actions/checkout@v2
 

@@ -11,6 +11,12 @@ jobs:
           - "3.11"
     runs-on: ubuntu-latest
     steps:
+      - name: Install bz2 development package
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libbz2-dev
+
       - uses: actions/setup-python@v4
 
       - uses: KengoTODA/actions-setup-docker-compose@v1
