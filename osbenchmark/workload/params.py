@@ -550,6 +550,7 @@ class SearchParamSource(ParamSource):
                 f"'type' not supported with 'data-stream' for operation '{kwargs.get('operation_name')}'")
         request_cache = params.get("cache", None)
         detailed_results = params.get("detailed-results", False)
+        calculate_recall = params.get("calculate-recall", True)
         query_body = params.get("body", None)
         pages = params.get("pages", None)
         results_per_page = params.get("results-per-page", None)
@@ -562,6 +563,7 @@ class SearchParamSource(ParamSource):
             "type": type_name,
             "cache": request_cache,
             "detailed-results": detailed_results,
+            "calculate-recall": calculate_recall,
             "request-params": request_params,
             "response-compression-enabled": response_compression_enabled,
             "body": query_body
@@ -851,6 +853,8 @@ class ForceMergeParamSource(ParamSource):
 
 class VectorSearchParamSource(SearchParamSource):
     def __init__(self, workload, params, **kwargs):
+        # print workload
+        logging.getLogger(__name__).info("Workload: [%s], params: [%s]", workload, params)
         super().__init__(workload, params, **kwargs)
         self.delegate_param_source = VectorSearchPartitionParamSource(workload, params, self.query_params, **kwargs)
         self.corpora = self.delegate_param_source.corpora

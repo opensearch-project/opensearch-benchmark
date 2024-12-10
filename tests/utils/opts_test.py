@@ -25,6 +25,7 @@
 import os
 from unittest import TestCase
 
+import unittest.mock as mock
 from osbenchmark.utils import opts
 
 
@@ -140,6 +141,26 @@ class GenericHelperFunctionTests(TestCase):
                 ["number_of_shards", "number_of-replicas"],
                 [])
         )
+
+    def test_to_dict_str(self):
+        json = '{ "field": 2 }'
+        rsl = opts.to_dict(json)
+        self.assertEqual(rsl, {"field": 2})
+
+        rsl = opts.to_dict('a:1,b:2')
+        self.assertEqual(rsl, {'a': 1, 'b': 2})
+
+    @mock.patch("json.loads")
+    def test_to_dict_file(self, json_loads):
+        mo = mock.mock_open()
+        with mock.patch("builtins.open", mo):
+            opts.to_dict('params.json')
+        mo.assert_called()
+
+        mo = mock.mock_open()
+        with mock.patch("builtins.open", mo):
+            opts.to_dict('index_body:idx.json')
+        mo.assert_not_called()
 
 
 class TestTargetHosts(TestCase):

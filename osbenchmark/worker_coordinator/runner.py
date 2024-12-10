@@ -37,6 +37,7 @@ from enum import Enum
 from functools import total_ordering
 from io import BytesIO
 from os.path import commonprefix
+import multiprocessing
 from typing import List, Optional
 
 import ijson
@@ -1345,29 +1346,49 @@ class Query(Runner):
 
                 return correct / min_num_of_results
 
+            def _set_initial_recall_values(params: dict, result: dict) -> None:
+                # Add recall@k and recall@1 to the initial result only if k is present in the params and calculate_recall is true
+                if "k" in params:
+                    result.update({
+                        "recall@k": 0,
+                        "recall@1": 0
+                    })
+                # Add recall@max_distance and recall@max_distance_1 to the initial result only if max_distance is present in the params
+                elif "max_distance" in params:
+                    result.update({
+                        "recall@max_distance": 0,
+                        "recall@max_distance_1": 0
+                    })
+                # Add recall@min_score and recall@min_score_1 to the initial result only if min_score is present in the params
+                elif "min_score" in params:
+                    result.update({
+                        "recall@min_score": 0,
+                        "recall@min_score_1": 0
+                    })
+
+            def _get_should_calculate_recall(params: dict) -> bool:
+                # set in global config (benchmark.ini) and passed by AsyncExecutor
+                num_clients = params.get("num_clients", 0)
+                if num_clients == 0:
+                    self.logger.debug("Expected num_clients to be specified but was not.")
+                # default is set for runner unit tests based on default logic for available.cores in worker_coordinator
+                cpu_count = params.get("num_cores", multiprocessing.cpu_count())
+                if cpu_count < num_clients:
+                    self.logger.warning("Number of clients, %s, specified is greater than the number of CPUs, %s, available."\
+                                        "This will lead to unperformant context switching on load generation host. Performance "\
+                                        "metrics may not be accurate. Skipping recall calculation.", num_clients, cpu_count)
+                    return False
+                return params.get("calculate-recall", True)
+
             result = {
                 "weight": 1,
                 "unit": "ops",
                 "success": True,
             }
-            # Add recall@k and recall@1 to the initial result only if k is present in the params
-            if "k" in params:
-                result.update({
-                    "recall@k": 0,
-                    "recall@1": 0
-                })
-            # Add recall@max_distance and recall@max_distance_1 to the initial result only if max_distance is present in the params
-            elif "max_distance" in params:
-                result.update({
-                    "recall@max_distance": 0,
-                    "recall@max_distance_1": 0
-                })
-            # Add recall@min_score and recall@min_score_1 to the initial result only if min_score is present in the params
-            elif "min_score" in params:
-                result.update({
-                    "recall@min_score": 0,
-                    "recall@min_score_1": 0
-                })
+            # deal with clients here. Need to get num_clients
+            should_calculate_recall = _get_should_calculate_recall(params)
+            if should_calculate_recall:
+                _set_initial_recall_values(params, result)
 
             doc_type = params.get("type")
             response = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
@@ -1390,6 +1411,10 @@ class Query(Runner):
             if _is_empty_search_results(response_json):
                 self.logger.info("Vector search query returned no results.")
                 return result
+
+            if not should_calculate_recall:
+                return result
+
             id_field = parse_string_parameter("id-field-name", params, "_id")
             candidates = []
             for hit in response_json['hits']['hits']:
