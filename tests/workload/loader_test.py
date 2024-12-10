@@ -1844,6 +1844,7 @@ class WorkloadRandomizationTests(TestCase):
             self.op_name_2 = "op-name-2"
             self.field_name_1 = "dummy_field_1"
             self.field_name_2 = "dummy_field_2"
+            self.field_name_3 = "dummy_field_3"
             self.index_name = "dummy_index"
 
             # Make the saved standard values different from the functions generating the new values,
@@ -1855,7 +1856,7 @@ class WorkloadRandomizationTests(TestCase):
                     self.field_name_2:{"lte":"06/06/2016", "gte":"05/05/2016", "format":"dd/MM/yyyy"}
                 },
                 self.op_name_2:{
-                    self.field_name_1:{"lte":11, "gte":10}
+                    self.field_name_3:{"top_left":[-9, 9], "bottom_right":[0, 0]}
                 }
             }
 
@@ -1866,7 +1867,7 @@ class WorkloadRandomizationTests(TestCase):
                     self.field_name_2:{"lte":"04/04/2016", "gte":"03/03/2016", "format":"dd/MM/yyyy"}
                 },
                 self.op_name_2:{
-                    self.field_name_1:{"lte":15, "gte":14},
+                    self.field_name_3:{"top_left":[-10, 10], "bottom_right":[0, 0]},
                 }
             }
 
@@ -1907,10 +1908,10 @@ class WorkloadRandomizationTests(TestCase):
                 "body": {
                     "size": 0,
                     "query": {
-                        "range": {
-                            self.field_name_1: {
-                                "lt": 50,
-                                "gte": 0
+                        "geo_bounding_box": {
+                            self.field_name_3: {
+                                "top_left": [-0.1, 61.0],
+                                "bottom_right": [15.0, 48.0]
                             }
                         }
                     }
@@ -1985,7 +1986,7 @@ class WorkloadRandomizationTests(TestCase):
                 }
             }
         }
-        single_range_query_result = processor.extract_fields_and_paths(single_range_query)
+        single_range_query_result = processor.extract_fields_and_paths(single_range_query, loader.QueryRandomizerWorkloadProcessor.DEFAULT_TARGET_KEYS_INFO)
         single_range_query_expected = [("trip_distance", ["bool", "filter", "range"])]
         self.assertEqual(single_range_query_result, single_range_query_expected)
 
@@ -2038,7 +2039,7 @@ class WorkloadRandomizationTests(TestCase):
                 }
             }
         }
-        multiple_nested_range_query_result = processor.extract_fields_and_paths(multiple_nested_range_query)
+        multiple_nested_range_query_result = processor.extract_fields_and_paths(multiple_nested_range_query, loader.QueryRandomizerWorkloadProcessor.DEFAULT_TARGET_KEYS_INFO)
         print("Multi result: ", multiple_nested_range_query_result)
         multiple_nested_range_query_expected = [
             ("dropoff_datetime", ["range"]),
@@ -2050,11 +2051,32 @@ class WorkloadRandomizationTests(TestCase):
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             params = {"body":{"contents":["not_a_valid_query"]}}
-            _ = processor.extract_fields_and_paths(params)
+            _ = processor.extract_fields_and_paths(params, loader.QueryRandomizerWorkloadProcessor.DEFAULT_TARGET_KEYS_INFO)
             self.assertEqual(
                 f"Cannot extract range query fields from these params: {params}\n, missing params[\"body\"][\"query\"]\n"
                 f"Make sure the operation in operations/default.json is well-formed",
                          ctx.exception.args[0])
+            
+        # Test a non-default value for target_keys_info
+        geo_point_query = {
+            "name": "bbox",
+            "operation-type": "search",
+            "body": {
+                "query": {
+                    "geo_bounding_box": {
+                        "location": {
+                            "top_left": [-0.1, 61.0],
+                            "bottom_right": [15.0, 48.0]
+                        }
+                    }
+                }
+            }
+        }
+        geo_point_target_keys_info = loader.QueryRandomizerWorkloadProcessor.TargetKeysInfo("geo_bounding_box", [["top_left"], ["bottom_right"]], [])
+        geo_point_result = processor.extract_fields_and_paths(geo_point_query, geo_point_target_keys_info)
+        geo_point_expected = [("location", ["geo_bounding_box"])]
+        self.assertEqual(geo_point_result, geo_point_expected)
+
 
     def test_get_randomized_values(self):
         helper = self.StandardValueHelper()
@@ -2084,17 +2106,18 @@ class WorkloadRandomizationTests(TestCase):
 
             self.assertEqual(modified_params["index"], helper.index_name)
 
-            # Test resulting params for operation 2
+            # Test resulting params for operation 2, which uses a non-default target_keys_info
             workload = helper.get_simple_workload()
+            geo_point_target_keys_info = loader.QueryRandomizerWorkloadProcessor.TargetKeysInfo("geo_bounding_box", [["top_left"], ["bottom_right"]], [])
             modified_params = processor.get_randomized_values(workload, helper.op_2_query, op_name=helper.op_name_2,
                                                             get_standard_value=helper.get_standard_value,
-                                                            get_standard_value_source=helper.get_standard_value_source)
-            modified_range_1 = modified_params["body"]["query"]["range"][helper.field_name_1]
+                                                            get_standard_value_source=helper.get_standard_value_source,
+                                                            target_keys_info=geo_point_target_keys_info)
+            modified_range_3 = modified_params["body"]["query"]["geo_bounding_box"][helper.field_name_3]
 
-            self.assertEqual(modified_range_1["lt"], expected_values_dict[helper.op_name_2][helper.field_name_1]["lte"])
-            self.assertEqual(modified_range_1["gte"], expected_values_dict[helper.op_name_2][helper.field_name_1]["gte"])
+            self.assertEqual(modified_range_3["top_left"], expected_values_dict[helper.op_name_2][helper.field_name_3]["top_left"])
+            self.assertEqual(modified_range_3["bottom_right"], expected_values_dict[helper.op_name_2][helper.field_name_3]["bottom_right"])
             self.assertEqual(modified_params["index"], helper.index_name)
-
 
     def test_on_after_load_workload(self):
         cfg = config.Config()
@@ -2121,7 +2144,8 @@ class WorkloadRandomizationTests(TestCase):
         self.assertNotEqual(
             repr(input_workload),
             repr(processor.on_after_load_workload(input_workload, get_standard_value=helper.get_standard_value,
-                                                            get_standard_value_source=helper.get_standard_value_source)))
+                                                            get_standard_value_source=helper.get_standard_value_source,
+                                                            target_keys_info=None)))
         for test_procedure in input_workload.test_procedures:
             for task in test_procedure.schedule:
                 for leaf_task in task:
