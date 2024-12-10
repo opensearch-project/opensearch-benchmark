@@ -1266,7 +1266,7 @@ class Query(Runner):
                         low = mid + 1
                 return low - 1
 
-            def calculate_topk_search_recall(predictions, neighbors, top_k, request_id):
+            def calculate_topk_search_recall(predictions, neighbors, top_k):
                 """
                 Calculates the recall by comparing top_k neighbors with predictions.
                 recall = Sum of matched neighbors from predictions / total number of neighbors from ground truth
@@ -1370,8 +1370,6 @@ class Query(Runner):
                 })
 
             doc_type = params.get("type")
-            logger = logging.getLogger(__name__)
-            logger.info("Sending request with request id: %s", request_id)
             response = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
             if detailed_results:
                 props = parse(response, ["hits.total", "hits.total.value", "hits.total.relation", "timed_out", "took"])
@@ -1404,8 +1402,8 @@ class Query(Runner):
 
             if "k" in params:
                 num_neighbors = params.get("k", 1)
-                recall_top_k = calculate_topk_search_recall(candidates, neighbors_dataset, num_neighbors, request_id)
-                recall_top_1 = calculate_topk_search_recall(candidates, neighbors_dataset, 1, request_id)
+                recall_top_k = calculate_topk_search_recall(candidates, neighbors_dataset, num_neighbors)
+                recall_top_1 = calculate_topk_search_recall(candidates, neighbors_dataset, 1)
                 result.update({"recall@k": recall_top_k})
                 result.update({"recall@1": recall_top_1})
 
