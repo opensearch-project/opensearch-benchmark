@@ -586,7 +586,7 @@ def create_arg_parser():
         action="store_true")
     test_execution_parser.add_argument(
         "--profiling-sort-type",
-        help="Only effective if profiling worker coordinator",
+        help="Sort outputted profile.log by column name. Only applies if --enable-worker-coordinator-profiling is provided",
         default=None)
     test_execution_parser.add_argument(
         "--enable-assertions",
