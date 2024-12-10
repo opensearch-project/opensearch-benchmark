@@ -31,7 +31,6 @@ import re
 import sys
 import time
 import types
-import uuid
 from collections import Counter, OrderedDict
 from copy import deepcopy
 from enum import Enum
@@ -1278,10 +1277,6 @@ class Query(Runner):
                 Returns:
                     Recall between predictions and top k neighbors from ground truth
                 """
-                self.logger.info("CALCULATING RECALL FOR REQUEST ID: %s", request_id)
-                self.logger.info("Predictions: %s", predictions)
-                self.logger.info("Neighbors: %s", neighbors)
-                self.logger.info("Top k: %s", top_k)
                 correct = 0.0
                 if neighbors is None:
                     self.logger.info("No neighbors are provided for recall calculation")
@@ -1376,13 +1371,8 @@ class Query(Runner):
 
             doc_type = params.get("type")
             logger = logging.getLogger(__name__)
-            logger.info("BODY FOR REQUEST: %s", body)
-            logger.info("REQUEST PARAMS: %s", request_params)
-            request_id = str(uuid.uuid4())
             logger.info("Sending request with request id: %s", request_id)
-            response, response_request_id = await self._raw_search(opensearch, doc_type, index, body, request_params, request_id, headers=headers)
-            # logger.info("Request Cache in Vectorsearch Query: %s", request_params["cache"])
-            # logger.info("Response from Vector Search Query that was issued: %s: ", response)
+            response = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
             if detailed_results:
                 props = parse(response, ["hits.total", "hits.total.value", "hits.total.relation", "timed_out", "took"])
                 hits_total = props.get("hits.total.value", props.get("hits.total", 0))
@@ -1399,7 +1389,6 @@ class Query(Runner):
 
             recall_processing_start = time.perf_counter()
             response_json = json.loads(response.getvalue())
-            self.logger.info("Request ID %s response JSON from Vector Search Query: %s", response_request_id, response_json)
             if _is_empty_search_results(response_json):
                 self.logger.info("Vector search query returned no results.")
                 return result
@@ -1413,10 +1402,7 @@ class Query(Runner):
                 candidates.append(field_value)
             neighbors_dataset = params["neighbors"]
 
-            logger.info("Candidates from %s and neighbors from %s", response_request_id, request_id)
-
             if "k" in params:
-                self.logger.info("Params before calculating K: %s", params)
                 num_neighbors = params.get("k", 1)
                 recall_top_k = calculate_topk_search_recall(candidates, neighbors_dataset, num_neighbors, request_id)
                 recall_top_1 = calculate_topk_search_recall(candidates, neighbors_dataset, 1, request_id)
@@ -1448,13 +1434,11 @@ class Query(Runner):
                                                 "and will be removed in a future release. Use 'scroll-search' instead.")
             return await _scroll_query(opensearch, params)
         elif search_method == "vector-search":
-            logger = logging.getLogger(__name__)
-            logger.info("Starting vectorsearch query")
             return await _vector_search_query_with_recall(opensearch, params)
         else:
             return await _request_body_query(opensearch, params)
 
-    async def _raw_search(self, opensearch, doc_type, index, body, params, request_id, headers=None):
+    async def _raw_search(self, opensearch, doc_type, index, body, params, headers=None):
         components = []
         if index:
             components.append(index)
@@ -1465,7 +1449,7 @@ class Query(Runner):
         request_context_holder.on_client_request_start()
         response = await opensearch.transport.perform_request("GET", "/" + path, params=params, body=body, headers=headers)
         request_context_holder.on_client_request_end()
-        return response, request_id
+        return response
 
     def _query_headers(self, params):
         # reduces overhead due to decompression of very large responses

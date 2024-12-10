@@ -567,8 +567,6 @@ class SearchParamSource(ParamSource):
             "body": query_body
         }
 
-        self.logger.info("Query Params: %s", self.query_params)
-
         if not target_name:
             raise exceptions.InvalidSyntax(
                 f"'index' or 'data-stream' is mandatory and is missing for operation '{kwargs.get('operation_name')}'")
@@ -858,8 +856,6 @@ class VectorSearchParamSource(SearchParamSource):
         self.corpora = self.delegate_param_source.corpora
 
     def partition(self, partition_index, total_partitions):
-        self.logger.info("Vector Search Param Source Partition Method.")
-        self.logger.info("Partition index %s, total partitions %s", partition_index, total_partitions)
         return self.delegate_param_source.partition(partition_index, total_partitions)
 
     def params(self):
@@ -1132,13 +1128,10 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         efficient_filter = filter_body if filter_type == "efficient" else None
 
         # override query params with vector search query
-        self.logger.info("BUILDING VECTORSEARCH QUERY BODY")
         body_params[self.PARAMS_NAME_QUERY] = self._build_vector_search_query_body(vector, efficient_filter, filter_type, filter_body)
-        self.logger.info("Vectorsearch query: %s", body_params[self.PARAMS_NAME_QUERY])
 
         if filter_type == "post_filter":
             body_params["post_filter"] = filter_body
-        self.logger.info("Running update with query params")
         self.query_params.update({self.PARAMS_NAME_BODY: body_params})
 
     def partition(self, partition_index, total_partitions):
@@ -1172,7 +1165,6 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         vector = self.data_set.read(1)[0]
         neighbor = self.neighbors_data_set.read(1)[0]
         true_neighbors = list(map(str, neighbor[:self.k]))
-        self.logger.info("Updating true neighbors in query params")
         self.query_params.update({
             "neighbors": true_neighbors,
         })
@@ -1894,8 +1886,6 @@ class SourceOnlyIndexDataReader(IndexDataReader):
 register_param_source_for_operation(workload.OperationType.Bulk, BulkIndexParamSource)
 register_param_source_for_operation(workload.OperationType.BulkVectorDataSet, BulkVectorsFromDataSetParamSource)
 register_param_source_for_operation(workload.OperationType.Search, SearchParamSource)
-logger = logging.getLogger(__name__)
-logger.info("Registering param source for vector search")
 register_param_source_for_operation(workload.OperationType.VectorSearch, VectorSearchParamSource)
 register_param_source_for_operation(workload.OperationType.CreateIndex, CreateIndexParamSource)
 register_param_source_for_operation(workload.OperationType.DeleteIndex, DeleteIndexParamSource)
