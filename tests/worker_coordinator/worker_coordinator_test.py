@@ -1680,7 +1680,10 @@ class AsyncProfilerTests(TestCase):
             await asyncio.sleep(x)
             return x * 2
 
-        profiler = worker_coordinator.AsyncProfiler(f)
+        client_id = 2
+        task = "queries"
+        sort_type = None
+        profiler = worker_coordinator.AsyncProfiler(f, client_id, task, sort_type)
         start = time.perf_counter()
         # this should take roughly 1 second and should return something
         return_value = await profiler(1)

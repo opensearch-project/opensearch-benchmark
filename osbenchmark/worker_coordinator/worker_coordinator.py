@@ -1529,7 +1529,9 @@ class AsyncIoAdapter:
             async_executor = AsyncExecutor(
                 client_id, task, schedule, opensearch, self.sampler, self.cancel, self.complete,
                 task.error_behavior(self.abort_on_error), self.cfg)
-            final_executor = AsyncProfiler(async_executor, client_id, task, sort_type=self.profiling_sort_type) if self.profiling_enabled else async_executor
+            final_executor = AsyncProfiler(
+                async_executor, client_id,
+                task, self.profiling_sort_type) if self.profiling_enabled else async_executor
             aws.append(final_executor())
         run_start = time.perf_counter()
         try:
@@ -1577,7 +1579,8 @@ class AsyncProfiler:
             if self.sort_type:
                 if self.sort_type not in self.SORT_TYPES:
                     raise exceptions.SystemSetupError(
-                        f"{self.sort_type} is an invalid sort type. Available sort types in Async Profiler are: {[sort_type for sort_type in self.SORT_TYPES]}"
+                        f"{self.sort_type} is an invalid sort type. "
+                        f"Available sort types in Async Profiler are: {self.SORT_TYPES}"
                     )
 
                 self.logger.info("Using Async Profiler and sort type: %s", self.sort_type)
