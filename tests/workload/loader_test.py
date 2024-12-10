@@ -2091,7 +2091,8 @@ class WorkloadRandomizationTests(TestCase):
 
             # Test resulting params for operation 1
             workload = helper.get_simple_workload()
-            modified_params = processor.get_randomized_values(workload, helper.op_1_query, op_name=helper.op_name_1,
+            modified_params = processor.get_randomized_values(workload, helper.op_1_query,loader.QueryRandomizerWorkloadProcessor.DEFAULT_TARGET_KEYS_INFO, 
+                                                            op_name=helper.op_name_1,
                                                             get_standard_value=helper.get_standard_value,
                                                             get_standard_value_source=helper.get_standard_value_source)
             modified_range_1 = modified_params["body"]["query"]["bool"]["filter"]["range"][helper.field_name_1]
@@ -2109,10 +2110,10 @@ class WorkloadRandomizationTests(TestCase):
             # Test resulting params for operation 2, which uses a non-default target_keys_info
             workload = helper.get_simple_workload()
             geo_point_target_keys_info = loader.QueryRandomizerWorkloadProcessor.TargetKeysInfo("geo_bounding_box", [["top_left"], ["bottom_right"]], [])
-            modified_params = processor.get_randomized_values(workload, helper.op_2_query, op_name=helper.op_name_2,
+            modified_params = processor.get_randomized_values(workload, helper.op_2_query, geo_point_target_keys_info,
+                                                            op_name=helper.op_name_2,
                                                             get_standard_value=helper.get_standard_value,
-                                                            get_standard_value_source=helper.get_standard_value_source,
-                                                            target_keys_info=geo_point_target_keys_info)
+                                                            get_standard_value_source=helper.get_standard_value_source)
             modified_range_3 = modified_params["body"]["query"]["geo_bounding_box"][helper.field_name_3]
 
             self.assertEqual(modified_range_3["top_left"], expected_values_dict[helper.op_name_2][helper.field_name_3]["top_left"])

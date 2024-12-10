@@ -1099,15 +1099,10 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
         # minus 1 for mapping [1, N] to [0, N-1] of list indices
         return self.zipf_cdf_inverse(random.random(), self.H_list) - 1
 
-    def get_randomized_values(self, input_workload, input_params,
+    def get_randomized_values(self, input_workload, input_params, target_keys_info,
                               get_standard_value=params.get_standard_value,
                               get_standard_value_source=params.get_standard_value_source, # Made these configurable for simpler unit tests
-                              target_keys_info=None, 
                               **kwargs):
-        
-        if target_keys_info is None: 
-            target_keys_info = self.DEFAULT_TARGET_KEYS_INFO
-
         # The queries as listed in operations/default.json don't have the index param,
         # unlike the custom ones you would specify in workload.py, so we have to add them ourselves
         if not "index" in input_params:
@@ -1127,11 +1122,10 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
             input_params = self.set_range(input_params, fields_and_paths, new_values, target_keys_info)
         return input_params
 
-    def create_param_source_lambda(self, op_name, get_standard_value, get_standard_value_source, target_keys_info):
-        return lambda w, p, **kwargs: self.get_randomized_values(w, p,
+    def create_param_source_lambda(self, op_name, get_standard_value, get_standard_value_source, get_target_keys_info):
+        return lambda w, p, **kwargs: self.get_randomized_values(w, p, target_keys_info=get_target_keys_info(op_name),
                                                                  get_standard_value=get_standard_value,
                                                                  get_standard_value_source=get_standard_value_source,
-                                                                 target_keys_info=target_keys_info,
                                                                  op_name=op_name, **kwargs)
 
     def on_after_load_workload(self, input_workload, **kwargs):
@@ -1173,10 +1167,10 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
                         param_source_name,
                         self.create_param_source_lambda(op_name, get_standard_value=kwargs["get_standard_value"],
                                                         get_standard_value_source=kwargs["get_standard_value_source"], 
-                                                        target_keys_info=None)) # TODO: allow registration
+                                                        get_target_keys_info=params.get_target_keys_info)) # TODO: allow registration
                     leaf_task.operation.param_source = param_source_name
                     # Generate the right number of standard values for this field, if not already present
-                    for field_and_path in self.extract_fields_and_paths(leaf_task.operation.params, self.DEFAULT_TARGET_KEYS_INFO): # TODO: Use registered info
+                    for field_and_path in self.extract_fields_and_paths(leaf_task.operation.params, params.get_target_keys_info(op_name)):
                         if generate_new_standard_values:
                             params.generate_standard_values_if_absent(op_name, field_and_path[0], self.N)
         return input_workload
@@ -1399,6 +1393,9 @@ class WorkloadPluginReader:
     def register_standard_value_source(self, op_name, field_name, standard_value_source):
         # Define a value source for parameters for a given operation name and field name, for use in randomization
         params.register_standard_value_source(op_name, field_name, standard_value_source)
+
+    def register_target_keys_info(self, op_name, query_name, value_name_options_list, optional_values): 
+        params.register_target_keys_info(op_name, query_name, value_name_options_list, optional_values)
 
     @property
     def meta_data(self):

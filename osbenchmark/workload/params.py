@@ -42,12 +42,14 @@ from osbenchmark.utils import io
 from osbenchmark.utils.dataset import DataSet, get_data_set, Context
 from osbenchmark.utils.parse import parse_string_parameter, parse_int_parameter
 from osbenchmark.workload import workload
+from osbenchmark.workload import loader
 
 __PARAM_SOURCES_BY_OP = {}
 __PARAM_SOURCES_BY_NAME = {}
 
 __STANDARD_VALUE_SOURCES = {}
 __STANDARD_VALUES = {}
+__TARGET_KEYS_INFOS = {}
 
 def param_source_for_operation(op_type, workload, params, task_name):
     try:
@@ -118,6 +120,18 @@ def get_standard_value(op_name, field_name, i):
         raise exceptions.SystemSetupError(
             "Standard value index {} out of range for operation {}, field name {} ({} values total)"
             .format(i, op_name, field_name, len(__STANDARD_VALUES[op_name][field_name])))
+    
+def register_target_keys_info(op_name, query_name, value_name_options_list, optional_values): 
+    # target_keys_info is registered at the operation level
+    target_keys_info = loader.QueryRandomizerWorkloadProcessor.TargetKeysInfo(query_name, value_name_options_list, optional_values)
+    __TARGET_KEYS_INFOS[op_name] = target_keys_info
+
+def get_target_keys_info(op_name): 
+    try: 
+        return  __TARGET_KEYS_INFOS[op_name]
+    except KeyError: 
+        return loader.QueryRandomizerWorkloadProcessor.DEFAULT_TARGET_KEYS_INFO # If nothing is registered, return the default.
+
 
 
 # only intended for tests
@@ -130,6 +144,9 @@ def _unregister_param_source_for_name(name):
 def _clear_standard_values():
     __STANDARD_VALUES = {}
     __STANDARD_VALUE_SOURCES = {}
+
+def _clear_target_keys_infos(): 
+    __TARGET_KEYS_INFOS = {}
 
 # Default
 class ParamSource:
