@@ -1528,7 +1528,7 @@ class AsyncIoAdapter:
             schedule = schedule_for(task, task_allocation.client_index_in_task, params_per_task[task])
             async_executor = AsyncExecutor(
                 client_id, task, schedule, opensearch, self.sampler, self.cancel, self.complete,
-                task.error_behavior(self.abort_on_error))
+                task.error_behavior(self.abort_on_error), self.cfg)
             final_executor = AsyncProfiler(async_executor, client_id, task, sort_type=self.profiling_sort_type) if self.profiling_enabled else async_executor
             aws.append(final_executor())
         run_start = time.perf_counter()
