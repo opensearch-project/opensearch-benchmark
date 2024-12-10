@@ -99,7 +99,7 @@ def init(quiet=False, assume_tty=True):
     """
     Initialize console out.
 
-    :param quiet: Flag indicating whether Benchmark should not print anything except when forced explicitly. Default: False.
+    :param quiet: Flag indicating whether OSB should not print anything except when forced explicitly. Default: False.
     :param assume_tty: Flag indicating whether to assume a tty is attached without checking. Default: True.
     """
     global QUIET, ASSUME_TTY, BENCHMARK_RUNNING_IN_DOCKER, PLAIN, format
@@ -129,8 +129,8 @@ def init(quiet=False, assume_tty=True):
 
 def set_assume_tty(assume_tty):
     """
-    Change whether Benchmark should assume a tty. If ``True`` is provided, output will be printed. If ``False`` is provided,
-    Benchmark will explicitly check whether it is attached to a tty before attempting to print anything.
+    Change whether OSB should assume a tty. If ``True`` is provided, output will be printed. If ``False`` is provided,
+    OSB will explicitly check whether it is attached to a tty before attempting to print anything.
 
     :param assume_tty: Flag indicating whether to assume a tty is attached without checking.
     """

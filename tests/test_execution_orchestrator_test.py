@@ -97,8 +97,8 @@ def test_fails_without_benchmark_only_pipeline_in_docker(running_in_docker, unit
     with pytest.raises(
             exceptions.SystemSetupError,
             match=re.escape(
-                "Only the [benchmark-only] pipeline is supported by the Benchmark Docker image.\n"
-                "Add --pipeline=benchmark-only in your Benchmark arguments and try again.\n"
+                "Only the [benchmark-only] pipeline is supported by the OSB Docker image.\n"
+                "Add --pipeline=benchmark-only in your OSB arguments and try again.\n"
                 "For more details read the docs for the benchmark-only pipeline in "
                 "https://opensearch.org/docs\n"
             )):

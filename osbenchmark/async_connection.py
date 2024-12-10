@@ -174,7 +174,7 @@ class AIOHttpConnection(opensearchpy.AIOHttpConnection):
                          http_auth=http_auth,
                          use_ssl=use_ssl,
                          ssl_assert_fingerprint=ssl_assert_fingerprint,
-                         # provided to the base class via `maxsize` to keep base class state consistent despite Benchmark
+                         # provided to the base class via `maxsize` to keep base class state consistent despite OSB
                          # calling the attribute differently.
                          maxsize=max(256, kwargs.get("max_connections", 0)),
                          headers=headers,
@@ -251,7 +251,7 @@ class AsyncHttpConnection(opensearchpy.AsyncHttpConnection):
                          http_auth=http_auth,
                          use_ssl=use_ssl,
                          ssl_assert_fingerprint=ssl_assert_fingerprint,
-                         # provided to the base class via `maxsize` to keep base class state consistent despite Benchmark
+                         # provided to the base class via `maxsize` to keep base class state consistent despite OSB
                          # calling the attribute differently.
                          maxsize=max(256, kwargs.get("max_connections", 0)),
                          headers=headers,
