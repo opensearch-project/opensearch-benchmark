@@ -1549,7 +1549,7 @@ class AsyncIoAdapter:
 
 
 class AsyncProfiler:
-    SORT_TYPES = ["ncall", "ttot"]
+    SORT_TYPES = ["ncall", "tsub", "ttot", "tavg"]
 
     def __init__(self, target, client_id, task, sort_type):
         """
@@ -1598,7 +1598,6 @@ class AsyncProfiler:
                 3: ("ttot", 8),
                 4: ("tavg", 8)
             })
-
 
             profile = f"\n=== Profile start for client id [{self.client_id}] and task [{self.task}] ===\n"
             profile += s.getvalue()
