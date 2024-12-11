@@ -1577,6 +1577,8 @@ class AsyncProfiler:
             yappi.stop()
             s = python_io.StringIO()
 
+            stats = yappi.get_func_stats()
+
             if self.sort_type:
                 if self.sort_type not in self.SORT_TYPES:
                     raise exceptions.SystemSetupError(
@@ -1585,28 +1587,17 @@ class AsyncProfiler:
                     )
 
                 self.logger.info("Using Async Profiler with sort type: %s", self.sort_type)
-                # Return stats in desc order for ncalls
-                stats = yappi.get_func_stats()
                 stats.sort(sort_type=self.sort_type, sort_order='desc')
-
-                # Print all results
-                stats.print_all(out=s, columns={
-                        0: ("name", 140),
-                        1: ("ncall", 8),
-                        2: ("tsub", 8),
-                        3: ("ttot", 8),
-                        4: ("tavg", 8)
-                    }
-                )
             else:
-                self.logger.info("Using Async Profiler")
-                yappi.get_func_stats().print_all(out=s, columns={
-                    0: ("name", 140),
-                    1: ("ncall", 8),
-                    2: ("tsub", 8),
-                    3: ("ttot", 8),
-                    4: ("tavg", 8)
-                })
+                self.logger.info("Using Async Profiler without sort type")
+
+            stats.print_all(out=s, columns={
+                0: ("name", 140),
+                1: ("ncall", 8),
+                2: ("tsub", 8),
+                3: ("ttot", 8),
+                4: ("tavg", 8)
+            })
 
 
             profile = f"\n=== Profile start for client id [{self.client_id}] and task [{self.task}] ===\n"
