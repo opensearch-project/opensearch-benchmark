@@ -1392,6 +1392,7 @@ class Query(Runner):
 
             doc_type = params.get("type")
             response = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
+
             if detailed_results:
                 props = parse(response, ["hits.total", "hits.total.value", "hits.total.relation", "timed_out", "took"])
                 hits_total = props.get("hits.total.value", props.get("hits.total", 0))

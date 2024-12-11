@@ -1136,6 +1136,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
 
         if filter_type == "post_filter":
             body_params["post_filter"] = filter_body
+
         self.query_params.update({self.PARAMS_NAME_BODY: body_params})
 
     def partition(self, partition_index, total_partitions):
