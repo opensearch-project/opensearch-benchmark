@@ -38,6 +38,7 @@ from osbenchmark import version, actor, config, paths, \
     test_execution_orchestrator, results_publisher, \
         metrics, workload, exceptions, log
 from osbenchmark.builder import provision_config, builder
+from osbenchmark.worker_coordinator import worker_coordinator
 from osbenchmark.workload_generator import workload_generator
 from osbenchmark.utils import io, convert, process, console, net, opts, versions
 from osbenchmark import aggregator
@@ -581,12 +582,14 @@ def create_arg_parser():
         action="store_true")
     test_execution_parser.add_argument(
         "--enable-worker-coordinator-profiling",
-        help="Enables a profiler for analyzing the performance of calls in Benchmark's worker coordinator (default: false).",
+        help="Enables a profiler for analyzing the performance of calls in OSB's worker coordinator (default: false). "
+            "Outputs to ~/.benchmark/logs/ as profile.log",
         default=False,
         action="store_true")
     test_execution_parser.add_argument(
         "--profiling-sort-type",
-        help="Sort outputted profile.log by column name. Only applies if --enable-worker-coordinator-profiling is provided",
+        help=f"Sort profile.log by sort types (column names). Only applies if --enable-worker-coordinator-profiling is provided. "
+            f"Available sort types: {worker_coordinator.AsyncProfiler.SORT_TYPES}. Default is None.",
         default=None)
     test_execution_parser.add_argument(
         "--enable-assertions",

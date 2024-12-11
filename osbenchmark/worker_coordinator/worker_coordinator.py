@@ -1550,12 +1550,13 @@ class AsyncIoAdapter:
 
 class AsyncProfiler:
     SORT_TYPES = ["ncall", "ttot"]
+
     def __init__(self, target, client_id, task, sort_type):
         """
         :param target: The actual executor which should be profiled.
         :param client_id: The client that is being profiled.
         :param task: The task in the workload that is being profiled.
-        :param sort_type: If not None, the column to sort profiled results on.
+        :param sort_type: If not None, the column to sort profiled results on. If None, output is not sorted
         """
         self.target = target
         self.client_id = client_id
@@ -1583,8 +1584,7 @@ class AsyncProfiler:
                         f"Available sort types in Async Profiler are: {self.SORT_TYPES}"
                     )
 
-                self.logger.info("Using Async Profiler and sort type: %s", self.sort_type)
-
+                self.logger.info("Using Async Profiler with sort type: %s", self.sort_type)
                 # Return stats in desc order for ncalls
                 stats = yappi.get_func_stats()
                 stats.sort(sort_type=self.sort_type, sort_order='desc')
@@ -1919,7 +1919,6 @@ class Allocator:
             for client_index in range(max_clients):
                 allocations[client_index].append(next_join_point)
             join_point_id += 1
-
         return allocations
 
     @property
@@ -2001,7 +2000,6 @@ def schedule_for(task, client_index, parameter_source):
         logger.info("Choosing [%s] for [%s].", sched, task)
     runner_for_op = runner.runner_for(op.type)
     params_for_op = parameter_source.partition(client_index, num_clients)
-
     if hasattr(sched, "parameter_source"):
         if client_index == 0:
             logger.debug("Setting parameter source [%s] for scheduler [%s]", params_for_op, sched)
