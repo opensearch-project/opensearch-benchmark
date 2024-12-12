@@ -1459,32 +1459,32 @@ class StandardValueSourceRegistrationTests(TestCase):
 
         params._clear_standard_values()
 
-class TargetKeysInfoRegistrationTests(TestCase):
+class QueryRandomizationInfoRegistrationTests(TestCase):
     def check_result_equality(self, result, expected): 
         self.assertEqual(result.query_name, expected.query_name)
-        self.assertEqual(result.value_name_options_list, expected.value_name_options_list)
-        self.assertEqual(result.optional_values, expected.optional_values)
+        self.assertEqual(result.parameter_name_options_list, expected.parameter_name_options_list)
+        self.assertEqual(result.optional_parameters, expected.optional_parameters)
 
 
-    def test_register_target_keys_info(self): 
-        params._clear_target_keys_infos()
+    def test_register_query_randomization_info(self): 
+        params._clear_query_randomization_infos()
 
         op_name = "op-1"
         query_name = "geo_bounding_box"
         value_name_options_list = [["top_left"], ["lower_right"]]
         optional_values = []
-        params.register_target_keys_info(op_name, query_name, value_name_options_list, optional_values)
+        params.register_query_randomization_info(op_name, query_name, value_name_options_list, optional_values)
 
-        target_keys_info = params.get_target_keys_info(op_name)
-        expected = loader.QueryRandomizerWorkloadProcessor.TargetKeysInfo("geo_bounding_box", [["top_left"], ["lower_right"]], [])
-        self.check_result_equality(target_keys_info, expected)
+        query_randomization_info = params.get_query_randomization_info(op_name)
+        expected = loader.QueryRandomizerWorkloadProcessor.QueryRandomizationInfo("geo_bounding_box", [["top_left"], ["lower_right"]], [])
+        self.check_result_equality(query_randomization_info, expected)
 
         # Should get the default one for an op that has nothing registered 
-        target_keys_info = params.get_target_keys_info("unrecognized-op")
-        expected = loader.QueryRandomizerWorkloadProcessor.DEFAULT_TARGET_KEYS_INFO
-        self.check_result_equality(target_keys_info, expected)
+        query_randomization_info = params.get_query_randomization_info("unrecognized-op")
+        expected = loader.QueryRandomizerWorkloadProcessor.DEFAULT_QUERY_RANDOMIZATION_INFO
+        self.check_result_equality(query_randomization_info, expected)
 
-        params._clear_target_keys_infos()
+        params._clear_query_randomization_infos()
 
 class SleepParamSourceTests(TestCase):
     def test_missing_duration_parameter(self):
