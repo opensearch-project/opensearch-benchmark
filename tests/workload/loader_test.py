@@ -2269,6 +2269,63 @@ class WorkloadSpecificationReaderTests(TestCase):
         self.assertEqual("Workload 'unittest' is invalid. You must define 'test_procedure', 'test_procedures' or "
                          "'schedule' but none is specified.",
                          ctx.exception.args[0])
+        
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
+    def test_parse_missing_test_procedure_or_test_procedures(self, mocked_params_checker):
+        workload_specification = {
+             "description": "description for unit test",
+            "indices": [
+                {
+                    "name": "test-index",
+                    "body": "index.json",
+                    "types": ["docs"]
+                }
+            ],
+            "corpora": [
+                {
+                    "name": "test",
+                    "documents": [
+                        {
+                            "source-file": "documents-main.json.bz2",
+                            "document-count": 10,
+                            "compressed-bytes": 100,
+                            "uncompressed-bytes": 10000
+                        }
+                    ]
+                }
+            ],
+            "operations": [
+                {
+                    "name": "index-append",
+                    "operation-type": "bulk",
+                    "bulk-size": 5000,
+                }
+            ],
+            "test_procedures": [
+                {
+                    "name": "default-challenge",
+                    "schedule": [
+                        {
+                            "clients": 8,
+                            "operation": "index-append",
+                            "ramp-up-time-period": 120,
+                            "warmup-iterations": 3,
+                            "iterations": 5
+                        }
+                    ]
+                }
+
+            ]
+        }
+        reader = loader.WorkloadSpecificationReader(source=io.DictStringFileSourceFactory({
+            "/mappings/index.json": ['{"mappings": {"docs": "empty-for-test"}}'],
+        }))
+
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        
+        self.assertEqual("Workload 'unittest' is invalid. Operation 'index-append' in test_procedure 'default-challenge' defines a ramp-up time period of "
+                         "120 seconds as well as 3 warmup iterations and 5 iterations but mixing time periods and iterations is not allowed.", ctx.exception.args[0])
 
     @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_test_procedure_and_test_procedures_are_defined(self, mocked_params_checker):
@@ -3651,13 +3708,18 @@ class WorkloadSpecificationReaderTests(TestCase):
                     {
                         "operation": "index-append",
                         "target-throughput": 10,
+                        "warmup-time-period": 120,
+                        "ramp-up-time-period": 60
                     }
                 ]
             }
         }
         reader = loader.WorkloadSpecificationReader()
         resulting_workload = reader("unittest", workload_specification, "/mappings")
-        self.assertEqual(10, resulting_workload.test_procedures[0].schedule[0].params["target-throughput"])
+        indexing_task = resulting_workload.test_procedures[0].schedule[0]
+        self.assertEqual(10, indexing_task.params["target-throughput"])
+        self.assertEqual(120, indexing_task.warmup_time_period)
+        self.assertEqual(60, indexing_task.ramp_up_time_period)
 
     def test_supports_target_interval(self):
         workload_specification = {
