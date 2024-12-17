@@ -95,7 +95,7 @@ def osbenchmark(cfg, command_line):
     return retcode
 
 
-def execute_test(cfg, command_line):
+def run_test(cfg, command_line):
     """
     This method should be used for benchmark invocations of the test_execution command.
     It sets up some defaults for how the integration tests expect to run test_executions.
