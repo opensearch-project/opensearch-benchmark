@@ -3,12 +3,12 @@ import statistics
 from typing import Any, Dict, List, Union
 import uuid
 
-from osbenchmark.metrics import FileTestExecutionStore
+from osbenchmark.metrics import FileTestExecutionStore, TestExecution
 from osbenchmark import metrics, workload, config
 from osbenchmark.utils import io as rio
 
 class Aggregator:
-    def __init__(self, cfg, test_executions_dict, args):
+    def __init__(self, cfg, test_executions_dict, args) -> None:
         self.config = cfg
         self.args = args
         self.test_executions = test_executions_dict
@@ -21,7 +21,7 @@ class Aggregator:
         self.test_procedure_name = None
         self.loaded_workload = None
 
-    def count_iterations_for_each_op(self, test_execution) -> None:
+    def count_iterations_for_each_op(self, test_execution: TestExecution) -> None:
         """Count iterations for each operation in the test execution"""
         workload_params = test_execution.workload_params if test_execution.workload_params else {}
         test_execution_id = test_execution.test_execution_id
@@ -33,7 +33,7 @@ class Aggregator:
             iterations = int(workload_params.get(task_name_iterations, task.iterations or 1))
             self.accumulated_iterations[test_execution_id][task_name] = iterations
 
-    def accumulate_results(self, test_execution) -> None:
+    def accumulate_results(self, test_execution: TestExecution) -> None:
         """Accumulate results from a single test execution"""
         for operation_metric in test_execution.results.get("op_metrics", []):
             task = operation_metric.get("task", "")
@@ -47,41 +47,45 @@ class Aggregator:
         Aggregates JSON results across multiple test executions using a specified key path.
         Handles nested dictionary structures and calculates averages for numeric values
         """
-        all_jsons = [self.test_store.find_by_test_execution_id(id).results for id in self.test_executions.keys()]
+        all_json_results = [self.test_store.find_by_test_execution_id(id).results for id in self.test_executions.keys()]
 
-        def get_nested_value(obj: Dict[str, Any], path: List[str]) -> Any:
+        def get_nested_value(json_data: Dict[str, Any], path: List[str]) -> Any:
             """
             Retrieves a value from a nested dictionary structure using a path of keys.
             """
             for key in path:
-                if isinstance(obj, dict):
-                    obj = obj.get(key, {})
-                elif isinstance(obj, list) and key.isdigit():
-                    obj = obj[int(key)] if int(key) < len(obj) else {}
+                if isinstance(json_data, dict):
+                    json_data = json_data.get(key, {})
+                elif isinstance(json_data, list) and key.isdigit():
+                    json_data = json_data[int(key)] if int(key) < len(json_data) else {}
                 else:
                     return None
-            return obj
+            return json_data
 
-        def aggregate_helper(objects: List[Any]) -> Any:
-            if not objects:
+        def aggregate_json_elements(json_elements: List[Any]) -> Any:
+            if not json_elements:
                 return None
-            if all(isinstance(obj, (int, float)) for obj in objects):
-                return sum(objects) / len(objects)
-            if all(isinstance(obj, dict) for obj in objects):
-                keys = set().union(*objects)
-                return {key: aggregate_helper([obj.get(key) for obj in objects]) for key in keys}
-            if all(isinstance(obj, list) for obj in objects):
-                max_length = max(len(obj) for obj in objects)
-                return [aggregate_helper([obj[i] if i < len(obj) else None for obj in objects]) for i in range(max_length)]
-            return next((obj for obj in objects if obj is not None), None)
+            # If all elements are numbers, calculate the average
+            if all(isinstance(obj, (int, float)) for obj in json_elements):
+                return sum(json_elements) / len(json_elements)
+            # If all elements are dictionaries, recursively aggregate their values
+            if all(isinstance(obj, dict) for obj in json_elements):
+                keys = set().union(*json_elements)
+                return {key: aggregate_json_elements([obj.get(key) for obj in json_elements]) for key in keys}
+            # If all elements are lists, recursively aggregate corresponding elements
+            if all(isinstance(obj, list) for obj in json_elements):
+                max_length = max(len(obj) for obj in json_elements)
+                return [aggregate_json_elements([obj[i] if i < len(obj) else None for obj in json_elements]) for i in range(max_length)]
+            # If elements are of mixed types, return the first non-None value
+            return next((obj for obj in json_elements if obj is not None), None)
 
         if isinstance(key_path, str):
             key_path = key_path.split('.')
 
-        values = [get_nested_value(json, key_path) for json in all_jsons]
-        return aggregate_helper(values)
+        nested_values = [get_nested_value(json_result, key_path) for json_result in all_json_results]
+        return aggregate_json_elements(nested_values)
 
-    def build_aggregated_results_dict(self):
+    def build_aggregated_results_dict(self) -> Dict[str, Any]:
         """Builds a dictionary of aggregated metrics from all test executions"""
         aggregated_results = {
             "op_metrics": [],
@@ -148,7 +152,7 @@ class Aggregator:
 
         return aggregated_results
 
-    def update_config_object(self, test_execution):
+    def update_config_object(self, test_execution: TestExecution) -> None:
         """
         Updates the configuration object with values from a test execution.
         Uses the first test execution as reference since configurations should be identical
@@ -167,7 +171,7 @@ class Aggregator:
         self.config.add(config.Scope.applicationOverride, "workload", "latency.percentiles", test_execution.latency_percentiles)
         self.config.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", test_execution.throughput_percentiles)
 
-    def build_aggregated_results(self):
+    def build_aggregated_results(self) -> TestExecution:
         test_exe = self.test_store.find_by_test_execution_id(list(self.test_executions.keys())[0])
         aggregated_results = self.build_aggregated_results_dict()
 
@@ -232,7 +236,7 @@ class Aggregator:
 
         return weighted_metrics
 
-    def calculate_rsd(self, values: List[Union[int, float]], metric_name: str):
+    def calculate_rsd(self, values: List[Union[int, float]], metric_name: str) -> Union[float, str]:
         if not values:
             raise ValueError(f"Cannot calculate RSD for metric '{metric_name}': empty list of values")
         if len(values) == 1:
