@@ -73,7 +73,7 @@ NOTE: The version number below is in semantic format, for instance, `1.2.0`.
         3. Run `opensearch-benchmark --version` to ensure that it is the correct version
         4. Run `opensearch-benchmark --help`
         5. Run `opensearch-benchmark list workloads`
-        6. Run a basic workload on Linux and MacOS:  `opensearch-benchmark execute-test --workload pmc --test-mode`
+        6. Run a basic workload on Linux and MacOS:  `opensearch-benchmark run --workload pmc --test-mode`
         7. If you are aware of a change going into the version being released, you can run `python3 -m site` (assuming you installed the latest version that was just released) and get the path for Python. Visit the `osbenchmark` directory and verify that the change exists in the associated OSB files.
 
     3. Verify Docker Hub Staging OSB Image Works:
