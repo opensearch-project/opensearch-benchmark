@@ -147,4 +147,4 @@ EOF
 
 
 # Start OpenSearch Benchmark
-opensearch-benchmark execute-test --configuration-name=metricstore --workload=geonames --target-hosts=./ccr-target-hosts.json --pipeline=benchmark-only --workload-params="number_of_replicas:1" --client-options=./ccr-client-options.json --kill-running-processes --telemetry="ccr-stats" --telemetry-params=./ccr-telemetry-param.json
+opensearch-benchmark run --configuration-name=metricstore --workload=geonames --target-hosts=./ccr-target-hosts.json --pipeline=benchmark-only --workload-params="number_of_replicas:1" --client-options=./ccr-client-options.json --kill-running-processes --telemetry="ccr-stats" --telemetry-params=./ccr-telemetry-param.json

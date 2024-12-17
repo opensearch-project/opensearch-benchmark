@@ -147,7 +147,7 @@ Now, you have a local cluster running! You can connect to this and run the workl
 
 Here's a sample executation of the geonames benchmark which can be found from the [workloads](https://github.com/opensearch-project/opensearch-benchmark-workloads) repo. 
 ```
-opensearch-benchmark execute-test --pipeline=benchmark-only --workload=geonames --target-host=127.0.0.1:9200 --test-mode --workload-params '{"number_of_shards":"1","number_of_replicas":"0"}'
+opensearch-benchmark run --pipeline=benchmark-only --workload=geonames --target-host=127.0.0.1:9200 --test-mode --workload-params '{"number_of_shards":"1","number_of_replicas":"0"}'
 ```
 
 And we're done! You should be seeing the performance metrics soon enough!
