@@ -2,7 +2,7 @@ This directory contains the (optional) keystore configuration for the `repositor
 
 ### Parameters
 
-This configuration allows to set the following parameters with Benchmark using `--plugin-params` in combination with `--opensearch-plugins="repository-gcs"`:
+This configuration allows to set the following parameters with OSB using `--plugin-params` in combination with `--opensearch-plugins="repository-gcs"`:
 
 * `gcs_credentials_file`: A string specifying the full path to the service account json file (mandatory).
 * `gcs_client_name`: A string specifying the clientname to associate the service account file under (mandatory).
@@ -24,4 +24,4 @@ Example:
 }
 ```
 
-Save it as `params.json` and provide it to Benchmark with `--opensearch-plugins="repository-gcs" --plugin-params="/path/to/params.json"`.
+Save it as `params.json` and provide it to OSB with `--opensearch-plugins="repository-gcs" --plugin-params="/path/to/params.json"`.

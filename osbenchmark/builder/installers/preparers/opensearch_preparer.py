@@ -79,9 +79,9 @@ class OpenSearchPreparer(Preparer):
             "data_paths": node.data_paths[0],
             "log_path": node.log_path,
             "heap_dump_path": node.heap_dump_path,
-            # this is the node's IP address as specified by the user when invoking Benchmark
+            # this is the node's IP address as specified by the user when invoking OSB
             "node_ip": host.address,
-            # this is the IP address that the node will be bound to. Benchmark will bind to the node's IP address (but not to 0.0.0.0). The
+            # this is the IP address that the node will be bound to. OSB will bind to the node's IP address (but not to 0.0.0.0). The
             "network_host": host.address,
             "http_port": str(node.port),
             "transport_port": str(node.port + 100),

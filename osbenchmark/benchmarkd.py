@@ -81,8 +81,8 @@ def main():
     console.init(assume_tty=False)
 
     parser = argparse.ArgumentParser(prog=PROGRAM_NAME,
-                                     description=BANNER + "\n\n Benchmark daemon to support remote benchmarks",
-                                     epilog="Find out more about Benchmark at {}".format(console.format.link(doc_link())),
+                                     description=BANNER + "\n\n OSB daemon to support remote benchmarks",
+                                     epilog="Find out more about OSB at {}".format(console.format.link(doc_link())),
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--version', action='version', version="%(prog)s " + version.version())
 
@@ -92,8 +92,8 @@ def main():
         help="")
     subparsers.required = True
 
-    start_command = subparsers.add_parser("start", help="Starts the Benchmark daemon")
-    restart_command = subparsers.add_parser("restart", help="Restarts the Benchmark daemon")
+    start_command = subparsers.add_parser("start", help="Starts the OSB daemon")
+    restart_command = subparsers.add_parser("restart", help="Restarts the OSB daemon")
     for p in [start_command, restart_command]:
         p.add_argument(
             "--node-ip",
@@ -104,8 +104,8 @@ def main():
             required=True,
             help="The IP of the coordinator node."
         )
-    subparsers.add_parser("stop", help="Stops the Benchmark daemon")
-    subparsers.add_parser("status", help="Shows the current status of the local Benchmark daemon")
+    subparsers.add_parser("stop", help="Stops the OSB daemon")
+    subparsers.add_parser("status", help="Shows the current status of the local OSB daemon")
 
     args = parser.parse_args()
 
