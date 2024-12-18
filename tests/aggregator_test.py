@@ -50,6 +50,7 @@ def test_count_iterations_for_each_op(aggregator):
     mock_test_procedure.schedule = mock_schedule
     mock_workload.test_procedures = [mock_test_procedure]
 
+    mock_workload.find_test_procedure_or_default = Mock(return_value=mock_test_procedure)
     mock_test_execution = Mock(test_execution_id="test1", workload_params={})
 
     aggregator.loaded_workload = mock_workload
