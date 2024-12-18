@@ -58,10 +58,10 @@ def summarize(results, cfg):
 def compare(cfg, baseline_id, contender_id):
     if not baseline_id or not contender_id:
         raise exceptions.SystemSetupError("compare needs baseline and a contender")
-    test_execution_store = metrics.test_execution_store(cfg)
+    test_run_store = metrics.test_run_store(cfg)
     ComparisonResultsPublisher(cfg).publish(
-        test_execution_store.find_by_test_execution_id(baseline_id),
-        test_execution_store.find_by_test_execution_id(contender_id))
+        test_run_store.find_by_test_run_id(baseline_id),
+        test_run_store.find_by_test_run_id(contender_id))
 
 
 def print_internal(message):
@@ -405,15 +405,15 @@ class ComparisonResultsPublisher:
         self.plain = False
 
     def publish(self, r1, r2):
-        # we don't verify anything about the test_executions as it is possible
+        # we don't verify anything about the test_runs as it is possible
         # that the user benchmarks two different workloads intentionally
         baseline_stats = metrics.GlobalStats(r1.results)
         contender_stats = metrics.GlobalStats(r2.results)
 
         print_internal("")
         print_internal("Comparing baseline")
-        print_internal("  TestExecution ID: %s" % r1.test_execution_id)
-        print_internal("  TestExecution timestamp: %s" % r1.test_execution_timestamp)
+        print_internal("  TestRun ID: %s" % r1.test_run_id)
+        print_internal("  TestRun timestamp: %s" % r1.test_run_timestamp)
         if r1.test_procedure_name:
             print_internal("  TestProcedure: %s" % r1.test_procedure_name)
         print_internal("  ProvisionConfigInstance: %s" % r1.provision_config_instance_name)
@@ -422,8 +422,8 @@ class ComparisonResultsPublisher:
             print_internal("  User tags: %s" % r1_user_tags)
         print_internal("")
         print_internal("with contender")
-        print_internal("  TestExecution ID: %s" % r2.test_execution_id)
-        print_internal("  TestExecution timestamp: %s" % r2.test_execution_timestamp)
+        print_internal("  TestRun ID: %s" % r2.test_run_id)
+        print_internal("  TestRun timestamp: %s" % r2.test_run_timestamp)
         if r2.test_procedure_name:
             print_internal("  TestProcedure: %s" % r2.test_procedure_name)
         print_internal("  ProvisionConfigInstance: %s" % r2.provision_config_instance_name)

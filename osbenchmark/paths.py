@@ -53,18 +53,18 @@ def benchmark_root():
 
 
 def test_excecutions_root(cfg):
-    return os.path.join(cfg.opts("node", "root.dir"), "test_executions")
+    return os.path.join(cfg.opts("node", "root.dir"), "test_runs")
 
 
-def test_execution_root(cfg, test_execution_id=None):
-    if not test_execution_id:
-        test_execution_id = cfg.opts("system", "test_execution.id")
-    return os.path.join(test_excecutions_root(cfg), test_execution_id)
+def test_run_root(cfg, test_run_id=None):
+    if not test_run_id:
+        test_run_id = cfg.opts("system", "test_run.id")
+    return os.path.join(test_excecutions_root(cfg), test_run_id)
 
-def aggregated_results_root(cfg, test_execution_id=None):
-    if not test_execution_id:
-        test_execution_id = cfg.opts("system", "test_execution.id")
-    return os.path.join(cfg.opts("node", "root.dir"), "aggregated_results", test_execution_id)
+def aggregated_results_root(cfg, test_run_id=None):
+    if not test_run_id:
+        test_run_id = cfg.opts("system", "test_run.id")
+    return os.path.join(cfg.opts("node", "root.dir"), "aggregated_results", test_run_id)
 
 def install_root(cfg=None):
     install_id = cfg.opts("system", "install.id")

@@ -118,7 +118,7 @@ class BenchmarkActor(actor.BenchmarkActor):
     @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_EngineStarted(self, msg, sender):
         self.logger.info("Builder has started engine successfully.")
-        self.coordinator.test_execution.provision_config_revision = msg.provision_config_revision
+        self.coordinator.test_run.provision_config_revision = msg.provision_config_revision
         self.main_worker_coordinator = self.createActor(
             worker_coordinator.WorkerCoordinatorActor,
             targetActorRequirements={"coordinator": True}
@@ -143,7 +143,7 @@ class BenchmarkActor(actor.BenchmarkActor):
     def receiveMsg_BenchmarkCancelled(self, msg, sender):
         self.coordinator.cancelled = True
         # even notify the start sender if it is the originator. The reason is that we call #ask() which waits for a reply.
-        # We also need to ask in order to avoid test_executions between this notification and the following ActorExitRequest.
+        # We also need to ask in order to avoid test_runs between this notification and the following ActorExitRequest.
         self.send(self.start_sender, msg)
 
     @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
@@ -170,9 +170,9 @@ class BenchmarkCoordinator:
     def __init__(self, cfg):
         self.logger = logging.getLogger(__name__)
         self.cfg = cfg
-        self.test_execution = None
+        self.test_run = None
         self.metrics_store = None
-        self.test_execution_store = None
+        self.test_run_store = None
         self.cancelled = False
         self.error = False
         self.workload_revision = None
@@ -202,37 +202,37 @@ class BenchmarkCoordinator:
                     self.current_workload.name, test_procedure_name, PROGRAM_NAME))
         if self.current_test_procedure.user_info:
             console.info(self.current_test_procedure.user_info)
-        self.test_execution = metrics.create_test_execution(
+        self.test_run = metrics.create_test_run(
             self.cfg, self.current_workload,
             self.current_test_procedure,
             self.workload_revision)
 
         self.metrics_store = metrics.metrics_store(
             self.cfg,
-            workload=self.test_execution.workload_name,
-            test_procedure=self.test_execution.test_procedure_name,
+            workload=self.test_run.workload_name,
+            test_procedure=self.test_run.test_procedure_name,
             read_only=False
         )
-        self.test_execution_store = metrics.test_execution_store(self.cfg)
+        self.test_run_store = metrics.test_run_store(self.cfg)
 
     def on_preparation_complete(self, distribution_flavor, distribution_version, revision):
-        self.test_execution.distribution_flavor = distribution_flavor
-        self.test_execution.distribution_version = distribution_version
-        self.test_execution.revision = revision
-        # store test_execution initially (without any results) so other components can retrieve full metadata
-        self.test_execution_store.store_test_execution(self.test_execution)
-        if self.test_execution.test_procedure.auto_generated:
+        self.test_run.distribution_flavor = distribution_flavor
+        self.test_run.distribution_version = distribution_version
+        self.test_run.revision = revision
+        # store test_run initially (without any results) so other components can retrieve full metadata
+        self.test_run_store.store_test_run(self.test_run)
+        if self.test_run.test_procedure.auto_generated:
             console.info("Executing test with workload [{}] and provision_config_instance {} with version [{}].\n"
-                         .format(self.test_execution.workload_name,
-                         self.test_execution.provision_config_instance,
-                         self.test_execution.distribution_version))
+                         .format(self.test_run.workload_name,
+                         self.test_run.provision_config_instance,
+                         self.test_run.distribution_version))
         else:
             console.info("Executing test with workload [{}], test_procedure [{}] and provision_config_instance {} with version [{}].\n"
                          .format(
-                             self.test_execution.workload_name,
-                             self.test_execution.test_procedure_name,
-                             self.test_execution.provision_config_instance,
-                             self.test_execution.distribution_version
+                             self.test_run.workload_name,
+                             self.test_run.test_procedure_name,
+                             self.test_run.provision_config_instance,
+                             self.test_run.distribution_version
                              ))
 
     def on_task_finished(self, new_metrics):
@@ -246,10 +246,10 @@ class BenchmarkCoordinator:
         self.metrics_store.bulk_add(new_metrics)
         self.metrics_store.flush()
         if not self.cancelled and not self.error:
-            final_results = metrics.calculate_results(self.metrics_store, self.test_execution)
-            self.test_execution.add_results(final_results)
-            self.test_execution_store.store_test_execution(self.test_execution)
-            metrics.results_store(self.cfg).store_results(self.test_execution)
+            final_results = metrics.calculate_results(self.metrics_store, self.test_run)
+            self.test_run.add_results(final_results)
+            self.test_run_store.store_test_run(self.test_run)
+            metrics.results_store(self.cfg).store_results(self.test_run)
             results_publisher.summarize(final_results, self.cfg)
         else:
             self.logger.info("Suppressing output of summary results. Cancelled = [%r], Error = [%r].", self.cancelled, self.error)
@@ -345,9 +345,9 @@ def list_pipelines():
 def run(cfg):
     logger = logging.getLogger(__name__)
     # pipeline is no more mandatory, will default to benchmark-only
-    name = cfg.opts("test_execution", "pipeline", mandatory=False)
-    test_execution_id = cfg.opts("system", "test_execution.id")
-    logger.info("Test Execution id [%s]", test_execution_id)
+    name = cfg.opts("test_run", "pipeline", mandatory=False)
+    test_run_id = cfg.opts("system", "test_run.id")
+    logger.info("Test Execution id [%s]", test_run_id)
     if not name:
         # assume from-distribution pipeline if distribution.version has been specified
         if cfg.exists("builder", "distribution.version"):
@@ -356,7 +356,7 @@ def run(cfg):
             name = "benchmark-only"
             logger.info("User did not specify distribution.version or pipeline. Using default pipeline [%s].", name)
 
-        cfg.add(config.Scope.applicationOverride, "test_execution", "pipeline", name)
+        cfg.add(config.Scope.applicationOverride, "test_run", "pipeline", name)
     else:
         logger.info("User specified pipeline [%s].", name)
 
@@ -383,4 +383,4 @@ def run(cfg):
         logger.info("User has cancelled the benchmark.")
     except BaseException:
         tb = sys.exc_info()[2]
-        raise exceptions.BenchmarkError("This test_execution ended with a fatal crash.").with_traceback(tb)
+        raise exceptions.BenchmarkError("This test_run ended with a fatal crash.").with_traceback(tb)

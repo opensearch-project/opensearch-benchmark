@@ -296,7 +296,7 @@ class IndexTemplateProvider:
     def metrics_template(self):
         return self._read("metrics-template")
 
-    def test_executions_template(self):
+    def test_runs_template(self):
         return self._read("test-executions-template")
 
     def results_template(self):
@@ -332,13 +332,13 @@ class MetaInfoScope(Enum):
     """
 
 
-def calculate_results(store, test_execution):
+def calculate_results(store, test_run):
     calc = GlobalStatsCalculator(
         store,
-        test_execution.workload,
-        test_execution.test_procedure,
-        latency_percentiles=test_execution.latency_percentiles,
-        throughput_percentiles=test_execution.throughput_percentiles
+        test_run.workload,
+        test_run.test_procedure,
+        latency_percentiles=test_run.latency_percentiles,
+        throughput_percentiles=test_run.throughput_percentiles
         )
     return calc()
 
@@ -360,13 +360,13 @@ def metrics_store(cfg, read_only=True, workload=None, test_procedure=None, provi
     store = cls(cfg=cfg, meta_info=meta_info)
     logging.getLogger(__name__).info("Creating %s", str(store))
 
-    test_execution_id = cfg.opts("system", "test_execution.id")
-    test_execution_timestamp = cfg.opts("system", "time.start")
+    test_run_id = cfg.opts("system", "test_run.id")
+    test_run_timestamp = cfg.opts("system", "time.start")
     selected_provision_config_instance = cfg.opts("builder", "provision_config_instance.names") \
         if provision_config_instance is None else provision_config_instance
 
     store.open(
-        test_execution_id, test_execution_timestamp,
+        test_run_id, test_run_timestamp,
         workload, test_procedure, selected_provision_config_instance,
         create=not read_only)
     return store
@@ -386,7 +386,7 @@ def extract_user_tags_from_config(cfg):
     :param cfg: The current configuration object.
     :return: A dict containing user tags. If no user tags are given, an empty dict is returned.
     """
-    user_tags = cfg.opts("test_execution", "user.tag", mandatory=False)
+    user_tags = cfg.opts("test_run", "user.tag", mandatory=False)
     return extract_user_tags_from_string(user_tags)
 
 
@@ -429,8 +429,8 @@ class MetricsStore:
         :param meta_info: This parameter is optional and intended for creating a metrics store with a previously serialized meta-info.
         """
         self._config = cfg
-        self._test_execution_id = None
-        self._test_execution_timestamp = None
+        self._test_run_id = None
+        self._test_run_timestamp = None
         self._workload = None
         self._workload_params = cfg.opts("workload", "params", default_value={}, mandatory=False)
         self._test_procedure = None
@@ -455,9 +455,9 @@ class MetricsStore:
          test_procedure_name=None, provision_config_instance_name=None, ctx=None,\
          create=False):
         """
-        Opens a metrics store for a specific test_execution, workload, test_procedure and provision_config_instance.
+        Opens a metrics store for a specific test_run, workload, test_procedure and provision_config_instance.
 
-        :param test_ex_id: The test execution id. This attribute is sufficient to uniquely identify a test_execution.
+        :param test_ex_id: The test execution id. This attribute is sufficient to uniquely identify a test_run.
         :param test_ex_timestamp: The test execution timestamp as a datetime.
         :param workload_name: Workload name.
         :param test_procedure_name: TestProcedure name.
@@ -467,19 +467,19 @@ class MetricsStore:
         False when it is just opened for reading (as we can assume all necessary indices exist at this point).
         """
         if ctx:
-            self._test_execution_id = ctx["test-execution-id"]
-            self._test_execution_timestamp = ctx["test-execution-timestamp"]
+            self._test_run_id = ctx["test-execution-id"]
+            self._test_run_timestamp = ctx["test-execution-timestamp"]
             self._workload = ctx["workload"]
             self._test_procedure = ctx["test_procedure"]
             self._provision_config_instance = ctx["provision-config-instance"]
         else:
-            self._test_execution_id = test_ex_id
-            self._test_execution_timestamp = time.to_iso8601(test_ex_timestamp)
+            self._test_run_id = test_ex_id
+            self._test_run_timestamp = time.to_iso8601(test_ex_timestamp)
             self._workload = workload_name
             self._test_procedure = test_procedure_name
             self._provision_config_instance = provision_config_instance_name
-        assert self._test_execution_id is not None, "Attempting to open metrics store without a test execution id"
-        assert self._test_execution_timestamp is not None, "Attempting to open metrics store without a test execution timestamp"
+        assert self._test_run_id is not None, "Attempting to open metrics store without a test execution id"
+        assert self._test_run_timestamp is not None, "Attempting to open metrics store without a test execution timestamp"
 
         self._provision_config_instance_name = "+".join(self._provision_config_instance) \
             if isinstance(self._provision_config_instance, list) \
@@ -487,7 +487,7 @@ class MetricsStore:
 
         self.logger.info("Opening metrics store for test execution timestamp=[%s], workload=[%s],"
         "test_procedure=[%s], provision_config_instance=[%s]",
-                         self._test_execution_timestamp, self._workload, self._test_procedure, self._provision_config_instance)
+                         self._test_run_timestamp, self._workload, self._test_procedure, self._provision_config_instance)
 
         user_tags = extract_user_tags_from_config(self._config)
         for k, v in user_tags.items():
@@ -552,8 +552,8 @@ class MetricsStore:
     @property
     def open_context(self):
         return {
-            "test-execution-id": self._test_execution_id,
-            "test-execution-timestamp": self._test_execution_timestamp,
+            "test-execution-id": self._test_run_id,
+            "test-execution-timestamp": self._test_run_timestamp,
             "workload": self._workload,
             "test_procedure": self._test_procedure,
             "provision-config-instance": self._provision_config_instance
@@ -623,8 +623,8 @@ class MetricsStore:
         doc = {
             "@timestamp": time.to_epoch_millis(absolute_time),
             "relative-time-ms": convert.seconds_to_ms(relative_time),
-            "test-execution-id": self._test_execution_id,
-            "test-execution-timestamp": self._test_execution_timestamp,
+            "test-execution-id": self._test_run_id,
+            "test-execution-timestamp": self._test_run_timestamp,
             "environment": self._environment_name,
             "workload": self._workload,
             "test_procedure": self._test_procedure,
@@ -680,8 +680,8 @@ class MetricsStore:
         doc.update({
             "@timestamp": time.to_epoch_millis(absolute_time),
             "relative-time-ms": convert.seconds_to_ms(relative_time),
-            "test-execution-id": self._test_execution_id,
-            "test-execution-timestamp": self._test_execution_timestamp,
+            "test-execution-id": self._test_run_id,
+            "test-execution-timestamp": self._test_run_timestamp,
             "environment": self._environment_name,
             "workload": self._workload,
             "test_procedure": self._test_procedure,
@@ -899,7 +899,7 @@ class OsMetricsStore(MetricsStore):
         self._client.refresh(index=self._index)
 
     def index_name(self):
-        ts = time.from_is8601(self._test_execution_timestamp)
+        ts = time.from_is8601(self._test_run_timestamp)
         return "benchmark-metrics-%04d-%02d" % (ts.year, ts.month)
 
     def _migrated_index_name(self, original_name):
@@ -916,7 +916,7 @@ class OsMetricsStore(MetricsStore):
             sw.stop()
             self.logger.info("Successfully added %d metrics documents for test execution timestamp=[%s], workload=[%s], "
                              "test_procedure=[%s], provision_config_instance=[%s] in [%f] seconds.",
-                             len(self._docs), self._test_execution_timestamp,
+                             len(self._docs), self._test_run_timestamp,
                              self._workload, self._test_procedure, self._provision_config_instance, sw.total_time())
         self._docs = []
         # ensure we can search immediately after flushing
@@ -1047,7 +1047,7 @@ class OsMetricsStore(MetricsStore):
                 "filter": [
                     {
                         "term": {
-                            "test-execution-id": self._test_execution_id
+                            "test-execution-id": self._test_run_id
                         }
                     },
                     {
@@ -1245,26 +1245,26 @@ class InMemoryMetricsStore(MetricsStore):
         return "in-memory metrics store"
 
 
-def test_execution_store(cfg):
+def test_run_store(cfg):
     """
-    Creates a proper test_execution store based on the current configuration.
+    Creates a proper test_run store based on the current configuration.
     :param cfg: Config object. Mandatory.
-    :return: A test_execution store implementation.
+    :return: A test_run store implementation.
     """
     logger = logging.getLogger(__name__)
     if cfg.opts("results_publishing", "datastore.type") == "opensearch":
         logger.info("Creating OS test execution store")
-        return CompositeTestExecutionStore(EsTestExecutionStore(cfg), FileTestExecutionStore(cfg))
+        return CompositeTestRunStore(EsTestRunStore(cfg), FileTestRunStore(cfg))
     else:
-        logger.info("Creating file test_execution store")
-        return FileTestExecutionStore(cfg)
+        logger.info("Creating file test_run store")
+        return FileTestRunStore(cfg)
 
 
 def results_store(cfg):
     """
-    Creates a proper test_execution store based on the current configuration.
+    Creates a proper test_run store based on the current configuration.
     :param cfg: Config object. Mandatory.
-    :return: A test_execution store implementation.
+    :return: A test_run store implementation.
     """
     logger = logging.getLogger(__name__)
     if cfg.opts("results_publishing", "datastore.type") == "opensearch":
@@ -1283,26 +1283,26 @@ def list_test_helper(store_item, title):
         else:
             return None
 
-    test_executions = []
-    for test_execution in store_item:
-        test_executions.append([
-            test_execution.test_execution_id,
-            time.to_iso8601(test_execution.test_execution_timestamp),
-            test_execution.workload,
-            format_dict(test_execution.workload_params),
-            test_execution.test_procedure_name,
-            test_execution.provision_config_instance_name,
-            format_dict(test_execution.user_tags),
-            test_execution.workload_revision,
-            test_execution.provision_config_revision])
+    test_runs = []
+    for test_run in store_item:
+        test_runs.append([
+            test_run.test_run_id,
+            time.to_iso8601(test_run.test_run_timestamp),
+            test_run.workload,
+            format_dict(test_run.workload_params),
+            test_run.test_procedure_name,
+            test_run.provision_config_instance_name,
+            format_dict(test_run.user_tags),
+            test_run.workload_revision,
+            test_run.provision_config_revision])
 
-    if len(test_executions) > 0:
+    if len(test_runs) > 0:
         console.println(f"\nRecent {title}:\n")
         console.println(tabulate.tabulate(
-            test_executions,
+            test_runs,
             headers=[
-                "TestExecution ID",
-                "TestExecution Timestamp",
+                "TestRun ID",
+                "TestRun Timestamp",
                 "Workload",
                 "Workload Parameters",
                 "TestProcedure",
@@ -1315,19 +1315,19 @@ def list_test_helper(store_item, title):
         console.println("")
         console.println(f"No recent {title} found.")
 
-def list_test_executions(cfg):
-    list_test_helper(test_execution_store(cfg).list(), "test_executions")
+def list_test_runs(cfg):
+    list_test_helper(test_run_store(cfg).list(), "test_runs")
 
 def list_aggregated_results(cfg):
-    list_test_helper(test_execution_store(cfg).list_aggregations(), "aggregated_results")
+    list_test_helper(test_run_store(cfg).list_aggregations(), "aggregated_results")
 
-def create_test_execution(cfg, workload, test_procedure, workload_revision=None):
+def create_test_run(cfg, workload, test_procedure, workload_revision=None):
     provision_config_instance = cfg.opts("builder", "provision_config_instance.names")
     environment = cfg.opts("system", "env.name")
-    test_execution_id = cfg.opts("system", "test_execution.id")
-    test_execution_timestamp = cfg.opts("system", "time.start")
+    test_run_id = cfg.opts("system", "test_run.id")
+    test_run_timestamp = cfg.opts("system", "time.start")
     user_tags = extract_user_tags_from_config(cfg)
-    pipeline = cfg.opts("test_execution", "pipeline")
+    pipeline = cfg.opts("test_run", "pipeline")
     workload_params = cfg.opts("workload", "params")
     provision_config_instance_params = cfg.opts("builder", "provision_config_instance.params")
     plugin_params = cfg.opts("builder", "plugin.params")
@@ -1340,17 +1340,17 @@ def create_test_execution(cfg, workload, test_procedure, workload_revision=None)
     # In tests, we don't get the default command-line arg value for percentiles,
     # so supply them as defaults here as well
 
-    return TestExecution(benchmark_version, benchmark_revision,
-    environment, test_execution_id, test_execution_timestamp,
+    return TestRun(benchmark_version, benchmark_revision,
+    environment, test_run_id, test_run_timestamp,
     pipeline, user_tags, workload,
     workload_params, test_procedure, provision_config_instance, provision_config_instance_params,
     plugin_params, workload_revision, latency_percentiles=latency_percentiles,
     throughput_percentiles=throughput_percentiles)
 
 
-class TestExecution:
+class TestRun:
     def __init__(self, benchmark_version, benchmark_revision, environment_name,
-                 test_execution_id, test_execution_timestamp, pipeline, user_tags,
+                 test_run_id, test_run_timestamp, pipeline, user_tags,
                  workload, workload_params, test_procedure, provision_config_instance,
                  provision_config_instance_params, plugin_params,
                  workload_revision=None, provision_config_revision=None,
@@ -1373,8 +1373,8 @@ class TestExecution:
         self.benchmark_version = benchmark_version
         self.benchmark_revision = benchmark_revision
         self.environment_name = environment_name
-        self.test_execution_id = test_execution_id
-        self.test_execution_timestamp = test_execution_timestamp
+        self.test_run_id = test_run_id
+        self.test_run_timestamp = test_run_timestamp
         self.pipeline = pipeline
         self.user_tags = user_tags
         self.workload = workload
@@ -1419,8 +1419,8 @@ class TestExecution:
             "benchmark-version": self.benchmark_version,
             "benchmark-revision": self.benchmark_revision,
             "environment": self.environment_name,
-            "test-execution-id": self.test_execution_id,
-            "test-execution-timestamp": time.to_iso8601(self.test_execution_timestamp),
+            "test-execution-id": self.test_run_id,
+            "test-execution-timestamp": time.to_iso8601(self.test_run_timestamp),
             "pipeline": self.pipeline,
             "user-tags": self.user_tags,
             "workload": self.workload_name,
@@ -1453,8 +1453,8 @@ class TestExecution:
             "benchmark-version": self.benchmark_version,
             "benchmark-revision": self.benchmark_revision,
             "environment": self.environment_name,
-            "test-execution-id": self.test_execution_id,
-            "test-execution-timestamp": time.to_iso8601(self.test_execution_timestamp),
+            "test-execution-id": self.test_run_id,
+            "test-execution-timestamp": time.to_iso8601(self.test_run_timestamp),
             "distribution-version": self.distribution_version,
             "distribution-flavor": self.distribution_flavor,
             "user-tags": self.user_tags,
@@ -1493,7 +1493,7 @@ class TestExecution:
         user_tags = d.get("user-tags", {})
         # TODO: cluster is optional for BWC. This can be removed after some grace period.
         cluster = d.get("cluster", {})
-        return TestExecution(d["benchmark-version"], d.get("benchmark-revision"), d["environment"], d["test-execution-id"],
+        return TestRun(d["benchmark-version"], d.get("benchmark-revision"), d["environment"], d["test-execution-id"],
                     time.from_is8601(d["test-execution-timestamp"]),
                     d["pipeline"], user_tags, d["workload"], d.get("workload-params"),
                     d.get("test_procedure"), d["provision-config-instance"],
@@ -1505,104 +1505,104 @@ class TestExecution:
                     revision=cluster.get("revision"), results=d.get("results"), meta_data=d.get("meta", {}))
 
 
-class TestExecutionStore:
+class TestRunStore:
     def __init__(self, cfg):
         self.cfg = cfg
         self.environment_name = cfg.opts("system", "env.name")
 
-    def find_by_test_execution_id(self, test_execution_id):
+    def find_by_test_run_id(self, test_run_id):
         raise NotImplementedError("abstract method")
 
     def list(self):
         raise NotImplementedError("abstract method")
 
-    def store_test_execution(self, test_execution):
+    def store_test_run(self, test_run):
         raise NotImplementedError("abstract method")
 
     def _max_results(self):
-        return int(self.cfg.opts("system", "list.test_executions.max_results"))
+        return int(self.cfg.opts("system", "list.test_runs.max_results"))
 
 
-# Does not inherit from TestExecutionStore as it is only a delegator with the same API.
-class CompositeTestExecutionStore:
+# Does not inherit from TestRunStore as it is only a delegator with the same API.
+class CompositeTestRunStore:
     """
     Internal helper class to store test executions as file and to OpenSearch in case users
     want OpenSearch as a test executions store.
 
-    It provides the same API as TestExecutionStore. It delegates writes to all stores
+    It provides the same API as TestRunStore. It delegates writes to all stores
     and all read operations only the OpenSearch test execution store.
     """
     def __init__(self, os_store, file_store):
         self.os_store = os_store
         self.file_store = file_store
 
-    def find_by_test_execution_id(self, test_execution_id):
-        return self.os_store.find_by_test_execution_id(test_execution_id)
+    def find_by_test_run_id(self, test_run_id):
+        return self.os_store.find_by_test_run_id(test_run_id)
 
-    def store_test_execution(self, test_execution):
-        self.file_store.store_test_execution(test_execution)
-        self.os_store.store_test_execution(test_execution)
+    def store_test_run(self, test_run):
+        self.file_store.store_test_run(test_run)
+        self.os_store.store_test_run(test_run)
 
     def list(self):
         return self.os_store.list()
 
 
-class FileTestExecutionStore(TestExecutionStore):
-    def store_test_execution(self, test_execution):
-        doc = test_execution.as_dict()
-        test_execution_path = paths.test_execution_root(self.cfg, test_execution_id=test_execution.test_execution_id)
-        io.ensure_dir(test_execution_path)
-        with open(self._test_execution_file(), mode="wt", encoding="utf-8") as f:
+class FileTestRunStore(TestRunStore):
+    def store_test_run(self, test_run):
+        doc = test_run.as_dict()
+        test_run_path = paths.test_run_root(self.cfg, test_run_id=test_run.test_run_id)
+        io.ensure_dir(test_run_path)
+        with open(self._test_run_file(), mode="wt", encoding="utf-8") as f:
             f.write(json.dumps(doc, indent=True, ensure_ascii=False))
 
-    def store_aggregated_execution(self, test_execution):
-        doc = test_execution.as_dict()
-        aggregated_execution_path = paths.aggregated_results_root(self.cfg, test_execution_id=test_execution.test_execution_id)
+    def store_aggregated_execution(self, test_run):
+        doc = test_run.as_dict()
+        aggregated_execution_path = paths.aggregated_results_root(self.cfg, test_run_id=test_run.test_run_id)
         io.ensure_dir(aggregated_execution_path)
-        aggregated_file = os.path.join(aggregated_execution_path, "aggregated_test_execution.json")
+        aggregated_file = os.path.join(aggregated_execution_path, "aggregated_test_run.json")
         with open(aggregated_file, mode="wt", encoding="utf-8") as f:
             f.write(json.dumps(doc, indent=True, ensure_ascii=False))
 
-    def _test_execution_file(self, test_execution_id=None, is_aggregated=False):
+    def _test_run_file(self, test_run_id=None, is_aggregated=False):
         if is_aggregated:
-            return os.path.join(paths.aggregated_results_root(cfg=self.cfg, test_execution_id=test_execution_id),
-                                "aggregated_test_execution.json")
+            return os.path.join(paths.aggregated_results_root(cfg=self.cfg, test_run_id=test_run_id),
+                                "aggregated_test_run.json")
         else:
-            return os.path.join(paths.test_execution_root(cfg=self.cfg, test_execution_id=test_execution_id), "test_execution.json")
+            return os.path.join(paths.test_run_root(cfg=self.cfg, test_run_id=test_run_id), "test_run.json")
 
     def list(self):
-        results = glob.glob(self._test_execution_file(test_execution_id="*"))
-        all_test_executions = self._to_test_executions(results)
-        return all_test_executions[:self._max_results()]
+        results = glob.glob(self._test_run_file(test_run_id="*"))
+        all_test_runs = self._to_test_runs(results)
+        return all_test_runs[:self._max_results()]
 
     def list_aggregations(self):
-        aggregated_results = glob.glob(self._test_execution_file(test_execution_id="*", is_aggregated=True))
-        return self._to_test_executions(aggregated_results)
+        aggregated_results = glob.glob(self._test_run_file(test_run_id="*", is_aggregated=True))
+        return self._to_test_runs(aggregated_results)
 
-    def find_by_test_execution_id(self, test_execution_id):
-        is_aggregated = test_execution_id.startswith('aggregate')
-        test_execution_file = self._test_execution_file(test_execution_id=test_execution_id, is_aggregated=is_aggregated)
-        if io.exists(test_execution_file):
-            test_executions = self._to_test_executions([test_execution_file])
-            if test_executions:
-                return test_executions[0]
-        raise exceptions.NotFound("No test execution with test execution id [{}]".format(test_execution_id))
+    def find_by_test_run_id(self, test_run_id):
+        is_aggregated = test_run_id.startswith('aggregate')
+        test_run_file = self._test_run_file(test_run_id=test_run_id, is_aggregated=is_aggregated)
+        if io.exists(test_run_file):
+            test_runs = self._to_test_runs([test_run_file])
+            if test_runs:
+                return test_runs[0]
+        raise exceptions.NotFound("No test execution with test execution id [{}]".format(test_run_id))
 
-    def _to_test_executions(self, results):
-        test_executions = []
+    def _to_test_runs(self, results):
+        test_runs = []
         for result in results:
             # noinspection PyBroadException
             try:
                 with open(result, mode="rt", encoding="utf-8") as f:
-                    test_executions.append(TestExecution.from_dict(json.loads(f.read())))
+                    test_runs.append(TestRun.from_dict(json.loads(f.read())))
             except BaseException:
-                logging.getLogger(__name__).exception("Could not load test_execution file [%s] (incompatible format?) Skipping...", result)
-        return sorted(test_executions, key=lambda r: r.test_execution_timestamp, reverse=True)
+                logging.getLogger(__name__).exception("Could not load test_run file [%s] (incompatible format?) Skipping...", result)
+        return sorted(test_runs, key=lambda r: r.test_run_timestamp, reverse=True)
 
 
-class EsTestExecutionStore(TestExecutionStore):
+class EsTestRunStore(TestRunStore):
     INDEX_PREFIX = "benchmark-test-executions-"
-    TEST_EXECUTION_DOC_TYPE = "_doc"
+    test_run_DOC_TYPE = "_doc"
 
     def __init__(self, cfg, client_factory_class=OsClientFactory, index_template_provider_class=IndexTemplateProvider):
         """
@@ -1617,19 +1617,19 @@ class EsTestExecutionStore(TestExecutionStore):
         self.client = client_factory_class(cfg).create()
         self.index_template_provider = index_template_provider_class(cfg)
 
-    def store_test_execution(self, test_execution):
-        doc = test_execution.as_dict()
+    def store_test_run(self, test_run):
+        doc = test_run.as_dict()
         # always update the mapping to the latest version
-        self.client.put_template("benchmark-test-executions", self.index_template_provider.test_executions_template())
+        self.client.put_template("benchmark-test-executions", self.index_template_provider.test_runs_template())
         self.client.index(
-            index=self.index_name(test_execution),
-            doc_type=EsTestExecutionStore.TEST_EXECUTION_DOC_TYPE,
+            index=self.index_name(test_run),
+            doc_type=EsTestRunStore.test_run_DOC_TYPE,
             item=doc,
-            id=test_execution.test_execution_id)
+            id=test_run.test_run_id)
 
-    def index_name(self, test_execution):
-        test_execution_timestamp = test_execution.test_execution_timestamp
-        return f"{EsTestExecutionStore.INDEX_PREFIX}{test_execution_timestamp:%Y-%m}"
+    def index_name(self, test_run):
+        test_run_timestamp = test_run.test_run_timestamp
+        return f"{EsTestRunStore.INDEX_PREFIX}{test_run_timestamp:%Y-%m}"
 
     def list(self):
         filters = [{
@@ -1653,47 +1653,47 @@ class EsTestExecutionStore(TestExecutionStore):
                 }
             ]
         }
-        result = self.client.search(index="%s*" % EsTestExecutionStore.INDEX_PREFIX, body=query)
+        result = self.client.search(index="%s*" % EsTestRunStore.INDEX_PREFIX, body=query)
         hits = result["hits"]["total"]
         # OpenSearch 1.0+
         if isinstance(hits, dict):
             hits = hits["value"]
         if hits > 0:
-            return [TestExecution.from_dict(v["_source"]) for v in result["hits"]["hits"]]
+            return [TestRun.from_dict(v["_source"]) for v in result["hits"]["hits"]]
         else:
             return []
 
-    def find_by_test_execution_id(self, test_execution_id):
+    def find_by_test_run_id(self, test_run_id):
         query = {
             "query": {
                 "bool": {
                     "filter": [
                         {
                             "term": {
-                                "test-execution-id": test_execution_id
+                                "test-execution-id": test_run_id
                             }
                         }
                     ]
                 }
             }
         }
-        result = self.client.search(index="%s*" % EsTestExecutionStore.INDEX_PREFIX, body=query)
+        result = self.client.search(index="%s*" % EsTestRunStore.INDEX_PREFIX, body=query)
         hits = result["hits"]["total"]
         # OpenSearch 1.0+
         if isinstance(hits, dict):
             hits = hits["value"]
         if hits == 1:
-            return TestExecution.from_dict(result["hits"]["hits"][0]["_source"])
+            return TestRun.from_dict(result["hits"]["hits"][0]["_source"])
         elif hits > 1:
             raise exceptions.BenchmarkAssertionError(
-                "Expected one test execution to match test ex id [{}] but there were [{}] matches.".format(test_execution_id, hits))
+                "Expected one test execution to match test ex id [{}] but there were [{}] matches.".format(test_run_id, hits))
         else:
-            raise exceptions.NotFound("No test_execution with test_execution id [{}]".format(test_execution_id))
+            raise exceptions.NotFound("No test_run with test_run id [{}]".format(test_run_id))
 
 
 class OsResultsStore:
     """
-    Stores the results of a test_execution in a format that is
+    Stores the results of a test_run in a format that is
     better suited for reporting with OpenSearch Dashboards.
     """
     INDEX_PREFIX = "benchmark-results-"
@@ -1711,23 +1711,23 @@ class OsResultsStore:
         self.client = client_factory_class(cfg).create()
         self.index_template_provider = index_template_provider_class(cfg)
 
-    def store_results(self, test_execution):
+    def store_results(self, test_run):
         # always update the mapping to the latest version
         self.client.put_template("benchmark-results", self.index_template_provider.results_template())
-        self.client.bulk_index(index=self.index_name(test_execution),
+        self.client.bulk_index(index=self.index_name(test_run),
                                doc_type=OsResultsStore.RESULTS_DOC_TYPE,
-                               items=test_execution.to_result_dicts())
+                               items=test_run.to_result_dicts())
 
-    def index_name(self, test_execution):
-        test_execution_timestamp = test_execution.test_execution_timestamp
-        return f"{OsResultsStore.INDEX_PREFIX}{test_execution_timestamp:%Y-%m}"
+    def index_name(self, test_run):
+        test_run_timestamp = test_run.test_run_timestamp
+        return f"{OsResultsStore.INDEX_PREFIX}{test_run_timestamp:%Y-%m}"
 
 
 class NoopResultsStore:
     """
-    Does not store any results separately as these are stored as part of the test_execution on the file system.
+    Does not store any results separately as these are stored as part of the test_run on the file system.
     """
-    def store_results(self, test_execution):
+    def store_results(self, test_run):
         pass
 
 
@@ -2186,11 +2186,11 @@ class GlobalStats:
             )
 
     def tasks(self):
-        # ensure we can read test_execution.json files before OSB 0.8.0
+        # ensure we can read test_run.json files before OSB 0.8.0
         return [v.get("task", v["operation"]) for v in self.op_metrics]
 
     def metrics(self, task):
-        # ensure we can read test_execution.json files before OSB 0.8.0
+        # ensure we can read test_run.json files before OSB 0.8.0
         for r in self.op_metrics:
             if r.get("task", r["operation"]) == task:
                 return r
