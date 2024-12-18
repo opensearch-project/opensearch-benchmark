@@ -11,13 +11,13 @@ class Aggregator:
     def __init__(self, cfg, test_executions_dict, args) -> None:
         self.config = cfg
         self.args = args
-        self.test_executions = test_executions_dict
+        self.test_runs = test_runs_dict
         self.accumulated_results: Dict[str, Dict[str, List[Any]]] = {}
         self.accumulated_iterations: Dict[str, Dict[str, int]] = {}
         self.metrics = ["throughput", "latency", "service_time", "client_processing_time", "processing_time", "error_rate", "duration"]
-        self.test_store = metrics.test_execution_store(self.config)
+        self.test_store = metrics.test_run_store(self.config)
         self.cwd = cfg.opts("node", "benchmark.cwd")
-        self.test_execution = None
+        self.test_run = None
         self.test_procedure_name = None
         self.loaded_workload = None
 
@@ -179,40 +179,40 @@ class Aggregator:
             normalized_results_file = rio.normalize_path(self.args.results_file, self.cwd)
             # ensure that the parent folder already exists when we try to write the file...
             rio.ensure_dir(rio.dirname(normalized_results_file))
-            test_execution_id = os.path.basename(normalized_results_file)
-            self.config.add(config.Scope.applicationOverride, "system", "test_execution.id", normalized_results_file)
-        elif hasattr(self.args, 'test_execution_id') and self.args.test_execution_id:
-            test_execution_id = f"aggregate_results_{test_exe.workload}_{self.args.test_execution_id}"
-            self.config.add(config.Scope.applicationOverride, "system", "test_execution.id", test_execution_id)
+            test_run_id = os.path.basename(normalized_results_file)
+            self.config.add(config.Scope.applicationOverride, "system", "test_run.id", normalized_results_file)
+        elif hasattr(self.args, 'test_run_id') and self.args.test_run_id:
+            test_run_id = f"aggregate_results_{test_exe.workload}_{self.args.test_run_id}"
+            self.config.add(config.Scope.applicationOverride, "system", "test_run.id", test_run_id)
         else:
-            test_execution_id = f"aggregate_results_{test_exe.workload}_{str(uuid.uuid4())}"
-            self.config.add(config.Scope.applicationOverride, "system", "test_execution.id", test_execution_id)
+            test_run_id = f"aggregate_results_{test_exe.workload}_{str(uuid.uuid4())}"
+            self.config.add(config.Scope.applicationOverride, "system", "test_run.id", test_run_id)
 
-        print("Aggregate test execution ID: ", test_execution_id)
+        print("Aggregate test execution ID: ", test_run_id)
 
         self.update_config_object(test_exe)
 
         loaded_workload = workload.load_workload(self.config)
         test_procedure_object = loaded_workload.find_test_procedure_or_default(self.test_procedure_name)
 
-        test_execution = metrics.create_test_execution(self.config, loaded_workload, test_procedure_object, test_exe.workload_revision)
-        test_execution.user_tags = {
-            "aggregation-of-runs": list(self.test_executions.keys())
+        test_run = metrics.create_test_run(self.config, loaded_workload, test_procedure_object, test_exe.workload_revision)
+        test_run.user_tags = {
+            "aggregation-of-runs": list(self.test_runs.keys())
         }
-        test_execution.add_results(AggregatedResults(aggregated_results))
-        test_execution.distribution_version = test_exe.distribution_version
-        test_execution.revision = test_exe.revision
-        test_execution.distribution_flavor = test_exe.distribution_flavor
-        test_execution.provision_config_revision = test_exe.provision_config_revision
+        test_run.add_results(AggregatedResults(aggregated_results))
+        test_run.distribution_version = test_exe.distribution_version
+        test_run.revision = test_exe.revision
+        test_run.distribution_flavor = test_exe.distribution_flavor
+        test_run.provision_config_revision = test_exe.provision_config_revision
 
-        return test_execution
+        return test_run
 
     def calculate_weighted_average(self, task_metrics: Dict[str, List[Any]], task_name: str) -> Dict[str, Any]:
         weighted_metrics = {}
 
         # Get iterations for each test execution
         iterations_per_execution = [self.accumulated_iterations[test_id][task_name]
-                                    for test_id in self.test_executions.keys()]
+                                    for test_id in self.test_runs.keys()]
         total_iterations = sum(iterations_per_execution)
 
         for metric, values in task_metrics.items():
@@ -245,21 +245,21 @@ class Aggregator:
         std_dev = statistics.stdev(values)
         return (std_dev / mean) * 100 if mean != 0 else float('inf')
 
-    def test_execution_compatibility_check(self) -> None:
-        first_test_execution = self.test_store.find_by_test_execution_id(list(self.test_executions.keys())[0])
-        workload = first_test_execution.workload
-        test_procedure = first_test_execution.test_procedure
-        for id in self.test_executions.keys():
-            test_execution = self.test_store.find_by_test_execution_id(id)
-            if test_execution:
-                if test_execution.workload != workload:
+    def test_run_compatibility_check(self) -> None:
+        first_test_run = self.test_store.find_by_test_run_id(list(self.test_runs.keys())[0])
+        workload = first_test_run.workload
+        test_procedure = first_test_run.test_procedure
+        for id in self.test_runs.keys():
+            test_run = self.test_store.find_by_test_run_id(id)
+            if test_run:
+                if test_run.workload != workload:
                     raise ValueError(
-                        f"Incompatible workload: test {id} has workload '{test_execution.workload}' instead of '{workload}'. "
+                        f"Incompatible workload: test {id} has workload '{test_run.workload}' instead of '{workload}'. "
                         f"Ensure that all test IDs have the same workload."
                     )
-                if test_execution.test_procedure != test_procedure:
+                if test_run.test_procedure != test_procedure:
                     raise ValueError(
-                        f"Incompatible test procedure: test {id} has test procedure '{test_execution.test_procedure}' "
+                        f"Incompatible test procedure: test {id} has test procedure '{test_run.test_procedure}' "
                         f"instead of '{test_procedure}'. Ensure that all test IDs have the same test procedure from the same workload."
                     )
             else:
@@ -269,20 +269,20 @@ class Aggregator:
         return True
 
     def aggregate(self) -> None:
-        if self.test_execution_compatibility_check():
-            self.test_execution = self.test_store.find_by_test_execution_id(list(self.test_executions.keys())[0])
-            self.test_procedure_name = self.test_execution.test_procedure
+        if self.test_run_compatibility_check():
+            self.test_run = self.test_store.find_by_test_run_id(list(self.test_runs.keys())[0])
+            self.test_procedure_name = self.test_run.test_procedure
             self.config.add(config.Scope.applicationOverride, "workload", "repository.name", self.args.workload_repository)
-            self.config.add(config.Scope.applicationOverride, "workload", "workload.name", self.test_execution.workload)
+            self.config.add(config.Scope.applicationOverride, "workload", "workload.name", self.test_run.workload)
             self.loaded_workload = workload.load_workload(self.config)
-            for id in self.test_executions.keys():
-                test_execution = self.test_store.find_by_test_execution_id(id)
-                if test_execution:
-                    self.count_iterations_for_each_op(test_execution)
-                    self.accumulate_results(test_execution)
+            for id in self.test_runs.keys():
+                test_run = self.test_store.find_by_test_run_id(id)
+                if test_run:
+                    self.count_iterations_for_each_op(test_run)
+                    self.accumulate_results(test_run)
 
             aggregated_results = self.build_aggregated_results()
-            file_test_exe_store = FileTestExecutionStore(self.config)
+            file_test_exe_store = FileTestRunStore(self.config)
             file_test_exe_store.store_aggregated_execution(aggregated_results)
         else:
             raise ValueError("Incompatible test execution results")

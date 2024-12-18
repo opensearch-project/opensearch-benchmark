@@ -564,7 +564,7 @@ class WorkerCoordinator:
     def prepare_telemetry(self, opensearch, enable):
         enabled_devices = self.config.opts("telemetry", "devices")
         telemetry_params = self.config.opts("telemetry", "params")
-        log_root = paths.test_execution_root(self.config)
+        log_root = paths.test_run_root(self.config)
 
         os_default = opensearch["default"]
 
