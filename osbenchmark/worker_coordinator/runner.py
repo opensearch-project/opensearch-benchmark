@@ -1064,6 +1064,7 @@ class Query(Runner):
     def __init__(self):
         super().__init__()
         self._extractor = SearchAfterExtractor()
+        self.logger = logging.getLogger(__name__)
 
     async def __call__(self, opensearch, params):
         request_params, headers = self._transport_request_params(params)
