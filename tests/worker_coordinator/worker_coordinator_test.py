@@ -1173,7 +1173,7 @@ class AsyncExecutorTests(TestCase):
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_execute_schedule_in_throughput_mode(self, opensearch, on_client_request_start, on_client_request_end):
+    async def test_run_schedule_in_throughput_mode(self, opensearch, on_client_request_start, on_client_request_end):
         task_start = time.perf_counter()
         opensearch.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
 
@@ -1238,7 +1238,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_execute_schedule_with_progress_determined_by_runner(self, opensearch):
+    async def test_run_schedule_with_progress_determined_by_runner(self, opensearch):
         task_start = time.perf_counter()
         opensearch.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
 
@@ -1297,7 +1297,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_execute_schedule_runner_overrides_times(self, opensearch):
+    async def test_run_schedule_runner_overrides_times(self, opensearch):
         task_start = time.perf_counter()
         opensearch.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
 
@@ -1353,7 +1353,7 @@ class AsyncExecutorTests(TestCase):
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_execute_schedule_throughput_throttled(self, opensearch, on_client_request_start, on_client_request_end):
+    async def test_run_schedule_throughput_throttled(self, opensearch, on_client_request_start, on_client_request_end):
         def perform_request(*args, **kwargs):
             return as_future()
 
@@ -1472,7 +1472,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_execute_schedule_aborts_on_error(self, opensearch):
+    async def test_run_schedule_aborts_on_error(self, opensearch):
         class ExpectedUnitTestException(Exception):
 
             def __str__(self):
@@ -1519,7 +1519,7 @@ class AsyncExecutorTests(TestCase):
         self.assertEqual(0, opensearch.call_count)
 
     @run_async
-    async def test_execute_single_no_return_value(self):
+    async def test_run_single_no_return_value(self):
         opensearch = None
         params = None
         runner = mock.Mock()
@@ -1536,7 +1536,7 @@ class AsyncExecutorTests(TestCase):
         self.assertEqual({"success": True}, request_meta_data)
 
     @run_async
-    async def test_execute_single_tuple(self):
+    async def test_run_single_tuple(self):
         opensearch = None
         params = None
         runner = mock.Mock()
@@ -1553,7 +1553,7 @@ class AsyncExecutorTests(TestCase):
         self.assertEqual({"success": True}, request_meta_data)
 
     @run_async
-    async def test_execute_single_dict(self):
+    async def test_run_single_dict(self):
         opensearch = None
         params = None
         runner = mock.Mock()
@@ -1580,7 +1580,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_execute_single_with_connection_error_always_aborts(self, on_client_request_end):
+    async def test_run_single_with_connection_error_always_aborts(self, on_client_request_end):
         for on_error in ["abort", "continue"]:
             with self.subTest():
                 opensearch = None
@@ -1596,7 +1596,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_execute_single_with_http_400_aborts_when_specified(self, on_client_request_end):
+    async def test_run_single_with_http_400_aborts_when_specified(self, on_client_request_end):
         opensearch = None
         params = None
         runner = mock.Mock(side_effect=
@@ -1610,7 +1610,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_execute_single_with_http_400(self, on_client_request_end):
+    async def test_run_single_with_http_400(self, on_client_request_end):
         opensearch = None
         params = None
         runner = mock.Mock(side_effect=
@@ -1630,7 +1630,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_execute_single_with_http_413(self, on_client_request_end):
+    async def test_run_single_with_http_413(self, on_client_request_end):
         opensearch = None
         params = None
         runner = mock.Mock(side_effect=
@@ -1650,7 +1650,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_execute_single_with_key_error(self, on_client_request_end):
+    async def test_run_single_with_key_error(self, on_client_request_end):
         class FailingRunner:
             async def __call__(self, *args):
                 raise KeyError("bulk-size missing")
