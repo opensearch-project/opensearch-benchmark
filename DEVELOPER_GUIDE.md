@@ -8,7 +8,7 @@ This document will walk you through on what's needed to start contributing code 
     - [Setup](#setup)
 - [Importing the project into an IDE](#importing-the-project-into-an-ide)
 - [Setting Up a Local OpenSearch Cluster For OSB Development (Optional)](#setting-up-a-local-opensearch-cluster-for-osb-development-optional)
-- [Executing tests](#executing-tests)
+- [running tests](#running-tests)
     - [Unit tests](#unit-tests)
     - [Integration tests](#integration-tests)
 - [Submitting your changes for a pull request](#submitting-your-changes-for-a-pull-request)
@@ -159,7 +159,7 @@ And we're done! You should be seeing the performance metrics soon enough!
 tail -f ~/.benchmark/logs/benchmark.log
 ```
 
-## Executing tests
+## running tests
 
 Once setup is complete, you may run the unit and integration tests.
 
