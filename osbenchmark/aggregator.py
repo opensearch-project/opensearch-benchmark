@@ -182,10 +182,10 @@ class Aggregator:
             test_run_id = os.path.basename(normalized_results_file)
             self.config.add(config.Scope.applicationOverride, "system", "test_run.id", normalized_results_file)
         elif hasattr(self.args, 'test_run_id') and self.args.test_run_id:
-            test_run_id = f"aggregate_results_{test_exe.workload}_{self.args.test_run_id}"
+            test_run_id = f"aggregate_results_{test_run.workload}_{self.args.test_run_id}"
             self.config.add(config.Scope.applicationOverride, "system", "test_run.id", test_run_id)
         else:
-            test_run_id = f"aggregate_results_{test_exe.workload}_{str(uuid.uuid4())}"
+            test_run_id = f"aggregate_results_{test_run.workload}_{str(uuid.uuid4())}"
             self.config.add(config.Scope.applicationOverride, "system", "test_run.id", test_run_id)
 
         print("Aggregate test execution ID: ", test_run_id)
@@ -195,15 +195,15 @@ class Aggregator:
         loaded_workload = workload.load_workload(self.config)
         test_procedure_object = loaded_workload.find_test_procedure_or_default(self.test_procedure_name)
 
-        test_run = metrics.create_test_run(self.config, loaded_workload, test_procedure_object, test_exe.workload_revision)
+        test_run = metrics.create_test_run(self.config, loaded_workload, test_procedure_object, test_run.workload_revision)
         test_run.user_tags = {
             "aggregation-of-runs": list(self.test_runs.keys())
         }
         test_run.add_results(AggregatedResults(aggregated_results))
-        test_run.distribution_version = test_exe.distribution_version
-        test_run.revision = test_exe.revision
-        test_run.distribution_flavor = test_exe.distribution_flavor
-        test_run.provision_config_revision = test_exe.provision_config_revision
+        test_run.distribution_version = test_run.distribution_version
+        test_run.revision = test_run.revision
+        test_run.distribution_flavor = test_run.distribution_flavor
+        test_run.provision_config_revision = test_run.provision_config_revision
 
         return test_run
 
@@ -282,8 +282,8 @@ class Aggregator:
                     self.accumulate_results(test_run)
 
             aggregated_results = self.build_aggregated_results()
-            file_test_exe_store = FileTestRunStore(self.config)
-            file_test_exe_store.store_aggregated_execution(aggregated_results)
+            file_test_run_store = FileTestRunStore(self.config)
+            file_test_run_store.store_aggregated_execution(aggregated_results)
         else:
             raise ValueError("Incompatible test execution results")
 

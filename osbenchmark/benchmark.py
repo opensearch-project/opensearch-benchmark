@@ -1000,13 +1000,13 @@ def dispatch_sub_command(arg_parser, args, cfg):
         elif sub_command == "run":
             iterations = int(args.test_iterations)
             if iterations > 1:
-                test_exes = []
+                test_runs = []
                 for _ in range(iterations):
                     try:
                         configure_test(arg_parser, args, cfg)
                         run_test(cfg, args.kill_running_processes)
                         time.sleep(int(args.sleep_timer))
-                        test_exes.append(args.test_run_id)
+                        test_runs.append(args.test_run_id)
                         args.test_run_id = str(uuid.uuid4())
                     except Exception as e:
                         console.error(f"Error occurred during test run {_+1}: {str(e)}")
@@ -1015,7 +1015,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
                             break
 
                 if args.aggregate:
-                    args.test_runs = test_exes
+                    args.test_runs = test_runs
                     test_runs_dict = prepare_test_runs_dict(args, cfg)
                     aggregator_instance = aggregator.Aggregator(cfg, test_runs_dict, args)
                     aggregator_instance.aggregate()
