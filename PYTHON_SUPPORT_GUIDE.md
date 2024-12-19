@@ -30,12 +30,12 @@ supported_python_versions = [(3, 8), (3, 9), (3, 10), (3, 11), (3, 12)]
 opensearch-benchmark run --distribution-version=1.0.0 --workload=geonames --test-mode
 ```
 
-**OpenSearch Benchmark command executing test on target-host in test mode**
+**OpenSearch Benchmark command running test on target-host in test mode**
 ```
 opensearch-benchmark run --workload=geonames --pipeline=benchmark-only --target-host="<OPENSEARCH CLUSTER ENDPOINT>" --client-options="basic_auth_user:'<USERNAME>',basic_auth_password:'<PASSWORD>'" --test-mode"
 ```
 
-**OpenSearch-Benchmark command executing test on target-host without test mode**
+**OpenSearch-Benchmark command running test on target-host without test mode**
 ```
 opensearch-benchmark run --workload=geonames --pipeline=benchmark-only --target-host="<OPENSEARCH CLUSTER ENDPOINT>" --client-options="basic_auth_user:'<USERNAME>',basic_auth_password:'<PASSWORD>'"
 ```

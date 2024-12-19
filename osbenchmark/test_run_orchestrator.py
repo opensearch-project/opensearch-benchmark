@@ -222,12 +222,12 @@ class BenchmarkCoordinator:
         # store test_run initially (without any results) so other components can retrieve full metadata
         self.test_run_store.store_test_run(self.test_run)
         if self.test_run.test_procedure.auto_generated:
-            console.info("Executing test with workload [{}] and provision_config_instance {} with version [{}].\n"
+            console.info("Running test with workload [{}] and provision_config_instance {} with version [{}].\n"
                          .format(self.test_run.workload_name,
                          self.test_run.provision_config_instance,
                          self.test_run.distribution_version))
         else:
-            console.info("Executing test with workload [{}], test_procedure [{}] and provision_config_instance {} with version [{}].\n"
+            console.info("Running test with workload [{}], test_procedure [{}] and provision_config_instance {} with version [{}].\n"
                          .format(
                              self.test_run.workload_name,
                              self.test_run.test_procedure_name,
