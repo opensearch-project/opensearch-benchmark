@@ -112,7 +112,7 @@ def create_arg_parser():
         dest="subcommand",
         help="")
 
-    test_run_parser = subparsers.add_parser("run", help="Run a benchmark")
+    test_run_parser = subparsers.add_parser("run-test", help="Run a benchmark")
     # change in favor of "list telemetry", "list workloads", "list pipelines"
     list_parser = subparsers.add_parser("list", help="List configuration options")
     list_parser.add_argument(
@@ -997,7 +997,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "builder", "preserve.install", convert.to_bool(args.preserve_install))
             cfg.add(config.Scope.applicationOverride, "system", "install.id", args.installation_id)
             builder.stop(cfg)
-        elif sub_command == "run":
+        elif sub_command == "run-test":
             iterations = int(args.test_iterations)
             if iterations > 1:
                 test_runs = []
