@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -76,10 +76,12 @@ class WorkloadProcessor:
 
 class WorkloadProcessorRegistry:
     def __init__(self, cfg):
-        self.required_processors = [TaskFilterWorkloadProcessor(cfg), TestModeWorkloadProcessor(cfg), QueryRandomizerWorkloadProcessor(cfg)]
+        self.required_processors = [TaskFilterWorkloadProcessor(
+            cfg), TestModeWorkloadProcessor(cfg), QueryRandomizerWorkloadProcessor(cfg)]
         self.workload_processors = []
         self.offline = cfg.opts("system", "offline.mode")
-        self.test_mode = cfg.opts("workload", "test.mode.enabled", mandatory=False, default_value=False)
+        self.test_mode = cfg.opts(
+            "workload", "test.mode.enabled", mandatory=False, default_value=False)
         self.base_config = cfg
         self.custom_configuration = False
 
@@ -99,7 +101,8 @@ class WorkloadProcessorRegistry:
     @property
     def processors(self):
         if not self.custom_configuration:
-            self.register_workload_processor(DefaultWorkloadPreparator(self.base_config))
+            self.register_workload_processor(
+                DefaultWorkloadPreparator(self.base_config))
         return [*self.required_processors, *self.workload_processors]
 
 
@@ -118,7 +121,8 @@ def workloads(cfg):
 
 def list_workloads(cfg):
     available_workloads = workloads(cfg)
-    only_auto_generated_test_procedures = all(t.default_test_procedure.auto_generated for t in available_workloads)
+    only_auto_generated_test_procedures = all(
+        t.default_test_procedure.auto_generated for t in available_workloads)
 
     data = []
     for t in available_workloads:
@@ -130,7 +134,8 @@ def list_workloads(cfg):
             line.append(",".join(map(str, t.test_procedures)))
         data.append(line)
 
-    headers = ["Name", "Description", "Documents", "Compressed Size", "Uncompressed Size"]
+    headers = ["Name", "Description", "Documents",
+               "Compressed Size", "Uncompressed Size"]
     if not only_auto_generated_test_procedures:
         headers.append("Default TestProcedure")
         headers.append("All TestProcedures")
@@ -160,9 +165,11 @@ def workload_info(cfg):
         console.println("")
         for num, task in enumerate(c.schedule, start=1):
             if task.nested:
-                console.println(format_task(task, suffix=":", num="{}. ".format(num)))
+                console.println(format_task(
+                    task, suffix=":", num="{}. ".format(num)))
                 for leaf_num, leaf_task in enumerate(task, start=1):
-                    console.println(format_task(leaf_task, indent="\t", num="{}.{} ".format(num, leaf_num)))
+                    console.println(format_task(
+                        leaf_task, indent="\t", num="{}.{} ".format(num, leaf_num)))
             else:
                 console.println(format_task(task, num="{}. ".format(num)))
 
@@ -170,9 +177,12 @@ def workload_info(cfg):
     console.println("Showing details for workload [{}]:\n".format(t.name))
     console.println("* Description: {}".format(t.description))
     if t.number_of_documents:
-        console.println("* Documents: {}".format(convert.number_to_human_string(t.number_of_documents)))
-        console.println("* Compressed Size: {}".format(convert.bytes_to_human_string(t.compressed_size_in_bytes)))
-        console.println("* Uncompressed Size: {}".format(convert.bytes_to_human_string(t.uncompressed_size_in_bytes)))
+        console.println(
+            "* Documents: {}".format(convert.number_to_human_string(t.number_of_documents)))
+        console.println(
+            "* Compressed Size: {}".format(convert.bytes_to_human_string(t.compressed_size_in_bytes)))
+        console.println("* Uncompressed Size: {}".format(
+            convert.bytes_to_human_string(t.uncompressed_size_in_bytes)))
     console.println("")
 
     if t.selected_test_procedure:
@@ -199,28 +209,32 @@ def _load_single_workload(cfg, workload_repository, workload_name):
     try:
         workload_dir = workload_repository.workload_dir(workload_name)
         reader = WorkloadFileReader(cfg)
-        current_workload = reader.read(workload_name, workload_repository.workload_file(workload_name), workload_dir)
+        current_workload = reader.read(
+            workload_name, workload_repository.workload_file(workload_name), workload_dir)
         tpr = WorkloadProcessorRegistry(cfg)
-        has_plugins = load_workload_plugins(cfg, workload_name, register_workload_processor=tpr.register_workload_processor)
+        has_plugins = load_workload_plugins(
+            cfg, workload_name, register_workload_processor=tpr.register_workload_processor)
         current_workload.has_plugins = has_plugins
         for processor in tpr.processors:
             processor.on_after_load_workload(current_workload)
         return current_workload
     except FileNotFoundError as e:
-        logging.getLogger(__name__).exception("Cannot load workload [%s]", workload_name)
+        logging.getLogger(__name__).exception(
+            "Cannot load workload [%s]", workload_name)
         raise exceptions.SystemSetupError(f"Cannot load workload [{workload_name}]. "
                                           f"List the available workloads with [{PROGRAM_NAME} list workloads].") from e
     except BaseException:
-        logging.getLogger(__name__).exception("Cannot load workload [%s]", workload_name)
+        logging.getLogger(__name__).exception(
+            "Cannot load workload [%s]", workload_name)
         raise
 
 
 def load_workload_plugins(cfg,
-                       workload_name,
-                       register_runner=None,
-                       register_scheduler=None,
-                       register_workload_processor=None,
-                       force_update=False):
+                          workload_name,
+                          register_runner=None,
+                          register_scheduler=None,
+                          register_workload_processor=None,
+                          force_update=False):
     """
     Loads plugins that are defined for the current workload (as specified by the configuration).
 
@@ -235,8 +249,10 @@ def load_workload_plugins(cfg,
     """
     repo = workload_repo(cfg, fetch=force_update, update=force_update)
     workload_plugin_path = repo.workload_dir(workload_name)
-    logging.getLogger(__name__).debug("Invoking plugin_reader with name [%s] resolved to path [%s]", workload_name, workload_plugin_path)
-    plugin_reader = WorkloadPluginReader(workload_plugin_path, register_runner, register_scheduler, register_workload_processor)
+    logging.getLogger(__name__).debug(
+        "Invoking plugin_reader with name [%s] resolved to path [%s]", workload_name, workload_plugin_path)
+    plugin_reader = WorkloadPluginReader(
+        workload_plugin_path, register_runner, register_scheduler, register_workload_processor)
 
     if plugin_reader.can_load():
         plugin_reader.load()
@@ -268,9 +284,11 @@ def set_absolute_data_path(cfg, t):
         for document_set in corpus.documents:
             # At this point we can assume that the file is available locally. Check which path exists and set it.
             if document_set.document_archive:
-                document_set.document_archive = first_existing(data_root, document_set.document_archive)
+                document_set.document_archive = first_existing(
+                    data_root, document_set.document_archive)
             if document_set.document_file:
-                document_set.document_file = first_existing(data_root, document_set.document_file)
+                document_set.document_file = first_existing(
+                    data_root, document_set.document_file)
 
 
 def is_simple_workload_mode(cfg):
@@ -301,7 +319,8 @@ def data_dir(cfg, workload_name, corpus_name):
     :param corpus_name: Name of the current corpus.
     :return: A list containing either one or two elements. Each element contains a path to a directory which may contain document files.
     """
-    corpus_dir = os.path.join(cfg.opts("benchmarks", "local.dataset.cache"), corpus_name)
+    corpus_dir = os.path.join(
+        cfg.opts("benchmarks", "local.dataset.cache"), corpus_name)
     if is_simple_workload_mode(cfg):
         workload_path = cfg.opts("workload", "workload.path")
         r = SimpleWorkloadRepository(workload_path)
@@ -315,23 +334,30 @@ def data_dir(cfg, workload_name, corpus_name):
 class GitWorkloadRepository:
     def __init__(self, cfg, fetch, update, repo_class=repo.BenchmarkRepository):
         # current workload name (if any)
-        self.workload_name = cfg.opts("workload", "workload.name", mandatory=False)
-        distribution_version = cfg.opts("builder", "distribution.version", mandatory=False)
+        self.workload_name = cfg.opts(
+            "workload", "workload.name", mandatory=False)
+        distribution_version = cfg.opts(
+            "builder", "distribution.version", mandatory=False)
         repo_name = cfg.opts("workload", "repository.name")
-        repo_revision = cfg.opts("workload", "repository.revision", mandatory=False)
+        repo_revision = cfg.opts(
+            "workload", "repository.revision", mandatory=False)
         offline = cfg.opts("system", "offline.mode")
-        remote_url = cfg.opts("workloads", "%s.url" % repo_name, mandatory=False)
+        remote_url = cfg.opts("workloads", "%s.url" %
+                              repo_name, mandatory=False)
         root = cfg.opts("node", "root.dir")
-        workload_repositories = cfg.opts("benchmarks", "workload.repository.dir")
+        workload_repositories = cfg.opts(
+            "benchmarks", "workload.repository.dir")
         workloads_dir = os.path.join(root, workload_repositories)
 
-        self.repo = repo_class(remote_url, workloads_dir, repo_name, "workloads", offline, fetch)
+        self.repo = repo_class(remote_url, workloads_dir,
+                               repo_name, "workloads", offline, fetch)
         if update:
             if repo_revision:
                 self.repo.checkout(repo_revision)
             else:
                 self.repo.update(distribution_version)
-                cfg.add(config.Scope.applicationOverride, "workload", "repository.revision", self.repo.revision)
+                cfg.add(config.Scope.applicationOverride, "workload",
+                        "repository.revision", self.repo.revision)
 
     @property
     def workload_names(self):
@@ -347,30 +373,35 @@ class GitWorkloadRepository:
 class SimpleWorkloadRepository:
     def __init__(self, workload_path):
         if not os.path.exists(workload_path):
-            raise exceptions.SystemSetupError("Workload path %s does not exist" % workload_path)
+            raise exceptions.SystemSetupError(
+                "Workload path %s does not exist" % workload_path)
 
         if os.path.isdir(workload_path):
             self.workload_name = io.basename(workload_path)
             self._workload_dir = workload_path
             self._workload_file = os.path.join(workload_path, "workload.json")
             if not os.path.exists(self._workload_file):
-                raise exceptions.SystemSetupError("Could not find workload.json in %s" % workload_path)
+                raise exceptions.SystemSetupError(
+                    "Could not find workload.json in %s" % workload_path)
         elif os.path.isfile(workload_path):
             if io.has_extension(workload_path, ".json"):
                 self._workload_dir = io.dirname(workload_path)
                 self._workload_file = workload_path
                 self.workload_name = io.splitext(io.basename(workload_path))[0]
             else:
-                raise exceptions.SystemSetupError("%s has to be a JSON file" % workload_path)
+                raise exceptions.SystemSetupError(
+                    "%s has to be a JSON file" % workload_path)
         else:
-            raise exceptions.SystemSetupError("%s is neither a file nor a directory" % workload_path)
+            raise exceptions.SystemSetupError(
+                "%s is neither a file nor a directory" % workload_path)
 
     @property
     def workload_names(self):
         return [self.workload_name]
 
     def workload_dir(self, workload_name):
-        assert workload_name == self.workload_name, "Expect provided workload name [%s] to match [%s]" % (workload_name, self.workload_name)
+        assert workload_name == self.workload_name, "Expect provided workload name [%s] to match [%s]" % (
+            workload_name, self.workload_name)
         return self._workload_dir
 
     def workload_file(self, workload_name):
@@ -423,7 +454,8 @@ class DefaultWorkloadPreparator(WorkloadProcessor):
                     preparator.prepare_document_set(document_set, data_root[1])
 
     def on_prepare_workload(self, workload, data_root_dir):
-        prep = DocumentSetPreparator(workload.name, self.downloader, self.decompressor)
+        prep = DocumentSetPreparator(
+            workload.name, self.downloader, self.decompressor)
         for corpus in used_corpora(workload):
             params = {
                 "cfg": self.cfg,
@@ -469,9 +501,11 @@ class Downloader:
         file_name = os.path.basename(target_path)
 
         if not base_url:
-            raise exceptions.DataError("Cannot download data because no base URL is provided.")
+            raise exceptions.DataError(
+                "Cannot download data because no base URL is provided.")
         if self.offline:
-            raise exceptions.SystemSetupError(f"Cannot find [{target_path}]. Please disable offline mode and retry.")
+            raise exceptions.SystemSetupError(
+                f"Cannot find [{target_path}]. Please disable offline mode and retry.")
 
         if source_url:
             data_url = source_url
@@ -486,16 +520,20 @@ class Downloader:
             io.ensure_dir(os.path.dirname(target_path))
             if size_in_bytes:
                 size_in_mb = round(convert.bytes_to_mb(size_in_bytes))
-                self.logger.info("Downloading data from [%s] (%s MB) to [%s].", data_url, size_in_mb, target_path)
+                self.logger.info(
+                    "Downloading data from [%s] (%s MB) to [%s].", data_url, size_in_mb, target_path)
             else:
-                self.logger.info("Downloading data from [%s] to [%s].", data_url, target_path)
+                self.logger.info(
+                    "Downloading data from [%s] to [%s].", data_url, target_path)
 
             # we want to have a bit more accurate download progress as these files are typically very large
             progress = net.Progress("[INFO] Downloading workload data file: " + os.path.basename(target_path),
                                     accuracy=1)
-            net.download(data_url, target_path, size_in_bytes, progress_indicator=progress)
+            net.download(data_url, target_path, size_in_bytes,
+                         progress_indicator=progress)
             progress.finish()
-            self.logger.info("Downloaded data from [%s] to [%s].", data_url, target_path)
+            self.logger.info(
+                "Downloaded data from [%s] to [%s].", data_url, target_path)
         except urllib.error.HTTPError as e:
             if e.code == 404 and self.test_mode:
                 raise exceptions.DataError("This workload does not support test mode. Ask the workload author to add it or"
@@ -508,7 +546,8 @@ class Downloader:
                     msg += f" (HTTP status: {e.code})"
                 raise exceptions.DataError(msg, e) from None
         except urllib.error.URLError as e:
-            raise exceptions.DataError(f"Could not download [{data_url}] to [{target_path}].") from e
+            raise exceptions.DataError(
+                f"Could not download [{data_url}] to [{target_path}].") from e
 
         if not os.path.isfile(target_path):
             raise exceptions.SystemSetupError(f"Could not download [{data_url}] to [{target_path}]. Verify data "
@@ -535,7 +574,8 @@ class DocumentSetPreparator:
 
     def create_file_offset_table(self, document_file_path, base_url, source_url, expected_number_of_lines):
         # just rebuild the file every time for the time being. Later on, we might check the data file fingerprint to avoid it
-        lines_read = io.prepare_file_offset_table(document_file_path, base_url, source_url, self.downloader)
+        lines_read = io.prepare_file_offset_table(
+            document_file_path, base_url, source_url, self.downloader)
         if lines_read and lines_read != expected_number_of_lines:
             io.remove_file_offset_table(document_file_path)
             raise exceptions.DataError(f"Data in [{document_file_path}] for workload [{self.workload_name}] are invalid. "
@@ -558,7 +598,8 @@ class DocumentSetPreparator:
         :param data_root: The data root directory for this document set.
         """
         doc_path = os.path.join(data_root, document_set.document_file)
-        archive_path = os.path.join(data_root, document_set.document_archive) if document_set.has_compressed_corpus() else None
+        archive_path = os.path.join(
+            data_root, document_set.document_archive) if document_set.has_compressed_corpus() else None
         while True:
             if self.is_locally_available(doc_path) and \
                     self.has_expected_size(doc_path, document_set.uncompressed_size_in_bytes):
@@ -566,7 +607,8 @@ class DocumentSetPreparator:
             if document_set.has_compressed_corpus() and \
                     self.is_locally_available(archive_path) and \
                     self.has_expected_size(archive_path, document_set.compressed_size_in_bytes):
-                self.decompressor.decompress(archive_path, doc_path, document_set.uncompressed_size_in_bytes)
+                self.decompressor.decompress(
+                    archive_path, doc_path, document_set.uncompressed_size_in_bytes)
             else:
                 if document_set.has_compressed_corpus():
                     target_path = archive_path
@@ -576,25 +618,30 @@ class DocumentSetPreparator:
                     expected_size = document_set.uncompressed_size_in_bytes
                 else:
                     # this should not happen in practice as the JSON schema should take care of this
-                    raise exceptions.BenchmarkAssertionError(f"Workload {self.workload_name} specifies documents but no corpus")
+                    raise exceptions.BenchmarkAssertionError(
+                        f"Workload {self.workload_name} specifies documents but no corpus")
 
                 try:
                     if document_set.document_file_parts:
                         for part in document_set.document_file_parts:
-                            self.downloader.download(document_set.base_url, None, os.path.join(data_root, part["name"]), part["size"])
+                            self.downloader.download(document_set.base_url, None, os.path.join(
+                                data_root, part["name"]), part["size"])
                         try:
                             with open(target_path, "wb") as outfile:
                                 console.info(f"Concatenating file parts {', '.join([p['name'] for p in document_set.document_file_parts])}"
                                              f" into {os.path.basename(target_path)}", flush=True, logger=self.logger)
                                 for part in document_set.document_file_parts:
-                                    part_name = os.path.join(data_root, part["name"])
+                                    part_name = os.path.join(
+                                        data_root, part["name"])
                                     with open(part_name, "rb") as infile:
                                         shutil.copyfileobj(infile, outfile)
                                         os.remove(part_name)
                         except Exception as e:
-                            raise exceptions.DataError(f"Encountered exception {repr(e)} when building corpus file from parts")
+                            raise exceptions.DataError(
+                                f"Encountered exception {repr(e)} when building corpus file from parts")
                     else:
-                        self.downloader.download(document_set.base_url, document_set.source_url, target_path, expected_size)
+                        self.downloader.download(
+                            document_set.base_url, document_set.source_url, target_path, expected_size)
                 except exceptions.DataError as e:
                     if e.message == "Cannot download data because no base URL is provided." and \
                        self.is_locally_available(target_path):
@@ -604,7 +651,8 @@ class DocumentSetPreparator:
                     else:
                         raise
         if document_set.support_file_offset_table:
-            self.create_file_offset_table(doc_path, document_set.base_url, document_set.source_url, document_set.number_of_lines)
+            self.create_file_offset_table(
+                doc_path, document_set.base_url, document_set.source_url, document_set.number_of_lines)
 
     def prepare_bundled_document_set(self, document_set, data_root):
         """
@@ -626,12 +674,14 @@ class DocumentSetPreparator:
         :return: See postcondition.
         """
         doc_path = os.path.join(data_root, document_set.document_file)
-        archive_path = os.path.join(data_root, document_set.document_archive) if document_set.has_compressed_corpus() else None
+        archive_path = os.path.join(
+            data_root, document_set.document_archive) if document_set.has_compressed_corpus() else None
 
         while True:
             if self.is_locally_available(doc_path):
                 if self.has_expected_size(doc_path, document_set.uncompressed_size_in_bytes):
-                    self.create_file_offset_table(doc_path, document_set.base_url, document_set.source_url, document_set.number_of_lines)
+                    self.create_file_offset_table(
+                        doc_path, document_set.base_url, document_set.source_url, document_set.number_of_lines)
                     return True
                 else:
                     raise exceptions.DataError(f"[{doc_path}] is present but does not have the expected size "
@@ -639,7 +689,8 @@ class DocumentSetPreparator:
 
             if document_set.has_compressed_corpus() and self.is_locally_available(archive_path):
                 if self.has_expected_size(archive_path, document_set.compressed_size_in_bytes):
-                    self.decompressor.decompress(archive_path, doc_path, document_set.uncompressed_size_in_bytes)
+                    self.decompressor.decompress(
+                        archive_path, doc_path, document_set.uncompressed_size_in_bytes)
                 else:
                     # treat this is an error because if the file is present but the size does not match, something is
                     # really fishy. It is likely that the user is currently creating a new workload and did not specify
@@ -657,7 +708,8 @@ class TemplateSource:
     benchmark.collect(parts=...
     """
 
-    collect_parts_re = re.compile(r"{{\ +?benchmark\.collect\(parts=\"(.+?(?=\"))\"\)\ +?}}")
+    collect_parts_re = re.compile(
+        r"{{\ +?benchmark\.collect\(parts=\"(.+?(?=\"))\"\)\ +?}}")
 
     def __init__(self, base_path, template_file_name, source=io.FileSource, fileglobber=glob.glob):
         self.base_path = base_path
@@ -674,12 +726,16 @@ class TemplateSource:
                 autoescape=select_autoescape(['html', 'xml'])),
                 self.template_file_name)
         except jinja2.TemplateNotFound:
-            self.logger.exception("Could not load workload from [%s].", self.template_file_name)
-            raise WorkloadSyntaxError("Could not load workload from '{}'".format(self.template_file_name))
-        self.assembled_source = self.replace_includes(self.base_path, base_workload[0])
+            self.logger.exception(
+                "Could not load workload from [%s].", self.template_file_name)
+            raise WorkloadSyntaxError(
+                "Could not load workload from '{}'".format(self.template_file_name))
+        self.assembled_source = self.replace_includes(
+            self.base_path, base_workload[0])
 
     def load_template_from_string(self, template_source):
-        self.assembled_source = self.replace_includes(self.base_path, template_source)
+        self.assembled_source = self.replace_includes(
+            self.base_path, template_source)
 
     def replace_includes(self, base_path, workload_fragment):
         match = TemplateSource.collect_parts_re.findall(workload_fragment)
@@ -689,7 +745,8 @@ class TemplateSource:
             for glob_pattern in match:
                 full_glob_path = os.path.join(base_path, glob_pattern)
                 sub_source = self.read_glob_files(full_glob_path)
-                repl[glob_pattern] = self.replace_includes(base_path=io.dirname(full_glob_path), workload_fragment=sub_source)
+                repl[glob_pattern] = self.replace_includes(
+                    base_path=io.dirname(full_glob_path), workload_fragment=sub_source)
 
             def replstring(matchobj):
                 # matchobj.groups() is a tuple and first element contains the matched group id
@@ -803,9 +860,11 @@ def render_template_from_file(template_file_name, template_vars, complete_worklo
             return []
 
     base_path = io.dirname(template_file_name)
-    template_source = TemplateSource(base_path, io.basename(template_file_name))
+    template_source = TemplateSource(
+        base_path, io.basename(template_file_name))
     template_source.load_template_from_file()
-    register_all_params_in_workload(template_source.assembled_source, complete_workload_params)
+    register_all_params_in_workload(
+        template_source.assembled_source, complete_workload_params)
 
     return render_template(loader=jinja2.FileSystemLoader(base_path),
                            template_source=template_source.assembled_source,
@@ -843,7 +902,8 @@ class TaskFilterWorkloadProcessor(WorkloadProcessor):
                         raise exceptions.SystemSetupError(f"Invalid format for filtered tasks: [{t}]. "
                                                           f"Expected [type] but got [{spec[0]}].")
                 else:
-                    raise exceptions.SystemSetupError(f"Invalid format for filtered tasks: [{t}]")
+                    raise exceptions.SystemSetupError(
+                        f"Invalid format for filtered tasks: [{t}]")
         return filters
 
     def _filter_out_match(self, task):
@@ -874,7 +934,8 @@ class TaskFilterWorkloadProcessor(WorkloadProcessor):
                                          leaf_task, test_procedure)
                         task.remove_task(leaf_task)
             for task in tasks_to_remove:
-                self.logger.info("Removing task [%s] from test_procedure [%s] due to task filter.", task, test_procedure)
+                self.logger.info(
+                    "Removing task [%s] from test_procedure [%s] due to task filter.", task, test_procedure)
                 test_procedure.remove_task(task)
 
         return input_workload
@@ -882,16 +943,19 @@ class TaskFilterWorkloadProcessor(WorkloadProcessor):
 
 class TestModeWorkloadProcessor(WorkloadProcessor):
     def __init__(self, cfg):
-        self.test_mode_enabled = cfg.opts("workload", "test.mode.enabled", mandatory=False, default_value=False)
+        self.test_mode_enabled = cfg.opts(
+            "workload", "test.mode.enabled", mandatory=False, default_value=False)
         self.logger = logging.getLogger(__name__)
 
     def on_after_load_workload(self, input_workload, **kwargs):
         if not self.test_mode_enabled:
             return input_workload
-        self.logger.info("Preparing workload [%s] for test mode.", str(input_workload))
+        self.logger.info(
+            "Preparing workload [%s] for test mode.", str(input_workload))
         for corpus in input_workload.corpora:
             if self.logger.isEnabledFor(logging.DEBUG):
-                self.logger.debug("Reducing corpus size to 1000 documents for [%s]", corpus.name)
+                self.logger.debug(
+                    "Reducing corpus size to 1000 documents for [%s]", corpus.name)
             for document_set in corpus.documents:
                 # TODO #341: Should we allow this for snapshots too?
                 if document_set.is_bulk:
@@ -908,7 +972,7 @@ class TestModeWorkloadProcessor(WorkloadProcessor):
                         document_set.document_file = f"{path}-1k{ext}"
                     else:
                         raise exceptions.BenchmarkAssertionError(f"Document corpus [{corpus.name}] has neither compressed "
-                                                             f"nor uncompressed corpus.")
+                                                                 f"nor uncompressed corpus.")
 
                     # we don't want to check sizes
                     document_set.compressed_size_in_bytes = None
@@ -923,12 +987,14 @@ class TestModeWorkloadProcessor(WorkloadProcessor):
                     if leaf_task.warmup_iterations is not None and leaf_task.warmup_iterations > leaf_task.clients:
                         count = leaf_task.clients
                         if self.logger.isEnabledFor(logging.DEBUG):
-                            self.logger.debug("Resetting warmup iterations to %d for [%s]", count, str(leaf_task))
+                            self.logger.debug(
+                                "Resetting warmup iterations to %d for [%s]", count, str(leaf_task))
                         leaf_task.warmup_iterations = count
                     if leaf_task.iterations is not None and leaf_task.iterations > leaf_task.clients:
                         count = leaf_task.clients
                         if self.logger.isEnabledFor(logging.DEBUG):
-                            self.logger.debug("Resetting measurement iterations to %d for [%s]", count, str(leaf_task))
+                            self.logger.debug(
+                                "Resetting measurement iterations to %d for [%s]", count, str(leaf_task))
                         leaf_task.iterations = count
                     if leaf_task.warmup_time_period is not None and leaf_task.warmup_time_period > 0:
                         leaf_task.warmup_time_period = 0
@@ -950,16 +1016,22 @@ class TestModeWorkloadProcessor(WorkloadProcessor):
 
         return input_workload
 
+
 class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
     DEFAULT_RF = 0.3
     DEFAULT_N = 5000
     DEFAULT_ALPHA = 1
+
     def __init__(self, cfg):
-        self.randomization_enabled = cfg.opts("workload", "randomization.enabled", mandatory=False, default_value=False)
-        self.rf = float(cfg.opts("workload", "randomization.repeat_frequency", mandatory=False, default_value=self.DEFAULT_RF))
+        self.randomization_enabled = cfg.opts(
+            "workload", "randomization.enabled", mandatory=False, default_value=False)
+        self.rf = float(cfg.opts("workload", "randomization.repeat_frequency",
+                        mandatory=False, default_value=self.DEFAULT_RF))
         self.logger = logging.getLogger(__name__)
-        self.N = int(cfg.opts("workload", "randomization.n", mandatory=False, default_value=self.DEFAULT_N))
-        self.zipf_alpha = float(cfg.opts("workload", "randomization.alpha", mandatory=False, default_value=self.DEFAULT_ALPHA))
+        self.N = int(cfg.opts("workload", "randomization.n",
+                     mandatory=False, default_value=self.DEFAULT_N))
+        self.zipf_alpha = float(cfg.opts(
+            "workload", "randomization.alpha", mandatory=False, default_value=self.DEFAULT_ALPHA))
         self.H_list = self.precompute_H(self.N, self.zipf_alpha)
 
     # Helper functions for computing Zipf distribution
@@ -1001,7 +1073,7 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
     def extract_fields_helper(self, root, current_path):
         # Recursively called to find the location of ranges in an OpenSearch range query.
         # Return the field and the current path if we're currently scanning the field name in a range query, otherwise return an empty list.
-        fields = [] # pairs of (field, path_to_field)
+        fields = []  # pairs of (field, path_to_field)
         curr = self.get_dict_from_previous_path(root, current_path)
         if isinstance(curr, dict) and curr != {}:
             if len(current_path) > 0 and current_path[-1] == "range":
@@ -1012,7 +1084,8 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
                 return fields
             else:
                 for key in curr.keys():
-                    fields += self.extract_fields_helper(root, current_path + [key])
+                    fields += self.extract_fields_helper(
+                        root, current_path + [key])
                 return fields
         elif isinstance(curr, list) and curr != []:
             for i in range(len(curr)):
@@ -1041,7 +1114,8 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
         for field_and_path, new_value in zip(fields_and_paths, new_values):
             field = field_and_path[0]
             path = field_and_path[1]
-            range_section = self.get_dict_from_previous_path(params["body"]["query"], path)[field]
+            range_section = self.get_dict_from_previous_path(
+                params["body"]["query"], path)[field]
             # get the section of the query corresponding to the field name
             for greater_than in ["gte", "gt"]:
                 if greater_than in range_section:
@@ -1059,26 +1133,32 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
 
     def get_randomized_values(self, input_workload, input_params,
                               get_standard_value=params.get_standard_value,
-                              get_standard_value_source=params.get_standard_value_source, # Made these configurable for simpler unit tests
+                              # Made these configurable for simpler unit tests
+                              get_standard_value_source=params.get_standard_value_source,
                               **kwargs):
 
         # The queries as listed in operations/default.json don't have the index param,
         # unlike the custom ones you would specify in workload.py, so we have to add them ourselves
         if not "index" in input_params:
-            input_params["index"] = params.get_target(input_workload, input_params)
+            input_params["index"] = params.get_target(
+                input_workload, input_params)
 
         fields_and_paths = self.extract_fields_and_paths(input_params)
 
         if random.random() < self.rf:
             # Draw a potentially repeated value from the saved standard values
             index = self.get_repeated_value_index()
-            new_values = [get_standard_value(kwargs["op_name"], field_and_path[0], index) for field_and_path in fields_and_paths]
+            new_values = [get_standard_value(
+                kwargs["op_name"], field_and_path[0], index) for field_and_path in fields_and_paths]
             # Use the same index for all fields in one query, otherwise the probability of repeats in a multi-field query would be very low
-            input_params = self.set_range(input_params, fields_and_paths, new_values)
+            input_params = self.set_range(
+                input_params, fields_and_paths, new_values)
         else:
             # Generate a new random value, from the standard value source function. This will be new (a cache miss)
-            new_values = [get_standard_value_source(kwargs["op_name"], field_and_path[0])() for field_and_path in fields_and_paths]
-            input_params = self.set_range(input_params, fields_and_paths, new_values)
+            new_values = [get_standard_value_source(
+                kwargs["op_name"], field_and_path[0])() for field_and_path in fields_and_paths]
+            input_params = self.set_range(
+                input_params, fields_and_paths, new_values)
         return input_params
 
     def create_param_source_lambda(self, op_name, get_standard_value, get_standard_value_source):
@@ -1091,7 +1171,8 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
         if not self.randomization_enabled:
             self.logger.info("Query randomization is disabled.")
             return input_workload
-        self.logger.info("Query randomization is enabled, with repeat frequency = %d, n = %d",self.rf, self.N)
+        self.logger.info(
+            "Query randomization is enabled, with repeat frequency = %d, n = %d", self.rf, self.N)
 
         # By default, use params for standard values and generate new standard values the first time an op/field is seen.
         # In unit tests, we should be able to supply our own sources independent of params.
@@ -1113,7 +1194,8 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
         for task in default_test_procedure.schedule:
             for leaf_task in task:
                 try:
-                    op_type = workload.OperationType.from_hyphenated_string(leaf_task.operation.type)
+                    op_type = workload.OperationType.from_hyphenated_string(
+                        leaf_task.operation.type)
                 except KeyError:
                     op_type = None
                     self.logger.info(
@@ -1130,8 +1212,10 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
                     # Generate the right number of standard values for this field, if not already present
                     for field_and_path in self.extract_fields_and_paths(leaf_task.operation.params):
                         if generate_new_standard_values:
-                            params.generate_standard_values_if_absent(op_name, field_and_path[0], self.N)
+                            params.generate_standard_values_if_absent(
+                                op_name, field_and_path[0], self.N)
         return input_workload
+
 
 class CompleteWorkloadParams:
     def __init__(self, user_specified_workload_params=None):
@@ -1169,15 +1253,18 @@ class WorkloadFileReader:
     """
 
     def __init__(self, cfg):
-        workload_schema_file = os.path.join(cfg.opts("node", "benchmark.root"), "resources", "workload-schema.json")
+        workload_schema_file = os.path.join(
+            cfg.opts("node", "benchmark.root"), "resources", "workload-schema.json")
         with open(workload_schema_file, mode="rt", encoding="utf-8") as f:
             self.workload_schema = json.loads(f.read())
         self.workload_params = cfg.opts("workload", "params", mandatory=False)
-        self.complete_workload_params = CompleteWorkloadParams(user_specified_workload_params=self.workload_params)
+        self.complete_workload_params = CompleteWorkloadParams(
+            user_specified_workload_params=self.workload_params)
         self.read_workload = WorkloadSpecificationReader(
             workload_params=self.workload_params,
             complete_workload_params=self.complete_workload_params,
-            selected_test_procedure=cfg.opts("workload", "test_procedure.name", mandatory=False)
+            selected_test_procedure=cfg.opts(
+                "workload", "test_procedure.name", mandatory=False)
         )
         self.logger = logging.getLogger(__name__)
 
@@ -1191,7 +1278,8 @@ class WorkloadFileReader:
         :return: A corresponding workload instance if the workload file is valid.
         """
 
-        self.logger.info("Reading workload specification file [%s].", workload_spec_file)
+        self.logger.info(
+            "Reading workload specification file [%s].", workload_spec_file)
         # render the workload to a temporary file instead of dumping it into the logs. It is easier to check for error messages
         # involving lines numbers and it also does not bloat Benchmark's log file so much.
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
@@ -1201,12 +1289,14 @@ class WorkloadFileReader:
                 complete_workload_params=self.complete_workload_params)
             with open(tmp.name, "wt", encoding="utf-8") as f:
                 f.write(rendered)
-            self.logger.info("Final rendered workload for '%s' has been written to '%s'.", workload_spec_file, tmp.name)
+            self.logger.info(
+                "Final rendered workload for '%s' has been written to '%s'.", workload_spec_file, tmp.name)
             workload_spec = json.loads(rendered)
 
         except jinja2.exceptions.TemplateNotFound:
             self.logger.exception("Could not load [%s]", workload_spec_file)
-            raise exceptions.SystemSetupError("Workload {} does not exist".format(workload_name))
+            raise exceptions.SystemSetupError(
+                "Workload {} does not exist".format(workload_name))
 
         except jinja2.exceptions.TemplateSyntaxError as e:
             exception_message = f"Jinja2 Exception TemplateSyntaxError: {e}\n"
@@ -1220,7 +1310,6 @@ class WorkloadFileReader:
 
             raise exceptions.SystemSetupError(exception_message)
 
-
         except json.JSONDecodeError as e:
             self.logger.exception("Could not load [%s].", workload_spec_file)
             msg = "Could not load '{}': {}.".format(workload_spec_file, str(e))
@@ -1231,9 +1320,12 @@ class WorkloadFileReader:
                 ctx_start = max(0, line_idx - ctx_line_count)
                 ctx_end = min(line_idx + ctx_line_count, len(lines))
                 erroneous_lines = lines[ctx_start:ctx_end]
-                erroneous_lines.insert(line_idx - ctx_start + 1, "-" * (e.colno - 1) + "^ Error is here")
-                msg += " Lines containing the error:\n\n{}\n\n".format("\n".join(erroneous_lines))
-            msg += "The complete workload has been written to '{}' for diagnosis. \n\n".format(tmp.name)
+                erroneous_lines.insert(
+                    line_idx - ctx_start + 1, "-" * (e.colno - 1) + "^ Error is here")
+                msg += " Lines containing the error:\n\n{}\n\n".format(
+                    "\n".join(erroneous_lines))
+            msg += "The complete workload has been written to '{}' for diagnosis. \n\n".format(
+                tmp.name)
             console_message = f"Suggestion: Verify that [{workload_name}] workload has correctly formatted JSON files and " + \
                 "Jinja Templates. For Jinja2 errors, consider using a live Jinja2 parser. " + \
                 f"See common workload formatting errors:{WorkloadFileReader.COMMON_WORKLOAD_FORMAT_ERRORS}"
@@ -1252,7 +1344,8 @@ class WorkloadFileReader:
             # Convert to string early on to avoid serialization errors with Jinja exceptions.
             raise WorkloadSyntaxError(msg, str(e))
         # check the workload version before even attempting to validate the JSON format to avoid bogus errors.
-        raw_version = workload_spec.get("version", WorkloadFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION)
+        raw_version = workload_spec.get(
+            "version", WorkloadFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION)
         try:
             workload_version = int(raw_version)
         except ValueError:
@@ -1260,15 +1353,15 @@ class WorkloadFileReader:
                 workload_name, str(raw_version)))
         if WorkloadFileReader.MINIMUM_SUPPORTED_TRACK_VERSION > workload_version:
             raise exceptions.BenchmarkError("Workload {} is on version {} but needs to be updated at least to version {} to work with the "
-                                        "current version of Benchmark.".format(workload_name, workload_version,
-                                                                           WorkloadFileReader.MINIMUM_SUPPORTED_TRACK_VERSION))
+                                            "current version of Benchmark.".format(workload_name, workload_version,
+                                                                                   WorkloadFileReader.MINIMUM_SUPPORTED_TRACK_VERSION))
         if WorkloadFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION < workload_version:
             raise exceptions.BenchmarkError("Workload {} requires a newer version of Benchmark. "
-                        "Please upgrade Benchmark (supported workload version: {}, "
-                                        "required workload version: {}).".format(
-                                            workload_name,
-                                            WorkloadFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION,
-                                                                              workload_version))
+                                            "Please upgrade Benchmark (supported workload version: {}, "
+                                            "required workload version: {}).".format(
+                                                workload_name,
+                                                WorkloadFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION,
+                                                workload_version))
         try:
             jsonschema.validate(workload_spec, self.workload_schema)
         except jsonschema.exceptions.ValidationError as ve:
@@ -1276,10 +1369,11 @@ class WorkloadFileReader:
                 "Workload '{}' is invalid.\n\nError details: {}\nInstance: {}\nPath: {}\nSchema path: {}".format(
                     workload_name, ve.message, json.dumps(
                         ve.instance, indent=4, sort_keys=True),
-                        ve.absolute_path, ve.absolute_schema_path))
+                    ve.absolute_path, ve.absolute_schema_path))
 
         try:
-            current_workload = self.read_workload(workload_name, workload_spec, mapping_dir)
+            current_workload = self.read_workload(
+                workload_name, workload_spec, mapping_dir)
         except Exception as e:
             console.error(e)
             raise
@@ -1292,19 +1386,22 @@ class WorkloadFileReader:
                 "{}\n\n"
                 "All parameters exposed by this workload:\n"
                 "{}".format(
-                    ",".join(opts.double_quoted_list_of(sorted(unused_user_defined_workload_params))),
+                    ",".join(opts.double_quoted_list_of(
+                        sorted(unused_user_defined_workload_params))),
                     ",".join(opts.double_quoted_list_of(sorted(opts.make_list_of_close_matches(
                         unused_user_defined_workload_params,
                         self.complete_workload_params.workload_defined_params
                     )))),
-                    "\n".join(opts.bulleted_list_of(sorted(list(self.workload_params.keys())))),
+                    "\n".join(opts.bulleted_list_of(
+                        sorted(list(self.workload_params.keys())))),
                     "\n".join(opts.bulleted_list_of(self.complete_workload_params.sorted_workload_defined_params))))
 
             self.logger.critical(err_msg)
             # also dump the message on the console
             console.println(err_msg)
             raise exceptions.WorkloadConfigError(
-                "Unused workload parameters {}.".format(sorted(unused_user_defined_workload_params))
+                "Unused workload parameters {}.".format(
+                    sorted(unused_user_defined_workload_params))
             )
         return current_workload
 
@@ -1318,7 +1415,8 @@ class WorkloadPluginReader:
         self.runner_registry = runner_registry
         self.scheduler_registry = scheduler_registry
         self.workload_processor_registry = workload_processor_registry
-        self.loader = modules.ComponentLoader(root_path=workload_plugin_path, component_entry_point="workload")
+        self.loader = modules.ComponentLoader(
+            root_path=workload_plugin_path, component_entry_point="workload")
 
     def can_load(self):
         return self.loader.can_load()
@@ -1350,7 +1448,8 @@ class WorkloadPluginReader:
 
     def register_standard_value_source(self, op_name, field_name, standard_value_source):
         # Define a value source for parameters for a given operation name and field name, for use in randomization
-        params.register_standard_value_source(op_name, field_name, standard_value_source)
+        params.register_standard_value_source(
+            op_name, field_name, standard_value_source)
 
     @property
     def meta_data(self):
@@ -1375,7 +1474,8 @@ class WorkloadSpecificationReader:
 
     def __call__(self, workload_name, workload_specification, mapping_dir):
         self.name = workload_name
-        description = self._r(workload_specification, "description", mandatory=False, default_value="")
+        description = self._r(workload_specification,
+                              "description", mandatory=False, default_value="")
 
         meta_data = self._r(workload_specification, "meta", mandatory=False)
         indices = [self._create_index(idx, mapping_dir)
@@ -1384,25 +1484,27 @@ class WorkloadSpecificationReader:
                         for idx in self._r(workload_specification, "data-streams", mandatory=False, default_value=[])]
         if len(indices) > 0 and len(data_streams) > 0:
             # we guard against this early and support either or
-            raise WorkloadSyntaxError("indices and data-streams cannot both be specified")
+            raise WorkloadSyntaxError(
+                "indices and data-streams cannot both be specified")
         templates = [self._create_index_template(tpl, mapping_dir)
                      for tpl in self._r(workload_specification, "templates", mandatory=False, default_value=[])]
         composable_templates = [self._create_index_template(tpl, mapping_dir)
-                     for tpl in self._r(workload_specification, "composable-templates", mandatory=False, default_value=[])]
+                                for tpl in self._r(workload_specification, "composable-templates", mandatory=False, default_value=[])]
         component_templates = [self._create_component_template(tpl, mapping_dir)
-                     for tpl in self._r(workload_specification, "component-templates", mandatory=False, default_value=[])]
+                               for tpl in self._r(workload_specification, "component-templates", mandatory=False, default_value=[])]
         corpora = self._create_corpora(self._r(workload_specification, "corpora", mandatory=False, default_value=[]),
                                        indices, data_streams)
         test_procedures = self._create_test_procedures(workload_specification)
         # at this point, *all* workload params must have been referenced in the templates
         return workload.Workload(name=self.name, meta_data=meta_data,
-        description=description, test_procedures=test_procedures,
-        indices=indices,
-                           data_streams=data_streams, templates=templates, composable_templates=composable_templates,
-                           component_templates=component_templates, corpora=corpora)
+                                 description=description, test_procedures=test_procedures,
+                                 indices=indices,
+                                 data_streams=data_streams, templates=templates, composable_templates=composable_templates,
+                                 component_templates=component_templates, corpora=corpora)
 
     def _error(self, msg):
-        raise WorkloadSyntaxError("Workload '%s' is invalid. %s" % (self.name, msg))
+        raise WorkloadSyntaxError(
+            "Workload '%s' is invalid. %s" % (self.name, msg))
 
     def _r(self, root, path, error_ctx=None, mandatory=True, default_value=None):
         if isinstance(path, str):
@@ -1416,9 +1518,11 @@ class WorkloadSpecificationReader:
         except KeyError:
             if mandatory:
                 if error_ctx:
-                    self._error("Mandatory element '%s' is missing in '%s'." % (".".join(path), error_ctx))
+                    self._error("Mandatory element '%s' is missing in '%s'." % (
+                        ".".join(path), error_ctx))
                 else:
-                    self._error("Mandatory element '%s' is missing." % ".".join(path))
+                    self._error("Mandatory element '%s' is missing." %
+                                ".".join(path))
             else:
                 return default_value
 
@@ -1426,7 +1530,8 @@ class WorkloadSpecificationReader:
         index_name = self._r(index_spec, "name")
         body_file = self._r(index_spec, "body", mandatory=False)
         if body_file:
-            idx_body_tmpl_src = TemplateSource(mapping_dir, body_file, self.source)
+            idx_body_tmpl_src = TemplateSource(
+                mapping_dir, body_file, self.source)
             with self.source(os.path.join(mapping_dir, body_file), "rt") as f:
                 idx_body_tmpl_src.load_template_from_string(f.read())
                 body = self._load_template(
@@ -1456,7 +1561,8 @@ class WorkloadSpecificationReader:
         name = self._r(tpl_spec, "name")
         template_file = self._r(tpl_spec, "template")
         index_pattern = self._r(tpl_spec, "index-pattern")
-        delete_matching_indices = self._r(tpl_spec, "delete-matching-indices", mandatory=False, default_value=True)
+        delete_matching_indices = self._r(
+            tpl_spec, "delete-matching-indices", mandatory=False, default_value=True)
         template_file = os.path.join(mapping_dir, template_file)
         idx_tmpl_src = TemplateSource(mapping_dir, template_file, self.source)
         with self.source(template_file, "rt") as f:
@@ -1468,18 +1574,22 @@ class WorkloadSpecificationReader:
 
     def _load_template(self, contents, description):
         self.logger.info("Loading template [%s].", description)
-        register_all_params_in_workload(contents, self.complete_workload_params)
+        register_all_params_in_workload(
+            contents, self.complete_workload_params)
         try:
             rendered = render_template(template_source=contents,
                                        template_vars=self.workload_params)
             return json.loads(rendered)
         except Exception as e:
-            self.logger.exception("Could not load file template for %s.", description)
-            raise WorkloadSyntaxError("Could not load file template for '%s'" % description, str(e))
+            self.logger.exception(
+                "Could not load file template for %s.", description)
+            raise WorkloadSyntaxError(
+                "Could not load file template for '%s'" % description, str(e))
 
     def _create_corpora(self, corpora_specs, indices, data_streams):
         if len(indices) > 0 and len(data_streams) > 0:
-            raise WorkloadSyntaxError("indices and data-streams cannot both be specified")
+            raise WorkloadSyntaxError(
+                "indices and data-streams cannot both be specified")
         document_corpora = []
         known_corpora_names = set()
         for corpus_spec in corpora_specs:
@@ -1489,10 +1599,12 @@ class WorkloadSpecificationReader:
                 self._error("Duplicate document corpus name [%s]." % name)
             known_corpora_names.add(name)
 
-            meta_data = self._r(corpus_spec, "meta", error_ctx=name, mandatory=False)
+            meta_data = self._r(corpus_spec, "meta",
+                                error_ctx=name, mandatory=False)
             corpus = workload.DocumentCorpus(name=name, meta_data=meta_data)
             # defaults on corpus level
-            default_base_url = self._r(corpus_spec, "base-url", mandatory=False, default_value=None)
+            default_base_url = self._r(
+                corpus_spec, "base-url", mandatory=False, default_value=None)
             default_source_format = self._r(corpus_spec, "source-format", mandatory=False,
                                             default_value=workload.Documents.SOURCE_FORMAT_BULK)
             default_action_and_meta_data = self._r(corpus_spec, "includes-action-and-meta-data", mandatory=False,
@@ -1502,32 +1614,40 @@ class WorkloadSpecificationReader:
             corpus_target_type = None
 
             if len(indices) == 1:
-                corpus_target_idx = self._r(corpus_spec, "target-index", mandatory=False, default_value=indices[0].name)
+                corpus_target_idx = self._r(
+                    corpus_spec, "target-index", mandatory=False, default_value=indices[0].name)
             elif len(indices) > 0:
-                corpus_target_idx = self._r(corpus_spec, "target-index", mandatory=False)
+                corpus_target_idx = self._r(
+                    corpus_spec, "target-index", mandatory=False)
 
             if len(data_streams) == 1:
                 corpus_target_ds = self._r(corpus_spec, "target-data-stream", mandatory=False,
                                            default_value=data_streams[0].name)
             elif len(data_streams) > 0:
-                corpus_target_ds = self._r(corpus_spec, "target-data-stream", mandatory=False)
+                corpus_target_ds = self._r(
+                    corpus_spec, "target-data-stream", mandatory=False)
 
             if len(indices) == 1 and len(indices[0].types) == 1:
                 corpus_target_type = self._r(corpus_spec, "target-type", mandatory=False,
                                              default_value=indices[0].types[0])
             elif len(indices) > 0:
-                corpus_target_type = self._r(corpus_spec, "target-type", mandatory=False)
+                corpus_target_type = self._r(
+                    corpus_spec, "target-type", mandatory=False)
 
             for doc_spec in self._r(corpus_spec, "documents"):
-                base_url = self._r(doc_spec, "base-url", mandatory=False, default_value=default_base_url)
-                source_format = self._r(doc_spec, "source-format", mandatory=False, default_value=default_source_format)
+                base_url = self._r(
+                    doc_spec, "base-url", mandatory=False, default_value=default_base_url)
+                source_format = self._r(
+                    doc_spec, "source-format", mandatory=False, default_value=default_source_format)
 
                 if source_format in workload.Documents.SUPPORTED_SOURCE_FORMAT:
-                    source_url = self._r(doc_spec, "source-url", mandatory=False)
+                    source_url = self._r(
+                        doc_spec, "source-url", mandatory=False)
                     docs = self._r(doc_spec, "source-file")
                     document_file_parts = list()
                     for parts in self._r(doc_spec, "source-file-parts", mandatory=False, default_value=[]):
-                        document_file_parts.append( { "name": self._r(parts, "name"), "size": self._r(parts, "size") } )
+                        document_file_parts.append(
+                            {"name": self._r(parts, "name"), "size": self._r(parts, "size")})
                     if io.is_archive(docs):
                         document_archive = docs
                         document_file = io.splitext(docs)[0]
@@ -1535,9 +1655,12 @@ class WorkloadSpecificationReader:
                         document_archive = None
                         document_file = docs
                     num_docs = self._r(doc_spec, "document-count")
-                    compressed_bytes = self._r(doc_spec, "compressed-bytes", mandatory=False)
-                    uncompressed_bytes = self._r(doc_spec, "uncompressed-bytes", mandatory=False)
-                    doc_meta_data = self._r(doc_spec, "meta", error_ctx=name, mandatory=False)
+                    compressed_bytes = self._r(
+                        doc_spec, "compressed-bytes", mandatory=False)
+                    uncompressed_bytes = self._r(
+                        doc_spec, "uncompressed-bytes", mandatory=False)
+                    doc_meta_data = self._r(
+                        doc_spec, "meta", error_ctx=name, mandatory=False)
 
                     includes_action_and_meta_data = self._r(doc_spec, "includes-action-and-meta-data", mandatory=False,
                                                             default_value=default_action_and_meta_data)
@@ -1551,64 +1674,79 @@ class WorkloadSpecificationReader:
 
                         # require to be specified if we're using data streams and we have no default
                         target_ds = self._r(doc_spec, "target-data-stream",
-                                            mandatory=len(data_streams) > 0 and corpus_target_ds is None,
+                                            mandatory=len(
+                                                data_streams) > 0 and corpus_target_ds is None,
                                             default_value=corpus_target_ds,
                                             error_ctx=docs)
                         if target_ds and len(indices) > 0:
                             # if indices are in use we error
-                            raise WorkloadSyntaxError("target-data-stream cannot be used when using indices")
+                            raise WorkloadSyntaxError(
+                                "target-data-stream cannot be used when using indices")
                         elif target_ds and target_type:
-                            raise WorkloadSyntaxError("target-type cannot be used when using data-streams")
+                            raise WorkloadSyntaxError(
+                                "target-type cannot be used when using data-streams")
 
                         # need an index if we're using indices and no meta-data are present and we don't have a default
                         target_idx = self._r(doc_spec, "target-index",
-                                             mandatory=len(indices) > 0 and corpus_target_idx is None,
+                                             mandatory=len(
+                                                 indices) > 0 and corpus_target_idx is None,
                                              default_value=corpus_target_idx,
                                              error_ctx=docs)
                         # either target_idx or target_ds
                         if target_idx and len(data_streams) > 0:
                             # if data streams are in use we error
-                            raise WorkloadSyntaxError("target-index cannot be used when using data-streams")
+                            raise WorkloadSyntaxError(
+                                "target-index cannot be used when using data-streams")
 
                         # we need one or the other
                         if target_idx is None and target_ds is None:
                             raise WorkloadSyntaxError(f"a {'target-index' if len(indices) > 0 else 'target-data-stream'} "
-                                                   f"is required for {docs}" )
+                                                      f"is required for {docs}")
 
                     docs = workload.Documents(source_format=source_format,
-                                           document_file=document_file,
-                                           document_file_parts=document_file_parts,
-                                           document_archive=document_archive,
-                                           base_url=base_url,
-                                           source_url=source_url,
-                                           includes_action_and_meta_data=includes_action_and_meta_data,
-                                           number_of_documents=num_docs,
-                                           compressed_size_in_bytes=compressed_bytes,
-                                           uncompressed_size_in_bytes=uncompressed_bytes,
-                                           target_index=target_idx, target_type=target_type,
-                                           target_data_stream=target_ds, meta_data=doc_meta_data)
+                                              document_file=document_file,
+                                              document_file_parts=document_file_parts,
+                                              document_archive=document_archive,
+                                              base_url=base_url,
+                                              source_url=source_url,
+                                              includes_action_and_meta_data=includes_action_and_meta_data,
+                                              number_of_documents=num_docs,
+                                              compressed_size_in_bytes=compressed_bytes,
+                                              uncompressed_size_in_bytes=uncompressed_bytes,
+                                              target_index=target_idx, target_type=target_type,
+                                              target_data_stream=target_ds, meta_data=doc_meta_data)
                     corpus.documents.append(docs)
                 else:
-                    self._error("Unknown source-format [%s] in document corpus [%s]." % (source_format, name))
+                    self._error(
+                        "Unknown source-format [%s] in document corpus [%s]." % (source_format, name))
             document_corpora.append(corpus)
         return document_corpora
 
     def _create_test_procedures(self, workload_spec):
-        ops = self.parse_operations(self._r(workload_spec, "operations", mandatory=False, default_value=[]))
-        workload_params = self._r(workload_spec, "parameters", mandatory=False, default_value={})
+        ops = self.parse_operations(
+            self._r(workload_spec, "operations", mandatory=False, default_value=[]))
+        workload_params = self._r(
+            workload_spec, "parameters", mandatory=False, default_value={})
         test_procedures = []
         known_test_procedure_names = set()
         default_test_procedure = None
-        test_procedure_specs, auto_generated = self._get_test_procedure_specs(workload_spec)
+        test_procedure_specs, auto_generated = self._get_test_procedure_specs(
+            workload_spec)
         number_of_test_procedures = len(test_procedure_specs)
         for test_procedure_spec in test_procedure_specs:
-            name = self._r(test_procedure_spec, "name", error_ctx="test_procedures")
-            description = self._r(test_procedure_spec, "description", error_ctx=name, mandatory=False)
-            user_info = self._r(test_procedure_spec, "user-info", error_ctx=name, mandatory=False)
-            test_procedure_params = self._r(test_procedure_spec, "parameters", error_ctx=name, mandatory=False, default_value={})
-            meta_data = self._r(test_procedure_spec, "meta", error_ctx=name, mandatory=False)
+            name = self._r(test_procedure_spec, "name",
+                           error_ctx="test_procedures")
+            description = self._r(
+                test_procedure_spec, "description", error_ctx=name, mandatory=False)
+            user_info = self._r(test_procedure_spec,
+                                "user-info", error_ctx=name, mandatory=False)
+            test_procedure_params = self._r(
+                test_procedure_spec, "parameters", error_ctx=name, mandatory=False, default_value={})
+            meta_data = self._r(test_procedure_spec, "meta",
+                                error_ctx=name, mandatory=False)
             # if we only have one test_procedure it is treated as default test_procedure, no matter what the user has specified
-            default = number_of_test_procedures == 1 or self._r(test_procedure_spec, "default", error_ctx=name, mandatory=False)
+            default = number_of_test_procedures == 1 or self._r(
+                test_procedure_spec, "default", error_ctx=name, mandatory=False)
             selected = number_of_test_procedures == 1 or self.selected_test_procedure == name
             if default and default_test_procedure is not None:
                 self._error("Both '%s' and '%s' are defined as default test_procedures. Please define only one of them as default."
@@ -1621,12 +1759,13 @@ class WorkloadSpecificationReader:
 
             for op in self._r(test_procedure_spec, "schedule", error_ctx=name):
                 if "clients_list" in op:
-                    self.logger.info("Clients list specified: %s. Running multiple search tasks, "\
+                    self.logger.info("Clients list specified: %s. Running multiple search tasks, "
                                      "each scheduled with the corresponding number of clients from the list.", op["clients_list"])
                     for num_clients in op["clients_list"]:
                         op["clients"] = num_clients
 
-                        new_name = self._rename_task_based_on_num_clients(name, num_clients)
+                        new_name = self._rename_task_based_on_num_clients(
+                            name, num_clients)
 
                         new_name = name + "_" + str(num_clients) + "_clients"
                         new_task = self.parse_task(op, ops, new_name)
@@ -1651,17 +1790,18 @@ class WorkloadSpecificationReader:
                         known_task_names.add(sub_task.name)
 
             # merge params
-            final_test_procedure_params = dict(collections.merge_dicts(workload_params, test_procedure_params))
+            final_test_procedure_params = dict(
+                collections.merge_dicts(workload_params, test_procedure_params))
 
             test_procedure = workload.TestProcedure(name=name,
-                                        parameters=final_test_procedure_params,
-                                        meta_data=meta_data,
-                                        description=description,
-                                        user_info=user_info,
-                                        default=default,
-                                        selected=selected,
-                                        auto_generated=auto_generated,
-                                        schedule=schedule)
+                                                    parameters=final_test_procedure_params,
+                                                    meta_data=meta_data,
+                                                    description=description,
+                                                    user_info=user_info,
+                                                    default=default,
+                                                    selected=selected,
+                                                    auto_generated=auto_generated,
+                                                    schedule=schedule)
             if default:
                 default_test_procedure = test_procedure
 
@@ -1670,14 +1810,14 @@ class WorkloadSpecificationReader:
         if test_procedures and default_test_procedure is None:
             self._error(
                 "No default test_procedure specified. Please edit the workload and add \"default\": true to one of the test_procedures %s."
-                        % ", ".join([c.name for c in test_procedures]))
+                % ", ".join([c.name for c in test_procedures]))
         return test_procedures
 
     def _rename_task_based_on_num_clients(self, name: str, num_clients: int) -> str:
         has_underscore = "_" in name
         has_hyphen = "-" in name
         if has_underscore and has_hyphen:
-            self.logger.warning("The test procedure name %s contains a mix of _ and -. "\
+            self.logger.warning("The test procedure name %s contains a mix of _ and -. "
                                 "Consider changing the name to avoid frustrating bugs in the future.", name)
             return name + "_" + str(num_clients) + "_clients"
         elif has_hyphen:
@@ -1687,15 +1827,20 @@ class WorkloadSpecificationReader:
 
     def _get_test_procedure_specs(self, workload_spec):
         schedule = self._r(workload_spec, "schedule", mandatory=False)
-        test_procedure = self._r(workload_spec, "test_procedure", mandatory=False)
-        test_procedures = self._r(workload_spec, "test_procedures", mandatory=False)
+        test_procedure = self._r(
+            workload_spec, "test_procedure", mandatory=False)
+        test_procedures = self._r(
+            workload_spec, "test_procedures", mandatory=False)
 
-        count_defined = len(list(filter(lambda e: e is not None, [schedule, test_procedure, test_procedures])))
+        count_defined = len(list(filter(lambda e: e is not None, [
+                            schedule, test_procedure, test_procedures])))
 
         if count_defined == 0:
-            self._error("You must define 'test_procedure', 'test_procedures' or 'schedule' but none is specified.")
+            self._error(
+                "You must define 'test_procedure', 'test_procedures' or 'schedule' but none is specified.")
         elif count_defined > 1:
-            self._error("Multiple out of 'test_procedure', 'test_procedures' or 'schedule' are defined but only one of them is allowed.")
+            self._error(
+                "Multiple out of 'test_procedure', 'test_procedures' or 'schedule' are defined but only one of them is allowed.")
         elif test_procedure is not None:
             return [test_procedure], False
         elif test_procedures is not None:
@@ -1712,18 +1857,37 @@ class WorkloadSpecificationReader:
 
     def parse_parallel(self, ops_spec, ops, test_procedure_name):
         # use same default values as #parseTask() in case the 'parallel' element did not specify anything
-        default_warmup_iterations = self._r(ops_spec, "warmup-iterations", error_ctx="parallel", mandatory=False)
-        default_iterations = self._r(ops_spec, "iterations", error_ctx="parallel", mandatory=False)
-        default_warmup_time_period = self._r(ops_spec, "warmup-time-period", error_ctx="parallel", mandatory=False)
-        default_time_period = self._r(ops_spec, "time-period", error_ctx="parallel", mandatory=False)
-        clients = self._r(ops_spec, "clients", error_ctx="parallel", mandatory=False)
-        completed_by = self._r(ops_spec, "completed-by", error_ctx="parallel", mandatory=False)
+        default_warmup_iterations = self._r(
+            ops_spec, "warmup-iterations", error_ctx="parallel", mandatory=False)
+        default_iterations = self._r(
+            ops_spec, "iterations", error_ctx="parallel", mandatory=False)
+        default_warmup_time_period = self._r(
+            ops_spec, "warmup-time-period", error_ctx="parallel", mandatory=False)
+        default_time_period = self._r(
+            ops_spec, "time-period", error_ctx="parallel", mandatory=False)
+        default_ramp_up_time_period = self._r(
+            ops_spec, "ramp-up-time-period", error_ctx="parallel", mandatory=False)
+        clients = self._r(ops_spec, "clients",
+                          error_ctx="parallel", mandatory=False)
+        completed_by = self._r(ops_spec, "completed-by",
+                               error_ctx="parallel", mandatory=False)
 
         # now descent to each operation
         tasks = []
         for task in self._r(ops_spec, "tasks", error_ctx="parallel"):
             tasks.append(self.parse_task(task, ops, test_procedure_name, default_warmup_iterations, default_iterations,
-                                         default_warmup_time_period, default_time_period, completed_by))
+                                         default_warmup_time_period, default_time_period, default_ramp_up_time_period,
+                                         completed_by))
+
+        for task in tasks:
+            if task.ramp_up_time_period != default_ramp_up_time_period:
+                if default_ramp_up_time_period is None:
+                    self._error(f"task '{task.name}' in 'parallel' element of test-procedure '{test_procedure_name}' specifies "
+                                f"a ramp-up-time-period but it is only allowed on the 'parallel' element.")
+                else:
+                    self._error(f"task '{task.name}' specifies a different ramp-up-time-period than its enclosing "
+                                f"'parallel' element in test-procedure '{test_procedure_name}'.")
+
         if completed_by:
             completion_task = None
             for task in tasks:
@@ -1732,49 +1896,72 @@ class WorkloadSpecificationReader:
                 elif task.completes_parent:
                     self._error(
                         "'parallel' element for test_procedure '%s' contains multiple tasks with the name '%s' which are marked with "
-                                "'completed-by' but only task is allowed to match." % (test_procedure_name, completed_by))
+                        "'completed-by' but only task is allowed to match." % (test_procedure_name, completed_by))
             if not completion_task:
                 self._error("'parallel' element for test_procedure '%s' is marked with 'completed-by' with task name '%s' but no task with "
                             "this name exists." % (test_procedure_name, completed_by))
         return workload.Parallel(tasks, clients)
 
     def parse_task(self, task_spec, ops, test_procedure_name, default_warmup_iterations=None, default_iterations=None,
-                   default_warmup_time_period=None, default_time_period=None, completed_by_name=None):
+                   default_warmup_time_period=None, default_time_period=None, default_ramp_up_time_period=None, completed_by_name=None):
 
         op_spec = task_spec["operation"]
         if isinstance(op_spec, str) and op_spec in ops:
             op = ops[op_spec]
         else:
             # may as well an inline operation
-            op = self.parse_operation(op_spec, error_ctx="inline operation in test_procedure %s" % test_procedure_name)
+            op = self.parse_operation(
+                op_spec, error_ctx="inline operation in test_procedure %s" % test_procedure_name)
 
-        schedule = self._r(task_spec, "schedule", error_ctx=op.name, mandatory=False)
-        task_name = self._r(task_spec, "name", error_ctx=op.name, mandatory=False, default_value=op.name)
+        schedule = self._r(task_spec, "schedule",
+                           error_ctx=op.name, mandatory=False)
+        task_name = self._r(task_spec, "name", error_ctx=op.name,
+                            mandatory=False, default_value=op.name)
         task = workload.Task(name=task_name,
-                          operation=op,
-                          tags=self._r(task_spec, "tags", error_ctx=op.name, mandatory=False),
-                          meta_data=self._r(task_spec, "meta", error_ctx=op.name, mandatory=False),
-                          warmup_iterations=self._r(task_spec, "warmup-iterations", error_ctx=op.name, mandatory=False,
-                                                    default_value=default_warmup_iterations),
-                          iterations=self._r(task_spec, "iterations", error_ctx=op.name, mandatory=False, default_value=default_iterations),
-                          warmup_time_period=self._r(task_spec, "warmup-time-period", error_ctx=op.name,
-                                                     mandatory=False,
-                                                     default_value=default_warmup_time_period),
-                          time_period=self._r(task_spec, "time-period", error_ctx=op.name, mandatory=False,
-                                              default_value=default_time_period),
-                          clients=self._r(task_spec, "clients", error_ctx=op.name, mandatory=False, default_value=1),
-                          completes_parent=(task_name == completed_by_name),
-                          schedule=schedule,
-                          # this is to provide scheduler-specific parameters for custom schedulers.
-                          params=task_spec)
+                             operation=op,
+                             tags=self._r(task_spec, "tags",
+                                          error_ctx=op.name, mandatory=False),
+                             meta_data=self._r(
+                                 task_spec, "meta", error_ctx=op.name, mandatory=False),
+                             warmup_iterations=self._r(task_spec, "warmup-iterations", error_ctx=op.name, mandatory=False,
+                                                       default_value=default_warmup_iterations),
+                             iterations=self._r(
+                                 task_spec, "iterations", error_ctx=op.name, mandatory=False, default_value=default_iterations),
+                             warmup_time_period=self._r(task_spec, "warmup-time-period", error_ctx=op.name,
+                                                        mandatory=False,
+                                                        default_value=default_warmup_time_period),
+                             time_period=self._r(task_spec, "time-period", error_ctx=op.name, mandatory=False,
+                                                 default_value=default_time_period),
+                             ramp_up_time_period=self._r(task_spec, "ramp-up-time-period", error_ctx=op.name,
+                                                         mandatory=False, default_value=default_ramp_up_time_period),
+                             clients=self._r(
+                                 task_spec, "clients", error_ctx=op.name, mandatory=False, default_value=1),
+                             completes_parent=(task_name == completed_by_name),
+                             schedule=schedule,
+                             # this is to provide scheduler-specific parameters for custom schedulers.
+                             params=task_spec)
         if task.warmup_iterations is not None and task.time_period is not None:
             self._error(
                 "Operation '%s' in test_procedure '%s' defines '%d' warmup iterations and a time period of '%d' seconds. Please do not "
-                        "mix time periods and iterations." % (op.name, test_procedure_name, task.warmup_iterations, task.time_period))
+                "mix time periods and iterations." % (op.name, test_procedure_name, task.warmup_iterations, task.time_period))
         elif task.warmup_time_period is not None and task.iterations is not None:
             self._error(
                 "Operation '%s' in test_procedure '%s' defines a warmup time period of '%d' seconds and '%d' iterations. Please do not "
-                        "mix time periods and iterations." % (op.name, test_procedure_name, task.warmup_time_period, task.iterations))
+                "mix time periods and iterations." % (op.name, test_procedure_name, task.warmup_time_period, task.iterations))
+
+        if (task.warmup_iterations is not None or task.iterations is not None) and task.ramp_up_time_period is not None:
+            self._error(f"Operation '{op.name}' in test_procedure '{test_procedure_name}' defines a ramp-up time period of "
+                        f"{task.ramp_up_time_period} seconds as well as {task.warmup_iterations} warmup iterations and "
+                        f"{task.iterations} iterations but mixing time periods and iterations is not allowed.")
+
+        if task.ramp_up_time_period is not None:
+            if task.warmup_time_period is None:
+                self._error(f"Operation '{op.name}' in test_procedure '{test_procedure_name}' defines a ramp-up time period of "
+                            f"{task.ramp_up_time_period} seconds but no warmup-time-period.")
+            elif task.warmup_time_period < task.ramp_up_time_period:
+                self._error(f"The warmup-time-period of operation '{op.name}' in test_procedure '{test_procedure_name}' is "
+                            f"{task.warmup_time_period} seconds but must be greater than or equal to the "
+                            f"ramp-up-time-period of {task.ramp_up_time_period} seconds.")
 
         return task
 
@@ -1799,12 +1986,16 @@ class WorkloadSpecificationReader:
             # Cannot have parameters here
             params = {}
         else:
-            meta_data = self._r(op_spec, "meta", error_ctx=error_ctx, mandatory=False)
+            meta_data = self._r(
+                op_spec, "meta", error_ctx=error_ctx, mandatory=False)
             # Benchmark's core operations will still use enums then but we'll allow users to define arbitrary operations
-            op_type_name = self._r(op_spec, "operation-type", error_ctx=error_ctx)
+            op_type_name = self._r(
+                op_spec, "operation-type", error_ctx=error_ctx)
             # fallback to use the operation type as the operation name
-            op_name = self._r(op_spec, "name", error_ctx=error_ctx, mandatory=False, default_value=op_type_name)
-            param_source = self._r(op_spec, "param-source", error_ctx=error_ctx, mandatory=False)
+            op_name = self._r(op_spec, "name", error_ctx=error_ctx,
+                              mandatory=False, default_value=op_type_name)
+            param_source = self._r(
+                op_spec, "param-source", error_ctx=error_ctx, mandatory=False)
             # just pass-through all parameters by default
             params = op_spec
 
@@ -1812,13 +2003,16 @@ class WorkloadSpecificationReader:
             op = workload.OperationType.from_hyphenated_string(op_type_name)
             if "include-in-results_publishing" not in params:
                 params["include-in-results_publishing"] = not op.admin_op
-            self.logger.debug("Using built-in operation type [%s] for operation [%s].", op_type_name, op_name)
+            self.logger.debug(
+                "Using built-in operation type [%s] for operation [%s].", op_type_name, op_name)
         except KeyError:
-            self.logger.info("Using user-provided operation type [%s] for operation [%s].", op_type_name, op_name)
+            self.logger.info(
+                "Using user-provided operation type [%s] for operation [%s].", op_type_name, op_name)
 
         try:
             return workload.Operation(name=op_name, meta_data=meta_data,
-            operation_type=op_type_name, params=params,
-            param_source=param_source)
+                                      operation_type=op_type_name, params=params,
+                                      param_source=param_source)
         except exceptions.InvalidSyntax as e:
-            raise WorkloadSyntaxError("Invalid operation [%s]: %s" % (op_name, str(e)))
+            raise WorkloadSyntaxError(
+                "Invalid operation [%s]: %s" % (op_name, str(e)))
