@@ -1,0 +1,48 @@
+name: Docker Build
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        platform: ['linux/amd64', 'linux/arm64']
+    steps:
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          version: 'v0.9.1'
+      - uses: actions/checkout@v4
+
+      - name: Configure Role to Acquire Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.BENCHMARK_DOCKERHUB_ROLE }}
+          aws-region: us-east-1
+
+      - name: Retrieve Password
+        id: retrieve-password
+        run: |
+          DOCKERHUB_PASSWORD=`aws secretsmanager get-secret-value --secret-id jenkins-staging-dockerhub-credential --query SecretString --output text`
+          echo "::add-mask::$DOCKERHUB_PASSWORD"
+          echo "dockerhub-password=$DOCKERHUB_PASSWORD" >> $GITHUB_OUTPUT
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{ secrets.BENCHMARK_DOCKERHUB_USERNAME }}
+          password: ${{ steps.retrieve-password.outputs.dockerhub-password }}
+
+      - name: Docker Build ${{ matrix.platform }}
+        run: |
+            docker buildx version
+            tag=osb/osb-`echo ${{ matrix.platform }} | tr '/' '-'`
+            set -x
+            docker buildx build --platform ${{ matrix.platform }} --build-arg VERSION=`cat version.txt` --build-arg BUILD_DATE=`date -u +%Y-%m-%dT%H:%M:%SZ` -f docker/Dockerfile -t "$tag" --push .
+            set +x
