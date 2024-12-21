@@ -81,7 +81,7 @@ class SourceRepositoryProvider:
         self.logger.info("Skip fetching sources for %s.", self.repository_name)
 
     def _update_repository_to_timestamp(self, host, revision, target_dir):
-        # convert timestamp annotated for Benchmark to something git understands -> we strip leading and trailing " and the @.
+        # convert timestamp annotated for OSB to something git understands -> we strip leading and trailing " and the @.
         git_timestamp_revision = revision[1:]
         self.logger.info("Fetching from remote and checking out revision with timestamp [%s] for "
                          "%s.", git_timestamp_revision, self.repository_name)

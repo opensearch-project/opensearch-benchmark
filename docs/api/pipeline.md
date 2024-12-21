@@ -1,6 +1,6 @@
 ---
 layout: default
 title: Pipeline
-parent: Benchmark API
+parent: OSB API
 nav_order: 11
 ---

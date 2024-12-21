@@ -482,7 +482,7 @@ class BootstrapHookHandler:
         """
         self.component = component
         # Don't allow the loader to recurse. The subdirectories may contain OpenSearch specific files which we do not want to add to
-        # Benchmark's Python load path. We may need to define a more advanced strategy in the future.
+        # OSB's Python load path. We may need to define a more advanced strategy in the future.
         self.loader = loader_class(root_path=self.component.root_path, component_entry_point=self.component.entry_point, recurse=False)
         self.hooks = {}
         self.logger = logging.getLogger(__name__)
@@ -516,7 +516,7 @@ class BootstrapHookHandler:
             self.logger.info("Invoking phase [%s] for component [%s] in config [%s]", phase, self.component.name, self.component.config)
             for hook in self.hooks[phase]:
                 self.logger.info("Invoking bootstrap hook [%s].", hook.__name__)
-                # hooks should only take keyword arguments to be forwards compatible with Benchmark!
+                # hooks should only take keyword arguments to be forwards compatible with OSB!
                 hook(config_names=self.component.config, **kwargs)
         else:
             self.logger.debug("Component [%s] in config [%s] has no hook registered for phase [%s].",

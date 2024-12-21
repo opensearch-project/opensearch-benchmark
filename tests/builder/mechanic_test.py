@@ -60,7 +60,7 @@ class HostHandlingTests(TestCase):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             builder.to_ip_port(hosts)
         self.assertEqual("When specifying nodes to be managed by "
-        "Benchmark you can only supply hostname:port pairs (e.g. 'localhost:9200'), "
+        "OSB you can only supply hostname:port pairs (e.g. 'localhost:9200'), "
                          "any additional options cannot be supported.", ctx.exception.args[0])
 
     def test_groups_nodes_by_host(self):
