@@ -120,16 +120,19 @@ def get_standard_value(op_name, field_name, i):
         raise exceptions.SystemSetupError(
             "Standard value index {} out of range for operation {}, field name {} ({} values total)"
             .format(i, op_name, field_name, len(__STANDARD_VALUES[op_name][field_name])))
-    
-def register_query_randomization_info(op_name, query_name, parameter_name_options_list, optional_parameters): 
+
+def register_query_randomization_info(op_name, query_name, parameter_name_options_list, optional_parameters):
     # query_randomization_info is registered at the operation level
-    query_randomization_info = loader.QueryRandomizerWorkloadProcessor.QueryRandomizationInfo(query_name, parameter_name_options_list, optional_parameters)
+    query_randomization_info = loader.QueryRandomizerWorkloadProcessor.QueryRandomizationInfo(query_name,
+                                                                                              parameter_name_options_list,
+                                                                                              optional_parameters
+                                                                                              )
     __QUERY_RANDOMIZATION_INFOS[op_name] = query_randomization_info
 
-def get_query_randomization_info(op_name): 
-    try: 
+def get_query_randomization_info(op_name):
+    try:
         return  __QUERY_RANDOMIZATION_INFOS[op_name]
-    except KeyError: 
+    except KeyError:
         return loader.QueryRandomizerWorkloadProcessor.DEFAULT_QUERY_RANDOMIZATION_INFO # If nothing is registered, return the default.
 
 # only intended for tests
@@ -143,7 +146,7 @@ def _clear_standard_values():
     __STANDARD_VALUES = {}
     __STANDARD_VALUE_SOURCES = {}
 
-def _clear_query_randomization_infos(): 
+def _clear_query_randomization_infos():
     __QUERY_RANDOMIZATION_INFOS = {}
 
 # Default

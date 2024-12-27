@@ -952,47 +952,50 @@ class TestModeWorkloadProcessor(WorkloadProcessor):
 
 class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
 
-    class QueryRandomizationInfo: 
-        # A class containing information about which values to replace when randomizing queries. 
-        # For example, QueryRandomizationInfo("range", [["gte", "gt"], ["lte", "lt"]], ["format"]) would find queries using the "range" keyword. 
-        # Then, it would look for parameters named either "gt" or "gte", and "lt" or "lte" in the "range" object. 
-        # It would also look for the optional parameter "format".  
-        # The values pointed to by "gt"/"gte" and "lt"/"lte" would be randomized according to the standard value source. 
+    class QueryRandomizationInfo:
+        # A class containing information about which values to replace when randomizing queries.
+        # For example, QueryRandomizationInfo("range", [["gte", "gt"], ["lte", "lt"]], ["format"])
+        # would find queries using the "range" keyword.
+        # Then, it would look for parameters named either "gt" or "gte", and "lt" or "lte" in the "range" object.
+        # It would also look for the optional parameter "format".
+        # The values pointed to by "gt"/"gte" and "lt"/"lte" would be randomized according to the standard value source.
         # "format" would also be modified by the standard value source, if it was present in the original query.
         # The first option for each set of options must match the name provided by the standard value source in workload.py.
-        def __init__(self, query_name, parameter_name_options_list, optional_parameters): 
+        def __init__(self, query_name, parameter_name_options_list, optional_parameters):
             self.query_name = query_name
             self.validate_parameter_name_options_list(query_name, parameter_name_options_list)
             self.parameter_name_options_list = parameter_name_options_list
             self.optional_parameters = optional_parameters
-        
-        def validate_parameter_name_options_list(self, query_name, parameter_name_options_list): 
-            # Check there are no duplicate values as this would cause ambiguity 
-            all_values = [] 
-            distinct_values = set() 
-            for parameter_name_options in parameter_name_options_list: 
-                for parameter_name_option in parameter_name_options: 
-                    if parameter_name_option == query_name: 
-                        raise exceptions.ExecutorError(f"Cannot have a randomized value name {query_name} which is the same as the name of its query!")
+
+        def validate_parameter_name_options_list(self, query_name, parameter_name_options_list):
+            # Check there are no duplicate values as this would cause ambiguity
+            all_values = []
+            distinct_values = set()
+            for parameter_name_options in parameter_name_options_list:
+                for parameter_name_option in parameter_name_options:
+                    if parameter_name_option == query_name:
+                        raise exceptions.ExecutorError(
+                            f"Cannot have a randomized value name {query_name} which is the same as the name of its query!")
                     all_values.append(parameter_name_option)
                     distinct_values.add(parameter_name_option)
-            if len(all_values) != len(distinct_values): 
-                raise exceptions.ExecutorError(f"Duplicate option for value name in query_randomization_info: {parameter_name_options_list}")
-            
-        def check_one_of_each_name_present(self, obj): 
-            # Return true if one version of the value name is present in obj for each set of value options. 
-            # For example, QueryRandomizationInfo("range", [["gt", "gte"], ["lt", "lte"]]) 
-            # would return true if both "gte" and "lt" were present.  
-            for parameter_name_options in self.parameter_name_options_list: 
+            if len(all_values) != len(distinct_values):
+                raise exceptions.ExecutorError(
+                    f"Duplicate option for value name in query_randomization_info: {parameter_name_options_list}")
+
+        def check_one_of_each_name_present(self, obj):
+            # Return true if one version of the value name is present in obj for each set of value options.
+            # For example, QueryRandomizationInfo("range", [["gt", "gte"], ["lt", "lte"]])
+            # would return true if both "gte" and "lt" were present.
+            for parameter_name_options in self.parameter_name_options_list:
                 option_present = False
-                for name_option in parameter_name_options: 
-                    if name_option in obj: 
-                        option_present = True 
+                for name_option in parameter_name_options:
+                    if name_option in obj:
+                        option_present = True
                         break
-                if not option_present: 
-                    return False 
-            return True 
-                      
+                if not option_present:
+                    return False
+            return True
+
     DEFAULT_RF = 0.3
     DEFAULT_N = 5000
     DEFAULT_ALPHA = 1
@@ -1050,7 +1053,7 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
             if len(current_path) > 0 and current_path[-1] == query_randomization_info.query_name:
                 for key in curr.keys():
                     if isinstance(curr, dict):
-                        if query_randomization_info.check_one_of_each_name_present(curr[key]): 
+                        if query_randomization_info.check_one_of_each_name_present(curr[key]):
                             fields.append((key, current_path))
                 return fields
             else:
@@ -1087,11 +1090,11 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
             range_section = self.get_dict_from_previous_path(params["body"]["query"], path)[field]
             # get the section of the query corresponding to the field name
             for parameter_name_options in query_randomization_info.parameter_name_options_list:
-                for option in parameter_name_options: 
-                    if option in range_section: 
+                for option in parameter_name_options:
+                    if option in range_section:
                         range_section[option] = new_value[parameter_name_options[0]]
-            for optional_parameter in query_randomization_info.optional_parameters: 
-                if optional_parameter in new_values: 
+            for optional_parameter in query_randomization_info.optional_parameters:
+                if optional_parameter in new_values:
                     range_section[optional_parameter] = new_values[optional_parameter]
         return params
 
@@ -1166,11 +1169,12 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
                     params.register_param_source_for_name(
                         param_source_name,
                         self.create_param_source_lambda(op_name, get_standard_value=kwargs["get_standard_value"],
-                                                        get_standard_value_source=kwargs["get_standard_value_source"], 
+                                                        get_standard_value_source=kwargs["get_standard_value_source"],
                                                         get_query_randomization_info=params.get_query_randomization_info))
                     leaf_task.operation.param_source = param_source_name
                     # Generate the right number of standard values for this field, if not already present
-                    for field_and_path in self.extract_fields_and_paths(leaf_task.operation.params, params.get_query_randomization_info(op_name)):
+                    for field_and_path in self.extract_fields_and_paths(leaf_task.operation.params,
+                                                                        params.get_query_randomization_info(op_name)):
                         if generate_new_standard_values:
                             params.generate_standard_values_if_absent(op_name, field_and_path[0], self.N)
         return input_workload
@@ -1394,7 +1398,7 @@ class WorkloadPluginReader:
         # Define a value source for parameters for a given operation name and field name, for use in randomization
         params.register_standard_value_source(op_name, field_name, standard_value_source)
 
-    def register_query_randomization_info(self, op_name, query_name, parameter_name_options_list, optional_parameters): 
+    def register_query_randomization_info(self, op_name, query_name, parameter_name_options_list, optional_parameters):
         params.register_query_randomization_info(op_name, query_name, parameter_name_options_list, optional_parameters)
 
     @property

@@ -1986,7 +1986,8 @@ class WorkloadRandomizationTests(TestCase):
                 }
             }
         }
-        single_range_query_result = processor.extract_fields_and_paths(single_range_query, loader.QueryRandomizerWorkloadProcessor.DEFAULT_QUERY_RANDOMIZATION_INFO)
+        single_range_query_result = processor.extract_fields_and_paths(
+            single_range_query, loader.QueryRandomizerWorkloadProcessor.DEFAULT_QUERY_RANDOMIZATION_INFO)
         single_range_query_expected = [("trip_distance", ["bool", "filter", "range"])]
         self.assertEqual(single_range_query_result, single_range_query_expected)
 
@@ -2039,7 +2040,8 @@ class WorkloadRandomizationTests(TestCase):
                 }
             }
         }
-        multiple_nested_range_query_result = processor.extract_fields_and_paths(multiple_nested_range_query, loader.QueryRandomizerWorkloadProcessor.DEFAULT_QUERY_RANDOMIZATION_INFO)
+        multiple_nested_range_query_result = processor.extract_fields_and_paths(
+            multiple_nested_range_query, loader.QueryRandomizerWorkloadProcessor.DEFAULT_QUERY_RANDOMIZATION_INFO)
         print("Multi result: ", multiple_nested_range_query_result)
         multiple_nested_range_query_expected = [
             ("dropoff_datetime", ["range"]),
@@ -2056,7 +2058,7 @@ class WorkloadRandomizationTests(TestCase):
                 f"Cannot extract range query fields from these params: {params}\n, missing params[\"body\"][\"query\"]\n"
                 f"Make sure the operation in operations/default.json is well-formed",
                          ctx.exception.args[0])
-            
+
         # Test a non-default value for query_randomization_info
         geo_point_query = {
             "name": "bbox",
@@ -2073,7 +2075,8 @@ class WorkloadRandomizationTests(TestCase):
                 }
             }
         }
-        geo_point_query_randomization_info = loader.QueryRandomizerWorkloadProcessor.QueryRandomizationInfo("geo_bounding_box", [["top_left"], ["bottom_right"]], [])
+        geo_point_query_randomization_info = loader.QueryRandomizerWorkloadProcessor.QueryRandomizationInfo(
+            "geo_bounding_box", [["top_left"], ["bottom_right"]], [])
         geo_point_result = processor.extract_fields_and_paths(geo_point_query, geo_point_query_randomization_info)
         geo_point_expected = [("location", ["geo_bounding_box"])]
         self.assertEqual(geo_point_result, geo_point_expected)
@@ -2092,10 +2095,12 @@ class WorkloadRandomizationTests(TestCase):
 
             # Test resulting params for operation 1
             workload = helper.get_simple_workload()
-            modified_params = processor.get_randomized_values(workload, helper.op_1_query,loader.QueryRandomizerWorkloadProcessor.DEFAULT_QUERY_RANDOMIZATION_INFO, 
-                                                            op_name=helper.op_name_1,
-                                                            get_standard_value=helper.get_standard_value,
-                                                            get_standard_value_source=helper.get_standard_value_source)
+            modified_params = processor.get_randomized_values(workload,
+                                                              helper.op_1_query,
+                                                              loader.QueryRandomizerWorkloadProcessor.DEFAULT_QUERY_RANDOMIZATION_INFO,
+                                                              op_name=helper.op_name_1,
+                                                              get_standard_value=helper.get_standard_value,
+                                                              get_standard_value_source=helper.get_standard_value_source)
             modified_range_1 = modified_params["body"]["query"]["bool"]["filter"]["range"][helper.field_name_1]
             modified_range_2 = modified_params["body"]["query"]["bool"]["filter"]["must"][0]["range"][helper.field_name_2]
             self.assertEqual(modified_range_1["lt"], expected_values_dict[helper.op_name_1][helper.field_name_1]["lte"])
@@ -2110,7 +2115,8 @@ class WorkloadRandomizationTests(TestCase):
 
             # Test resulting params for operation 2, which uses a non-default query_randomization_info
             workload = helper.get_simple_workload()
-            geo_point_query_randomization_info = loader.QueryRandomizerWorkloadProcessor.QueryRandomizationInfo("geo_bounding_box", [["top_left"], ["bottom_right"]], [])
+            geo_point_query_randomization_info = loader.QueryRandomizerWorkloadProcessor.QueryRandomizationInfo(
+                "geo_bounding_box", [["top_left"], ["bottom_right"]], [])
             modified_params = processor.get_randomized_values(workload, helper.op_2_query, geo_point_query_randomization_info,
                                                             op_name=helper.op_name_2,
                                                             get_standard_value=helper.get_standard_value,

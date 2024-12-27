@@ -1460,13 +1460,13 @@ class StandardValueSourceRegistrationTests(TestCase):
         params._clear_standard_values()
 
 class QueryRandomizationInfoRegistrationTests(TestCase):
-    def check_result_equality(self, result, expected): 
+    def check_result_equality(self, result, expected):
         self.assertEqual(result.query_name, expected.query_name)
         self.assertEqual(result.parameter_name_options_list, expected.parameter_name_options_list)
         self.assertEqual(result.optional_parameters, expected.optional_parameters)
 
 
-    def test_register_query_randomization_info(self): 
+    def test_register_query_randomization_info(self):
         params._clear_query_randomization_infos()
 
         op_name = "op-1"
@@ -1479,7 +1479,7 @@ class QueryRandomizationInfoRegistrationTests(TestCase):
         expected = loader.QueryRandomizerWorkloadProcessor.QueryRandomizationInfo("geo_bounding_box", [["top_left"], ["lower_right"]], [])
         self.check_result_equality(query_randomization_info, expected)
 
-        # Should get the default one for an op that has nothing registered 
+        # Should get the default one for an op that has nothing registered
         query_randomization_info = params.get_query_randomization_info("unrecognized-op")
         expected = loader.QueryRandomizerWorkloadProcessor.DEFAULT_QUERY_RANDOMIZATION_INFO
         self.check_result_equality(query_randomization_info, expected)
