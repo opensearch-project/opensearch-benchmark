@@ -21,21 +21,21 @@ class Aggregator:
         self.test_procedure_name = None
         self.loaded_workload = None
 
-    def count_iterations_for_each_op(self, test_execution: TestExecution) -> None:
+    def count_iterations_for_each_op(self, test_run: TestRun) -> None:
         """Count iterations for each operation in the test execution"""
-        workload_params = test_execution.workload_params if test_execution.workload_params else {}
-        test_execution_id = test_execution.test_execution_id
-        self.accumulated_iterations[test_execution_id] = {}
+        workload_params = test_run.workload_params if test_run.workload_params else {}
+        test_run_id = test_run.test_run_id
+        self.accumulated_iterations[test_run_id] = {}
 
         for task in self.loaded_workload.find_test_procedure_or_default(self.test_procedure_name).schedule:
             task_name = task.name
             task_name_iterations = f"{task_name}_iterations"
             iterations = int(workload_params.get(task_name_iterations, task.iterations or 1))
-            self.accumulated_iterations[test_execution_id][task_name] = iterations
+            self.accumulated_iterations[test_run_id][task_name] = iterations
 
-    def accumulate_results(self, test_execution: TestExecution) -> None:
+    def accumulate_results(self, test_run: TestRun) -> None:
         """Accumulate results from a single test execution"""
-        for operation_metric in test_execution.results.get("op_metrics", []):
+        for operation_metric in test_run.results.get("op_metrics", []):
             task = operation_metric.get("task", "")
             self.accumulated_results.setdefault(task, {})
             for metric in self.metrics:
@@ -47,7 +47,7 @@ class Aggregator:
         Aggregates JSON results across multiple test executions using a specified key path.
         Handles nested dictionary structures and calculates averages for numeric values
         """
-        all_json_results = [self.test_store.find_by_test_execution_id(id).results for id in self.test_executions.keys()]
+        all_json_results = [self.test_store.find_by_test_run_id(id).results for id in self.test_runs.keys()]
 
         def get_nested_value(json_data: Dict[str, Any], path: List[str]) -> Any:
             """
@@ -152,27 +152,27 @@ class Aggregator:
 
         return aggregated_results
 
-    def update_config_object(self, test_execution: TestExecution) -> None:
+    def update_config_object(self, test_run: TestRun) -> None:
         """
         Updates the configuration object with values from a test execution.
         Uses the first test execution as reference since configurations should be identical
         """
         current_timestamp = self.config.opts("system", "time.start")
         self.config.add(config.Scope.applicationOverride, "builder",
-                        "provision_config_instance.names", test_execution.provision_config_instance)
+                        "provision_config_instance.names", test_run.provision_config_instance)
         self.config.add(config.Scope.applicationOverride, "system",
-                        "env.name", test_execution.environment_name)
+                        "env.name", test_run.environment_name)
         self.config.add(config.Scope.applicationOverride, "system", "time.start", current_timestamp)
-        self.config.add(config.Scope.applicationOverride, "test_execution", "pipeline", test_execution.pipeline)
-        self.config.add(config.Scope.applicationOverride, "workload", "params", test_execution.workload_params)
+        self.config.add(config.Scope.applicationOverride, "test_run", "pipeline", test_run.pipeline)
+        self.config.add(config.Scope.applicationOverride, "workload", "params", test_run.workload_params)
         self.config.add(config.Scope.applicationOverride, "builder",
-                        "provision_config_instance.params", test_execution.provision_config_instance_params)
-        self.config.add(config.Scope.applicationOverride, "builder", "plugin.params", test_execution.plugin_params)
-        self.config.add(config.Scope.applicationOverride, "workload", "latency.percentiles", test_execution.latency_percentiles)
-        self.config.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", test_execution.throughput_percentiles)
+                        "provision_config_instance.params", test_run.provision_config_instance_params)
+        self.config.add(config.Scope.applicationOverride, "builder", "plugin.params", test_run.plugin_params)
+        self.config.add(config.Scope.applicationOverride, "workload", "latency.percentiles", test_run.latency_percentiles)
+        self.config.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", test_run.throughput_percentiles)
 
-    def build_aggregated_results(self) -> TestExecution:
-        test_exe = self.test_store.find_by_test_execution_id(list(self.test_executions.keys())[0])
+    def build_aggregated_results(self) -> TestRun:
+        test_run = self.test_store.find_by_test_run_id(list(self.test_runs.keys())[0])
         aggregated_results = self.build_aggregated_results_dict()
 
         if hasattr(self.args, 'results_file') and self.args.results_file != "":
@@ -190,7 +190,7 @@ class Aggregator:
 
         print("Aggregate test run ID: ", test_run_id)
 
-        self.update_config_object(test_exe)
+        self.update_config_object(test_run)
 
         loaded_workload = workload.load_workload(self.config)
         test_procedure_object = loaded_workload.find_test_procedure_or_default(self.test_procedure_name)
