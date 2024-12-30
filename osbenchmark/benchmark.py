@@ -645,7 +645,7 @@ def create_arg_parser():
     test_run_parser.add_argument(
         "--cancel-on-error",
         action="store_true",
-        help="Stop executing tests if an error occurs in one of the test iterations (default: false).",
+        help="Stop running tests if an error occurs in one of the test iterations (default: false).",
     )
 
     ###############################################################################
@@ -892,10 +892,10 @@ def prepare_test_runs_dict(args, cfg):
     cfg.add(config.Scope.applicationOverride, "results_publishing", "output.path", args.results_file)
     test_runs_dict = {}
     if args.test_runs:
-        for execution in args.test_runs:
-            execution = execution.strip()
-            if execution:
-                test_runs_dict[execution] = None
+        for run in args.test_runs:
+            run = run.strip()
+            if run:
+                test_runs_dict[run] = None
     return test_runs_dict
 
 def configure_test(arg_parser, args, cfg):

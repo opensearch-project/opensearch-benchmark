@@ -136,7 +136,7 @@ class Aggregator:
 
                 # Handle standard metrics (like latency, service_time) which are stored as dictionaries
                 if isinstance(aggregated_task_metrics[metric], dict):
-                    # Calculate RSD for the mean values across all test executions
+                    # Calculate RSD for the mean values across all test runs
                     # We use mean here as it's more sensitive to outliers, which is desirable for assessing variability
                     mean_values = [v['mean'] for v in task_metrics[metric]]
                     rsd = self.calculate_rsd(mean_values, f"{task}.{metric}.mean")
@@ -144,7 +144,7 @@ class Aggregator:
 
                 # Handle derived metrics (like error_rate, duration) which are stored as simple values
                 else:
-                    # Calculate RSD directly from the metric values across all test executions
+                    # Calculate RSD directly from the metric values across all test runs
                     rsd = self.calculate_rsd(task_metrics[metric], f"{task}.{metric}")
                     op_metric[f"{metric}_rsd"] = rsd
 
@@ -188,7 +188,7 @@ class Aggregator:
             test_run_id = f"aggregate_results_{test_run.workload}_{str(uuid.uuid4())}"
             self.config.add(config.Scope.applicationOverride, "system", "test_run.id", test_run_id)
 
-        print("Aggregate test execution ID: ", test_run_id)
+        print("Aggregate test run ID: ", test_run_id)
 
         self.update_config_object(test_exe)
 
@@ -210,10 +210,10 @@ class Aggregator:
     def calculate_weighted_average(self, task_metrics: Dict[str, List[Any]], task_name: str) -> Dict[str, Any]:
         weighted_metrics = {}
 
-        # Get iterations for each test execution
-        iterations_per_execution = [self.accumulated_iterations[test_id][task_name]
+        # Get iterations for each test run
+        iterations_per_run = [self.accumulated_iterations[test_id][task_name]
                                     for test_id in self.test_runs.keys()]
-        total_iterations = sum(iterations_per_execution)
+        total_iterations = sum(iterations_per_run)
 
         for metric, values in task_metrics.items():
             if isinstance(values[0], dict):
@@ -228,10 +228,10 @@ class Aggregator:
                     else:
                         # for items like median or containing percentile values
                         item_values = [value.get(metric_field, 0) for value in values]
-                        weighted_sum = sum(value * iterations for value, iterations in zip(item_values, iterations_per_execution))
+                        weighted_sum = sum(value * iterations for value, iterations in zip(item_values, iterations_per_run))
                         weighted_metrics[metric][metric_field] = weighted_sum / total_iterations
             else:
-                weighted_sum = sum(value * iterations for value, iterations in zip(values, iterations_per_execution))
+                weighted_sum = sum(value * iterations for value, iterations in zip(values, iterations_per_run))
                 weighted_metrics[metric] = weighted_sum / total_iterations
 
         return weighted_metrics
@@ -263,7 +263,7 @@ class Aggregator:
                         f"instead of '{test_procedure}'. Ensure that all test IDs have the same test procedure from the same workload."
                     )
             else:
-                raise ValueError(f"Test execution not found: {id}. Ensure that all provided test IDs are valid.")
+                raise ValueError(f"Test run not found: {id}. Ensure that all provided test IDs are valid.")
 
         self.config.add(config.Scope.applicationOverride, "workload", "test_procedure.name", self.test_procedure_name)
         return True
@@ -283,9 +283,9 @@ class Aggregator:
 
             aggregated_results = self.build_aggregated_results()
             file_test_run_store = FileTestRunStore(self.config)
-            file_test_run_store.store_aggregated_execution(aggregated_results)
+            file_test_run_store.store_aggregated_run(aggregated_results)
         else:
-            raise ValueError("Incompatible test execution results")
+            raise ValueError("Incompatible test run results")
 
 class AggregatedResults:
     def __init__(self, results):
