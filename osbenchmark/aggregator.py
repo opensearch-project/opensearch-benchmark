@@ -3,12 +3,12 @@ import statistics
 from typing import Any, Dict, List, Union
 import uuid
 
-from osbenchmark.metrics import FileTestExecutionStore, TestExecution
+from osbenchmark.metrics import FileTestRunStore, TestRun
 from osbenchmark import metrics, workload, config
 from osbenchmark.utils import io as rio
 
 class Aggregator:
-    def __init__(self, cfg, test_executions_dict, args) -> None:
+    def __init__(self, cfg, test_runs_dict, args) -> None:
         self.config = cfg
         self.args = args
         self.test_runs = test_runs_dict
@@ -22,7 +22,7 @@ class Aggregator:
         self.loaded_workload = None
 
     def count_iterations_for_each_op(self, test_run: TestRun) -> None:
-        """Count iterations for each operation in the test execution"""
+        """Count iterations for each operation in the test run"""
         workload_params = test_run.workload_params if test_run.workload_params else {}
         test_run_id = test_run.test_run_id
         self.accumulated_iterations[test_run_id] = {}
@@ -34,7 +34,7 @@ class Aggregator:
             self.accumulated_iterations[test_run_id][task_name] = iterations
 
     def accumulate_results(self, test_run: TestRun) -> None:
-        """Accumulate results from a single test execution"""
+        """Accumulate results from a single test run"""
         for operation_metric in test_run.results.get("op_metrics", []):
             task = operation_metric.get("task", "")
             self.accumulated_results.setdefault(task, {})
@@ -44,7 +44,7 @@ class Aggregator:
 
     def aggregate_json_by_key(self, key_path: Union[str, List[str]]) -> Any:
         """
-        Aggregates JSON results across multiple test executions using a specified key path.
+        Aggregates JSON results across multiple test runs using a specified key path.
         Handles nested dictionary structures and calculates averages for numeric values
         """
         all_json_results = [self.test_store.find_by_test_run_id(id).results for id in self.test_runs.keys()]
@@ -86,7 +86,7 @@ class Aggregator:
         return aggregate_json_elements(nested_values)
 
     def build_aggregated_results_dict(self) -> Dict[str, Any]:
-        """Builds a dictionary of aggregated metrics from all test executions"""
+        """Builds a dictionary of aggregated metrics from all test runs"""
         aggregated_results = {
             "op_metrics": [],
             "correctness_metrics": self.aggregate_json_by_key("correctness_metrics"),
@@ -154,8 +154,8 @@ class Aggregator:
 
     def update_config_object(self, test_run: TestRun) -> None:
         """
-        Updates the configuration object with values from a test execution.
-        Uses the first test execution as reference since configurations should be identical
+        Updates the configuration object with values from a test run.
+        Uses the first test run as reference since configurations should be identical
         """
         current_timestamp = self.config.opts("system", "time.start")
         self.config.add(config.Scope.applicationOverride, "builder",
