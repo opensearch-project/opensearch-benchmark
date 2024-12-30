@@ -23,10 +23,10 @@
       "enabled": true
     },
     "properties": {
-      "test-execution-id": {
+      "test-run-id": {
         "type": "keyword"
       },
-      "test-execution-timestamp": {
+      "test-run-timestamp": {
         "type": "date",
         "format": "basic_date_time_no_millis",
         "fields": {
