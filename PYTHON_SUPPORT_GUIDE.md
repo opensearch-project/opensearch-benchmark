@@ -27,17 +27,17 @@ supported_python_versions = [(3, 8), (3, 9), (3, 10), (3, 11), (3, 12)]
 
 **Basic OpenSearch Benchmark command with distribution version and test mode**
 ```
-opensearch-benchmark run --distribution-version=1.0.0 --workload=geonames --test-mode
+opensearch-benchmark run-test --distribution-version=1.0.0 --workload=geonames --test-mode
 ```
 
 **OpenSearch Benchmark command running test on target-host in test mode**
 ```
-opensearch-benchmark run --workload=geonames --pipeline=benchmark-only --target-host="<OPENSEARCH CLUSTER ENDPOINT>" --client-options="basic_auth_user:'<USERNAME>',basic_auth_password:'<PASSWORD>'" --test-mode"
+opensearch-benchmark run-test --workload=geonames --pipeline=benchmark-only --target-host="<OPENSEARCH CLUSTER ENDPOINT>" --client-options="basic_auth_user:'<USERNAME>',basic_auth_password:'<PASSWORD>'" --test-mode"
 ```
 
 **OpenSearch-Benchmark command running test on target-host without test mode**
 ```
-opensearch-benchmark run --workload=geonames --pipeline=benchmark-only --target-host="<OPENSEARCH CLUSTER ENDPOINT>" --client-options="basic_auth_user:'<USERNAME>',basic_auth_password:'<PASSWORD>'"
+opensearch-benchmark run-test --workload=geonames --pipeline=benchmark-only --target-host="<OPENSEARCH CLUSTER ENDPOINT>" --client-options="basic_auth_user:'<USERNAME>',basic_auth_password:'<PASSWORD>'"
 ```
 
 To ensure that users are using the correct python versions, install the repository with `python3 -m pip install -e .` and run `which opensearch-benchmark` to get the path. Pre-append this path to each of the three commands above and re-run them in the command line.
@@ -46,12 +46,12 @@ Keep in mind the file path outputted differs for each operating system and might
 
 - For example: When running `which opensearch-benchmark` on an Ubuntu environment, the commad line outputs `/home/ubuntu/.pyenv/shims/opensearch-benchmark`. On closer inspection, the path points to a shell script. Thus, to invoke OpenSearch Benchmark, pre-=append the OpenSearch Benchmark command with `bash` and the path outputted earlier:
 ```
-bash -x /home/ubuntu/.pyenv/shims/opensearch-benchmark run --workload=geonames --pipeline=benchmark-only --target-host="<OPENSEARCH CLUSTER ENDPOINT>" --client-options="basic_auth_user:'<USERNAME>',basic_auth_password:'<PASSWORD>'"
+bash -x /home/ubuntu/.pyenv/shims/opensearch-benchmark run-test --workload=geonames --pipeline=benchmark-only --target-host="<OPENSEARCH CLUSTER ENDPOINT>" --client-options="basic_auth_user:'<USERNAME>',basic_auth_password:'<PASSWORD>'"
 ```
 
 - Another example: When running `which opensearch-benchmark` on an Amazon Linux 2 environment, the command line outputs `~/.local/bin/opensearch-benchmark`. On closer inspection, the path points to a Python script. Thus, to invoke OpenSearch Benchmark, pre-append the OpenSearch Benchmark command with `python3` and the path outputted earlier:
 ```
-python3 ~/.local/bin/opensearch-benchmark run --workload=geonames --pipeline=benchmark-only --target-host="<OPENSEARCH CLUSTER ENDPOINT>" --client-options="basic_auth_user:'<USERNAME>',basic_auth_password:'<PASSWORD>'"
+python3 ~/.local/bin/opensearch-benchmark run-test --workload=geonames --pipeline=benchmark-only --target-host="<OPENSEARCH CLUSTER ENDPOINT>" --client-options="basic_auth_user:'<USERNAME>',basic_auth_password:'<PASSWORD>'"
 ```
 
 ### Creating a Pull Request After Adding Changes and Testing Them Out
