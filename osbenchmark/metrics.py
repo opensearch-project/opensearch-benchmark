@@ -457,8 +457,8 @@ class MetricsStore:
         """
         Opens a metrics store for a specific test_run, workload, test_procedure and provision_config_instance.
 
-        :param test_ex_id: The test execution id. This attribute is sufficient to uniquely identify a test_run.
-        :param test_ex_timestamp: The test execution timestamp as a datetime.
+        :param test_ex_id: The test run id. This attribute is sufficient to uniquely identify a test_run.
+        :param test_ex_timestamp: The test run timestamp as a datetime.
         :param workload_name: Workload name.
         :param test_procedure_name: TestProcedure name.
         :param provision_config_instance_name: ProvisionConfigInstance name.
@@ -1555,11 +1555,11 @@ class FileTestRunStore(TestRunStore):
         with open(self._test_run_file(), mode="wt", encoding="utf-8") as f:
             f.write(json.dumps(doc, indent=True, ensure_ascii=False))
 
-    def store_aggregated_execution(self, test_run):
+    def store_aggregated_run(self, test_run):
         doc = test_run.as_dict()
-        aggregated_execution_path = paths.aggregated_results_root(self.cfg, test_run_id=test_run.test_run_id)
-        io.ensure_dir(aggregated_execution_path)
-        aggregated_file = os.path.join(aggregated_execution_path, "aggregated_test_run.json")
+        aggregated_test_run_path = paths.aggregated_results_root(self.cfg, test_run_id=test_run.test_run_id)
+        io.ensure_dir(aggregated_test_run_path)
+        aggregated_file = os.path.join(aggregated_test_run_path, "aggregated_test_run.json")
         with open(aggregated_file, mode="wt", encoding="utf-8") as f:
             f.write(json.dumps(doc, indent=True, ensure_ascii=False))
 
