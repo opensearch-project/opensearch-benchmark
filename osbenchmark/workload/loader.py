@@ -61,7 +61,7 @@ class WorkloadProcessor:
     def on_prepare_workload(self, workload, data_root_dir):
         """
         This method is called by OSB after the "after_load_workload" phase. Here, any data that is necessary for
-        benchmark execution should be prepared, e.g. by downloading data or generating it. Implementations should
+        benchmark run should be prepared, e.g. by downloading data or generating it. Implementations should
         be aware that this method might be called on a different machine than "on_after_load_workload" and they cannot
         share any state in between phases.
 

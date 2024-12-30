@@ -63,7 +63,7 @@ class DummyIndexTemplateProvider:
         return "metrics-test-template"
 
     def test_runs_template(self):
-        return "test-executions-test-template"
+        return "test-runs-test-template"
 
     def results_template(self):
         return "results-test-template"
@@ -552,8 +552,8 @@ class OsMetricsTests(TestCase):
         self.metrics_store.put_value_cluster_level("indexing_throughput", throughput, "docs/s")
         expected_doc = {
             "@timestamp": StaticClock.NOW * 1000,
-            "test-execution-id": OsMetricsTests.test_run_ID,
-            "test-execution-timestamp": "20160131T000000Z",
+            "test-run-id": OsMetricsTests.test_run_ID,
+            "test-run-timestamp": "20160131T000000Z",
             "relative-time-ms": 0,
             "environment": "unittest",
             "sample-type": "normal",
@@ -584,8 +584,8 @@ class OsMetricsTests(TestCase):
                                                    absolute_time=0, relative_time=10)
         expected_doc = {
             "@timestamp": 0,
-            "test-execution-id": OsMetricsTests.test_run_ID,
-            "test-execution-timestamp": "20160131T000000Z",
+            "test-run-id": OsMetricsTests.test_run_ID,
+            "test-run-timestamp": "20160131T000000Z",
             "relative-time-ms": 10000,
             "environment": "unittest",
             "sample-type": "normal",
@@ -625,8 +625,8 @@ class OsMetricsTests(TestCase):
         self.metrics_store.put_value_node_level("node0", "indexing_throughput", throughput, "docs/s")
         expected_doc = {
             "@timestamp": StaticClock.NOW * 1000,
-            "test-execution-id": OsMetricsTests.test_run_ID,
-            "test-execution-timestamp": "20160131T000000Z",
+            "test-run-id": OsMetricsTests.test_run_ID,
+            "test-run-timestamp": "20160131T000000Z",
             "relative-time-ms": 0,
             "environment": "unittest",
             "sample-type": "normal",
@@ -666,8 +666,8 @@ class OsMetricsTests(TestCase):
         })
         expected_doc = {
             "@timestamp": StaticClock.NOW * 1000,
-            "test-execution-id": OsMetricsTests.test_run_ID,
-            "test-execution-timestamp": "20160131T000000Z",
+            "test-run-id": OsMetricsTests.test_run_ID,
+            "test-run-timestamp": "20160131T000000Z",
             "relative-time-ms": 0,
             "environment": "unittest",
             "workload": "test",
@@ -714,8 +714,8 @@ class OsMetricsTests(TestCase):
             })
         expected_doc = {
             "@timestamp": StaticClock.NOW * 1000,
-            "test-execution-id": OsMetricsTests.test_run_ID,
-            "test-execution-timestamp": "20160131T000000Z",
+            "test-run-id": OsMetricsTests.test_run_ID,
+            "test-run-timestamp": "20160131T000000Z",
             "relative-time-ms": 0,
             "environment": "unittest",
             "workload": "test",
@@ -776,7 +776,7 @@ class OsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-execution-id": OsMetricsTests.test_run_ID
+                                "test-run-id": OsMetricsTests.test_run_ID
                             }
                         },
                         {
@@ -826,7 +826,7 @@ class OsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-execution-id": OsMetricsTests.test_run_ID
+                                "test-run-id": OsMetricsTests.test_run_ID
                             }
                         },
                         {
@@ -883,7 +883,7 @@ class OsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-execution-id": OsMetricsTests.test_run_ID
+                                "test-run-id": OsMetricsTests.test_run_ID
                             }
                         },
                         {
@@ -931,7 +931,7 @@ class OsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-execution-id": OsMetricsTests.test_run_ID
+                                "test-run-id": OsMetricsTests.test_run_ID
                             }
                         },
                         {
@@ -985,7 +985,7 @@ class OsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-execution-id": OsMetricsTests.test_run_ID
+                                "test-run-id": OsMetricsTests.test_run_ID
                             }
                         },
                         {
@@ -1044,7 +1044,7 @@ class OsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-execution-id": OsMetricsTests.test_run_ID
+                                "test-run-id": OsMetricsTests.test_run_ID
                             }
                         },
                         {
@@ -1181,7 +1181,7 @@ class OsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-execution-id": OsMetricsTests.test_run_ID
+                                "test-run-id": OsMetricsTests.test_run_ID
                             }
                         },
                         {
@@ -1247,8 +1247,8 @@ class OsTestRunStoreTests(TestCase):
                         "_source": {
                             "benchmark-version": "0.4.4",
                             "environment": "unittest",
-                            "test-execution-id": OsTestRunStoreTests.test_run_ID,
-                            "test-execution-timestamp": "20160131T000000Z",
+                            "test-run-id": OsTestRunStoreTests.test_run_ID,
+                            "test-run-timestamp": "20160131T000000Z",
                             "pipeline": "from-sources",
                             "workload": "unittest",
                             "test_procedure": "index",
@@ -1325,8 +1325,8 @@ class OsTestRunStoreTests(TestCase):
             "benchmark-version": "0.4.4",
             "benchmark-revision": "123abc",
             "environment": "unittest",
-            "test-execution-id": OsTestRunStoreTests.test_run_ID,
-            "test-execution-timestamp": "20160131T000000Z",
+            "test-run-id": OsTestRunStoreTests.test_run_ID,
+            "test-run-timestamp": "20160131T000000Z",
             "pipeline": "from-sources",
             "user-tags": {
                 "os": "Linux"
@@ -1364,7 +1364,7 @@ class OsTestRunStoreTests(TestCase):
                 ]
             }
         }
-        self.es_mock.index.assert_called_with(index="benchmark-test-executions-2016-01",
+        self.es_mock.index.assert_called_with(index="benchmark-test-runs-2016-01",
                                               doc_type="_doc",
                                               id=OsTestRunStoreTests.test_run_ID,
                                               item=expected_doc)
@@ -1437,8 +1437,8 @@ class OsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": "123abc",
                 "environment": "unittest",
-                "test-execution-id": OsResultsStoreTests.test_run_ID,
-                "test-execution-timestamp": "20160131T000000Z",
+                "test-run-id": OsResultsStoreTests.test_run_ID,
+                "test-run-timestamp": "20160131T000000Z",
                 "distribution-flavor": "oss",
                 "distribution-version": "5.0.0",
                 "distribution-major-version": 5,
@@ -1467,8 +1467,8 @@ class OsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": "123abc",
                 "environment": "unittest",
-                "test-execution-id": OsResultsStoreTests.test_run_ID,
-                "test-execution-timestamp": "20160131T000000Z",
+                "test-run-id": OsResultsStoreTests.test_run_ID,
+                "test-run-timestamp": "20160131T000000Z",
                 "distribution-flavor": "oss",
                 "distribution-version": "5.0.0",
                 "distribution-major-version": 5,
@@ -1503,8 +1503,8 @@ class OsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": "123abc",
                 "environment": "unittest",
-                "test-execution-id": OsResultsStoreTests.test_run_ID,
-                "test-execution-timestamp": "20160131T000000Z",
+                "test-run-id": OsResultsStoreTests.test_run_ID,
+                "test-run-timestamp": "20160131T000000Z",
                 "distribution-flavor": "oss",
                 "distribution-version": "5.0.0",
                 "distribution-major-version": 5,
@@ -1589,8 +1589,8 @@ class OsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": None,
                 "environment": "unittest",
-                "test-execution-id": OsResultsStoreTests.test_run_ID,
-                "test-execution-timestamp": "20160131T000000Z",
+                "test-run-id": OsResultsStoreTests.test_run_ID,
+                "test-run-timestamp": "20160131T000000Z",
                 "distribution-flavor": None,
                 "distribution-version": None,
                 "user-tags": {
@@ -1615,8 +1615,8 @@ class OsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": None,
                 "environment": "unittest",
-                "test-execution-id": OsResultsStoreTests.test_run_ID,
-                "test-execution-timestamp": "20160131T000000Z",
+                "test-run-id": OsResultsStoreTests.test_run_ID,
+                "test-run-timestamp": "20160131T000000Z",
                 "distribution-flavor": None,
                 "distribution-version": None,
                 "user-tags": {
@@ -1647,8 +1647,8 @@ class OsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": None,
                 "environment": "unittest",
-                "test-execution-id": OsResultsStoreTests.test_run_ID,
-                "test-execution-timestamp": "20160131T000000Z",
+                "test-run-id": OsResultsStoreTests.test_run_ID,
+                "test-run-timestamp": "20160131T000000Z",
                 "distribution-flavor": None,
                 "distribution-version": None,
                 "user-tags": {
@@ -1968,7 +1968,7 @@ class FileTestRunStoreTests(TestCase):
         self.test_run_store = metrics.FileTestRunStore(self.cfg)
 
     def test_test_run_not_found(self):
-        with self.assertRaisesRegex(exceptions.NotFound, r"No test execution with test execution id \[.*\]"):
+        with self.assertRaisesRegex(exceptions.NotFound, r"No test run with test run id \[.*\]"):
             # did not store anything yet
             self.test_run_store.find_by_test_run_id(FileTestRunStoreTests.test_run_ID)
 
@@ -2185,8 +2185,8 @@ class GlobalStatsCalculatorTests(TestCase):
                                 "test", "append-fast-with-conflicts", "defaults", create=True)
         self.metrics_store.put_doc(doc={"@timestamp": 1595896761994,
                                         "relative-time-ms": 283.382,
-                                        "test-execution-id": "fb26018b-428d-4528-b36b-cf8c54a303ec",
-                                        "test-execution-timestamp": "20200728T003905Z", "environment": "local",
+                                        "test-run-id": "fb26018b-428d-4528-b36b-cf8c54a303ec",
+                                        "test-run-timestamp": "20200728T003905Z", "environment": "local",
                                         "workload": "geonames", "test_procedure": "append-fast-with-conflicts",
                                         "provision-config-instance": "defaults", "name": "service_time", "value": 72.67997100007051,
                                         "unit": "ms", "sample-type": "normal",

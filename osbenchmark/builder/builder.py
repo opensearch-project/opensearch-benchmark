@@ -361,7 +361,7 @@ class BuilderActor(actor.BenchmarkActor):
 
     @actor.no_retry("builder")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StartEngine(self, msg, sender):
-        self.logger.info("Received signal from test execution orchestrator to start engine.")
+        self.logger.info("Received signal from test run orchestrator to start engine.")
         self.test_run_orchestrator = sender
         self.cfg = msg.cfg
         self.provision_config_instance, _ = load_provision_config(self.cfg, msg.external)
@@ -381,7 +381,7 @@ class BuilderActor(actor.BenchmarkActor):
             self.on_all_nodes_started()
             self.status = "cluster_started"
         else:
-            console.info("Preparing for test execution ...", flush=True)
+            console.info("Preparing for test run ...", flush=True)
             self.logger.info("Cluster consisting of %s will be provisioned by OSB.", hosts)
             msg.hosts = hosts
             # Initialize the children array to have the right size to

@@ -41,7 +41,7 @@ pipelines = collections.OrderedDict()
 
 class Pipeline:
     """
-    Describes a whole execution pipeline. A pipeline can consist of one or more steps. Each pipeline should contain roughly of the following
+    Describes a whole run pipeline. A pipeline can consist of one or more steps. Each pipeline should contain roughly of the following
     steps:
 
     * Prepare the benchmark candidate: It can build OpenSearch from sources, download a ZIP from somewhere etc.
@@ -100,7 +100,7 @@ class BenchmarkActor(actor.BenchmarkActor):
     def receiveUnrecognizedMessage(self, msg, sender):
         self.logger.info("BenchmarkActor received unknown message [%s] (ignoring).", (str(msg)))
 
-    @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("test run orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_Setup(self, msg, sender):
         self.start_sender = sender
         self.cfg = msg.cfg
@@ -115,7 +115,7 @@ class BenchmarkActor(actor.BenchmarkActor):
                                                       msg.external,
                                                       msg.docker))
 
-    @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("test run orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_EngineStarted(self, msg, sender):
         self.logger.info("Builder has started engine successfully.")
         self.coordinator.test_run.provision_config_revision = msg.provision_config_revision
@@ -126,33 +126,33 @@ class BenchmarkActor(actor.BenchmarkActor):
         self.logger.info("Telling worker_coordinator to prepare for benchmarking.")
         self.send(self.main_worker_coordinator, worker_coordinator.PrepareBenchmark(self.cfg, self.coordinator.current_workload))
 
-    @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("test run orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_PreparationComplete(self, msg, sender):
         self.coordinator.on_preparation_complete(msg.distribution_flavor, msg.distribution_version, msg.revision)
         self.logger.info("Telling worker_coordinator to start benchmark.")
         self.send(self.main_worker_coordinator, worker_coordinator.StartBenchmark())
 
-    @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("test run orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_TaskFinished(self, msg, sender):
         self.coordinator.on_task_finished(msg.metrics)
         # We choose *NOT* to reset our own metrics store's timer as this one is only used to collect complete metrics records from
         # other stores (used by worker_coordinator and builder). Hence there is no need to reset the timer in our own metrics store.
         self.send(self.builder, builder.ResetRelativeTime(msg.next_task_scheduled_in))
 
-    @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("test run orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_BenchmarkCancelled(self, msg, sender):
         self.coordinator.cancelled = True
         # even notify the start sender if it is the originator. The reason is that we call #ask() which waits for a reply.
         # We also need to ask in order to avoid test_runs between this notification and the following ActorExitRequest.
         self.send(self.start_sender, msg)
 
-    @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("test run orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_BenchmarkFailure(self, msg, sender):
         self.logger.info("Received a benchmark failure from [%s] and will forward it now.", sender)
         self.coordinator.error = True
         self.send(self.start_sender, msg)
 
-    @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("test run orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_BenchmarkComplete(self, msg, sender):
         self.coordinator.on_benchmark_complete(msg.metrics)
         self.send(self.main_worker_coordinator, thespian.actors.ActorExitRequest())
@@ -160,7 +160,7 @@ class BenchmarkActor(actor.BenchmarkActor):
         self.logger.info("Asking builder to stop the engine.")
         self.send(self.builder, builder.StopEngine())
 
-    @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
+    @actor.no_retry("test run orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_EngineStopped(self, msg, sender):
         self.logger.info("Builder has stopped engine successfully.")
         self.send(self.start_sender, Success())
@@ -274,8 +274,8 @@ def run_test(cfg, sources=False, distribution=False, external=False, docker=Fals
         else:
             raise exceptions.BenchmarkError("Got an unexpected result during benchmarking: [%s]." % str(result))
     except KeyboardInterrupt:
-        logger.info("User has cancelled the benchmark (detected by test execution orchestrator).")
-        # notify the coordinator so it can properly handle this state. Do it blocking so we don't have a test execution between this message
+        logger.info("User has cancelled the benchmark (detected by test run orchestrator).")
+        # notify the coordinator so it can properly handle this state. Do it blocking so we don't have a test run between this message
         # and the actor exit request.
         actor_system.ask(benchmark_actor, actor.BenchmarkCancelled())
     finally:
@@ -347,7 +347,7 @@ def run(cfg):
     # pipeline is no more mandatory, will default to benchmark-only
     name = cfg.opts("test_run", "pipeline", mandatory=False)
     test_run_id = cfg.opts("system", "test_run.id")
-    logger.info("Test Execution id [%s]", test_run_id)
+    logger.info("Test run id [%s]", test_run_id)
     if not name:
         # assume from-distribution pipeline if distribution.version has been specified
         if cfg.exists("builder", "distribution.version"):
