@@ -100,7 +100,7 @@ def run_test(cfg, command_line):
     This method should be used for benchmark invocations of the test_run command.
     It sets up some defaults for how the integration tests expect to run test_runs.
     """
-    return osbenchmark(cfg, f"run {command_line} --kill-running-processes --on-error='abort'")
+    return osbenchmark(cfg, f"run-test {command_line} --kill-running-processes --on-error='abort'")
 
 
 def shell_cmd(command_line):
@@ -186,7 +186,7 @@ class TestCluster:
             raise AssertionError("Failed to install OpenSearch {}.".format(distribution_version), e)
 
     def start(self, test_run_id):
-        cmd = "start --runtime-jdk=\"bundled\" --installation-id={} --test-execution-id={}".format(self.installation_id, test_run_id)
+        cmd = "start --runtime-jdk=\"bundled\" --installation-id={} --test-run-id={}".format(self.installation_id, test_run_id)
         if osbenchmark(self.cfg, cmd) != 0:
             raise AssertionError("Failed to start OpenSearch test cluster.")
         opensearch = client.OsClientFactory(hosts=[{"host": "127.0.0.1", "port": self.http_port}], client_options={}).create()
