@@ -1,6 +1,6 @@
 {
   "index_patterns": [
-    "benchmark-test-executions-*"
+    "benchmark-test-runs-*"
   ],
   "settings": {
     "index": {
