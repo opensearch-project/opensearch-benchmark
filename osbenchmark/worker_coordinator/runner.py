@@ -2699,7 +2699,7 @@ class DeleteMlModel(Runner):
     @time_func
     async def __call__(self, opensearch, params):
         async def _is_deployed(model_id):
-            resp = await opensearch.transport.perform_request('GET', '_plugins/_ml/models/' + model_id)
+            resp = await opensearch.transport.perform_request('GET', '/_plugins/_ml/models/' + model_id)
             state = resp.get('model_state')
             return state in ('PARTIALLY_DEPLOYED', 'DEPLOYED')
 
@@ -2770,14 +2770,14 @@ class RegisterMlModel(Runner):
                     break
 
         if not model_id:
-            resp = await opensearch.transport.perform_request('POST', '_plugins/_ml/models/_register', body=body)
+            resp = await opensearch.transport.perform_request('POST', '/_plugins/_ml/models/_register', body=body)
             task_id = resp.get('task_id')
             timeout = params.get('timeout', 120)
             end = time.time() + timeout
             state = 'CREATED'
             while state == 'CREATED' and time.time() < end:
                 await asyncio.sleep(5)
-                resp = await opensearch.transport.perform_request('GET', '_plugins/_ml/tasks/' + task_id)
+                resp = await opensearch.transport.perform_request('GET', '/_plugins/_ml/tasks/' + task_id)
                 state = resp.get('state')
             if state == 'FAILED':
                 raise exceptions.BenchmarkError("Failed to register ml-model. Error: {}".format(resp['error']))
@@ -2799,14 +2799,14 @@ class DeployMlModel(Runner):
             d = json.loads(f.read())
             model_id = d['model_id']
 
-        resp = await opensearch.transport.perform_request('POST', '_plugins/_ml/models/' + model_id + '/_deploy')
+        resp = await opensearch.transport.perform_request('POST', '/_plugins/_ml/models/' + model_id + '/_deploy')
         task_id = resp.get('task_id')
         timeout = params.get('timeout', 120)
         end = time.time() + timeout
         state = 'RUNNING'
         while state == 'RUNNING' and time.time() < end:
             await asyncio.sleep(5)
-            resp = await opensearch.transport.perform_request('GET', '_plugins/_ml/tasks/' + task_id)
+            resp = await opensearch.transport.perform_request('GET', '/_plugins/_ml/tasks/' + task_id)
             state = resp.get('state')
         if state == 'FAILED':
             raise exceptions.BenchmarkError("Failed to deploy ml-model. Error: {}".format(resp['error']))
