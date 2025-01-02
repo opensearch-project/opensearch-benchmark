@@ -26,7 +26,11 @@ import os
 
 def benchmark_confdir():
     default_home = os.path.expanduser("~")
-    return os.path.join(os.getenv("BENCHMARK_HOME", default_home), ".benchmark")
+    old_path = os.path.join(default_home, ".benchmark")
+    new_path = os.path.join(default_home, ".osb")
+    if os.path.exists(old_path) and not os.path.exists(new_path):
+        os.symlink(old_path, new_path)
+    return os.path.join(os.getenv("BENCHMARK_HOME", default_home), ".osb")
 
 
 def benchmark_root():
