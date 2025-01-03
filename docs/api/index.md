@@ -1,6 +1,6 @@
 ---
 layout: default
-title: Benchmark API
+title: OSB API
 nav_order: 2
 has_children: true
 ---

@@ -187,7 +187,7 @@ class FlightRecorder(TelemetryDevice):
             console.println("You are using Java flight recorder which requires that you comply with\nthe licensing terms stated in:\n")
             console.println(console.format.link("http://www.oracle.com/technetwork/java/javase/terms/license/index.html"))
             console.println("\nBy using this feature you confirm that you comply with these license terms.\n")
-            console.println("Otherwise, please abort and rerun Benchmark without the \"jfr\" telemetry device.")
+            console.println("Otherwise, please abort and rerun OSB without the \"jfr\" telemetry device.")
             console.println("\n***************************************************************************\n")
 
             time.sleep(3)
@@ -1208,7 +1208,7 @@ class DiskIo(InternalTelemetryDevice):
                 else:
                     disk_end = sysstats.disk_io_counters()
                     if self.node_count_on_host > 1:
-                        self.logger.info("There are [%d] nodes on this host and Benchmark fell back to disk I/O counters. "
+                        self.logger.info("There are [%d] nodes on this host and OSB fell back to disk I/O counters. "
                                          "Attributing [1/%d] of total I/O to [%s].",
                                          self.node_count_on_host, self.node_count_on_host, node.node_name)
 
@@ -1305,7 +1305,7 @@ class ClusterEnvironmentInfo(InternalTelemetryDevice):
         for node in nodes_info:
             node_name = node["name"]
             # while we could determine this for bare-metal nodes that are
-            # provisioned by Benchmark, there are other cases (Docker, externally
+            # provisioned by OSB, there are other cases (Docker, externally
             # provisioned clusters) where it's not that easy.
             self.metrics_store.add_meta_info(metrics.MetaInfoScope.node, node_name, "jvm_vendor", extract_value(node, ["jvm", "vm_vendor"]))
             self.metrics_store.add_meta_info(metrics.MetaInfoScope.node, node_name, "jvm_version", extract_value(node, ["jvm", "version"]))
