@@ -19,7 +19,7 @@ class OpenSearchPreparerTests(TestCase):
         self.binaries = {BinaryKeys.OPENSEARCH: "/data/builds/distributions"}
         self.all_node_ips = ["10.17.22.22", "10.17.22.23"]
 
-        self.test_execution_root = "fake_root"
+        self.test_run_root = "fake_root"
         self.cluster_name = "my-cluster"
 
         self.executor = Mock()
@@ -30,7 +30,7 @@ class OpenSearchPreparerTests(TestCase):
             root_path="fake",
             config_paths=["/tmp"],
             variables={
-                "test_execution_root": self.test_execution_root,
+                "test_run_root": self.test_run_root,
                 "cluster_name": self.cluster_name,
                 "node": {
                     "port": "9200"
@@ -47,10 +47,10 @@ class OpenSearchPreparerTests(TestCase):
         uuid.return_value = self.node_id
 
         node = self.preparer.prepare(self.host, self.binaries)
-        self.assertEqual(node.binary_path, os.path.join(self.test_execution_root, self.node_id, "install/opensearch*"))
-        self.assertEqual(node.data_paths, [os.path.join(self.test_execution_root, self.node_id, "install/opensearch*/data")])
+        self.assertEqual(node.binary_path, os.path.join(self.test_run_root, self.node_id, "install/opensearch*"))
+        self.assertEqual(node.data_paths, [os.path.join(self.test_run_root, self.node_id, "install/opensearch*/data")])
         self.assertEqual(node.port, 9200)
-        self.assertEqual(node.root_dir, os.path.join(self.test_execution_root, self.node_id))
+        self.assertEqual(node.root_dir, os.path.join(self.test_run_root, self.node_id))
         self.assertEqual(node.name, self.node_id)
 
     def test_config_vars(self):
@@ -70,5 +70,5 @@ class OpenSearchPreparerTests(TestCase):
             "minimum_master_nodes": 2,
             "install_root_path": "/fake_binary_path",
             "node": {"port": "9200"},
-            "test_execution_root": self.test_execution_root
+            "test_run_root": self.test_run_root
         }, config_vars)
