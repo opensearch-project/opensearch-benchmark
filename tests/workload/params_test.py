@@ -34,7 +34,7 @@ from osbenchmark import exceptions
 from osbenchmark.utils import io
 from osbenchmark.utils.dataset import Context, HDF5DataSet
 from osbenchmark.utils.parse import ConfigurationError
-from osbenchmark.workload import params, workload
+from osbenchmark.workload import params, workload, loader
 from osbenchmark.workload.params import VectorDataSetPartitionParamSource, VectorSearchPartitionParamSource, \
     BulkVectorsFromDataSetParamSource
 from tests.utils.dataset_helper import create_data_set, create_attributes_data_set, create_parent_data_set
@@ -1458,6 +1458,33 @@ class StandardValueSourceRegistrationTests(TestCase):
         self.assertEqual(params.get_standard_value_source(op_name, field_name_1)(), {"gte":gte_field_1, "lte":lte_field_1})
 
         params._clear_standard_values()
+
+class QueryRandomizationInfoRegistrationTests(TestCase):
+    def check_result_equality(self, result, expected):
+        self.assertEqual(result.query_name, expected.query_name)
+        self.assertEqual(result.parameter_name_options_list, expected.parameter_name_options_list)
+        self.assertEqual(result.optional_parameters, expected.optional_parameters)
+
+
+    def test_register_query_randomization_info(self):
+        params._clear_query_randomization_infos()
+
+        op_name = "op-1"
+        query_name = "geo_bounding_box"
+        value_name_options_list = [["top_left"], ["lower_right"]]
+        optional_values = []
+        params.register_query_randomization_info(op_name, query_name, value_name_options_list, optional_values)
+
+        query_randomization_info = params.get_query_randomization_info(op_name)
+        expected = loader.QueryRandomizerWorkloadProcessor.QueryRandomizationInfo("geo_bounding_box", [["top_left"], ["lower_right"]], [])
+        self.check_result_equality(query_randomization_info, expected)
+
+        # Should get the default one for an op that has nothing registered
+        query_randomization_info = params.get_query_randomization_info("unrecognized-op")
+        expected = loader.QueryRandomizerWorkloadProcessor.DEFAULT_QUERY_RANDOMIZATION_INFO
+        self.check_result_equality(query_randomization_info, expected)
+
+        params._clear_query_randomization_infos()
 
 class SleepParamSourceTests(TestCase):
     def test_missing_duration_parameter(self):
