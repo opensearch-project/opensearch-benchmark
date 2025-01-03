@@ -26,7 +26,25 @@ import os
 
 def benchmark_confdir():
     default_home = os.path.expanduser("~")
-    return os.path.join(os.getenv("BENCHMARK_HOME", default_home), ".benchmark")
+    old_path = os.path.join(default_home, ".benchmark")
+    new_path = os.path.join(default_home, ".osb")
+
+    # Create .benchmark directory if it doesn't exist
+    if not os.path.exists(old_path):
+        os.makedirs(old_path, exist_ok=True)
+
+    # Create .osb directory if it doesn't exist
+    if not os.path.exists(new_path):
+        os.makedirs(new_path, exist_ok=True)
+
+    # Create symlink from .osb to .benchmark if it doesn't exist
+    if not os.path.islink(new_path):
+        try:
+            os.symlink(old_path, new_path, target_is_directory=True)
+        except OSError:
+            print(f"Warning: Failed to create symlink from {new_path} to {old_path}")
+
+    return os.path.join(os.getenv("BENCHMARK_HOME", default_home), ".osb")
 
 
 def benchmark_root():
