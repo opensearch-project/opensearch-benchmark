@@ -542,6 +542,7 @@ class CreateComponentTemplateParamSource(CreateTemplateParamSource):
 class SearchParamSource(ParamSource):
     def __init__(self, workload, params, **kwargs):
         super().__init__(workload, params, **kwargs)
+        self.logger = logging.getLogger(__name__)
         target_name = get_target(workload, params)
         type_name = params.get("type")
         if params.get("data-stream") and type_name:
@@ -1085,7 +1086,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
 
         self.filter_type = self.query_params.get(self.PARAMS_NAME_FILTER_TYPE)
         self.filter_body = self.query_params.get(self.PARAMS_NAME_FILTER_BODY)
-
+        self.logger = logging.getLogger(__name__)
 
         if self.PARAMS_NAME_FILTER in params:
             self.query_params.update({
