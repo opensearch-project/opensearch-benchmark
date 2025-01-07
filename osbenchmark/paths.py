@@ -22,27 +22,29 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-
+import sys
+from osbenchmark.utils.io import ensure_dir
 
 def benchmark_confdir():
     default_home = os.path.expanduser("~")
     old_path = os.path.join(default_home, ".benchmark")
     new_path = os.path.join(default_home, ".osb")
 
-    # Create .benchmark directory if it doesn't exist
-    if not os.path.exists(old_path):
-        os.makedirs(old_path, exist_ok=True)
-
-    # Create .osb directory if it doesn't exist
-    if not os.path.exists(new_path):
-        os.makedirs(new_path, exist_ok=True)
+    # ensure both directories exist
+    ensure_dir(old_path)
+    ensure_dir(new_path)
 
     # Create symlink from .osb to .benchmark if it doesn't exist
     if not os.path.islink(new_path):
         try:
             os.symlink(old_path, new_path, target_is_directory=True)
-        except OSError:
-            print(f"Warning: Failed to create symlink from {new_path} to {old_path}")
+        except OSError as e:
+            error_message = (
+                f"OSError: Failed to create symlink from {new_path} to {old_path}\n"
+                f"Error type: {type(e).__name__}\n"
+                f"Error message: {str(e)}\n"
+            )
+            print(error_message, file=sys.stderr)
 
     return os.path.join(os.getenv("BENCHMARK_HOME", default_home), ".osb")
 
