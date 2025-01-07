@@ -1,6 +1,6 @@
 ---
 layout: default
 title: Client Options
-parent: Benchmark API
+parent: OSB API
 nav_order: 12
 ---

@@ -32,7 +32,7 @@ from osbenchmark.utils import io, git, console, versions
 
 class BenchmarkRepository:
     """
-    Manages Benchmark resources (e.g. provision_configs or workloads).
+    Manages OSB resources (e.g. provision_configs or workloads).
     """
 
     default = "default-provision-config"

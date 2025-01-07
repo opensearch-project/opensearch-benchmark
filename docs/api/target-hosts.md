@@ -1,6 +1,6 @@
 ---
 layout: default
 title: Target Hosts
-parent: Benchmark API
+parent: OSB API
 nav_order: 15
 ---

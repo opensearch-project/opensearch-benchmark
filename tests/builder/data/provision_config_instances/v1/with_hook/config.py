@@ -22,4 +22,4 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Empty placeholder. We just need this file to verify that Benchmark will recognize it as an install hook entry point.
+# Empty placeholder. We just need this file to verify that OSB will recognize it as an install hook entry point.

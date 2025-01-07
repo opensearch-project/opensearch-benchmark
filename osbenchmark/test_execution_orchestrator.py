@@ -241,7 +241,7 @@ class BenchmarkCoordinator:
         self.metrics_store.bulk_add(new_metrics)
 
     def on_benchmark_complete(self, new_metrics):
-        self.logger.info("Benchmark is complete.")
+        self.logger.info("OSB is complete.")
         self.logger.info("Bulk adding request metrics to metrics store.")
         self.metrics_store.bulk_add(new_metrics)
         self.metrics_store.flush()
@@ -264,7 +264,7 @@ def execute_test(cfg, sources=False, distribution=False, external=False, docker=
     try:
         result = actor_system.ask(benchmark_actor, Setup(cfg, sources, distribution, external, docker))
         if isinstance(result, Success):
-            logger.info("Benchmark has finished successfully.")
+            logger.info("OSB has finished successfully.")
         # may happen if one of the load generators has detected that the user has cancelled the benchmark.
         elif isinstance(result, actor.BenchmarkCancelled):
             logger.info("User has cancelled the benchmark (detected by actor).")
@@ -364,8 +364,8 @@ def run(cfg):
         # in this case only benchmarking remote OpenSearch clusters makes sense
         if name != "benchmark-only":
             raise exceptions.SystemSetupError(
-                "Only the [benchmark-only] pipeline is supported by the Benchmark Docker image.\n"
-                "Add --pipeline=benchmark-only in your Benchmark arguments and try again.\n"
+                "Only the [benchmark-only] pipeline is supported by the OSB Docker image.\n"
+                "Add --pipeline=benchmark-only in your OSB arguments and try again.\n"
                 "For more details read the docs for the benchmark-only pipeline in {}\n".format(
                     doc_link("")))
 

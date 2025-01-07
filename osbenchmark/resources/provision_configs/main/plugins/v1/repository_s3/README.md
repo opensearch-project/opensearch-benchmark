@@ -3,7 +3,7 @@ For more details on secure settings for the repository-s3 plugin please refer to
 
 ### Parameters
 
-This plugin allows to set the following parameters with Benchmark using `--plugin-params` in combination with `--opensearch-plugins="repository-s3"`:
+This plugin allows to set the following parameters with OSB using `--plugin-params` in combination with `--opensearch-plugins="repository-s3"`:
 
 * `s3_client_name`: A string specifying the clientname to associate the above credentials with (mandatory).
 * `s3_access_key`: A string specifying the AWS access key (mandatory).
@@ -27,4 +27,4 @@ Example:
 }
 ```
 
-Save it as `params.json` and provide it to Benchmark with `--opensearch-plugins="repository-s3" --plugin-params="/path/to/params.json"`.
+Save it as `params.json` and provide it to OSB with `--opensearch-plugins="repository-s3" --plugin-params="/path/to/params.json"`.

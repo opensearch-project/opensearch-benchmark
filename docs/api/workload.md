@@ -1,6 +1,6 @@
 ---
 layout: default
 title: Execute Test
-parent: Benchmark API
+parent: OSB API
 nav_order: 16
 ---

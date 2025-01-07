@@ -67,7 +67,7 @@ def no_retry(f, actor_name):
 
     Decorator intended for Thespian message handlers with the signature ``receiveMsg_$MSG_NAME(self, msg, sender)``. Thespian will
     assume that a message handler that raises an exception can be retried. It will then retry once and give up afterwards just leaving
-    a trace of that in the actor system's internal log file. However, this is usually *not* what we want in Benchmark. If handling of a
+    a trace of that in the actor system's internal log file. However, this is usually *not* what we want in OSB. If handling of a
     message fails we instead want to notify a node higher up in the actor hierarchy.
 
     We achieve that by sending a ``BenchmarkFailure`` message to the original sender. Note that this might as well be the current
@@ -232,7 +232,7 @@ def bootstrap_actor_system(try_join=False, prefer_local_only=False, local_ip=Non
                 local_ip = None
         else:
             if system_base not in ("multiprocTCPBase", "multiprocUDPBase"):
-                raise exceptions.SystemSetupError("Benchmark requires a network-capable system base but got [%s]." % system_base)
+                raise exceptions.SystemSetupError("OSB requires a network-capable system base but got [%s]." % system_base)
             if not coordinator_ip:
                 raise exceptions.SystemSetupError("coordinator IP is required")
             if not local_ip:

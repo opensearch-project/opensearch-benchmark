@@ -116,7 +116,7 @@ tests_require = [
     "pytest-asyncio==0.14.0"
 ]
 
-# These packages are only required when developing Benchmark
+# These packages are only required when developing OSB
 develop_require = [
     "tox==3.14.0",
     "coverage==5.5",
@@ -155,7 +155,7 @@ setup(name="opensearch-benchmark",
           exclude=("tests*", "benchmarks*", "it*")
       ),
       include_package_data=True,
-      # supported Python versions. This will prohibit pip (> 9.0.0) from even installing Benchmark on an unsupported
+      # supported Python versions. This will prohibit pip (> 9.0.0) from even installing OSB on an unsupported
       # Python version.
       # See also https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
       #
@@ -184,7 +184,7 @@ setup(name="opensearch-benchmark",
       },
       scripts=['scripts/expand-data-corpus.py', 'scripts/pbzip2' ],
       classifiers=[
-          "Topic :: System :: Benchmark",
+          "Topic :: System :: OSB",
           "Development Status :: 5 - Production/Stable",
           "License :: OSI Approved :: Apache Software License",
           "Intended Audience :: Developers",

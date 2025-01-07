@@ -1,6 +1,6 @@
 ---
 layout: default
 title: Get Started
-parent: Benchmark
+parent: OSB
 nav_order: 1
 ---

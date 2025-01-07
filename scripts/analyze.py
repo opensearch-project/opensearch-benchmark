@@ -26,8 +26,8 @@
 # test_execution.json files (it's a summary of the results of
 # a single test_execution which is
 # stored in ~/.benchmark/benchmarks/test_executions/TEST_EXECUTION_TS/).
-# There is no specific integration into Benchmark and it is also not
-# installed with Benchmark.
+# There is no specific integration into OSB and it is also not
+# installed with OSB.
 #
 # It requires matplotlib (install with pip3 install matplotlib).
 #

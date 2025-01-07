@@ -182,7 +182,7 @@ def _supply_requirements(sources, distribution, plugins, revisions, distribution
             # allow catch-all only if we're generally building from sources. If it is mixed, the user should tell explicitly.
             if plugin.name in revisions or ("all" in revisions and sources):
                 # be a bit more lenient when checking for plugin revisions. This allows users to specify `--revision="current"` and
-                # rely on Benchmark to do the right thing.
+                # rely on OSB to do the right thing.
                 try:
                     plugin_revision = revisions[plugin.name]
                 except KeyError:
@@ -205,7 +205,7 @@ def _src_dir(cfg, mandatory=True):
         return cfg.opts("node", "src.root.dir", mandatory=mandatory)
     except exceptions.ConfigError:
         raise exceptions.SystemSetupError("You cannot benchmark OpenSearch from sources. Did you install Gradle? Please install"
-                                          " all prerequisites and reconfigure Benchmark with %s configure" % PROGRAM_NAME)
+                                          " all prerequisites and reconfigure OSB with %s configure" % PROGRAM_NAME)
 
 
 def _prune(root_path, max_age_days):
@@ -349,7 +349,7 @@ class CachedSourceSupplier:
     def fetch(self):
         # Can we already resolve the artifact without fetching the source tree at all? This is the case when a specific
         # revision (instead of a meta-revision like "current") is provided and the artifact is already cached. This is
-        # also needed if an external process pushes artifacts to Benchmark's cache which might have been built from a
+        # also needed if an external process pushes artifacts to OSB's cache which might have been built from a
         # fork. In that case the provided commit hash would not be present in any case in the main OS repo.
         maybe_an_artifact = os.path.join(self.distributions_root, self.file_name)
         if os.path.exists(maybe_an_artifact):
@@ -414,7 +414,7 @@ class OpenSearchSourceSupplier:
                                 self.template_renderer.render(self.provision_config_instance.mandatory_var("system.artifact_path_pattern")))
             return glob.glob(path)[0]
         except IndexError:
-            raise SystemSetupError("Couldn't find a tar.gz distribution. Please run Benchmark with the pipeline 'from-sources'.")
+            raise SystemSetupError("Couldn't find a tar.gz distribution. Please run OSB with the pipeline 'from-sources'.")
 
 
 class PluginFileNameResolver:
@@ -483,7 +483,7 @@ class ExternalPluginSourceSupplier:
             name = glob.glob("%s/%s/*.zip" % (self.plugin_src_dir, artifact_path))[0]
             return "file://%s" % name
         except IndexError:
-            raise SystemSetupError("Couldn't find a plugin zip file for [%s]. Please run Benchmark with the pipeline 'from-sources'." %
+            raise SystemSetupError("Couldn't find a plugin zip file for [%s]. Please run OSB with the pipeline 'from-sources'." %
                                    self.plugin.name)
 
 
@@ -514,7 +514,7 @@ class CorePluginSourceSupplier:
             name = glob.glob("%s/plugins/%s/build/distributions/*.zip" % (self.os_src_dir, self.plugin.name))[0]
             return "file://%s" % name
         except IndexError:
-            raise SystemSetupError("Couldn't find a plugin zip file for [%s]. Please run Benchmark with the pipeline 'from-sources'." %
+            raise SystemSetupError("Couldn't find a plugin zip file for [%s]. Please run OSB with the pipeline 'from-sources'." %
                                    self.plugin.name)
 
 
@@ -623,7 +623,7 @@ class SourceRepository:
         self.logger = logging.getLogger(__name__)
 
     def fetch(self, revision):
-        # if and only if we want to benchmark the current revision, Benchmark may skip repo initialization (if it is already present)
+        # if and only if we want to benchmark the current revision, OSB may skip repo initialization (if it is already present)
         self._try_init(may_skip_init=revision == "current")
         return self._update(revision)
 
@@ -647,7 +647,7 @@ class SourceRepository:
         elif revision == "current":
             self.logger.info("Skip fetching sources for %s.", self.name)
         elif self.has_remote() and revision.startswith("@"):
-            # convert timestamp annotated for Benchmark to something git understands -> we strip leading and trailing " and the @.
+            # convert timestamp annotated for OSB to something git understands -> we strip leading and trailing " and the @.
             git_ts_revision = revision[1:]
             self.logger.info("Fetching from remote and checking out revision with timestamp [%s] for %s.", git_ts_revision, self.name)
             git.pull_ts(self.src_dir, git_ts_revision)

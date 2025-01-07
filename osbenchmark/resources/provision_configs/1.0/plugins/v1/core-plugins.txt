@@ -1,6 +1,6 @@
 ########################################################################
 #
-# This config file is used for Benchmark >= 0.7.3.
+# This config file is used for OSB >= 0.7.3.
 #
 # It contains the names of all plugins that are part of OpenSearch
 # core. Some of them require custom configuration and will not work

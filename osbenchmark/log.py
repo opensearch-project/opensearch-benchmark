@@ -45,7 +45,7 @@ def configure_utc_formatter(*args, **kwargs):
 
 def log_config_path():
     """
-    :return: The absolute path to Benchmark's log configuration file.
+    :return: The absolute path to OSB's log configuration file.
     """
     # print("PATH: ", os.path.join(paths.benchmark_confdir(), "logging.json"))
     return os.path.join(paths.benchmark_confdir(), "logging.json")

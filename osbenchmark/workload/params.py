@@ -53,7 +53,7 @@ __QUERY_RANDOMIZATION_INFOS = {}
 
 def param_source_for_operation(op_type, workload, params, task_name):
     try:
-        # we know that this can only be a Benchmark core parameter source
+        # we know that this can only be a OSB core parameter source
         return __PARAM_SOURCES_BY_OP[op_type](workload, params, operation_name=task_name)
     except KeyError:
         return ParamSource(workload, params, operation_name=task_name)
@@ -153,9 +153,9 @@ def _clear_query_randomization_infos():
 class ParamSource:
     """
     A `ParamSource` captures the parameters for a given operation.
-     Benchmark will create one global ParamSource for each operation and will then
+     OSB will create one global ParamSource for each operation and will then
      invoke `#partition()` to get a `ParamSource` instance for each client. During the benchmark, `#params()` will be called repeatedly
-     before Benchmark invokes the corresponding runner (that will actually execute the operation against OpenSearch).
+     before OSB invokes the corresponding runner (that will actually execute the operation against OpenSearch).
     """
 
     def __init__(self, workload, params, **kwargs):
@@ -171,7 +171,7 @@ class ParamSource:
 
     def partition(self, partition_index, total_partitions):
         """
-        This method will be invoked by Benchmark at the beginning of the lifecycle. It splits a parameter source per client. If the
+        This method will be invoked by OSB at the beginning of the lifecycle. It splits a parameter source per client. If the
         corresponding operation is idempotent, return `self` (e.g. for queries). If the corresponding operation has side-effects and it
         matters which client executes which part (e.g. an index operation from a source file), return the relevant part.
 
@@ -193,12 +193,12 @@ class ParamSource:
     # Deprecated
     def size(self):
         """
-        Benchmark has two modes in which it can run:
+        OSB has two modes in which it can run:
 
         * It will either run an operation for a pre-determined number of times or
         * It can run until the parameter source is exhausted.
 
-        In the former case, you should determine the number of times that `#params()` will be invoked. With that number, Benchmark can show
+        In the former case, you should determine the number of times that `#params()` will be invoked. With that number, OSB can show
         the progress made so far to the user. In the latter case, return ``None``.
 
         :return:  The "size" of this parameter source or ``None`` if should run eternally.
@@ -216,7 +216,7 @@ class ParamSource:
         """
         For use when a ParamSource does not propagate self._params but does use opensearch client under the hood
 
-        :return: all applicable parameters that are global to Benchmark and apply to the opensearch-py client
+        :return: all applicable parameters that are global to OSB and apply to the opensearch-py client
         """
         return {
             "request-timeout": self._params.get("request-timeout"),

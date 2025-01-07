@@ -79,7 +79,7 @@ class LocalProcessLauncher(Launcher):
             self._set_env(env, "PATH", os.path.join(java_home, "bin"), separator=os.pathsep, prepend=True)
             # This property is the higher priority starting in ES 7.12.0, and is the only supported java home in >=8.0
             env["OPENSEARCH_JAVA_HOME"] = java_home
-            # TODO remove this when ES <8.0 becomes unsupported by Benchmark
+            # TODO remove this when ES <8.0 becomes unsupported by OSB
             env["JAVA_HOME"] = java_home
             self.logger.info("JAVA HOME: %s", env["JAVA_HOME"])
         if not env.get("OPENSEARCH_JAVA_OPTS"):
@@ -103,7 +103,7 @@ class LocalProcessLauncher(Launcher):
 
     def _start_process(self, host, binary_path, env):
         if os.name == "posix" and os.geteuid() == 0:
-            raise LaunchError("Cannot launch OpenSearch as root. Please run Benchmark as a non-root user.")
+            raise LaunchError("Cannot launch OpenSearch as root. Please run OSB as a non-root user.")
 
         cmd = [io.escape_path(os.path.join(binary_path, "bin", "opensearch"))]
         cmd.extend(["-d", "-p", "pid"])

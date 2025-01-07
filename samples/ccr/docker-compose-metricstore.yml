@@ -1,4 +1,4 @@
-# Creates an Opensearch cluster to publish the Opensearch Benchmark metrics.
+# Creates an Opensearch cluster to publish the OpenSearch Benchmark metrics.
 version: '3'
 services:
   metricstore-node:

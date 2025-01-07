@@ -37,7 +37,7 @@ __BENCHMARK_VERSION_PATTERN = re.compile(r"^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:.(.+
 
 def revision():
     """
-    :return: The current git revision if Benchmark is installed in development mode or ``None``.
+    :return: The current git revision if OSB is installed in development mode or ``None``.
     """
     # noinspection PyBroadException
     try:
@@ -51,14 +51,14 @@ def revision():
 
 def version():
     """
-    :return: The release version string and an optional suffix for the current git revision if Benchmark is installed in development mode.
+    :return: The release version string and an optional suffix for the current git revision if OSB is installed in development mode.
     """
     release = __version__
     benchmark_revision = revision()
     if benchmark_revision:
         return "%s (git revision: %s)" % (release, benchmark_revision.strip())
     else:
-        # cannot determine head revision so user has probably installed Benchmark via pip instead of git clone
+        # cannot determine head revision so user has probably installed OSB via pip instead of git clone
         return release
 
 
@@ -76,6 +76,6 @@ def release_version():
 
 def minimum_os_version():
     """
-    :return: A string identifying the minimum version of OpenSearch that is supported by Benchmark.
+    :return: A string identifying the minimum version of OpenSearch that is supported by OSB.
     """
     return resources.read_text("osbenchmark", "min-os-version.txt").strip()
