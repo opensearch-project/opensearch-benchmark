@@ -236,6 +236,34 @@ def ensure_dir(directory, mode=0o777):
     if directory:
         os.makedirs(directory, mode, exist_ok=True)
 
+def ensure_symlink(source, link_name):
+    """
+    Ensure that a symlink exists from link_name to source.
+    If link_name already exists, it will be updated or replaced as necessary.
+
+    :param source: The target of the symlink
+    :param link_name: The path where the symlink should be created
+    """
+    logger = logging.getLogger(__name__)
+    if os.path.exists(link_name):
+        if os.path.islink(link_name):
+            if os.readlink(link_name) != source:
+                os.remove(link_name)
+                os.symlink(source, link_name)
+                logger.info("Updated symlink: %s -> %s", link_name, source)
+            else:
+                logger.info("Symlink already correct: %s -> %s", link_name, source)
+        elif os.path.isdir(link_name):
+            shutil.rmtree(link_name)
+            os.symlink(source, link_name)
+            logger.info("Replaced directory with symlink: %s -> %s", link_name, source)
+        else:
+            os.remove(link_name)
+            os.symlink(source, link_name)
+            logger.info("Replaced file with symlink: %s -> %s", link_name, source)
+    else:
+        os.symlink(source, link_name)
+        logger.info("Created symlink: %s -> %s", link_name, source)
 
 def _zipdir(source_directory, archive):
     for root, _, files in os.walk(source_directory):
