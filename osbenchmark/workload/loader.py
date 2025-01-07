@@ -951,9 +951,55 @@ class TestModeWorkloadProcessor(WorkloadProcessor):
         return input_workload
 
 class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
+
+    class QueryRandomizationInfo:
+        # A class containing information about which values to replace when randomizing queries.
+        # For example, QueryRandomizationInfo("range", [["gte", "gt"], ["lte", "lt"]], ["format"])
+        # would find queries using the "range" keyword.
+        # Then, it would look for parameters named either "gt" or "gte", and "lt" or "lte" in the "range" object.
+        # It would also look for the optional parameter "format".
+        # The values pointed to by "gt"/"gte" and "lt"/"lte" would be randomized according to the standard value source.
+        # "format" would also be modified by the standard value source, if it was present in the original query.
+        # The first option for each set of options must match the name provided by the standard value source in workload.py.
+        def __init__(self, query_name, parameter_name_options_list, optional_parameters):
+            self.query_name = query_name
+            self.validate_parameter_name_options_list(query_name, parameter_name_options_list)
+            self.parameter_name_options_list = parameter_name_options_list
+            self.optional_parameters = optional_parameters
+
+        def validate_parameter_name_options_list(self, query_name, parameter_name_options_list):
+            # Check there are no duplicate values as this would cause ambiguity
+            all_values = []
+            distinct_values = set()
+            for parameter_name_options in parameter_name_options_list:
+                for parameter_name_option in parameter_name_options:
+                    if parameter_name_option == query_name:
+                        raise exceptions.ExecutorError(
+                            f"Cannot have a randomized value name {query_name} which is the same as the name of its query!")
+                    all_values.append(parameter_name_option)
+                    distinct_values.add(parameter_name_option)
+            if len(all_values) != len(distinct_values):
+                raise exceptions.ExecutorError(
+                    f"Duplicate option for value name in query_randomization_info: {parameter_name_options_list}")
+
+        def check_one_of_each_name_present(self, obj):
+            # Return true if one version of the value name is present in obj for each set of value options.
+            # For example, QueryRandomizationInfo("range", [["gt", "gte"], ["lt", "lte"]])
+            # would return true if both "gte" and "lt" were present.
+            for parameter_name_options in self.parameter_name_options_list:
+                option_present = False
+                for name_option in parameter_name_options:
+                    if name_option in obj:
+                        option_present = True
+                        break
+                if not option_present:
+                    return False
+            return True
+
     DEFAULT_RF = 0.3
     DEFAULT_N = 5000
     DEFAULT_ALPHA = 1
+    DEFAULT_QUERY_RANDOMIZATION_INFO = QueryRandomizationInfo("range", [["gte", "gt"], ["lte", "lt"]], ["format"])
     def __init__(self, cfg):
         self.randomization_enabled = cfg.opts("workload", "randomization.enabled", mandatory=False, default_value=False)
         self.rf = float(cfg.opts("workload", "randomization.repeat_frequency", mandatory=False, default_value=self.DEFAULT_RF))
@@ -998,31 +1044,31 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
             curr = curr[value]
         return curr
 
-    def extract_fields_helper(self, root, current_path):
+    def extract_fields_helper(self, root, current_path, query_randomization_info):
         # Recursively called to find the location of ranges in an OpenSearch range query.
         # Return the field and the current path if we're currently scanning the field name in a range query, otherwise return an empty list.
         fields = [] # pairs of (field, path_to_field)
         curr = self.get_dict_from_previous_path(root, current_path)
         if isinstance(curr, dict) and curr != {}:
-            if len(current_path) > 0 and current_path[-1] == "range":
+            if len(current_path) > 0 and current_path[-1] == query_randomization_info.query_name:
                 for key in curr.keys():
                     if isinstance(curr, dict):
-                        if ("gte" in curr[key] or "gt" in curr[key]) and ("lte" in curr[key] or "lt" in curr[key]):
+                        if query_randomization_info.check_one_of_each_name_present(curr[key]):
                             fields.append((key, current_path))
                 return fields
             else:
                 for key in curr.keys():
-                    fields += self.extract_fields_helper(root, current_path + [key])
+                    fields += self.extract_fields_helper(root, current_path + [key], query_randomization_info)
                 return fields
         elif isinstance(curr, list) and curr != []:
             for i in range(len(curr)):
-                fields += self.extract_fields_helper(root, current_path + [i])
+                fields += self.extract_fields_helper(root, current_path + [i], query_randomization_info)
             return fields
         else:
             # leaf node
             return []
 
-    def extract_fields_and_paths(self, params):
+    def extract_fields_and_paths(self, params, query_randomization_info):
         # Search for fields used in range queries, and the paths to those fields
         # Return pairs of (field, path_to_field)
         # TODO: Maybe only do this the first time, and assume for a given task, the same query structure is used.
@@ -1033,56 +1079,54 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
             raise exceptions.SystemSetupError(
                 f"Cannot extract range query fields from these params: {params}\n, missing params[\"body\"][\"query\"]\n"
                 f"Make sure the operation in operations/default.json is well-formed")
-        fields_and_paths = self.extract_fields_helper(root, [])
+        fields_and_paths = self.extract_fields_helper(root, [], query_randomization_info)
         return fields_and_paths
 
-    def set_range(self, params, fields_and_paths, new_values):
+    def set_range(self, params, fields_and_paths, new_values, query_randomization_info):
         assert len(fields_and_paths) == len(new_values)
         for field_and_path, new_value in zip(fields_and_paths, new_values):
             field = field_and_path[0]
             path = field_and_path[1]
             range_section = self.get_dict_from_previous_path(params["body"]["query"], path)[field]
             # get the section of the query corresponding to the field name
-            for greater_than in ["gte", "gt"]:
-                if greater_than in range_section:
-                    range_section[greater_than] = new_value["gte"]
-            for less_than in ["lte", "lt"]:
-                if less_than in range_section:
-                    range_section[less_than] = new_value["lte"]
-            if "format" in new_values:
-                range_section["format"] = new_values["format"]
+            for parameter_name_options in query_randomization_info.parameter_name_options_list:
+                for option in parameter_name_options:
+                    if option in range_section:
+                        range_section[option] = new_value[parameter_name_options[0]]
+            for optional_parameter in query_randomization_info.optional_parameters:
+                if optional_parameter in new_values:
+                    range_section[optional_parameter] = new_values[optional_parameter]
         return params
 
     def get_repeated_value_index(self):
         # minus 1 for mapping [1, N] to [0, N-1] of list indices
         return self.zipf_cdf_inverse(random.random(), self.H_list) - 1
 
-    def get_randomized_values(self, input_workload, input_params,
+    def get_randomized_values(self, input_workload, input_params, query_randomization_info,
                               get_standard_value=params.get_standard_value,
                               get_standard_value_source=params.get_standard_value_source, # Made these configurable for simpler unit tests
                               **kwargs):
-
         # The queries as listed in operations/default.json don't have the index param,
         # unlike the custom ones you would specify in workload.py, so we have to add them ourselves
         if not "index" in input_params:
             input_params["index"] = params.get_target(input_workload, input_params)
 
-        fields_and_paths = self.extract_fields_and_paths(input_params)
+        fields_and_paths = self.extract_fields_and_paths(input_params, query_randomization_info)
 
         if random.random() < self.rf:
             # Draw a potentially repeated value from the saved standard values
             index = self.get_repeated_value_index()
             new_values = [get_standard_value(kwargs["op_name"], field_and_path[0], index) for field_and_path in fields_and_paths]
             # Use the same index for all fields in one query, otherwise the probability of repeats in a multi-field query would be very low
-            input_params = self.set_range(input_params, fields_and_paths, new_values)
+            input_params = self.set_range(input_params, fields_and_paths, new_values, query_randomization_info)
         else:
             # Generate a new random value, from the standard value source function. This will be new (a cache miss)
             new_values = [get_standard_value_source(kwargs["op_name"], field_and_path[0])() for field_and_path in fields_and_paths]
-            input_params = self.set_range(input_params, fields_and_paths, new_values)
+            input_params = self.set_range(input_params, fields_and_paths, new_values, query_randomization_info)
         return input_params
 
-    def create_param_source_lambda(self, op_name, get_standard_value, get_standard_value_source):
-        return lambda w, p, **kwargs: self.get_randomized_values(w, p,
+    def create_param_source_lambda(self, op_name, get_standard_value, get_standard_value_source, get_query_randomization_info):
+        return lambda w, p, **kwargs: self.get_randomized_values(w, p, query_randomization_info=get_query_randomization_info(op_name),
                                                                  get_standard_value=get_standard_value,
                                                                  get_standard_value_source=get_standard_value_source,
                                                                  op_name=op_name, **kwargs)
@@ -1125,10 +1169,12 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
                     params.register_param_source_for_name(
                         param_source_name,
                         self.create_param_source_lambda(op_name, get_standard_value=kwargs["get_standard_value"],
-                                                        get_standard_value_source=kwargs["get_standard_value_source"]))
+                                                        get_standard_value_source=kwargs["get_standard_value_source"],
+                                                        get_query_randomization_info=params.get_query_randomization_info))
                     leaf_task.operation.param_source = param_source_name
                     # Generate the right number of standard values for this field, if not already present
-                    for field_and_path in self.extract_fields_and_paths(leaf_task.operation.params):
+                    for field_and_path in self.extract_fields_and_paths(leaf_task.operation.params,
+                                                                        params.get_query_randomization_info(op_name)):
                         if generate_new_standard_values:
                             params.generate_standard_values_if_absent(op_name, field_and_path[0], self.N)
         return input_workload
@@ -1351,6 +1397,9 @@ class WorkloadPluginReader:
     def register_standard_value_source(self, op_name, field_name, standard_value_source):
         # Define a value source for parameters for a given operation name and field name, for use in randomization
         params.register_standard_value_source(op_name, field_name, standard_value_source)
+
+    def register_query_randomization_info(self, op_name, query_name, parameter_name_options_list, optional_parameters):
+        params.register_query_randomization_info(op_name, query_name, parameter_name_options_list, optional_parameters)
 
     @property
     def meta_data(self):
