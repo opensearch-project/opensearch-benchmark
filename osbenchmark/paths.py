@@ -22,12 +22,39 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-
+import sys
+from osbenchmark.utils.io import ensure_dir, ensure_symlink
 
 def benchmark_confdir():
     default_home = os.path.expanduser("~")
-    return os.path.join(os.getenv("BENCHMARK_HOME", default_home), ".benchmark")
+    old_path = os.path.join(default_home, ".benchmark")
+    new_path = os.path.join(default_home, ".osb")
 
+    try:
+        # Ensure .benchmark directory exists
+        ensure_dir(old_path)
+
+        # Ensure symlink from .osb to .benchmark
+        ensure_symlink(old_path, new_path)
+
+        final_path = os.path.join(os.getenv("BENCHMARK_HOME", default_home), ".osb")
+
+        return final_path
+
+    except Exception as e:
+        error_message = (
+            f"Error in benchmark_confdir:\n"
+            f"Error type: {type(e).__name__}\n"
+            f"Error message: {str(e)}\n"
+            f"Current user: {os.getlogin()}\n"
+            f"Current working directory: {os.getcwd()}\n"
+            f"Python version: {sys.version}\n"
+            f"Operating system: {sys.platform}\n"
+            f"Permissions of {old_path}: {oct(os.stat(old_path).st_mode) if os.path.exists(old_path) else 'N/A'}\n"
+            f"Permissions of parent of {new_path}: {oct(os.stat(os.path.dirname(new_path)).st_mode)}"
+        )
+        print(error_message)
+        raise
 
 def benchmark_root():
     return os.path.dirname(os.path.realpath(__file__))
