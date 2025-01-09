@@ -1765,6 +1765,7 @@ class WorkloadSpecificationReader:
         default_iterations = self._r(ops_spec, "iterations", error_ctx="parallel", mandatory=False)
         default_warmup_time_period = self._r(ops_spec, "warmup-time-period", error_ctx="parallel", mandatory=False)
         default_time_period = self._r(ops_spec, "time-period", error_ctx="parallel", mandatory=False)
+        default_ramp_up_time_period = self._r(ops_spec, "ramp-up-time-period", error_ctx="parallel", mandatory=False)
         clients = self._r(ops_spec, "clients", error_ctx="parallel", mandatory=False)
         completed_by = self._r(ops_spec, "completed-by", error_ctx="parallel", mandatory=False)
 
@@ -1772,7 +1773,16 @@ class WorkloadSpecificationReader:
         tasks = []
         for task in self._r(ops_spec, "tasks", error_ctx="parallel"):
             tasks.append(self.parse_task(task, ops, test_procedure_name, default_warmup_iterations, default_iterations,
-                                         default_warmup_time_period, default_time_period, completed_by))
+                                         default_warmup_time_period, default_time_period, default_ramp_up_time_period, completed_by))
+
+        for task in tasks:
+            if task.ramp_up_time_period != default_ramp_up_time_period:
+                if default_ramp_up_time_period is None:
+                    self._error(f"task '{task.name}' in 'parallel' element of test-procedure '{test_procedure_name}' specifies "
+                                f"a ramp-up-time-period but it is only allowed on the 'parallel' element.")
+                else:
+                    self._error(f"task '{task.name}' specifies a different ramp-up-time-period than its enclosing "
+                                f"'parallel' element in test-procedure '{test_procedure_name}'.")
         if completed_by:
             completion_task = None
             for task in tasks:
@@ -1788,7 +1798,8 @@ class WorkloadSpecificationReader:
         return workload.Parallel(tasks, clients)
 
     def parse_task(self, task_spec, ops, test_procedure_name, default_warmup_iterations=None, default_iterations=None,
-                   default_warmup_time_period=None, default_time_period=None, completed_by_name=None):
+                   default_warmup_time_period=None, default_time_period=None, default_ramp_up_time_period=None,
+                   completed_by_name=None):
 
         op_spec = task_spec["operation"]
         if isinstance(op_spec, str) and op_spec in ops:
@@ -1811,6 +1822,8 @@ class WorkloadSpecificationReader:
                                                      default_value=default_warmup_time_period),
                           time_period=self._r(task_spec, "time-period", error_ctx=op.name, mandatory=False,
                                               default_value=default_time_period),
+                          ramp_up_time_period=self._r(task_spec, "ramp-up-time-period", error_ctx=op.name,
+                                                         mandatory=False, default_value=default_ramp_up_time_period),
                           clients=self._r(task_spec, "clients", error_ctx=op.name, mandatory=False, default_value=1),
                           completes_parent=(task_name == completed_by_name),
                           schedule=schedule,
@@ -1819,11 +1832,25 @@ class WorkloadSpecificationReader:
         if task.warmup_iterations is not None and task.time_period is not None:
             self._error(
                 "Operation '%s' in test_procedure '%s' defines '%d' warmup iterations and a time period of '%d' seconds. Please do not "
-                        "mix time periods and iterations." % (op.name, test_procedure_name, task.warmup_iterations, task.time_period))
+                "mix time periods and iterations." % (op.name, test_procedure_name, task.warmup_iterations, task.time_period))
         elif task.warmup_time_period is not None and task.iterations is not None:
             self._error(
                 "Operation '%s' in test_procedure '%s' defines a warmup time period of '%d' seconds and '%d' iterations. Please do not "
-                        "mix time periods and iterations." % (op.name, test_procedure_name, task.warmup_time_period, task.iterations))
+                "mix time periods and iterations." % (op.name, test_procedure_name, task.warmup_time_period, task.iterations))
+
+        if (task.warmup_iterations is not None or task.iterations is not None) and task.ramp_up_time_period is not None:
+            self._error(f"Operation '{op.name}' in test_procedure '{test_procedure_name}' defines a ramp-up time period of "
+                        f"{task.ramp_up_time_period} seconds as well as {task.warmup_iterations} warmup iterations and "
+                        f"{task.iterations} iterations but mixing time periods and iterations is not allowed.")
+
+        if task.ramp_up_time_period is not None:
+            if task.warmup_time_period is None:
+                self._error(f"Operation '{op.name}' in test_procedure '{test_procedure_name}' defines a ramp-up time period of "
+                            f"{task.ramp_up_time_period} seconds but no warmup-time-period.")
+            elif task.warmup_time_period < task.ramp_up_time_period:
+                self._error(f"The warmup-time-period of operation '{op.name}' in test_procedure '{test_procedure_name}' is "
+                            f"{task.warmup_time_period} seconds but must be greater than or equal to the "
+                            f"ramp-up-time-period of {task.ramp_up_time_period} seconds.")
 
         return task
 
