@@ -1877,14 +1877,14 @@ class Allocator:
             clients_executing_completing_task = []
             for sub_task in task:
                 for client_index in range(start_client_index, start_client_index + sub_task.clients):
-                    # this is the actual client that will execute the task. It may differ from the logical one in case we over-commit (i.e.
-                    # more tasks than actually available clients)
                     physical_client_index = client_index % max_clients
                     if sub_task.completes_parent:
                         clients_executing_completing_task.append(physical_client_index)
                     ta = TaskAllocation(task = sub_task,
                                         client_index_in_task = client_index - start_client_index,
                                         global_client_index=client_index,
+                                        # if task represents a parallel structure this is the total number of clients
+                                        # executing sub-tasks concurrently.
                                         total_clients=task.clients)
                     allocations[physical_client_index].append(ta)
                 start_client_index += sub_task.clients

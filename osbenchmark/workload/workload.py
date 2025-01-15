@@ -996,11 +996,11 @@ class Task:
     def __eq__(self, other):
         # Note that we do not include `params` in __hash__ and __eq__ (the other attributes suffice to uniquely define a task)
         return isinstance(other, type(self)) and (self.name, self.operation, self.warmup_iterations, self.iterations,
-                                                  self.warmup_time_period, self.time_period, self.ramp_up_time_period, 
-                                                  self.clients, self.schedule,self.completes_parent) == (other.name, 
+                                                  self.warmup_time_period, self.time_period, self.ramp_up_time_period,
+                                                  self.clients, self.schedule,self.completes_parent) == (other.name,
                                                                              other.operation, other.warmup_iterations,
                                                                              other.iterations, other.warmup_time_period, other.time_period,
-                                                                             self.ramp_up_time_period, other.clients, other.schedule, 
+                                                                             self.ramp_up_time_period, other.clients, other.schedule,
                                                                              other.completes_parent)
 
     def __iter__(self):
