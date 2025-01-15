@@ -3435,9 +3435,15 @@ class VectorSearchQueryRunnerTests(TestCase):
 
         runner.register_runner(operation_type=workload.OperationType.VectorSearch, runner=runner.Query(), async_runner=True)
         param_source = workload.operation_parameters(test_workload, task)
+        task_allocation = worker_coordinator.TaskAllocation(
+            task=task,
+            client_index_in_task=0,
+            global_client_index=0,
+            total_clients=task.clients
+        )
         # pylint: disable=C0415
         import threading
-        schedule = worker_coordinator.schedule_for(task, 0, param_source)
+        schedule = worker_coordinator.schedule_for(task_allocation, param_source)
         # pylint: disable=C0415
         def create_config():
             cfg = config.Config()
@@ -3570,9 +3576,15 @@ class VectorSearchQueryRunnerTests(TestCase):
 
             runner.register_runner(operation_type=workload.OperationType.VectorSearch, runner=runner.Query(), async_runner=True)
             param_source = workload.operation_parameters(test_workload, task)
+            task_allocation = worker_coordinator.TaskAllocation(
+            task=task,
+            client_index_in_task=0,
+            global_client_index=0,
+            total_clients=task.clients
+            )
             # pylint: disable=C0415
             import threading
-            schedule = worker_coordinator.schedule_for(task, 0, param_source)
+            schedule = worker_coordinator.schedule_for(task_allocation, param_source)
             def create_config():
                 cfg = config.Config()
                 cfg.add(config.Scope.application, "system", "available.cores", 8)
