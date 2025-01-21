@@ -41,9 +41,12 @@ def benchmark_confdir():
 
         return benchmark_confdir_path
 
-    except Exception as e:
+    except FileNotFoundError as e:
         console.print("Error in benchmark_confdir: ", str(e))
         raise
+    # fallback exception
+    except Exception as e:
+        console.print("Unexpected error in benchmark_confdir: ", str(e))
 
 def benchmark_root():
     return os.path.dirname(os.path.realpath(__file__))
