@@ -22,12 +22,31 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-
+from osbenchmark.utils.io import ensure_dir, ensure_symlink
+from osbenchmark.utils import console
 
 def benchmark_confdir():
     default_home = os.path.expanduser("~")
-    return os.path.join(os.getenv("BENCHMARK_HOME", default_home), ".benchmark")
+    old_path = os.path.join(default_home, ".benchmark")
+    new_path = os.path.join(default_home, ".osb")
 
+    try:
+        # Ensure .benchmark directory exists
+        ensure_dir(old_path)
+
+        # Ensure symlink from .osb to .benchmark
+        ensure_symlink(old_path, new_path)
+
+        benchmark_confdir_path = os.path.join(os.getenv("BENCHMARK_HOME", default_home), ".osb")
+
+        return benchmark_confdir_path
+
+    except FileNotFoundError as e:
+        console.print("Error in benchmark_confdir: ", str(e))
+        raise
+    # fallback exception
+    except Exception as e:
+        console.print("Unexpected error in benchmark_confdir: ", str(e))
 
 def benchmark_root():
     return os.path.dirname(os.path.realpath(__file__))

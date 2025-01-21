@@ -33,7 +33,7 @@ import datetime
 
 import pytest
 
-from osbenchmark import client, config, version
+from osbenchmark import client, config, version, paths
 from osbenchmark.utils import process
 
 CONFIG_NAMES = ["in-memory-it", "os-it"]
@@ -150,7 +150,7 @@ def check_prerequisites():
 class ConfigFile:
     def __init__(self, config_name):
         self.user_home = os.getenv("BENCHMARK_HOME", os.path.expanduser("~"))
-        self.benchmark_home = os.path.join(self.user_home, ".benchmark")
+        self.benchmark_home = paths.benchmark_confdir()
         if config_name is not None:
             self.config_file_name = f"benchmark-{config_name}.ini"
         else:
