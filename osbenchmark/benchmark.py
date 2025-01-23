@@ -201,12 +201,12 @@ def create_arg_parser():
         "--baseline",
         "-b",
         required=True,
-        help=f"TestRun ID of the baseline (see {PROGRAM_NAME} list test_runs).")
+        help=f"TestRun ID of the baseline (see {PROGRAM_NAME} list test-runs).")
     compare_parser.add_argument(
         "--contender",
         "-c",
         required=True,
-        help=f"TestRun ID of the contender (see {PROGRAM_NAME} list test_runs).")
+        help=f"TestRun ID of the contender (see {PROGRAM_NAME} list test-runs).")
     compare_parser.add_argument(
         "--percentiles",
         help=f"A comma-separated list of percentiles to report latency and service time."
