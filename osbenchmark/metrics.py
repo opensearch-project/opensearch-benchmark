@@ -1316,7 +1316,7 @@ def list_test_helper(store_item, title):
         console.println(f"No recent {title} found.")
 
 def list_test_runs(cfg):
-    list_test_helper(test_run_store(cfg).list(), "test_runs")
+    list_test_helper(test_run_store(cfg).list(), "test-runs")
 
 def list_aggregated_results(cfg):
     list_test_helper(test_run_store(cfg).list_aggregations(), "aggregated_results")

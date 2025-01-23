@@ -53,7 +53,7 @@ def benchmark_root():
 
 
 def test_excecutions_root(cfg):
-    return os.path.join(cfg.opts("node", "root.dir"), "test_runs")
+    return os.path.join(cfg.opts("node", "root.dir"), "test-runs")
 
 
 def test_run_root(cfg, test_run_id=None):
