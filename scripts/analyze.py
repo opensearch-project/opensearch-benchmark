@@ -25,7 +25,7 @@
 # Simple helper script to create graphs based on multiple
 # test_run.json files (it's a summary of the results of
 # a single test_run which is
-# stored in ~/.benchmark/benchmarks/test_runs/test_run_TS/).
+# stored in ~/.benchmark/benchmarks/test_runs/<test_run_id>/).
 # There is no specific integration into OSB and it is also not
 # installed with OSB.
 #

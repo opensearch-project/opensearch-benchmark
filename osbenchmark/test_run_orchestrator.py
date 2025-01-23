@@ -41,7 +41,7 @@ pipelines = collections.OrderedDict()
 
 class Pipeline:
     """
-    Describes a whole run pipeline. A pipeline can consist of one or more steps. Each pipeline should contain roughly of the following
+    Describes a whole test run pipeline. A pipeline can consist of one or more steps. Each pipeline should contain roughly of the following
     steps:
 
     * Prepare the benchmark candidate: It can build OpenSearch from sources, download a ZIP from somewhere etc.

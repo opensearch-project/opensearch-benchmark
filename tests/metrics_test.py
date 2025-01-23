@@ -527,8 +527,8 @@ class OsClientTests(TestCase):
 
 
 class OsMetricsTests(TestCase):
-    test_run_TIMESTAMP = datetime.datetime(2016, 1, 31)
-    test_run_ID = "6ebc6e53-ee20-4b0c-99b4-09697987e9f4"
+    TEST_RUN_TIMESTAMP = datetime.datetime(2016, 1, 31)
+    TEST_RUN_ID = "6ebc6e53-ee20-4b0c-99b4-09697987e9f4"
 
     def setUp(self):
         self.cfg = config.Config()
@@ -545,14 +545,14 @@ class OsMetricsTests(TestCase):
     def test_put_value_without_meta_info(self):
         throughput = 5000
         self.metrics_store.open(
-            OsMetricsTests.test_run_ID,
-            OsMetricsTests.test_run_TIMESTAMP,
+            OsMetricsTests.TEST_RUN_ID,
+            OsMetricsTests.TEST_RUN_TIMESTAMP,
             "test", "append", "defaults", create=True)
 
         self.metrics_store.put_value_cluster_level("indexing_throughput", throughput, "docs/s")
         expected_doc = {
             "@timestamp": StaticClock.NOW * 1000,
-            "test-run-id": OsMetricsTests.test_run_ID,
+            "test-run-id": OsMetricsTests.TEST_RUN_ID,
             "test-run-timestamp": "20160131T000000Z",
             "relative-time-ms": 0,
             "environment": "unittest",
@@ -576,15 +576,15 @@ class OsMetricsTests(TestCase):
     def test_put_value_with_explicit_timestamps(self):
         throughput = 5000
         self.metrics_store.open(
-            OsMetricsTests.test_run_ID,
-            OsMetricsTests.test_run_TIMESTAMP,
+            OsMetricsTests.TEST_RUN_ID,
+            OsMetricsTests.TEST_RUN_TIMESTAMP,
             "test", "append", "defaults", create=True)
 
         self.metrics_store.put_value_cluster_level(name="indexing_throughput", value=throughput, unit="docs/s",
                                                    absolute_time=0, relative_time=10)
         expected_doc = {
             "@timestamp": 0,
-            "test-run-id": OsMetricsTests.test_run_ID,
+            "test-run-id": OsMetricsTests.TEST_RUN_ID,
             "test-run-timestamp": "20160131T000000Z",
             "relative-time-ms": 10000,
             "environment": "unittest",
@@ -610,8 +610,8 @@ class OsMetricsTests(TestCase):
         # add a user-defined tag
         self.cfg.add(config.Scope.application, "test_run", "user.tag", "intention:testing,disk_type:hdd")
         self.metrics_store.open(
-            OsMetricsTests.test_run_ID,
-            OsMetricsTests.test_run_TIMESTAMP,
+            OsMetricsTests.TEST_RUN_ID,
+            OsMetricsTests.TEST_RUN_TIMESTAMP,
             "test", "append", "defaults", create=True)
 
         # Ensure we also merge in cluster level meta info
@@ -625,7 +625,7 @@ class OsMetricsTests(TestCase):
         self.metrics_store.put_value_node_level("node0", "indexing_throughput", throughput, "docs/s")
         expected_doc = {
             "@timestamp": StaticClock.NOW * 1000,
-            "test-run-id": OsMetricsTests.test_run_ID,
+            "test-run-id": OsMetricsTests.TEST_RUN_ID,
             "test-run-timestamp": "20160131T000000Z",
             "relative-time-ms": 0,
             "environment": "unittest",
@@ -654,8 +654,8 @@ class OsMetricsTests(TestCase):
 
     def test_put_doc_no_meta_data(self):
         self.metrics_store.open(
-            OsMetricsTests.test_run_ID,
-            OsMetricsTests.test_run_TIMESTAMP,
+            OsMetricsTests.TEST_RUN_ID,
+            OsMetricsTests.TEST_RUN_TIMESTAMP,
             "test", "append", "defaults", create=True)
 
         self.metrics_store.put_doc(doc={
@@ -666,7 +666,7 @@ class OsMetricsTests(TestCase):
         })
         expected_doc = {
             "@timestamp": StaticClock.NOW * 1000,
-            "test-run-id": OsMetricsTests.test_run_ID,
+            "test-run-id": OsMetricsTests.TEST_RUN_ID,
             "test-run-timestamp": "20160131T000000Z",
             "relative-time-ms": 0,
             "environment": "unittest",
@@ -690,8 +690,8 @@ class OsMetricsTests(TestCase):
         # add a user-defined tag
         self.cfg.add(config.Scope.application, "test_run", "user.tag", "intention:testing,disk_type:hdd")
         self.metrics_store.open(
-            OsMetricsTests.test_run_ID,
-            OsMetricsTests.test_run_TIMESTAMP,
+            OsMetricsTests.TEST_RUN_ID,
+            OsMetricsTests.TEST_RUN_TIMESTAMP,
             "test", "append", "defaults", create=True)
 
         # Ensure we also merge in cluster level meta info
@@ -714,7 +714,7 @@ class OsMetricsTests(TestCase):
             })
         expected_doc = {
             "@timestamp": StaticClock.NOW * 1000,
-            "test-run-id": OsMetricsTests.test_run_ID,
+            "test-run-id": OsMetricsTests.TEST_RUN_ID,
             "test-run-timestamp": "20160131T000000Z",
             "relative-time-ms": 0,
             "environment": "unittest",
@@ -766,8 +766,8 @@ class OsMetricsTests(TestCase):
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
         self.metrics_store.open(
-            OsMetricsTests.test_run_ID,
-            OsMetricsTests.test_run_TIMESTAMP,
+            OsMetricsTests.TEST_RUN_ID,
+            OsMetricsTests.TEST_RUN_TIMESTAMP,
             "test", "append-no-conflicts", "defaults")
 
         expected_query = {
@@ -776,7 +776,7 @@ class OsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-run-id": OsMetricsTests.test_run_ID
+                                "test-run-id": OsMetricsTests.TEST_RUN_ID
                             }
                         },
                         {
@@ -816,8 +816,8 @@ class OsMetricsTests(TestCase):
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
         self.metrics_store.open(
-            OsMetricsTests.test_run_ID,
-            OsMetricsTests.test_run_TIMESTAMP,
+            OsMetricsTests.TEST_RUN_ID,
+            OsMetricsTests.TEST_RUN_TIMESTAMP,
             "test", "append-no-conflicts", "defaults")
 
         expected_query = {
@@ -826,7 +826,7 @@ class OsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-run-id": OsMetricsTests.test_run_ID
+                                "test-run-id": OsMetricsTests.TEST_RUN_ID
                             }
                         },
                         {
@@ -873,8 +873,8 @@ class OsMetricsTests(TestCase):
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
         self.metrics_store.open(
-            OsMetricsTests.test_run_ID,
-            OsMetricsTests.test_run_TIMESTAMP,
+            OsMetricsTests.TEST_RUN_ID,
+            OsMetricsTests.TEST_RUN_TIMESTAMP,
             "test", "append-no-conflicts", "defaults")
 
         expected_query = {
@@ -883,7 +883,7 @@ class OsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-run-id": OsMetricsTests.test_run_ID
+                                "test-run-id": OsMetricsTests.TEST_RUN_ID
                             }
                         },
                         {
@@ -921,8 +921,8 @@ class OsMetricsTests(TestCase):
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
         self.metrics_store.open(
-            OsMetricsTests.test_run_ID,
-            OsMetricsTests.test_run_TIMESTAMP,
+            OsMetricsTests.TEST_RUN_ID,
+            OsMetricsTests.TEST_RUN_TIMESTAMP,
             "test", "append-no-conflicts", "defaults")
 
         expected_query = {
@@ -931,7 +931,7 @@ class OsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-run-id": OsMetricsTests.test_run_ID
+                                "test-run-id": OsMetricsTests.TEST_RUN_ID
                             }
                         },
                         {
@@ -975,8 +975,8 @@ class OsMetricsTests(TestCase):
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
         self.metrics_store.open(
-            OsMetricsTests.test_run_ID,
-            OsMetricsTests.test_run_TIMESTAMP,
+            OsMetricsTests.TEST_RUN_ID,
+            OsMetricsTests.TEST_RUN_TIMESTAMP,
             "test", "append-no-conflicts", "defaults")
 
         expected_query = {
@@ -985,7 +985,7 @@ class OsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-run-id": OsMetricsTests.test_run_ID
+                                "test-run-id": OsMetricsTests.TEST_RUN_ID
                             }
                         },
                         {
@@ -1034,8 +1034,8 @@ class OsMetricsTests(TestCase):
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
         self.metrics_store.open(
-            OsMetricsTests.test_run_ID,
-            OsMetricsTests.test_run_TIMESTAMP,
+            OsMetricsTests.TEST_RUN_ID,
+            OsMetricsTests.TEST_RUN_TIMESTAMP,
             "test", "append-no-conflicts", "defaults")
 
         expected_query = {
@@ -1044,7 +1044,7 @@ class OsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-run-id": OsMetricsTests.test_run_ID
+                                "test-run-id": OsMetricsTests.TEST_RUN_ID
                             }
                         },
                         {
@@ -1171,8 +1171,8 @@ class OsMetricsTests(TestCase):
         self.es_mock.search = mock.MagicMock(return_value=search_result)
 
         self.metrics_store.open(
-            OsMetricsTests.test_run_ID,
-            OsMetricsTests.test_run_TIMESTAMP,
+            OsMetricsTests.TEST_RUN_ID,
+            OsMetricsTests.TEST_RUN_TIMESTAMP,
             "test", "append-no-conflicts", "defaults")
 
         expected_query = {
@@ -1181,7 +1181,7 @@ class OsMetricsTests(TestCase):
                     "filter": [
                         {
                             "term": {
-                                "test-run-id": OsMetricsTests.test_run_ID
+                                "test-run-id": OsMetricsTests.TEST_RUN_ID
                             }
                         },
                         {
@@ -1213,8 +1213,8 @@ class OsMetricsTests(TestCase):
 
 
 class OsTestRunStoreTests(TestCase):
-    test_run_TIMESTAMP = datetime.datetime(2016, 1, 31)
-    test_run_ID = "6ebc6e53-ee20-4b0c-99b4-09697987e9f4"
+    TEST_RUN_TIMESTAMP = datetime.datetime(2016, 1, 31)
+    TEST_RUN_ID = "6ebc6e53-ee20-4b0c-99b4-09697987e9f4"
 
     class DictHolder:
         def __init__(self, d):
@@ -1226,9 +1226,9 @@ class OsTestRunStoreTests(TestCase):
     def setUp(self):
         self.cfg = config.Config()
         self.cfg.add(config.Scope.application, "system", "env.name", "unittest-env")
-        self.cfg.add(config.Scope.application, "system", "time.start", OsTestRunStoreTests.test_run_TIMESTAMP)
-        self.cfg.add(config.Scope.application, "system", "test_run.id", FileTestRunStoreTests.test_run_ID)
-        self.test_run_store = metrics.EsTestRunStore(self.cfg,
+        self.cfg.add(config.Scope.application, "system", "time.start", OsTestRunStoreTests.TEST_RUN_TIMESTAMP)
+        self.cfg.add(config.Scope.application, "system", "test_run.id", FileTestRunStoreTests.TEST_RUN_ID)
+        self.test_run_store = metrics.OsTestRunStore(self.cfg,
                                               client_factory_class=MockClientFactory,
                                               index_template_provider_class=DummyIndexTemplateProvider,
                                               )
@@ -1247,7 +1247,7 @@ class OsTestRunStoreTests(TestCase):
                         "_source": {
                             "benchmark-version": "0.4.4",
                             "environment": "unittest",
-                            "test-run-id": OsTestRunStoreTests.test_run_ID,
+                            "test-run-id": OsTestRunStoreTests.TEST_RUN_ID,
                             "test-run-timestamp": "20160131T000000Z",
                             "pipeline": "from-sources",
                             "workload": "unittest",
@@ -1264,8 +1264,8 @@ class OsTestRunStoreTests(TestCase):
             }
         }
 
-        test_run = self.test_run_store.find_by_test_run_id(test_run_id=OsTestRunStoreTests.test_run_ID)
-        self.assertEqual(test_run.test_run_id, OsTestRunStoreTests.test_run_ID)
+        test_run = self.test_run_store.find_by_test_run_id(test_run_id=OsTestRunStoreTests.TEST_RUN_ID)
+        self.assertEqual(test_run.test_run_id, OsTestRunStoreTests.TEST_RUN_ID)
 
     def test_does_not_find_missing_test_run_by_test_run_id(self):
         self.es_mock.search.return_value = {
@@ -1291,8 +1291,8 @@ class OsTestRunStoreTests(TestCase):
                         test_procedures=[workload.TestProcedure(name="index", default=True, schedule=schedule)])
 
         test_run = metrics.TestRun(benchmark_version="0.4.4", benchmark_revision="123abc", environment_name="unittest",
-                            test_run_id=OsTestRunStoreTests.test_run_ID,
-                            test_run_timestamp=OsTestRunStoreTests.test_run_TIMESTAMP,
+                            test_run_id=OsTestRunStoreTests.TEST_RUN_ID,
+                            test_run_timestamp=OsTestRunStoreTests.TEST_RUN_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params={"shard-count": 3},
                             test_procedure=t.default_test_procedure,
                             provision_config_instance="defaults",
@@ -1325,7 +1325,7 @@ class OsTestRunStoreTests(TestCase):
             "benchmark-version": "0.4.4",
             "benchmark-revision": "123abc",
             "environment": "unittest",
-            "test-run-id": OsTestRunStoreTests.test_run_ID,
+            "test-run-id": OsTestRunStoreTests.TEST_RUN_ID,
             "test-run-timestamp": "20160131T000000Z",
             "pipeline": "from-sources",
             "user-tags": {
@@ -1366,18 +1366,18 @@ class OsTestRunStoreTests(TestCase):
         }
         self.es_mock.index.assert_called_with(index="benchmark-test-runs-2016-01",
                                               doc_type="_doc",
-                                              id=OsTestRunStoreTests.test_run_ID,
+                                              id=OsTestRunStoreTests.TEST_RUN_ID,
                                               item=expected_doc)
 
 
 class OsResultsStoreTests(TestCase):
-    test_run_TIMESTAMP = datetime.datetime(2016, 1, 31)
-    test_run_ID = "6ebc6e53-ee20-4b0c-99b4-09697987e9f4"
+    TEST_RUN_TIMESTAMP = datetime.datetime(2016, 1, 31)
+    TEST_RUN_ID = "6ebc6e53-ee20-4b0c-99b4-09697987e9f4"
 
     def setUp(self):
         self.cfg = config.Config()
         self.cfg.add(config.Scope.application, "system", "env.name", "unittest")
-        self.cfg.add(config.Scope.application, "system", "time.start", OsTestRunStoreTests.test_run_TIMESTAMP)
+        self.cfg.add(config.Scope.application, "system", "time.start", OsTestRunStoreTests.TEST_RUN_TIMESTAMP)
         self.results_store = metrics.OsResultsStore(self.cfg,
                                                     client_factory_class=MockClientFactory,
                                                     index_template_provider_class=DummyIndexTemplateProvider,
@@ -1397,8 +1397,8 @@ class OsResultsStoreTests(TestCase):
                         meta_data={"workload-type": "saturation-degree", "saturation": "oversaturation"})
 
         test_run = metrics.TestRun(benchmark_version="0.4.4", benchmark_revision="123abc", environment_name="unittest",
-                            test_run_id=OsResultsStoreTests.test_run_ID,
-                            test_run_timestamp=OsResultsStoreTests.test_run_TIMESTAMP,
+                            test_run_id=OsResultsStoreTests.TEST_RUN_ID,
+                            test_run_timestamp=OsResultsStoreTests.TEST_RUN_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params=None,
                             test_procedure=t.default_test_procedure,
                             provision_config_instance="4gheap",
@@ -1437,7 +1437,7 @@ class OsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": "123abc",
                 "environment": "unittest",
-                "test-run-id": OsResultsStoreTests.test_run_ID,
+                "test-run-id": OsResultsStoreTests.TEST_RUN_ID,
                 "test-run-timestamp": "20160131T000000Z",
                 "distribution-flavor": "oss",
                 "distribution-version": "5.0.0",
@@ -1467,7 +1467,7 @@ class OsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": "123abc",
                 "environment": "unittest",
-                "test-run-id": OsResultsStoreTests.test_run_ID,
+                "test-run-id": OsResultsStoreTests.TEST_RUN_ID,
                 "test-run-timestamp": "20160131T000000Z",
                 "distribution-flavor": "oss",
                 "distribution-version": "5.0.0",
@@ -1503,7 +1503,7 @@ class OsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": "123abc",
                 "environment": "unittest",
-                "test-run-id": OsResultsStoreTests.test_run_ID,
+                "test-run-id": OsResultsStoreTests.TEST_RUN_ID,
                 "test-run-timestamp": "20160131T000000Z",
                 "distribution-flavor": "oss",
                 "distribution-version": "5.0.0",
@@ -1547,8 +1547,8 @@ class OsResultsStoreTests(TestCase):
                         meta_data={"workload-type": "saturation-degree", "saturation": "oversaturation"})
 
         test_run = metrics.TestRun(benchmark_version="0.4.4", benchmark_revision=None, environment_name="unittest",
-                            test_run_id=OsResultsStoreTests.test_run_ID,
-                            test_run_timestamp=OsResultsStoreTests.test_run_TIMESTAMP,
+                            test_run_id=OsResultsStoreTests.TEST_RUN_ID,
+                            test_run_timestamp=OsResultsStoreTests.TEST_RUN_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params=None,
                             test_procedure=t.default_test_procedure,
                             provision_config_instance="4gheap",
@@ -1589,7 +1589,7 @@ class OsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": None,
                 "environment": "unittest",
-                "test-run-id": OsResultsStoreTests.test_run_ID,
+                "test-run-id": OsResultsStoreTests.TEST_RUN_ID,
                 "test-run-timestamp": "20160131T000000Z",
                 "distribution-flavor": None,
                 "distribution-version": None,
@@ -1615,7 +1615,7 @@ class OsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": None,
                 "environment": "unittest",
-                "test-run-id": OsResultsStoreTests.test_run_ID,
+                "test-run-id": OsResultsStoreTests.TEST_RUN_ID,
                 "test-run-timestamp": "20160131T000000Z",
                 "distribution-flavor": None,
                 "distribution-version": None,
@@ -1647,7 +1647,7 @@ class OsResultsStoreTests(TestCase):
                 "benchmark-version": "0.4.4",
                 "benchmark-revision": None,
                 "environment": "unittest",
-                "test-run-id": OsResultsStoreTests.test_run_ID,
+                "test-run-id": OsResultsStoreTests.TEST_RUN_ID,
                 "test-run-timestamp": "20160131T000000Z",
                 "distribution-flavor": None,
                 "distribution-version": None,
@@ -1674,8 +1674,8 @@ class OsResultsStoreTests(TestCase):
 
 
 class InMemoryMetricsStoreTests(TestCase):
-    test_run_TIMESTAMP = datetime.datetime(2016, 1, 31)
-    test_run_ID = "6ebc6e53-ee20-4b0c-99b4-09697987e9f4"
+    TEST_RUN_TIMESTAMP = datetime.datetime(2016, 1, 31)
+    TEST_RUN_ID = "6ebc6e53-ee20-4b0c-99b4-09697987e9f4"
 
     def setUp(self):
         self.cfg = config.Config()
@@ -1689,7 +1689,7 @@ class InMemoryMetricsStoreTests(TestCase):
 
     def test_get_one(self):
         duration = StaticClock.NOW
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults", create=True)
         self.metrics_store.put_value_cluster_level("service_time", 500, "ms", relative_time=duration-400, task="task1")
         self.metrics_store.put_value_cluster_level("service_time", 600, "ms", relative_time=duration, task="task1")
@@ -1697,7 +1697,7 @@ class InMemoryMetricsStoreTests(TestCase):
 
         self.metrics_store.close()
 
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults")
 
         actual_duration = self.metrics_store.get_one("service_time", task="task1", mapper=lambda doc: doc["relative-time-ms"],
@@ -1707,13 +1707,13 @@ class InMemoryMetricsStoreTests(TestCase):
 
     def test_get_one_no_hits(self):
         duration = StaticClock.NOW
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults", create=True)
         self.metrics_store.put_value_cluster_level("final_index_size", 1000, "GB", relative_time=duration-300)
 
         self.metrics_store.close()
 
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults")
 
         actual_duration = self.metrics_store.get_one("service_time", task="task1", mapper=lambda doc: doc["relative-time-ms"],
@@ -1723,7 +1723,7 @@ class InMemoryMetricsStoreTests(TestCase):
 
     def test_get_value(self):
         throughput = 5000
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults", create=True)
         self.metrics_store.put_value_cluster_level("indexing_throughput", 1, "docs/s", sample_type=metrics.SampleType.Warmup)
         self.metrics_store.put_value_cluster_level("indexing_throughput", throughput, "docs/s")
@@ -1731,7 +1731,7 @@ class InMemoryMetricsStoreTests(TestCase):
 
         self.metrics_store.close()
 
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults")
 
         self.assertEqual(1, self.metrics_store.get_one("indexing_throughput", sample_type=metrics.SampleType.Warmup))
@@ -1743,7 +1743,7 @@ class InMemoryMetricsStoreTests(TestCase):
         vmem = namedtuple('vmem', ("available", "total"))
         virt_mem.return_value = vmem(250, 1000)
         throughput = 5000
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults", create=True)
         self.metrics_store.put_value_cluster_level("indexing_throughput", 1, "docs/s", sample_type=metrics.SampleType.Warmup)
         self.metrics_store.put_value_cluster_level("indexing_throughput", throughput, "docs/s")
@@ -1758,14 +1758,14 @@ class InMemoryMetricsStoreTests(TestCase):
         self.metrics_store.close()
 
     def test_get_percentile(self):
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults", create=True)
         for i in range(1, 1001):
             self.metrics_store.put_value_cluster_level("query_latency", float(i), "ms")
 
         self.metrics_store.close()
 
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults")
 
         self.assert_equal_percentiles("query_latency", [100.0], {100.0: 1000.0})
@@ -1776,27 +1776,27 @@ class InMemoryMetricsStoreTests(TestCase):
         self.assert_equal_percentiles("query_latency", [99, 99.9, 100], {99: 990.0, 99.9: 999.0, 100: 1000.0})
 
     def test_get_mean(self):
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults", create=True)
         for i in range(1, 100):
             self.metrics_store.put_value_cluster_level("query_latency", float(i), "ms")
 
         self.metrics_store.close()
 
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults")
 
         self.assertAlmostEqual(50, self.metrics_store.get_mean("query_latency"))
 
     def test_get_median(self):
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults", create=True)
         for i in range(1, 1001):
             self.metrics_store.put_value_cluster_level("query_latency", float(i), "ms")
 
         self.metrics_store.close()
 
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults")
 
         self.assertAlmostEqual(500.5, self.metrics_store.get_median("query_latency"))
@@ -1856,7 +1856,7 @@ class InMemoryMetricsStoreTests(TestCase):
                 self.assertEqual(res, exp)
 
     def test_externalize_and_bulk_add(self):
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults", create=True)
         self.metrics_store.put_value_cluster_level("final_index_size", 1000, "GB")
 
@@ -1874,7 +1874,7 @@ class InMemoryMetricsStoreTests(TestCase):
         self.assertEqual(1000, self.metrics_store.get_one("final_index_size"))
 
     def test_meta_data_per_document(self):
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults", create=True)
         self.metrics_store.add_meta_info(metrics.MetaInfoScope.cluster, None, "cluster-name", "test")
 
@@ -1897,17 +1897,17 @@ class InMemoryMetricsStoreTests(TestCase):
         }, self.metrics_store.docs[1]["meta"])
 
     def test_get_error_rate_zero_without_samples(self):
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults", create=True)
         self.metrics_store.close()
 
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults")
 
         self.assertEqual(0.0, self.metrics_store.get_error_rate("term-query", sample_type=metrics.SampleType.Normal))
 
     def test_get_error_rate_by_sample_type(self):
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults", create=True)
         self.metrics_store.put_value_cluster_level("service_time", 3.0, "ms", task="term-query", sample_type=metrics.SampleType.Warmup,
                                                    meta_data={"success": False})
@@ -1916,14 +1916,14 @@ class InMemoryMetricsStoreTests(TestCase):
 
         self.metrics_store.close()
 
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults")
 
         self.assertEqual(1.0, self.metrics_store.get_error_rate("term-query", sample_type=metrics.SampleType.Warmup))
         self.assertEqual(0.0, self.metrics_store.get_error_rate("term-query", sample_type=metrics.SampleType.Normal))
 
     def test_get_error_rate_mixed(self):
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults", create=True)
         self.metrics_store.put_value_cluster_level("service_time", 3.0, "ms", task="term-query", sample_type=metrics.SampleType.Normal,
                                                    meta_data={"success": True})
@@ -1938,7 +1938,7 @@ class InMemoryMetricsStoreTests(TestCase):
 
         self.metrics_store.close()
 
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-no-conflicts", "defaults")
 
         self.assertEqual(0.0, self.metrics_store.get_error_rate("term-query", sample_type=metrics.SampleType.Warmup))
@@ -1946,8 +1946,8 @@ class InMemoryMetricsStoreTests(TestCase):
 
 
 class FileTestRunStoreTests(TestCase):
-    test_run_TIMESTAMP = datetime.datetime(2016, 1, 31)
-    test_run_ID = "6ebc6e53-ee20-4b0c-99b4-09697987e9f4"
+    TEST_RUN_TIMESTAMP = datetime.datetime(2016, 1, 31)
+    TEST_RUN_ID = "6ebc6e53-ee20-4b0c-99b4-09697987e9f4"
 
     class DictHolder:
         def __init__(self, d):
@@ -1961,16 +1961,16 @@ class FileTestRunStoreTests(TestCase):
         self.cfg.add(config.Scope.application, "node", "root.dir", os.path.join(tempfile.gettempdir(), str(uuid.uuid4())))
         self.cfg.add(config.Scope.application, "system", "env.name", "unittest-env")
         self.cfg.add(config.Scope.application, "system", "list.test_runs.max_results", 100)
-        self.cfg.add(config.Scope.application, "system", "time.start", FileTestRunStoreTests.test_run_TIMESTAMP)
+        self.cfg.add(config.Scope.application, "system", "time.start", FileTestRunStoreTests.TEST_RUN_TIMESTAMP)
         self.cfg.add(
             config.Scope.application, "system", "test_run.id",
-            FileTestRunStoreTests.test_run_ID)
+            FileTestRunStoreTests.TEST_RUN_ID)
         self.test_run_store = metrics.FileTestRunStore(self.cfg)
 
     def test_test_run_not_found(self):
         with self.assertRaisesRegex(exceptions.NotFound, r"No test run with test run id \[.*\]"):
             # did not store anything yet
-            self.test_run_store.find_by_test_run_id(FileTestRunStoreTests.test_run_ID)
+            self.test_run_store.find_by_test_run_id(FileTestRunStoreTests.TEST_RUN_ID)
 
     def test_store_test_run(self):
         schedule = [
@@ -1983,8 +1983,8 @@ class FileTestRunStoreTests(TestCase):
 
         test_run = metrics.TestRun(
             benchmark_version="0.4.4", benchmark_revision="123abc", environment_name="unittest",
-                            test_run_id=FileTestRunStoreTests.test_run_ID,
-                            test_run_timestamp=FileTestRunStoreTests.test_run_TIMESTAMP,
+                            test_run_id=FileTestRunStoreTests.TEST_RUN_ID,
+                            test_run_timestamp=FileTestRunStoreTests.TEST_RUN_TIMESTAMP,
                             pipeline="from-sources", user_tags={"os": "Linux"}, workload=t, workload_params={"clients": 12},
                             test_procedure=t.default_test_procedure,
                             provision_config_instance="4gheap",
@@ -2016,7 +2016,7 @@ class FileTestRunStoreTests(TestCase):
         self.test_run_store.store_test_run(test_run)
 
         retrieved_test_run = self.test_run_store.find_by_test_run_id(
-            test_run_id=FileTestRunStoreTests.test_run_ID)
+            test_run_id=FileTestRunStoreTests.TEST_RUN_ID)
         self.assertEqual(test_run.test_run_id, retrieved_test_run.test_run_id)
         self.assertEqual(test_run.test_run_timestamp, retrieved_test_run.test_run_timestamp)
         self.assertEqual(1, len(self.test_run_store.list()))
@@ -2163,8 +2163,8 @@ def select(l, name, operation=None, job=None, node=None):
 
 
 class GlobalStatsCalculatorTests(TestCase):
-    test_run_TIMESTAMP = datetime.datetime(2016, 1, 31)
-    test_run_ID = "fb26018b-428d-4528-b36b-cf8c54a303ec"
+    TEST_RUN_TIMESTAMP = datetime.datetime(2016, 1, 31)
+    TEST_RUN_ID = "fb26018b-428d-4528-b36b-cf8c54a303ec"
 
     def setUp(self):
         self.cfg = config.Config()
@@ -2181,7 +2181,7 @@ class GlobalStatsCalculatorTests(TestCase):
         task = Task('delete-index', operation=op, schedule='deterministic')
         test_procedure = TestProcedure(name='append-fast-with-conflicts', schedule=[task], meta_data={})
 
-        self.metrics_store.open(InMemoryMetricsStoreTests.test_run_ID, InMemoryMetricsStoreTests.test_run_TIMESTAMP,
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-fast-with-conflicts", "defaults", create=True)
         self.metrics_store.put_doc(doc={"@timestamp": 1595896761994,
                                         "relative-time-ms": 283.382,
