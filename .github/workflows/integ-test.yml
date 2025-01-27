@@ -40,12 +40,31 @@ jobs:
       - name: Install pyenv
         run: git clone https://github.com/pyenv/pyenv.git ~/.pyenv
 
+      - name: Install JDK 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'adopt'
+          java-version: '21'
+      - run: |
+          echo "JAVA21_HOME=$JAVA_HOME" >> $GITHUB_ENV
+          echo "BUILD_JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV
+
       - name: Install JDK 17
         uses: actions/setup-java@v3
         with:
           distribution: 'adopt'
           java-version: '17'
-      - run: echo "JAVA17_HOME=$JAVA_HOME" >> $GITHUB_ENV
+      - run: |
+          echo "JAVA17_HOME=$JAVA_HOME" >> $GITHUB_ENV
+          echo "JAVA_HOME=$JAVA_HOME" >> $GITHUB_ENV  # Set JDK 17 as default
 
       - name: Run the CI build script
-        run: bash .ci/build.sh run_it ${{ matrix.python-version }}
+        run: |
+          # For build operations that need JDK 21
+          if [ -n "$BUILD_JAVA_HOME" ]; then
+            export ORIG_JAVA_HOME=$JAVA_HOME
+            export JAVA_HOME=$BUILD_JAVA_HOME
+            # do build operations here
+            export JAVA_HOME=$ORIG_JAVA_HOME
+          fi
+          bash .ci/build.sh run_it ${{ matrix.python-version }}
