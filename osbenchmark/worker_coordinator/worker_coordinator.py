@@ -1634,7 +1634,7 @@ class AsyncExecutor:
             await asyncio.sleep(rampup_wait_time)
 
         if rampup_wait_time:
-            console.println(f" Client id {self.client_id} is running now.")
+            self.logger.info(f" Client id {self.client_id} is running now.")
 
         self.logger.debug("Entering main loop for client id [%s].", self.client_id)
         # noinspection PyBroadException
