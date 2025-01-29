@@ -647,6 +647,12 @@ def create_arg_parser():
         action="store_true",
         help="Stop executing tests if an error occurs in one of the test iterations (default: false).",
     )
+    test_execution_parser.add_argument(
+        "--load-test",
+        action="store_true",
+        help="Run a load test (default: false).",
+        default=False
+    )
 
     ###############################################################################
     #
@@ -920,6 +926,7 @@ def configure_test(arg_parser, args, cfg):
         "load_worker_coordinator_hosts",
         opts.csv_to_list(args.load_worker_coordinator_hosts))
     cfg.add(config.Scope.applicationOverride, "workload", "test.mode.enabled", args.test_mode)
+    cfg.add(config.Scope.applicationOverride, "workload", "load.test.enabled", args.load_test)
     cfg.add(config.Scope.applicationOverride, "workload", "latency.percentiles", args.latency_percentiles)
     cfg.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", args.throughput_percentiles)
     cfg.add(config.Scope.applicationOverride, "workload", "randomization.enabled", args.randomization_enabled)
