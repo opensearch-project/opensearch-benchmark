@@ -28,7 +28,7 @@ import unittest.mock as mock
 
 import pytest
 
-from osbenchmark import config, exceptions, test_execution_orchestrator
+from osbenchmark import config, exceptions, test_run_orchestrator
 
 
 @pytest.fixture
@@ -42,18 +42,18 @@ def running_in_docker():
 @pytest.fixture
 def benchmark_only_pipeline():
     test_pipeline_name = "benchmark-only"
-    original = test_execution_orchestrator.pipelines[test_pipeline_name]
-    pipeline = test_execution_orchestrator.Pipeline(test_pipeline_name, "Pipeline intended for unit-testing", mock.Mock())
+    original = test_run_orchestrator.pipelines[test_pipeline_name]
+    pipeline = test_run_orchestrator.Pipeline(test_pipeline_name, "Pipeline intended for unit-testing", mock.Mock())
     yield pipeline
     # restore prior pipeline!
-    test_execution_orchestrator.pipelines[test_pipeline_name] = original
+    test_run_orchestrator.pipelines[test_pipeline_name] = original
 
 
 @pytest.fixture
 def unittest_pipeline():
-    pipeline = test_execution_orchestrator.Pipeline("unit-test-pipeline", "Pipeline intended for unit-testing", mock.Mock())
+    pipeline = test_run_orchestrator.Pipeline("unit-test-pipeline", "Pipeline intended for unit-testing", mock.Mock())
     yield pipeline
-    del test_execution_orchestrator.pipelines[pipeline.name]
+    del test_run_orchestrator.pipelines[pipeline.name]
 
 
 def test_finds_available_pipelines():
@@ -64,35 +64,35 @@ def test_finds_available_pipelines():
         ["benchmark-only", "Assumes an already running OpenSearch instance, runs a benchmark and publishes results"],
     ]
 
-    assert expected == test_execution_orchestrator.available_pipelines()
+    assert expected == test_run_orchestrator.available_pipelines()
 
 
 def test_prevents_running_an_unknown_pipeline():
     cfg = config.Config()
-    cfg.add(config.Scope.benchmark, "system", "test_execution.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
-    cfg.add(config.Scope.benchmark, "test_execution", "pipeline", "invalid")
+    cfg.add(config.Scope.benchmark, "system", "test_run.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
+    cfg.add(config.Scope.benchmark, "test_run", "pipeline", "invalid")
     cfg.add(config.Scope.benchmark, "builder", "distribution.version", "5.0.0")
 
     with pytest.raises(
             exceptions.SystemSetupError,
             match=r"Unknown pipeline \[invalid]. List the available pipelines with [\S]+? list pipelines."):
-        test_execution_orchestrator.run(cfg)
+        test_run_orchestrator.run(cfg)
 
 
 def test_passes_benchmark_only_pipeline_in_docker(running_in_docker, benchmark_only_pipeline):
     cfg = config.Config()
-    cfg.add(config.Scope.benchmark, "system", "test_execution.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
-    cfg.add(config.Scope.benchmark, "test_execution", "pipeline", "benchmark-only")
+    cfg.add(config.Scope.benchmark, "system", "test_run.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
+    cfg.add(config.Scope.benchmark, "test_run", "pipeline", "benchmark-only")
 
-    test_execution_orchestrator.run(cfg)
+    test_run_orchestrator.run(cfg)
 
     benchmark_only_pipeline.target.assert_called_once_with(cfg)
 
 
 def test_fails_without_benchmark_only_pipeline_in_docker(running_in_docker, unittest_pipeline):
     cfg = config.Config()
-    cfg.add(config.Scope.benchmark, "system", "test_execution.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
-    cfg.add(config.Scope.benchmark, "test_execution", "pipeline", "unit-test-pipeline")
+    cfg.add(config.Scope.benchmark, "system", "test_run.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
+    cfg.add(config.Scope.benchmark, "test_run", "pipeline", "unit-test-pipeline")
 
     with pytest.raises(
             exceptions.SystemSetupError,
@@ -102,24 +102,24 @@ def test_fails_without_benchmark_only_pipeline_in_docker(running_in_docker, unit
                 "For more details read the docs for the benchmark-only pipeline in "
                 "https://opensearch.org/docs\n"
             )):
-        test_execution_orchestrator.run(cfg)
+        test_run_orchestrator.run(cfg)
 
 
 def test_runs_a_known_pipeline(unittest_pipeline):
     cfg = config.Config()
-    cfg.add(config.Scope.benchmark, "system", "test_execution.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
-    cfg.add(config.Scope.benchmark, "test_execution", "pipeline", "unit-test-pipeline")
+    cfg.add(config.Scope.benchmark, "system", "test_run.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
+    cfg.add(config.Scope.benchmark, "test_run", "pipeline", "unit-test-pipeline")
     cfg.add(config.Scope.benchmark, "builder", "distribution.version", "")
 
-    test_execution_orchestrator.run(cfg)
+    test_run_orchestrator.run(cfg)
 
     unittest_pipeline.target.assert_called_once_with(cfg)
 
 def test_runs_a_default_pipeline(benchmark_only_pipeline):
     # with no pipeline specified, should default to benchmark-only
     cfg = config.Config()
-    cfg.add(config.Scope.benchmark, "system", "test_execution.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
+    cfg.add(config.Scope.benchmark, "system", "test_run.id", "28a032d1-0b03-4579-ad2a-c65316f126e9")
 
-    test_execution_orchestrator.run(cfg)
+    test_run_orchestrator.run(cfg)
 
     benchmark_only_pipeline.target.assert_called_once_with(cfg)

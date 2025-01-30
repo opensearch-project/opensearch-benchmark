@@ -31,7 +31,7 @@ def test_tar_distributions(cfg):
     for dist in it.DISTRIBUTIONS:
         for workload in it.WORKLOADS:
             it.wait_until_port_is_free(port_number=port)
-            assert it.execute_test(cfg, f"--distribution-version=\"{dist}\" --workload=\"{workload}\" "
+            assert it.run_test(cfg, f"--distribution-version=\"{dist}\" --workload=\"{workload}\" "
                                 f"--test-mode --provision-config-instance=4gheap --target-hosts=127.0.0.1:{port}") == 0
 
 
@@ -41,6 +41,6 @@ def test_docker_distribution(cfg):
     # only test the most recent Docker distribution
     dist = it.DISTRIBUTIONS[-1]
     it.wait_until_port_is_free(port_number=port)
-    assert it.execute_test(cfg, f"--pipeline=\"docker\" --distribution-version=\"{dist}\" "
+    assert it.run_test(cfg, f"--pipeline=\"docker\" --distribution-version=\"{dist}\" "
                         f"--workload=\"geonames\" --test-procedure=\"append-no-conflicts-index-only\" --test-mode "
                         f"--provision-config-instance=4gheap --target-hosts=127.0.0.1:{port}") == 0

@@ -53,7 +53,7 @@ class BareProvisionerTests(TestCase):
             variables={"heap": "4g", "runtime.jdk": "8", "runtime.jdk.bundled": "true"}),
             java_home="/usr/local/javas/java8",
             node_name="benchmark-node-0",
-            node_root_dir=HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest",
+            node_root_dir=HOME_DIR + "/.benchmark/benchmarks/test_runs/unittest",
             all_node_ips=["10.17.22.22", "10.17.22.23"],
             all_node_names=["benchmark-node-0", "benchmark-node-1"],
             ip="10.17.22.23",
@@ -82,8 +82,8 @@ class BareProvisionerTests(TestCase):
             "cluster_name": "benchmark-provisioned-cluster",
             "node_name": "benchmark-node-0",
             "data_paths": ["/opt/opensearch-1.0.0/data"],
-            "log_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/logs/server",
-            "heap_dump_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/heapdump",
+            "log_path": HOME_DIR + "/.benchmark/benchmarks/test_runs/unittest/logs/server",
+            "heap_dump_path": HOME_DIR + "/.benchmark/benchmarks/test_runs/unittest/heapdump",
             "node_ip": "10.17.22.23",
             "network_host": "10.17.22.23",
             "http_port": "9200",
@@ -137,7 +137,7 @@ class OpenSearchInstallerTests(TestCase):
                                                        all_node_names=["benchmark-node-0", "benchmark-node-1"],
                                                        ip="10.17.22.23",
                                                        http_port=9200,
-                                                       node_root_dir=HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest")
+                                                       node_root_dir=HOME_DIR + "/.benchmark/benchmarks/test_runs/unittest")
 
         installer.install("/data/builds/distributions")
         self.assertEqual(installer.os_home_path, "/install/opensearch-5.0.0-SNAPSHOT")
@@ -146,8 +146,8 @@ class OpenSearchInstallerTests(TestCase):
             "cluster_name": "benchmark-provisioned-cluster",
             "node_name": "benchmark-node-0",
             "data_paths": ["/install/opensearch-5.0.0-SNAPSHOT/data"],
-            "log_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/logs/server",
-            "heap_dump_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/heapdump",
+            "log_path": HOME_DIR + "/.benchmark/benchmarks/test_runs/unittest/logs/server",
+            "heap_dump_path": HOME_DIR + "/.benchmark/benchmarks/test_runs/unittest/heapdump",
             "node_ip": "10.17.22.23",
             "network_host": "10.17.22.23",
             "http_port": "9200",
@@ -175,7 +175,7 @@ class OpenSearchInstallerTests(TestCase):
                                                        all_node_names=["benchmark-node-0", "benchmark-node-1"],
                                                        ip="10.17.22.23",
                                                        http_port=9200,
-                                                       node_root_dir="~/.benchmark/benchmarks/test_executions/unittest")
+                                                       node_root_dir="~/.benchmark/benchmarks/test_runs/unittest")
 
         installer.install("/data/builds/distributions")
         self.assertEqual(installer.os_home_path, "/install/opensearch-5.0.0-SNAPSHOT")
@@ -184,8 +184,8 @@ class OpenSearchInstallerTests(TestCase):
             "cluster_name": "benchmark-provisioned-cluster",
             "node_name": "benchmark-node-0",
             "data_paths": ["/tmp/some/data-path-dir"],
-            "log_path": "~/.benchmark/benchmarks/test_executions/unittest/logs/server",
-            "heap_dump_path": "~/.benchmark/benchmarks/test_executions/unittest/heapdump",
+            "log_path": "~/.benchmark/benchmarks/test_runs/unittest/logs/server",
+            "heap_dump_path": "~/.benchmark/benchmarks/test_runs/unittest/heapdump",
             "node_ip": "10.17.22.23",
             "network_host": "10.17.22.23",
             "http_port": "9200",
@@ -209,7 +209,7 @@ class OpenSearchInstallerTests(TestCase):
                                                        all_node_names=["benchmark-node-0", "benchmark-node-1"],
                                                        ip="10.17.22.23",
                                                        http_port=9200,
-                                                       node_root_dir="~/.benchmark/benchmarks/test_executions/unittest",
+                                                       node_root_dir="~/.benchmark/benchmarks/test_runs/unittest",
                                                        hook_handler_class=NoopHookHandler)
 
         self.assertEqual(0, len(installer.hook_handler.hook_calls))
@@ -230,7 +230,7 @@ class OpenSearchInstallerTests(TestCase):
                                                        all_node_names=["benchmark-node-0", "benchmark-node-1"],
                                                        ip="10.17.22.23",
                                                        http_port=9200,
-                                                       node_root_dir="~/.benchmark/benchmarks/test_executions/unittest",
+                                                       node_root_dir="~/.benchmark/benchmarks/test_runs/unittest",
                                                        hook_handler_class=NoopHookHandler)
 
         self.assertEqual(0, len(installer.hook_handler.hook_calls))
@@ -547,8 +547,8 @@ class CleanupTests(TestCase):
 
         provisioner.cleanup(
             preserve=True,
-            install_dir="./benchmark/test_executions/install",
-            data_paths=["./benchmark/test_executions/data"])
+            install_dir="./benchmark/test_runs/install",
+            data_paths=["./benchmark/test_runs/data"])
 
         self.assertEqual(mock_path_exists.call_count, 0)
         self.assertEqual(mock_rm.call_count, 0)
@@ -560,8 +560,8 @@ class CleanupTests(TestCase):
 
         provisioner.cleanup(
             preserve=False,
-            install_dir="./benchmark/test_executions/install",
-            data_paths=["./benchmark/test_executions/data"])
+            install_dir="./benchmark/test_runs/install",
+            data_paths=["./benchmark/test_runs/data"])
 
         expected_dir_calls = [mock.call("/tmp/some/data-path-dir"), mock.call("/benchmark-root/workload/test_procedure/es-bin")]
         mock_path_exists.mock_calls = expected_dir_calls

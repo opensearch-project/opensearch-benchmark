@@ -31,7 +31,7 @@ class DockerInstaller(Installer):
     def _create_node(self):
         node_name = str(uuid.uuid4())
         node_port = int(self.provision_config_instance.variables["node"]["port"])
-        node_root_dir = os.path.join(self.provision_config_instance.variables["test_execution_root"], node_name)
+        node_root_dir = os.path.join(self.provision_config_instance.variables["test_run_root"], node_name)
         node_data_paths = [os.path.join(node_root_dir, "data", str(uuid.uuid4()))]
         node_binary_path = os.path.join(node_root_dir, "install")
         node_log_dir = os.path.join(node_root_dir, "logs", "server")

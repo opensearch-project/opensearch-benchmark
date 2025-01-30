@@ -16,8 +16,8 @@ class DockerProvisionerTests(TestCase):
         self.node_name = "9dbc682e-d32a-4669-8fbe-56fb77120dd4"
         self.cluster_name = "my-cluster"
         self.port = "39200"
-        self.test_execution_root = tempfile.gettempdir()
-        self.node_root_dir = os.path.join(self.test_execution_root, self.node_name)
+        self.test_run_root = tempfile.gettempdir()
+        self.node_root_dir = os.path.join(self.test_run_root, self.node_name)
         self.node_data_dir = os.path.join(self.node_root_dir, "data", self.node_name)
         self.node_log_dir = os.path.join(self.node_root_dir, "logs", "server")
         self.node_heap_dump_dir = os.path.join(self.node_root_dir, "heapdump")
@@ -29,7 +29,7 @@ class DockerProvisionerTests(TestCase):
             config_paths="/tmp",
             variables={
                 "cluster_name": self.cluster_name,
-                "test_execution_root": self.test_execution_root,
+                "test_run_root": self.test_run_root,
                 "node": {
                     "port": self.port
                 },
