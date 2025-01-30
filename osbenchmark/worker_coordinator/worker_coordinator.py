@@ -657,7 +657,15 @@ class WorkerCoordinator:
         self.logger.info("Attaching cluster-level telemetry devices.")
         self.telemetry.on_benchmark_start()
         self.logger.info("Cluster-level telemetry devices are now attached.")
-
+        # if load testing is enabled, modify the client + throughput number for the task(s)
+        # target throughput + clients will then be equal to the qps passed in through --load-test
+        load_test_clients = self.config.opts("workload", "load.test.clients", mandatory=False)
+        if load_test_clients:
+            for task in self.test_procedure.schedule:
+                for subtask in task:
+                    subtask.clients = load_test_clients
+                    subtask.params["target-throughput"] = load_test_clients
+            self.logger.info("Load test mode enabled - set client count to %d", load_test_clients)
         allocator = Allocator(self.test_procedure.schedule)
         self.allocations = allocator.allocations
         self.number_of_steps = len(allocator.join_points) - 1
@@ -1634,7 +1642,7 @@ class AsyncExecutor:
             await asyncio.sleep(rampup_wait_time)
 
         if rampup_wait_time:
-            self.logger.info(f" Client id {self.client_id} is running now.")
+            self.logger.info("Client id [%s] is running now.", self.client_id)
 
         self.logger.debug("Entering main loop for client id [%s].", self.client_id)
         # noinspection PyBroadException
