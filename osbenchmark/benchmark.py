@@ -120,7 +120,7 @@ def create_arg_parser():
         metavar="configuration",
         help="The configuration for which OSB should show the available options. "
              "Possible values are: telemetry, workloads, pipelines, test_runs, provision_config_instances, opensearch-plugins",
-        choices=["telemetry", "workloads", "pipelines", "test-runs", "aggregated_results",
+        choices=["telemetry", "workloads", "pipelines", "test_runs", "aggregated_results",
                  "provision_config_instances", "opensearch-plugins"])
     list_parser.add_argument(
         "--limit",
@@ -696,7 +696,7 @@ def dispatch_list(cfg):
         workload.list_workloads(cfg)
     elif what == "pipelines":
         test_run_orchestrator.list_pipelines()
-    elif what == "test-runs":
+    elif what == "test_runs":
         metrics.list_test_runs(cfg)
     elif what == "aggregated_results":
         metrics.list_aggregated_results(cfg)
