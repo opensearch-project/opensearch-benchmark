@@ -1,128 +1,66 @@
 #!/usr/bin/env bash
 
-# Licensed to Elasticsearch B.V. under one or more contributor
-# license agreements. See the NOTICE file distributed with
-# this work for additional information regarding copyright
-# ownership. Elasticsearch B.V. licenses this file to you under
-# the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#	http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
+function setup {
+  export BENCHMARK_HOME=$GITHUB_WORKSPACE
 
-# fail this script immediately if any command fails with a non-zero exit code
-set -e
-# fail on pipeline errors, e.g. when grepping
-set -o pipefail
-# fail on any unset environment variables
-set -u
+  export THESPLOG_FILE=$BENCHMARK_HOME/.benchmark/logs/actor-system-internal.log
+  export THESPLOG_FILE_MAXSIZE=204800			# default is 50 KiB
+  export THESPLOG_THRESHOLD=INFO			# default log level is WARNING
 
-function update_pyenv {
-  # need to have the latest pyenv version to ensure latest patch releases are installable
-  cd $HOME/.pyenv/plugins/python-build/../.. && git pull origin master --rebase && cd -
-}
-
-function build {
-  export THESPLOG_FILE="${THESPLOG_FILE:-${BENCHMARK_HOME}/.benchmark/logs/actor-system-internal.log}"
-  # this value is in bytes, the default is 50kB. We increase it to 200kiB.
-  export THESPLOG_FILE_MAXSIZE=${THESPLOG_FILE_MAXSIZE:-204800}
-  # adjust the default log level from WARNING
-  export THESPLOG_THRESHOLD="INFO"
-
-  # turn nounset off because some of the following commands fail if nounset is turned on
-  set +u
-
-  export PATH="$HOME/.pyenv/bin:$PATH"
   export TERM=dumb
   export LC_ALL=en_US.UTF-8
-  update_pyenv
-  eval "$(pyenv init -)"
-  # ensure pyenv shims are added to PATH, see https://github.com/pyenv/pyenv/issues/1906
-  eval "$(pyenv init --path)"
-  eval "$(pyenv virtualenv-init -)"
 
-  make prereq
-  make install
-  make precommit
-  make test
-}
+  # Init pyenv.
+  PATH=$HOME/.pyenv/shims:$PATH:$HOME/.pyenv/bin
 
-function build_it {
-  export THESPLOG_FILE="${THESPLOG_FILE:-${BENCHMARK_HOME}/.benchmark/logs/actor-system-internal.log}"
-  # this value is in bytes, the default is 50kB. We increase it to 200kiB.
-  export THESPLOG_FILE_MAXSIZE=${THESPLOG_FILE_MAXSIZE:-204800}
-  # adjust the default log level from WARNING
-  export THESPLOG_THRESHOLD="INFO"
-
-  # turn nounset off because some of the following commands fail if nounset is turned on
-  set +u
-
-  export PATH="$HOME/.pyenv/bin:$PATH"
-  export TERM=dumb
-  export LC_ALL=en_US.UTF-8
-  export BENCHMARK_HOME="$GITHUB_WORKSPACE"
-
-  update_pyenv
-  eval "$(pyenv init -)"
-  # ensure pyenv shims are added to PATH, see https://github.com/pyenv/pyenv/issues/1906
-  eval "$(pyenv init --path)"
-  eval "$(pyenv virtualenv-init -)"
-
-  python3_version=`python3 --version`
-  echo "Python3 version is ... $python3_version"
-
-  python3 -m pip install opensearch-benchmark
-  docker pull ubuntu/squid:latest
-
-  make prereq
-  make install
-  make precommit
-
-  # make it38, it39, etc.
-  make "it${1//./}"
-}
-
-function license-scan {
-  # turn nounset off because some of the following commands fail if nounset is turned on
-  set +u
-
-  export PATH="$HOME/.pyenv/bin:$PATH"
-  eval "$(pyenv init -)"
-  # ensure pyenv shims are added to PATH, see https://github.com/pyenv/pyenv/issues/1906
-  eval "$(pyenv init --path)"
-  eval "$(pyenv virtualenv-init -)"
-
-  make prereq
-  # only install depdencies that are needed by end users
-  make install-user
-  fossa analyze
-}
-
-function archive {
-  # Treat unset env variables as an error, but only in this function as there are other functions that allow unset variables
-  set -u
-
-  # this will only be done if the build number variable is present
-  BENCHMARK_DIR=${BENCHMARK_HOME}/.benchmark
-  if [[ -d ${BENCHMARK_DIR} ]]; then
-    find ${BENCHMARK_DIR} -name "*.log" -printf "%P\\0" | tar -cvjf ${BENCHMARK_DIR}/${BUILD_NUMBER}.tar.bz2 -C ${BENCHMARK_DIR} --transform "s,^,ci-${BUILD_NUMBER}/," --null -T -
+  # OpenSearch has different JDK requirements:
+  # - Gradle builds need JDK 21 (after Apache Lucene 10 upgrade)
+  # - OpenSearch runtime operations need JDK 17
+  # Store the current JAVA_HOME (Java 21) for Gradle
+  export GRADLE_JAVA_HOME=$JAVA_HOME
+  
+  # Set JAVA_HOME to Java 17 for OpenSearch
+  if [ -n "$JAVA17_HOME" ]; then
+    echo "Setting JAVA_HOME to Java 17 for OpenSearch"
+    export JAVA_HOME=$JAVA17_HOME
+    java -version
   else
-    echo "Benchmark directory [${BENCHMARK_DIR}] not present. Ensure the BENCHMARK_DIR environment variable is correct"
-    exit 1
+    echo "WARNING: JAVA17_HOME is not set!"
   fi
 }
 
-if declare -F "$1" > /dev/null; then
-    "$@"
-    exit
-else
-    echo "Please specify a function to run"
-    exit 1
-fi
+function build_and_unit_test {
+  setup
+
+  set -e
+  make develop
+  make lint
+  make test
+}
+
+function run_it {
+  setup
+
+  docker pull ubuntu/squid:latest
+
+  # Temporarily switch to Java 21 for Gradle builds if needed
+  if [ -n "$GRADLE_JAVA_HOME" ]; then
+    OLD_JAVA_HOME=$JAVA_HOME
+    export JAVA_HOME=$GRADLE_JAVA_HOME
+    echo "Switched to Java 21 for Gradle build"
+    java -version
+  fi
+
+  # Run the integration test
+  make "it${1//./}"
+
+  # Switch back to Java 17 if we changed it
+  if [ -n "$OLD_JAVA_HOME" ]; then
+    export JAVA_HOME=$OLD_JAVA_HOME
+    echo "Switched back to Java 17"
+    java -version
+  fi
+}
+
+$@
+

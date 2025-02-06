@@ -2578,7 +2578,6 @@ class TrainKnnModelRunnerTests(TestCase):
         with self.assertRaisesRegex(TimeoutError, f'Failed to create model: {self.model_id} within {self.retries} retries'):
             await runner_under_test(opensearch, self.request)
 
-
 class VectorSearchQueryRunnerTests(TestCase):
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
@@ -3120,6 +3119,487 @@ class VectorSearchQueryRunnerTests(TestCase):
             body=params["body"],
             headers={"Accept-Encoding": "identity"}
         )
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_calculate_recall_with_negative_one_neighbors(self, opensearch, on_client_request_start, on_client_request_end):
+        search_response = {
+            "timed_out": False,
+            "took": 5,
+            "hits": {
+                "total": {
+                    "value": 3,
+                    "relation": "eq"
+                },
+                "hits": [
+                    {
+                        "_id": 101,
+                        "_score": 0.95
+                    },
+                    {
+                        "_id": 102,
+                        "_score": 0.88
+                    }
+                ]
+            }
+        }
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+
+        query_runner = runner.Query()
+
+        params = {
+            "index": "unittest",
+            "operation-type": "vector-search",
+            "detailed-results": True,
+            "response-compression-enabled": False,
+            "k": 4,
+            "neighbors": [101, 102, -1, -1],
+            "body": {
+                "query": {
+                    "knn": {
+                        "location": {
+                            "vector": [
+                                5,
+                                4
+                            ],
+                            "k": 3
+                        }
+                    }}
+            }
+        }
+
+        async with query_runner:
+            result = await query_runner(opensearch, params)
+
+        self.assertEqual(result["recall@k"], 1.0)
+        self.assertIn("recall_time_ms", result.keys())
+        self.assertIn("recall@1", result.keys())
+        self.assertEqual(result["recall@1"], 1)
+        self.assertNotIn("error-type", result.keys())
+
+        opensearch.transport.perform_request.assert_called_once_with(
+            "GET",
+            "/unittest/_search",
+            params={},
+            body=params["body"],
+            headers={"Accept-Encoding": "identity"}
+        )
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_calculate_recall_with_some_negative_one_neighbors(self, opensearch, on_client_request_start, on_client_request_end):
+        search_response = {
+            "timed_out": False,
+            "took": 5,
+            "hits": {
+                "total": {
+                    "value": 3,
+                    "relation": "eq"
+                },
+                "hits": [
+                    {
+                        "_id": 101,
+                        "_score": 0.95
+                    },
+                    {
+                        "_id": 102,
+                        "_score": 0.88
+                    }
+                ]
+            }
+        }
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+
+        query_runner = runner.Query()
+
+        params = {
+            "index": "unittest",
+            "operation-type": "vector-search",
+            "detailed-results": True,
+            "response-compression-enabled": False,
+            "k": 6,
+            "neighbors": [101, 102, 103, 104, -1, -1],
+            "body": {
+                "query": {
+                    "knn": {
+                        "location": {
+                            "vector": [
+                                5,
+                                4
+                            ],
+                            "k": 3
+                        }
+                    }}
+            }
+        }
+
+        async with query_runner:
+            result = await query_runner(opensearch, params)
+
+        self.assertEqual(result["recall@k"], 0.5)
+        self.assertIn("recall_time_ms", result.keys())
+        self.assertIn("recall@1", result.keys())
+        self.assertEqual(result["recall@1"], 1)
+        self.assertNotIn("error-type", result.keys())
+
+        opensearch.transport.perform_request.assert_called_once_with(
+            "GET",
+            "/unittest/_search",
+            params={},
+            body=params["body"],
+            headers={"Accept-Encoding": "identity"}
+        )
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_calculate_recall_with_intermediate_negative_one_neighbors(self, opensearch,
+                                                                             on_client_request_start, on_client_request_end):
+        search_response = {
+            "timed_out": False,
+            "took": 5,
+            "hits": {
+                "total": {
+                    "value": 3,
+                    "relation": "eq"
+                },
+                "hits": [
+                    {
+                        "_id": 101,
+                        "_score": 0.95
+                    },
+                    {
+                        "_id": 102,
+                        "_score": 0.88
+                    }
+                ]
+            }
+        }
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+
+        query_runner = runner.Query()
+
+        params = {
+            "index": "unittest",
+            "operation-type": "vector-search",
+            "detailed-results": True,
+            "response-compression-enabled": False,
+            "k": 4,
+            "neighbors": [101, 103,102, 104, -1],
+            "body": {
+                "query": {
+                    "knn": {
+                        "location": {
+                            "vector": [
+                                5,
+                                4
+                            ],
+                            "k": 3
+                        }
+                    }}
+            }
+        }
+
+        async with query_runner:
+            result = await query_runner(opensearch, params)
+
+        self.assertEqual(result["recall@k"], 0.5)
+        self.assertIn("recall_time_ms", result.keys())
+        self.assertIn("recall@1", result.keys())
+        self.assertEqual(result["recall@1"], 1)
+        self.assertNotIn("error-type", result.keys())
+
+        opensearch.transport.perform_request.assert_called_once_with(
+            "GET",
+            "/unittest/_search",
+            params={},
+            body=params["body"],
+            headers={"Accept-Encoding": "identity"}
+        )
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_query_vector_search_should_skip_calculate_recall(self, opensearch, on_client_request_start, on_client_request_end):
+        num_clients = 9
+        class WorkerCoordinatorTestParamSource:
+            def __init__(self, workload=None, params=None, **kwargs):
+                if params is None:
+                    params = {}
+                self._indices = workload.indices
+                self._params = params
+                self._current = 1
+                self._total = params.get("size")
+                self.infinite = self._total is None
+
+            def partition(self, partition_index, total_partitions):
+                return self
+
+            @property
+            def percent_completed(self):
+                if self.infinite:
+                    return None
+                return self._current / self._total
+
+            def params(self):
+                if not self.infinite and self._current > self._total:
+                    raise StopIteration()
+                self._current += 1
+                return self._params
+        # pylint: disable=C0415
+        from osbenchmark.worker_coordinator import worker_coordinator
+        # pylint: disable=C0415
+        from osbenchmark.workload import params
+        # pylint: disable=C0415
+        from osbenchmark import workload, config
+
+        # create task here
+        # sampler is mock
+        # create actual schedule w new params
+
+        opensearch.init_request_context.return_value = {
+            "client_request_start": 0,
+            "request_start": 1,
+            "request_end": 11,
+            "client_request_end": 12
+        }
+
+        search_response = {
+            "timed_out": False,
+            "took": 5,
+            "hits": {
+                "total": {
+                    "value": 3,
+                    "relation": "eq"
+                },
+                "hits": [
+                    {
+                        "_id": 101,
+                        "_score": 0.95
+                    },
+                    {
+                        "_id": 102,
+                        "_score": 0.88
+                    },
+                    {
+                        "_id": 103,
+                        "_score": 0.1
+                    }
+                ]
+            }
+        }
+        opensearch.transport.perform_request = mock.AsyncMock(return_value=io.StringIO(json.dumps(search_response)))
+
+        params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
+        test_workload = workload.Workload(name="unittest", description="unittest workload",
+                                indices=None,
+                                test_procedures=None)
+
+        task = workload.Task("time-based", workload.Operation("time-based",
+            workload.OperationType.VectorSearch.to_hyphenated_string(),
+            params={
+                "index": "_all",
+                "type": None,
+                "operation-type": "vector-search",
+                "detailed-results": True,
+                "response-compression-enabled": False,
+                "k": 3,
+                "neighbors": [101, 102, 103],
+                "body": {
+                    "query": {
+                        "knn": {
+                            "location": {
+                                "vector": [
+                                    5,
+                                    4
+                                ],
+                                "k": 3
+                            }
+                        }}
+                },
+                "request-params": {},
+                "cache": False
+            },
+            param_source="worker-coordinator-test-param-source"),
+            warmup_time_period=0.5, time_period=0.5, clients=num_clients,
+            params={ "clients": num_clients},
+            completes_parent=False)
+
+        sampler = worker_coordinator.Sampler(start_timestamp=0)
+
+        runner.register_runner(operation_type=workload.OperationType.VectorSearch, runner=runner.Query(), async_runner=True)
+        param_source = workload.operation_parameters(test_workload, task)
+        task_allocation = worker_coordinator.TaskAllocation(
+            task=task,
+            client_index_in_task=0,
+            global_client_index=0,
+            total_clients=task.clients
+        )
+        # pylint: disable=C0415
+        import threading
+        schedule = worker_coordinator.schedule_for(task_allocation, param_source)
+        # pylint: disable=C0415
+        def create_config():
+            cfg = config.Config()
+            cfg.add(config.Scope.application, "system", "available.cores", 8)
+            return cfg
+        cfg = create_config()
+        executor = worker_coordinator.AsyncExecutor(client_id=0, task=task, schedule=schedule, opensearch={"default": opensearch},
+                                                    sampler=sampler, cancel=threading.Event(), complete=threading.Event(),
+                                                    on_error="continue", config=cfg)
+        # will run executor + vector search query runner.
+        await executor()
+
+        # make copy of samples since they disappear once first accessed.
+        samples = sampler.samples
+        recall_k = samples[0].request_meta_data.get("recall@k")
+        self.assertEqual(recall_k, None)
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_query_vector_search_should_actually_calculate_recall_with_default_value(self, opensearch,
+                                                                                           on_client_request_start, on_client_request_end):
+        with mock.patch("os.cpu_count", return_value=8):
+            num_clients = 8
+            class WorkerCoordinatorTestParamSource:
+                def __init__(self, workload=None, params=None, **kwargs):
+                    if params is None:
+                        params = {}
+                    self._indices = workload.indices
+                    self._params = params
+                    self._current = 1
+                    self._total = params.get("size")
+                    self.infinite = self._total is None
+
+                def partition(self, partition_index, total_partitions):
+                    return self
+
+                @property
+                def percent_completed(self):
+                    if self.infinite:
+                        return None
+                    return self._current / self._total
+
+                def params(self):
+                    if not self.infinite and self._current > self._total:
+                        raise StopIteration()
+                    self._current += 1
+                    return self._params
+            # pylint: disable=C0415
+            from osbenchmark.worker_coordinator import worker_coordinator
+            # pylint: disable=C0415
+            from osbenchmark.workload import params
+            # pylint: disable=C0415
+            from osbenchmark import workload, config
+
+            # create task here
+            # sampler is mock
+            # create actual schedule w new params
+
+            opensearch.init_request_context.return_value = {
+                "client_request_start": 0,
+                "request_start": 1,
+                "request_end": 11,
+                "client_request_end": 12
+            }
+
+            search_response = {
+                "timed_out": False,
+                "took": 5,
+                "hits": {
+                    "total": {
+                        "value": 3,
+                        "relation": "eq"
+                    },
+                    "hits": [
+                        {
+                            "_id": 101,
+                            "_score": 0.95
+                        },
+                        {
+                            "_id": 102,
+                            "_score": 0.88
+                        },
+                        {
+                            "_id": 103,
+                            "_score": 0.1
+                        }
+                    ]
+                }
+            }
+            opensearch.transport.perform_request = mock.AsyncMock(return_value=io.StringIO(json.dumps(search_response)))
+
+            params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
+            test_workload = workload.Workload(name="unittest", description="unittest workload",
+                                    indices=None,
+                                    test_procedures=None)
+
+            task = workload.Task("time-based", workload.Operation("time-based",
+                workload.OperationType.VectorSearch.to_hyphenated_string(),
+                params={
+                    "index": "_all",
+                    "type": None,
+                    "operation-type": "vector-search",
+                    "detailed-results": True,
+                    "response-compression-enabled": False,
+                    "k": 3,
+                    "neighbors": [101, 102, 103],
+                    "body": {
+                        "query": {
+                            "knn": {
+                                "location": {
+                                    "vector": [
+                                        5,
+                                        4
+                                    ],
+                                    "k": 3
+                                }
+                            }}
+                    },
+                    "request-params": {},
+                    "cache": False
+                },
+                param_source="worker-coordinator-test-param-source"),
+                warmup_time_period=0.5, time_period=0.5, clients=num_clients,
+                params={ "clients": num_clients},
+                completes_parent=False)
+
+            sampler = worker_coordinator.Sampler(start_timestamp=0)
+
+            runner.register_runner(operation_type=workload.OperationType.VectorSearch, runner=runner.Query(), async_runner=True)
+            param_source = workload.operation_parameters(test_workload, task)
+            task_allocation = worker_coordinator.TaskAllocation(
+            task=task,
+            client_index_in_task=0,
+            global_client_index=0,
+            total_clients=task.clients
+            )
+            # pylint: disable=C0415
+            import threading
+            schedule = worker_coordinator.schedule_for(task_allocation, param_source)
+            def create_config():
+                cfg = config.Config()
+                cfg.add(config.Scope.application, "system", "available.cores", 8)
+                return cfg
+            cfg = create_config()
+            executor = worker_coordinator.AsyncExecutor(client_id=0, task=task, schedule=schedule, opensearch={"default": opensearch},
+                                                        sampler=sampler, cancel=threading.Event(), complete=threading.Event(),
+                                                        on_error="continue",config=cfg)
+            # will run executor + vector search query runner.
+            await executor()
+
+            # make copy of samples since they disappear once first accessed.
+            samples = sampler.samples
+            recall_k = samples[0].request_meta_data.get("recall@k")
+            self.assertEqual(recall_k, 1.0)
 
 
 class PutPipelineRunnerTests(TestCase):
@@ -5967,7 +6447,7 @@ class CompositeTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
     @mock.patch('osbenchmark.client.RequestContextHolder.new_request_context')
     @run_async
-    async def test_execute_multiple_streams(self, opensearch, on_client_request_start, on_client_request_end,new_request_context):
+    async def test_run_multiple_streams(self, opensearch, on_client_request_start, on_client_request_end,new_request_context):
         opensearch.transport.perform_request.side_effect = [
             # raw-request
             as_future(),
@@ -6109,7 +6589,7 @@ class CompositeTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
     @mock.patch('osbenchmark.client.RequestContextHolder.new_request_context')
     @run_async
-    async def test_executes_tasks_in_specified_order(self, opensearch, on_client_request_start, on_client_request_end, new_request_context):
+    async def test_runs_tasks_in_specified_order(self, opensearch, on_client_request_start, on_client_request_end, new_request_context):
         opensearch.transport.perform_request.return_value = as_future()
 
         params = {
@@ -6785,3 +7265,64 @@ class CreateSearchPipelineRunnerTests(TestCase):
             await r(opensearch, params)
 
         self.assertEqual(0, opensearch.transport.perform_request.call_count)
+
+class UpdateConcurrentSegmentSearchSettingsTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_enable_concurrent_segment_search(self, opensearch, on_client_request_start, on_client_request_end):
+        opensearch.cluster.put_settings.return_value = as_future()
+        params = {
+            "enable": "true"
+        }
+
+        r = runner.UpdateConcurrentSegmentSearchSettings()
+        await r(opensearch, params)
+
+        opensearch.cluster.put_settings.assert_called_once_with(body={
+            "persistent": {
+                "search.concurrent_segment_search.enabled": "true"
+            }
+        })
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_max_slice_count(self, opensearch, on_client_request_start, on_client_request_end):
+        opensearch.cluster.put_settings.return_value = as_future()
+        params = {
+            "max_slice_count": 2
+        }
+
+        r = runner.UpdateConcurrentSegmentSearchSettings()
+        await r(opensearch, params)
+
+        opensearch.cluster.put_settings.assert_called_once_with(body={
+            "persistent": {
+                "search.concurrent_segment_search.enabled": "false",
+                "search.concurrent.max_slice_count": 2
+            }
+        })
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_concurrent_segment_search_settings(self, opensearch, on_client_request_start, on_client_request_end):
+        opensearch.cluster.put_settings.return_value = as_future()
+        params = {
+            "enable": "true",
+            "max_slice_count": 2
+        }
+
+        r = runner.UpdateConcurrentSegmentSearchSettings()
+        await r(opensearch, params)
+
+        opensearch.cluster.put_settings.assert_called_once_with(body={
+            "persistent": {
+                "search.concurrent_segment_search.enabled": "true",
+                "search.concurrent.max_slice_count": 2
+            }
+        })

@@ -9,6 +9,6 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 | Ian Hoang               | [IanHoang](https://github.com/IanHoang)               | Amazon      | ianhoang16@gmail.com              |
 | Govind Kamat            | [gkamat](https://github.com/gkamat)                   | Amazon      | govind_kamat@yahoo.com            |
 | Mingyang Shi            | [beaioun](https://github.com/beaioun)                 | OSCI        | mmyyshi@gmail.com                 |
-| Chinmay Gadgil          | [cgchinmay](https://github.com/cgchinmay)             | Amazon      | chinmay5j@gmail.com               |
 | Rishabh Singh           | [rishabh6788](https://github.com/rishabh6788)         | Amazon      | rishabhksingh@gmail.com           |
 | Vijayan Balasubramanian | [VijayanB](https://github.com/VijayanB)               | Amazon      | vijayan.balasubramanian@gmail.com |
+| Michael Oviedo          | [OVI3D0](https://github.com/OVI3D0)                   | Amazon      | michaeloviedo2000@gmail.com       |

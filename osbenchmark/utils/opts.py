@@ -84,7 +84,7 @@ def kv_to_map(kvs):
 
 
 def to_dict(arg, default_parser=kv_to_map):
-    if io.has_extension(arg, ".json"):
+    if io.has_extension(arg, ".json") and ',' not in arg and ':' not in arg:
         with open(io.normalize_path(arg), mode="rt", encoding="utf-8") as f:
             return json.load(f)
     elif arg.startswith("{"):
@@ -125,7 +125,14 @@ class StoreKeyPairAsDict(argparse.Action):
     """
     def __call__(self, parser, namespace, values, option_string=None):
         custom_dict = {}
-        for kv in values:
+
+        if len(values) == 1:
+            # If values contains spaces, user provided 2+ key value pairs
+            kv_pairs = values[0].split(" ")
+        else:
+            kv_pairs = values
+
+        for kv in kv_pairs:
             try:
                 k,v = kv.split(":")
                 custom_dict[k] = v
@@ -145,7 +152,7 @@ class ConnectOptions:
 
     def __getitem__(self, key):
         """
-        TestExecution expects the cfg object to be subscriptable
+        TestRun expects the cfg object to be subscriptable
         Just return 'default'
         """
         return self.default

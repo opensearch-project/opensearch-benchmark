@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -77,8 +77,10 @@ class SimpleWorkloadRepositoryTests(TestCase):
         repo = loader.SimpleWorkloadRepository("/path/to/workload/unit-test")
         self.assertEqual("unit-test", repo.workload_name)
         self.assertEqual(["unit-test"], repo.workload_names)
-        self.assertEqual("/path/to/workload/unit-test", repo.workload_dir("unit-test"))
-        self.assertEqual("/path/to/workload/unit-test/workload.json", repo.workload_file("unit-test"))
+        self.assertEqual("/path/to/workload/unit-test",
+                         repo.workload_dir("unit-test"))
+        self.assertEqual("/path/to/workload/unit-test/workload.json",
+                         repo.workload_file("unit-test"))
 
     @mock.patch("os.path.exists")
     @mock.patch("os.path.isdir")
@@ -88,11 +90,14 @@ class SimpleWorkloadRepositoryTests(TestCase):
         is_dir.return_value = False
         path_exists.return_value = True
 
-        repo = loader.SimpleWorkloadRepository("/path/to/workload/unit-test/my-workload.json")
+        repo = loader.SimpleWorkloadRepository(
+            "/path/to/workload/unit-test/my-workload.json")
         self.assertEqual("my-workload", repo.workload_name)
         self.assertEqual(["my-workload"], repo.workload_names)
-        self.assertEqual("/path/to/workload/unit-test", repo.workload_dir("my-workload"))
-        self.assertEqual("/path/to/workload/unit-test/my-workload.json", repo.workload_file("my-workload"))
+        self.assertEqual("/path/to/workload/unit-test",
+                         repo.workload_dir("my-workload"))
+        self.assertEqual("/path/to/workload/unit-test/my-workload.json",
+                         repo.workload_file("my-workload"))
 
     @mock.patch("os.path.exists")
     @mock.patch("os.path.isdir")
@@ -103,15 +108,18 @@ class SimpleWorkloadRepositoryTests(TestCase):
         path_exists.return_value = True
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            loader.SimpleWorkloadRepository("a named pipe cannot point to a workload")
-        self.assertEqual("a named pipe cannot point to a workload is neither a file nor a directory", ctx.exception.args[0])
+            loader.SimpleWorkloadRepository(
+                "a named pipe cannot point to a workload")
+        self.assertEqual(
+            "a named pipe cannot point to a workload is neither a file nor a directory", ctx.exception.args[0])
 
     @mock.patch("os.path.exists")
     def test_workload_from_non_existing_path(self, path_exists):
         path_exists.return_value = False
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             loader.SimpleWorkloadRepository("/path/does/not/exist")
-        self.assertEqual("Workload path /path/does/not/exist does not exist", ctx.exception.args[0])
+        self.assertEqual(
+            "Workload path /path/does/not/exist does not exist", ctx.exception.args[0])
 
     @mock.patch("os.path.isdir")
     @mock.patch("os.path.exists")
@@ -121,7 +129,8 @@ class SimpleWorkloadRepositoryTests(TestCase):
         is_dir.return_value = True
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             loader.SimpleWorkloadRepository("/path/to/not/a/workload")
-        self.assertEqual("Could not find workload.json in /path/to/not/a/workload", ctx.exception.args[0])
+        self.assertEqual(
+            "Could not find workload.json in /path/to/not/a/workload", ctx.exception.args[0])
 
     @mock.patch("os.path.exists")
     @mock.patch("os.path.isdir")
@@ -132,8 +141,10 @@ class SimpleWorkloadRepositoryTests(TestCase):
         path_exists.return_value = True
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            loader.SimpleWorkloadRepository("/path/to/workload/unit-test/my-workload.xml")
-        self.assertEqual("/path/to/workload/unit-test/my-workload.xml has to be a JSON file", ctx.exception.args[0])
+            loader.SimpleWorkloadRepository(
+                "/path/to/workload/unit-test/my-workload.xml")
+        self.assertEqual(
+            "/path/to/workload/unit-test/my-workload.xml has to be a JSON file", ctx.exception.args[0])
 
 
 class GitRepositoryTests(TestCase):
@@ -144,21 +155,29 @@ class GitRepositoryTests(TestCase):
     @mock.patch("os.path.exists")
     @mock.patch("os.walk")
     def test_workload_from_existing_repo(self, walk, exists):
-        walk.return_value = iter([(".", ["unittest", "unittest2", "unittest3"], [])])
+        walk.return_value = iter(
+            [(".", ["unittest", "unittest2", "unittest3"], [])])
         exists.return_value = True
         cfg = config.Config()
-        cfg.add(config.Scope.application, "workload", "workload.name", "unittest")
-        cfg.add(config.Scope.application, "workload", "repository.name", "default")
+        cfg.add(config.Scope.application, "workload",
+                "workload.name", "unittest")
+        cfg.add(config.Scope.application, "workload",
+                "repository.name", "default")
         cfg.add(config.Scope.application, "system", "offline.mode", False)
         cfg.add(config.Scope.application, "node", "root.dir", "/tmp")
-        cfg.add(config.Scope.application, "benchmarks", "workload.repository.dir", "workloads")
+        cfg.add(config.Scope.application, "benchmarks",
+                "workload.repository.dir", "workloads")
 
-        repo = loader.GitWorkloadRepository(cfg, fetch=False, update=False, repo_class=GitRepositoryTests.MockGitRepo)
+        repo = loader.GitWorkloadRepository(
+            cfg, fetch=False, update=False, repo_class=GitRepositoryTests.MockGitRepo)
 
         self.assertEqual("unittest", repo.workload_name)
-        self.assertEqual(["unittest", "unittest2", "unittest3"], list(repo.workload_names))
-        self.assertEqual("/tmp/workloads/default/unittest", repo.workload_dir("unittest"))
-        self.assertEqual("/tmp/workloads/default/unittest/workload.json", repo.workload_file("unittest"))
+        self.assertEqual(["unittest", "unittest2", "unittest3"],
+                         list(repo.workload_names))
+        self.assertEqual("/tmp/workloads/default/unittest",
+                         repo.workload_dir("unittest"))
+        self.assertEqual(
+            "/tmp/workloads/default/unittest/workload.json", repo.workload_file("unittest"))
 
 
 class WorkloadPreparationTests(TestCase):
@@ -171,18 +190,20 @@ class WorkloadPreparationTests(TestCase):
         prepare_file_offset_table.return_value = 5
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                            document_file="docs.json",
-                                                            document_archive="docs.json.bz2",
-                                                            number_of_documents=5,
-                                                            compressed_size_in_bytes=200,
-                                                            uncompressed_size_in_bytes=2000),
+                                                               document_file="docs.json",
+                                                               document_archive="docs.json.bz2",
+                                                               number_of_documents=5,
+                                                               compressed_size_in_bytes=200,
+                                                               uncompressed_size_in_bytes=2000),
                                data_root="/tmp")
 
-        prepare_file_offset_table.assert_called_with("/tmp/docs.json", None, None, InstanceOf(loader.Downloader))
+        prepare_file_offset_table.assert_called_with(
+            "/tmp/docs.json", None, None, InstanceOf(loader.Downloader))
 
     @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
     @mock.patch("os.path.getsize")
@@ -193,18 +214,20 @@ class WorkloadPreparationTests(TestCase):
         prepare_file_offset_table.return_value = 5
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                            document_file="docs.json",
-                                                            document_archive="docs.json.bz2",
-                                                            number_of_documents=5,
-                                                            compressed_size_in_bytes=200,
-                                                            uncompressed_size_in_bytes=2000),
+                                                               document_file="docs.json",
+                                                               document_archive="docs.json.bz2",
+                                                               number_of_documents=5,
+                                                               compressed_size_in_bytes=200,
+                                                               uncompressed_size_in_bytes=2000),
                                data_root="/tmp")
 
-        prepare_file_offset_table.assert_called_with("/tmp/docs.json", None, None, InstanceOf(loader.Downloader))
+        prepare_file_offset_table.assert_called_with(
+            "/tmp/docs.json", None, None, InstanceOf(loader.Downloader))
 
     @mock.patch("osbenchmark.utils.io.decompress")
     @mock.patch("os.path.getsize")
@@ -219,18 +242,20 @@ class WorkloadPreparationTests(TestCase):
         get_size.side_effect = [200, 1]
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.DataError) as ctx:
             p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                                document_file="docs.json",
-                                                                document_archive="docs.json.bz2",
-                                                                number_of_documents=5,
-                                                                compressed_size_in_bytes=200,
-                                                                uncompressed_size_in_bytes=2000),
+                                                                   document_file="docs.json",
+                                                                   document_archive="docs.json.bz2",
+                                                                   number_of_documents=5,
+                                                                   compressed_size_in_bytes=200,
+                                                                   uncompressed_size_in_bytes=2000),
                                    data_root="/tmp")
-        self.assertEqual("[/tmp/docs.json] is corrupt. Extracted [1] bytes but [2000] bytes are expected.", ctx.exception.args[0])
+        self.assertEqual(
+            "[/tmp/docs.json] is corrupt. Extracted [1] bytes but [2000] bytes are expected.", ctx.exception.args[0])
 
         decompress.assert_called_with("/tmp/docs.json.bz2", "/tmp")
 
@@ -246,17 +271,18 @@ class WorkloadPreparationTests(TestCase):
         get_size.return_value = 200
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.DataError) as ctx:
             p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                                base_url="http://benchmarks.opensearch.org/corpora/unit-test",
-                                                                document_file="docs.json",
-                                                                document_archive="docs.json.bz2",
-                                                                number_of_documents=5,
-                                                                compressed_size_in_bytes=200,
-                                                                uncompressed_size_in_bytes=2000),
+                                                                   base_url="http://benchmarks.opensearch.org/corpora/unit-test",
+                                                                   document_file="docs.json",
+                                                                   document_archive="docs.json.bz2",
+                                                                   number_of_documents=5,
+                                                                   compressed_size_in_bytes=200,
+                                                                   uncompressed_size_in_bytes=2000),
                                    data_root="/tmp")
         self.assertEqual("Decompressing [/tmp/docs.json.bz2] did not create [/tmp/docs.json]. Please check with the workload author if the "
                          "compressed archive has been created correctly.", ctx.exception.args[0])
@@ -277,7 +303,8 @@ class WorkloadPreparationTests(TestCase):
         # after download uncompressed file still does not exist (in main loop)
         # after download compressed file exists (in main loop)
         # after decompression, uncompressed file exists
-        is_file.side_effect = [False, False, True, False, True, True, True, True]
+        is_file.side_effect = [False, False,
+                               True, False, True, True, True, True]
         # compressed file size is 200 after download
         # compressed file size is 200 after download (in main loop)
         # uncompressed file size is 2000 after decompression
@@ -287,22 +314,23 @@ class WorkloadPreparationTests(TestCase):
         prepare_file_offset_table.return_value = 5
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                            base_url="http://benchmarks.opensearch.org/corpora/unit-test",
-                                                            document_file="docs.json",
-                                                            document_archive="docs.json.bz2",
-                                                            number_of_documents=5,
-                                                            compressed_size_in_bytes=200,
-                                                            uncompressed_size_in_bytes=2000),
+                                                               base_url="http://benchmarks.opensearch.org/corpora/unit-test",
+                                                               document_file="docs.json",
+                                                               document_archive="docs.json.bz2",
+                                                               number_of_documents=5,
+                                                               compressed_size_in_bytes=200,
+                                                               uncompressed_size_in_bytes=2000),
                                data_root="/tmp")
 
         ensure_dir.assert_called_with("/tmp")
         decompress.assert_called_with("/tmp/docs.json.bz2", "/tmp")
-        calls = [ mock.call("http://benchmarks.opensearch.org/corpora/unit-test/docs.json.bz2",
-                            "/tmp/docs.json.bz2", 200, progress_indicator=mock.ANY) ]
+        calls = [mock.call("http://benchmarks.opensearch.org/corpora/unit-test/docs.json.bz2",
+                           "/tmp/docs.json.bz2", 200, progress_indicator=mock.ANY)]
         download.assert_has_calls(calls)
         prepare_file_offset_table.assert_called_with("/tmp/docs.json", 'http://benchmarks.opensearch.org/corpora/unit-test',
                                                      None, InstanceOf(loader.Downloader))
@@ -321,7 +349,8 @@ class WorkloadPreparationTests(TestCase):
         # after download uncompressed file still does not exist (in main loop)
         # after download compressed file exists (in main loop)
         # after decompression, uncompressed file exists
-        is_file.side_effect = [False, False, True, False, True, True, True, True]
+        is_file.side_effect = [False, False,
+                               True, False, True, True, True, True]
         # compressed file size is 200 after download
         # compressed file size is 200 after download (in main loop)
         # uncompressed file size is 2000 after decompression
@@ -331,17 +360,18 @@ class WorkloadPreparationTests(TestCase):
         prepare_file_offset_table.return_value = 5
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                            base_url="http://benchmarks.opensearch.org/corpora",
-                                                    source_url="http://benchmarks.opensearch.org/corpora/unit-test/docs.json.bz2",
-                                                            document_file="docs.json",
-                                                            document_archive="docs.json.bz2",
-                                                            number_of_documents=5,
-                                                            compressed_size_in_bytes=200,
-                                                            uncompressed_size_in_bytes=2000),
+                                                               base_url="http://benchmarks.opensearch.org/corpora",
+                                                               source_url="http://benchmarks.opensearch.org/corpora/unit-test/docs.json.bz2",
+                                                               document_file="docs.json",
+                                                               document_archive="docs.json.bz2",
+                                                               number_of_documents=5,
+                                                               compressed_size_in_bytes=200,
+                                                               uncompressed_size_in_bytes=2000),
                                data_root="/tmp")
 
         ensure_dir.assert_called_with("/tmp")
@@ -371,18 +401,19 @@ class WorkloadPreparationTests(TestCase):
         prepare_file_offset_table.return_value = 5
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                    source_url=f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/docs.json",
-                                                            base_url=f"{scheme}://benchmarks.opensearch.org/corpora/",
-                                                            document_file="docs.json",
-                                                            # --> We don't provide a document archive here <--
-                                                            document_archive=None,
-                                                            number_of_documents=5,
-                                                            compressed_size_in_bytes=200,
-                                                            uncompressed_size_in_bytes=2000),
+                                                               source_url=f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/docs.json",
+                                                               base_url=f"{scheme}://benchmarks.opensearch.org/corpora/",
+                                                               document_file="docs.json",
+                                                               # --> We don't provide a document archive here <--
+                                                               document_archive=None,
+                                                               number_of_documents=5,
+                                                               compressed_size_in_bytes=200,
+                                                               uncompressed_size_in_bytes=2000),
                                data_root="/tmp")
 
         ensure_dir.assert_called_with("/tmp")
@@ -411,22 +442,23 @@ class WorkloadPreparationTests(TestCase):
         prepare_file_offset_table.return_value = 5
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                            base_url=f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/",
-                                                            document_file="docs.json",
-                                                            # --> We don't provide a document archive here <--
-                                                            document_archive=None,
-                                                            number_of_documents=5,
-                                                            compressed_size_in_bytes=200,
-                                                            uncompressed_size_in_bytes=2000),
+                                                               base_url=f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/",
+                                                               document_file="docs.json",
+                                                               # --> We don't provide a document archive here <--
+                                                               document_archive=None,
+                                                               number_of_documents=5,
+                                                               compressed_size_in_bytes=200,
+                                                               uncompressed_size_in_bytes=2000),
                                data_root="/tmp")
 
         ensure_dir.assert_called_with("/tmp")
-        calls = [ mock.call(f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/docs.json", \
-                            "/tmp/docs.json", 2000, progress_indicator=mock.ANY) ]
+        calls = [mock.call(f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/docs.json",
+                           "/tmp/docs.json", 2000, progress_indicator=mock.ANY)]
         download.assert_has_calls(calls)
         prepare_file_offset_table.assert_called_with("/tmp/docs.json", f"{scheme}://benchmarks.opensearch.org/corpora/unit-test/",
                                                      None, InstanceOf(loader.Downloader))
@@ -447,22 +479,23 @@ class WorkloadPreparationTests(TestCase):
         prepare_file_offset_table.return_value = 5
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                            base_url="http://benchmarks.opensearch.org/corpora/unit-test",
-                                                            document_file="docs.json",
-                                                            # --> We don't provide a document archive here <--
-                                                            document_archive=None,
-                                                            number_of_documents=5,
-                                                            compressed_size_in_bytes=200,
-                                                            uncompressed_size_in_bytes=2000),
+                                                               base_url="http://benchmarks.opensearch.org/corpora/unit-test",
+                                                               document_file="docs.json",
+                                                               # --> We don't provide a document archive here <--
+                                                               document_archive=None,
+                                                               number_of_documents=5,
+                                                               compressed_size_in_bytes=200,
+                                                               uncompressed_size_in_bytes=2000),
                                data_root="/tmp")
 
         ensure_dir.assert_called_with("/tmp")
-        calls = [ mock.call("http://benchmarks.opensearch.org/corpora/unit-test/docs.json", \
-                            "/tmp/docs.json", 2000, progress_indicator=mock.ANY) ]
+        calls = [mock.call("http://benchmarks.opensearch.org/corpora/unit-test/docs.json",
+                           "/tmp/docs.json", 2000, progress_indicator=mock.ANY)]
         download.assert_has_calls(calls)
         prepare_file_offset_table.assert_called_with("/tmp/docs.json", 'http://benchmarks.opensearch.org/corpora/unit-test',
                                                      None, InstanceOf(loader.Downloader))
@@ -475,18 +508,20 @@ class WorkloadPreparationTests(TestCase):
         is_file.return_value = False
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=True, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=True, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                                base_url="http://benchmarks.opensearch.org/corpora/unit-test",
-                                                                document_file="docs.json",
-                                                                number_of_documents=5,
-                                                                uncompressed_size_in_bytes=2000),
+                                                                   base_url="http://benchmarks.opensearch.org/corpora/unit-test",
+                                                                   document_file="docs.json",
+                                                                   number_of_documents=5,
+                                                                   uncompressed_size_in_bytes=2000),
                                    data_root="/tmp")
 
-        self.assertEqual("Cannot find [/tmp/docs.json]. Please disable offline mode and retry.", ctx.exception.args[0])
+        self.assertEqual(
+            "Cannot find [/tmp/docs.json]. Please disable offline mode and retry.", ctx.exception.args[0])
 
         self.assertEqual(0, ensure_dir.call_count)
         self.assertEqual(0, download.call_count)
@@ -499,19 +534,21 @@ class WorkloadPreparationTests(TestCase):
         is_file.return_value = False
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.DataError) as ctx:
             p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                                base_url=None,
-                                                                document_file="docs.json",
-                                                                document_archive=None,
-                                                                number_of_documents=5,
-                                                                uncompressed_size_in_bytes=2000),
+                                                                   base_url=None,
+                                                                   document_file="docs.json",
+                                                                   document_archive=None,
+                                                                   number_of_documents=5,
+                                                                   uncompressed_size_in_bytes=2000),
                                    data_root="/tmp")
 
-        self.assertEqual("Cannot download data because no base URL is provided.", ctx.exception.args[0])
+        self.assertEqual(
+            "Cannot download data because no base URL is provided.", ctx.exception.args[0])
 
         self.assertEqual(0, ensure_dir.call_count)
         self.assertEqual(0, download.call_count)
@@ -527,14 +564,15 @@ class WorkloadPreparationTests(TestCase):
         get_size.return_value = 100
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.DataError) as ctx:
             p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                                document_file="docs.json",
-                                                                number_of_documents=5,
-                                                                uncompressed_size_in_bytes=2000),
+                                                                   document_file="docs.json",
+                                                                   number_of_documents=5,
+                                                                   uncompressed_size_in_bytes=2000),
                                    data_root="/tmp")
 
         self.assertEqual("[/tmp/docs.json] is present but does not have the expected size of [2000] bytes and it "
@@ -554,15 +592,16 @@ class WorkloadPreparationTests(TestCase):
                                                       404, "", None, None)
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=True),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=True),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.DataError) as ctx:
             p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                                base_url="http://benchmarks.opensearch.org/corpora/unit-test",
-                                                                document_file="docs-1k.json",
-                                                                number_of_documents=5,
-                                                                uncompressed_size_in_bytes=None),
+                                                                   base_url="http://benchmarks.opensearch.org/corpora/unit-test",
+                                                                   document_file="docs-1k.json",
+                                                                   number_of_documents=5,
+                                                                   uncompressed_size_in_bytes=None),
                                    data_root="/tmp")
 
         self.assertEqual("This workload does not support test mode. Ask the workload author to add it or disable "
@@ -583,15 +622,16 @@ class WorkloadPreparationTests(TestCase):
                                                       500, "Internal Server Error", None, None)
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.DataError) as ctx:
             p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                                base_url="http://benchmarks.opensearch.org/corpora/unit-test",
-                                                                document_file="docs.json",
-                                                                number_of_documents=5,
-                                                                uncompressed_size_in_bytes=2000),
+                                                                   base_url="http://benchmarks.opensearch.org/corpora/unit-test",
+                                                                   document_file="docs.json",
+                                                                   number_of_documents=5,
+                                                                   uncompressed_size_in_bytes=2000),
                                    data_root="/tmp")
 
         self.assertEqual("Could not download [http://benchmarks.opensearch.org/corpora/unit-test/docs.json] "
@@ -612,18 +652,20 @@ class WorkloadPreparationTests(TestCase):
         prepare_file_offset_table.return_value = 5
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         self.assertTrue(p.prepare_bundled_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                                                    document_file="docs.json",
-                                                                                    document_archive="docs.json.bz2",
-                                                                                    number_of_documents=5,
-                                                                                    compressed_size_in_bytes=200,
-                                                                                    uncompressed_size_in_bytes=2000),
+                                                                                       document_file="docs.json",
+                                                                                       document_archive="docs.json.bz2",
+                                                                                       number_of_documents=5,
+                                                                                       compressed_size_in_bytes=200,
+                                                                                       uncompressed_size_in_bytes=2000),
                                                        data_root="."))
 
-        prepare_file_offset_table.assert_called_with("./docs.json", None, None, InstanceOf(loader.Downloader))
+        prepare_file_offset_table.assert_called_with(
+            "./docs.json", None, None, InstanceOf(loader.Downloader))
 
     @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
     @mock.patch("osbenchmark.utils.io.decompress")
@@ -634,15 +676,16 @@ class WorkloadPreparationTests(TestCase):
         is_file.return_value = False
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         self.assertFalse(p.prepare_bundled_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                                                     document_file="docs.json",
-                                                                                     document_archive="docs.json.bz2",
-                                                                                     number_of_documents=5,
-                                                                                     compressed_size_in_bytes=200,
-                                                                                     uncompressed_size_in_bytes=2000),
+                                                                                        document_file="docs.json",
+                                                                                        document_archive="docs.json.bz2",
+                                                                                        number_of_documents=5,
+                                                                                        compressed_size_in_bytes=200,
+                                                                                        uncompressed_size_in_bytes=2000),
                                                         data_root="."))
 
         self.assertEqual(0, decompress.call_count)
@@ -768,9 +811,11 @@ class WorkloadPreparationTests(TestCase):
                 }
             ]
         }
-        reader = loader.WorkloadSpecificationReader(selected_test_procedure="default-test_procedure")
+        reader = loader.WorkloadSpecificationReader(
+            selected_test_procedure="default-test_procedure")
         full_workload = reader("unittest", workload_specification, "/mappings")
-        used_corpora = sorted(loader.used_corpora(full_workload), key=lambda c: c.name)
+        used_corpora = sorted(loader.used_corpora(
+            full_workload), key=lambda c: c.name)
         self.assertEqual(2, len(used_corpora))
         self.assertEqual("http_logs", used_corpora[0].name)
         # each bulk operation requires a different data file but they should have been merged properly.
@@ -778,7 +823,8 @@ class WorkloadPreparationTests(TestCase):
                          {d.document_archive for d in used_corpora[0].documents})
 
         self.assertEqual("http_logs_unparsed", used_corpora[1].name)
-        self.assertEqual({"documents-201998.unparsed.json.bz2"}, {d.document_archive for d in used_corpora[1].documents})
+        self.assertEqual({"documents-201998.unparsed.json.bz2"},
+                         {d.document_archive for d in used_corpora[1].documents})
 
     @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
     @mock.patch("osbenchmark.utils.io.decompress")
@@ -797,18 +843,20 @@ class WorkloadPreparationTests(TestCase):
         prepare_file_offset_table.return_value = 5
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         self.assertTrue(p.prepare_bundled_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                                                    document_file="docs.json",
-                                                                                    document_archive="docs.json.bz2",
-                                                                                    number_of_documents=5,
-                                                                                    compressed_size_in_bytes=200,
-                                                                                    uncompressed_size_in_bytes=2000),
+                                                                                       document_file="docs.json",
+                                                                                       document_archive="docs.json.bz2",
+                                                                                       number_of_documents=5,
+                                                                                       compressed_size_in_bytes=200,
+                                                                                       uncompressed_size_in_bytes=2000),
                                                        data_root="."))
 
-        prepare_file_offset_table.assert_called_with("./docs.json", None, None, InstanceOf(loader.Downloader))
+        prepare_file_offset_table.assert_called_with(
+            "./docs.json", None, None, InstanceOf(loader.Downloader))
 
     @mock.patch("os.path.getsize")
     @mock.patch("os.path.isfile")
@@ -820,16 +868,17 @@ class WorkloadPreparationTests(TestCase):
         get_size.side_effect = [150]
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.DataError) as ctx:
             p.prepare_bundled_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                                        document_file="docs.json",
-                                                                        document_archive="docs.json.bz2",
-                                                                        number_of_documents=5,
-                                                                        compressed_size_in_bytes=200,
-                                                                        uncompressed_size_in_bytes=2000),
+                                                                           document_file="docs.json",
+                                                                           document_archive="docs.json.bz2",
+                                                                           number_of_documents=5,
+                                                                           compressed_size_in_bytes=200,
+                                                                           uncompressed_size_in_bytes=2000),
                                            data_root=".")
 
         self.assertEqual("[./docs.json.bz2] is present but does not have the expected size of [200] bytes.",
@@ -846,22 +895,71 @@ class WorkloadPreparationTests(TestCase):
         get_size.side_effect = [1500]
 
         p = loader.DocumentSetPreparator(workload_name="unit-test",
-                                         downloader=loader.Downloader(offline=False, test_mode=False),
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
                                          decompressor=loader.Decompressor())
 
         with self.assertRaises(exceptions.DataError) as ctx:
             p.prepare_bundled_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                                        document_file="docs.json",
-                                                                        document_archive="docs.json.bz2",
-                                                                        number_of_documents=5,
-                                                                        compressed_size_in_bytes=200,
-                                                                        uncompressed_size_in_bytes=2000),
+                                                                           document_file="docs.json",
+                                                                           document_archive="docs.json.bz2",
+                                                                           number_of_documents=5,
+                                                                           compressed_size_in_bytes=200,
+                                                                           uncompressed_size_in_bytes=2000),
                                            data_root=".")
         self.assertEqual("[./docs.json] is present but does not have the expected size of [2000] bytes.",
                          ctx.exception.args[0])
 
         self.assertEqual(0, prepare_file_offset_table.call_count)
 
+
+class WorkloadPreparationTests_1(TestCase):
+    @mock.patch("osbenchmark.utils.io.prepare_file_offset_table")
+    @mock.patch("osbenchmark.utils.net.download")
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
+    @mock.patch("os.path.getsize")
+    @mock.patch("os.path.isfile")
+    @mock.patch("os.remove")
+    def test_download_document_file_from_part_files(self, rm_file, is_file, get_size, ensure_dir, download, prepare_file_offset_table):
+        # uncompressed file does not exist
+        # after download uncompressed file exists
+        # after download uncompressed file exists (main loop)
+        is_file.side_effect = [False, True, True, True, True]
+        # uncompressed file size is 2000
+        get_size.side_effect = [1000, 600, 400, 2000]
+
+        prepare_file_offset_table.return_value = 5
+
+        p = loader.DocumentSetPreparator(workload_name="unit-test",
+                                         downloader=loader.Downloader(
+                                             offline=False, test_mode=False),
+                                         decompressor=loader.Decompressor())
+
+        mo = mock.mock_open()
+        with mock.patch("builtins.open", mo):
+            p.prepare_document_set(document_set=workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
+                                                                   base_url="http://benchmarks.opensearch.org/corpora/unit-test",
+                                                                   document_file="docs.json",
+                                                                   document_file_parts=[{"name": "xaa", "size": 1000},
+                                                                                        {"name": "xab",
+                                                                                            "size": 600},
+                                                                                        {"name": "xac", "size": 400}],
+                                                                   # --> We don't provide a document archive here <--
+                                                                   document_archive=None,
+                                                                   number_of_documents=5,
+                                                                   compressed_size_in_bytes=200,
+                                                                   uncompressed_size_in_bytes=2000),
+                                   data_root="/tmp")
+
+        ensure_dir.assert_called_with("/tmp")
+        calls = [mock.call('http://benchmarks.opensearch.org/corpora/unit-test/xaa', '/tmp/xaa', 1000, progress_indicator=mock.ANY),
+                 mock.call('http://benchmarks.opensearch.org/corpora/unit-test/xab',
+                           '/tmp/xab', 600, progress_indicator=mock.ANY),
+                 mock.call('http://benchmarks.opensearch.org/corpora/unit-test/xac', '/tmp/xac', 400, progress_indicator=mock.ANY)]
+
+        download.assert_has_calls(calls)
+        prepare_file_offset_table.assert_called_with("/tmp/docs.json", 'http://benchmarks.opensearch.org/corpora/unit-test',
+                                                     None, InstanceOf(loader.Downloader))
 
 class TemplateSource(TestCase):
     @mock.patch("osbenchmark.utils.io.dirname")
@@ -956,8 +1054,10 @@ class TemplateSource(TestCase):
             base_path="/some/path/to/a/benchmark/workload",
             template_file_name="workload.json",
             fileglobber=lambda pat: [
-                os.path.join(os.path.dirname(__file__), "resources", "workload_fragment_1.json"),
-                os.path.join(os.path.dirname(__file__), "resources", "workload_fragment_2.json")
+                os.path.join(os.path.dirname(__file__),
+                             "resources", "workload_fragment_1.json"),
+                os.path.join(os.path.dirname(__file__),
+                             "resources", "workload_fragment_2.json")
             ]
         )
         response = tmpl_obj.read_glob_files("*workload_fragment_*.json")
@@ -967,7 +1067,8 @@ class TemplateSource(TestCase):
 
 
 class TemplateRenderTests(TestCase):
-    unittest_template_internal_vars = loader.default_internal_template_vars(clock=StaticClock)
+    unittest_template_internal_vars = loader.default_internal_template_vars(
+        clock=StaticClock)
 
     def test_render_simple_template(self):
         template = """
@@ -977,7 +1078,8 @@ class TemplateRenderTests(TestCase):
         }
         """
 
-        rendered = loader.render_template(template, template_internal_vars=TemplateRenderTests.unittest_template_internal_vars)
+        rendered = loader.render_template(
+            template, template_internal_vars=TemplateRenderTests.unittest_template_internal_vars)
 
         expected = """
         {
@@ -1038,7 +1140,8 @@ class TemplateRenderTests(TestCase):
             ]
         })
 
-        template_source = loader.TemplateSource("", "workload.json", source=source, fileglobber=key_globber)
+        template_source = loader.TemplateSource(
+            "", "workload.json", source=source, fileglobber=key_globber)
         template_source.load_template_from_string(template)
 
         rendered = loader.render_template(
@@ -1095,7 +1198,8 @@ class CompleteWorkloadParamsTests(TestCase):
 
     def test_check_complete_workload_params_contains_all_workload_params(self):
         complete_workload_params = loader.CompleteWorkloadParams()
-        loader.register_all_params_in_workload(CompleteWorkloadParamsTests.assembled_source, complete_workload_params)
+        loader.register_all_params_in_workload(
+            CompleteWorkloadParamsTests.assembled_source, complete_workload_params)
 
         self.assertEqual(
             ["value2", "value3"],
@@ -1118,7 +1222,8 @@ class CompleteWorkloadParamsTests(TestCase):
             "number_of_shards": 5
         }
 
-        complete_workload_params = loader.CompleteWorkloadParams(user_specified_workload_params=workload_params)
+        complete_workload_params = loader.CompleteWorkloadParams(
+            user_specified_workload_params=workload_params)
         complete_workload_params.populate_workload_defined_params(list_of_workload_params=[
             "bulk_indexing_clients",
             "bulk_indexing_iterations",
@@ -1381,12 +1486,15 @@ class WorkloadPostProcessingTests(TestCase):
                      '"index.number_of_replicas": {{ number_of_replicas | default(0)}} }}'
 
         cfg = config.Config()
-        cfg.add(config.Scope.application, "workload", "test.mode.enabled", True)
+        cfg.add(config.Scope.application, "workload",
+                "test.mode.enabled", True)
 
         self.assertEqual(
-            self.as_workload(expected_post_processed, complete_workload_params=complete_workload_params, index_body=index_body),
+            self.as_workload(
+                expected_post_processed, complete_workload_params=complete_workload_params, index_body=index_body),
             loader.TestModeWorkloadProcessor(cfg).on_after_load_workload(
-                self.as_workload(workload_specification, complete_workload_params=complete_workload_params, index_body=index_body)
+                self.as_workload(
+                    workload_specification, complete_workload_params=complete_workload_params, index_body=index_body)
             )
         )
 
@@ -1412,45 +1520,54 @@ class WorkloadPathTests(TestCase):
         path_exists.return_value = True
 
         cfg = config.Config()
-        cfg.add(config.Scope.application, "benchmarks", "local.dataset.cache", "/data")
+        cfg.add(config.Scope.application, "benchmarks",
+                "local.dataset.cache", "/data")
 
         default_test_procedure = workload.TestProcedure("default", default=True, schedule=[
-            workload.Task(name="index", operation=workload.Operation("index", operation_type=workload.OperationType.Bulk), clients=4)
+            workload.Task(name="index", operation=workload.Operation(
+                "index", operation_type=workload.OperationType.Bulk), clients=4)
         ])
         another_test_procedure = workload.TestProcedure("other", default=False)
         t = workload.Workload(name="u", test_procedures=[another_test_procedure, default_test_procedure],
-                        corpora=[
-                            workload.DocumentCorpus("unittest", documents=[
-                                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
-                                                document_file="docs/documents.json",
-                                                document_archive="docs/documents.json.bz2")
-                            ])
-                        ],
-                        indices=[workload.Index(name="test", types=["docs"])])
+                              corpora=[
+            workload.DocumentCorpus("unittest", documents=[
+                workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK,
+                                   document_file="docs/documents.json",
+                                   document_archive="docs/documents.json.bz2")
+            ])
+        ],
+            indices=[workload.Index(name="test", types=["docs"])])
 
         loader.set_absolute_data_path(cfg, t)
 
-        self.assertEqual("/data/unittest/docs/documents.json", t.corpora[0].documents[0].document_file)
-        self.assertEqual("/data/unittest/docs/documents.json.bz2", t.corpora[0].documents[0].document_archive)
+        self.assertEqual("/data/unittest/docs/documents.json",
+                         t.corpora[0].documents[0].document_file)
+        self.assertEqual("/data/unittest/docs/documents.json.bz2",
+                         t.corpora[0].documents[0].document_archive)
 
 
 class WorkloadFilterTests(TestCase):
     def filter(self, workload_specification, include_tasks=None, exclude_tasks=None):
         cfg = config.Config()
-        cfg.add(config.Scope.application, "workload", "include.tasks", include_tasks)
-        cfg.add(config.Scope.application, "workload", "exclude.tasks", exclude_tasks)
+        cfg.add(config.Scope.application, "workload",
+                "include.tasks", include_tasks)
+        cfg.add(config.Scope.application, "workload",
+                "exclude.tasks", exclude_tasks)
 
         processor = loader.TaskFilterWorkloadProcessor(cfg)
         return processor.on_after_load_workload(workload_specification)
 
     def test_rejects_invalid_syntax(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            self.filter(workload_specification=None, include_tasks=["valid", "a:b:c"])
-        self.assertEqual("Invalid format for filtered tasks: [a:b:c]", ctx.exception.args[0])
+            self.filter(workload_specification=None,
+                        include_tasks=["valid", "a:b:c"])
+        self.assertEqual(
+            "Invalid format for filtered tasks: [a:b:c]", ctx.exception.args[0])
 
     def test_rejects_unknown_filter_type(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            self.filter(workload_specification=None, include_tasks=["valid", "op-type:index"])
+            self.filter(workload_specification=None,
+                        include_tasks=["valid", "op-type:index"])
         self.assertEqual("Invalid format for filtered tasks: [op-type:index]. Expected [type] but got [op-type].",
                          ctx.exception.args[0])
 
@@ -1558,17 +1675,19 @@ class WorkloadFilterTests(TestCase):
         self.assertEqual(7, len(full_workload.test_procedures[0].schedule))
 
         filtered = self.filter(full_workload, include_tasks=["index-3",
-                                                          "type:search",
-                                                          # Filtering should also work for non-core operation types.
-                                                          "type:custom-operation-type",
-                                                          "tag:include-me"])
+                                                             "type:search",
+                                                             # Filtering should also work for non-core operation types.
+                                                             "type:custom-operation-type",
+                                                             "tag:include-me"])
 
         schedule = filtered.test_procedures[0].schedule
         self.assertEqual(5, len(schedule))
-        self.assertEqual(["index-3", "match-all-parallel"], [t.name for t in schedule[0].tasks])
+        self.assertEqual(["index-3", "match-all-parallel"],
+                         [t.name for t in schedule[0].tasks])
         self.assertEqual("match-all-serial", schedule[1].name)
         self.assertEqual("cluster-stats", schedule[2].name)
-        self.assertEqual(["query-filtered", "index-4"], [t.name for t in schedule[3].tasks])
+        self.assertEqual(["query-filtered", "index-4"],
+                         [t.name for t in schedule[3].tasks])
         self.assertEqual("final-cluster-stats", schedule[4].name)
 
     def test_filters_exclude_tasks(self):
@@ -1649,11 +1768,13 @@ class WorkloadFilterTests(TestCase):
         full_workload = reader("unittest", workload_specification, "/mappings")
         self.assertEqual(5, len(full_workload.test_procedures[0].schedule))
 
-        filtered = self.filter(full_workload, exclude_tasks=["index-3", "type:search", "create-index"])
+        filtered = self.filter(full_workload, exclude_tasks=[
+                               "index-3", "type:search", "create-index"])
 
         schedule = filtered.test_procedures[0].schedule
         self.assertEqual(3, len(schedule))
-        self.assertEqual(["index-1", "index-2"], [t.name for t in schedule[0].tasks])
+        self.assertEqual(["index-1", "index-2"],
+                         [t.name for t in schedule[0].tasks])
         self.assertEqual("node-stats", schedule[1].name)
         self.assertEqual("cluster-stats", schedule[2].name)
 
@@ -1799,6 +1920,7 @@ class WorkloadRandomizationTests(TestCase):
             self.op_name_2 = "op-name-2"
             self.field_name_1 = "dummy_field_1"
             self.field_name_2 = "dummy_field_2"
+            self.field_name_3 = "dummy_field_3"
             self.index_name = "dummy_index"
 
             # Make the saved standard values different from the functions generating the new values,
@@ -1810,7 +1932,7 @@ class WorkloadRandomizationTests(TestCase):
                     self.field_name_2:{"lte":"06/06/2016", "gte":"05/05/2016", "format":"dd/MM/yyyy"}
                 },
                 self.op_name_2:{
-                    self.field_name_1:{"lte":11, "gte":10}
+                    self.field_name_3:{"top_left":[-9, 9], "bottom_right":[0, 0]}
                 }
             }
 
@@ -1821,7 +1943,7 @@ class WorkloadRandomizationTests(TestCase):
                     self.field_name_2:{"lte":"04/04/2016", "gte":"03/03/2016", "format":"dd/MM/yyyy"}
                 },
                 self.op_name_2:{
-                    self.field_name_1:{"lte":15, "gte":14},
+                    self.field_name_3:{"top_left":[-10, 10], "bottom_right":[0, 0]},
                 }
             }
 
@@ -1862,10 +1984,10 @@ class WorkloadRandomizationTests(TestCase):
                 "body": {
                     "size": 0,
                     "query": {
-                        "range": {
-                            self.field_name_1: {
-                                "lt": 50,
-                                "gte": 0
+                        "geo_bounding_box": {
+                            self.field_name_3: {
+                                "top_left": [-0.1, 61.0],
+                                "bottom_right": [15.0, 48.0]
                             }
                         }
                     }
@@ -1940,7 +2062,8 @@ class WorkloadRandomizationTests(TestCase):
                 }
             }
         }
-        single_range_query_result = processor.extract_fields_and_paths(single_range_query)
+        single_range_query_result = processor.extract_fields_and_paths(
+            single_range_query, loader.QueryRandomizerWorkloadProcessor.DEFAULT_QUERY_RANDOMIZATION_INFO)
         single_range_query_expected = [("trip_distance", ["bool", "filter", "range"])]
         self.assertEqual(single_range_query_result, single_range_query_expected)
 
@@ -1993,7 +2116,8 @@ class WorkloadRandomizationTests(TestCase):
                 }
             }
         }
-        multiple_nested_range_query_result = processor.extract_fields_and_paths(multiple_nested_range_query)
+        multiple_nested_range_query_result = processor.extract_fields_and_paths(
+            multiple_nested_range_query, loader.QueryRandomizerWorkloadProcessor.DEFAULT_QUERY_RANDOMIZATION_INFO)
         print("Multi result: ", multiple_nested_range_query_result)
         multiple_nested_range_query_expected = [
             ("dropoff_datetime", ["range"]),
@@ -2005,11 +2129,34 @@ class WorkloadRandomizationTests(TestCase):
 
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             params = {"body":{"contents":["not_a_valid_query"]}}
-            _ = processor.extract_fields_and_paths(params)
+            _ = processor.extract_fields_and_paths(params, loader.QueryRandomizerWorkloadProcessor.DEFAULT_QUERY_RANDOMIZATION_INFO)
             self.assertEqual(
                 f"Cannot extract range query fields from these params: {params}\n, missing params[\"body\"][\"query\"]\n"
                 f"Make sure the operation in operations/default.json is well-formed",
                          ctx.exception.args[0])
+
+        # Test a non-default value for query_randomization_info
+        geo_point_query = {
+            "name": "bbox",
+            "operation-type": "search",
+            "body": {
+                "size": 0,
+                "query": {
+                    "geo_bounding_box": {
+                        "location": {
+                            "top_left": [-0.1, 61.0],
+                            "bottom_right": [15.0, 48.0]
+                        }
+                    }
+                }
+            }
+        }
+        geo_point_query_randomization_info = loader.QueryRandomizerWorkloadProcessor.QueryRandomizationInfo(
+            "geo_bounding_box", [["top_left"], ["bottom_right"]], [])
+        geo_point_result = processor.extract_fields_and_paths(geo_point_query, geo_point_query_randomization_info)
+        geo_point_expected = [("location", ["geo_bounding_box"])]
+        self.assertEqual(geo_point_result, geo_point_expected)
+
 
     def test_get_randomized_values(self):
         helper = self.StandardValueHelper()
@@ -2024,9 +2171,12 @@ class WorkloadRandomizationTests(TestCase):
 
             # Test resulting params for operation 1
             workload = helper.get_simple_workload()
-            modified_params = processor.get_randomized_values(workload, helper.op_1_query, op_name=helper.op_name_1,
-                                                            get_standard_value=helper.get_standard_value,
-                                                            get_standard_value_source=helper.get_standard_value_source)
+            modified_params = processor.get_randomized_values(workload,
+                                                              helper.op_1_query,
+                                                              loader.QueryRandomizerWorkloadProcessor.DEFAULT_QUERY_RANDOMIZATION_INFO,
+                                                              op_name=helper.op_name_1,
+                                                              get_standard_value=helper.get_standard_value,
+                                                              get_standard_value_source=helper.get_standard_value_source)
             modified_range_1 = modified_params["body"]["query"]["bool"]["filter"]["range"][helper.field_name_1]
             modified_range_2 = modified_params["body"]["query"]["bool"]["filter"]["must"][0]["range"][helper.field_name_2]
             self.assertEqual(modified_range_1["lt"], expected_values_dict[helper.op_name_1][helper.field_name_1]["lte"])
@@ -2039,17 +2189,19 @@ class WorkloadRandomizationTests(TestCase):
 
             self.assertEqual(modified_params["index"], helper.index_name)
 
-            # Test resulting params for operation 2
+            # Test resulting params for operation 2, which uses a non-default query_randomization_info
             workload = helper.get_simple_workload()
-            modified_params = processor.get_randomized_values(workload, helper.op_2_query, op_name=helper.op_name_2,
+            geo_point_query_randomization_info = loader.QueryRandomizerWorkloadProcessor.QueryRandomizationInfo(
+                "geo_bounding_box", [["top_left"], ["bottom_right"]], [])
+            modified_params = processor.get_randomized_values(workload, helper.op_2_query, geo_point_query_randomization_info,
+                                                            op_name=helper.op_name_2,
                                                             get_standard_value=helper.get_standard_value,
                                                             get_standard_value_source=helper.get_standard_value_source)
-            modified_range_1 = modified_params["body"]["query"]["range"][helper.field_name_1]
+            modified_range_3 = modified_params["body"]["query"]["geo_bounding_box"][helper.field_name_3]
 
-            self.assertEqual(modified_range_1["lt"], expected_values_dict[helper.op_name_2][helper.field_name_1]["lte"])
-            self.assertEqual(modified_range_1["gte"], expected_values_dict[helper.op_name_2][helper.field_name_1]["gte"])
+            self.assertEqual(modified_range_3["top_left"], expected_values_dict[helper.op_name_2][helper.field_name_3]["top_left"])
+            self.assertEqual(modified_range_3["bottom_right"], expected_values_dict[helper.op_name_2][helper.field_name_3]["bottom_right"])
             self.assertEqual(modified_params["index"], helper.index_name)
-
 
     def test_on_after_load_workload(self):
         cfg = config.Config()
@@ -2076,7 +2228,8 @@ class WorkloadRandomizationTests(TestCase):
         self.assertNotEqual(
             repr(input_workload),
             repr(processor.on_after_load_workload(input_workload, get_standard_value=helper.get_standard_value,
-                                                            get_standard_value_source=helper.get_standard_value_source)))
+                                                            get_standard_value_source=helper.get_standard_value_source,
+                                                            query_randomization_info=None)))
         for test_procedure in input_workload.test_procedures:
             for task in test_procedure.schedule:
                 for leaf_task in task:
@@ -2088,7 +2241,6 @@ class WorkloadRandomizationTests(TestCase):
                         self.assertIsNotNone(leaf_task.operation.param_source)
 
 
-
 # pylint: disable=too-many-public-methods
 class WorkloadSpecificationReaderTests(TestCase):
     def test_description_is_optional(self):
@@ -2098,7 +2250,8 @@ class WorkloadSpecificationReaderTests(TestCase):
         }
         reader = loader.WorkloadSpecificationReader()
 
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         self.assertEqual("unittest", resulting_workload.name)
         self.assertEqual("", resulting_workload.description)
 
@@ -2112,9 +2265,11 @@ class WorkloadSpecificationReaderTests(TestCase):
             "test_procedures": []
         }
         reader = loader.WorkloadSpecificationReader()
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         self.assertEqual("unittest", resulting_workload.name)
-        self.assertEqual("description for unit test", resulting_workload.description)
+        self.assertEqual("description for unit test",
+                         resulting_workload.description)
 
     def test_document_count_mandatory_if_file_present(self):
         workload_specification = {
@@ -2132,7 +2287,8 @@ class WorkloadSpecificationReaderTests(TestCase):
         reader = loader.WorkloadSpecificationReader()
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
-        self.assertEqual("Workload 'unittest' is invalid. Mandatory element 'document-count' is missing.", ctx.exception.args[0])
+        self.assertEqual(
+            "Workload 'unittest' is invalid. Mandatory element 'document-count' is missing.", ctx.exception.args[0])
 
     @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_with_mixed_warmup_iterations_and_measurement(self, mocked_params_checker):
@@ -2224,6 +2380,63 @@ class WorkloadSpecificationReaderTests(TestCase):
         self.assertEqual("Workload 'unittest' is invalid. You must define 'test_procedure', 'test_procedures' or "
                          "'schedule' but none is specified.",
                          ctx.exception.args[0])
+
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
+    def test_parse_iteration_and_ramp_up_period(self, mocked_params_checker):
+        workload_specification = {
+            "description": "description for unit test",
+            "indices": [
+                {
+                    "name": "test-index",
+                    "body": "index.json",
+                    "types": ["docs"]
+                }
+            ],
+            "corpora": [
+                {
+                    "name": "test",
+                    "documents": [
+                        {
+                            "source-file": "documents-main.json.bz2",
+                            "document-count": 10,
+                            "compressed-bytes": 100,
+                            "uncompressed-bytes": 10000
+                        }
+                    ]
+                }
+            ],
+            "operations": [
+                {
+                    "name": "index-append",
+                    "operation-type": "bulk",
+                    "bulk-size": 5000,
+                }
+            ],
+            "test_procedures": [
+                {
+                    "name": "default-challenge",
+                    "schedule": [
+                        {
+                            "clients": 8,
+                            "operation": "index-append",
+                            "ramp-up-time-period": 120,
+                            "warmup-iterations": 3,
+                            "iterations": 5
+                        }
+                    ]
+                }
+
+            ]
+        }
+        reader = loader.WorkloadSpecificationReader(source=io.DictStringFileSourceFactory({
+            "/mappings/index.json": ['{"mappings": {"docs": "empty-for-test"}}'],
+        }))
+
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+
+        self.assertEqual("Workload 'unittest' is invalid. Operation 'index-append' in test_procedure 'default-challenge' defines a ramp-up time period of "
+                         "120 seconds as well as 3 warmup iterations and 5 iterations but mixing time periods and iterations is not allowed.", ctx.exception.args[0])
 
     @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_test_procedure_and_test_procedures_are_defined(self, mocked_params_checker):
@@ -2437,7 +2650,8 @@ class WorkloadSpecificationReaderTests(TestCase):
             }))
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
-        self.assertEqual("Could not load file template for 'definition for index index-historical in body.json'", ctx.exception.args[0])
+        self.assertEqual(
+            "Could not load file template for 'definition for index index-historical in body.json'", ctx.exception.args[0])
 
     def test_parse_unique_task_names(self):
         workload_specification = {
@@ -2465,8 +2679,10 @@ class WorkloadSpecificationReaderTests(TestCase):
                 ]
             }
         }
-        reader = loader.WorkloadSpecificationReader(selected_test_procedure="default-test_procedure")
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        reader = loader.WorkloadSpecificationReader(
+            selected_test_procedure="default-test_procedure")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         self.assertEqual("unittest", resulting_workload.name)
         test_procedure = resulting_workload.test_procedures[0]
         self.assertTrue(test_procedure.selected)
@@ -2476,6 +2692,74 @@ class WorkloadSpecificationReaderTests(TestCase):
         self.assertEqual("search", schedule[0].operation.name)
         self.assertEqual("search-two-clients", schedule[1].name)
         self.assertEqual("search", schedule[1].operation.name)
+
+    def test_parse_clients_list(self):
+        workload_specification = {
+            "description": "description for unit test",
+            "operations": [
+                {
+                    "name": "search",
+                    "operation-type": "search",
+                    "index": "_all"
+                }
+            ],
+            "test_procedure": {
+                "name": "default-test-procedure",
+                "schedule": [
+                    {
+                        "name": "search-one-client",
+                        "operation": "search",
+                        "clients": 1,
+                        "clients_list": [1, 2, 3]
+                    },
+                    {
+                        "name": "search-two-clients",
+                        "operation": "search",
+                        "clients": 2
+                    }
+                ]
+            }
+        }
+
+        reader = loader.WorkloadSpecificationReader(
+            selected_test_procedure="default-test-procedure")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
+        self.assertEqual("unittest", resulting_workload.name)
+        test_procedure = resulting_workload.test_procedures[0]
+        self.assertTrue(test_procedure.selected)
+        schedule = test_procedure.schedule
+        self.assertEqual(4, len(schedule))
+
+        self.assertEqual("default-test-procedure_1_clients", schedule[0].name)
+        self.assertEqual("search", schedule[0].operation.name)
+        self.assertEqual("default-test-procedure_2_clients", schedule[1].name)
+        self.assertEqual("search", schedule[1].operation.name)
+        self.assertEqual("default-test-procedure_3_clients", schedule[2].name)
+        self.assertEqual("search", schedule[2].operation.name)
+
+        self.assertEqual("search-two-clients", schedule[3].name)
+        self.assertEqual("search", schedule[3].operation.name)
+    # pylint: disable=W0212
+
+    def test_naming_with_clients_list(self):
+        reader = loader.WorkloadSpecificationReader(
+            selected_test_procedure="default-test_procedure")
+        # Test case 1: name contains both "_" and "-"
+        result = reader._rename_task_based_on_num_clients("test_name-task", 5)
+        self.assertEqual(result, "test_name-task_5_clients")
+
+        # Test case 2: name contains only "-"
+        result = reader._rename_task_based_on_num_clients("test-name", 3)
+        self.assertEqual(result, "test-name-3-clients")
+
+        # Test case 3: name contains only "_"
+        result = reader._rename_task_based_on_num_clients("test_name", 2)
+        self.assertEqual(result, "test_name_2_clients")
+
+        # Test case 4: name contains neither "_" nor "-"
+        result = reader._rename_task_based_on_num_clients("testname", 1)
+        self.assertEqual(result, "testname_1_clients")
 
     def test_parse_indices_valid_workload_specification(self):
         workload_specification = {
@@ -2578,17 +2862,20 @@ class WorkloadSpecificationReaderTests(TestCase):
             }
             """]
             }))
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         # j2 variables defined in the workload -- used for checking mismatching user workload params
         self.assertEqual(
             ["number_of_shards"],
             complete_workload_params.sorted_workload_defined_params
         )
         self.assertEqual("unittest", resulting_workload.name)
-        self.assertEqual("description for unit test", resulting_workload.description)
+        self.assertEqual("description for unit test",
+                         resulting_workload.description)
         # indices
         self.assertEqual(1, len(resulting_workload.indices))
-        self.assertEqual("index-historical", resulting_workload.indices[0].name)
+        self.assertEqual("index-historical",
+                         resulting_workload.indices[0].name)
         self.assertDictEqual({
             "settings": {
                 "number_of_shards": 3
@@ -2597,7 +2884,7 @@ class WorkloadSpecificationReaderTests(TestCase):
                 {
                     "main": "empty-for-test",
                     "secondary": "empty-for-test"
-                }
+            }
         }, resulting_workload.indices[0].body)
         self.assertEqual(2, len(resulting_workload.indices[0].types))
         self.assertEqual("main", resulting_workload.indices[0].types[0])
@@ -2605,13 +2892,16 @@ class WorkloadSpecificationReaderTests(TestCase):
         # corpora
         self.assertEqual(1, len(resulting_workload.corpora))
         self.assertEqual("test", resulting_workload.corpora[0].name)
-        self.assertDictEqual({"test-corpus": True}, resulting_workload.corpora[0].meta_data)
+        self.assertDictEqual({"test-corpus": True},
+                             resulting_workload.corpora[0].meta_data)
         self.assertEqual(2, len(resulting_workload.corpora[0].documents))
 
         docs_primary = resulting_workload.corpora[0].documents[0]
-        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK, docs_primary.source_format)
+        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK,
+                         docs_primary.source_format)
         self.assertEqual("documents-main.json", docs_primary.document_file)
-        self.assertEqual("documents-main.json.bz2", docs_primary.document_archive)
+        self.assertEqual("documents-main.json.bz2",
+                         docs_primary.document_archive)
         self.assertEqual("https://localhost/data", docs_primary.base_url)
         self.assertFalse(docs_primary.includes_action_and_meta_data)
         self.assertEqual(10, docs_primary.number_of_documents)
@@ -2625,9 +2915,12 @@ class WorkloadSpecificationReaderTests(TestCase):
         }, docs_primary.meta_data)
 
         docs_secondary = resulting_workload.corpora[0].documents[1]
-        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK, docs_secondary.source_format)
-        self.assertEqual("documents-secondary.json", docs_secondary.document_file)
-        self.assertEqual("documents-secondary.json.bz2", docs_secondary.document_archive)
+        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK,
+                         docs_secondary.source_format)
+        self.assertEqual("documents-secondary.json",
+                         docs_secondary.document_file)
+        self.assertEqual("documents-secondary.json.bz2",
+                         docs_secondary.document_archive)
         self.assertEqual("https://localhost/data", docs_secondary.base_url)
         self.assertTrue(docs_secondary.includes_action_and_meta_data)
         self.assertEqual(20, docs_secondary.number_of_documents)
@@ -2643,11 +2936,16 @@ class WorkloadSpecificationReaderTests(TestCase):
 
         # test_procedures
         self.assertEqual(1, len(resulting_workload.test_procedures))
-        self.assertEqual("default-test_procedure", resulting_workload.test_procedures[0].name)
-        self.assertEqual("Default test_procedure", resulting_workload.test_procedures[0].description)
-        self.assertEqual({"mixed": True, "max-clients": 8}, resulting_workload.test_procedures[0].meta_data)
-        self.assertEqual({"append": True}, resulting_workload.test_procedures[0].schedule[0].operation.meta_data)
-        self.assertEqual({"operation-index": 0}, resulting_workload.test_procedures[0].schedule[0].meta_data)
+        self.assertEqual("default-test_procedure",
+                         resulting_workload.test_procedures[0].name)
+        self.assertEqual("Default test_procedure",
+                         resulting_workload.test_procedures[0].description)
+        self.assertEqual({"mixed": True, "max-clients": 8},
+                         resulting_workload.test_procedures[0].meta_data)
+        self.assertEqual(
+            {"append": True}, resulting_workload.test_procedures[0].schedule[0].operation.meta_data)
+        self.assertEqual({"operation-index": 0},
+                         resulting_workload.test_procedures[0].schedule[0].meta_data)
 
     def test_parse_data_streams_valid_workload_specification(self):
         workload_specification = {
@@ -2728,35 +3026,44 @@ class WorkloadSpecificationReaderTests(TestCase):
         complete_workload_params = loader.CompleteWorkloadParams()
         reader = loader.WorkloadSpecificationReader(
             complete_workload_params=complete_workload_params)
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         # j2 variables defined in the workload -- used for checking mismatching user workload params
         self.assertEqual("unittest", resulting_workload.name)
-        self.assertEqual("description for unit test", resulting_workload.description)
+        self.assertEqual("description for unit test",
+                         resulting_workload.description)
         # data streams
         self.assertEqual(1, len(resulting_workload.data_streams))
-        self.assertEqual("data-stream-historical", resulting_workload.data_streams[0].name)
+        self.assertEqual("data-stream-historical",
+                         resulting_workload.data_streams[0].name)
         # corpora
         self.assertEqual(1, len(resulting_workload.corpora))
         self.assertEqual("test", resulting_workload.corpora[0].name)
         self.assertEqual(3, len(resulting_workload.corpora[0].documents))
 
         docs_primary = resulting_workload.corpora[0].documents[0]
-        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK, docs_primary.source_format)
+        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK,
+                         docs_primary.source_format)
         self.assertEqual("documents-main.json", docs_primary.document_file)
-        self.assertEqual("documents-main.json.bz2", docs_primary.document_archive)
+        self.assertEqual("documents-main.json.bz2",
+                         docs_primary.document_archive)
         self.assertEqual("https://localhost/data", docs_primary.base_url)
         self.assertFalse(docs_primary.includes_action_and_meta_data)
         self.assertEqual(10, docs_primary.number_of_documents)
         self.assertEqual(100, docs_primary.compressed_size_in_bytes)
         self.assertEqual(10000, docs_primary.uncompressed_size_in_bytes)
-        self.assertEqual("data-stream-historical", docs_primary.target_data_stream)
+        self.assertEqual("data-stream-historical",
+                         docs_primary.target_data_stream)
         self.assertIsNone(docs_primary.target_index)
         self.assertIsNone(docs_primary.target_type)
 
         docs_secondary = resulting_workload.corpora[0].documents[1]
-        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK, docs_secondary.source_format)
-        self.assertEqual("documents-secondary.json", docs_secondary.document_file)
-        self.assertEqual("documents-secondary.json.bz2", docs_secondary.document_archive)
+        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK,
+                         docs_secondary.source_format)
+        self.assertEqual("documents-secondary.json",
+                         docs_secondary.document_file)
+        self.assertEqual("documents-secondary.json.bz2",
+                         docs_secondary.document_archive)
         self.assertEqual("https://localhost/data", docs_secondary.base_url)
         self.assertTrue(docs_secondary.includes_action_and_meta_data)
         self.assertEqual(20, docs_secondary.number_of_documents)
@@ -2768,24 +3075,32 @@ class WorkloadSpecificationReaderTests(TestCase):
         self.assertIsNone(docs_secondary.target_type)
 
         docs_tertiary = resulting_workload.corpora[0].documents[2]
-        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK, docs_tertiary.source_format)
+        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK,
+                         docs_tertiary.source_format)
         self.assertEqual("documents-main.json", docs_tertiary.document_file)
-        self.assertEqual("documents-main.json.bz2", docs_tertiary.document_archive)
+        self.assertEqual("documents-main.json.bz2",
+                         docs_tertiary.document_archive)
         self.assertEqual("https://localhost/data", docs_tertiary.base_url)
         self.assertFalse(docs_tertiary.includes_action_and_meta_data)
         self.assertEqual(10, docs_tertiary.number_of_documents)
         self.assertEqual(100, docs_tertiary.compressed_size_in_bytes)
         self.assertIsNone(docs_tertiary.target_index)
         self.assertIsNone(docs_tertiary.target_type)
-        self.assertEqual("data-stream-historical", docs_tertiary.target_data_stream)
+        self.assertEqual("data-stream-historical",
+                         docs_tertiary.target_data_stream)
 
         # test_procedures
         self.assertEqual(1, len(resulting_workload.test_procedures))
-        self.assertEqual("default-test_procedure", resulting_workload.test_procedures[0].name)
-        self.assertEqual("Default test_procedure", resulting_workload.test_procedures[0].description)
-        self.assertEqual({"mixed": True, "max-clients": 8}, resulting_workload.test_procedures[0].meta_data)
-        self.assertEqual({"append": True}, resulting_workload.test_procedures[0].schedule[0].operation.meta_data)
-        self.assertEqual({"operation-index": 0}, resulting_workload.test_procedures[0].schedule[0].meta_data)
+        self.assertEqual("default-test_procedure",
+                         resulting_workload.test_procedures[0].name)
+        self.assertEqual("Default test_procedure",
+                         resulting_workload.test_procedures[0].description)
+        self.assertEqual({"mixed": True, "max-clients": 8},
+                         resulting_workload.test_procedures[0].meta_data)
+        self.assertEqual(
+            {"append": True}, resulting_workload.test_procedures[0].schedule[0].operation.meta_data)
+        self.assertEqual({"operation-index": 0},
+                         resulting_workload.test_procedures[0].schedule[0].meta_data)
 
     @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_valid_without_types(self, mocked_param_checker):
@@ -2834,12 +3149,15 @@ class WorkloadSpecificationReaderTests(TestCase):
             }
             """]
             }))
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         self.assertEqual("unittest", resulting_workload.name)
-        self.assertEqual("description for unit test", resulting_workload.description)
+        self.assertEqual("description for unit test",
+                         resulting_workload.description)
         # indices
         self.assertEqual(1, len(resulting_workload.indices))
-        self.assertEqual("index-historical", resulting_workload.indices[0].name)
+        self.assertEqual("index-historical",
+                         resulting_workload.indices[0].name)
         self.assertDictEqual({
             "settings": {
                 "number_of_shards": 3
@@ -2852,9 +3170,11 @@ class WorkloadSpecificationReaderTests(TestCase):
         self.assertEqual(1, len(resulting_workload.corpora[0].documents))
 
         docs_primary = resulting_workload.corpora[0].documents[0]
-        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK, docs_primary.source_format)
+        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK,
+                         docs_primary.source_format)
         self.assertEqual("documents-main.json", docs_primary.document_file)
-        self.assertEqual("documents-main.json.bz2", docs_primary.document_archive)
+        self.assertEqual("documents-main.json.bz2",
+                         docs_primary.document_archive)
         self.assertEqual("https://localhost/data", docs_primary.base_url)
         self.assertFalse(docs_primary.includes_action_and_meta_data)
         self.assertEqual(10, docs_primary.number_of_documents)
@@ -3083,29 +3403,35 @@ class WorkloadSpecificationReaderTests(TestCase):
                 }
                 """]
             }))
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         self.assertEqual("unittest", resulting_workload.name)
-        self.assertEqual("description for unit test", resulting_workload.description)
+        self.assertEqual("description for unit test",
+                         resulting_workload.description)
         # indices
         self.assertEqual(0, len(resulting_workload.indices))
         # data streams
         self.assertEqual(1, len(resulting_workload.data_streams))
-        self.assertEqual("historical-data-stream", resulting_workload.data_streams[0].name)
+        self.assertEqual("historical-data-stream",
+                         resulting_workload.data_streams[0].name)
         # corpora
         self.assertEqual(1, len(resulting_workload.corpora))
         self.assertEqual("test", resulting_workload.corpora[0].name)
         self.assertEqual(1, len(resulting_workload.corpora[0].documents))
 
         docs_primary = resulting_workload.corpora[0].documents[0]
-        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK, docs_primary.source_format)
+        self.assertEqual(workload.Documents.SOURCE_FORMAT_BULK,
+                         docs_primary.source_format)
         self.assertEqual("documents-main.json", docs_primary.document_file)
-        self.assertEqual("documents-main.json.bz2", docs_primary.document_archive)
+        self.assertEqual("documents-main.json.bz2",
+                         docs_primary.document_archive)
         self.assertEqual("https://localhost/data", docs_primary.base_url)
         self.assertFalse(docs_primary.includes_action_and_meta_data)
         self.assertEqual(10, docs_primary.number_of_documents)
         self.assertEqual(100, docs_primary.compressed_size_in_bytes)
         self.assertEqual(10000, docs_primary.uncompressed_size_in_bytes)
-        self.assertEqual("historical-data-stream", docs_primary.target_data_stream)
+        self.assertEqual("historical-data-stream",
+                         docs_primary.target_data_stream)
         self.assertIsNone(docs_primary.target_type)
         self.assertIsNone(docs_primary.target_index)
 
@@ -3138,17 +3464,20 @@ class WorkloadSpecificationReaderTests(TestCase):
                     }
                 }
                 """],
-        }))
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+            }))
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         self.assertEqual(
             ["index_pattern", "number_of_shards"],
             complete_workload_params.sorted_workload_defined_params
         )
         self.assertEqual("unittest", resulting_workload.name)
-        self.assertEqual("description for unit test", resulting_workload.description)
+        self.assertEqual("description for unit test",
+                         resulting_workload.description)
         self.assertEqual(0, len(resulting_workload.indices))
         self.assertEqual(1, len(resulting_workload.templates))
-        self.assertEqual("my-index-template", resulting_workload.templates[0].name)
+        self.assertEqual("my-index-template",
+                         resulting_workload.templates[0].name)
         self.assertEqual("*", resulting_workload.templates[0].pattern)
         self.assertDictEqual(
             {
@@ -3184,7 +3513,8 @@ class WorkloadSpecificationReaderTests(TestCase):
         }
         complete_workload_params = loader.CompleteWorkloadParams()
         reader = loader.WorkloadSpecificationReader(
-            workload_params={"index_pattern": "logs-*", "number_of_replicas": 1},
+            workload_params={"index_pattern": "logs-*",
+                             "number_of_replicas": 1},
             complete_workload_params=complete_workload_params,
             source=io.DictStringFileSourceFactory({
                 "/mappings/default-template.json": ["""
@@ -3224,20 +3554,26 @@ class WorkloadSpecificationReaderTests(TestCase):
                         }
                         """]
             }))
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         self.assertEqual(
             ["index_pattern", "number_of_replicas", "number_of_shards"],
             complete_workload_params.sorted_workload_defined_params
         )
         self.assertEqual("unittest", resulting_workload.name)
-        self.assertEqual("description for unit test", resulting_workload.description)
+        self.assertEqual("description for unit test",
+                         resulting_workload.description)
         self.assertEqual(0, len(resulting_workload.indices))
         self.assertEqual(1, len(resulting_workload.composable_templates))
         self.assertEqual(2, len(resulting_workload.component_templates))
-        self.assertEqual("my-index-template", resulting_workload.composable_templates[0].name)
-        self.assertEqual("*", resulting_workload.composable_templates[0].pattern)
-        self.assertEqual("my-component-template-1", resulting_workload.component_templates[0].name)
-        self.assertEqual("my-component-template-2", resulting_workload.component_templates[1].name)
+        self.assertEqual("my-index-template",
+                         resulting_workload.composable_templates[0].name)
+        self.assertEqual(
+            "*", resulting_workload.composable_templates[0].pattern)
+        self.assertEqual("my-component-template-1",
+                         resulting_workload.component_templates[0].name)
+        self.assertEqual("my-component-template-2",
+                         resulting_workload.component_templates[1].name)
         self.assertDictEqual(
             {
                 "index_patterns": ["logs-*"],
@@ -3286,7 +3622,8 @@ class WorkloadSpecificationReaderTests(TestCase):
         }
         complete_workload_params = loader.CompleteWorkloadParams()
         reader = loader.WorkloadSpecificationReader(
-            workload_params={"index_pattern": "logs-*", "number_of_replicas": 1},
+            workload_params={"index_pattern": "logs-*",
+                             "number_of_replicas": 1},
             complete_workload_params=complete_workload_params)
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
@@ -3329,7 +3666,8 @@ class WorkloadSpecificationReaderTests(TestCase):
         reader = loader.WorkloadSpecificationReader()
         with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
             reader("unittest", workload_specification, "/mappings")
-        self.assertEqual("Workload 'unittest' is invalid. Duplicate test_procedure with name 'test-test_procedure'.", ctx.exception.args[0])
+        self.assertEqual(
+            "Workload 'unittest' is invalid. Duplicate test_procedure with name 'test-test_procedure'.", ctx.exception.args[0])
 
     def test_not_more_than_one_default_test_procedure_possible(self):
         workload_specification = {
@@ -3440,10 +3778,13 @@ class WorkloadSpecificationReaderTests(TestCase):
 
             ]
         }
-        reader = loader.WorkloadSpecificationReader(selected_test_procedure="another-test_procedure")
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        reader = loader.WorkloadSpecificationReader(
+            selected_test_procedure="another-test_procedure")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         self.assertEqual(2, len(resulting_workload.test_procedures))
-        self.assertEqual("test_procedure", resulting_workload.test_procedures[0].name)
+        self.assertEqual("test_procedure",
+                         resulting_workload.test_procedures[0].name)
         self.assertTrue(resulting_workload.test_procedures[0].default)
         self.assertFalse(resulting_workload.test_procedures[1].default)
         self.assertTrue(resulting_workload.test_procedures[1].selected)
@@ -3468,9 +3809,11 @@ class WorkloadSpecificationReaderTests(TestCase):
             }
         }
         reader = loader.WorkloadSpecificationReader()
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         self.assertEqual(1, len(resulting_workload.test_procedures))
-        self.assertEqual("test_procedure", resulting_workload.test_procedures[0].name)
+        self.assertEqual("test_procedure",
+                         resulting_workload.test_procedures[0].name)
         self.assertTrue(resulting_workload.test_procedures[0].default)
         self.assertTrue(resulting_workload.test_procedures[0].selected)
 
@@ -3491,7 +3834,8 @@ class WorkloadSpecificationReaderTests(TestCase):
             ]
         }
         reader = loader.WorkloadSpecificationReader()
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         self.assertEqual(1, len(resulting_workload.test_procedures))
         self.assertTrue(resulting_workload.test_procedures[0].auto_generated)
         self.assertTrue(resulting_workload.test_procedures[0].default)
@@ -3519,12 +3863,15 @@ class WorkloadSpecificationReaderTests(TestCase):
             }
         }
         reader = loader.WorkloadSpecificationReader()
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
 
         test_procedure = resulting_workload.test_procedures[0]
         self.assertEqual(2, len(test_procedure.schedule))
-        self.assertEqual(workload.OperationType.Bulk.to_hyphenated_string(), test_procedure.schedule[0].operation.type)
-        self.assertEqual(workload.OperationType.ForceMerge.to_hyphenated_string(), test_procedure.schedule[1].operation.type)
+        self.assertEqual(workload.OperationType.Bulk.to_hyphenated_string(
+        ), test_procedure.schedule[0].operation.type)
+        self.assertEqual(workload.OperationType.ForceMerge.to_hyphenated_string(
+        ), test_procedure.schedule[1].operation.type)
 
     def test_supports_target_throughput(self):
         workload_specification = {
@@ -3542,13 +3889,19 @@ class WorkloadSpecificationReaderTests(TestCase):
                     {
                         "operation": "index-append",
                         "target-throughput": 10,
+                        "warmup-time-period": 120,
+                        "ramp-up-time-period": 60
                     }
                 ]
             }
         }
         reader = loader.WorkloadSpecificationReader()
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
-        self.assertEqual(10, resulting_workload.test_procedures[0].schedule[0].params["target-throughput"])
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
+        indexing_task = resulting_workload.test_procedures[0].schedule[0]
+        self.assertEqual(10, indexing_task.params["target-throughput"])
+        self.assertEqual(120, indexing_task.warmup_time_period)
+        self.assertEqual(60, indexing_task.ramp_up_time_period)
 
     def test_supports_target_interval(self):
         workload_specification = {
@@ -3573,8 +3926,10 @@ class WorkloadSpecificationReaderTests(TestCase):
             ]
         }
         reader = loader.WorkloadSpecificationReader()
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
-        self.assertEqual(5, resulting_workload.test_procedures[0].schedule[0].params["target-interval"])
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
+        self.assertEqual(
+            5, resulting_workload.test_procedures[0].schedule[0].params["target-interval"])
 
     def test_parallel_tasks_with_default_values(self):
         workload_specification = {
@@ -3626,7 +3981,8 @@ class WorkloadSpecificationReaderTests(TestCase):
             ]
         }
         reader = loader.WorkloadSpecificationReader()
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         parallel_element = resulting_workload.test_procedures[0].schedule[0]
         parallel_tasks = parallel_element.tasks
 
@@ -3695,7 +4051,8 @@ class WorkloadSpecificationReaderTests(TestCase):
             ]
         }
         reader = loader.WorkloadSpecificationReader()
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         parallel_element = resulting_workload.test_procedures[0].schedule[0]
         parallel_tasks = parallel_element.tasks
 
@@ -3743,7 +4100,8 @@ class WorkloadSpecificationReaderTests(TestCase):
             ]
         }
         reader = loader.WorkloadSpecificationReader()
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         parallel_element = resulting_workload.test_procedures[0].schedule[0]
         parallel_tasks = parallel_element.tasks
 
@@ -3797,7 +4155,8 @@ class WorkloadSpecificationReaderTests(TestCase):
             ]
         }
         reader = loader.WorkloadSpecificationReader()
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         parallel_element = resulting_workload.test_procedures[0].schedule[0]
         parallel_tasks = parallel_element.tasks
 
@@ -3933,10 +4292,13 @@ class WorkloadSpecificationReaderTests(TestCase):
 
             ]
         }
-        reader = loader.WorkloadSpecificationReader(selected_test_procedure="another-test_procedure")
-        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        reader = loader.WorkloadSpecificationReader(
+            selected_test_procedure="another-test_procedure")
+        resulting_workload = reader(
+            "unittest", workload_specification, "/mappings")
         self.assertEqual(2, len(resulting_workload.test_procedures))
-        self.assertEqual("test_procedure", resulting_workload.test_procedures[0].name)
+        self.assertEqual("test_procedure",
+                         resulting_workload.test_procedures[0].name)
         self.assertTrue(resulting_workload.test_procedures[0].default)
         self.assertDictEqual({
             "level": "test_procedure",
@@ -3975,7 +4337,7 @@ class WorkloadProcessorRegistryTests(TestCase):
         cfg.add(config.Scope.application, "system", "offline.mode", False)
         tpr = loader.WorkloadProcessorRegistry(cfg)
         # call this once beforehand to make sure we don't "harden" the default in case calls are made out of order
-        tpr.processors # pylint: disable=pointless-statement
+        tpr.processors  # pylint: disable=pointless-statement
         tpr.register_workload_processor(MyMockWorkloadProcessor())
         expected_processors = [
             loader.TaskFilterWorkloadProcessor,
@@ -3992,7 +4354,7 @@ class WorkloadProcessorRegistryTests(TestCase):
         tpr = loader.WorkloadProcessorRegistry(cfg)
         tpr.register_workload_processor(MyMockWorkloadProcessor())
         # should be idempotent now that we have a custom config
-        tpr.processors # pylint: disable=pointless-statement
+        tpr.processors  # pylint: disable=pointless-statement
         tpr.register_workload_processor(loader.DefaultWorkloadPreparator(cfg))
         expected_processors = [
             loader.TaskFilterWorkloadProcessor,

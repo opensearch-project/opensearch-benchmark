@@ -18,7 +18,7 @@ standardReleasePipelineWithGenericTrigger(
             string(name: 'DOCKER_BUILD_GIT_REPOSITORY_REFERENCE', value: 'main'),
             string(name: 'DOCKER_BUILD_SCRIPT_WITH_COMMANDS', value: [
                 'su $(id -un 1000) -c "cd docker/ci',
-                'git clone https://github.com/opensearch-project/opensearch-benchmark opensearch-benchmark',
+                "git clone https://github.com/opensearch-project/opensearch-benchmark --single-branch --branch ${tag} opensearch-benchmark",
                 'cp -a opensearch-benchmark/* ./"',
                 'cd docker/ci',
                 [

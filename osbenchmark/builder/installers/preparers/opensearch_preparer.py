@@ -29,7 +29,7 @@ class OpenSearchPreparer(Preparer):
     def _create_node(self):
         node_name = str(uuid.uuid4())
         node_port = int(self.provision_config_instance.variables["node"]["port"])
-        node_root_dir = os.path.join(self.provision_config_instance.variables["test_execution_root"], node_name)
+        node_root_dir = os.path.join(self.provision_config_instance.variables["test_run_root"], node_name)
         node_binary_path = os.path.join(node_root_dir, "install")
         node_log_dir = os.path.join(node_root_dir, "logs", "server")
         node_heap_dump_dir = os.path.join(node_root_dir, "heapdump")
@@ -79,9 +79,9 @@ class OpenSearchPreparer(Preparer):
             "data_paths": node.data_paths[0],
             "log_path": node.log_path,
             "heap_dump_path": node.heap_dump_path,
-            # this is the node's IP address as specified by the user when invoking Benchmark
+            # this is the node's IP address as specified by the user when invoking OSB
             "node_ip": host.address,
-            # this is the IP address that the node will be bound to. Benchmark will bind to the node's IP address (but not to 0.0.0.0). The
+            # this is the IP address that the node will be bound to. OSB will bind to the node's IP address (but not to 0.0.0.0). The
             "network_host": host.address,
             "http_port": str(node.port),
             "transport_port": str(node.port + 100),

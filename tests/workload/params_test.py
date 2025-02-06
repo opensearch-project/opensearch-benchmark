@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+# 	http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -34,10 +34,10 @@ from osbenchmark import exceptions
 from osbenchmark.utils import io
 from osbenchmark.utils.dataset import Context, HDF5DataSet
 from osbenchmark.utils.parse import ConfigurationError
-from osbenchmark.workload import params, workload
+from osbenchmark.workload import params, workload, loader
 from osbenchmark.workload.params import VectorDataSetPartitionParamSource, VectorSearchPartitionParamSource, \
     BulkVectorsFromDataSetParamSource
-from tests.utils.dataset_helper import create_data_set
+from tests.utils.dataset_helper import create_data_set, create_attributes_data_set, create_parent_data_set
 from tests.utils.dataset_test import DEFAULT_NUM_VECTORS
 
 
@@ -1459,6 +1459,33 @@ class StandardValueSourceRegistrationTests(TestCase):
 
         params._clear_standard_values()
 
+class QueryRandomizationInfoRegistrationTests(TestCase):
+    def check_result_equality(self, result, expected):
+        self.assertEqual(result.query_name, expected.query_name)
+        self.assertEqual(result.parameter_name_options_list, expected.parameter_name_options_list)
+        self.assertEqual(result.optional_parameters, expected.optional_parameters)
+
+
+    def test_register_query_randomization_info(self):
+        params._clear_query_randomization_infos()
+
+        op_name = "op-1"
+        query_name = "geo_bounding_box"
+        value_name_options_list = [["top_left"], ["lower_right"]]
+        optional_values = []
+        params.register_query_randomization_info(op_name, query_name, value_name_options_list, optional_values)
+
+        query_randomization_info = params.get_query_randomization_info(op_name)
+        expected = loader.QueryRandomizerWorkloadProcessor.QueryRandomizationInfo("geo_bounding_box", [["top_left"], ["lower_right"]], [])
+        self.check_result_equality(query_randomization_info, expected)
+
+        # Should get the default one for an op that has nothing registered
+        query_randomization_info = params.get_query_randomization_info("unrecognized-op")
+        expected = loader.QueryRandomizerWorkloadProcessor.DEFAULT_QUERY_RANDOMIZATION_INFO
+        self.check_result_equality(query_randomization_info, expected)
+
+        params._clear_query_randomization_infos()
+
 class SleepParamSourceTests(TestCase):
     def test_missing_duration_parameter(self):
         with self.assertRaisesRegex(exceptions.InvalidSyntax, "parameter 'duration' is mandatory for sleep operation"):
@@ -2271,7 +2298,8 @@ class SearchParamSourceTests(TestCase):
         })
         p = source.params()
 
-        self.assertEqual(10, len(p))
+        self.assertEqual(11, len(p))
+        self.assertEqual(True, p["calculate-recall"])
         self.assertEqual("index1", p["index"])
         self.assertIsNone(p["type"])
         self.assertIsNone(p["request-timeout"])
@@ -2290,7 +2318,6 @@ class SearchParamSourceTests(TestCase):
 
     def test_uses_data_stream(self):
         ds1 = workload.DataStream(name="data-stream-1")
-
         source = params.SearchParamSource(workload=workload.Workload(name="unit-test", data_streams=[ds1]), params={
             "body": {
                 "query": {
@@ -2307,7 +2334,8 @@ class SearchParamSourceTests(TestCase):
         })
         p = source.params()
 
-        self.assertEqual(10, len(p))
+        self.assertEqual(11, len(p))
+        self.assertEqual(True, p["calculate-recall"])
         self.assertEqual("data-stream-1", p["index"])
         self.assertIsNone(p["type"])
         self.assertEqual(1.0, p["request-timeout"])
@@ -2354,7 +2382,8 @@ class SearchParamSourceTests(TestCase):
         })
         p = source.params()
 
-        self.assertEqual(10, len(p))
+        self.assertEqual(11, len(p))
+        self.assertEqual(True, p["calculate-recall"])
         self.assertEqual("index1", p["index"])
         self.assertIsNone(p["type"])
         self.assertIsNone(p["request-timeout"])
@@ -2390,7 +2419,8 @@ class SearchParamSourceTests(TestCase):
         })
         p = source.params()
 
-        self.assertEqual(10, len(p))
+        self.assertEqual(11, len(p))
+        self.assertEqual(True, p["calculate-recall"])
         self.assertEqual("_all", p["index"])
         self.assertEqual("type1", p["type"])
         self.assertDictEqual({}, p["request-params"])
@@ -2423,7 +2453,8 @@ class SearchParamSourceTests(TestCase):
         })
         p = source.params()
 
-        self.assertEqual(10, len(p))
+        self.assertEqual(11, len(p))
+        self.assertEqual(True, p["calculate-recall"])
         self.assertEqual("data-stream-2", p["index"])
         self.assertIsNone(p["type"])
         self.assertEqual(1.0, p["request-timeout"])
@@ -2900,7 +2931,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
         with self.assertRaises(StopIteration):
             query_param_source_partition.params()
 
-    def test_params_custom_body(self):
+    def test_post_filter(self):
         # Create a data set
         k = 12
         data_set_path = create_data_set(
@@ -2915,43 +2946,184 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             self.DEFAULT_DIMENSION,
             self.DEFAULT_TYPE,
             Context.NEIGHBORS,
-            self.data_set_dir
+            self.data_set_dir,
         )
-        filter_body = {
-            "key": "value"
-        }
 
         # Create a QueryVectorsFromDataSetParamSource with relevant params
+
+        POST_FILTER_BODY = {"range": {"price": {"gte": 5, "lte": 10}}}
         test_param_source_params = {
             "field": self.DEFAULT_FIELD_NAME,
             "data_set_format": self.DEFAULT_TYPE,
             "data_set_path": data_set_path,
             "neighbors_data_set_path": neighbors_data_set_path,
             "k": k,
-            "filter": filter_body,
+            "filter_type": "post_filter",
+            "filter_body": POST_FILTER_BODY,
         }
         query_param_source = VectorSearchPartitionParamSource(
             workload.Workload(name="unit-test"),
-            test_param_source_params, {
+            test_param_source_params,
+            {
                 "index": self.DEFAULT_INDEX_NAME,
                 "request-params": {},
                 "body": {
                     "size": 100,
-                }
-            }
+                },
+            },
         )
         query_param_source_partition = query_param_source.partition(0, 1)
 
         # Check each
         for _ in range(DEFAULT_NUM_VECTORS):
+            params = query_param_source_partition.params()
             self._check_params(
-                query_param_source_partition.params(),
+                params,
                 self.DEFAULT_FIELD_NAME,
                 self.DEFAULT_DIMENSION,
                 k,
                 100,
-                filter_body,
             )
+            post_filter = params.get("body").get("post_filter")
+            self.assertIsInstance(post_filter, dict)
+            self.assertEqual(post_filter, POST_FILTER_BODY)
+
+        # Assert last call creates stop iteration
+        with self.assertRaises(StopIteration):
+            query_param_source_partition.params()
+
+    def test_bool_filter(self):
+        # Create a data set
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir,
+        )
+        neighbors_data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+        )
+        # Create a QueryVectorsFromDataSetParamSource with relevant params
+
+        BOOL_FILTER_BODY = {
+            "bool": {
+                "must": [
+                    {"range": {"rating": {"gte": 8, "lte": 10}}},
+                    {"term": {"parking": "true"}},
+                ]
+            }
+        }
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "neighbors_data_set_path": neighbors_data_set_path,
+            "k": k,
+            "filter_type": "boolean",
+            "filter_body": BOOL_FILTER_BODY,
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params,
+            {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+                "body": {
+                    "size": 100,
+                },
+            },
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+
+        # Check each
+        for _ in range(DEFAULT_NUM_VECTORS):
+            params = query_param_source_partition.params()
+            self._check_params_bool(
+                params,
+                self.DEFAULT_FIELD_NAME,
+                self.DEFAULT_DIMENSION,
+                k,
+                100,
+                BOOL_FILTER_BODY,
+            )
+            # post_filter = params.get("body").get("post_filter")
+            # self.assertIsInstance(post_filter, dict)
+            # self.assertEqual(post_filter, BOOL_FILTER_BODY)
+
+        # Assert last call creates stop iteration
+        with self.assertRaises(StopIteration):
+            query_param_source_partition.params()
+
+    def test_script_score_filter(self):
+        # Create a data set
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir,
+        )
+        neighbors_data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+        )
+
+        # Create a QueryVectorsFromDataSetParamSource with relevant params
+
+        SCRIPT_SCORE_FILTER_BODY = {
+            "bool": {
+                "must": [
+                    {"range": {"rating": {"gte": 8, "lte": 10}}},
+                    {"term": {"parking": "true"}},
+                ]
+            }
+        }
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "neighbors_data_set_path": neighbors_data_set_path,
+            "k": k,
+            "filter_type": "script",
+            "filter_body": SCRIPT_SCORE_FILTER_BODY,
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params,
+            {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+                "body": {
+                    "size": 100,
+                },
+            },
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+
+        # Check each
+        for _ in range(DEFAULT_NUM_VECTORS):
+            params = query_param_source_partition.params()
+            self._check_params_script_score(
+                params,
+                self.DEFAULT_FIELD_NAME,
+                self.DEFAULT_DIMENSION,
+                k,
+                100,
+                SCRIPT_SCORE_FILTER_BODY,
+            )
+            # post_filter = params.get("body").get("post_filter")
+            # self.assertIsInstance(post_filter, dict)
+            # self.assertEqual(post_filter, BOOL_FILTER_BODY)
 
         # Assert last call creates stop iteration
         with self.assertRaises(StopIteration):
@@ -2986,6 +3158,78 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
         self.assertEqual(size, expected_size if expected_size else expected_k)
         self.assertEqual(field.get("filter"), expected_filter)
 
+    def _check_params_bool(
+        self,
+            actual_params: dict,
+            expected_field: str,
+            expected_dimension: int,
+            expected_k: int,
+            expected_size=None,
+            expected_bool_query=None,
+            check_vectors=True,
+            ):
+        body = actual_params.get("body")
+        self.assertIsInstance(body, dict)
+        query = body.get("query")
+        self.assertIsInstance(query, dict)
+        query_bool = query.get("bool")
+        self.assertIsInstance(query_bool, dict)
+        filter = query_bool.get("filter")
+        self.assertIsInstance(filter, dict)
+        self.assertEqual(filter, expected_bool_query)
+
+        must_clause = query_bool.get("must")
+        self.assertIsInstance(must_clause, list)
+
+        if check_vectors:
+            knn_dict = must_clause[0]
+
+            repacked = {"body": {"query": knn_dict, "size": body.get("size") },
+                        "neighbors": actual_params.get("neighbors")
+                        }
+
+            self._check_params(repacked, expected_field, expected_dimension, expected_k,expected_size)
+
+    def _check_params_script_score(
+                                           self,
+            actual_params: dict,
+            expected_field: str,
+            expected_dimension: int,
+            expected_k: int,
+            expected_size=None,
+            expected_script_query=None
+            ):
+        body = actual_params.get("body")
+        self.assertIsInstance(body, dict)
+        query = body.get("query")
+        self.assertIsInstance(query, dict)
+        script_score_query = query.get("script_score")
+        self.assertIsInstance(script_score_query, dict)
+        bool_from_script_score = script_score_query.get("query").get("bool").get("filter")
+
+        self.assertEqual(bool_from_script_score, expected_script_query)
+
+        script = script_score_query.get("script")
+        self.assertIsInstance(script, dict)
+
+        source = script.get("source")
+        self.assertEqual(source, "knn_score")
+
+        lang = script.get("lang")
+        self.assertEqual(lang, "knn")
+
+        params = script.get("params")
+        self.assertIsInstance(params, dict)
+
+        field = params.get("field")
+        self.assertEqual(field, expected_field)
+
+        vector = params.get("query_value")
+        self.assertIsInstance(vector, np.ndarray)
+        self.assertEqual(len(list(vector)), expected_dimension)
+
+        space_type = params.get("space_type")
+        self.assertEqual(space_type, "l2") # TODO change this once it's all modifiable.
 
 class BulkVectorsFromDataSetParamSourceTestCase(TestCase):
 
@@ -3119,3 +3363,399 @@ class BulkVectorsFromDataSetParamSourceTestCase(TestCase):
                 self.assertFalse(expected_id_field in req_body)
                 continue
             self.assertTrue(expected_id_field in req_body)
+
+
+class BulkVectorsAttributeCase(TestCase):
+    DEFAULT_INDEX_NAME = "test-partition-index"
+    DEFAULT_VECTOR_FIELD_NAME = "test-vector-field"
+    DEFAULT_CONTEXT = Context.INDEX
+    DEFAULT_TYPE = HDF5DataSet.FORMAT_NAME
+    DEFAULT_NUM_VECTORS = 10
+    DEFAULT_DIMENSION = 10
+    DEFAULT_RANDOM_STRING_LENGTH = 8
+    DEFAULT_ID_FIELD_NAME = "_id"
+    ATTRIBUTES_LIST = ['taste', 'color', 'age']
+
+    def setUp(self) -> None:
+        self.data_set_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.data_set_dir)
+
+    def test_params_efficient_filter(
+        self
+    ):
+        num_vectors = 49
+        bulk_size = 10
+        data_set_path = create_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.INDEX,
+            self.data_set_dir
+        )
+        parent_data_set_path = create_attributes_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.ATTRIBUTES,
+            self.data_set_dir,
+        )
+
+        test_param_source_params = {
+            "index": self.DEFAULT_INDEX_NAME,
+            "field": self.DEFAULT_VECTOR_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "bulk_size": bulk_size,
+            "id-field-name": self.DEFAULT_ID_FIELD_NAME,
+            "filter_attributes": self.ATTRIBUTES_LIST
+        }
+        bulk_param_source = BulkVectorsFromDataSetParamSource(
+            workload.Workload(name="unit-test"), test_param_source_params
+        )
+        bulk_param_source.parent_data_set_path = parent_data_set_path
+        bulk_param_source_partition = bulk_param_source.partition(0, 1)
+        # Check each payload returned
+        vectors_consumed = 0
+        while vectors_consumed < num_vectors:
+            expected_num_vectors = min(num_vectors - vectors_consumed, bulk_size)
+            actual_params = bulk_param_source_partition.params()
+            self._check_params_attributes(
+                actual_params,
+                self.DEFAULT_INDEX_NAME,
+                self.DEFAULT_VECTOR_FIELD_NAME,
+                self.DEFAULT_DIMENSION,
+                expected_num_vectors,
+                self.DEFAULT_ID_FIELD_NAME,
+            )
+            vectors_consumed += expected_num_vectors
+
+        # Assert last call creates stop iteration
+        with self.assertRaises(StopIteration):
+            bulk_param_source_partition.params()
+
+    def _check_params_attributes(
+            self,
+        actual_params: dict,
+        expected_index: str,
+        expected_vector_field: str,
+        expected_dimension: int,
+        expected_num_vectors_in_payload: int,
+        expected_id_field: str,
+    ):
+        size = actual_params.get("size")
+        self.assertEqual(size, expected_num_vectors_in_payload)
+        body = actual_params.get("body")
+        self.assertIsInstance(body, list)
+        self.assertEqual(len(body) // 2, expected_num_vectors_in_payload)
+
+        # Bulk payload has 2 parts: first one is the header and the second one
+        # is the body. The header will have the index name and the body will
+        # have the vector
+        for header, req_body in zip(*[iter(body)] * 2):
+            index = header.get("index")
+            self.assertIsInstance(index, dict)
+
+            index_name = index.get("_index")
+            self.assertEqual(index_name, expected_index)
+
+            vector = req_body.get(expected_vector_field)
+            self.assertIsInstance(vector, list)
+            self.assertEqual(len(vector), expected_dimension)
+
+            for attribute in self.ATTRIBUTES_LIST:
+                self.assertTrue(attribute in req_body)
+            if expected_id_field in index:
+                self.assertEqual(self.DEFAULT_ID_FIELD_NAME, expected_id_field)
+                self.assertFalse(expected_id_field in req_body)
+                continue
+            self.assertTrue(expected_id_field in req_body)
+
+
+class VectorsNestedCase(TestCase):
+    DEFAULT_INDEX_NAME = "test-partition-index"
+    DEFAULT_VECTOR_FIELD_NAME = "nested.test-vector-field"
+    DEFAULT_CONTEXT = Context.INDEX
+    DEFAULT_TYPE = HDF5DataSet.FORMAT_NAME
+    DEFAULT_NUM_VECTORS = 10
+    DEFAULT_DIMENSION = 10
+    DEFAULT_RANDOM_STRING_LENGTH = 8
+    DEFAULT_ID_FIELD_NAME = "_id"
+
+    def setUp(self) -> None:
+        self.data_set_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.data_set_dir)
+
+    def test_invalid_nesting_scheme(self):
+        # Test with 0 "." in the vector field, with 2 "." in the vector field, and with a different separator.
+        invalid_nesting_schemes = ["a", "a.b.c", "a.b.c.d"]
+        for nesting_scheme in invalid_nesting_schemes:
+            with self.subTest(nesting_scheme=nesting_scheme):
+                bulk_param_source = BulkVectorsFromDataSetParamSource(
+                    workload.Workload(name="unit-test"),
+                    {
+                        "index": self.DEFAULT_INDEX_NAME,
+                        "field": nesting_scheme,
+                        "data_set_format": self.DEFAULT_TYPE,
+                        "data_set_path": "path",
+                        "bulk_size": 10,
+                        "id-field-name": self.DEFAULT_ID_FIELD_NAME,
+                    },
+                )
+                with self.assertRaises(ValueError):
+                    bulk_param_source.get_split_fields()
+
+    def _test_params_default(
+        self, bulk_size, data_set_path, parent_data_set_path, num_vectors
+    ):
+        test_param_source_params = {
+            "index": self.DEFAULT_INDEX_NAME,
+            "field": self.DEFAULT_VECTOR_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "bulk_size": bulk_size,
+            "id-field-name": self.DEFAULT_ID_FIELD_NAME,
+        }
+        bulk_param_source = BulkVectorsFromDataSetParamSource(
+            workload.Workload(name="unit-test"), test_param_source_params
+        )
+        bulk_param_source.parent_data_set_path = parent_data_set_path
+        bulk_param_source_partition = bulk_param_source.partition(0, 1)
+        # Check each payload returned
+        vectors_consumed = 0
+        while vectors_consumed < num_vectors:
+            expected_num_vectors = min(num_vectors - vectors_consumed, bulk_size)
+            actual_params = bulk_param_source_partition.params()
+            expected_num_docs = len(actual_params["body"]) // 2
+
+            self._check_params_nested(
+                actual_params,
+                self.DEFAULT_INDEX_NAME,
+                self.DEFAULT_VECTOR_FIELD_NAME,
+                self.DEFAULT_DIMENSION,
+                expected_num_vectors,
+                expected_num_docs,
+                self.DEFAULT_ID_FIELD_NAME,
+            )
+            vectors_consumed += expected_num_vectors
+
+        # Assert last call creates stop iteration
+        with self.assertRaises(StopIteration):
+            bulk_param_source_partition.params()
+
+    def test_params_default(self):
+
+        bulk_sizes = [1, 3, 4, 10, 50]
+
+        num_vectors = 49
+        # bulk_size = 10
+        data_set_path = create_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.INDEX,
+            self.data_set_dir,
+        )
+        parent_data_set_path = create_parent_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.PARENTS,
+            self.data_set_dir,
+        )
+
+        for bulk_size in bulk_sizes:
+            with self.subTest(bulk_size=bulk_size):
+                self._test_params_default(
+                    bulk_size, data_set_path, parent_data_set_path, num_vectors
+                )
+
+    def test_params_custom(self):
+        num_vectors = 49
+        bulk_size = 15
+        data_set_path = create_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.INDEX,
+            self.data_set_dir,
+        )
+
+        parent_data_set_path = create_parent_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.PARENTS,
+            self.data_set_dir,
+        )
+
+        test_param_source_params = {
+            "index": self.DEFAULT_INDEX_NAME,
+            "field": self.DEFAULT_VECTOR_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "parents_data_set_path": parent_data_set_path,
+            "bulk_size": bulk_size,
+            "id-field-name": "id",
+        }
+
+        # todo is it weird with the parent data set path?
+        bulk_param_source = BulkVectorsFromDataSetParamSource(
+            workload.Workload(name="unit-test"), test_param_source_params
+        )
+        bulk_param_source.parent_data_set_path = parent_data_set_path
+        bulk_param_source_partition = bulk_param_source.partition(0, 1)
+        # Check each payload returned
+        vectors_consumed = 0
+        while vectors_consumed < num_vectors:
+            # expected_num_vectors = 10, 30, 10, 9 (15, 15, 15, 4)
+            expected_num_vectors = min(num_vectors - vectors_consumed, bulk_size)
+            # expected_num_documents = min()
+            actual_params = bulk_param_source_partition.params()
+            expected_num_docs = len(actual_params["body"]) // 2
+            self._check_params_nested(
+                actual_params,
+                self.DEFAULT_INDEX_NAME,
+                self.DEFAULT_VECTOR_FIELD_NAME,
+                self.DEFAULT_DIMENSION,
+                expected_num_vectors,
+                expected_num_docs,
+                "id",
+            )
+            vectors_consumed += expected_num_vectors
+
+        # Assert last call creates stop iteration
+        with self.assertRaises(StopIteration):
+            bulk_param_source_partition.params()
+
+    def test_build_vector_search_query_body(self):
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+
+        # Create a QueryVectorsFromDataSetParamSource with relevant params
+        test_param_source_params = {
+            "field": self.DEFAULT_VECTOR_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "k": k
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+            }
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+
+        # Check each
+        for _ in range(DEFAULT_NUM_VECTORS):
+            self._check_query_params(
+                query_param_source_partition.params(),
+                self.DEFAULT_VECTOR_FIELD_NAME,
+                self.DEFAULT_DIMENSION,
+                k,
+            )
+
+        # Assert last call creates stop iteration
+        with self.assertRaises(StopIteration):
+            query_param_source_partition.params()
+
+    def _check_query_params(
+            self,
+            actual_params: dict,
+            expected_field: str,
+            expected_dimension: int,
+            expected_k: int,
+            expected_size=None,
+            expected_filter=None,
+    ):
+        body = actual_params.get("body")
+        self.assertIsInstance(body, dict)
+        query = body.get("query")
+        self.assertIsInstance(query, dict)
+        nested = query.get("nested")
+        self.assertIsInstance(nested, dict)
+
+        outer, _inner = expected_field.split(".")
+
+        path = nested.get("path")
+        self.assertEqual(path, outer)
+
+        query_knn = nested.get("query").get("knn")
+
+        field = query_knn.get(expected_field)
+        self.assertIsInstance(field, dict)
+        vector = field.get("vector")
+        self.assertIsInstance(vector, np.ndarray)
+        self.assertEqual(len(list(vector)), expected_dimension)
+        k = field.get("k")
+        self.assertEqual(k, expected_k)
+        neighbor = actual_params.get("neighbors")
+        self.assertIsInstance(neighbor, list)
+        self.assertEqual(len(neighbor), expected_dimension)
+        size = body.get("size")
+        self.assertEqual(size, expected_size if expected_size else expected_k)
+        self.assertEqual(field.get("filter"), expected_filter)
+
+    def _check_params_nested(
+        self,
+        actual_params: dict,
+        expected_index: str,
+        expected_vector_field: str,
+        expected_dimension: int,
+        _expected_num_vectors_in_payload: int,
+        expected_num_docs_in_payload: int,
+        expected_id_field: str,
+    ):
+        size = actual_params.get("size")
+        self.assertEqual(size, expected_num_docs_in_payload)
+        body = actual_params.get("body")
+        self.assertIsInstance(body, list)
+        self.assertEqual(len(body) // 2, expected_num_docs_in_payload)
+
+        # Bulk payload has 2 parts: first one is the header and the second one
+        # is the body. The header will have the index name and the body will
+        # have the vector
+        for header, req_body in zip(*[iter(body)] * 2):
+            index = header.get("index")
+            self.assertIsInstance(index, dict)
+
+            index_name = index.get("_index")
+            self.assertEqual(index_name, expected_index)
+            # here, need to iterate over all of the nested fields.
+            outer, inner = expected_vector_field.split(".")
+            vector_list = req_body.get(outer)
+            self.assertIsInstance(vector_list, list)
+            for vec in vector_list:
+                actual_vec = vec.get(inner)
+                self.assertIsInstance(actual_vec, list)
+
+                self.assertEqual(len(actual_vec), expected_dimension)
+
+            if expected_id_field in index:
+                self.assertEqual(self.DEFAULT_ID_FIELD_NAME, expected_id_field)
+                self.assertFalse(expected_id_field in req_body)
+                continue
+            self.assertTrue(expected_id_field in req_body)
+
+    def test_nested_vector_query_body(self):
+        # assert that _build_vector_search_query_body returns the correct thing.
+        pass

@@ -27,6 +27,8 @@ import csv
 import io
 import logging
 import sys
+import re
+from enum import Enum
 
 import tabulate
 
@@ -43,6 +45,11 @@ FINAL_SCORE = r"""
 ------------------------------------------------------
             """
 
+class Throughput(Enum):
+    MEAN = "mean"
+    MAX = "max"
+    MIN = "min"
+    MEDIAN = "median"
 
 def summarize(results, cfg):
     SummaryResultsPublisher(results, cfg).publish()
@@ -51,10 +58,10 @@ def summarize(results, cfg):
 def compare(cfg, baseline_id, contender_id):
     if not baseline_id or not contender_id:
         raise exceptions.SystemSetupError("compare needs baseline and a contender")
-    test_execution_store = metrics.test_execution_store(cfg)
+    test_run_store = metrics.test_run_store(cfg)
     ComparisonResultsPublisher(cfg).publish(
-        test_execution_store.find_by_test_execution_id(baseline_id),
-        test_execution_store.find_by_test_execution_id(contender_id))
+        test_run_store.find_by_test_run_id(baseline_id),
+        test_run_store.find_by_test_run_id(contender_id))
 
 
 def print_internal(message):
@@ -126,6 +133,17 @@ class SummaryResultsPublisher:
             "throughput":comma_separated_string_to_number_list(config.opts("workload", "throughput.percentiles", mandatory=False)),
             "latency": comma_separated_string_to_number_list(config.opts("workload", "latency.percentiles", mandatory=False))
         }
+        self.logger = logging.getLogger(__name__)
+
+    def publish_operational_statistics(self, metrics_table: list, warnings: list, record, task):
+        metrics_table.extend(self._publish_throughput(record, task))
+        metrics_table.extend(self._publish_latency(record, task))
+        metrics_table.extend(self._publish_service_time(record, task))
+        # this is mostly needed for debugging purposes but not so relevant to end users
+        if self.show_processing_time:
+            metrics_table.extend(self._publish_processing_time(record, task))
+        metrics_table.extend(self._publish_error_rate(record, task))
+        self.add_warnings(warnings, record, task)
 
     def publish(self):
         print_header(FINAL_SCORE)
@@ -145,16 +163,41 @@ class SummaryResultsPublisher:
 
         metrics_table.extend(self._publish_transform_stats(stats))
 
+        # These variables are used with the clients_list parameter in test_procedures to find the max throughput.
+        max_throughput = -1
+        record_with_best_throughput = None
+
+        throughput_pattern = r"_(\d+)_clients$"
+
+
         for record in stats.op_metrics:
             task = record["task"]
-            metrics_table.extend(self._publish_throughput(record, task))
-            metrics_table.extend(self._publish_latency(record, task))
-            metrics_table.extend(self._publish_service_time(record, task))
-            # this is mostly needed for debugging purposes but not so relevant to end users
-            if self.show_processing_time:
-                metrics_table.extend(self._publish_processing_time(record, task))
-            metrics_table.extend(self._publish_error_rate(record, task))
-            self.add_warnings(warnings, record, task)
+            is_task_part_of_throughput_testing = re.search(throughput_pattern, task)
+            if is_task_part_of_throughput_testing:
+                # assumption: all units are the same and only maximizing throughput over one operation (i.e. not both ingest and search).
+                # To maximize throughput over multiple operations, would need a list/dictionary of maximum throughputs.
+                task_throughput = record["throughput"][Throughput.MEAN.value]
+                self.logger.info("Task %s has throughput %s", task, task_throughput)
+                if task_throughput > max_throughput:
+                    max_throughput = task_throughput
+                    record_with_best_throughput = record
+
+            else:
+                self.publish_operational_statistics(metrics_table=metrics_table, warnings=warnings, record=record, task=task)
+
+        # The following code is run when the clients_list parameter is specified and publishes the max throughput.
+        if max_throughput != -1 and record_with_best_throughput is not None:
+            self.publish_operational_statistics(metrics_table=metrics_table, warnings=warnings, record=record_with_best_throughput,
+                                                task=record_with_best_throughput["task"])
+            metrics_table.extend(self._publish_best_client_settings(record_with_best_throughput, record_with_best_throughput["task"]))
+
+        for record in stats.correctness_metrics:
+            task = record["task"]
+
+            keys = record.keys()
+            recall_keys_in_task_dict = "recall@1" in keys and "recall@k" in keys
+            if recall_keys_in_task_dict and "mean" in record["recall@1"] and "mean" in record["recall@k"]:
+                metrics_table.extend(self._publish_recall(record, task))
 
         self.write_results(metrics_table)
 
@@ -200,14 +243,27 @@ class SummaryResultsPublisher:
     def _publish_processing_time(self, values, task):
         return self._publish_percentiles("processing time", task, values["processing_time"])
 
-    def _publish_percentiles(self, name, task, value):
+    def _publish_recall(self, values, task):
+        recall_k_mean = values["recall@k"]["mean"]
+        recall_1_mean = values["recall@1"]["mean"]
+
+        return self._join(
+            self._line("Mean recall@k", task, recall_k_mean, "", lambda v: "%.2f" % v),
+            self._line("Mean recall@1", task, recall_1_mean, "", lambda v: "%.2f" % v)
+        )
+
+    def _publish_best_client_settings(self, record, task):
+        num_clients = re.search(r"_(\d+)_clients$", task).group(1)
+        return self._join(self._line("Number of clients that achieved max throughput", "", num_clients, ""))
+
+    def _publish_percentiles(self, name, task, value, unit="ms"):
         lines = []
         percentiles = self.display_percentiles.get(name, metrics.GlobalStatsCalculator.OTHER_PERCENTILES)
 
         if value:
             for percentile in metrics.percentiles_for_sample_size(sys.maxsize, percentiles_list=percentiles):
                 percentile_value = value.get(metrics.encode_float_key(percentile))
-                a_line = self._line("%sth percentile %s" % (percentile, name), task, percentile_value, "ms",
+                a_line = self._line("%sth percentile %s" % (percentile, name), task, percentile_value, unit,
                                     force=self.publish_all_percentile_values)
                 self._append_non_empty(lines, a_line)
         return lines
@@ -349,15 +405,15 @@ class ComparisonResultsPublisher:
         self.plain = False
 
     def publish(self, r1, r2):
-        # we don't verify anything about the test_executions as it is possible
+        # we don't verify anything about the test_runs as it is possible
         # that the user benchmarks two different workloads intentionally
         baseline_stats = metrics.GlobalStats(r1.results)
         contender_stats = metrics.GlobalStats(r2.results)
 
         print_internal("")
         print_internal("Comparing baseline")
-        print_internal("  TestExecution ID: %s" % r1.test_execution_id)
-        print_internal("  TestExecution timestamp: %s" % r1.test_execution_timestamp)
+        print_internal("  TestRun ID: %s" % r1.test_run_id)
+        print_internal("  TestRun timestamp: %s" % r1.test_run_timestamp)
         if r1.test_procedure_name:
             print_internal("  TestProcedure: %s" % r1.test_procedure_name)
         print_internal("  ProvisionConfigInstance: %s" % r1.provision_config_instance_name)
@@ -366,8 +422,8 @@ class ComparisonResultsPublisher:
             print_internal("  User tags: %s" % r1_user_tags)
         print_internal("")
         print_internal("with contender")
-        print_internal("  TestExecution ID: %s" % r2.test_execution_id)
-        print_internal("  TestExecution timestamp: %s" % r2.test_execution_timestamp)
+        print_internal("  TestRun ID: %s" % r2.test_run_id)
+        print_internal("  TestRun timestamp: %s" % r2.test_run_timestamp)
         if r2.test_procedure_name:
             print_internal("  TestProcedure: %s" % r2.test_procedure_name)
         print_internal("  ProvisionConfigInstance: %s" % r2.provision_config_instance_name)
@@ -408,16 +464,16 @@ class ComparisonResultsPublisher:
                             data_plain=metrics_table, data_rich=metrics_table_console)
 
     def _publish_throughput(self, baseline_stats, contender_stats, task):
-        b_min = baseline_stats.metrics(task)["throughput"]["min"]
+        b_min = baseline_stats.metrics(task)["throughput"].get("overall_min") or baseline_stats.metrics(task)["throughput"]["min"]
         b_mean = baseline_stats.metrics(task)["throughput"]["mean"]
         b_median = baseline_stats.metrics(task)["throughput"]["median"]
-        b_max = baseline_stats.metrics(task)["throughput"]["max"]
+        b_max = baseline_stats.metrics(task)["throughput"].get("overall_max") or baseline_stats.metrics(task)["throughput"]["max"]
         b_unit = baseline_stats.metrics(task)["throughput"]["unit"]
 
-        c_min = contender_stats.metrics(task)["throughput"]["min"]
+        c_min = contender_stats.metrics(task)["throughput"].get("overall_min") or contender_stats.metrics(task)["throughput"]["min"]
         c_mean = contender_stats.metrics(task)["throughput"]["mean"]
         c_median = contender_stats.metrics(task)["throughput"]["median"]
-        c_max = contender_stats.metrics(task)["throughput"]["max"]
+        c_max = contender_stats.metrics(task)["throughput"].get("overall_max") or contender_stats.metrics(task)["throughput"]["max"]
 
         return self._join(
             self._line("Min Throughput", b_min, c_min, task, b_unit, treat_increase_as_improvement=True),

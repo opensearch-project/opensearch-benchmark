@@ -60,7 +60,7 @@ class HostHandlingTests(TestCase):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
             builder.to_ip_port(hosts)
         self.assertEqual("When specifying nodes to be managed by "
-        "Benchmark you can only supply hostname:port pairs (e.g. 'localhost:9200'), "
+        "OSB you can only supply hostname:port pairs (e.g. 'localhost:9200'), "
                          "any additional options cannot be supported.", ctx.exception.args[0])
 
     def test_groups_nodes_by_host(self):
@@ -113,10 +113,10 @@ class BuilderTests(TestCase):
 
     # We stub irrelevant methods for the test
     class TestBuilder(builder.Builder):
-        def _current_test_execution(self):
-            return "test_execution 17"
+        def _current_test_run(self):
+            return "test_run 17"
 
-        def _add_results(self, current_test_execution, node):
+        def _add_results(self, current_test_run, node):
             pass
 
     @mock.patch("osbenchmark.builder.provisioner.cleanup")
@@ -125,7 +125,7 @@ class BuilderTests(TestCase):
         provisioners = [mock.Mock(), mock.Mock()]
         launcher = BuilderTests.TestLauncher()
         cfg = config.Config()
-        cfg.add(config.Scope.application, "system", "test_execution.id", "17")
+        cfg.add(config.Scope.application, "system", "test_run.id", "17")
         cfg.add(config.Scope.application, "builder", "preserve.install", False)
         metrics_store = mock.Mock()
         m = BuilderTests.TestBuilder(cfg, metrics_store, supplier, provisioners, launcher)

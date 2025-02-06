@@ -1,6 +1,6 @@
 ---
 layout: default
 title: Kill Running Process
-parent: Benchmark API
+parent: OSB API
 nav_order: 14
 ---

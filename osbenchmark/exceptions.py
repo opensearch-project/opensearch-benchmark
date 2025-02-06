@@ -25,7 +25,7 @@
 
 class BenchmarkError(Exception):
     """
-    Base class for all Benchmark exceptions
+    Base class for all OSB exceptions
     """
 
     def __init__(self, message, cause=None):

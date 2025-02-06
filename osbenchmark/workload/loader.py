@@ -28,6 +28,7 @@ import os
 import random
 import re
 import sys
+import shutil
 import tempfile
 import urllib.error
 
@@ -51,7 +52,7 @@ class WorkloadSyntaxError(exceptions.InvalidSyntax):
 class WorkloadProcessor:
     def on_after_load_workload(self, input_workload, **kwargs):
         """
-        This method is called by Benchmark after a workload has been loaded. Implementations are expected to modify the
+        This method is called by OSB after a workload has been loaded. Implementations are expected to modify the
         provided workload object in place.
 
         :param workload: The current workload.
@@ -59,8 +60,8 @@ class WorkloadProcessor:
 
     def on_prepare_workload(self, workload, data_root_dir):
         """
-        This method is called by Benchmark after the "after_load_workload" phase. Here, any data that is necessary for
-        benchmark execution should be prepared, e.g. by downloading data or generating it. Implementations should
+        This method is called by OSB after the "after_load_workload" phase. Here, any data that is necessary for
+        benchmark run should be prepared, e.g. by downloading data or generating it. Implementations should
         be aware that this method might be called on a different machine than "on_after_load_workload" and they cannot
         share any state in between phases.
 
@@ -578,7 +579,22 @@ class DocumentSetPreparator:
                     raise exceptions.BenchmarkAssertionError(f"Workload {self.workload_name} specifies documents but no corpus")
 
                 try:
-                    self.downloader.download(document_set.base_url, document_set.source_url, target_path, expected_size)
+                    if document_set.document_file_parts:
+                        for part in document_set.document_file_parts:
+                            self.downloader.download(document_set.base_url, None, os.path.join(data_root, part["name"]), part["size"])
+                        try:
+                            with open(target_path, "wb") as outfile:
+                                console.info(f"Concatenating file parts {', '.join([p['name'] for p in document_set.document_file_parts])}"
+                                             f" into {os.path.basename(target_path)}", flush=True, logger=self.logger)
+                                for part in document_set.document_file_parts:
+                                    part_name = os.path.join(data_root, part["name"])
+                                    with open(part_name, "rb") as infile:
+                                        shutil.copyfileobj(infile, outfile)
+                                        os.remove(part_name)
+                        except Exception as e:
+                            raise exceptions.DataError(f"Encountered exception {repr(e)} when building corpus file from parts")
+                    else:
+                        self.downloader.download(document_set.base_url, document_set.source_url, target_path, expected_size)
                 except exceptions.DataError as e:
                     if e.message == "Cannot download data because no base URL is provided." and \
                        self.is_locally_available(target_path):
@@ -691,6 +707,13 @@ class TemplateSource:
         return ",\n".join(source)
 
 
+# A Jinja filter that tests if a version string lies within a specified range.
+# For instance, "1.2.3" lies between "1.0.0" and "2.0.0".
+def version_between(version, frm, to):
+    return list(map(int, version.split('.'))) >= list(map(int, frm.split('.'))) and \
+        list(map(int, version.split('.'))) <= list(map(int, to.split('.')))
+
+
 def default_internal_template_vars(glob_helper=lambda f: [], clock=time.Clock):
     """
     Dict of internal global variables used by our jinja2 renderers
@@ -751,6 +774,7 @@ def render_template(template_source, template_vars=None, template_internal_vars=
             for env_global_key, env_global_value in template_internal_vars[macro_type].items():
                 getattr(env, macro_type)[env_global_key] = env_global_value
 
+    env.filters["version_between"] = version_between
     template = env.from_string(template_source)
     return template.render()
 
@@ -927,9 +951,55 @@ class TestModeWorkloadProcessor(WorkloadProcessor):
         return input_workload
 
 class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
+
+    class QueryRandomizationInfo:
+        # A class containing information about which values to replace when randomizing queries.
+        # For example, QueryRandomizationInfo("range", [["gte", "gt"], ["lte", "lt"]], ["format"])
+        # would find queries using the "range" keyword.
+        # Then, it would look for parameters named either "gt" or "gte", and "lt" or "lte" in the "range" object.
+        # It would also look for the optional parameter "format".
+        # The values pointed to by "gt"/"gte" and "lt"/"lte" would be randomized according to the standard value source.
+        # "format" would also be modified by the standard value source, if it was present in the original query.
+        # The first option for each set of options must match the name provided by the standard value source in workload.py.
+        def __init__(self, query_name, parameter_name_options_list, optional_parameters):
+            self.query_name = query_name
+            self.validate_parameter_name_options_list(query_name, parameter_name_options_list)
+            self.parameter_name_options_list = parameter_name_options_list
+            self.optional_parameters = optional_parameters
+
+        def validate_parameter_name_options_list(self, query_name, parameter_name_options_list):
+            # Check there are no duplicate values as this would cause ambiguity
+            all_values = []
+            distinct_values = set()
+            for parameter_name_options in parameter_name_options_list:
+                for parameter_name_option in parameter_name_options:
+                    if parameter_name_option == query_name:
+                        raise exceptions.ExecutorError(
+                            f"Cannot have a randomized value name {query_name} which is the same as the name of its query!")
+                    all_values.append(parameter_name_option)
+                    distinct_values.add(parameter_name_option)
+            if len(all_values) != len(distinct_values):
+                raise exceptions.ExecutorError(
+                    f"Duplicate option for value name in query_randomization_info: {parameter_name_options_list}")
+
+        def check_one_of_each_name_present(self, obj):
+            # Return true if one version of the value name is present in obj for each set of value options.
+            # For example, QueryRandomizationInfo("range", [["gt", "gte"], ["lt", "lte"]])
+            # would return true if both "gte" and "lt" were present.
+            for parameter_name_options in self.parameter_name_options_list:
+                option_present = False
+                for name_option in parameter_name_options:
+                    if name_option in obj:
+                        option_present = True
+                        break
+                if not option_present:
+                    return False
+            return True
+
     DEFAULT_RF = 0.3
     DEFAULT_N = 5000
     DEFAULT_ALPHA = 1
+    DEFAULT_QUERY_RANDOMIZATION_INFO = QueryRandomizationInfo("range", [["gte", "gt"], ["lte", "lt"]], ["format"])
     def __init__(self, cfg):
         self.randomization_enabled = cfg.opts("workload", "randomization.enabled", mandatory=False, default_value=False)
         self.rf = float(cfg.opts("workload", "randomization.repeat_frequency", mandatory=False, default_value=self.DEFAULT_RF))
@@ -974,31 +1044,31 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
             curr = curr[value]
         return curr
 
-    def extract_fields_helper(self, root, current_path):
+    def extract_fields_helper(self, root, current_path, query_randomization_info):
         # Recursively called to find the location of ranges in an OpenSearch range query.
         # Return the field and the current path if we're currently scanning the field name in a range query, otherwise return an empty list.
         fields = [] # pairs of (field, path_to_field)
         curr = self.get_dict_from_previous_path(root, current_path)
         if isinstance(curr, dict) and curr != {}:
-            if len(current_path) > 0 and current_path[-1] == "range":
+            if len(current_path) > 0 and current_path[-1] == query_randomization_info.query_name:
                 for key in curr.keys():
                     if isinstance(curr, dict):
-                        if ("gte" in curr[key] or "gt" in curr[key]) and ("lte" in curr[key] or "lt" in curr[key]):
+                        if query_randomization_info.check_one_of_each_name_present(curr[key]):
                             fields.append((key, current_path))
                 return fields
             else:
                 for key in curr.keys():
-                    fields += self.extract_fields_helper(root, current_path + [key])
+                    fields += self.extract_fields_helper(root, current_path + [key], query_randomization_info)
                 return fields
         elif isinstance(curr, list) and curr != []:
             for i in range(len(curr)):
-                fields += self.extract_fields_helper(root, current_path + [i])
+                fields += self.extract_fields_helper(root, current_path + [i], query_randomization_info)
             return fields
         else:
             # leaf node
             return []
 
-    def extract_fields_and_paths(self, params):
+    def extract_fields_and_paths(self, params, query_randomization_info):
         # Search for fields used in range queries, and the paths to those fields
         # Return pairs of (field, path_to_field)
         # TODO: Maybe only do this the first time, and assume for a given task, the same query structure is used.
@@ -1009,56 +1079,54 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
             raise exceptions.SystemSetupError(
                 f"Cannot extract range query fields from these params: {params}\n, missing params[\"body\"][\"query\"]\n"
                 f"Make sure the operation in operations/default.json is well-formed")
-        fields_and_paths = self.extract_fields_helper(root, [])
+        fields_and_paths = self.extract_fields_helper(root, [], query_randomization_info)
         return fields_and_paths
 
-    def set_range(self, params, fields_and_paths, new_values):
+    def set_range(self, params, fields_and_paths, new_values, query_randomization_info):
         assert len(fields_and_paths) == len(new_values)
         for field_and_path, new_value in zip(fields_and_paths, new_values):
             field = field_and_path[0]
             path = field_and_path[1]
             range_section = self.get_dict_from_previous_path(params["body"]["query"], path)[field]
             # get the section of the query corresponding to the field name
-            for greater_than in ["gte", "gt"]:
-                if greater_than in range_section:
-                    range_section[greater_than] = new_value["gte"]
-            for less_than in ["lte", "lt"]:
-                if less_than in range_section:
-                    range_section[less_than] = new_value["lte"]
-            if "format" in new_values:
-                range_section["format"] = new_values["format"]
+            for parameter_name_options in query_randomization_info.parameter_name_options_list:
+                for option in parameter_name_options:
+                    if option in range_section:
+                        range_section[option] = new_value[parameter_name_options[0]]
+            for optional_parameter in query_randomization_info.optional_parameters:
+                if optional_parameter in new_values:
+                    range_section[optional_parameter] = new_values[optional_parameter]
         return params
 
     def get_repeated_value_index(self):
         # minus 1 for mapping [1, N] to [0, N-1] of list indices
         return self.zipf_cdf_inverse(random.random(), self.H_list) - 1
 
-    def get_randomized_values(self, input_workload, input_params,
+    def get_randomized_values(self, input_workload, input_params, query_randomization_info,
                               get_standard_value=params.get_standard_value,
                               get_standard_value_source=params.get_standard_value_source, # Made these configurable for simpler unit tests
                               **kwargs):
-
         # The queries as listed in operations/default.json don't have the index param,
         # unlike the custom ones you would specify in workload.py, so we have to add them ourselves
         if not "index" in input_params:
             input_params["index"] = params.get_target(input_workload, input_params)
 
-        fields_and_paths = self.extract_fields_and_paths(input_params)
+        fields_and_paths = self.extract_fields_and_paths(input_params, query_randomization_info)
 
         if random.random() < self.rf:
             # Draw a potentially repeated value from the saved standard values
             index = self.get_repeated_value_index()
             new_values = [get_standard_value(kwargs["op_name"], field_and_path[0], index) for field_and_path in fields_and_paths]
             # Use the same index for all fields in one query, otherwise the probability of repeats in a multi-field query would be very low
-            input_params = self.set_range(input_params, fields_and_paths, new_values)
+            input_params = self.set_range(input_params, fields_and_paths, new_values, query_randomization_info)
         else:
             # Generate a new random value, from the standard value source function. This will be new (a cache miss)
             new_values = [get_standard_value_source(kwargs["op_name"], field_and_path[0])() for field_and_path in fields_and_paths]
-            input_params = self.set_range(input_params, fields_and_paths, new_values)
+            input_params = self.set_range(input_params, fields_and_paths, new_values, query_randomization_info)
         return input_params
 
-    def create_param_source_lambda(self, op_name, get_standard_value, get_standard_value_source):
-        return lambda w, p, **kwargs: self.get_randomized_values(w, p,
+    def create_param_source_lambda(self, op_name, get_standard_value, get_standard_value_source, get_query_randomization_info):
+        return lambda w, p, **kwargs: self.get_randomized_values(w, p, query_randomization_info=get_query_randomization_info(op_name),
                                                                  get_standard_value=get_standard_value,
                                                                  get_standard_value_source=get_standard_value_source,
                                                                  op_name=op_name, **kwargs)
@@ -1101,10 +1169,12 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
                     params.register_param_source_for_name(
                         param_source_name,
                         self.create_param_source_lambda(op_name, get_standard_value=kwargs["get_standard_value"],
-                                                        get_standard_value_source=kwargs["get_standard_value_source"]))
+                                                        get_standard_value_source=kwargs["get_standard_value_source"],
+                                                        get_query_randomization_info=params.get_query_randomization_info))
                     leaf_task.operation.param_source = param_source_name
                     # Generate the right number of standard values for this field, if not already present
-                    for field_and_path in self.extract_fields_and_paths(leaf_task.operation.params):
+                    for field_and_path in self.extract_fields_and_paths(leaf_task.operation.params,
+                                                                        params.get_query_randomization_info(op_name)):
                         if generate_new_standard_values:
                             params.generate_standard_values_if_absent(op_name, field_and_path[0], self.N)
         return input_workload
@@ -1169,7 +1239,7 @@ class WorkloadFileReader:
 
         self.logger.info("Reading workload specification file [%s].", workload_spec_file)
         # render the workload to a temporary file instead of dumping it into the logs. It is easier to check for error messages
-        # involving lines numbers and it also does not bloat Benchmark's log file so much.
+        # involving lines numbers and it also does not bloat OSB's log file so much.
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".json")
         try:
             rendered = render_template_from_file(
@@ -1236,11 +1306,11 @@ class WorkloadFileReader:
                 workload_name, str(raw_version)))
         if WorkloadFileReader.MINIMUM_SUPPORTED_TRACK_VERSION > workload_version:
             raise exceptions.BenchmarkError("Workload {} is on version {} but needs to be updated at least to version {} to work with the "
-                                        "current version of Benchmark.".format(workload_name, workload_version,
+                                        "current version of OSB.".format(workload_name, workload_version,
                                                                            WorkloadFileReader.MINIMUM_SUPPORTED_TRACK_VERSION))
         if WorkloadFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION < workload_version:
-            raise exceptions.BenchmarkError("Workload {} requires a newer version of Benchmark. "
-                        "Please upgrade Benchmark (supported workload version: {}, "
+            raise exceptions.BenchmarkError("Workload {} requires a newer version of OSB. "
+                        "Please upgrade OSB (supported workload version: {}, "
                                         "required workload version: {}).".format(
                                             workload_name,
                                             WorkloadFileReader.MAXIMUM_SUPPORTED_TRACK_VERSION,
@@ -1254,7 +1324,11 @@ class WorkloadFileReader:
                         ve.instance, indent=4, sort_keys=True),
                         ve.absolute_path, ve.absolute_schema_path))
 
-        current_workload = self.read_workload(workload_name, workload_spec, mapping_dir)
+        try:
+            current_workload = self.read_workload(workload_name, workload_spec, mapping_dir)
+        except Exception as e:
+            console.error(e)
+            raise
 
         unused_user_defined_workload_params = self.complete_workload_params.unused_user_defined_workload_params()
         if len(unused_user_defined_workload_params) > 0:
@@ -1323,6 +1397,9 @@ class WorkloadPluginReader:
     def register_standard_value_source(self, op_name, field_name, standard_value_source):
         # Define a value source for parameters for a given operation name and field name, for use in randomization
         params.register_standard_value_source(op_name, field_name, standard_value_source)
+
+    def register_query_randomization_info(self, op_name, query_name, parameter_name_options_list, optional_parameters):
+        params.register_query_randomization_info(op_name, query_name, parameter_name_options_list, optional_parameters)
 
     @property
     def meta_data(self):
@@ -1497,6 +1574,9 @@ class WorkloadSpecificationReader:
                 if source_format in workload.Documents.SUPPORTED_SOURCE_FORMAT:
                     source_url = self._r(doc_spec, "source-url", mandatory=False)
                     docs = self._r(doc_spec, "source-file")
+                    document_file_parts = list()
+                    for parts in self._r(doc_spec, "source-file-parts", mandatory=False, default_value=[]):
+                        document_file_parts.append( { "name": self._r(parts, "name"), "size": self._r(parts, "size") } )
                     if io.is_archive(docs):
                         document_archive = docs
                         document_file = io.splitext(docs)[0]
@@ -1546,6 +1626,7 @@ class WorkloadSpecificationReader:
 
                     docs = workload.Documents(source_format=source_format,
                                            document_file=document_file,
+                                           document_file_parts=document_file_parts,
                                            document_archive=document_archive,
                                            base_url=base_url,
                                            source_url=source_url,
@@ -1588,11 +1669,25 @@ class WorkloadSpecificationReader:
             schedule = []
 
             for op in self._r(test_procedure_spec, "schedule", error_ctx=name):
-                if "parallel" in op:
-                    task = self.parse_parallel(op["parallel"], ops, name)
+                if "clients_list" in op:
+                    self.logger.info("Clients list specified: %s. Running multiple search tasks, "\
+                                     "each scheduled with the corresponding number of clients from the list.", op["clients_list"])
+                    for num_clients in op["clients_list"]:
+                        op["clients"] = num_clients
+
+                        new_name = self._rename_task_based_on_num_clients(name, num_clients)
+
+                        new_name = name + "_" + str(num_clients) + "_clients"
+                        new_task = self.parse_task(op, ops, new_name)
+                        new_task.name = new_name
+                        schedule.append(new_task)
                 else:
-                    task = self.parse_task(op, ops, name)
-                schedule.append(task)
+                    if "parallel" in op:
+                        task = self.parse_parallel(op["parallel"], ops, name)
+                    else:
+                        task = self.parse_task(op, ops, name)
+
+                    schedule.append(task)
 
             # verify we don't have any duplicate task names (which can be confusing / misleading in results_publishing).
             known_task_names = set()
@@ -1627,6 +1722,18 @@ class WorkloadSpecificationReader:
                         % ", ".join([c.name for c in test_procedures]))
         return test_procedures
 
+    def _rename_task_based_on_num_clients(self, name: str, num_clients: int) -> str:
+        has_underscore = "_" in name
+        has_hyphen = "-" in name
+        if has_underscore and has_hyphen:
+            self.logger.warning("The test procedure name %s contains a mix of _ and -. "\
+                                "Consider changing the name to avoid frustrating bugs in the future.", name)
+            return name + "_" + str(num_clients) + "_clients"
+        elif has_hyphen:
+            return name + "-" + str(num_clients) + "-clients"
+        else:
+            return name + "_" + str(num_clients) + "_clients"
+
     def _get_test_procedure_specs(self, workload_spec):
         schedule = self._r(workload_spec, "schedule", mandatory=False)
         test_procedure = self._r(workload_spec, "test_procedure", mandatory=False)
@@ -1658,6 +1765,7 @@ class WorkloadSpecificationReader:
         default_iterations = self._r(ops_spec, "iterations", error_ctx="parallel", mandatory=False)
         default_warmup_time_period = self._r(ops_spec, "warmup-time-period", error_ctx="parallel", mandatory=False)
         default_time_period = self._r(ops_spec, "time-period", error_ctx="parallel", mandatory=False)
+        default_ramp_up_time_period = self._r(ops_spec, "ramp-up-time-period", error_ctx="parallel", mandatory=False)
         clients = self._r(ops_spec, "clients", error_ctx="parallel", mandatory=False)
         completed_by = self._r(ops_spec, "completed-by", error_ctx="parallel", mandatory=False)
 
@@ -1665,7 +1773,16 @@ class WorkloadSpecificationReader:
         tasks = []
         for task in self._r(ops_spec, "tasks", error_ctx="parallel"):
             tasks.append(self.parse_task(task, ops, test_procedure_name, default_warmup_iterations, default_iterations,
-                                         default_warmup_time_period, default_time_period, completed_by))
+                                         default_warmup_time_period, default_time_period, default_ramp_up_time_period, completed_by))
+
+        for task in tasks:
+            if task.ramp_up_time_period != default_ramp_up_time_period:
+                if default_ramp_up_time_period is None:
+                    self._error(f"task '{task.name}' in 'parallel' element of test-procedure '{test_procedure_name}' specifies "
+                                f"a ramp-up-time-period but it is only allowed on the 'parallel' element.")
+                else:
+                    self._error(f"task '{task.name}' specifies a different ramp-up-time-period than its enclosing "
+                                f"'parallel' element in test-procedure '{test_procedure_name}'.")
         if completed_by:
             completion_task = None
             for task in tasks:
@@ -1681,7 +1798,8 @@ class WorkloadSpecificationReader:
         return workload.Parallel(tasks, clients)
 
     def parse_task(self, task_spec, ops, test_procedure_name, default_warmup_iterations=None, default_iterations=None,
-                   default_warmup_time_period=None, default_time_period=None, completed_by_name=None):
+                   default_warmup_time_period=None, default_time_period=None, default_ramp_up_time_period=None,
+                   completed_by_name=None):
 
         op_spec = task_spec["operation"]
         if isinstance(op_spec, str) and op_spec in ops:
@@ -1704,6 +1822,8 @@ class WorkloadSpecificationReader:
                                                      default_value=default_warmup_time_period),
                           time_period=self._r(task_spec, "time-period", error_ctx=op.name, mandatory=False,
                                               default_value=default_time_period),
+                          ramp_up_time_period=self._r(task_spec, "ramp-up-time-period", error_ctx=op.name,
+                                                         mandatory=False, default_value=default_ramp_up_time_period),
                           clients=self._r(task_spec, "clients", error_ctx=op.name, mandatory=False, default_value=1),
                           completes_parent=(task_name == completed_by_name),
                           schedule=schedule,
@@ -1712,11 +1832,25 @@ class WorkloadSpecificationReader:
         if task.warmup_iterations is not None and task.time_period is not None:
             self._error(
                 "Operation '%s' in test_procedure '%s' defines '%d' warmup iterations and a time period of '%d' seconds. Please do not "
-                        "mix time periods and iterations." % (op.name, test_procedure_name, task.warmup_iterations, task.time_period))
+                "mix time periods and iterations." % (op.name, test_procedure_name, task.warmup_iterations, task.time_period))
         elif task.warmup_time_period is not None and task.iterations is not None:
             self._error(
                 "Operation '%s' in test_procedure '%s' defines a warmup time period of '%d' seconds and '%d' iterations. Please do not "
-                        "mix time periods and iterations." % (op.name, test_procedure_name, task.warmup_time_period, task.iterations))
+                "mix time periods and iterations." % (op.name, test_procedure_name, task.warmup_time_period, task.iterations))
+
+        if (task.warmup_iterations is not None or task.iterations is not None) and task.ramp_up_time_period is not None:
+            self._error(f"Operation '{op.name}' in test_procedure '{test_procedure_name}' defines a ramp-up time period of "
+                        f"{task.ramp_up_time_period} seconds as well as {task.warmup_iterations} warmup iterations and "
+                        f"{task.iterations} iterations but mixing time periods and iterations is not allowed.")
+
+        if task.ramp_up_time_period is not None:
+            if task.warmup_time_period is None:
+                self._error(f"Operation '{op.name}' in test_procedure '{test_procedure_name}' defines a ramp-up time period of "
+                            f"{task.ramp_up_time_period} seconds but no warmup-time-period.")
+            elif task.warmup_time_period < task.ramp_up_time_period:
+                self._error(f"The warmup-time-period of operation '{op.name}' in test_procedure '{test_procedure_name}' is "
+                            f"{task.warmup_time_period} seconds but must be greater than or equal to the "
+                            f"ramp-up-time-period of {task.ramp_up_time_period} seconds.")
 
         return task
 
@@ -1742,7 +1876,7 @@ class WorkloadSpecificationReader:
             params = {}
         else:
             meta_data = self._r(op_spec, "meta", error_ctx=error_ctx, mandatory=False)
-            # Benchmark's core operations will still use enums then but we'll allow users to define arbitrary operations
+            # OSB's core operations will still use enums then but we'll allow users to define arbitrary operations
             op_type_name = self._r(op_spec, "operation-type", error_ctx=error_ctx)
             # fallback to use the operation type as the operation name
             op_name = self._r(op_spec, "name", error_ctx=error_ctx, mandatory=False, default_value=op_type_name)

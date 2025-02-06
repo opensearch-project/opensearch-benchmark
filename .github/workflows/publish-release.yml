@@ -1,4 +1,4 @@
-name: Release drafter
+name: Publish Release to GitHub
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - "*"
 
 jobs:
-  draft-a-release:
+  publish-release:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -22,21 +22,20 @@ jobs:
           issue-title: 'Release opensearch-benchmark'
           issue-body: "Please approve or deny the release of opensearch-benchmark. **Tag**: ${{ github.ref_name }}  **Commit**: ${{ github.sha }}"
           exclude-workflow-initiator-as-approver: true
+
       - name: Set up Python 3
         uses: actions/setup-python@v3
         with:
           python-version: '3.x'
-      - name: Install build tools
-        run: |
-          python -m pip install --upgrade build
+
       - name: Build project for distribution
         run: |
-          python -m build
-          tar -zvcf artifacts.tar.gz dist
-      - name: Release
+          make build
+          tar zcvf artifacts.tar.gz dist
+
+      - name: Publish release
         uses: softprops/action-gh-release@v1
         with:
           draft: true
           generate_release_notes: true
-          files: |
-            artifacts.tar.gz
+          files: artifacts.tar.gz

@@ -37,6 +37,7 @@ from enum import Enum
 from functools import total_ordering
 from io import BytesIO
 from os.path import commonprefix
+import multiprocessing
 from typing import List, Optional
 
 import ijson
@@ -107,6 +108,8 @@ def register_default_runners():
     register_runner(workload.OperationType.DeployMlModel, Retry(DeployMlModel()), async_runner=True)
     register_runner(workload.OperationType.TrainKnnModel, Retry(TrainKnnModel()), async_runner=True)
     register_runner(workload.OperationType.DeleteKnnModel, Retry(DeleteKnnModel()), async_runner=True)
+    register_runner(workload.OperationType.UpdateConcurrentSegmentSearchSettings,
+                    Retry(UpdateConcurrentSegmentSearchSettings()), async_runner=True)
 
 def runner_for(operation_type):
     try:
@@ -192,7 +195,7 @@ class Runner:
         return False
 
     def _default_kw_params(self, params):
-        # map of API kwargs to Benchmark config parameters
+        # map of API kwargs to OSB config parameters
         kw_dict = {
             "body": "body",
             "headers": "headers",
@@ -1045,7 +1048,7 @@ class Query(Runner):
     The following meta data are always returned:
 
     * ``weight``: operation-agnostic representation of the "weight" of an
-                  operation (used internally by Benchmark for throughput calculation).
+                  operation (used internally by OSB for throughput calculation).
                   Always 1 for normal queries and the number of retrieved pages for scroll queries.
     * ``unit``: The unit in which to interpret ``weight``. Always "ops".
     * ``hits``: Total number of hits for this operation.
@@ -1230,13 +1233,6 @@ class Query(Runner):
             Perform vector search and report recall@k , recall@r and time taken to perform recall in ms as
             meta object.
             """
-            result = {
-                "weight": 1,
-                "unit": "ops",
-                "success": True,
-                "recall@k": 0,
-                "recall@1": 0,
-            }
 
             def _is_empty_search_results(content):
                 if content is None:
@@ -1259,7 +1255,18 @@ class Query(Runner):
                     return _get_field_value(content["_source"], field_name)
                 return None
 
-            def calculate_recall(predictions, neighbors, top_k):
+            def binary_search_for_last_negative_1(neighbors):
+                low = 0
+                high = len(neighbors)
+                while low < high:
+                    mid = (low + high) // 2
+                    if neighbors[mid] == "-1":
+                        high = mid
+                    else:
+                        low = mid + 1
+                return low - 1
+
+            def calculate_topk_search_recall(predictions, neighbors, top_k):
                 """
                 Calculates the recall by comparing top_k neighbors with predictions.
                 recall = Sum of matched neighbors from predictions / total number of neighbors from ground truth
@@ -1275,7 +1282,58 @@ class Query(Runner):
                     self.logger.info("No neighbors are provided for recall calculation")
                     return 0.0
                 min_num_of_results = min(top_k, len(neighbors))
+                last_neighbor_is_negative_1 = int(neighbors[min_num_of_results-1]) == -1
                 truth_set = neighbors[:min_num_of_results]
+                if last_neighbor_is_negative_1:
+                    self.logger.debug("Last neighbor is -1")
+                    last_neighbor_idx = binary_search_for_last_negative_1(truth_set)
+
+                    # Note: we do - 1 since list indexing is inclusive, and we want to ignore the first '-1' in neighbors.
+                    truth_set = truth_set[:last_neighbor_idx-1]
+                    if not truth_set:
+                        self.logger.info("No true neighbors after filtering, returning recall = 1.\n"
+                                         "Total neighbors in prediction: [%d].", len(predictions))
+                        return 1.0
+
+
+                for j in range(min_num_of_results):
+                    if j >= len(predictions):
+                        self.logger.info("No more neighbors in prediction to compare against ground truth.\n"
+                                         "Total neighbors in prediction: [%d].\n"
+                                         "Total neighbors in ground truth: [%d]", len(predictions), min_num_of_results)
+                        break
+                    if predictions[j] in truth_set:
+                        correct += 1.0
+
+                return correct / len(truth_set)
+
+            def calculate_radial_search_recall(predictions, neighbors, enable_top_1_recall=False):
+                """
+                Calculates the recall by comparing max_distance/min_score threshold neighbors with predictions.
+                recall = Sum of matched neighbors from predictions / total number of neighbors from ground truth
+                Args:
+                    predictions: list containing ids of results returned by OpenSearch.
+                    neighbors: list containing ids of the actual neighbors for a set of queries
+                    enable_top_1_recall: boolean to calculate recall@1
+                Returns:
+                    Recall between predictions and top k neighbors from ground truth
+                """
+                correct = 0.0
+                try:
+                    n = neighbors.index('-1')
+                    # Slice the list to have a length of n
+                    truth_set = neighbors[:n]
+                except ValueError:
+                    # If '-1' is not found in the list, use the entire list
+                    truth_set = neighbors
+                min_num_of_results = len(truth_set)
+                if min_num_of_results == 0:
+                    self.logger.info("No neighbors are provided for recall calculation")
+                    return 1
+
+                if enable_top_1_recall:
+                    min_num_of_results = 1
+
                 for j in range(min_num_of_results):
                     if j >= len(predictions):
                         self.logger.info("No more neighbors in prediction to compare against ground truth.\n"
@@ -1287,9 +1345,53 @@ class Query(Runner):
 
                 return correct / min_num_of_results
 
+            def _set_initial_recall_values(params: dict, result: dict) -> None:
+                # Add recall@k and recall@1 to the initial result only if k is present in the params and calculate_recall is true
+                if "k" in params:
+                    result.update({
+                        "recall@k": 0,
+                        "recall@1": 0
+                    })
+                # Add recall@max_distance and recall@max_distance_1 to the initial result only if max_distance is present in the params
+                elif "max_distance" in params:
+                    result.update({
+                        "recall@max_distance": 0,
+                        "recall@max_distance_1": 0
+                    })
+                # Add recall@min_score and recall@min_score_1 to the initial result only if min_score is present in the params
+                elif "min_score" in params:
+                    result.update({
+                        "recall@min_score": 0,
+                        "recall@min_score_1": 0
+                    })
+
+            def _get_should_calculate_recall(params: dict) -> bool:
+                # set in global config (benchmark.ini) and passed by AsyncExecutor
+                num_clients = params.get("num_clients", 0)
+                if num_clients == 0:
+                    self.logger.debug("Expected num_clients to be specified but was not.")
+                # default is set for runner unit tests based on default logic for available.cores in worker_coordinator
+                cpu_count = params.get("num_cores", multiprocessing.cpu_count())
+                if cpu_count < num_clients:
+                    self.logger.warning("Number of clients, %s, specified is greater than the number of CPUs, %s, available."\
+                                        "This will lead to unperformant context switching on load generation host. Performance "\
+                                        "metrics may not be accurate. Skipping recall calculation.", num_clients, cpu_count)
+                    return False
+                return params.get("calculate-recall", True)
+
+            result = {
+                "weight": 1,
+                "unit": "ops",
+                "success": True,
+            }
+            # deal with clients here. Need to get num_clients
+            should_calculate_recall = _get_should_calculate_recall(params)
+            if should_calculate_recall:
+                _set_initial_recall_values(params, result)
+
             doc_type = params.get("type")
             response = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
-            recall_processing_start = time.perf_counter()
+
             if detailed_results:
                 props = parse(response, ["hits.total", "hits.total.value", "hits.total.relation", "timed_out", "took"])
                 hits_total = props.get("hits.total.value", props.get("hits.total", 0))
@@ -1303,10 +1405,16 @@ class Query(Runner):
                     "timed_out": timed_out,
                     "took": took
                 })
+
+            recall_processing_start = time.perf_counter()
             response_json = json.loads(response.getvalue())
             if _is_empty_search_results(response_json):
                 self.logger.info("Vector search query returned no results.")
                 return result
+
+            if not should_calculate_recall:
+                return result
+
             id_field = parse_string_parameter("id-field-name", params, "_id")
             candidates = []
             for hit in response_json['hits']['hits']:
@@ -1316,12 +1424,23 @@ class Query(Runner):
                     continue
                 candidates.append(field_value)
             neighbors_dataset = params["neighbors"]
-            num_neighbors = params.get("k", 1)
-            recall_k = calculate_recall(candidates, neighbors_dataset, num_neighbors)
-            result.update({"recall@k": recall_k})
 
-            recall_1 = calculate_recall(candidates, neighbors_dataset, 1)
-            result.update({"recall@1": recall_1})
+            if "k" in params:
+                num_neighbors = params.get("k", 1)
+                recall_top_k = calculate_topk_search_recall(candidates, neighbors_dataset, num_neighbors)
+                recall_top_1 = calculate_topk_search_recall(candidates, neighbors_dataset, 1)
+                result.update({"recall@k": recall_top_k})
+                result.update({"recall@1": recall_top_1})
+
+            if "max_distance" in params or "min_score" in params:
+                recall_threshold = calculate_radial_search_recall(candidates, neighbors_dataset)
+                recall_top_1 = calculate_radial_search_recall(candidates, neighbors_dataset, True)
+                if "min_score" in params:
+                    result.update({"recall@min_score": recall_threshold})
+                    result.update({"recall@min_score_1": recall_top_1})
+                elif "max_distance" in params:
+                    result.update({"recall@max_distance": recall_threshold})
+                    result.update({"recall@max_distance_1": recall_top_1})
 
             recall_processing_end = time.perf_counter()
             recall_processing_time = convert.seconds_to_ms(recall_processing_end - recall_processing_start)
@@ -2381,7 +2500,7 @@ class CompositeContext:
 
 class Composite(Runner):
     """
-    Executes a complex request structure which is measured by Benchmark as one composite operation.
+    Executes a complex request structure which is measured by OSB as one composite operation.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -2580,7 +2699,7 @@ class DeleteMlModel(Runner):
     @time_func
     async def __call__(self, opensearch, params):
         async def _is_deployed(model_id):
-            resp = await opensearch.transport.perform_request('GET', '_plugins/_ml/models/' + model_id)
+            resp = await opensearch.transport.perform_request('GET', '/_plugins/_ml/models/' + model_id)
             state = resp.get('model_state')
             return state in ('PARTIALLY_DEPLOYED', 'DEPLOYED')
 
@@ -2651,14 +2770,14 @@ class RegisterMlModel(Runner):
                     break
 
         if not model_id:
-            resp = await opensearch.transport.perform_request('POST', '_plugins/_ml/models/_register', body=body)
+            resp = await opensearch.transport.perform_request('POST', '/_plugins/_ml/models/_register', body=body)
             task_id = resp.get('task_id')
             timeout = params.get('timeout', 120)
             end = time.time() + timeout
             state = 'CREATED'
             while state == 'CREATED' and time.time() < end:
                 await asyncio.sleep(5)
-                resp = await opensearch.transport.perform_request('GET', '_plugins/_ml/tasks/' + task_id)
+                resp = await opensearch.transport.perform_request('GET', '/_plugins/_ml/tasks/' + task_id)
                 state = resp.get('state')
             if state == 'FAILED':
                 raise exceptions.BenchmarkError("Failed to register ml-model. Error: {}".format(resp['error']))
@@ -2680,14 +2799,14 @@ class DeployMlModel(Runner):
             d = json.loads(f.read())
             model_id = d['model_id']
 
-        resp = await opensearch.transport.perform_request('POST', '_plugins/_ml/models/' + model_id + '/_deploy')
+        resp = await opensearch.transport.perform_request('POST', '/_plugins/_ml/models/' + model_id + '/_deploy')
         task_id = resp.get('task_id')
         timeout = params.get('timeout', 120)
         end = time.time() + timeout
         state = 'RUNNING'
         while state == 'RUNNING' and time.time() < end:
             await asyncio.sleep(5)
-            resp = await opensearch.transport.perform_request('GET', '_plugins/_ml/tasks/' + task_id)
+            resp = await opensearch.transport.perform_request('GET', '/_plugins/_ml/tasks/' + task_id)
             state = resp.get('state')
         if state == 'FAILED':
             raise exceptions.BenchmarkError("Failed to deploy ml-model. Error: {}".format(resp['error']))
@@ -2696,3 +2815,20 @@ class DeployMlModel(Runner):
 
     def __repr__(self, *args, **kwargs):
         return "deploy-ml-model"
+
+class UpdateConcurrentSegmentSearchSettings(Runner):
+    @time_func
+    async def __call__(self, opensearch, params):
+        enable_setting = params.get("enable", "false")
+        max_slice_count = params.get("max_slice_count", None)
+        body = {
+            "persistent": {
+                "search.concurrent_segment_search.enabled": enable_setting
+            }
+        }
+        if max_slice_count is not None:
+            body["persistent"]["search.concurrent.max_slice_count"] = max_slice_count
+        await opensearch.cluster.put_settings(body=body)
+
+    def __repr__(self, *args, **kwargs):
+        return "update-concurrent-segment-search-settings"

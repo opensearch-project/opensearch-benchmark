@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "title": "workload",
-  "description": "Specification of workloads for Benchmark",
+  "description": "Specification of workloads for OSB",
   "type": "object",
   "definitions": {
     "schedule": {
@@ -27,6 +27,11 @@
               "iterations": {
                 "type": "integer",
                 "minimum": 1
+              },
+              "ramp-up-time-period": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Defines the time period in seconds to gradually increase the number of clients."
               },
               "warmup-time-period": {
                 "type": "integer",
@@ -75,6 +80,11 @@
                       "minimum": 1,
                       "description": "Defines the number of times to run the operation."
                     },
+                    "ramp-up-time-period": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "description": "Defines the time period in seconds to gradually increase the number of clients."
+                    },
                     "warmup-time-period": {
                       "type": "integer",
                       "minimum": 0,
@@ -87,7 +97,7 @@
                     },
                     "schedule": {
                       "type": "string",
-                      "description": "Defines the scheduling strategy that is used for throughput throttled operations. Out of the box, Benchmark supports 'deterministic' (default) and 'poisson' but you can implement your own schedules."
+                      "description": "Defines the scheduling strategy that is used for throughput throttled operations. Out of the box, OSB supports 'deterministic' (default) and 'poisson' but you can implement your own schedules."
                     },
                     "target-throughput": {
                       "anyOf": [
@@ -99,7 +109,7 @@
                           "type": "string"
                         }
                       ],
-                      "description": "Defines the number of operations per second that Benchmark should attempt to run."
+                      "description": "Defines the number of operations per second that OSB should attempt to run."
                     },
                     "target-interval": {
                       "type": "number",
@@ -146,6 +156,11 @@
             "minimum": 1,
             "description": "Defines the number of times to run the operation."
           },
+          "ramp-up-time-period": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Defines the time period in seconds to gradually increase the number of clients."
+          },
           "warmup-time-period": {
             "type": "integer",
             "minimum": 0,
@@ -166,7 +181,7 @@
                 "type": "string"
               }
             ],
-            "description": "Defines the number of operations per second that Benchmark should attempt to run."
+            "description": "Defines the number of operations per second that OSB should attempt to run."
           },
           "target-interval": {
             "type": "number",
@@ -187,7 +202,7 @@
         },
         "default": {
           "type": "boolean",
-          "description": "If true, Benchmark should select this test_procedure as the default test_procedure if the user does not specify one on the command line."
+          "description": "If true, OSB should select this test_procedure as the default test_procedure if the user does not specify one on the command line."
         },
         "meta": {
           "type": "object",
@@ -368,11 +383,11 @@
           "base-url": {
             "type": "string",
             "format": "uri",
-            "description": "The default base URL for this document corpus. Has to be a publicly accessible http or https URL. If not specified, Benchmark will not attempt to download data and assume that it will be available locally."
+            "description": "The default base URL for this document corpus. Has to be a publicly accessible http or https URL. If not specified, OSB will not attempt to download data and assume that it will be available locally."
           },
           "source-format": {
             "type": "string",
-            "description": "Defines in which format Benchmark should interpret the data file specified by 'source-file'. Currently, only 'bulk' is supported."
+            "description": "Defines in which format OSB should interpret the data file specified by 'source-file'. Currently, only 'bulk' is supported."
           },
           "includes-action-and-meta-data": {
             "type": "boolean",
@@ -406,13 +421,37 @@
                   "format": "uri",
                   "description": "The root URL for these documents."
                 },
+                "source-url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "The full URL to the document file.  This is intended for cases like when a signed URL needs to be used to access the file directly."
+                },
                 "source-file": {
                   "type": "string",
                   "description": "Name of file containing documents. This file has to be compressed either as bz2, zip or tar.gz and must contain exactly one JSON file with the same name (Examples: documents.json.bz2, documents.zip (which should contain one file called 'documents.json'))."
                 },
+                "source-file-parts": {
+                  "type": "array",
+                  "description": "A list of files that should be concatentated to create the source (document) file.  This is intended for cases where the document file is large enough that separating it into smaller parts is appropriate (optional).",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "description": "The name of the file corresponding to this part."
+                       },
+                      "size": {
+                        "type": "integer",
+                        "description": "The size of the file corresponding to this part."
+                       }
+                     }
+                  }
+                },
                 "source-format": {
                   "type": "string",
-                  "description": "Defines in which format Benchmark should interpret the data file specified by 'source-file'. Currently, only 'bulk' is supported."
+                  "description": "Defines in which format OSB should interpret the data file specified by 'source-file'. Currently, only 'bulk' is supported."
                 },
                 "document-count": {
                   "type": "integer",
@@ -426,7 +465,7 @@
                 "compressed-bytes": {
                   "type": "integer",
                   "minimum": 1,
-                  "description": "The size in bytes of the compressed document file. This number is used to show users how much data will be downloaded by Benchmark and also to check whether the download is complete."
+                  "description": "The size in bytes of the compressed document file. This number is used to show users how much data will be downloaded by OSB and also to check whether the download is complete."
                 },
                 "uncompressed-bytes": {
                   "type": "integer",
@@ -521,15 +560,15 @@
           },
           "cache": {
             "type": "boolean",
-            "description": "[Only for type 'search']: Whether to use the query request cache. By default, Benchmark will define no value thus the default depends on the benchmark candidate settings and OpenSearch version."
+            "description": "[Only for type 'search']: Whether to use the query request cache. By default, OSB will define no value thus the default depends on the benchmark candidate settings and OpenSearch version."
           },
           "index": {
             "type": "string",
-            "description": "[Only for type 'search']: The index or index pattern against which the query should be executed. This property is only necessary if there is more than one index or the index contains more than one type. Otherwise, Benchmark will derive the index and type by itself."
+            "description": "[Only for type 'search']: The index or index pattern against which the query should be executed. This property is only necessary if there is more than one index or the index contains more than one type. Otherwise, OSB will derive the index and type by itself."
           },
           "type": {
             "type": "string",
-            "description": "[Only for type 'search']: The type against which the query should be executed. This property is only necessary if there is more than one index or the index contains more than one type. Otherwise, Benchmark will derive the index and type by itself."
+            "description": "[Only for type 'search']: The type against which the query should be executed. This property is only necessary if there is more than one index or the index contains more than one type. Otherwise, OSB will derive the index and type by itself."
           },
           "pages": {
             "type": "integer",

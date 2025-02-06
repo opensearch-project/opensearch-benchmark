@@ -1,6 +1,8 @@
 [![CI](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/main.yml/badge.svg)](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/main.yml)
 [![Integration](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/manual-integ.yml/badge.svg)](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/manual-integ.yml)
-[![Release](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/release-drafter.yml/badge.svg)](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/release-drafter.yml)
+[![Release](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/publish-release.yml/badge.svg)](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/publish-release.yml)
+[![Version](https://img.shields.io/pypi/v/opensearch-benchmark.svg?color=blue)](https://pypi.org/project/opensearch-benchmark/)
+![PyPI Downloads](https://static.pepy.tech/badge/opensearch-benchmark)
 [![Chat](https://img.shields.io/badge/chat-on%20forums-blue)](https://forum.opensearch.org/categories)
 ![PRs welcome!](https://img.shields.io/badge/PRs-welcome!-success)
 
@@ -37,7 +39,7 @@ Getting help
 
 * Quick help: ``opensearch-benchmark --help``
 * Want to contribute? Look at [OpenSearch Benchmark's Developer Guide](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) for more information
-* For any questions or answers, visit our [community forum](<https://discuss.opendistrocommunity.dev/>).
+* For any questions or answers, visit our [community forum](<https://discuss.opendistrocommunity.dev/>) and Slack community channel [#performance-benchmarking](https://opensearch.slack.com/archives/C082PLA3VPW).
 * File improvements or bug reports in our [Github repo](<https://github.com/opensearch-project/OpenSearch-Benchmark/issues>).
 
 How to Contribute
