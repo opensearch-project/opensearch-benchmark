@@ -26,8 +26,8 @@ import it
 
 
 @it.all_benchmark_configs
-def test_list_test_executions(cfg):
-    assert it.osbenchmark(cfg, "list test_executions") == 0
+def test_list_test_runs(cfg):
+    assert it.osbenchmark(cfg, "list test-runs") == 0
 
 
 @it.benchmark_in_mem

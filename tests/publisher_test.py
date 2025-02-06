@@ -76,7 +76,7 @@ class FormatterTests(TestCase):
 
         publisher = publisher.ComparisonPublisher(config)
 
-        # Mock for regular test execution
+        # Mock for regular test run
         regular_stats = Mock()
         regular_stats.metrics.return_value = {
             "throughput": {
@@ -88,7 +88,7 @@ class FormatterTests(TestCase):
             }
         }
 
-        # Mock for aggregated test execution
+        # Mock for aggregated test run
         aggregated_stats = Mock()
         aggregated_stats.metrics.return_value = {
             "throughput": {

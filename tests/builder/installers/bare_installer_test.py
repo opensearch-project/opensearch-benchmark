@@ -13,7 +13,7 @@ class BareInstallerTests(TestCase):
         self.binaries = {}
         self.all_node_ips = ["10.17.22.22", "10.17.22.23"]
 
-        self.test_execution_root = "fake_root"
+        self.test_run_root = "fake_root"
         self.node_id = "abdefg"
         self.cluster_name = "my-cluster"
 
@@ -26,7 +26,7 @@ class BareInstallerTests(TestCase):
             root_path="fake",
             config_paths=["/tmp"],
             variables={
-                "test_execution_root": self.test_execution_root,
+                "test_run_root": self.test_run_root,
                 "cluster_name": self.cluster_name,
                 "node": {
                     "port": "9200"

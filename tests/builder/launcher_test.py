@@ -154,8 +154,8 @@ class TerminatedProcess:
 
 def get_metrics_store(cfg):
     ms = InMemoryMetricsStore(cfg)
-    ms.open(test_ex_id=str(uuid.uuid4()),
-            test_ex_timestamp=datetime.now(),
+    ms.open(test_run_id=str(uuid.uuid4()),
+            test_run_timestamp=datetime.now(),
             workload_name="test",
             test_procedure_name="test",
             cluster_config_name="test")
@@ -295,7 +295,7 @@ class ProcessLauncherTests(TestCase):
         self.assertEqual(os.environ["OPENSEARCH_JAVA_OPTS"], env["OPENSEARCH_JAVA_OPTS"])
 
     @mock.patch("osbenchmark.time.sleep")
-    def test_pidfile_wait_test_execution(self, sleep):
+    def test_pidfile_wait_test_run(self, sleep):
         mo = mock_open()
         with self.assertRaises(exceptions.LaunchError):
             mo.side_effect = FileNotFoundError

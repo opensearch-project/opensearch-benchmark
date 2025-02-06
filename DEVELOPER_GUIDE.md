@@ -8,7 +8,7 @@ This document will walk you through on what's needed to start contributing code 
     - [Setup](#setup)
 - [Importing the project into an IDE](#importing-the-project-into-an-ide)
 - [Setting Up a Local OpenSearch Cluster For OSB Development (Optional)](#setting-up-a-local-opensearch-cluster-for-osb-development-optional)
-- [Executing tests](#executing-tests)
+- [running tests](#running-tests)
     - [Unit tests](#unit-tests)
     - [Integration tests](#integration-tests)
 - [Submitting your changes for a pull request](#submitting-your-changes-for-a-pull-request)
@@ -28,7 +28,7 @@ This document will walk you through on what's needed to start contributing code 
 
     `pyenv` requires that the C compiler and development libraries be installed, so that the specified Python versions can be build from source.  The installation instructions vary from platform to platform.
 
-    For Debian-based systems, install the following modules to continue with the next steps: 
+    For Debian-based systems, install the following modules to continue with the next steps:
     ```
     sudo apt-get install -y make build-essential libssl-dev zlib1g-dev libbz2-dev \
     libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev \
@@ -65,9 +65,9 @@ This document will walk you through on what's needed to start contributing code 
 
 ### Setup
 
-To develop OSB properly, it is recommended that you fork the official OpenSearch Benchmark repository. 
+To develop OSB properly, it is recommended that you fork the official OpenSearch Benchmark repository.
 
-For those working on WSL2, it is recommended to clone the repository and set up the working environment within the Linux subsystem. Refer to the guide for setting up WSL2 on [Visual Studio Code](https://code.visualstudio.com/docs/remote/wsl) or [PyCharm](https://www.jetbrains.com/help/pycharm/using-wsl-as-a-remote-interpreter.html#create-wsl-interpreter). 
+For those working on WSL2, it is recommended to clone the repository and set up the working environment within the Linux subsystem. Refer to the guide for setting up WSL2 on [Visual Studio Code](https://code.visualstudio.com/docs/remote/wsl) or [PyCharm](https://www.jetbrains.com/help/pycharm/using-wsl-as-a-remote-interpreter.html#create-wsl-interpreter).
 
 After you git cloned the forked copy of OpenSearch Benchmark, use the following command-line instructions to set up OpenSearch Benchmark for development:
 ```
@@ -98,9 +98,9 @@ In order to run tests within the PyCharm IDE, ensure the `Python Integrated Tool
 
 ## Setting Up a Local OpenSearch Cluster For OSB Development (Optional)
 
-### OpenSearch Installation  
+### OpenSearch Installation
 
-Download the latest release of OpenSearch from https://opensearch.org/downloads.html. If you are using WSL, make sure to download it into your `/home/<user>` directory instead of `/mnt/c`. 
+Download the latest release of OpenSearch from https://opensearch.org/downloads.html. If you are using WSL, make sure to download it into your `/home/<user>` directory instead of `/mnt/c`.
 ```
 wget https://artifacts.opensearch.org/releases/bundle/opensearch/<x.x.x>/opensearch-<x.x.x>-linux-x64.tar.gz
 tar -xf opensearch-x.x.x-linux-x64.tar.gz
@@ -110,17 +110,17 @@ NOTE: Have Docker running in the background for the next steps. Refer to the ins
 
 ### OpenSearch Cluster setup
 
-Add the following settings to the `opensearch.yml` file under the config directory 
+Add the following settings to the `opensearch.yml` file under the config directory
 ```
 vim config/opensearch.yml
 ```
 ```
 #
-discovery.type: single-node 
-plugins.security.disabled: true 
+discovery.type: single-node
+plugins.security.disabled: true
 #
 ```
-Run the opensearch-tar-install.sh script to install and setup a cluster for our use. 
+Run the opensearch-tar-install.sh script to install and setup a cluster for our use.
 ```
 bash opensearch-tar-install.sh
 ```
@@ -146,25 +146,25 @@ Check the output of `curl.exe "http://localhost:9200/_cluster/health?pretty"`. O
   "active_shards_percent_as_number" : 100.0
 }
 ```
-Now, you have a local cluster running! You can connect to this and run the workload for the next step. 
+Now, you have a local cluster running! You can connect to this and run the workload for the next step.
 
 ### Running Workloads on a locally installed Cluster
 
-Here's a sample executation of the geonames benchmark which can be found from the [workloads](https://github.com/opensearch-project/opensearch-benchmark-workloads) repo. 
+Here's a sample run of the geonames benchmark which can be found from the [workloads](https://github.com/opensearch-project/opensearch-benchmark-workloads) repo.
 ```
-opensearch-benchmark execute-test --pipeline=benchmark-only --workload=geonames --target-host=127.0.0.1:9200 --test-mode --workload-params '{"number_of_shards":"1","number_of_replicas":"0"}'
+opensearch-benchmark run-test --pipeline=benchmark-only --workload=geonames --target-host=127.0.0.1:9200 --test-mode --workload-params '{"number_of_shards":"1","number_of_replicas":"0"}'
 ```
 
 And we're done! You should be seeing the performance metrics soon enough!
 
-### Debugging 
+### Debugging
 
-**If you are not seeing any results, it should be an indicator that there is an issue with your cluster setup or the way the manager is accessing it**. Use the command below to view the logs. 
+**If you are not seeing any results, it should be an indicator that there is an issue with your cluster setup or the way the manager is accessing it**. Use the command below to view the logs.
 ```
 tail -f ~/.benchmark/logs/benchmark.log
 ```
 
-## Executing tests
+## running tests
 
 Once setup is complete, you may run the unit and integration tests.
 
@@ -230,7 +230,7 @@ make install
 To streamline the process, please refer to [this guide](https://github.com/opensearch-project/opensearch-benchmark/blob/main/PYTHON_SUPPORT_GUIDE.md)
 
 ### Debugging OpenSearch Benchmark in Developer Mode
-Many users find that the simplest way to debug OpenSearch Benchmark is by using developer mode. Users can activate developer mode by running `python3 -m pip install -e .` within the cloned OpenSearch Benchmark repository. Any changes made and saved will be reflected when OpenSearch Benchmark is run. Users can add loggers or print statements and see the changes reflected in subsequent runs. 
+Many users find that the simplest way to debug OpenSearch Benchmark is by using developer mode. Users can activate developer mode by running `python3 -m pip install -e .` within the cloned OpenSearch Benchmark repository. Any changes made and saved will be reflected when OpenSearch Benchmark is run. Users can add loggers or print statements and see the changes reflected in subsequent runs.
 
 ### Debugging Unittests in Visual Studio Code
 To run and debug unittests in Visual Studio Code, add the following configuration to the Python Debugger `launch.json` file. See [the official Visual Studio Code documentation](https://code.visualstudio.com/docs/editor/debugging) for more information on setting up and accessing `launch.json` file.
