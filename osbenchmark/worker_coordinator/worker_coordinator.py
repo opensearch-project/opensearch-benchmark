@@ -1125,11 +1125,31 @@ class Worker(actor.BenchmarkActor):
             elif self.executor_future is not None and self.executor_future.done():
                 e = self.executor_future.exception(timeout=0)
                 if e:
-                    self.logger.exception("Worker[%s] has detected a benchmark failure. Notifying master...",
-                                          str(self.worker_id), exc_info=e)
-                    # the exception might be user-defined and not be on the load path of the master worker_coordinator. Hence, it cannot be
-                    # deserialized on the receiver so we convert it here to a plain string.
-                    self.send(self.master, actor.BenchmarkFailure("Error in load generator [{}]".format(self.worker_id), str(e)))
+                    currentTasks = self.client_allocations.tasks(self.current_task_index)
+                    detailed_error = (
+                    f"Benchmark operation failed:\n"
+                    f"Worker ID: {self.worker_id}\n"
+                    f"Task: {', '.join(t.task.task.name for t in currentTasks)}\n"
+                    f"Workload: {self.workload.name if self.workload else 'Unknown'}\n"
+                    f"Test Procedure: {self.workload.selected_test_procedure_or_default}\n"
+                    f"Cause: {e.cause if hasattr(e, 'cause') and e.cause is not None else 'Unknown'}"
+                    )
+                    detailed_error += f"\nError: {str(e)}"
+
+                    self.logger.exception(
+                        "Worker[%s] has detected a benchmark failure:\n%s",
+                        str(self.worker_id),
+                        detailed_error,
+                        exc_info=e
+                    )
+
+                    self.send(
+                        self.master,
+                        actor.BenchmarkFailure(
+                            detailed_error,
+                            str(e)
+                        )
+                    )
                 else:
                     self.logger.info("Worker[%s] is ready for the next task.", str(self.worker_id))
                     self.executor_future = None
