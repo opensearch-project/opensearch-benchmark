@@ -179,7 +179,9 @@ setup(name="opensearch-benchmark",
       entry_points={
           "console_scripts": [
               "opensearch-benchmark=osbenchmark.benchmark:main",
-              "opensearch-benchmarkd=osbenchmark.benchmarkd:main"
+              "opensearch-benchmarkd=osbenchmark.benchmarkd:main",
+              "osb=osbenchmark.benchmark:main",
+              "osbd=osbenchmark.benchmark:main",
           ],
       },
       scripts=['scripts/expand-data-corpus.py', 'scripts/pbzip2' ],
