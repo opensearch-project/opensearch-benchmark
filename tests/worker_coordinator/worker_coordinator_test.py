@@ -250,6 +250,24 @@ class WorkerCoordinatorTests(TestCase):
         self.assertEqual(1, target.on_task_finished.call_count)
         self.assertEqual(4, target.drive_at.call_count)
 
+    @run_async
+    async def test_load_test_clients_override(self):
+        self.cfg.add(config.Scope.applicationOverride, "workload", "load.test.clients", 100)
+
+        task = self.workload.find_test_procedure_or_default("default").schedule[0]
+        original_clients = task.clients
+
+        d = worker_coordinator.WorkerCoordinator(self.create_test_worker_coordinator_target(), self.cfg,
+                                            os_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
+
+        d.prepare_benchmark(t=self.workload)
+        d.start_benchmark()
+
+        # verify the task is modified with the load test client count
+        self.assertEqual(original_clients, 4)
+        self.assertEqual(task.clients, 100)
+        self.assertEqual(task.params["target-throughput"], 100)
+
 
 def op(name, operation_type):
     return workload.Operation(name, operation_type, param_source="worker-coordinator-test-param-source")
