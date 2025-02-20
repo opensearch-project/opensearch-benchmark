@@ -40,7 +40,7 @@ def run_subprocess_with_output(command_line):
     logger.debug("Running subprocess [%s] with output.", command_line)
     command_line_args = shlex.split(command_line)
 
-    with subprocess.Popen(command_line_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as command_line_process:
+    with subprocess.Popen(command_line_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL) as command_line_process:
         has_output = True
         lines = []
         while has_output:
@@ -57,7 +57,7 @@ def run_subprocess_with_out_and_err(command_line):
     logger.debug("Running subprocess [%s] with stdout and stderr.", command_line)
     command_line_args = shlex.split(command_line)
 
-    sp = subprocess.Popen(command_line_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    sp = subprocess.Popen(command_line_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL)
     sp.wait()
     out, err = sp.communicate()
     return out.decode('UTF-8'), err.decode('UTF-8'), sp.returncode
@@ -68,7 +68,7 @@ def run_subprocess_with_stderr(command_line):
     logger.debug("Running subprocess [%s] with stderr but no stdout.", command_line)
     command_line_args = shlex.split(command_line)
 
-    sp = subprocess.Popen(command_line_args, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    sp = subprocess.Popen(command_line_args, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL)
     sp.wait()
     _, err = sp.communicate()
     return err.decode('UTF-8'), sp.returncode
@@ -91,7 +91,7 @@ def exit_status_as_bool(runnable, quiet=False):
 
 
 def run_subprocess_with_logging(command_line, header=None, level=logging.INFO, stdin=None, stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT, env=None, detach=False):
+                                stderr=subprocess.STDOUT, env=None, detach=False, capture_output=False):
     """
     Runs the provided command line in a subprocess. All output will be captured by a logger.
 
@@ -128,7 +128,7 @@ def run_subprocess_with_logging(command_line, header=None, level=logging.INFO, s
             logger.log(level=level, msg=stdout)
 
     logger.debug("Subprocess [%s] finished with return code [%s].", command_line, str(command_line_process.returncode))
-    return command_line_process.returncode
+    return (stdout, command_line_process.returncode) if capture_output else command_line_process.returncode
 
 
 def is_benchmark_process(p):

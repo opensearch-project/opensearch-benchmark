@@ -152,9 +152,9 @@ class BuilderTests(TestCase):
 
         calls = [
             # Actual call
-            mock.call("export JAVA_HOME=/opt/jdk8; cd /src; ./gradlew clean > logs/build.log 2>&1"),
+            mock.call("export JAVA_HOME=/opt/jdk8; cd /src; ./gradlew clean < /dev/null > logs/build.log 2>&1"),
             # Return value check
-            mock.call("export JAVA_HOME=/opt/jdk8; cd /src; ./gradlew assemble > logs/build.log 2>&1"),
+            mock.call("export JAVA_HOME=/opt/jdk8; cd /src; ./gradlew assemble < /dev/null > logs/build.log 2>&1"),
         ]
 
         mock_run_subprocess.assert_has_calls(calls)
@@ -170,9 +170,9 @@ class BuilderTests(TestCase):
 
         calls = [
             # Actual call
-            mock.call("export JAVA_HOME=/opt/jdk10; cd /src; ./gradlew clean > logs/build.log 2>&1"),
+            mock.call("export JAVA_HOME=/opt/jdk10; cd /src; ./gradlew clean < /dev/null > logs/build.log 2>&1"),
             # Return value check
-            mock.call("export JAVA_HOME=/opt/jdk10; cd /src; ./gradlew assemble > logs/build.log 2>&1"),
+            mock.call("export JAVA_HOME=/opt/jdk10; cd /src; ./gradlew assemble < /dev/null > logs/build.log 2>&1"),
         ]
 
         mock_run_subprocess.assert_has_calls(calls)
