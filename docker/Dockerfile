@@ -7,7 +7,9 @@
 #
 FROM python:3.11.2-slim AS build-stage
 
-RUN apt-get update && apt-get upgrade -y
+RUN apt-get update && sudo apt-get install qemu qemu-user qemu-user-static
+RUN apt-get clean && \
+rm -rf /var/lib/apt/lists/*
 RUN apt-get install -y curl
 RUN apt-get install -y git
 RUN apt-get install -y gcc
