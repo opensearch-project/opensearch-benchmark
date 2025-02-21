@@ -22,23 +22,8 @@ jobs:
     steps:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-      # - name: Run QEMU manual setup
-      #   run: |
-      #       sudo apt update && apt upgrade -y
-      #       sudo apt install make -y
-      #       sudo apt install ninja-build -y
-      #       sudo apt-get install libpixman-1-dev
 
-      #       wget https://download.qemu.org/qemu-7.0.0.tar.xz
-      #       tar xvJf qemu-7.0.0.tar.xz
-      #       cd qemu-7.0.0
-      #       ./configure
-      #       make
-
-      #       docker run --privileged --rm tonistiigi/binfmt --install all
-      #       docker run --rm --privileged multiarch/qemu-user-static --reset -p yes -c yes
-
-      - name: See if segfault is removed
+      - name: Address Libc-bin segfaults issue
         run: |
             docker run --rm --privileged multiarch/qemu-user-static --reset -p yes -c yes
 
