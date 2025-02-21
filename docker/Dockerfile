@@ -7,8 +7,14 @@
 #
 FROM python:3.11.2-slim AS build-stage
 
-RUN apt-get -y update
-RUN apt-get install -y curl git gcc pbzip2 pigz make jq
+RUN apt-get update && apt-get upgrade -y
+RUN apt-get install -y curl
+RUN apt-get install -y git
+RUN apt-get install -y gcc
+RUN apt-get install -y pbzip2
+RUN apt-get install -y pigz
+RUN apt-get install -y make
+RUN apt-get install -y jq
 RUN apt-get -y upgrade
 
 COPY . opensearch-benchmark
