@@ -20,8 +20,13 @@ jobs:
       matrix:
         platform: ['linux/amd64', 'linux/arm64']
     steps:
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      # - name: Set up QEMU
+      #   uses: docker/setup-qemu-action@v3
+      - name: Run QEMU manual setup
+        run: |
+            docker pull tonistiigi/binfmt:latest
+            docker run --privileged --rm tonistiigi/binfmt --uninstall qemu-*
+            docker run --privileged --rm tonistiigi/binfmt --install all
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
