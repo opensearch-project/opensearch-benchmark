@@ -39,7 +39,7 @@ check-pip:
 	@if ! $(PIP) > /dev/null 2>&1 || ! $(PIP) install pip > /dev/null 2>&1; then make pyinst38; fi
 
 check-java:
-	@if ! test "$(JAVA_HOME)" || ! java --version > /dev/null 2>&1 || ! javadoc --help > /dev/null 2>&1; then \
+	@if ! test "$(JAVA21_HOME)" || ! java --version > /dev/null 2>&1 || ! javadoc --help > /dev/null 2>&1; then \
 	    echo "Java installation issues for running integration tests" >&2; \
 	    exit 1; \
 	fi

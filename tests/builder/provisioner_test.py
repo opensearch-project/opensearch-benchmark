@@ -243,7 +243,7 @@ class OpenSearchInstallerTests(TestCase):
 class PluginInstallerTests(TestCase):
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     def test_install_plugin_successfully(self, installer_subprocess):
-        installer_subprocess.return_value = 0
+        installer_subprocess.return_value = "output", 0
 
         plugin = provision_config.PluginDescriptor(name="unit-test-plugin", config="default", variables={"active": True})
         installer = provisioner.PluginInstaller(plugin,
@@ -254,11 +254,11 @@ class PluginInstallerTests(TestCase):
 
         installer_subprocess.assert_called_with(
             '/opt/opensearch/bin/opensearch-plugin install --batch "unit-test-plugin"',
-            env={"JAVA_HOME": "/usr/local/javas/java8"})
+            env={"JAVA_HOME": "/usr/local/javas/java8"}, capture_output=True)
 
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     def test_install_plugin_with_bundled_jdk(self, installer_subprocess):
-        installer_subprocess.return_value = 0
+        installer_subprocess.return_value = "output", 0
 
         plugin = provision_config.PluginDescriptor(name="unit-test-plugin", config="default", variables={"active": True})
         installer = provisioner.PluginInstaller(plugin,
@@ -270,12 +270,12 @@ class PluginInstallerTests(TestCase):
 
         installer_subprocess.assert_called_with(
             '/opt/opensearch/bin/opensearch-plugin install --batch "unit-test-plugin"',
-            env={})
+            env={}, capture_output=True)
 
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     def test_install_unknown_plugin(self, installer_subprocess):
         # unknown plugin
-        installer_subprocess.return_value = 64
+        installer_subprocess.return_value = "output", 64
 
         plugin = provision_config.PluginDescriptor(name="unknown")
         installer = provisioner.PluginInstaller(plugin,
@@ -288,12 +288,12 @@ class PluginInstallerTests(TestCase):
 
         installer_subprocess.assert_called_with(
             '/opt/opensearch/bin/opensearch-plugin install --batch "unknown"',
-            env={"JAVA_HOME": "/usr/local/javas/java8"})
+            env={"JAVA_HOME": "/usr/local/javas/java8"}, capture_output=True)
 
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     def test_install_plugin_with_io_error(self, installer_subprocess):
         # I/O error
-        installer_subprocess.return_value = 74
+        installer_subprocess.return_value = "output", 74
 
         plugin = provision_config.PluginDescriptor(name="simple")
         installer = provisioner.PluginInstaller(plugin,
@@ -306,12 +306,12 @@ class PluginInstallerTests(TestCase):
 
         installer_subprocess.assert_called_with(
             '/opt/opensearch/bin/opensearch-plugin install --batch "simple"',
-            env={"JAVA_HOME": "/usr/local/javas/java8"})
+            env={"JAVA_HOME": "/usr/local/javas/java8"}, capture_output=True)
 
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     def test_install_plugin_with_unknown_error(self, installer_subprocess):
         # some other error
-        installer_subprocess.return_value = 12987
+        installer_subprocess.return_value = "output", 12987
 
         plugin = provision_config.PluginDescriptor(name="simple")
         installer = provisioner.PluginInstaller(plugin,
@@ -320,12 +320,12 @@ class PluginInstallerTests(TestCase):
 
         with self.assertRaises(exceptions.BenchmarkError) as ctx:
             installer.install(os_home_path="/opt/opensearch")
-        self.assertEqual("Unknown error while trying to install [simple] (installer return code [12987]). Please check the logs.",
+        self.assertEqual("Unknown error 'output' while trying to install [simple] (installer return code [12987]). Please check the logs.",
                          ctx.exception.args[0])
 
         installer_subprocess.assert_called_with(
             '/opt/opensearch/bin/opensearch-plugin install --batch "simple"',
-            env={"JAVA_HOME": "/usr/local/javas/java8"})
+            env={"JAVA_HOME": "/usr/local/javas/java8"}, capture_output=True)
 
     def test_pass_plugin_properties(self):
         plugin = provision_config.PluginDescriptor(name="unit-test-plugin",
