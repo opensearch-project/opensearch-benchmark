@@ -22,6 +22,11 @@ jobs:
     steps:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
+        # Workaround for a memory allocation layout bug in QEMU,
+        # triggered by a kernel update to Linux machine images.
+        # Note that this is not an actual fix.
+        with:
+          image: tonistiigi/binfmt:qemu-v7.0.0-28
 
       - name: Address Libc-bin segfaults issue
         run: |
