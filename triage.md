@@ -43,6 +43,10 @@ The steps listed below are not exhaustive and can be updated. Start with [opense
     - These Issues although not breaking are important for better customer experience
     - Feel free to encourage the requester to raise a PR, these can be tagged as good first Issue as well
 
+- [Open PR's](https://github.com/opensearch-project/opensearch-benchmark/pulls)
+    - *If time allows*, look at any pending PR's in the repo which have not yet been looked at.
+    - If a PR has been open for a long time without any activity (2+ months), consider tagging the author and converting it to a draft/closing it
+
 ### Steps to triage [opensearch-benchmark-workloads](https://github.com/opensearch-project/opensearch-benchmark-workloads)
 - [Untriaged](https://github.com/opensearch-project/opensearch-benchmark-workloads/issues?q=is%3Aopen+is%3Aissue+no%3Alabel)
     - First check if any of the untriaged issue is a duplicate. If yes, then comment the duplicate Issue link and close the duplicate
@@ -64,5 +68,9 @@ The steps listed below are not exhaustive and can be updated. Start with [opense
 - [Documentation](https://github.com/opensearch-project/opensearch-benchmark-workloads/issues?q=is%3Aopen+is%3Aissue+label%3Adocumentation)
     - These Issues although not breaking are important for better customer experience
     - Feel free to encourage the requester to raise a PR, these can be tagged as good first Issue as well
+ 
+- [Open PR's](https://github.com/opensearch-project/opensearch-benchmark-workloads/pulls)
+    - *If time allows*, look at any pending PR's in the repo which have not yet been looked at.
+    - If a PR has been open for a long time without any activity (2+ months), consider tagging the author and converting it to a draft/closing it
 
 *There could be an overlap of Issues in more than 1 category such as Breaking and Bugs or Breaking and High Priority. In this case try to triage a different Issue which is not already covered*
