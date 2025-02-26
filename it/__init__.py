@@ -39,6 +39,7 @@ from osbenchmark.utils import process
 CONFIG_NAMES = ["in-memory-it", "os-it"]
 DISTRIBUTIONS = ["1.3.9", "2.5.0"]
 WORKLOADS = ["geonames", "nyc_taxis", "http_logs", "nested"]
+BASE_COMMANDS = ["opensearch-benchmark", "osb"]
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
 
@@ -79,7 +80,7 @@ def benchmark_os(t):
 
 
 def osbenchmark_command_line_for(cfg, command_line):
-    return f"opensearch-benchmark {command_line} --configuration-name='{cfg}'"
+    return f"{random.choice(BASE_COMMANDS)} {command_line} --configuration-name='{cfg}'"
 
 
 def osbenchmark(cfg, command_line):
