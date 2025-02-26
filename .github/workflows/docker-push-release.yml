@@ -46,7 +46,7 @@ jobs:
       - name: Docker Build ${{ matrix.platform }}
         run: |
             docker buildx version
-            tag=osb/osb-`echo ${{ matrix.platform }} | tr '/' '-'`
+            tag=osb-`echo ${{ matrix.platform }} | tr '/' '-'`
             set -x
-            docker buildx build --platform ${{ matrix.platform }} --build-arg VERSION=`cat version.txt` --build-arg BUILD_DATE=`date -u +%Y-%m-%dT%H:%M:%SZ` -f docker/Dockerfile -t "$tag" --push .
+            docker buildx build --platform ${{ matrix.platform }} --build-arg VERSION=`cat version.txt` --build-arg BUILD_DATE=`date -u +%Y-%m-%dT%H:%M:%SZ` -f docker/Dockerfile -t opensearchstaging/opensearch-benchmark:"$tag" --push .
             set +x
