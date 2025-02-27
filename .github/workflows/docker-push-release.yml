@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   docker:
+    if: github.repository == 'opensearch-project/opensearch-benchmark'
     runs-on: ubuntu-latest
     strategy:
       matrix:
