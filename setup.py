@@ -186,7 +186,7 @@ setup(name="opensearch-benchmark",
       },
       scripts=['scripts/expand-data-corpus.py', 'scripts/pbzip2' ],
       classifiers=[
-          "Topic :: System :: OSB",
+          "Topic :: System :: Benchmark",
           "Development Status :: 5 - Production/Stable",
           "License :: OSI Approved :: Apache Software License",
           "Intended Audience :: Developers",
