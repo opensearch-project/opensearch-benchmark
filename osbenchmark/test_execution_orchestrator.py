@@ -191,6 +191,10 @@ class BenchmarkCoordinator:
             specified_version = versions.Version.from_string(distribution_version)
             if specified_version < min_os_version:
                 raise exceptions.SystemSetupError(f"Cluster version must be at least [{min_os_version}] but was [{distribution_version}]")
+            workload_params = self.cfg.opts("workload", "params", mandatory=False)
+            if "distribution_version" not in workload_params: # if not provided by user, we add the one we just got
+                workload_params["distribution_version"] = distribution_version
+            self.cfg.add(config.Scope.applicationOverride, "workload", "params", workload_params)
 
         self.current_workload = workload.load_workload(self.cfg)
         self.workload_revision = self.cfg.opts("workload", "repository.revision", mandatory=False)
