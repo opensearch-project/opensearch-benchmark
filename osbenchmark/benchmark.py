@@ -876,6 +876,19 @@ def configure_builder_params(args, cfg, command_requires_provision_config_instan
 
 
 def configure_connection_params(arg_parser, args, cfg):
+    # Check if multiple hosts are specified using comma separator
+    if args.target_hosts and "," in args.target_hosts:
+        console.warn(
+            "WARNING: Benchmark runs with multiple target hosts should be passed in as a JSON file such as:\n"
+            "{\n"
+            '  "default": [\n'
+            '    {"host": "127.0.0.1", "port": 9200} # Specify nodes for cluster 1\n'
+            "  ],\n"
+            '  "remote":[\n'
+            '    {"host": "10.127.0.3", "port": 9200} # Specify nodes for cluster 2\n'
+            "  ]\n"
+            "}"
+        )
     # Also needed by builder (-> telemetry) - duplicate by module?
     target_hosts = opts.TargetHosts(args.target_hosts)
     cfg.add(config.Scope.applicationOverride, "client", "hosts", target_hosts)
