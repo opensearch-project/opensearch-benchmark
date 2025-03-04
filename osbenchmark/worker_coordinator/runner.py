@@ -46,7 +46,7 @@ from opensearchpy import NotFoundError
 
 from osbenchmark import exceptions, workload
 from osbenchmark.utils import convert
-from osbenchmark.client import RequestContextHolder
+from osbenchmark.client import RequestContextHolder, RequestContextManager
 # Mapping from operation type to specific runner
 from osbenchmark.utils.parse import parse_int_parameter, parse_string_parameter, parse_float_parameter
 
@@ -71,6 +71,7 @@ def register_default_runners():
     register_runner(workload.OperationType.CreatePointInTime, CreatePointInTime(), async_runner=True)
     register_runner(workload.OperationType.DeletePointInTime, DeletePointInTime(), async_runner=True)
     register_runner(workload.OperationType.ListAllPointInTime, ListAllPointInTime(), async_runner=True)
+    register_runner(workload.OperationType.ProduceStreamMessage, ProduceStreamMessage(), async_runner=True)
 
     # This is an administrative operation but there is no need for a retry here as we don't issue a request
     register_runner(workload.OperationType.Sleep, Sleep(), async_runner=True)
@@ -2832,3 +2833,54 @@ class UpdateConcurrentSegmentSearchSettings(Runner):
 
     def __repr__(self, *args, **kwargs):
         return "update-concurrent-segment-search-settings"
+
+class ProduceStreamMessage(Runner):
+    # Class-level counter that persists across calls to __call__
+    _global_idx = 0
+
+    @time_func
+    async def __call__(self, opensearch, params):
+        producer = mandatory(params, "message-producer", self)
+        topic = mandatory(params, "topic", self)
+        body = mandatory(params, "body", self)
+
+        # Mark the beginning of the client request timing
+        request_context_holder.on_client_request_start()
+        message_count = 0
+        try:
+            print('debug ------------------------------------')
+            print(body)
+            if isinstance(body, bytes):
+                body = body.decode('utf-8')
+
+            # Split the body by newline to get individual messages
+            messages = body.split("\n")
+
+            for msg in messages:
+                if not msg.strip():
+                    continue
+                # Skip index metadata if present
+                if msg.strip() == '{"index": {"_index": "geonames"}}':
+                    continue
+                try:
+                    source = json.loads(msg)
+                except json.JSONDecodeError as e:
+                    raise exceptions.BenchmarkError(f"Failed to decode JSON in message: {msg}") from e
+
+                # Increment the global counter and use it as the unique _id
+                ProduceStreamMessage._global_idx += 1
+                new_message = {"_id": str(ProduceStreamMessage._global_idx), "_source": source}
+
+                # Send the message (as a JSON string)
+                await producer.send_and_wait(topic, json.dumps(new_message), key="")
+                message_count += 1
+
+        except Exception as e:
+            raise exceptions.BenchmarkError(f"Failed to produce message to Kafka: {e}") from e
+
+        # Mark the end of the client request timing
+        request_context_holder.on_client_request_end()
+        return {"weight": message_count, "unit": "ops", "success": True}
+
+    def __repr__(self, *args, **kwargs):
+        return "produce-stream-message"

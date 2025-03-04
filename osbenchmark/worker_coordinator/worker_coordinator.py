@@ -1661,20 +1661,33 @@ class AsyncExecutor:
                 absolute_processing_start = time.time()
                 processing_start = time.perf_counter()
                 self.schedule_handle.before_request(processing_start)
-                async with self.opensearch["default"].new_request_context() as request_context:
-                    # add num_clients to the parameter so that vector search runner can skip calculating recall
-                    # if num_clients > cpu_count().
-                    if params:
+
+                if params and params.get("operation-type") == "produce-stream-message":
+                    message_producer = await create_message_producer(self.cfg)
+                    async with message_producer.new_request_context() as request_context:
+                        params.update({"message-producer": message_producer})
+                        request_context_holder.on_client_request_start()
+                        request_context_holder.on_request_start()
+                        total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch, params, self.on_error)
+                        request_context_holder.on_request_end()
+                        request_context_holder.on_client_request_end()
+                        request_start = request_context.request_start
+                        request_end = request_context.request_end
+                        client_request_start = request_context.client_request_start
+                        client_request_end = request_context.client_request_end
+                else:
+                    async with self.opensearch["default"].new_request_context() as request_context:
+                        # add num_clients to the parameter so that vector search runner can skip calculating recall
+                        # if num_clients > cpu_count().
                         if params.get("operation-type") == "vector-search":
                             available_cores = int(self.cfg.opts("system", "available.cores", mandatory=False,
                                 default_value=multiprocessing.cpu_count()))
                             params.update({"num_clients": self.task.clients, "num_cores": available_cores})
-
-                    total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch, params, self.on_error)
-                    request_start = request_context.request_start
-                    request_end = request_context.request_end
-                    client_request_start = request_context.client_request_start
-                    client_request_end = request_context.client_request_end
+                        total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch, params, self.on_error)
+                        request_start = request_context.request_start
+                        request_end = request_context.request_end
+                        client_request_start = request_context.client_request_start
+                        client_request_end = request_context.client_request_end
 
                 processing_end = time.perf_counter()
                 service_time = request_end - request_start
@@ -1729,7 +1742,6 @@ class AsyncExecutor:
                 self.logger.info("Task [%s] completes parent. Client id [%s] is finished executing it and signals completion.",
                                  self.task, self.client_id)
                 self.complete.set()
-
 
 request_context_holder = client.RequestContextHolder()
 
@@ -1816,6 +1828,14 @@ async def execute_single(runner, opensearch, params, on_error):
 
     return total_ops, total_ops_unit, request_meta_data
 
+async def create_message_producer(cfg):
+    from aiokafka import AIOKafkaProducer
+    class KafkaProducer(AIOKafkaProducer, client.RequestContextHolder):
+        pass
+    bootstrap_servers = "localhost:34803"
+    producer = KafkaProducer(bootstrap_servers=bootstrap_servers, key_serializer=str.encode, value_serializer=str.encode)
+    await producer.start()
+    return producer
 
 class JoinPoint:
     def __init__(self, id, clients_executing_completing_task=None):
