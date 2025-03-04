@@ -2841,15 +2841,11 @@ class ProduceStreamMessage(Runner):
     @time_func
     async def __call__(self, opensearch, params):
         producer = mandatory(params, "message-producer", self)
-        topic = mandatory(params, "topic", self)
         body = mandatory(params, "body", self)
 
-        # Mark the beginning of the client request timing
         request_context_holder.on_client_request_start()
         message_count = 0
         try:
-            print('debug ------------------------------------')
-            print(body)
             if isinstance(body, bytes):
                 body = body.decode('utf-8')
 
@@ -2872,14 +2868,13 @@ class ProduceStreamMessage(Runner):
                 new_message = {"_id": str(ProduceStreamMessage._global_idx), "_source": source}
 
                 # Send the message (as a JSON string)
-                await producer.send_and_wait(topic, json.dumps(new_message), key="")
+                await producer.send_message(json.dumps(new_message))
                 message_count += 1
 
         except Exception as e:
-            raise exceptions.BenchmarkError(f"Failed to produce message to Kafka: {e}") from e
-
-        # Mark the end of the client request timing
+            raise exceptions.BenchmarkError(f"Failed to produce message: {e}") from e
         request_context_holder.on_client_request_end()
+
         return {"weight": message_count, "unit": "ops", "success": True}
 
     def __repr__(self, *args, **kwargs):

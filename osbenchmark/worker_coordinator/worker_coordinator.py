@@ -1628,6 +1628,7 @@ class AsyncExecutor:
         self.on_error = on_error
         self.logger = logging.getLogger(__name__)
         self.cfg = config
+        self.message_producer = None  # Producer will be lazily created when needed.
 
     async def __call__(self, *args, **kwargs):
         task_completes_parent = self.task.completes_parent
@@ -1662,10 +1663,11 @@ class AsyncExecutor:
                 processing_start = time.perf_counter()
                 self.schedule_handle.before_request(processing_start)
 
-                if params and params.get("operation-type") == "produce-stream-message":
-                    message_producer = await create_message_producer(self.cfg)
-                    async with message_producer.new_request_context() as request_context:
-                        params.update({"message-producer": message_producer})
+                if params.get("operation-type") == "produce-stream-message":
+                    if self.message_producer is None:
+                        self.message_producer = await client.MessageProducerFactory.create(params)
+                    params.update({"message-producer": self.message_producer})
+                    async with self.message_producer.new_request_context() as request_context:
                         request_context_holder.on_client_request_start()
                         request_context_holder.on_request_start()
                         total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch, params, self.on_error)
@@ -1742,6 +1744,9 @@ class AsyncExecutor:
                 self.logger.info("Task [%s] completes parent. Client id [%s] is finished executing it and signals completion.",
                                  self.task, self.client_id)
                 self.complete.set()
+            if self.message_producer is not None:
+                await self.message_producer.stop()
+                self.message_producer = None  # Reset for future calls.
 
 request_context_holder = client.RequestContextHolder()
 
@@ -1828,11 +1833,22 @@ async def execute_single(runner, opensearch, params, on_error):
 
     return total_ops, total_ops_unit, request_meta_data
 
-async def create_message_producer(cfg):
+async def create_message_producer(params):
     from aiokafka import AIOKafkaProducer
     class KafkaProducer(AIOKafkaProducer, client.RequestContextHolder):
         pass
-    bootstrap_servers = "localhost:34803"
+    # Get the ingestion source from the params
+    ingestion_source = params.get("ingestion-source", {})
+    if ingestion_source.get("type", "").lower() != "kafka":
+        raise ValueError("Unsupported ingestion source type. Expected 'kafka'.")
+
+    # Extract the Kafka-specific parameters
+    kafka_params = ingestion_source.get("param", {})
+    topic = kafka_params.get("topic")
+    if not topic:
+        raise ValueError("No 'topic' specified in ingestion source parameters.")
+
+    bootstrap_servers = kafka_params.get("bootstrap-servers", "localhost:34803")
     producer = KafkaProducer(bootstrap_servers=bootstrap_servers, key_serializer=str.encode, value_serializer=str.encode)
     await producer.start()
     return producer
