@@ -1628,6 +1628,7 @@ class AsyncExecutor:
         self.on_error = on_error
         self.logger = logging.getLogger(__name__)
         self.cfg = config
+        self.message_producer = None  # Producer will be lazily created when needed.
 
     async def __call__(self, *args, **kwargs):
         task_completes_parent = self.task.completes_parent
@@ -1661,20 +1662,30 @@ class AsyncExecutor:
                 absolute_processing_start = time.time()
                 processing_start = time.perf_counter()
                 self.schedule_handle.before_request(processing_start)
-                async with self.opensearch["default"].new_request_context() as request_context:
-                    # add num_clients to the parameter so that vector search runner can skip calculating recall
-                    # if num_clients > cpu_count().
-                    if params:
+
+                if params.get("operation-type") == "produce-stream-message":
+                    if self.message_producer is None:
+                        self.message_producer = await client.MessageProducerFactory.create(params)
+                    params.update({"message-producer": self.message_producer})
+                    async with self.message_producer.new_request_context() as request_context:
+                        total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch, params, self.on_error)
+                        request_start = request_context.request_start
+                        request_end = request_context.request_end
+                        client_request_start = request_context.client_request_start
+                        client_request_end = request_context.client_request_end
+                else:
+                    async with self.opensearch["default"].new_request_context() as request_context:
+                        # add num_clients to the parameter so that vector search runner can skip calculating recall
+                        # if num_clients > cpu_count().
                         if params.get("operation-type") == "vector-search":
                             available_cores = int(self.cfg.opts("system", "available.cores", mandatory=False,
                                 default_value=multiprocessing.cpu_count()))
                             params.update({"num_clients": self.task.clients, "num_cores": available_cores})
-
-                    total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch, params, self.on_error)
-                    request_start = request_context.request_start
-                    request_end = request_context.request_end
-                    client_request_start = request_context.client_request_start
-                    client_request_end = request_context.client_request_end
+                        total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch, params, self.on_error)
+                        request_start = request_context.request_start
+                        request_end = request_context.request_end
+                        client_request_start = request_context.client_request_start
+                        client_request_end = request_context.client_request_end
 
                 processing_end = time.perf_counter()
                 service_time = request_end - request_start
@@ -1729,7 +1740,9 @@ class AsyncExecutor:
                 self.logger.info("Task [%s] completes parent. Client id [%s] is finished executing it and signals completion.",
                                  self.task, self.client_id)
                 self.complete.set()
-
+            if self.message_producer is not None:
+                await self.message_producer.stop()
+                self.message_producer = None  # Reset for future calls.
 
 request_context_holder = client.RequestContextHolder()
 
