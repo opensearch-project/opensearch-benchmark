@@ -1829,25 +1829,6 @@ async def execute_single(runner, opensearch, params, on_error):
 
     return total_ops, total_ops_unit, request_meta_data
 
-async def create_message_producer(params):
-    from aiokafka import AIOKafkaProducer
-    class KafkaProducer(AIOKafkaProducer, client.RequestContextHolder):
-        pass
-    # Get the ingestion source from the params
-    ingestion_source = params.get("ingestion-source", {})
-    if ingestion_source.get("type", "").lower() != "kafka":
-        raise ValueError("Unsupported ingestion source type. Expected 'kafka'.")
-
-    # Extract the Kafka-specific parameters
-    kafka_params = ingestion_source.get("param", {})
-    topic = kafka_params.get("topic")
-    if not topic:
-        raise ValueError("No 'topic' specified in ingestion source parameters.")
-
-    bootstrap_servers = kafka_params.get("bootstrap-servers", "localhost:34803")
-    producer = KafkaProducer(bootstrap_servers=bootstrap_servers, key_serializer=str.encode, value_serializer=str.encode)
-    await producer.start()
-    return producer
 
 class JoinPoint:
     def __init__(self, id, clients_executing_completing_task=None):
