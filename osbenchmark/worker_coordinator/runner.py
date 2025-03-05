@@ -46,7 +46,7 @@ from opensearchpy import NotFoundError
 
 from osbenchmark import exceptions, workload
 from osbenchmark.utils import convert
-from osbenchmark.client import RequestContextHolder, RequestContextManager
+from osbenchmark.client import RequestContextHolder
 # Mapping from operation type to specific runner
 from osbenchmark.utils.parse import parse_int_parameter, parse_string_parameter, parse_float_parameter
 
@@ -2838,13 +2838,38 @@ class ProduceStreamMessage(Runner):
     # Class-level counter that persists across calls to __call__
     _global_idx = 0
 
+    def _process_message(self, msg: str):
+        """
+        Process a single message:
+        - Strip whitespace.
+        - Parse the message as JSON.
+        - Skip the message if it represents index metadata.
+
+        Returns:
+            Parsed JSON object if it is a valid document, otherwise None.
+        """
+        msg = msg.strip()
+        if not msg:
+            return None
+        try:
+            parsed = json.loads(msg)
+        except json.JSONDecodeError as e:
+            raise exceptions.BenchmarkError(f"Failed to decode JSON in message: {msg}") from e
+
+        # Skip if the message is index metadata.
+        if isinstance(parsed, dict) and "index" in parsed:
+            index_info = parsed["index"]
+            if isinstance(index_info, dict) and "_index" in index_info:
+                return None
+        return parsed
+
     @time_func
     async def __call__(self, opensearch, params):
         producer = mandatory(params, "message-producer", self)
         body = mandatory(params, "body", self)
 
-        request_context_holder.on_client_request_start()
         message_count = 0
+        request_context_holder.on_client_request_start()
         try:
             if isinstance(body, bytes):
                 body = body.decode('utf-8')
@@ -2853,23 +2878,20 @@ class ProduceStreamMessage(Runner):
             messages = body.split("\n")
 
             for msg in messages:
-                if not msg.strip():
+                processed = self._process_message(msg)
+                if processed is None:
                     continue
-                # Skip index metadata if present
-                if msg.strip() == '{"index": {"_index": "geonames"}}':
-                    continue
-                try:
-                    source = json.loads(msg)
-                except json.JSONDecodeError as e:
-                    raise exceptions.BenchmarkError(f"Failed to decode JSON in message: {msg}") from e
 
                 # Increment the global counter and use it as the unique _id
                 ProduceStreamMessage._global_idx += 1
-                new_message = {"_id": str(ProduceStreamMessage._global_idx), "_source": source}
+                new_message = {"_id": str(ProduceStreamMessage._global_idx), "_source": processed}
 
                 # Send the message (as a JSON string)
+                request_context_holder.on_request_start()
                 await producer.send_message(json.dumps(new_message))
+                request_context_holder.on_request_end()
                 message_count += 1
+
 
         except Exception as e:
             raise exceptions.BenchmarkError(f"Failed to produce message: {e}") from e

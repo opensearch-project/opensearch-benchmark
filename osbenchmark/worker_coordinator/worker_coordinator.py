@@ -1668,11 +1668,7 @@ class AsyncExecutor:
                         self.message_producer = await client.MessageProducerFactory.create(params)
                     params.update({"message-producer": self.message_producer})
                     async with self.message_producer.new_request_context() as request_context:
-                        request_context_holder.on_client_request_start()
-                        request_context_holder.on_request_start()
                         total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch, params, self.on_error)
-                        request_context_holder.on_request_end()
-                        request_context_holder.on_client_request_end()
                         request_start = request_context.request_start
                         request_end = request_context.request_end
                         client_request_start = request_context.client_request_start
