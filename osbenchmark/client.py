@@ -451,6 +451,7 @@ class KafkaMessageProducer:
     def __init__(self, producer, topic):
         self._producer = producer
         self._topic = topic
+        self._ctx_holder = RequestContextHolder()
 
     @classmethod
     async def create(cls, params):
@@ -459,9 +460,6 @@ class KafkaMessageProducer:
         """
         from aiokafka import AIOKafkaProducer
 
-        class KafkaProducer(AIOKafkaProducer, RequestContextHolder):
-            pass
-
         ingestion_source = params.get("ingestion-source", {})
         kafka_params = ingestion_source.get("param", {})
         topic = kafka_params.get("topic")
@@ -469,7 +467,7 @@ class KafkaMessageProducer:
             raise ValueError("No 'topic' specified in ingestion source parameters.")
         bootstrap_servers = kafka_params.get("bootstrap-servers", "")
 
-        producer = KafkaProducer(
+        producer = AIOKafkaProducer(
             bootstrap_servers=bootstrap_servers,
             key_serializer=str.encode,
             value_serializer=str.encode
@@ -491,5 +489,5 @@ class KafkaMessageProducer:
 
     @property
     def new_request_context(self):
-        # Delegate to the underlying producer
-        return self._producer.new_request_context
+        # Delegate to the internal holder
+        return self._ctx_holder.new_request_context
