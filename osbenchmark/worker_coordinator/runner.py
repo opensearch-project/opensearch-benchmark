@@ -2923,37 +2923,55 @@ class ProduceStreamMessage(Runner):
         """
         Process polling ingest stats for the specified index.
 
+        Args:
+            opensearch: The OpenSearch client
+            index_name: The name of the index to check stats for
+
         Returns:
             int: The total number of messages processed in this iteration across all shards
         """
         total_processed_this_iteration = 0
+
         # Get node stats with level=shards to access polling_ingest_stats
-        stats_response = await opensearch.nodes.stats(metric="indices", level="shards")
-        # Process the stats response to find our index and its shards
-        if stats_response and "nodes" in stats_response:
-            for node_id, node_stats in stats_response["nodes"].items():
-                if "indices" in node_stats and "shards" in node_stats["indices"]:
-                    shards = node_stats["indices"]["shards"]
-                    # Find shards for our index
-                    for shard_key, shard_stats in shards.items():
-                        if shard_key.startswith(f"{index_name}"):
-                            for shard_dict in shard_stats:
-                                for shard_id, stats in shard_dict.items():
-                                    polling_ingest_stats = stats.get("polling_ingest_stats", None)
-                                    if polling_ingest_stats:
-                                        message_processor_stats = polling_ingest_stats.get("message_processor_stats", {})
-                                        total_processed = message_processor_stats.get("total_processed_count", 0)
-                                        # Use (index_name, shard_id) as the key for tracking per-shard counts
-                                        track_key = (index_name, shard_id)
-                                        # Get the last processed count for this shard
-                                        last_processed = ProduceStreamMessage._last_processed_counts.get(track_key, 0)
-                                        # Calculate the number of messages processed in this iteration for this shard
-                                        current_iteration_processed = total_processed - last_processed
-                                        # Update the processed count if we have processed messages
-                                        if current_iteration_processed >= 0:
-                                            # Update the last processed count for next iteration
-                                            ProduceStreamMessage._last_processed_counts[track_key] = total_processed
-                                            total_processed_this_iteration += current_iteration_processed
+        stats_response = await opensearch.nodes.stats(
+            metric="indices",
+            level="shards"
+        )
+
+        # Flatten the nested data structure to simplify processing
+        for node_stats in stats_response.get("nodes", {}).values():
+            shards_data = node_stats.get("indices", {}).get("shards", {})
+
+            # Process all shards but filter for our index
+            for shard_key, shard_stats_list in shards_data.items():
+                # Only process shards for our index
+                if not shard_key.startswith(index_name):
+                    continue
+
+                for shard_dict in shard_stats_list:
+                    for shard_id, stats in shard_dict.items():
+                        # Extract polling ingest stats directly
+                        polling_ingest_stats = stats.get("polling_ingest_stats", {})
+                        message_processor_stats = polling_ingest_stats.get("message_processor_stats", {})
+                        total_processed = message_processor_stats.get("total_processed_count", 0)
+
+                        # Skip if no valid data
+                        if not total_processed:
+                            continue
+
+                        # Track processed messages
+                        track_key = (index_name, shard_id)
+                        last_processed = ProduceStreamMessage._last_processed_counts.get(track_key, 0)
+                        current_iteration_processed = total_processed - last_processed
+
+                        if current_iteration_processed >= 0:
+                            ProduceStreamMessage._last_processed_counts[track_key] = total_processed
+                            total_processed_this_iteration += current_iteration_processed
+
+                            self.logger.info(f"Index {index_name}, Shard {shard_id}: {current_iteration_processed} messages processed this iteration, {total_processed} total")
+
+        if total_processed_this_iteration > 0:
+            self.logger.info(f"Index {index_name}: {total_processed_this_iteration} total messages processed across all shards")
 
         return total_processed_this_iteration
 
