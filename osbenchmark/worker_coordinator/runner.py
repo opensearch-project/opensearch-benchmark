@@ -2876,7 +2876,6 @@ class ProduceStreamMessage(Runner):
         index_name = mandatory(params, "index", self)
 
         message_count = 0
-        request_context_holder.on_client_request_start()
         try:
             if isinstance(body, bytes):
                 body = body.decode('utf-8')
@@ -2915,7 +2914,6 @@ class ProduceStreamMessage(Runner):
 
         except Exception as e:
             raise exceptions.BenchmarkError(f"Failed to produce message: {e}") from e
-        request_context_holder.on_client_request_end()
 
         return {"weight": processed_count, "unit": "ops", "success": True}
 
