@@ -2910,7 +2910,7 @@ class ProduceStreamMessage(Runner):
 
             except Exception as e:
                 # Log the error but don't fail the operation
-                self.logger.warning(f"Failed to get polling ingest stats: {e}")
+                self.logger.warning("Failed to get polling ingest stats: %s", e)
 
         except Exception as e:
             raise exceptions.BenchmarkError(f"Failed to produce message: {e}") from e
@@ -2966,10 +2966,12 @@ class ProduceStreamMessage(Runner):
                             ProduceStreamMessage._last_processed_counts[track_key] = total_processed
                             total_processed_this_iteration += current_iteration_processed
 
-                            self.logger.info(f"Index {index_name}, Shard {shard_id}: {current_iteration_processed} messages processed this iteration, {total_processed} total")
+                            self.logger.info("Index %s, Shard %s: %s messages processed this iteration, %s total",
+                                            index_name, shard_id, current_iteration_processed, total_processed)
 
         if total_processed_this_iteration > 0:
-            self.logger.info(f"Index {index_name}: {total_processed_this_iteration} total messages processed across all shards")
+            self.logger.info("Index %s: %s total messages processed across all shards",
+                            index_name, total_processed_this_iteration)
 
         return total_processed_this_iteration
 

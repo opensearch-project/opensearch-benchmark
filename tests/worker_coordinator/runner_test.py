@@ -7326,3 +7326,157 @@ class UpdateConcurrentSegmentSearchSettingsTests(TestCase):
                 "search.concurrent.max_slice_count": 2
             }
         })
+
+
+class ProduceStreamMessageTests(TestCase):
+    def setUp(self):
+        # Reset class variables between tests
+        # pylint: disable=protected-access
+        runner.ProduceStreamMessage._global_idx = 0
+        runner.ProduceStreamMessage._last_processed_counts = {}
+        self.runner_instance = runner.ProduceStreamMessage()
+
+        self.request_context_patcher = mock.patch.object(client.RequestContextHolder, 'request_context')
+        self.mock_request_context = self.request_context_patcher.start()
+        self.mock_request_context.get.return_value = {"client_request_start": 0, "client_request_end": 0}
+
+    def tearDown(self):
+        try:
+            runner.remove_runner("produce-stream-message")
+        except KeyError:
+            pass
+
+        self.request_context_patcher.stop()
+
+    def test_process_message_with_valid_json(self):
+        valid_json = '{"field1": "value1", "field2": 42}'
+        result = self.runner_instance._process_message(valid_json)
+        self.assertEqual(result, {"field1": "value1", "field2": 42})
+
+    def test_process_message_skips_index_metadata(self):
+        index_metadata = '{"index": {"_index": "test-index", "_id": "1"}}'
+        result = self.runner_instance._process_message(index_metadata)
+        self.assertIsNone(result)
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_request_start')
+    @run_async
+    async def test_call_processes_messages(self, mock_request_start, mock_request_end):
+        """Test that __call__ correctly processes messages and sends them"""
+        mock_producer = mock.AsyncMock()
+        mock_producer.send_message = mock.AsyncMock()
+        mock_opensearch = mock.AsyncMock()
+        mock_opensearch.nodes.stats.return_value = {"nodes": {}}  # Empty stats response
+
+        params = {
+            "message-producer": mock_producer,
+            "body": '{"field1": "value1"}\n{"field2": "value2"}\n{"index": {"_index": "test"}}\n',
+            "index": "test-index"
+        }
+
+        result = await self.runner_instance(mock_opensearch, params)
+
+        self.assertEqual(result["weight"], 2)  # Only 2 messages should be processed (the third is index metadata)
+        self.assertEqual(result["unit"], "ops")
+        self.assertTrue(result["success"])
+
+        self.assertEqual(mock_producer.send_message.call_count, 2)
+
+        first_call_args = mock_producer.send_message.call_args_list[0][0][0]
+        first_message = json.loads(first_call_args)
+        self.assertEqual(first_message["_id"], "1")
+        self.assertEqual(first_message["_source"], {"field1": "value1"})
+
+        second_call_args = mock_producer.send_message.call_args_list[1][0][0]
+        second_message = json.loads(second_call_args)
+        self.assertEqual(second_message["_id"], "2")
+        self.assertEqual(second_message["_source"], {"field2": "value2"})
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_request_start')
+    @run_async
+    async def test_call_handles_bytes_body(self, mock_request_start, mock_request_end):
+        """Test that __call__ can handle body parameter as bytes"""
+        mock_producer = mock.AsyncMock()
+        mock_producer.send_message = mock.AsyncMock()
+
+        mock_opensearch = mock.AsyncMock()
+        mock_opensearch.nodes.stats.return_value = {"nodes": {}}  # Empty stats response
+
+        params = {
+            "message-producer": mock_producer,
+            "body": b'{"field1": "value1"}\n{"field2": "value2"}\n',
+            "index": "test-index"
+        }
+
+        result = await self.runner_instance(mock_opensearch, params)
+
+        self.assertEqual(result["weight"], 2)
+        self.assertEqual(result["unit"], "ops")
+        self.assertTrue(result["success"])
+        self.assertEqual(mock_producer.send_message.call_count, 2)
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_request_start')
+    @run_async
+    async def test_call_handles_producer_error(self, mock_request_start, mock_request_end):
+        """Test that __call__ correctly handles producer errors"""
+        mock_producer = mock.AsyncMock()
+        mock_producer.send_message.side_effect = Exception("Producer error")
+
+        mock_opensearch = mock.AsyncMock()
+        params = {
+            "message-producer": mock_producer,
+            "body": '{"field1": "value1"}',
+            "index": "test-index"
+        }
+
+        with self.assertRaises(exceptions.BenchmarkError) as context:
+            await self.runner_instance(mock_opensearch, params)
+
+        self.assertIn("Failed to produce message", str(context.exception))
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_request_start')
+    @run_async
+    async def test_call_with_polling_ingest_stats(self, mock_request_start, mock_request_end):
+        """Test that __call__ uses polling ingest stats when available"""
+        mock_producer = mock.AsyncMock()
+        mock_producer.send_message = mock.AsyncMock()
+
+        mock_opensearch = mock.AsyncMock()
+        stats_response = {
+            "nodes": {
+                "node1": {
+                    "indices": {
+                        "shards": {
+                            "test-index_0": [
+                                {
+                                    "0": {
+                                        "polling_ingest_stats": {
+                                            "message_processor_stats": {
+                                                "total_processed_count": 50
+                                            }
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+        mock_opensearch.nodes.stats.return_value = stats_response
+
+        params = {
+            "message-producer": mock_producer,
+            "body": '{"field1": "value1"}\n{"field2": "value2"}\n',
+            "index": "test-index"
+        }
+
+        result = await self.runner_instance(mock_opensearch, params)
+
+        # Verify that the count from stats is used instead of the message count
+        self.assertEqual(result["weight"], 50)
+        self.assertEqual(result["unit"], "ops")
+        self.assertTrue(result["success"])
