@@ -2936,7 +2936,7 @@ class ProduceStreamMessage(Runner):
             level="shards"
         )
 
-        # Flatten the nested data structure to simplify processing
+        # Parse the stats response to get the polling ingest stats for the index
         for node_stats in stats_response.get("nodes", {}).values():
             shards_data = node_stats.get("indices", {}).get("shards", {})
 

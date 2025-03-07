@@ -107,6 +107,9 @@ install_requires = [
     # License: BSD
     # Required for knnvector workload
     "numpy>=1.24.2,<=1.26.4",
+    # License: Apache 2.0
+    # Required for Kafka message producer
+    "aiokafka>=0.8.0",
 ]
 
 tests_require = [

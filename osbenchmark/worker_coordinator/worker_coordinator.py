@@ -1664,7 +1664,7 @@ class AsyncExecutor:
                 self.schedule_handle.before_request(processing_start)
 
                 # Determine which context manager to use
-                if params.get("operation-type") == "produce-stream-message":
+                if params is not None and params.get("operation-type") == "produce-stream-message":
                     if self.message_producer is None:
                         self.message_producer = await client.MessageProducerFactory.create(params)
                     params.update({"message-producer": self.message_producer})
@@ -1673,7 +1673,7 @@ class AsyncExecutor:
                     context_manager = self.opensearch["default"].new_request_context()
                     # add num_clients to the parameter so that vector search runner can skip calculating recall
                     # if num_clients > cpu_count().
-                    if params.get("operation-type") == "vector-search":
+                    if params is not None and params.get("operation-type") == "vector-search":
                         available_cores = int(self.cfg.opts("system", "available.cores", mandatory=False,
                             default_value=multiprocessing.cpu_count()))
                         params.update({"num_clients": self.task.clients, "num_cores": available_cores})

@@ -443,51 +443,7 @@ class MessageProducerFactory:
         ingestion_source = params.get("ingestion-source", {})
         producer_type = ingestion_source.get("type", "kafka").lower()
         if producer_type == "kafka":
+            from osbenchmark.kafka_client import KafkaMessageProducer
             return await KafkaMessageProducer.create(params)
         else:
             raise ValueError(f"Unsupported ingestion source type: {producer_type}")
-
-class KafkaMessageProducer:
-    def __init__(self, producer, topic):
-        self._producer = producer
-        self._topic = topic
-        self._ctx_holder = RequestContextHolder()
-
-    @classmethod
-    async def create(cls, params):
-        """
-        Creates a Kafka producer based on parameters in the ingestion source.
-        """
-        from aiokafka import AIOKafkaProducer
-
-        ingestion_source = params.get("ingestion-source", {})
-        kafka_params = ingestion_source.get("param", {})
-        topic = kafka_params.get("topic")
-        if not topic:
-            raise ValueError("No 'topic' specified in ingestion source parameters.")
-        bootstrap_servers = kafka_params.get("bootstrap-servers", "")
-
-        producer = AIOKafkaProducer(
-            bootstrap_servers=bootstrap_servers,
-            key_serializer=str.encode,
-            value_serializer=str.encode
-        )
-        await producer.start()
-        return cls(producer, topic)
-
-    async def send_message(self, message, key=""):
-        """
-        Sends a message to the producer's topic.
-        """
-        await self._producer.send_and_wait(self._topic, message, key=key)
-
-    async def stop(self):
-        """
-        Stops the underlying producer.
-        """
-        await self._producer.stop()
-
-    @property
-    def new_request_context(self):
-        # Delegate to the internal holder
-        return self._ctx_holder.new_request_context
