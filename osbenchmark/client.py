@@ -430,3 +430,20 @@ def wait_for_rest_layer(opensearch, max_attempts=40):
                 logger.warning("Got unexpected status code [%s] on attempt [%s].", e.status_code, attempt)
                 raise e
     return False
+
+
+class MessageProducerFactory:
+    @staticmethod
+    async def create(params):
+        """
+        Creates and returns a message producer based on the ingestion source.
+        Currently supports Kafka. Ingestion source should be a dict like:
+            {'type': 'kafka', 'param': {'topic': 'test', 'bootstrap-servers': 'localhost:34803'}}
+        """
+        ingestion_source = params.get("ingestion-source", {})
+        producer_type = ingestion_source.get("type", "kafka").lower()
+        if producer_type == "kafka":
+            from osbenchmark.kafka_client import KafkaMessageProducer
+            return await KafkaMessageProducer.create(params)
+        else:
+            raise ValueError(f"Unsupported ingestion source type: {producer_type}")
