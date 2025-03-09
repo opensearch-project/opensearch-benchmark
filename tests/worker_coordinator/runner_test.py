@@ -4715,8 +4715,8 @@ class SleepTests(TestCase):
         self.assertEqual(0, opensearch.call_count)
         self.assertEqual(0, opensearch.on_request_start.call_count)
         self.assertEqual(0, opensearch.on_request_end.call_count)
-        self.assertEqual(0, on_client_request_start.call_count)
-        self.assertEqual(0, on_client_request_end.call_count)
+        self.assertEqual(1, on_client_request_start.call_count)
+        self.assertEqual(1, on_client_request_end.call_count)
         self.assertEqual(0, sleep.call_count)
 
     @mock.patch("opensearchpy.OpenSearch")
