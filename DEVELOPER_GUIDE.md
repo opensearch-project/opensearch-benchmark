@@ -46,11 +46,16 @@ This document will walk you through on what's needed to start contributing code 
     brew install pyenv jq zlib xz
     ```
 
-  - **JDK**: Although OSB is a Python application, it optionally builds and provisions OpenSearch clusters.  JDK version 17 is used to build the current version of OpenSearch.  Please refer to the [build setup requirements](https://github.com/opensearch-project/OpenSearch/blob/ca564fd04f5059cf9e3ce8aba442575afb3d99f1/DEVELOPER_GUIDE.md#install-prerequisites).
-    Note that the `javadoc` executable should be available in the JDK installation.  An earlier version of the JDK can be used, but not all the integration tests will pass.
+  - **JDK**: Although OSB is a Python application, it optionally builds and provisions OpenSearch clusters.  JDK version 21 is required to build the current version of OpenSearch.  Please refer to the [build setup requirements](https://github.com/opensearch-project/OpenSearch/blob/ca564fd04f5059cf9e3ce8aba442575afb3d99f1/DEVELOPER_GUIDE.md#install-prerequisites).
+    Note that the `javadoc` executable should be available in the JDK installation.
+
+    If OSB is asked to run with an earlier version of OpenSearch, an older version of the JDK such as version 17 will be required.  Version 21 has eliminated support for the Security Manager which is used by these OpenSearch releases.
+
+    The integration tests exercise both older versions of OpenSearch and the latest version as part of the test suite.  Therefore, two versions of the JDK will need to be installed and the appropriate environment variables set, like so:
 
     ```
-    export JAVA_HOME=/path/to/JDK17
+    export JAVA21_HOME=/path/to/JDK21
+    export JAVA17_HOME=/path/to/JDK17
 
     ```
 
