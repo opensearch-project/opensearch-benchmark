@@ -36,7 +36,6 @@ import urllib3.exceptions
 
 from osbenchmark import client, exceptions, doc_link
 from osbenchmark.utils import console
-from osbenchmark.kafka_client import KafkaMessageProducer
 from tests import run_async
 
 
