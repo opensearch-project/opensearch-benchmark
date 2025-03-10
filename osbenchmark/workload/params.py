@@ -1921,6 +1921,7 @@ register_param_source_for_operation(workload.OperationType.CreateComposableTempl
 register_param_source_for_operation(workload.OperationType.DeleteComposableTemplate, DeleteIndexTemplateParamSource)
 register_param_source_for_operation(workload.OperationType.Sleep, SleepParamSource)
 register_param_source_for_operation(workload.OperationType.ForceMerge, ForceMergeParamSource)
+register_param_source_for_operation(workload.OperationType.ProduceStreamMessage, BulkIndexParamSource)
 
 # Also register by name, so users can use it too
 register_param_source_for_name("file-reader", BulkIndexParamSource)
