@@ -1194,6 +1194,9 @@ class CompleteWorkloadParams:
     def unused_user_defined_workload_params(self):
         set_user_params = set(list(self.user_specified_workload_params.keys()))
         set_user_params.difference_update(self.workload_defined_params)
+        # we get distribution version from cluster if not provided as user input
+        # so this variable always exists, so skip this check for it
+        set_user_params.discard("distribution_version")
 
         return list(set_user_params)
 
