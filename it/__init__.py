@@ -37,7 +37,7 @@ from osbenchmark import client, config, version, paths
 from osbenchmark.utils import process
 
 CONFIG_NAMES = ["in-memory-it", "os-it"]
-DISTRIBUTIONS = ["1.3.9", "2.5.0"]
+DISTRIBUTIONS = ["1.3.9", "2.17.1"]
 WORKLOADS = ["geonames", "nyc_taxis", "http_logs", "nested"]
 BASE_COMMANDS = ["opensearch-benchmark", "osb"]
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
