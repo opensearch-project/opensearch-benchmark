@@ -128,7 +128,7 @@ class StartWorker:
     Starts a worker.
     """
 
-    def __init__(self, worker_id, config, workload, client_allocations):
+    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None):
         """
         :param worker_id: Unique (numeric) id of the worker.
         :param config: OSB internal configuration object.
@@ -139,6 +139,7 @@ class StartWorker:
         self.config = config
         self.workload = workload
         self.client_allocations = client_allocations
+        self.feedback_actor = feedback_actor
 
 
 class Drive:
@@ -212,8 +213,8 @@ class FeedbackState(Enum):
     SCALING_UP = "scaling_up"
 
 class StartFeedbackActor:
-    def __init__(self, cfg):
-        self.cfg = cfg
+    def __init__(self, feedback_actor):
+        self.feedback_actor = feedback_actor
 
 class FeedbackActor(actor.BenchmarkActor):
     POST_SCALEDOWN_SECONDS = 30
@@ -344,6 +345,7 @@ class FeedbackActor(actor.BenchmarkActor):
     def receiveMsg_dict(self, msg, sender):
         try:
             self.shared_client_states[msg['worker_id']] = msg['data']
+            self.logger.info("FeedbackActor Received dictionary from worker actor %s", str(sender))
             self.handle_state()
         except Exception as e:
             print("Error processing client states: %s", e)
@@ -409,6 +411,10 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
                 self.send(self.start_sender, actor.BenchmarkFailure("Worker [{}] has exited prematurely.".format(worker_index)))
         else:
             self.logger.info("A workload preparator has exited.")
+    
+    def receiveMsg_StartFeedbackActor(self, msg, sender):
+        self.feedback_actor = msg.feedback_actor
+        self.send(self.feedback_actor, StartFeedbackActor(self.feedback_actor))
 
     def receiveUnrecognizedMessage(self, msg, sender):
         self.logger.info("Main worker_coordinator received unknown message [%s] (ignoring).", str(msg))
@@ -454,7 +460,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         return self.createActor(Worker, targetActorRequirements=self._requirements(host))
 
     def start_worker(self, worker_coordinator, worker_id, cfg, workload, allocations):
-        self.send(worker_coordinator, StartWorker(worker_id, cfg, workload, allocations))
+        self.send(worker_coordinator, StartWorker(worker_id, cfg, workload, allocations, self.feedback_actor))
 
     def drive_at(self, worker_coordinator, client_start_timestamp):
         self.send(worker_coordinator, Drive(client_start_timestamp))
@@ -818,15 +824,15 @@ class WorkerCoordinator:
         self.logger.info("Attaching cluster-level telemetry devices.")
         self.telemetry.on_benchmark_start()
         self.logger.info("Cluster-level telemetry devices are now attached.")
-        # if load testing is enabled, modify the client + throughput number for the task(s)
-        # target throughput + clients will then be equal to the qps passed in through --load-test
-        load_test_clients = self.config.opts("workload", "load.test.clients", mandatory=False)
+        # if redline testing or load testing is enabled, modify the client + throughput number for the task(s)
+        # target throughput + clients will then be equal to the qps passed in through --redline-test or --load-test
+        load_test_clients = self.config.opts("workload", "redline.test", mandatory=False) or self.config.opts("workload", "load.test.clients", mandatory=False)
         if load_test_clients:
             for task in self.test_procedure.schedule:
                 for subtask in task:
                     subtask.clients = load_test_clients
                     subtask.params["target-throughput"] = load_test_clients
-            self.logger.info("Load test mode enabled - set client count to %d", load_test_clients)
+            self.logger.info("Load test mode enabled - set max client count to %d", load_test_clients)
         allocator = Allocator(self.test_procedure.schedule)
         self.allocations = allocator.allocations
         self.number_of_steps = len(allocator.join_points) - 1
@@ -1251,12 +1257,31 @@ class Worker(actor.BenchmarkActor):
         self.client_allocations = msg.client_allocations
         self.current_task_index = 0
         self.cancel.clear()
+        self.feedback_actor = msg.feedback_actor
         # we need to wake up more often in test mode
         if self.config.opts("workload", "test.mode.enabled"):
             self.wakeup_interval = 0.5
         runner.register_default_runners()
         if self.workload.has_plugins:
             workload.load_workload_plugins(self.config, self.workload.name, runner.register_runner, scheduler.register_scheduler)
+        
+        # if redline testing is enabled, let's create shared state dictionaries
+        # these will be shared between the FeedbackActor, as well as clients inside AsyncExecutor
+        # and will tell clients whether they should be sending requests or not
+        if self.config.opts("workload", "redline.test", mandatory=False):
+            self.manager = multiprocessing.Manager()
+            self.shared_states = {
+                "worker_id": msg.worker_id,
+                "data": self.manager.dict()
+            }
+            # now let's add the clients assigned to this worker, from the allocations already calculated for us
+            for allocation in msg.client_allocations.allocations:
+                client_id = allocation["client_id"]
+                self.shared_states["data"][client_id] = False
+            
+            # now let's send this over to the FeedbackActor
+            self.send(self.feedback_actor, self.shared_states)
+
         self.drive()
 
     @actor.no_retry("worker")  # pylint: disable=no-value-for-parameter
