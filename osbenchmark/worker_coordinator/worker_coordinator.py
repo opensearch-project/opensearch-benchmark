@@ -211,6 +211,10 @@ class FeedbackState(Enum):
     SLEEP = "sleep"
     SCALING_UP = "scaling_up"
 
+class StartFeedbackActor:
+    def __init__(self, cfg):
+        self.cfg = cfg
+
 class FeedbackActor(actor.BenchmarkActor):
     POST_SCALEDOWN_SECONDS = 30
     WAKEUP_INTERVAL = 1

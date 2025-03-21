@@ -652,6 +652,14 @@ def create_arg_parser():
         help="Run a load test on your cluster, up to a certain QPS value (default: 0)",
         default=0
     )
+    test_execution_parser.add_argument(
+    "--redline-test",
+    help="Run a redline test on your cluster, up to a certain QPS value (default: 1000)",
+    nargs='?',
+    const=1000,  # Value to use when flag is present but no value given
+    default=None,  # Value to use when flag is not present
+    type=int
+    )
 
     ###############################################################################
     #
@@ -939,6 +947,7 @@ def configure_test(arg_parser, args, cfg):
         opts.csv_to_list(args.load_worker_coordinator_hosts))
     cfg.add(config.Scope.applicationOverride, "workload", "test.mode.enabled", args.test_mode)
     cfg.add(config.Scope.applicationOverride, "workload", "load.test.clients", int(args.load_test_qps))
+    cfg.add(config.Scope.applicationOverride, "workload", "redline.test", int(args.redline_test))
     cfg.add(config.Scope.applicationOverride, "workload", "latency.percentiles", args.latency_percentiles)
     cfg.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", args.throughput_percentiles)
     cfg.add(config.Scope.applicationOverride, "workload", "randomization.enabled", args.randomization_enabled)

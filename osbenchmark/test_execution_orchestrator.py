@@ -125,6 +125,9 @@ class BenchmarkActor(actor.BenchmarkActor):
             )
         self.logger.info("Telling worker_coordinator to prepare for benchmarking.")
         self.send(self.main_worker_coordinator, worker_coordinator.PrepareBenchmark(self.cfg, self.coordinator.current_workload))
+        if self.cfg.redline_test:
+            self.feedbackActor = self.createActor(worker_coordinator.FeedbackActor)
+            self.send(self.feedbackActor, worker_coordinator.StartFeedbackActor(self.cfg))
 
     @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_PreparationComplete(self, msg, sender):
