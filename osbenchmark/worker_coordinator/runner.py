@@ -2837,8 +2837,6 @@ class UpdateConcurrentSegmentSearchSettings(Runner):
 class ProduceStreamMessage(Runner):
     # Class-level counter that persists across calls to __call__
     _global_idx = 0
-    # Track last processed count across calls per shard
-    _last_processed_counts = {}  # Key: (index_name, shard_id), Value: processed_count
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -2873,7 +2871,6 @@ class ProduceStreamMessage(Runner):
     async def __call__(self, opensearch, params):
         producer = mandatory(params, "message-producer", self)
         body = mandatory(params, "body", self)
-        # index_name = mandatory(params, "index", self)
 
         message_count = 0
         try:

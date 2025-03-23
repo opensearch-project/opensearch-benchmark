@@ -7333,7 +7333,6 @@ class ProduceStreamMessageTests(TestCase):
         # Reset class variables between tests
         # pylint: disable=protected-access
         runner.ProduceStreamMessage._global_idx = 0
-        runner.ProduceStreamMessage._last_processed_counts = {}
         self.runner_instance = runner.ProduceStreamMessage()
 
         self.request_context_patcher = mock.patch.object(client.RequestContextHolder, 'request_context')
