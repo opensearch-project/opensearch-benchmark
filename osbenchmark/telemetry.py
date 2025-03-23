@@ -42,7 +42,7 @@ def list_telemetry():
                                                                                Heapdump, NodeStats, RecoveryStats,
                                                                                CcrStats, SegmentStats, TransformStats,
                                                                                SearchableSnapshotsStats,
-                                                                               SegmentReplicationStats]]
+                                                                               SegmentReplicationStats, ShardStats]]
     console.println(tabulate.tabulate(devices, ["Command", "Name", "Description"]))
     console.println("\nKeep in mind that each telemetry device may incur a runtime overhead which can skew results.")
 
@@ -602,6 +602,128 @@ class RecoveryStatsRecorder:
                 }
                 self.metrics_store.put_doc(doc, level=MetaInfoScope.cluster, meta_data=shard_metadata)
 
+
+class ShardStats(TelemetryDevice):
+    """
+    Collects and pushes shard stats for the specified cluster to the metric store.
+    """
+
+    internal = False
+    command = "shard-stats"
+    human_name = "Shard Stats"
+    help = "Regularly samples nodes stats at shard level"
+    warning = """You have enabled the shard-stats telemetry device with OpenSearch < 1.1.0. Requests to the
+          _nodes/stats OpenSearch endpoint trigger additional refreshes and WILL SKEW results.
+    """
+    opensearch_distribution_name = "opensearch"
+
+    def __init__(self, telemetry_params, clients, metrics_store):
+        """
+        :param telemetry_params: The configuration object for telemetry_params.
+            May optionally specify:
+            ``shard-stats-sample-interval``: positive integer controlling the sampling interval. Default: 60 seconds.
+        :param clients: A dict of clients to all clusters.
+        :param metrics_store: The configured metrics store we write to.
+        """
+        super().__init__()
+
+        self.telemetry_params = telemetry_params
+        self.clients = clients
+        self.specified_cluster_names = self.clients.keys()
+        self.sample_interval = telemetry_params.get("shard-stats-sample-interval", 60)
+        if self.sample_interval <= 0:
+            raise exceptions.SystemSetupError(
+                f"The telemetry parameter 'shard-stats-sample-interval' must be greater than zero but was {self.sample_interval}."
+            )
+
+        self.metrics_store = metrics_store
+        self.samplers = []
+
+    def on_benchmark_start(self):
+        default_client = self.clients["default"]
+        # ElasticSearch does not supply a value for the distribution field
+        distribution_name = default_client.info()["version"].get("distribution", "")
+        distribution_version = default_client.info()["version"]["number"]
+        major, minor = components(distribution_version)[:2]
+
+        if distribution_name != NodeStats.opensearch_distribution_name and (major < 7 or (major == 7 and minor < 2)):
+            console.warn(NodeStats.warning, logger=self.logger)
+
+        for cluster_name in self.specified_cluster_names:
+            recorder = ShardStatsRecorder(cluster_name, self.clients[cluster_name], self.metrics_store, self.sample_interval)
+            sampler = SamplerThread(recorder)
+            self.samplers.append(sampler)
+            sampler.daemon = True
+            # we don't require starting recorders precisely at the same time
+            sampler.start()
+
+    def on_benchmark_stop(self):
+        if self.samplers:
+            for sampler in self.samplers:
+                sampler.finish()
+
+
+class ShardStatsRecorder:
+    """
+    Collects and pushes shard stats for the specified cluster to the metric store.
+    """
+
+    def __init__(self, cluster_name, client, metrics_store, sample_interval):
+        """
+        :param cluster_name: The cluster_name that the client connects to, as specified in target.hosts.
+        :param client: The Elasticsearch client for this cluster.
+        :param metrics_store: The configured metrics store we write to.
+        :param sample_interval: integer controlling the interval, in seconds, between collecting samples.
+        """
+
+        self.cluster_name = cluster_name
+        self.client = client
+        self.metrics_store = metrics_store
+        self.sample_interval = sample_interval
+        self.logger = logging.getLogger(__name__)
+
+    def __str__(self):
+        return "shard stats"
+
+    def record(self):
+        """
+        Collect node-stats?level=shards and push to metrics store.
+        """
+
+
+        current_sample = self.sample()
+
+        shard_metadata = {"cluster": self.cluster_name}
+
+        for node_stats in current_sample:
+            node_name = node_stats["name"]
+            collected_node_stats = collections.OrderedDict()
+            collected_node_stats["name"] = "shard-stats"
+            shard_stats = node_stats["indices"].get("shards")
+
+            for index_name, stats in shard_stats.items():
+                for curr_shard in stats:
+                    for shard_id, curr_stats in curr_shard.items():
+                        doc = {
+                            "name": "shard-stats",
+                            "shard-id": shard_id,
+                            "index": index_name,
+                            "primary": curr_stats.get("routing", {}).get("primary"),
+                            "docs": curr_stats.get("docs", {}).get("count", -1),
+                            "store": curr_stats.get("store", {}).get("size_in_bytes", -1),
+                            "segments-count": curr_stats.get("segments", {}).get("count", -1),
+                            "node": node_name,
+                            "index-total-size": curr_stats.get("indexing", {}).get("index_total", -1),
+                            "polling-ingest-processed": curr_stats.get("polling_ingest_stats", {}).get("message_processor_stats", {}).get("total_processed_count", -1),
+                        }
+                        self.metrics_store.put_doc(doc, level=MetaInfoScope.cluster, meta_data=shard_metadata)
+    def sample(self):
+        try:
+            stats = self.client.nodes.stats(metric="_all", level="shards")
+        except opensearchpy.TransportError:
+            logging.getLogger(__name__).exception("Could not retrieve node stats at shard level.")
+            return {}
+        return stats["nodes"].values()
 
 class NodeStats(TelemetryDevice):
     """

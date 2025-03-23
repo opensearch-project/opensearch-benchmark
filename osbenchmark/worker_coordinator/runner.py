@@ -2873,7 +2873,7 @@ class ProduceStreamMessage(Runner):
     async def __call__(self, opensearch, params):
         producer = mandatory(params, "message-producer", self)
         body = mandatory(params, "body", self)
-        index_name = mandatory(params, "index", self)
+        # index_name = mandatory(params, "index", self)
 
         message_count = 0
         try:
@@ -2898,82 +2898,10 @@ class ProduceStreamMessage(Runner):
                 request_context_holder.on_request_end()
                 message_count += 1
 
-            # Check polling ingest stats for the index
-            processed_count = message_count
-            try:
-                # Get polling ingest stats for the index
-                processed_from_stats = await self._process_polling_ingest_stats(opensearch, index_name)
-
-                # If we found processed messages across shards, use that as our processed count
-                if processed_from_stats > 0:
-                    processed_count = processed_from_stats
-
-            except Exception as e:
-                # Log the error but don't fail the operation
-                self.logger.warning("Failed to get polling ingest stats: %s", e)
-
         except Exception as e:
             raise exceptions.BenchmarkError(f"Failed to produce message: {e}") from e
 
-        return {"weight": processed_count, "unit": "ops", "success": True}
-
-    async def _process_polling_ingest_stats(self, opensearch, index_name):
-        """
-        Process polling ingest stats for the specified index.
-
-        Args:
-            opensearch: The OpenSearch client
-            index_name: The name of the index to check stats for
-
-        Returns:
-            int: The total number of messages processed in this iteration across all shards
-        """
-        total_processed_this_iteration = 0
-
-        # Get node stats with level=shards to access polling_ingest_stats
-        stats_response = await opensearch.nodes.stats(
-            metric="indices",
-            level="shards"
-        )
-
-        # Parse the stats response to get the polling ingest stats for the index
-        for node_stats in stats_response.get("nodes", {}).values():
-            shards_data = node_stats.get("indices", {}).get("shards", {})
-
-            # Process all shards but filter for our index
-            for shard_key, shard_stats_list in shards_data.items():
-                # Only process shards for our index
-                if not shard_key.startswith(index_name):
-                    continue
-
-                for shard_dict in shard_stats_list:
-                    for shard_id, stats in shard_dict.items():
-                        # Extract polling ingest stats directly
-                        polling_ingest_stats = stats.get("polling_ingest_stats", {})
-                        message_processor_stats = polling_ingest_stats.get("message_processor_stats", {})
-                        total_processed = message_processor_stats.get("total_processed_count", 0)
-
-                        # Skip if no valid data
-                        if not total_processed:
-                            continue
-
-                        # Track processed messages
-                        track_key = (index_name, shard_id)
-                        last_processed = ProduceStreamMessage._last_processed_counts.get(track_key, 0)
-                        current_iteration_processed = total_processed - last_processed
-
-                        if current_iteration_processed >= 0:
-                            ProduceStreamMessage._last_processed_counts[track_key] = total_processed
-                            total_processed_this_iteration += current_iteration_processed
-
-                            self.logger.info("Index %s, Shard %s: %s messages processed this iteration, %s total",
-                                            index_name, shard_id, current_iteration_processed, total_processed)
-
-        if total_processed_this_iteration > 0:
-            self.logger.info("Index %s: %s total messages processed across all shards",
-                            index_name, total_processed_this_iteration)
-
-        return total_processed_this_iteration
+        return {"weight": message_count, "unit": "ops", "success": True}
 
     def __repr__(self, *args, **kwargs):
         return "produce-stream-message"

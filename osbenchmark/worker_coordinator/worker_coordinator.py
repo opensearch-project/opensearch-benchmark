@@ -581,7 +581,8 @@ class WorkerCoordinator:
                 telemetry.RecoveryStats(telemetry_params, opensearch, self.metrics_store),
                 telemetry.TransformStats(telemetry_params, opensearch, self.metrics_store),
                 telemetry.SearchableSnapshotsStats(telemetry_params, opensearch, self.metrics_store),
-                telemetry.SegmentReplicationStats(telemetry_params, opensearch, self.metrics_store)
+                telemetry.SegmentReplicationStats(telemetry_params, opensearch, self.metrics_store),
+                telemetry.ShardStats(telemetry_params, opensearch, self.metrics_store)
             ]
         else:
             devices = []

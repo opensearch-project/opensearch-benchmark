@@ -1402,6 +1402,192 @@ class TestSearchableSnapshotsStats:
         metrics_store_put_doc.assert_has_calls(expected_calls, any_order=True)
 
 
+class TestShardStats:
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
+    def test_stores_single_shard_stats(self, metrics_store_put_doc):
+        node_stats_response = {
+            "cluster_name": "opensearch",
+            "nodes": {
+                "VNznK-nTQOiCOhY3eZ6LFA": {
+                    "timestamp": 1742593013141,
+                    "name": "java-data",
+                    "transport_address": "127.0.0.1:9300",
+                    "host": "127.0.0.1",
+                    "ip": "127.0.0.1:9300",
+                    "roles": [
+                        "cluster_manager",
+                        "data",
+                        "ingest",
+                        "remote_cluster_client"
+                    ],
+                    "indices": {
+                        "docs": {
+                            "count": 116076,
+                            "deleted": 0,
+                        },
+                        "store": {
+                            "size_in_bytes": 47399678,
+                            "reserved_in_bytes": 0
+                        },
+                        "shards": {
+                            "geonames": [
+                                {
+                                    "0": {
+                                        "routing": {
+                                            "state": "STARTED",
+                                            "primary": True,
+                                            "node": "VNznK-nTQOiCOhY3eZ6LFA",
+                                            "relocating_node": None,
+                                        },
+                                        "docs": {
+                                            "count": 114000,
+                                            "deleted": 0,
+                                        },
+                                        "store": {
+                                            "size_in_bytes": 43685841,
+                                            "reserved_in_bytes": 0,
+                                        },
+                                        "segments": {
+                                            "count": 5,
+                                            "memory_in_bytes": 0,
+                                            "terms_memory_in_bytes": 0,
+                                            "stored_fields_memory_in_bytes": 0,
+                                            "term_vectors_memory_in_bytes": 0,
+                                            "norms_memory_in_bytes": 0,
+                                            "points_memory_in_bytes": 0,
+                                            "doc_values_memory_in_bytes": 0,
+                                            "index_writer_memory_in_bytes": 0,
+                                            "version_map_memory_in_bytes": 0,
+                                            "fixed_bit_set_memory_in_bytes": 0,
+                                            "max_unsafe_auto_id_timestamp": -1,
+                                            "file_sizes": {},
+                                        },
+                                        "indexing": {
+                                            "index_total": 114000,
+                                        },
+                                        "polling_ingest_stats": {
+                                            "message_processor_stats": {
+                                                "total_processed_count": 114000
+                                            },
+                                            "consumer_stats": {
+                                                "total_polled_count": 114000
+                                            }
+                                        }
+                                    },
+                                }
+                            ]
+                        },
+                    },
+                }
+            },
+        }
+
+        client = Client(nodes=SubClient(stats=node_stats_response))
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        recorder = telemetry.ShardStatsRecorder(cluster_name="remote", client=client, metrics_store=metrics_store, sample_interval=53)
+        recorder.record()
+
+        shard_metadata = {"cluster": "remote"}
+
+        metrics_store_put_doc.assert_has_calls(
+            [
+                mock.call(
+                    {
+                        "name": "shard-stats",
+                        "shard-id": "0",
+                        "index": "geonames",
+                        "primary": True,
+                        "docs": 114000,
+                        "store": 43685841,
+                        "segments-count": 5,
+                        "node": "java-data",
+                        "index-total-size": 114000,
+                        "polling-ingest-processed": 114000,
+                    },
+                    level=MetaInfoScope.cluster,
+                    meta_data=shard_metadata,
+                )
+            ],
+            any_order=True,
+        )
+
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
+    def test_missing_properties_shard_stats(self, metrics_store_put_doc):
+        node_stats_response = {
+            "cluster_name": "opensearch",
+            "nodes": {
+                "VNznK-nTQOiCOhY3eZ6LFA": {
+                    "timestamp": 1742593013141,
+                    "name": "java-data",
+                    "transport_address": "127.0.0.1:9300",
+                    "host": "127.0.0.1",
+                    "ip": "127.0.0.1:9300",
+                    "roles": [
+                        "cluster_manager",
+                        "data",
+                        "ingest",
+                        "remote_cluster_client"
+                    ],
+                    "indices": {
+                        "docs": {
+                            "count": 116076,
+                            "deleted": 0,
+                        },
+                        "store": {
+                            "size_in_bytes": 47399678,
+                            "reserved_in_bytes": 0
+                        },
+                        "shards": {
+                            "geonames": [
+                                {
+                                    "0": {
+                                        "routing": {
+                                            "state": "STARTED",
+                                            "primary": True,
+                                            "node": "VNznK-nTQOiCOhY3eZ6LFA",
+                                            "relocating_node": None,
+                                        }
+                                    },
+                                }
+                            ]
+                        },
+                    },
+                }
+            },
+        }
+
+        client = Client(nodes=SubClient(stats=node_stats_response))
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        recorder = telemetry.ShardStatsRecorder(cluster_name="remote", client=client, metrics_store=metrics_store, sample_interval=53)
+        recorder.record()
+
+        shard_metadata = {"cluster": "remote"}
+
+        metrics_store_put_doc.assert_has_calls(
+            [
+                mock.call(
+                    {
+                        "name": "shard-stats",
+                        "shard-id": "0",
+                        "index": "geonames",
+                        "primary": True,
+                        "docs": -1,
+                        "store": -1,
+                        "segments-count": -1,
+                        "node": "java-data",
+                        "index-total-size": -1,
+                        "polling-ingest-processed": -1,
+                    },
+                    level=MetaInfoScope.cluster,
+                    meta_data=shard_metadata,
+                )
+            ],
+            any_order=True,
+        )
+
+
 class NodeStatsTests(TestCase):
     warning = """You have enabled the node-stats telemetry device with OpenSearch < 1.1.0. Requests to the
           _nodes/stats OpenSearch endpoint trigger additional refreshes and WILL SKEW results.

@@ -109,7 +109,7 @@ install_requires = [
     "numpy>=1.24.2,<=1.26.4",
     # License: Apache 2.0
     # Required for Kafka message producer
-    "aiokafka>=0.12.0",
+    "aiokafka>=0.11.0",
 ]
 
 tests_require = [
