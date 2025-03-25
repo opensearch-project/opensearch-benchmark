@@ -207,9 +207,9 @@ class ClusterErrorMessage:
 
 class SharedClientStateMessage:
     """Message sent from the Worker to the FeedbackActor to share client state dictionaries"""
-    def __init__(self, worker_id, dictionary):
+    def __init__(self, worker_id, worker_clients_map):
         self.worker_id = worker_id
-        self.worker_clients_map = dictionary
+        self.worker_clients_map = worker_clients_map
 
 class FeedbackState(Enum):
     """Various states for the FeedbackActor"""
@@ -234,50 +234,13 @@ class FeedbackActor(actor.BenchmarkActor):
         self.shared_client_states = {}
         self.total_active_client_count = 0
         self.total_client_count = 0
-        self.sleep_start_time = None
-        self.last_error_time = 30
-        self.last_scaleup_time = None
-
-    def handle_state(self):
-        print("Handling State")
-        current_time = time.time()
-
-        if self.state == FeedbackState.SLEEP:
-            # Check if we've slept for long enough to return to a normal state
-            if current_time - self.sleep_start_time >= self.POST_SCALEDOWN_SECONDS:
-                self.logger.info("Feedback Actor's sleep period complete, returning to NEUTRAL state")
-                self.state = FeedbackState.NEUTRAL
-                self.sleep_start_time = None
-            return
-
-        if self.messageQueue.qsize() > 0:
-            print("ERROR NOTICED")
-            self.logger.info("Feedback Actor has received an error message, scaling down...")
-            self.state = FeedbackState.SCALING_DOWN
-            self.scale_down()
-            self.logger.info("Clients scaled down. Number of active clients: %d", self.total_active_client_count)
-
-        if self.state == FeedbackState.NEUTRAL:
-            # Check if we've waited long enough since the last scaledown
-            if current_time - self.last_error_time >= self.POST_SCALEDOWN_SECONDS:
-                if (self.last_scaleup_time is None or
-                    current_time - self.last_scaleup_time >= self.WAKEUP_INTERVAL):
-                    self.logger.info("no errors in the last 30 seconds, scaling up")
-                    self.state = FeedbackState.SCALING_UP
-                    self.scale_up()
-                    self.last_scaleup_time = current_time
-            else:
-                self.logger.info("Cluster has errored too recently, waiting before scaling up")
-        
-        if self.state == FeedbackState.SCALING_UP:
-            print("Scaling up")
-            self.scale_up()
-            self.logger.info("Clients scaled up. Number of active clients: %d", self.total_active_client_count)
-            self.state = FeedbackState.NORMAL
+        self.sleep_start_time = 0
+        self.last_error_time = 0
+        self.last_scaleup_time = 0
 
     def receiveMsg_ClusterErrorMessage(self, msg, sender):
-        self.last_error_time = time.time()
-        self.logger.info("Feedback actor has recevied an error message.")
+        self.last_error_time = time.perf_counter()
+        self.logger.info("Feedback actor has received an error message.")
         if self.state == FeedbackState.SCALING_DOWN:
             self.logger.info("Already scaling down, ignoring error")
             return
@@ -291,9 +254,59 @@ class FeedbackActor(actor.BenchmarkActor):
             except queue.Full:
                 self.logger.error("Queue is full - message dropped: %s", msg)
 
+    def receiveMsg_SharedClientStateMessage(self, msg, sender):
+        try:
+            self.shared_client_states[msg.worker_id] = msg.worker_clients_map
+            self.total_client_count += len(msg.worker_clients_map)
+            self.handle_state()
+        except Exception as e:
+            self.logger.error("Error processing client states: %s", e)
+
+    def receiveMsg_StartFeedbackActor(self, msg, sender):
+        self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
+        self.messageQueue = queue.Queue(maxsize=self.total_active_client_count)
+
+    def receiveMsg_WakeupMessage(self, msg, sender):
+        # Upon waking up, check state
+        self.handle_state()
+        self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
+
+    def receiveUnrecognizedMessage(self, msg, sender):
+        self.logger.info("Received unrecognized message: %s", msg)
+
+    def handle_state(self):
+        current_time = time.perf_counter()
+        if self.state == FeedbackState.SLEEP:
+            # Check if we've slept for long enough to return to a normal state
+            if current_time - self.sleep_start_time >= self.POST_SCALEDOWN_SECONDS:
+                self.logger.info("Feedback Actor's sleep period complete, returning to NEUTRAL state")
+                self.state = FeedbackState.NEUTRAL
+                self.sleep_start_time = 0
+        elif self.state == FeedbackState.SCALING_UP:
+            self.logger.info("Scaling clients up...")
+            self.scale_up()
+        elif self.messageQueue.qsize() > 0:
+            self.logger.info("Feedback Actor has received an error message, scaling down...")
+            self.state = FeedbackState.SCALING_DOWN
+            self.scale_down()
+            self.logger.info("Clients scaled down. Number of active clients: %d", self.total_active_client_count)
+        elif self.state == FeedbackState.NEUTRAL:
+            # Check if we've waited long enough since the last scaledown
+            if current_time - self.last_error_time >= self.POST_SCALEDOWN_SECONDS:
+                if current_time - self.last_scaleup_time >= self.WAKEUP_INTERVAL:
+                    self.logger.info("no errors in the last 30 seconds, scaling up")
+                    self.state = FeedbackState.SCALING_UP
+                    self.scale_up()
+            else:
+                self.logger.info("Cluster has errored too recently, waiting before scaling up")
+        
+        if self.state == FeedbackState.SCALING_UP:
+            print("Scaling up")
+            self.scale_up()
+            self.logger.info("Clients scaled up. Number of active clients: %d", self.total_active_client_count)
+            self.state = FeedbackState.NORMAL
+
     def scale_down(self, scale_down_percentage=0.10):
-        print("Scaling down")
-        self.scaledown_timer = 0
         try:
             # calculate target number of clients to pause
             clients_to_pause = int(self.total_active_client_count * scale_down_percentage)
@@ -329,8 +342,7 @@ class FeedbackActor(actor.BenchmarkActor):
             # clear the message queue
             with self.messageQueue.mutex:
                 self.messageQueue.clear()
-            self.sleep_start_time = time.time()
-            self.last_scaleup_time = None
+            self.sleep_start_time = time.perf_counter()
 
     def scale_up(self):
         print("Scaling up")
@@ -357,27 +369,8 @@ class FeedbackActor(actor.BenchmarkActor):
             if not client_activated:
                 self.logger.info("No inactive clients found to activate")
         finally:
+            self.last_scaleup_time = time.perf_counter()
             self.state = FeedbackState.NEUTRAL
-
-    def receiveMsg_SharedClientStateMessage(self, msg, sender):
-        try:
-            self.shared_client_states[msg.worker_id] = msg.worker_clients_map
-            self.total_client_count += len(msg.worker_clients_map)
-            self.handle_state()
-        except Exception as e:
-            self.logger.error("Error processing client states: %s", e)
-
-    def receiveMsg_StartFeedbackActor(self, msg, sender):
-        self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
-        self.messageQueue = queue.Queue(maxsize=self.total_active_client_count)
-
-    def receiveMsg_WakeupMessage(self, msg, sender):
-        # Upon waking up, check state
-        self.handle_state()
-        self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
-
-    def receiveUnrecognizedMessage(self, msg, sender):
-        self.logger.info("Received unrecognized message: %s", msg)
 
 class WorkerCoordinatorActor(actor.BenchmarkActor):
     RESET_RELATIVE_TIME_MARKER = "reset_relative_time"
