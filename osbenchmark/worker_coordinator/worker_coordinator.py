@@ -228,10 +228,11 @@ class FeedbackActor(actor.BenchmarkActor):
         self.shared_client_states = {}
         self.total_active_client_count = 0
         self.sleep_start_time = None
-        self.last_error_time = None
+        self.last_error_time = 30
         self.last_scaleup_time = None
 
     def handle_state(self):
+        print("Handling State")
         current_time = time.time()
 
         if self.state == FeedbackState.SLEEP:
@@ -243,12 +244,15 @@ class FeedbackActor(actor.BenchmarkActor):
             return
 
         if self.messageQueue.qsize() > 0:
+            print("ERROR NOTICED")
             self.logger.info("Feedback Actor has received an error message, scaling down...")
             self.state = FeedbackState.SCALING_DOWN
             self.scale_down()
             self.logger.info("Clients scaled down. Number of active clients: %d", self.total_active_client_count)
 
         if self.state == FeedbackState.NORMAL:
+            print("Checking time...")
+            print(current_time - self.last_error_time)
             # Check if we've waited long enough since the last scaledown
             if current_time - self.last_error_time >= self.POST_SCALEDOWN_SECONDS:
                 if (self.last_scaleup_time is None or
@@ -259,6 +263,12 @@ class FeedbackActor(actor.BenchmarkActor):
                     self.last_scaleup_time = current_time
             else:
                 self.logger.info("Cluster has errored too recently, waiting before scaling up")
+        
+        if self.state == FeedbackState.SCALING_UP:
+            print("Scaling up")
+            self.scale_up()
+            self.logger.info("Clients scaled up. Number of active clients: %d", self.total_active_client_count)
+            self.state = FeedbackState.NORMAL
 
     def receiveMsg_ClusterErrorMessage(self, msg, sender):
         self.last_error_time = time.time()
@@ -277,6 +287,7 @@ class FeedbackActor(actor.BenchmarkActor):
                 self.logger.error("Error adding message to queue: %s", e)
 
     def scale_down(self, scale_down_percentage=0.10):
+        print("Scaling down")
         self.scaledown_timer = 0
         try:
             # calculate target number of clients to pause
@@ -317,6 +328,7 @@ class FeedbackActor(actor.BenchmarkActor):
             self.last_scaleup_time = None
 
     def scale_up(self):
+        print("Scaling up")
         try:
             # Get inactive clients (False status) for each worker
             inactive_clients_by_worker = {}
@@ -1403,7 +1415,7 @@ class Worker(actor.BenchmarkActor):
                 self.logger.info("Worker[%d] is executing tasks at index [%d].", self.worker_id, self.current_task_index)
                 self.sampler = Sampler(start_timestamp=time.perf_counter(), buffer_size=self.sample_queue_size)
                 executor = AsyncIoAdapter(self.config, self.workload, task_allocations, self.sampler,
-                                          self.cancel, self.complete, self.on_error)
+                                          self.cancel, self.complete, self.on_error, self.send, self.shared_states, self.feedback_actor)
 
                 self.executor_future = self.pool.submit(executor)
                 self.wakeupAfter(datetime.timedelta(seconds=self.wakeup_interval))
@@ -1672,7 +1684,7 @@ class ThroughputCalculator:
 
 
 class AsyncIoAdapter:
-    def __init__(self, cfg, workload, task_allocations, sampler, cancel, complete, abort_on_error):
+    def __init__(self, cfg, workload, task_allocations, sampler, cancel, complete, abort_on_error, send_fn, shared_states=None, feedback_actor=None):
         self.cfg = cfg
         self.workload = workload
         self.task_allocations = task_allocations
@@ -1684,6 +1696,9 @@ class AsyncIoAdapter:
         self.assertions_enabled = self.cfg.opts("worker_coordinator", "assertions")
         self.debug_event_loop = self.cfg.opts("system", "async.debug", mandatory=False, default_value=False)
         self.logger = logging.getLogger(__name__)
+        self.shared_states = shared_states
+        self.send_fn = send_fn
+        self.feedback_actor = feedback_actor
 
     def __call__(self, *args, **kwargs):
         # only possible in Python 3.7+ (has introduced get_running_loop)
@@ -1739,7 +1754,7 @@ class AsyncIoAdapter:
             schedule = schedule_for(task_allocation, params_per_task[task])
             async_executor = AsyncExecutor(
                 client_id, task, schedule, opensearch, self.sampler, self.cancel, self.complete,
-                task.error_behavior(self.abort_on_error), self.cfg)
+                task.error_behavior(self.abort_on_error), self.send_fn, self.cfg, self.shared_states, self.feedback_actor)
             final_executor = AsyncProfiler(async_executor) if self.profiling_enabled else async_executor
             aws.append(final_executor())
         run_start = time.perf_counter()
@@ -1791,7 +1806,7 @@ class AsyncProfiler:
 
 
 class AsyncExecutor:
-    def __init__(self, client_id, task, schedule, opensearch, sampler, cancel, complete, on_error, config=None):
+    def __init__(self, client_id, task, schedule, opensearch, sampler, cancel, complete, on_error, send_fn, config=None, shared_states=None, feedback_actor=None):
         """
         Executes tasks according to the schedule for a given operation.
 
@@ -1815,6 +1830,9 @@ class AsyncExecutor:
         self.logger = logging.getLogger(__name__)
         self.cfg = config
         self.message_producer = None  # Producer will be lazily created when needed.
+        self.send = send_fn
+        self.shared_states = shared_states
+        self.feedback_actor = feedback_actor
 
     async def __call__(self, *args, **kwargs):
         task_completes_parent = self.task.completes_parent
@@ -1838,6 +1856,18 @@ class AsyncExecutor:
                 if self.cancel.is_set():
                     self.logger.info("User cancelled execution.")
                     break
+
+                if self.shared_states and 'data' in self.shared_states:
+                    try:
+                        client_state = self.shared_states['data'].get(self.client_id, True)
+                    except Exception as e:
+                        print("Error checking client state: %s", e)
+                
+                if not client_state:
+                    while not self.shared_states['data'].get(self.client_id, True):
+                        await asyncio.sleep(1)
+                    continue
+
                 absolute_expected_schedule_time = total_start + expected_scheduled_time
                 throughput_throttled = expected_scheduled_time > 0
                 if throughput_throttled:
