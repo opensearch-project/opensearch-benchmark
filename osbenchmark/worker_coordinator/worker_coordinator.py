@@ -205,9 +205,15 @@ class ClusterErrorMessage:
         self.client_id = client_id
         self.request_metadata = request_metadata
 
+class SharedClientStateMessage:
+    """Message sent from the Worker to the FeedbackActor to share client state dictionaries"""
+    def __init__(self, worker_id, dictionary):
+        self.worker_id = worker_id
+        self.dictionary = dictionary
+
 class FeedbackState(Enum):
     """Various states for the FeedbackActor"""
-    NORMAL = "normal"
+    NEUTRAL = "neutral"
     SCALING_DOWN = "scaling_down"
     SLEEP = "sleep"
     SCALING_UP = "scaling_up"
@@ -227,6 +233,7 @@ class FeedbackActor(actor.BenchmarkActor):
         self.messageQueue = queue.Queue()
         self.shared_client_states = {}
         self.total_active_client_count = 0
+        self.total_client_count = 0
         self.sleep_start_time = None
         self.last_error_time = 30
         self.last_scaleup_time = None
@@ -238,8 +245,8 @@ class FeedbackActor(actor.BenchmarkActor):
         if self.state == FeedbackState.SLEEP:
             # Check if we've slept for long enough to return to a normal state
             if current_time - self.sleep_start_time >= self.POST_SCALEDOWN_SECONDS:
-                self.logger.info("Feedback Actor's sleep period complete, returning to NORMAL state")
-                self.state = FeedbackState.NORMAL
+                self.logger.info("Feedback Actor's sleep period complete, returning to NEUTRAL state")
+                self.state = FeedbackState.NEUTRAL
                 self.sleep_start_time = None
             return
 
@@ -250,9 +257,7 @@ class FeedbackActor(actor.BenchmarkActor):
             self.scale_down()
             self.logger.info("Clients scaled down. Number of active clients: %d", self.total_active_client_count)
 
-        if self.state == FeedbackState.NORMAL:
-            print("Checking time...")
-            print(current_time - self.last_error_time)
+        if self.state == FeedbackState.NEUTRAL:
             # Check if we've waited long enough since the last scaledown
             if current_time - self.last_error_time >= self.POST_SCALEDOWN_SECONDS:
                 if (self.last_scaleup_time is None or
@@ -279,12 +284,12 @@ class FeedbackActor(actor.BenchmarkActor):
         elif self.state == FeedbackState.SLEEP:
             self.logger.info("In sleep mode, ignoring error")
             return
-        elif self.state == FeedbackState.NORMAL:
+        elif self.state == FeedbackState.NEUTRAL:
             # Add error message to queue
             try:
                 self.messageQueue.put(msg)
-            except Exception as e:
-                self.logger.error("Error adding message to queue: %s", e)
+            except queue.Full:
+                self.logger.error("Queue is full - message dropped: %s", msg)
 
     def scale_down(self, scale_down_percentage=0.10):
         print("Scaling down")
@@ -322,8 +327,8 @@ class FeedbackActor(actor.BenchmarkActor):
             # enter sleep state to block any new messages
             self.state = FeedbackState.SLEEP
             # clear the message queue
-            while not self.messageQueue.empty():
-                self.messageQueue.get()
+            with self.messageQueue.mutex:
+                self.messageQueue.clear()
             self.sleep_start_time = time.time()
             self.last_scaleup_time = None
 
@@ -352,18 +357,19 @@ class FeedbackActor(actor.BenchmarkActor):
             if not client_activated:
                 print("No inactive clients found to activate")
         finally:
-            self.state = FeedbackState.NORMAL
+            self.state = FeedbackState.NEUTRAL
 
-    def receiveMsg_dict(self, msg, sender):
+    def receiveMsg_SharedClientStateMessage(self, msg, sender):
         try:
-            self.shared_client_states[msg['worker_id']] = msg['data']
-            self.logger.info("FeedbackActor Received dictionary from worker actor %s", str(sender))
+            self.shared_client_states[msg.worker_id] = msg.dictionary
+            self.total_client_count += len(msg.dictionary)
             self.handle_state()
         except Exception as e:
             print("Error processing client states: %s", e)
 
     def receiveMsg_StartFeedbackActor(self, msg, sender):
         self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
+        self.messageQueue = queue.Queue(maxsize=self.total_active_client_count)
 
     def receiveMsg_WakeupMessage(self, msg, sender):
         # Upon waking up, check state
