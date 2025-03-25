@@ -209,7 +209,7 @@ class SharedClientStateMessage:
     """Message sent from the Worker to the FeedbackActor to share client state dictionaries"""
     def __init__(self, worker_id, dictionary):
         self.worker_id = worker_id
-        self.dictionary = dictionary
+        self.worker_clients_map = dictionary
 
 class FeedbackState(Enum):
     """Various states for the FeedbackActor"""
@@ -361,8 +361,8 @@ class FeedbackActor(actor.BenchmarkActor):
 
     def receiveMsg_SharedClientStateMessage(self, msg, sender):
         try:
-            self.shared_client_states[msg.worker_id] = msg.dictionary
-            self.total_client_count += len(msg.dictionary)
+            self.shared_client_states[msg.worker_id] = msg.worker_clients_map
+            self.total_client_count += len(msg.worker_clients_map)
             self.handle_state()
         except Exception as e:
             self.logger.error("Error processing client states: %s", e)
