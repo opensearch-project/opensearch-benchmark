@@ -355,7 +355,7 @@ class FeedbackActor(actor.BenchmarkActor):
                     break
 
             if not client_activated:
-                print("No inactive clients found to activate")
+                self.logger.info("No inactive clients found to activate")
         finally:
             self.state = FeedbackState.NEUTRAL
 
@@ -365,7 +365,7 @@ class FeedbackActor(actor.BenchmarkActor):
             self.total_client_count += len(msg.dictionary)
             self.handle_state()
         except Exception as e:
-            print("Error processing client states: %s", e)
+            self.logger.error("Error processing client states: %s", e)
 
     def receiveMsg_StartFeedbackActor(self, msg, sender):
         self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
@@ -377,7 +377,7 @@ class FeedbackActor(actor.BenchmarkActor):
         self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
 
     def receiveUnrecognizedMessage(self, msg, sender):
-        print("Received unrecognized message: %s", msg)
+        self.logger.info("Received unrecognized message: %s", msg)
 
 class WorkerCoordinatorActor(actor.BenchmarkActor):
     RESET_RELATIVE_TIME_MARKER = "reset_relative_time"
