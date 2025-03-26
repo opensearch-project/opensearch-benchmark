@@ -255,16 +255,26 @@ class FeedbackActor(actor.BenchmarkActor):
                 self.logger.error("Queue is full - message dropped: %s", msg)
 
     def receiveMsg_SharedClientStateMessage(self, msg, sender):
+        """
+        Used to receive a worker ID and dictionary,
+        where the keys are the clients 'attached' to that worker, with a Boolean 'status' as a value.
+        We then add these to a dictionary at the top level of this actor. This dictionary should look like:
+        {
+        worker-0: {client-0:<pause status>, client-1:<pause status>, ... }
+        ...
+        worker-n: {...client-k-1:<pause status>, client-k:<pause status>}
+        }
+        And this actor can set values to True/False to start/stop clients sending requests.
+        """
         try:
             self.shared_client_states[msg.worker_id] = msg.worker_clients_map
             self.total_client_count += len(msg.worker_clients_map)
-            self.handle_state()
         except Exception as e:
             self.logger.error("Error processing client states: %s", e)
 
     def receiveMsg_StartFeedbackActor(self, msg, sender):
-        self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
         self.messageQueue = queue.Queue(maxsize=self.total_active_client_count)
+        self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
 
     def receiveMsg_WakeupMessage(self, msg, sender):
         # Upon waking up, check state
@@ -344,30 +354,31 @@ class FeedbackActor(actor.BenchmarkActor):
                 self.messageQueue.clear()
             self.sleep_start_time = time.perf_counter()
 
-    def scale_up(self):
-        print("Scaling up")
+    def scale_up(self, n_clients=5):
         try:
-            # Get inactive clients (False status) for each worker
-            inactive_clients_by_worker = {}
-            for worker_id, client_states in self.shared_client_states.items():
-                inactive_clients = [(client_id, status) for client_id, status in client_states.items() if not status]
-                if inactive_clients:
-                    inactive_clients_by_worker[worker_id] = inactive_clients
+            clients_activated = 0
+            while clients_activated < n_clients:
+                # Get inactive clients (False status) for each worker
+                inactive_clients_by_worker = {}
+                for worker_id, client_states in self.shared_client_states.items():
+                    inactive_clients = [(client_id, status) for client_id, status in client_states.items() if not status]
+                    if inactive_clients:
+                        inactive_clients_by_worker[worker_id] = inactive_clients
 
-            # Find first inactive client and activate it
-            client_activated = False
-            for worker_id in inactive_clients_by_worker:
-                if inactive_clients_by_worker[worker_id]:
-                    # Take one inactive client from this worker
-                    client_id, _ = inactive_clients_by_worker[worker_id][0]
-                    self.shared_client_states[worker_id][client_id] = True
-                    client_activated = True
-                    self.total_active_client_count += 1
-                    self.logger.info("Unpaused client %d on worker %d", client_id, worker_id)
-                    break
+                # activate one client per worker until we hit n_clients
+                for worker_id in inactive_clients_by_worker:
+                    if clients_activated >= n_clients:
+                        break
+                    if inactive_clients_by_worker[worker_id]:
+                        # Take one inactive client from this worker
+                        client_id, _ = inactive_clients_by_worker[worker_id][0]
+                        self.shared_client_states[worker_id][client_id] = True
+                        self.total_active_client_count += 1
+                        clients_activated += 1
+                        self.logger.info("Unpaused client %d on worker %d", client_id, worker_id)
 
-            if not client_activated:
-                self.logger.info("No inactive clients found to activate")
+                if clients_activated == 0:
+                    self.logger.info("No inactive clients found to activate")
         finally:
             self.last_scaleup_time = time.perf_counter()
             self.state = FeedbackState.NEUTRAL
