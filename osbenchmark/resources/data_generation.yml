@@ -1,0 +1,53 @@
+settings:
+  workers:
+  max_file_size_gb:
+  chunk_size:
+
+CustomSyntheticDataGenerator:
+  mimesis_locale:
+  custom_lists:
+  custom_providers:
+
+MappingSyntheticDataGenerator:
+  default_generators:
+    integer:
+      min: 0
+      max: 100
+    long:
+      min: -1000
+      max: 1000
+    float:
+      min: 0.0
+      max: 1.0
+    double:
+      min: -99999.0
+      max: 99999.0
+    date:
+      start_date: "2020-01-01"
+      end_date: "2025-01-01"
+      format: "%Y-%m-%d"
+    text:
+      length: 10
+      must_include: ["lorem", "ipsum"]
+    keyword:
+      choices: ["alpha", "beta", "gamma"]
+  
+  overrides:
+    # Specify field name as key of dict. For its values, specify generator and its params. Params must adhere to existing params for each generator 
+    user_id:
+      generator: generate_keyword
+      params:
+        choices: ["user_001", "user_002", "user_003"]
+
+    created_at:
+      generator: generate_date
+      params:
+        start_date: "2022-01-01"
+        end_date: "2023-01-01"
+        format: "%Y-%m-%dT%H:%M:%S"
+
+    price:
+      generator: generate_float
+      params:
+        min: 10.5
+        max: 500.75
