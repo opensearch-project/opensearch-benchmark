@@ -7349,11 +7349,13 @@ class ProduceStreamMessageTests(TestCase):
 
     def test_process_message_with_valid_json(self):
         valid_json = '{"field1": "value1", "field2": 42}'
+        # pylint: disable=protected-access
         result = self.runner_instance._process_message(valid_json)
         self.assertEqual(result, {"field1": "value1", "field2": 42})
 
     def test_process_message_skips_index_metadata(self):
         index_metadata = '{"index": {"_index": "test-index", "_id": "1"}}'
+        # pylint: disable=protected-access
         result = self.runner_instance._process_message(index_metadata)
         self.assertIsNone(result)
 

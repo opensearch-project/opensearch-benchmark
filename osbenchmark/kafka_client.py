@@ -22,8 +22,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from osbenchmark.client import RequestContextHolder
-
+from aiokafka import AIOKafkaProducer
+from osbenchmark.context import RequestContextHolder
 
 class KafkaMessageProducer:
     def __init__(self, producer, topic):
@@ -36,7 +36,6 @@ class KafkaMessageProducer:
         """
         Creates a Kafka producer based on parameters in the ingestion source.
         """
-        from aiokafka import AIOKafkaProducer
 
         ingestion_source = params.get("ingestion-source", {})
         kafka_params = ingestion_source.get("param", {})

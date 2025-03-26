@@ -31,10 +31,11 @@ from tests import run_async
 
 class KafkaMessageProducerTests(TestCase):
     @run_async
-    @mock.patch("aiokafka.AIOKafkaProducer")
+    @mock.patch("osbenchmark.kafka_client.AIOKafkaProducer")
     async def test_create_producer_with_valid_params(self, mock_aio_kafka_producer_class):
         mock_producer_instance = mock.AsyncMock()
         mock_aio_kafka_producer_class.return_value = mock_producer_instance
+        mock_producer_instance.start.return_value = None
 
         params = {
             "ingestion-source": {
@@ -55,6 +56,7 @@ class KafkaMessageProducerTests(TestCase):
         )
         mock_producer_instance.start.assert_awaited_once()
         self.assertIsInstance(producer, KafkaMessageProducer)
+        # pylint: disable=protected-access
         self.assertEqual("test-topic", producer._topic)
 
     @run_async
@@ -94,10 +96,12 @@ class KafkaMessageProducerTests(TestCase):
 
 class MessageProducerFactoryTests(TestCase):
     @run_async
-    @mock.patch("aiokafka.AIOKafkaProducer")
+    @mock.patch("osbenchmark.kafka_client.AIOKafkaProducer")
     async def test_create_kafka_producer_via_factory(self, mock_aio_kafka_producer_class):
         mock_producer_instance = mock.AsyncMock()
         mock_aio_kafka_producer_class.return_value = mock_producer_instance
+        mock_producer_instance.start.return_value = None
+
         params = {
             "ingestion-source": {
                 "type": "kafka",
@@ -111,6 +115,7 @@ class MessageProducerFactoryTests(TestCase):
         producer = await MessageProducerFactory.create(params)
         # The returned instance should be a KafkaMessageProducer
         self.assertIsInstance(producer, KafkaMessageProducer)
+        # pylint: disable=protected-access
         self.assertEqual("factory-topic", producer._topic)
         mock_aio_kafka_producer_class.assert_called_once()
 
