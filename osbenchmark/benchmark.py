@@ -657,7 +657,7 @@ def create_arg_parser():
     help="Run a redline test on your cluster, up to a certain QPS value (default: 1000)",
     nargs='?',
     const=1000,  # Value to use when flag is present but no value given
-    default=None,  # Value to use when flag is not present
+    default=0,  # Value to use when flag is not present
     type=int
     )
 
