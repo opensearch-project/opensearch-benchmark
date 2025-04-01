@@ -291,6 +291,10 @@ class FeedbackActor(actor.BenchmarkActor):
     def receiveUnrecognizedMessage(self, msg, sender):
         self.logger.info("Received unrecognized message: %s", msg)
 
+    def check_for_errors(self):
+        return any(worker_data.get("error_detected", False) 
+                for worker_data in self.shared_client_states.values())
+
     def handle_state(self):
         current_time = time.perf_counter()
         if self.state == FeedbackState.SLEEP:
@@ -299,7 +303,7 @@ class FeedbackActor(actor.BenchmarkActor):
                 self.logger.info("Feedback Actor's sleep period complete, returning to NEUTRAL state")
                 self.state = FeedbackState.NEUTRAL
                 self.sleep_start_time = 0
-        elif len(self.messageQueue) > 0:
+        elif self.check_for_errors():
             self.logger.info("Feedback Actor has received an error message, scaling down...")
             self.state = FeedbackState.SCALING_DOWN
             self.scale_down()
@@ -357,6 +361,8 @@ class FeedbackActor(actor.BenchmarkActor):
             # enter sleep state to block any new messages
             self.state = FeedbackState.SLEEP
             # clear the message queue
+            for worker_data in self.shared_client_states.values():
+                worker_data["error_detected"] = False
             self.messageQueue.clear()
             self.sleep_start_time = time.perf_counter()
 
@@ -1321,7 +1327,7 @@ class Worker(actor.BenchmarkActor):
             for allocation in msg.client_allocations.allocations:
                 client_id = allocation["client_id"]
                 self.shared_states["data"][client_id] = False
-
+            self.shared_states["data"]["error_detected"] = False
             # now let's send this over to the FeedbackActor
             shared_state_message = SharedClientStateMessage(
                 worker_id=msg.worker_id,
@@ -1937,19 +1943,14 @@ class AsyncExecutor:
                     client_request_end = request_context.client_request_end
                     # redline testing: send any bad requests to the FeedbackActor
                     if not request_meta_data["success"]:
-                        self.logger.debug(
-                            "Request failed for client [%d]. Error type: %s, Description: %s",
-                            self.client_id,
-                            request_meta_data.get("error-type", "unknown"),
-                            request_meta_data.get("error-description", "no description")
-                        )
-                        self.logger.error("Error detected. Sending messsage to FeedbackActor...")
-                        cluster_error_message = ClusterErrorMessage(
-                            client_id = self.client_id,
-                            request_metadata = request_meta_data
-                        )
-                        self.send(self.feedback_actor, cluster_error_message)
-                        self.logger.info("Sent message to FeedbackActor.")
+                        self.logger.error("Error detected. Notifying FeedbackActor...")
+                        self.shared_states["data"]["error_detected"] = True
+                        # cluster_error_message = ClusterErrorMessage(
+                        #     client_id = self.client_id,
+                        #     request_metadata = request_meta_data
+                        # )
+                        # self.send(self.feedback_actor, cluster_error_message)
+                        # self.logger.info("Sent message to FeedbackActor.")
 
                 processing_end = time.perf_counter()
                 service_time = request_end - request_start
