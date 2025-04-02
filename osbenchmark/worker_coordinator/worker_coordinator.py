@@ -239,6 +239,8 @@ class FeedbackActor(actor.BenchmarkActor):
         self.sleep_start_time = 0
         self.last_error_time = 0
         self.last_scaleup_time = 0
+        self.startup_time = 0
+        self.worker_coordinator = None
 
     def receiveMsg_SharedClientStateMessage(self, msg, sender):
         """
@@ -257,6 +259,7 @@ class FeedbackActor(actor.BenchmarkActor):
             self.total_client_count += len(msg.worker_clients_map['data'])
             self.workers_reported += 1
             if self.workers_reported == self.expected_worker_count:
+                self.startup_time = None # clear the timeout check once we've received all shared dictionaries
                 self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
         except Exception as e:
             self.logger.error("Error processing client states: %s", e)
@@ -266,15 +269,36 @@ class FeedbackActor(actor.BenchmarkActor):
         Receive message to start from the worker coordinator actor
         FeedbackActor will not start until we reach the expected worker count in SharedClientStateMessage
         """
+        self.worker_coordinator = sender
         self.expected_worker_count = msg.total_workers
+        self.startup_time = time.perf_counter()
+        self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
 
     def receiveMsg_WakeupMessage(self, msg, sender):
+        """
+        First, check if we've received all dictionaries from all workers
+        if for whatever reason we don't (maybe a worker failed), shutdown after 30 seconds
+        """
+        if self.startup_time and self.workers_reported < self.expected_worker_count:
+            elapsed = time.perf_counter() - self.startup_time
+            if elapsed >= self.STARTUP_TIMEOUT:
+                error_msg = (f"FeedbackActor timeout: Only {self.workers_reported} workers reported "
+                           f"out of {self.expected_worker_count} expected within {self.STARTUP_TIMEOUT} seconds")
+                self.logger.error(error_msg)
+                # Send failure message to the worker_coordinator that created us
+                self.send(self.worker_coordinator, actor.BenchmarkFailure("FeedbackActor timeout", error_msg))
+                return
         # Upon waking up, check state
         self.handle_state()
         self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
 
     def receiveUnrecognizedMessage(self, msg, sender):
         self.logger.info("Received unrecognized message: %s", msg)
+    
+    def receiveMsg_ActorExitRequest(self, msg, sender):
+        self.loger.info("FeedbackActor received ActorExitRequest and will shutdown")
+        if hasattr(self, 'shared_client_states'):
+            self.shared_client_states.clear()
 
     def check_for_errors(self):
         """ Check each worker dictionary to see if an error was reported """
@@ -1889,11 +1913,6 @@ class AsyncExecutor:
                 # so we evaluate to a truthy value by default, allowing it to run normally in a regular benchmark
                 client_state = (self.shared_states or {}).get('data', {}).get(self.client_id, True)
 
-                if not client_state:
-                    while not (self.shared_states or {}).get('data', {}).get(self.client_id, True):
-                        await asyncio.sleep(1)
-                    continue
-
                 absolute_expected_schedule_time = total_start + expected_scheduled_time
                 throughput_throttled = expected_scheduled_time > 0
                 if throughput_throttled:
@@ -1932,25 +1951,25 @@ class AsyncExecutor:
                         self.logger.error("Error detected in client %d. Notifying FeedbackActor...", self.client_id)
                         self.shared_states["data"]["error_detected"] = True
 
-                processing_end = time.perf_counter()
-                service_time = request_end - request_start
-                client_processing_time = (client_request_end - client_request_start) - service_time
-                processing_time = processing_end - processing_start
-                time_period = request_end - total_start
-                self.schedule_handle.after_request(processing_end, total_ops, total_ops_unit, request_meta_data)
-                # Allow runners to override the throughput calculation in very specific circumstances. Usually, OSB
-                # assumes that throughput is the "amount of work" (determined by the "weight") per unit of time
-                # (determined by the elapsed time period). However, in certain cases (e.g. shard recovery or other
-                # long running operations where there is a dedicated stats API to determine progress), it is
-                # advantageous if the runner calculates throughput directly. The following restrictions apply:
-                #
-                # * Only one client must call that runner (when throughput is calculated, it is aggregated across
-                #   all clients but if the runner provides it, we take the value as is).
-                # * The runner should be rate-limited as each runner call will result in one throughput sample.
-                #
-                throughput = request_meta_data.pop("throughput", None)
-                # Do not calculate latency separately when we run unthrottled. This metric is just confusing then.
-                latency = request_end - absolute_expected_schedule_time if throughput_throttled else service_time
+                    processing_end = time.perf_counter()
+                    service_time = request_end - request_start
+                    client_processing_time = (client_request_end - client_request_start) - service_time
+                    processing_time = processing_end - processing_start
+                    time_period = request_end - total_start
+                    self.schedule_handle.after_request(processing_end, total_ops, total_ops_unit, request_meta_data)
+                    # Allow runners to override the throughput calculation in very specific circumstances. Usually, OSB
+                    # assumes that throughput is the "amount of work" (determined by the "weight") per unit of time
+                    # (determined by the elapsed time period). However, in certain cases (e.g. shard recovery or other
+                    # long running operations where there is a dedicated stats API to determine progress), it is
+                    # advantageous if the runner calculates throughput directly. The following restrictions apply:
+                    #
+                    # * Only one client must call that runner (when throughput is calculated, it is aggregated across
+                    #   all clients but if the runner provides it, we take the value as is).
+                    # * The runner should be rate-limited as each runner call will result in one throughput sample.
+                    #
+                    throughput = request_meta_data.pop("throughput", None)
+                    # Do not calculate latency separately when we run unthrottled. This metric is just confusing then.
+                    latency = request_end - absolute_expected_schedule_time if throughput_throttled else service_time
                 # If this task completes the parent task we should *not* check for completion by another client but
                 # instead continue until our own runner has completed. We need to do this because the current
                 # worker (process) could run multiple clients that execute the same task. We do not want all clients to
@@ -1967,11 +1986,12 @@ class AsyncExecutor:
                     progress = runner.percent_completed
                 else:
                     progress = percent_completed
-
-                self.sampler.add(self.task, self.client_id, sample_type, request_meta_data,
-                                 absolute_processing_start, request_start,
-                                 latency, service_time, client_processing_time, processing_time, throughput, total_ops, total_ops_unit,
-                                 time_period, progress, request_meta_data.pop("dependent_timing", None))
+                
+                if client_state:
+                    self.sampler.add(self.task, self.client_id, sample_type, request_meta_data,
+                                    absolute_processing_start, request_start,
+                                    latency, service_time, client_processing_time, processing_time, throughput, total_ops, total_ops_unit,
+                                    time_period, progress, request_meta_data.pop("dependent_timing", None))
 
                 if completed:
                     self.logger.info("Task [%s] is considered completed due to external event.", self.task)
