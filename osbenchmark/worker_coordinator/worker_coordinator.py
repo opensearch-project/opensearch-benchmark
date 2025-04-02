@@ -581,7 +581,8 @@ class WorkerCoordinator:
                 telemetry.RecoveryStats(telemetry_params, opensearch, self.metrics_store),
                 telemetry.TransformStats(telemetry_params, opensearch, self.metrics_store),
                 telemetry.SearchableSnapshotsStats(telemetry_params, opensearch, self.metrics_store),
-                telemetry.SegmentReplicationStats(telemetry_params, opensearch, self.metrics_store)
+                telemetry.SegmentReplicationStats(telemetry_params, opensearch, self.metrics_store),
+                telemetry.ShardStats(telemetry_params, opensearch, self.metrics_store)
             ]
         else:
             devices = []
@@ -1628,6 +1629,7 @@ class AsyncExecutor:
         self.on_error = on_error
         self.logger = logging.getLogger(__name__)
         self.cfg = config
+        self.message_producer = None  # Producer will be lazily created when needed.
 
     async def __call__(self, *args, **kwargs):
         task_completes_parent = self.task.completes_parent
@@ -1661,15 +1663,24 @@ class AsyncExecutor:
                 absolute_processing_start = time.time()
                 processing_start = time.perf_counter()
                 self.schedule_handle.before_request(processing_start)
-                async with self.opensearch["default"].new_request_context() as request_context:
+
+                # Determine which context manager to use
+                if params is not None and params.get("operation-type") == "produce-stream-message":
+                    if self.message_producer is None:
+                        self.message_producer = await client.MessageProducerFactory.create(params)
+                    params.update({"message-producer": self.message_producer})
+                    context_manager = self.message_producer.new_request_context()
+                else:
+                    context_manager = self.opensearch["default"].new_request_context()
                     # add num_clients to the parameter so that vector search runner can skip calculating recall
                     # if num_clients > cpu_count().
-                    if params:
-                        if params.get("operation-type") == "vector-search":
-                            available_cores = int(self.cfg.opts("system", "available.cores", mandatory=False,
-                                default_value=multiprocessing.cpu_count()))
-                            params.update({"num_clients": self.task.clients, "num_cores": available_cores})
+                    if params is not None and params.get("operation-type") == "vector-search":
+                        available_cores = int(self.cfg.opts("system", "available.cores", mandatory=False,
+                            default_value=multiprocessing.cpu_count()))
+                        params.update({"num_clients": self.task.clients, "num_cores": available_cores})
 
+                # Execute with the appropriate context manager
+                async with context_manager as request_context:
                     total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch, params, self.on_error)
                     request_start = request_context.request_start
                     request_end = request_context.request_end
@@ -1729,7 +1740,9 @@ class AsyncExecutor:
                 self.logger.info("Task [%s] completes parent. Client id [%s] is finished executing it and signals completion.",
                                  self.task, self.client_id)
                 self.complete.set()
-
+            if self.message_producer is not None:
+                await self.message_producer.stop()
+                self.message_producer = None  # Reset for future calls.
 
 request_context_holder = client.RequestContextHolder()
 

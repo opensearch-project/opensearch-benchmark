@@ -71,6 +71,7 @@ def register_default_runners():
     register_runner(workload.OperationType.CreatePointInTime, CreatePointInTime(), async_runner=True)
     register_runner(workload.OperationType.DeletePointInTime, DeletePointInTime(), async_runner=True)
     register_runner(workload.OperationType.ListAllPointInTime, ListAllPointInTime(), async_runner=True)
+    register_runner(workload.OperationType.ProduceStreamMessage, ProduceStreamMessage(), async_runner=True)
 
     # This is an administrative operation but there is no need for a retry here as we don't issue a request
     register_runner(workload.OperationType.Sleep, Sleep(), async_runner=True)
@@ -2830,3 +2831,72 @@ class UpdateConcurrentSegmentSearchSettings(Runner):
 
     def __repr__(self, *args, **kwargs):
         return "update-concurrent-segment-search-settings"
+
+class ProduceStreamMessage(Runner):
+    # Class-level counter that persists across calls to __call__
+    _global_idx = 0
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.logger = logging.getLogger(__name__)
+
+    def _process_message(self, msg: str):
+        """
+        Process a single message:
+        - Strip whitespace.
+        - Parse the message as JSON.
+        - Skip the message if it represents index metadata.
+
+        Returns:
+            Parsed JSON object if it is a valid document, otherwise None.
+        """
+        msg = msg.strip()
+        if not msg:
+            return None
+        try:
+            parsed = json.loads(msg)
+        except json.JSONDecodeError as e:
+            raise exceptions.BenchmarkError(f"Failed to decode JSON in message: {msg}") from e
+
+        # Skip if the message is index metadata.
+        if isinstance(parsed, dict) and "index" in parsed:
+            index_info = parsed["index"]
+            if isinstance(index_info, dict) and "_index" in index_info:
+                return None
+        return parsed
+
+    @time_func
+    async def __call__(self, opensearch, params):
+        producer = mandatory(params, "message-producer", self)
+        body = mandatory(params, "body", self)
+
+        message_count = 0
+        try:
+            if isinstance(body, bytes):
+                body = body.decode('utf-8')
+
+            # Split the body by newline to get individual messages
+            messages = body.split("\n")
+
+            for msg in messages:
+                processed = self._process_message(msg)
+                if processed is None:
+                    continue
+
+                # Increment the global counter and use it as the unique _id
+                ProduceStreamMessage._global_idx += 1
+                new_message = {"_id": str(ProduceStreamMessage._global_idx), "_source": processed}
+
+                # Send the message (as a JSON string)
+                request_context_holder.on_request_start()
+                await producer.send_message(json.dumps(new_message))
+                request_context_holder.on_request_end()
+                message_count += 1
+
+        except Exception as e:
+            raise exceptions.BenchmarkError(f"Failed to produce message: {e}") from e
+
+        return {"weight": message_count, "unit": "ops", "success": True}
+
+    def __repr__(self, *args, **kwargs):
+        return "produce-stream-message"

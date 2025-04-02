@@ -605,6 +605,7 @@ class OperationType(Enum):
     BulkVectorDataSet = 18
     TrainKnnModel = 19
     DeleteKnnModel = 20
+    ProduceStreamMessage = 21
 
     # administrative actions
     ForceMerge = 1001
@@ -757,6 +758,8 @@ class OperationType(Enum):
             return OperationType.DeleteKnnModel
         elif v == "update-concurrent-segment-search-settings":
             return OperationType.UpdateConcurrentSegmentSearchSettings
+        elif v == "produce-stream-message":
+            return OperationType.ProduceStreamMessage
         else:
             raise KeyError(f"No enum value for [{v}]")
 
