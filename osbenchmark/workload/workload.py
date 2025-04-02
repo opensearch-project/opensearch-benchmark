@@ -769,6 +769,8 @@ class IndexCodec(Enum):
     BestCompression = "best_compression"
     ZSTD = "zstd"
     ZSTDNODICT = "zstd_no_dict"
+    QATDEFLATE = "qat_deflate"
+    QATLZ4 = "qat_lz4"
 
     @classmethod
     def is_codec_valid(cls, codec):
