@@ -715,7 +715,7 @@ class ComparisonResultsPublisher:
     def _line(self, metric, baseline, contender, task, unit, treat_increase_as_improvement, formatter=lambda x: x):
         if baseline is not None and contender is not None:
             return [metric, str(task), formatter(baseline), formatter(contender),
-                    self._diff(baseline, contender, treat_increase_as_improvement, formatter), unit]
+                    *self._diff(baseline, contender, treat_increase_as_improvement, formatter), unit]
         else:
             return []
 
@@ -723,7 +723,15 @@ class ComparisonResultsPublisher:
         def identity(x):
             return x
 
+        # Avoid division by zero
+        if baseline == 0:
+            percentage_diff = 0
+        else:
+            # Calculate percentage difference: ((new - old) / old) * 100
+            percentage_diff = ((contender - baseline) / baseline) * 100
+            percentage_diff = formatter(percentage_diff)
         diff = formatter(contender - baseline)
+
         if self.plain:
             color_greater = identity
             color_smaller = identity
@@ -737,10 +745,11 @@ class ComparisonResultsPublisher:
             color_smaller = console.format.green
             color_neutral = console.format.neutral
 
-        if diff > 0:
-            return color_greater("+%.5f" % diff)
-        elif diff < 0:
-            return color_smaller("%.5f" % diff)
+        if percentage_diff > 5.0:
+            return color_greater("+%.2f%%" % percentage_diff)+" :red_circle:",color_greater("+%.5f" % diff)
+        elif percentage_diff < -5.0:
+            return color_smaller("%.2f%%" % percentage_diff)+" :green_circle:",color_smaller("%.5f" % diff)
         else:
             # tabulate needs this to align all values correctly
-            return color_neutral("%.5f" % diff)
+            return color_neutral("%.2f%%" % percentage_diff),color_neutral("%.5f" % diff)
+
