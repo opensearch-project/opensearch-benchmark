@@ -198,6 +198,179 @@ class TaskFinished:
         self.metrics = metrics
         self.next_task_scheduled_in = next_task_scheduled_in
 
+class ClusterErrorMessage:
+    """Message sent from the client when a request fails during load testing"""
+    def __init__(self, client_id, request_metadata):
+        self.client_id = client_id
+        self.request_metadata = request_metadata
+
+class SharedClientStateMessage:
+    """Message sent from the Worker to the FeedbackActor to share client state dictionaries"""
+    def __init__(self, worker_id, worker_clients_map):
+        self.worker_id = worker_id
+        self.worker_clients_map = worker_clients_map
+
+class FeedbackState(Enum):
+    """Various states for the FeedbackActor"""
+    NEUTRAL = "neutral"
+    SCALING_DOWN = "scaling_down"
+    SLEEP = "sleep"
+    SCALING_UP = "scaling_up"
+
+class FeedbackActor(actor.BenchmarkActor):
+    POST_SCALEDOWN_SECONDS = 30
+    WAKEUP_INTERVAL = 1
+
+    def __init__(self):
+        super().__init__()
+        self.logger = logging.getLogger(__name__)
+        self.state = FeedbackState.SCALING_UP
+        self.messageQueue = queue.Queue()
+        self.shared_client_states = {}
+        self.total_active_client_count = 0
+        self.total_client_count = 0
+        self.sleep_start_time = 0
+        self.last_error_time = 0
+        self.last_scaleup_time = 0
+
+    def receiveMsg_ClusterErrorMessage(self, msg, sender):
+        self.last_error_time = time.perf_counter()
+        self.logger.info("Feedback actor has received an error message.")
+        if self.state == FeedbackState.SCALING_DOWN:
+            self.logger.info("Already scaling down, ignoring error")
+            return
+        elif self.state == FeedbackState.SLEEP:
+            self.logger.info("In sleep mode, ignoring error")
+            return
+        elif self.state == FeedbackState.NEUTRAL:
+            # Add error message to queue
+            try:
+                self.messageQueue.put(msg)
+            except queue.Full:
+                self.logger.error("Queue is full - message dropped: %s", msg)
+
+    def receiveMsg_SharedClientStateMessage(self, msg, sender):
+        """
+        Used to receive a worker ID and dictionary,
+        where the keys are the clients 'attached' to that worker, with a Boolean 'status' as a value.
+        We then add these to a dictionary at the top level of this actor. This dictionary should look like:
+        {
+        worker-0: {client-0:<pause status>, client-1:<pause status>, ... }
+        ...
+        worker-n: {...client-k-1:<pause status>, client-k:<pause status>}
+        }
+        And this actor can set values to True/False to start/stop clients sending requests.
+        """
+        try:
+            self.shared_client_states[msg.worker_id] = msg.worker_clients_map
+            self.total_client_count += len(msg.worker_clients_map)
+        except Exception as e:
+            self.logger.error("Error processing client states: %s", e)
+
+    def receiveMsg_StartFeedbackActor(self, msg, sender):
+        self.messageQueue = queue.Queue(maxsize=self.total_active_client_count)
+        self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
+
+    def receiveMsg_WakeupMessage(self, msg, sender):
+        # Upon waking up, check state
+        self.handle_state()
+        self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
+
+    def receiveUnrecognizedMessage(self, msg, sender):
+        self.logger.info("Received unrecognized message: %s", msg)
+
+    def handle_state(self):
+        current_time = time.perf_counter()
+        if self.state == FeedbackState.SLEEP:
+            # Check if we've slept for long enough to return to a normal state
+            if current_time - self.sleep_start_time >= self.POST_SCALEDOWN_SECONDS:
+                self.logger.info("Feedback Actor's sleep period complete, returning to NEUTRAL state")
+                self.state = FeedbackState.NEUTRAL
+                self.sleep_start_time = 0
+        elif self.state == FeedbackState.SCALING_UP:
+            self.logger.info("Scaling clients up...")
+            self.scale_up()
+        elif self.messageQueue.qsize() > 0:
+            self.logger.info("Feedback Actor has received an error message, scaling down...")
+            self.state = FeedbackState.SCALING_DOWN
+            self.scale_down()
+            self.logger.info("Clients scaled down. Number of active clients: %d", self.total_active_client_count)
+        elif self.state == FeedbackState.NEUTRAL:
+            # Check if we've waited long enough since the last scaledown
+            if current_time - self.last_error_time >= self.POST_SCALEDOWN_SECONDS:
+                if current_time - self.last_scaleup_time >= self.WAKEUP_INTERVAL:
+                    self.logger.info("no errors in the last 30 seconds, scaling up")
+                    self.state = FeedbackState.SCALING_UP
+                    self.scale_up()
+            else:
+                self.logger.info("Cluster has errored too recently, waiting before scaling up")
+
+    def scale_down(self, scale_down_percentage=0.10):
+        try:
+            # calculate target number of clients to pause
+            clients_to_pause = int(self.total_active_client_count * scale_down_percentage)
+            clients_paused = 0
+
+            # Get active clients (True status) for each worker
+            active_clients_by_worker = {}
+            for worker_id, client_states in self.shared_client_states.items():
+                active_clients = [(client_id, status) for client_id, status in client_states.items() if status]
+                if active_clients:
+                    active_clients_by_worker[worker_id] = active_clients
+
+            # round-robin through workers until we've paused enough clients
+            while clients_paused < clients_to_pause and active_clients_by_worker:
+                for worker_id in list(active_clients_by_worker.keys()):
+                    if clients_paused >= clients_to_pause:
+                        break
+                    # if a client is already paused, remove it from the temporary dict of active clients
+                    if not active_clients_by_worker[worker_id]:
+                        del active_clients_by_worker[worker_id]
+                        continue
+
+                    # take one client from this worker
+                    client_id, _ = active_clients_by_worker[worker_id].pop(0)
+                    self.shared_client_states[worker_id][client_id] = False
+                    clients_paused += 1
+                    self.total_active_client_count -= 1
+            self.logger.info("Scaling down complete. Paused %d clients", clients_paused)
+
+        finally:
+            # enter sleep state to block any new messages
+            self.state = FeedbackState.SLEEP
+            # clear the message queue
+            with self.messageQueue.mutex:
+                self.messageQueue.clear()
+            self.sleep_start_time = time.perf_counter()
+
+    def scale_up(self, n_clients=5):
+        try:
+            clients_activated = 0
+            while clients_activated < n_clients:
+                # Get inactive clients (False status) for each worker
+                inactive_clients_by_worker = {}
+                for worker_id, client_states in self.shared_client_states.items():
+                    inactive_clients = [(client_id, status) for client_id, status in client_states.items() if not status]
+                    if inactive_clients:
+                        inactive_clients_by_worker[worker_id] = inactive_clients
+
+                # activate one client per worker until we hit n_clients
+                for worker_id in inactive_clients_by_worker:
+                    if clients_activated >= n_clients:
+                        break
+                    if inactive_clients_by_worker[worker_id]:
+                        # Take one inactive client from this worker
+                        client_id, _ = inactive_clients_by_worker[worker_id][0]
+                        self.shared_client_states[worker_id][client_id] = True
+                        self.total_active_client_count += 1
+                        clients_activated += 1
+                        self.logger.info("Unpaused client %d on worker %d", client_id, worker_id)
+
+                if clients_activated == 0:
+                    self.logger.info("No inactive clients found to activate")
+        finally:
+            self.last_scaleup_time = time.perf_counter()
+            self.state = FeedbackState.NEUTRAL
 
 class WorkerCoordinatorActor(actor.BenchmarkActor):
     RESET_RELATIVE_TIME_MARKER = "reset_relative_time"
