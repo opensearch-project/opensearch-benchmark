@@ -256,7 +256,9 @@ class FeedbackActor(actor.BenchmarkActor):
         """
         try:
             self.shared_client_states[msg.worker_id] = msg.worker_clients_map['data']
+            print("Received map of length %d from %s", len(msg.worker_clients_map['data']), str(sender))
             self.total_client_count += len(msg.worker_clients_map['data'])
+            print("total active client count: ", self.total_client_count)
             self.workers_reported += 1
             if self.workers_reported == self.expected_worker_count:
                 self.startup_time = None # clear the timeout check once we've received all shared dictionaries
@@ -1886,6 +1888,7 @@ class AsyncExecutor:
         self.feedback_actor = feedback_actor
 
     async def __call__(self, *args, **kwargs):
+        has_run_any_requests = False
         task_completes_parent = self.task.completes_parent
         total_start = time.perf_counter()
         # lazily initialize the schedule
@@ -1951,6 +1954,7 @@ class AsyncExecutor:
                         self.logger.error("Error detected in client %d. Notifying FeedbackActor...", self.client_id)
                         self.shared_states["data"]["error_detected"] = True
 
+
                     processing_end = time.perf_counter()
                     service_time = request_end - request_start
                     client_processing_time = (client_request_end - client_request_start) - service_time
@@ -1970,6 +1974,12 @@ class AsyncExecutor:
                     throughput = request_meta_data.pop("throughput", None)
                     # Do not calculate latency separately when we run unthrottled. This metric is just confusing then.
                     latency = request_end - absolute_expected_schedule_time if throughput_throttled else service_time
+                else:
+                    processing_end = time.perf_counter()
+                    total_ops = 0
+                    total_ops_unit = "ops"
+                    request_meta_data = {"success": False, "skipped": True}
+                    self.schedule_handle.after_request(processing_end, total_ops, total_ops_unit, request_meta_data)
                 # If this task completes the parent task we should *not* check for completion by another client but
                 # instead continue until our own runner has completed. We need to do this because the current
                 # worker (process) could run multiple clients that execute the same task. We do not want all clients to
@@ -1986,7 +1996,7 @@ class AsyncExecutor:
                     progress = runner.percent_completed
                 else:
                     progress = percent_completed
-                
+
                 if client_state:
                     self.sampler.add(self.task, self.client_id, sample_type, request_meta_data,
                                     absolute_processing_start, request_start,
@@ -2001,7 +2011,7 @@ class AsyncExecutor:
             raise exceptions.BenchmarkError(f"Cannot run task [{self.task}]: {e}") from None
         finally:
             # Actively set it if this task completes its parent
-            if task_completes_parent:
+            if task_completes_parent or not has_run_any_requests:
                 self.logger.info("Task [%s] completes parent. Client id [%s] is finished executing it and signals completion.",
                                  self.task, self.client_id)
                 self.complete.set()
