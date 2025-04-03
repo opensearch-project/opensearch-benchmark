@@ -32,9 +32,10 @@ import logging
 import math
 import multiprocessing
 import queue
+import sys
 import threading
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, List, Dict, Any
 
 import time
 from enum import Enum
@@ -128,7 +129,7 @@ class StartWorker:
     Starts a worker.
     """
 
-    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None):
+    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None, error_queue=None, queue_lock=None):
         """
         :param worker_id: Unique (numeric) id of the worker.
         :param config: OSB internal configuration object.
@@ -140,6 +141,8 @@ class StartWorker:
         self.workload = workload
         self.client_allocations = client_allocations
         self.feedback_actor = feedback_actor
+        self.error_queue = error_queue
+        self.queue_lock = queue_lock
 
 
 class Drive:
@@ -219,188 +222,173 @@ class FeedbackState(Enum):
     SCALING_UP = "scaling_up"
 
 class StartFeedbackActor:
-    def __init__(self, feedback_actor, total_workers=None):
+    def __init__(self, feedback_actor, error_queue=None, queue_lock=None, total_workers=None):
         self.feedback_actor = feedback_actor
         self.total_workers = total_workers
+        self.error_queue = error_queue
+        self.queue_lock = queue_lock
 
 class FeedbackActor(actor.BenchmarkActor):
     POST_SCALEDOWN_SECONDS = 30
+    STARTUP_TIMEOUT = 30
     WAKEUP_INTERVAL = 1
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.logger = logging.getLogger(__name__)
         self.state = FeedbackState.SCALING_UP
         self.shared_client_states = {}
         self.expected_worker_count = 0
         self.workers_reported = 0
-        self.total_active_client_count = 0
         self.total_client_count = 0
-        self.sleep_start_time = 0
-        self.last_error_time = 0
-        self.last_scaleup_time = 0
-        self.startup_time = 0
-        self.worker_coordinator = None
+        self.total_active_client_count = 0  # must be tracked for scaling up/down
+        self.sleep_start_time = time.perf_counter()
+        self.last_error_time = time.perf_counter()
+        self.last_scaleup_time = time.perf_counter()
+        # These will be set via StartFeedbackActor:
+        self.error_queue = None
+        self.queue_lock = None
 
-    def receiveMsg_SharedClientStateMessage(self, msg, sender):
+    def receiveMsg_SharedClientStateMessage(self, msg, sender) -> None:
         """
-        Used to receive a worker ID and dictionary,
-        where the keys are the clients 'attached' to that worker, with a Boolean 'status' as a value.
-        We then add these to a dictionary at the top level of this actor. This dictionary should look like:
-        {
-        worker-0: {error_detected: <boolean>, client-0:<pause status>, client-1:<pause status>, ... }
-        ...
-        worker-n: {error_detected: <boolean>, client-k-1:<pause status>, client-k:<pause status>}
-        }
-        And this actor can set values to True/False to start/stop clients sending requests.
+        Receives a worker's client state dictionary.
         """
         try:
+            # Store only the 'data' portion; error reporting is done via the error queue.
             self.shared_client_states[msg.worker_id] = msg.worker_clients_map['data']
-            print("Received map of length %d from %s", len(msg.worker_clients_map['data']), str(sender))
             self.total_client_count += len(msg.worker_clients_map['data'])
-            print("total active client count: ", self.total_client_count)
             self.workers_reported += 1
             if self.workers_reported == self.expected_worker_count:
-                self.startup_time = None # clear the timeout check once we've received all shared dictionaries
                 self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
         except Exception as e:
             self.logger.error("Error processing client states: %s", e)
 
-    def receiveMsg_StartFeedbackActor(self, msg, sender):
+    def receiveMsg_StartFeedbackActor(self, msg, sender) -> None:
         """
-        Receive message to start from the worker coordinator actor
-        FeedbackActor will not start until we reach the expected worker count in SharedClientStateMessage
+        Initializes the FeedbackActor with expected worker count, error queue, and queue lock.
         """
-        self.worker_coordinator = sender
         self.expected_worker_count = msg.total_workers
+        self.error_queue = msg.error_queue
+        self.queue_lock = msg.queue_lock
         self.startup_time = time.perf_counter()
         self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
 
-    def receiveMsg_WakeupMessage(self, msg, sender):
-        """
-        First, check if we've received all dictionaries from all workers
-        if for whatever reason we don't (maybe a worker failed), shutdown after 30 seconds
-        """
-        if self.startup_time and self.workers_reported < self.expected_worker_count:
-            elapsed = time.perf_counter() - self.startup_time
-            if elapsed >= self.STARTUP_TIMEOUT:
-                error_msg = (f"FeedbackActor timeout: Only {self.workers_reported} workers reported "
-                           f"out of {self.expected_worker_count} expected within {self.STARTUP_TIMEOUT} seconds")
-                self.logger.error(error_msg)
-                # Send failure message to the worker_coordinator that created us
-                self.send(self.worker_coordinator, actor.BenchmarkFailure("FeedbackActor timeout", error_msg))
-                return
-        # Upon waking up, check state
+    def receiveMsg_WakeupMessage(self, msg, sender) -> None:
+        # Check state and re-schedule wakeups.
         self.handle_state()
         self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
 
-    def receiveUnrecognizedMessage(self, msg, sender):
+    def receiveUnrecognizedMessage(self, msg, sender) -> None:
         self.logger.info("Received unrecognized message: %s", msg)
-    
+
     def receiveMsg_ActorExitRequest(self, msg, sender):
-        self.loger.info("FeedbackActor received ActorExitRequest and will shutdown")
+        self.logger.info("FeedbackActor received ActorExitRequest and will shutdown")
         if hasattr(self, 'shared_client_states'):
             self.shared_client_states.clear()
 
-    def check_for_errors(self):
-        """ Check each worker dictionary to see if an error was reported """
-        return any(worker_data.get("error_detected", False) 
-                for worker_data in self.shared_client_states.values())
-
-    def handle_state(self):
-        current_time = time.perf_counter()
-        if self.state == FeedbackState.SLEEP:
-            # Check if we've slept for long enough to return to a normal state
-            if current_time - self.sleep_start_time >= self.POST_SCALEDOWN_SECONDS:
-                self.logger.info("Feedback Actor's sleep period complete, returning to NEUTRAL state")
-                self.state = FeedbackState.NEUTRAL
-                self.sleep_start_time = 0
-        elif self.check_for_errors():
-            self.logger.info("Feedback Actor has received an error message, scaling down...")
-            self.state = FeedbackState.SCALING_DOWN
-            self.scale_down()
-            self.logger.info("Clients scaled down. Number of active clients: %d", self.total_active_client_count)
-        elif self.state == FeedbackState.SCALING_UP:
-            self.logger.info("Scaling clients up...")
-            self.scale_up()
-        elif self.state == FeedbackState.NEUTRAL:
-            # Check if we've waited long enough since the last scaledown
-            if current_time - self.last_error_time >= self.POST_SCALEDOWN_SECONDS:
-                if current_time - self.last_scaleup_time >= self.WAKEUP_INTERVAL:
-                    self.logger.info("no errors in the last 30 seconds, scaling up")
-                    self.state = FeedbackState.SCALING_UP
-                    self.scale_up()
-            else:
-                self.logger.info("Cluster has errored too recently, waiting before scaling up")
-        
-        if self.state == FeedbackState.SCALING_UP:
-            print("Scaling up")
-            self.scale_up()
-            self.logger.info("Clients scaled up. Number of active clients: %d", self.total_active_client_count)
-            self.state = FeedbackState.NORMAL
-
-    def scale_down(self, scale_down_percentage=0.10):
+    def check_for_errors(self) -> List[Dict[str, Any]]:
+        """Poll the error queue for errors."""
+        errors = []
         try:
-            # calculate target number of clients to pause
+            while True:
+                error = self.error_queue.get_nowait()
+                errors.append(error)
+        except queue.Empty:
+            pass  # queue is empty
+        return errors
+
+    def clear_queue(self) -> None:
+        """Clear any remaining items from the error queue."""
+        while True:
+            try:
+                self.error_queue.get_nowait()
+            except queue.Empty:
+                break
+
+    def handle_state(self) -> None:
+        current_time = time.perf_counter()
+        errors = self.check_for_errors()
+
+        sys.stdout.write("\x1b[s")               # Save cursor position
+        sys.stdout.write("\x1b[1B")              # Move cursor down 1 line
+        sys.stdout.write("\r\x1b[2K")            # Clear the line
+        sys.stdout.write(f"[Redline] Active clients: {self.total_active_client_count}")
+        sys.stdout.write("\x1b[u")               # Restore cursor position
+        sys.stdout.flush()
+
+        if self.state == FeedbackState.SLEEP:
+            if current_time - self.sleep_start_time >= self.POST_SCALEDOWN_SECONDS:
+                self.logger.info("Sleep period complete, returning to NEUTRAL state")
+                self.clear_queue()
+                self.state = FeedbackState.NEUTRAL
+                self.sleep_start_time = current_time
+
+        elif errors:
+            self.logger.info("Error messages detected, scaling down...")
+            self.state = FeedbackState.SCALING_DOWN
+            with self.queue_lock:  # Block producers while scaling down.
+                self.scale_down()
+            self.logger.info("Clients scaled down. Active clients: %d", self.total_active_client_count)
+            self.last_error_time = current_time
+
+        elif self.state == FeedbackState.NEUTRAL:
+            if (current_time - self.last_error_time >= self.POST_SCALEDOWN_SECONDS and
+                current_time - self.last_scaleup_time >= self.WAKEUP_INTERVAL):
+                self.logger.info("No errors in the last %d seconds, scaling up", self.POST_SCALEDOWN_SECONDS)
+                self.state = FeedbackState.SCALING_UP
+
+        if self.state == FeedbackState.SCALING_UP:
+            self.logger.info("Scaling up...")
+            self.scale_up()
+            self.logger.info("Clients scaled up. Active clients: %d", self.total_active_client_count)
+            self.state = FeedbackState.NEUTRAL
+
+    def scale_down(self, scale_down_percentage=0.10) -> None:
+        try:
             clients_to_pause = int(self.total_active_client_count * scale_down_percentage)
             clients_paused = 0
-
-            # Get active clients (True status) for each worker
             active_clients_by_worker = {}
             for worker_id, client_states in self.shared_client_states.items():
                 active_clients = [(client_id, status) for client_id, status in client_states.items() if status]
                 if active_clients:
                     active_clients_by_worker[worker_id] = active_clients
-
-            # round-robin through workers until we've paused enough clients
             while clients_paused < clients_to_pause and active_clients_by_worker:
                 for worker_id in list(active_clients_by_worker.keys()):
                     if clients_paused >= clients_to_pause:
                         break
-                    # if a client is already paused, remove it from the temporary dict of active clients
                     if not active_clients_by_worker[worker_id]:
                         del active_clients_by_worker[worker_id]
                         continue
-
-                    # take one client from this worker
                     client_id, _ = active_clients_by_worker[worker_id].pop(0)
                     self.shared_client_states[worker_id][client_id] = False
                     clients_paused += 1
                     self.total_active_client_count -= 1
             self.logger.info("Scaling down complete. Paused %d clients", clients_paused)
-
         finally:
-            # enter sleep state to block any new messages
             self.state = FeedbackState.SLEEP
-            # Reset the error_detected flag
-            for worker_data in self.shared_client_states.values():
-                worker_data["error_detected"] = False
-            self.sleep_start_time = time.perf_counter()
+            self.clear_queue()
+            self.sleep_start_time = self.last_scaleup_time = time.perf_counter()
 
-    def scale_up(self, n_clients=5):
+    def scale_up(self, n_clients=5) -> None:
         try:
             clients_activated = 0
             while clients_activated < n_clients:
-                # Get inactive clients (False status) for each worker
                 inactive_clients_by_worker = {}
                 for worker_id, client_states in self.shared_client_states.items():
                     inactive_clients = [(client_id, status) for client_id, status in client_states.items() if not status]
                     if inactive_clients:
                         inactive_clients_by_worker[worker_id] = inactive_clients
-
-                # activate one client per worker until we hit n_clients
                 for worker_id in inactive_clients_by_worker:
                     if clients_activated >= n_clients:
                         break
                     if inactive_clients_by_worker[worker_id]:
-                        # Take one inactive client from this worker
                         client_id, _ = inactive_clients_by_worker[worker_id][0]
                         self.shared_client_states[worker_id][client_id] = True
                         self.total_active_client_count += 1
                         clients_activated += 1
                         self.logger.info("Unpaused client %d on worker %d", client_id, worker_id)
                 if clients_activated < n_clients:
-                    self.logger.info("Not enough inactive clients to flip. Activated %d clients", clients_activated)
+                    self.logger.info("Not enough inactive clients to activate. Activated %d clients", clients_activated)
                     break
         finally:
             self.last_scaleup_time = time.perf_counter()
@@ -504,11 +492,19 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
     def create_client(self, host):
         return self.createActor(Worker, targetActorRequirements=self._requirements(host))
 
-    def start_worker(self, worker_coordinator, worker_id, cfg, workload, allocations):
-        self.send(worker_coordinator, StartWorker(worker_id, cfg, workload, allocations, self.feedback_actor))
+    def start_worker(self, worker_coordinator, worker_id, cfg, workload, allocations, error_queue=None, queue_lock=None):
+        self.send(worker_coordinator, StartWorker(worker_id, cfg, workload, allocations, self.feedback_actor, error_queue, queue_lock))
 
     def start_feedbackActor(self, total_workers):
-        self.send(self.feedback_actor, StartFeedbackActor(feedback_actor=self.feedback_actor, total_workers=total_workers))
+        self.send(
+            self.feedback_actor, 
+            StartFeedbackActor(
+                feedback_actor=self.feedback_actor,
+                total_workers=total_workers,
+                error_queue=self.coordinator.error_queue,
+                queue_lock=self.coordinator.queue_lock
+                )
+            )
 
     def drive_at(self, worker_coordinator, client_start_timestamp):
         self.send(worker_coordinator, Drive(client_start_timestamp))
@@ -746,6 +742,9 @@ class WorkerCoordinator:
         self.workers = []
         # which client ids are assigned to which workers?
         self.clients_per_worker = {}
+        self.manager = multiprocessing.Manager()
+        self.error_queue = None
+        self.queue_lock = self.manager.Lock()
 
         self.progress_results_publisher = console.progress()
         self.progress_counter = 0
@@ -876,6 +875,7 @@ class WorkerCoordinator:
         # target throughput + clients will then be equal to the qps passed in through --redline-test or --load-test
         load_test_clients = self.config.opts("workload", "redline.test", mandatory=False) or self.config.opts("workload", "load.test.clients", mandatory=False)
         if load_test_clients:
+            self.error_queue = self.manager.Queue(maxsize=1000)
             for task in self.test_procedure.schedule:
                 for subtask in task:
                     subtask.clients = load_test_clients
@@ -910,7 +910,7 @@ class WorkerCoordinator:
                     for client_id in clients:
                         client_allocations.add(client_id, self.allocations[client_id])
                         self.clients_per_worker[client_id] = worker_id
-                    self.target.start_worker(worker, worker_id, self.config, self.workload, client_allocations)
+                    self.target.start_worker(worker, worker_id, self.config, self.workload, client_allocations, self.error_queue, self.queue_lock)
                     self.workers.append(worker)
                     worker_id += 1
 
@@ -1318,6 +1318,8 @@ class Worker(actor.BenchmarkActor):
         self.current_task_index = 0
         self.cancel.clear()
         self.feedback_actor = msg.feedback_actor
+        self.error_queue = msg.error_queue
+        self.queue_lock = msg.queue_lock
         # we need to wake up more often in test mode
         if self.config.opts("workload", "test.mode.enabled"):
             self.wakeup_interval = 0.5
@@ -1338,8 +1340,6 @@ class Worker(actor.BenchmarkActor):
             for allocation in msg.client_allocations.allocations:
                 client_id = allocation["client_id"]
                 self.shared_states["data"][client_id] = False
-            # add a flag that clients can flip to 'True' if a request fails
-            self.shared_states["data"]["error_detected"] = False
             # now let's send this over to the FeedbackActor
             shared_state_message = SharedClientStateMessage(
                 worker_id=msg.worker_id,
@@ -1468,7 +1468,7 @@ class Worker(actor.BenchmarkActor):
                 self.logger.info("Worker[%d] is executing tasks at index [%d].", self.worker_id, self.current_task_index)
                 self.sampler = Sampler(start_timestamp=time.perf_counter(), buffer_size=self.sample_queue_size)
                 executor = AsyncIoAdapter(self.config, self.workload, task_allocations, self.sampler,
-                                          self.cancel, self.complete, self.on_error, self.send, self.shared_states, self.feedback_actor)
+                                          self.cancel, self.complete, self.on_error, self.send, self.shared_states, self.feedback_actor, self.error_queue, self.queue_lock)
 
                 self.executor_future = self.pool.submit(executor)
                 self.wakeupAfter(datetime.timedelta(seconds=self.wakeup_interval))
@@ -1737,7 +1737,7 @@ class ThroughputCalculator:
 
 
 class AsyncIoAdapter:
-    def __init__(self, cfg, workload, task_allocations, sampler, cancel, complete, abort_on_error, send_fn, shared_states=None, feedback_actor=None):
+    def __init__(self, cfg, workload, task_allocations, sampler, cancel, complete, abort_on_error, send_fn, shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
         self.cfg = cfg
         self.workload = workload
         self.task_allocations = task_allocations
@@ -1752,6 +1752,8 @@ class AsyncIoAdapter:
         self.shared_states = shared_states
         self.send_fn = send_fn
         self.feedback_actor = feedback_actor
+        self.error_queue = error_queue
+        self.queue_lock = queue_lock
 
     def __call__(self, *args, **kwargs):
         # only possible in Python 3.7+ (has introduced get_running_loop)
@@ -1807,7 +1809,7 @@ class AsyncIoAdapter:
             schedule = schedule_for(task_allocation, params_per_task[task])
             async_executor = AsyncExecutor(
                 client_id, task, schedule, opensearch, self.sampler, self.cancel, self.complete,
-                task.error_behavior(self.abort_on_error), self.send_fn, self.cfg, self.shared_states, self.feedback_actor)
+                task.error_behavior(self.abort_on_error), self.send_fn, self.cfg, self.shared_states, self.feedback_actor, self.error_queue, self.queue_lock)
             final_executor = AsyncProfiler(async_executor) if self.profiling_enabled else async_executor
             aws.append(final_executor())
         run_start = time.perf_counter()
@@ -1859,7 +1861,7 @@ class AsyncProfiler:
 
 
 class AsyncExecutor:
-    def __init__(self, client_id, task, schedule, opensearch, sampler, cancel, complete, on_error, send_fn, config=None, shared_states=None, feedback_actor=None):
+    def __init__(self, client_id, task, schedule, opensearch, sampler, cancel, complete, on_error, send_fn, config=None, shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
         """
         Executes tasks according to the schedule for a given operation.
 
@@ -1886,9 +1888,13 @@ class AsyncExecutor:
         self.send = send_fn
         self.shared_states = shared_states
         self.feedback_actor = feedback_actor
+        self.error_queue = error_queue
+        self.queue_lock = queue_lock
+        self.redline_enabled = self.cfg.opts("workload", "redline.test", mandatory=False)
 
     async def __call__(self, *args, **kwargs):
         has_run_any_requests = False
+        was_paused = False
         task_completes_parent = self.task.completes_parent
         total_start = time.perf_counter()
         # lazily initialize the schedule
@@ -1915,6 +1921,19 @@ class AsyncExecutor:
                 # if redline testing is not enabled, there won't be a dictionary shared to this client,
                 # so we evaluate to a truthy value by default, allowing it to run normally in a regular benchmark
                 client_state = (self.shared_states or {}).get('data', {}).get(self.client_id, True)
+                if client_state and was_paused:
+                    now = time.perf_counter()
+                    total_start = now - expected_scheduled_time
+                    self.logger.debug(f"Client {self.client_id} resumed. Adjusted total_start to prevent request burst.")
+                    was_paused = False
+                elif not client_state:
+                    was_paused = True
+                    processing_end = time.perf_counter()
+                    total_ops = 0
+                    total_ops_unit = "ops"
+                    request_meta_data = {"success": False, "skipped": True}
+                    self.schedule_handle.after_request(processing_end, total_ops, total_ops_unit, request_meta_data)
+                    continue
 
                 absolute_expected_schedule_time = total_start + expected_scheduled_time
                 throughput_throttled = expected_scheduled_time > 0
@@ -1955,31 +1974,25 @@ class AsyncExecutor:
                         self.shared_states["data"]["error_detected"] = True
 
 
-                    processing_end = time.perf_counter()
-                    service_time = request_end - request_start
-                    client_processing_time = (client_request_end - client_request_start) - service_time
-                    processing_time = processing_end - processing_start
-                    time_period = request_end - total_start
-                    self.schedule_handle.after_request(processing_end, total_ops, total_ops_unit, request_meta_data)
-                    # Allow runners to override the throughput calculation in very specific circumstances. Usually, OSB
-                    # assumes that throughput is the "amount of work" (determined by the "weight") per unit of time
-                    # (determined by the elapsed time period). However, in certain cases (e.g. shard recovery or other
-                    # long running operations where there is a dedicated stats API to determine progress), it is
-                    # advantageous if the runner calculates throughput directly. The following restrictions apply:
-                    #
-                    # * Only one client must call that runner (when throughput is calculated, it is aggregated across
-                    #   all clients but if the runner provides it, we take the value as is).
-                    # * The runner should be rate-limited as each runner call will result in one throughput sample.
-                    #
-                    throughput = request_meta_data.pop("throughput", None)
-                    # Do not calculate latency separately when we run unthrottled. This metric is just confusing then.
-                    latency = request_end - absolute_expected_schedule_time if throughput_throttled else service_time
-                else:
-                    processing_end = time.perf_counter()
-                    total_ops = 0
-                    total_ops_unit = "ops"
-                    request_meta_data = {"success": False, "skipped": True}
-                    self.schedule_handle.after_request(processing_end, total_ops, total_ops_unit, request_meta_data)
+                processing_end = time.perf_counter()
+                service_time = request_end - request_start
+                client_processing_time = (client_request_end - client_request_start) - service_time
+                processing_time = processing_end - processing_start
+                time_period = request_end - total_start
+                self.schedule_handle.after_request(processing_end, total_ops, total_ops_unit, request_meta_data)
+                # Allow runners to override the throughput calculation in very specific circumstances. Usually, OSB
+                # assumes that throughput is the "amount of work" (determined by the "weight") per unit of time
+                # (determined by the elapsed time period). However, in certain cases (e.g. shard recovery or other
+                # long running operations where there is a dedicated stats API to determine progress), it is
+                # advantageous if the runner calculates throughput directly. The following restrictions apply:
+                #
+                # * Only one client must call that runner (when throughput is calculated, it is aggregated across
+                #   all clients but if the runner provides it, we take the value as is).
+                # * The runner should be rate-limited as each runner call will result in one throughput sample.
+                #
+                throughput = request_meta_data.pop("throughput", None)
+                # Do not calculate latency separately when we run unthrottled. This metric is just confusing then.
+                latency = request_end - absolute_expected_schedule_time if throughput_throttled else service_time
                 # If this task completes the parent task we should *not* check for completion by another client but
                 # instead continue until our own runner has completed. We need to do this because the current
                 # worker (process) could run multiple clients that execute the same task. We do not want all clients to
@@ -2022,7 +2035,7 @@ class AsyncExecutor:
 request_context_holder = client.RequestContextHolder()
 
 
-async def execute_single(runner, opensearch, params, on_error):
+async def execute_single(runner, opensearch, params, on_error, redline_enabled):
     """
     Invokes the given runner once and provides the runner's return value in a uniform structure.
 
@@ -2087,7 +2100,8 @@ async def execute_single(runner, opensearch, params, on_error):
             description = request_meta_data.get("error-description")
             if description:
                 msg += ", Description: %s" % description
-                console.error(msg)
+                if not redline_enabled:
+                    console.error(msg)
             raise exceptions.BenchmarkAssertionError(msg)
 
         if 'error-description' in request_meta_data:
@@ -2095,12 +2109,14 @@ async def execute_single(runner, opensearch, params, on_error):
                 error_metadata = json.loads(request_meta_data["error-description"])
                 # parse error-description metadata
                 opensearch_operation_error = parse_error(error_metadata)
-                console.error(opensearch_operation_error.get_error_message())
+                if not redline_enabled:
+                    console.error(opensearch_operation_error.get_error_message())
             except Exception as e:
                 # error-description is not a valid json so we just print it
-                console.error(request_meta_data["error-description"])
-
-            logging.getLogger(__name__).error(request_meta_data["error-description"])
+                if not redline_enabled:
+                    console.error(request_meta_data["error-description"])
+            if not redline_enabled:
+                logging.getLogger(__name__).error(request_meta_data["error-description"])
 
     return total_ops, total_ops_unit, request_meta_data
 
