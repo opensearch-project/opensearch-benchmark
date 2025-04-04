@@ -214,12 +214,19 @@ class SharedClientStateMessage:
         self.worker_id = worker_id
         self.worker_clients_map = worker_clients_map
 
+class EnableFeedbackScaling:
+    pass
+
+class DisableFeedbackScaling:
+    pass
+
 class FeedbackState(Enum):
     """Various states for the FeedbackActor"""
     NEUTRAL = "neutral"
     SCALING_DOWN = "scaling_down"
     SLEEP = "sleep"
     SCALING_UP = "scaling_up"
+    DISABLED = "disabled"
 
 class StartFeedbackActor:
     def __init__(self, feedback_actor, error_queue=None, queue_lock=None, total_workers=None):
@@ -281,6 +288,14 @@ class FeedbackActor(actor.BenchmarkActor):
     def receiveUnrecognizedMessage(self, msg, sender) -> None:
         self.logger.info("Received unrecognized message: %s", msg)
 
+    def receiveMsg_EnableFeedbackScaling(self, msg, sender):
+        self.logger.info("FeedbackActor: scaling enabled.")
+        self.state = FeedbackState.SCALING_UP
+
+    def receiveMsg_DisableFeedbackScaling(self, msg, sender):
+        self.logger.info("FeedbackActor: scaling disabled.")
+        self.state = FeedbackState.DISABLED
+
     def receiveMsg_ActorExitRequest(self, msg, sender):
         self.logger.info("FeedbackActor received ActorExitRequest and will shutdown")
         if hasattr(self, 'shared_client_states'):
@@ -315,6 +330,9 @@ class FeedbackActor(actor.BenchmarkActor):
         sys.stdout.write(f"[Redline] Active clients: {self.total_active_client_count}")
         sys.stdout.write("\x1b[u")               # Restore cursor position
         sys.stdout.flush()
+
+        if self.state == FeedbackState.DISABLED:
+            return
 
         if self.state == FeedbackState.SLEEP:
             if current_time - self.sleep_start_time >= self.POST_SCALEDOWN_SECONDS:
@@ -875,6 +893,7 @@ class WorkerCoordinator:
         # target throughput + clients will then be equal to the qps passed in through --redline-test or --load-test
         load_test_clients = self.config.opts("workload", "redline.test", mandatory=False) or self.config.opts("workload", "load.test.clients", mandatory=False)
         if load_test_clients:
+            self.target.feedback_actor = self.target.createActor(FeedbackActor)
             self.error_queue = self.manager.Queue(maxsize=1000)
             for task in self.test_procedure.schedule:
                 for subtask in task:
@@ -1449,6 +1468,7 @@ class Worker(actor.BenchmarkActor):
 
         if self.at_joinpoint():
             self.logger.info("Worker[%d] reached join point at index [%d].", self.worker_id, self.current_task_index)
+            self.send(self.feedback_actor, DisableFeedbackScaling())
             # clients that don't execute tasks don't need to care about waiting
             if self.executor_future is not None:
                 self.executor_future.result()
@@ -1465,6 +1485,7 @@ class Worker(actor.BenchmarkActor):
                 self.logger.info("Worker[%d] skips tasks at index [%d] because it has been asked to complete all "
                                  "tasks until next join point.", self.worker_id, self.current_task_index)
             else:
+                self.send(self.feedback_actor, EnableFeedbackScaling())
                 self.logger.info("Worker[%d] is executing tasks at index [%d].", self.worker_id, self.current_task_index)
                 self.sampler = Sampler(start_timestamp=time.perf_counter(), buffer_size=self.sample_queue_size)
                 executor = AsyncIoAdapter(self.config, self.workload, task_allocations, self.sampler,
@@ -1933,6 +1954,8 @@ class AsyncExecutor:
                     total_ops_unit = "ops"
                     request_meta_data = {"success": False, "skipped": True}
                     self.schedule_handle.after_request(processing_end, total_ops, total_ops_unit, request_meta_data)
+                    if self.complete.is_set():
+                        break
                     continue
 
                 absolute_expected_schedule_time = total_start + expected_scheduled_time
