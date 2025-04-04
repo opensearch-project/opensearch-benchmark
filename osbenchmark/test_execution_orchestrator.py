@@ -125,11 +125,6 @@ class BenchmarkActor(actor.BenchmarkActor):
             )
         self.logger.info("Telling worker_coordinator to prepare for benchmarking.")
         self.send(self.main_worker_coordinator, worker_coordinator.PrepareBenchmark(self.cfg, self.coordinator.current_workload))
-        # create the feedback actor if redline testing is enabled
-        if self.cfg.opts("workload", "redline.test", mandatory=False):
-            self.feedbackActor = self.createActor(worker_coordinator.FeedbackActor)
-            # send this FeedbackActor to the worker coordinator - this way it can distribute its address to workers and also start the FeedbackActor
-            self.send(self.main_worker_coordinator, worker_coordinator.StartFeedbackActor(feedback_actor=self.feedbackActor))
 
     @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_PreparationComplete(self, msg, sender):
@@ -149,26 +144,17 @@ class BenchmarkActor(actor.BenchmarkActor):
         self.coordinator.cancelled = True
         # even notify the start sender if it is the originator. The reason is that we call #ask() which waits for a reply.
         # We also need to ask in order to avoid test_executions between this notification and the following ActorExitRequest.
-        if hasattr(self, 'feedbackActor'):
-            self.send(self.feedbackActor, thespian.actors.ActorExitRequest())
-            self.feedbackActor = None
         self.send(self.start_sender, msg)
 
     @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_BenchmarkFailure(self, msg, sender):
         self.logger.info("Received a benchmark failure from [%s] and will forward it now.", sender)
-        if hasattr(self, 'feedbackActor'):
-            self.send(self.feedbackActor, thespian.actors.ActorExitRequest())
-            self.feedbackActor = None
         self.coordinator.error = True
         self.send(self.start_sender, msg)
 
     @actor.no_retry("test execution orchestrator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_BenchmarkComplete(self, msg, sender):
         self.coordinator.on_benchmark_complete(msg.metrics)
-        if hasattr(self, 'feedbackActor'):
-            self.send(self.feedbackActor, thespian.actors.ActorExitRequest())
-            self.feedbackActor = None
         self.send(self.main_worker_coordinator, thespian.actors.ActorExitRequest())
         self.main_worker_coordinator = None
         self.logger.info("Asking builder to stop the engine.")
