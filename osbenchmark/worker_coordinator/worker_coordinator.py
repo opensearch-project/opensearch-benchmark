@@ -236,16 +236,16 @@ class FeedbackActor(actor.BenchmarkActor):
     def __init__(self) -> None:
         super().__init__()
         self.logger = logging.getLogger(__name__)
-        self.state = FeedbackState.SCALING_UP
+        self.state = FeedbackState.NEUTRAL
         self.shared_client_states = {}
         self.expected_worker_count = 0
         self.workers_reported = 0
         self.total_client_count = 0
         self.total_active_client_count = 0  # must be tracked for scaling up/down
         self.sleep_start_time = time.perf_counter()
-        self.last_error_time = time.perf_counter()
-        self.last_scaleup_time = time.perf_counter()
-        # These will be set via StartFeedbackActor:
+        self.last_error_time = time.perf_counter() - FeedbackActor.POST_SCALEDOWN_SECONDS
+        self.last_scaleup_time = time.perf_counter() - FeedbackActor.POST_SCALEDOWN_SECONDS
+        # These will be passed in via StartFeedbackActor:
         self.error_queue = None
         self.queue_lock = None
 
