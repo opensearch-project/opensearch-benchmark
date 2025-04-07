@@ -25,6 +25,7 @@
 import asyncio
 import collections
 import io
+import queue
 import threading
 import time
 import unittest.mock as mock
@@ -1854,3 +1855,89 @@ class AsyncProfilerTests(TestCase):
         self.assertEqual(2, return_value)
         duration = end - start
         self.assertTrue(0.9 <= duration <= 1.2, "Should sleep for roughly 1 second but took [%.2f] seconds." % duration)
+
+class FeedbackActorTests(TestCase):
+    @pytest.fixture(autouse=True)
+    def setup_actor(self):
+        self.actor = worker_coordinator.FeedbackActor()
+        self.actor.error_queue = queue.Queue()
+        self.actor.queue_lock = mock.MagicMock()
+
+    def test_receive_shared_client_state_sets_total_client_count(self):
+        self.actor.wakeupAfter = mock.MagicMock()
+        mock_data = {
+            0: {'worker_id': 0, 'data': {0: False, 1: False}},
+            1: {'worker_id': 1, 'data': {2: False, 3: False, 4: False}}
+        }
+        message = worker_coordinator.SharedClientStateMessage(worker_clients_map=mock_data)
+        self.actor.receiveMsg_SharedClientStateMessage(message, sender=None)
+
+        assert self.actor.total_client_count == 5
+        assert self.actor.total_active_client_count == 0
+        self.actor.wakeupAfter.assert_called_once()
+
+    def test_receive_start_feedback_actor_sets_queue_refs(self):
+        dummy_error_queue = mock.MagicMock()
+        dummy_queue_lock = mock.MagicMock()
+
+        message = worker_coordinator.StartFeedbackActor(total_workers=2, error_queue=dummy_error_queue, queue_lock=dummy_queue_lock)
+        self.actor.receiveMsg_StartFeedbackActor(message, sender=None)
+
+        assert self.actor.error_queue == dummy_error_queue
+        assert self.actor.queue_lock == dummy_queue_lock
+
+    def test_scale_up_only_activates_n_clients(self):
+        self.actor.shared_client_states = {
+            0: {0: False, 1: False},
+            1: {2: False, 3: False}
+        }
+        self.actor.total_active_client_count = 0
+
+        self.actor.scale_up(n_clients=2)
+        assert self.actor.total_active_client_count == 2
+
+    def test_scale_down_pauses_percentage(self):
+        self.actor.shared_client_states = {
+            0: {0: True, 1: True},
+            1: {2: True, 3: True, 4: False}
+        }
+        self.actor.total_active_client_count = 4  # 4 active clients
+
+        self.actor.scale_down(scale_down_percentage=0.5) # scale down half (2 clients)
+
+        assert self.actor.total_active_client_count == 2
+
+    def test_handle_state_scales_up_only_when_conditions_met(self):
+        self.actor.state = worker_coordinator.FeedbackState.NEUTRAL
+        self.actor.total_active_client_count = 0
+        self.actor.last_error_time = time.perf_counter() - 31
+        self.actor.last_scaleup_time = time.perf_counter() - 2
+        self.actor.shared_client_states = {
+            0: {0: False, 1: False},
+            1: {2: False, 3: False}
+        }
+
+        monkeypatch = pytest.MonkeyPatch()
+        monkeypatch.setattr(self.actor, "check_for_errors", lambda: [])
+
+        self.actor.handle_state()
+
+        assert self.actor.state == worker_coordinator.FeedbackState.NEUTRAL
+        assert self.actor.total_active_client_count > 0
+
+        monkeypatch.undo()
+
+
+    def test_handle_state_enters_sleep_on_error(self):
+        self.actor.state = worker_coordinator.FeedbackState.NEUTRAL
+        self.actor.total_active_client_count = 2
+        self.actor.shared_client_states = {
+            0: {0: True, 1: True},
+            1: {2: True, 3: True, 4: False}
+        }
+
+        self.actor.error_queue.put({"error": "foo"})
+        self.actor.handle_state()
+
+        assert self.actor.state == worker_coordinator.FeedbackState.SLEEP
+        assert self.actor.total_active_client_count < 4

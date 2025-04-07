@@ -229,8 +229,7 @@ class FeedbackState(Enum):
     DISABLED = "disabled"
 
 class StartFeedbackActor:
-    def __init__(self, feedback_actor, error_queue=None, queue_lock=None, total_workers=None):
-        self.feedback_actor = feedback_actor
+    def __init__(self, error_queue=None, queue_lock=None, total_workers=None):
         self.total_workers = total_workers
         self.error_queue = error_queue
         self.queue_lock = queue_lock
@@ -531,7 +530,6 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         self.send(
             self.feedback_actor, 
             StartFeedbackActor(
-                feedback_actor=self.feedback_actor,
                 total_workers=self.coordinator.total_workers,
                 error_queue=self.coordinator.error_queue,
                 queue_lock=self.coordinator.queue_lock
@@ -1914,12 +1912,11 @@ class AsyncExecutor:
         self.logger = logging.getLogger(__name__)
         self.cfg = config
         self.message_producer = None  # Producer will be lazily created when needed.
-        self.send = send_fn
         self.shared_states = shared_states
         self.feedback_actor = feedback_actor
         self.error_queue = error_queue
         self.queue_lock = queue_lock
-        self.redline_enabled = self.cfg.opts("workload", "redline.test", mandatory=False)
+        self.redline_enabled = self.cfg.opts("workload", "redline.test", mandatory=False) if self.cfg else False
 
     async def __call__(self, *args, **kwargs):
         has_run_any_requests = False
@@ -2066,7 +2063,7 @@ class AsyncExecutor:
 request_context_holder = client.RequestContextHolder()
 
 
-async def execute_single(runner, opensearch, params, on_error, redline_enabled):
+async def execute_single(runner, opensearch, params, on_error, redline_enabled=False):
     """
     Invokes the given runner once and provides the runner's return value in a uniform structure.
 
