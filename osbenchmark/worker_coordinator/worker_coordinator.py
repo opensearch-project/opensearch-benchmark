@@ -234,6 +234,7 @@ class StartFeedbackActor:
         self.error_queue = error_queue
         self.queue_lock = queue_lock
 
+# pylint: disable=too-many-public-methods
 class FeedbackActor(actor.BenchmarkActor):
     POST_SCALEDOWN_SECONDS = 30
     STARTUP_TIMEOUT = 30
@@ -528,7 +529,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
 
     def start_feedbackActor(self):
         self.send(
-            self.feedback_actor, 
+            self.feedback_actor,
             StartFeedbackActor(
                 total_workers=self.coordinator.total_workers,
                 error_queue=self.coordinator.error_queue,
@@ -1352,7 +1353,7 @@ class Worker(actor.BenchmarkActor):
         runner.register_default_runners()
         if self.workload.has_plugins:
             workload.load_workload_plugins(self.config, self.workload.name, runner.register_runner, scheduler.register_scheduler)
-        
+
         # if redline testing is enabled, let's create shared state dictionaries
         # these will be shared between the FeedbackActor, as well as clients inside AsyncExecutor
         # and will tell clients whether they should be sending requests or not
@@ -1475,7 +1476,9 @@ class Worker(actor.BenchmarkActor):
 
         if self.at_joinpoint():
             self.logger.info("Worker[%d] reached join point at index [%d].", self.worker_id, self.current_task_index)
-            self.send(self.feedback_actor, DisableFeedbackScaling())
+            # redline testing: if we're at a joinpoint, we should disable the feedbackactor to ensure we're not scaling clients that are waiting at a joinpoint.
+            if self.config.opts("workload", "redline.test", mandatory=False):
+                self.send(self.feedback_actor, DisableFeedbackScaling())
             # clients that don't execute tasks don't need to care about waiting
             if self.executor_future is not None:
                 self.executor_future.result()
@@ -1492,7 +1495,8 @@ class Worker(actor.BenchmarkActor):
                 self.logger.info("Worker[%d] skips tasks at index [%d] because it has been asked to complete all "
                                  "tasks until next join point.", self.worker_id, self.current_task_index)
             else:
-                self.send(self.feedback_actor, EnableFeedbackScaling())
+                if self.config.opts("workload", "redline.test", mandatory=False):
+                    self.send(self.feedback_actor, EnableFeedbackScaling())
                 self.logger.info("Worker[%d] is executing tasks at index [%d].", self.worker_id, self.current_task_index)
                 self.sampler = Sampler(start_timestamp=time.perf_counter(), buffer_size=self.sample_queue_size)
                 executor = AsyncIoAdapter(self.config, self.workload, task_allocations, self.sampler,
@@ -1888,7 +1892,8 @@ class AsyncProfiler:
 
 
 class AsyncExecutor:
-    def __init__(self, client_id, task, schedule, opensearch, sampler, cancel, complete, on_error, config=None, shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
+    def __init__(self, client_id, task, schedule, opensearch, sampler, cancel, complete, on_error,
+                 config=None, shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
         """
         Executes tasks according to the schedule for a given operation.
 
@@ -1950,7 +1955,6 @@ class AsyncExecutor:
                 if client_state and was_paused:
                     now = time.perf_counter()
                     total_start = now - expected_scheduled_time
-                    self.logger.debug(f"Client {self.client_id} resumed. Adjusted total_start to prevent request burst.")
                     was_paused = False
                 elif not client_state:
                     was_paused = True
@@ -1991,16 +1995,21 @@ class AsyncExecutor:
 
                 # Execute with the appropriate context manager
                 async with context_manager as request_context:
-                    total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch, params, self.on_error)
+                    total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch, params, self.on_error, self.redline_enabled)
                     request_start = request_context.request_start
                     request_end = request_context.request_end
                     client_request_start = request_context.client_request_start
                     client_request_end = request_context.client_request_end
                     # redline testing: send any bad requests to the FeedbackActor
-                    if not request_meta_data["success"]:
-                        self.logger.error("Error detected in client %d. Notifying FeedbackActor...", self.client_id)
-                        self.shared_states["data"]["error_detected"] = True
-
+                    if not request_meta_data["success"] and not request_meta_data.get("skipped", False):
+                        if self.error_queue is not None:
+                            self.logger.error("Real error detected in client %s. Notifying FeedbackActor...", self.client_id)
+                            error_info = {
+                                "client_id": self.client_id,
+                                "task": str(self.task),
+                                "error_details": request_meta_data
+                            }
+                            self.report_error(error_info)
 
                 processing_end = time.perf_counter()
                 service_time = request_end - request_start
@@ -2052,13 +2061,20 @@ class AsyncExecutor:
             raise exceptions.BenchmarkError(f"Cannot run task [{self.task}]: {e}") from None
         finally:
             # Actively set it if this task completes its parent
-            if task_completes_parent or not has_run_any_requests:
+            if task_completes_parent or (self.redline_enabled and not has_run_any_requests):
                 self.logger.info("Task [%s] completes parent. Client id [%s] is finished executing it and signals completion.",
                                  self.task, self.client_id)
                 self.complete.set()
             if self.message_producer is not None:
                 await self.message_producer.stop()
                 self.message_producer = None  # Reset for future calls.
+
+    def report_error(self, error_info):
+        if self.error_queue is not None:
+            try:
+                self.error_queue.put_nowait(error_info)
+            except queue.Full:
+                self.logger.warning("Error queue full; dropping error from client %s", self.client_id)
 
 request_context_holder = client.RequestContextHolder()
 
@@ -2101,7 +2117,7 @@ async def execute_single(runner, opensearch, params, on_error, redline_enabled=F
             "success": False,
             "error-type": "transport"
         }
-        # The ES client will sometimes return string like "N/A" or "TIMEOUT" for connection errors.
+        # The OS client will sometimes return string like "N/A" or "TIMEOUT" for connection errors.
         if isinstance(e.status_code, int):
             request_meta_data["http-status"] = e.status_code
         # connection timeout errors don't provide a helpful description

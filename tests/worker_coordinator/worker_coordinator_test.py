@@ -1859,6 +1859,8 @@ class AsyncProfilerTests(TestCase):
 class FeedbackActorTests(TestCase):
     @pytest.fixture(autouse=True)
     def setup_actor(self):
+        self.monkeypatch = pytest.MonkeyPatch()
+        self.monkeypatch.setattr("osbenchmark.log.post_configure_actor_logging", lambda: None)
         self.actor = worker_coordinator.FeedbackActor()
         self.actor.error_queue = queue.Queue()
         self.actor.queue_lock = mock.MagicMock()
@@ -1917,15 +1919,14 @@ class FeedbackActorTests(TestCase):
             1: {2: False, 3: False}
         }
 
-        monkeypatch = pytest.MonkeyPatch()
-        monkeypatch.setattr(self.actor, "check_for_errors", lambda: [])
+        self.monkeypatch.setattr(self.actor, "check_for_errors", lambda: [])
 
         self.actor.handle_state()
 
         assert self.actor.state == worker_coordinator.FeedbackState.NEUTRAL
         assert self.actor.total_active_client_count > 0
 
-        monkeypatch.undo()
+        self.monkeypatch.undo()
 
 
     def test_handle_state_enters_sleep_on_error(self):
