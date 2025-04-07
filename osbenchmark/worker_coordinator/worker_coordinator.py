@@ -446,6 +446,11 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
     def receiveMsg_BenchmarkCancelled(self, msg, sender):
         self.logger.info("Main worker_coordinator received a notification that the benchmark has been cancelled.")
         self.coordinator.close()
+        # shut down FeedbackActor if it's active
+        # we do this manually in the workercoordinator since it's fully responsible for the feedback actor
+        if hasattr(self, "feedback_actor"):
+            self.logger.info("Shutting down FeedbackActor due to benchmark cancellation.")
+            self.send(self.feedback_actor, thespian.actors.ActorExitRequest())
         self.send(self.start_sender, msg)
 
     def receiveMsg_ActorExitRequest(self, msg, sender):
@@ -463,9 +468,6 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
                 self.send(self.start_sender, actor.BenchmarkFailure("Worker [{}] has exited prematurely.".format(worker_index)))
         else:
             self.logger.info("A workload preparator has exited.")
-    
-    def receiveMsg_StartFeedbackActor(self, msg, sender):
-        self.feedback_actor = msg.feedback_actor
 
     def receiveUnrecognizedMessage(self, msg, sender):
         self.logger.info("Main worker_coordinator received unknown message [%s] (ignoring).", str(msg))
@@ -1489,7 +1491,7 @@ class Worker(actor.BenchmarkActor):
                 self.logger.info("Worker[%d] is executing tasks at index [%d].", self.worker_id, self.current_task_index)
                 self.sampler = Sampler(start_timestamp=time.perf_counter(), buffer_size=self.sample_queue_size)
                 executor = AsyncIoAdapter(self.config, self.workload, task_allocations, self.sampler,
-                                          self.cancel, self.complete, self.on_error, self.send, self.shared_states, self.feedback_actor, self.error_queue, self.queue_lock)
+                                          self.cancel, self.complete, self.on_error, self.shared_states, self.feedback_actor, self.error_queue, self.queue_lock)
 
                 self.executor_future = self.pool.submit(executor)
                 self.wakeupAfter(datetime.timedelta(seconds=self.wakeup_interval))
@@ -1758,7 +1760,7 @@ class ThroughputCalculator:
 
 
 class AsyncIoAdapter:
-    def __init__(self, cfg, workload, task_allocations, sampler, cancel, complete, abort_on_error, send_fn, shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
+    def __init__(self, cfg, workload, task_allocations, sampler, cancel, complete, abort_on_error, shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
         self.cfg = cfg
         self.workload = workload
         self.task_allocations = task_allocations
@@ -1771,7 +1773,6 @@ class AsyncIoAdapter:
         self.debug_event_loop = self.cfg.opts("system", "async.debug", mandatory=False, default_value=False)
         self.logger = logging.getLogger(__name__)
         self.shared_states = shared_states
-        self.send_fn = send_fn
         self.feedback_actor = feedback_actor
         self.error_queue = error_queue
         self.queue_lock = queue_lock
@@ -1830,7 +1831,7 @@ class AsyncIoAdapter:
             schedule = schedule_for(task_allocation, params_per_task[task])
             async_executor = AsyncExecutor(
                 client_id, task, schedule, opensearch, self.sampler, self.cancel, self.complete,
-                task.error_behavior(self.abort_on_error), self.send_fn, self.cfg, self.shared_states, self.feedback_actor, self.error_queue, self.queue_lock)
+                task.error_behavior(self.abort_on_error), self.cfg, self.shared_states, self.feedback_actor, self.error_queue, self.queue_lock)
             final_executor = AsyncProfiler(async_executor) if self.profiling_enabled else async_executor
             aws.append(final_executor())
         run_start = time.perf_counter()
@@ -1882,7 +1883,7 @@ class AsyncProfiler:
 
 
 class AsyncExecutor:
-    def __init__(self, client_id, task, schedule, opensearch, sampler, cancel, complete, on_error, send_fn, config=None, shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
+    def __init__(self, client_id, task, schedule, opensearch, sampler, cancel, complete, on_error, config=None, shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
         """
         Executes tasks according to the schedule for a given operation.
 

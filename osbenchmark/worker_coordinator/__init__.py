@@ -25,8 +25,6 @@
 # expose only the minimum API
 from .worker_coordinator import (
     WorkerCoordinatorActor,
-    FeedbackActor,
-    StartFeedbackActor,
     PrepareBenchmark,
     PreparationComplete,
     StartBenchmark,
