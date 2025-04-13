@@ -125,11 +125,11 @@ class QueryProcessor:
 
         return processed_queries
 
-def process_indices(indices, document_frequency, indices_docs_mapping):
+def process_indices(indices, sample_frequency_mapping, indices_docs_mapping):
     processed_indices = []
     for index_name in indices:
         try:
-            #Setting number_of_docs_for_index to None means OSB will grab all docs available in index
+            # Setting number_of_docs_for_index to None means OSB will grab all docs available in index
             number_of_docs_for_index = None
             if indices_docs_mapping and index_name in indices_docs_mapping:
                 number_of_docs_for_index = int(indices_docs_mapping[index_name])
@@ -137,9 +137,17 @@ def process_indices(indices, document_frequency, indices_docs_mapping):
                     raise exceptions.SystemSetupError(
                         "Values specified with --number-of-docs must be greater than 0")
 
+            # Do this if sample frequency is specified
+            sample_frequency_for_index = None
+            if sample_frequency_mapping and index_name in sample_frequency_mapping:
+                sample_frequency_for_index = int(sample_frequency_mapping[index_name])
+                if sample_frequency_for_index <= 1:
+                    raise exceptions.SystemSetupError(
+                        "Values specified with --sample-frequency must be greater than 1")
+
             index = Index(
                 name=index_name,
-                document_frequency=document_frequency,
+                sample_frequency=sample_frequency_for_index,
                 number_of_docs=number_of_docs_for_index
             )
             processed_indices.append(index)
@@ -167,4 +175,23 @@ def validate_index_documents_map(indices, indices_docs_map):
             raise exceptions.SystemSetupError(
                 f"Index {index_name} provided in --number-of-docs was not found in --indices. " +
                 "Ensure that all indices in --number-of-docs are present in --indices."
+            )
+
+def validate_sample_frequency_mapping(indices, sample_frequency_mapping):
+    sample_frequency_enabled = sample_frequency_mapping is not None and len(sample_frequency_mapping) > 0
+
+    if not sample_frequency_enabled:
+        return
+
+    if len(indices) < len(sample_frequency_mapping):
+        raise exceptions.SystemSetupError(
+            "Number of <index>:<doc_count> pairs exceeds number of indices in --indices. " +
+            "Ensure number of <index>:<doc_count> pairs is less than or equal to number of indices in --indices."
+        )
+
+    for index_name in sample_frequency_mapping:
+        if index_name not in indices:
+            raise exceptions.SystemSetupError(
+                "Index from <index>:<sample-frequency> pair was not found in --indices. " +
+                "Ensure that indices from all <index>:<sample-frequency> pairs exist in --indices."
             )

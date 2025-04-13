@@ -195,6 +195,13 @@ def create_arg_parser():
         metavar="KEY:VAL",
         help="Map of index name and integer doc count to extract. Ensure that index name also exists in --indices parameter. " +
         "To specify several indices and doc counts, use format: <index1>:<doc_count1> <index2>:<doc_count2> ...")
+    create_workload_parser.add_argument(
+        "--sample-frequency",
+        action=opts.StoreKeyPairAsDict,
+        nargs='+',
+        metavar="KEY:VAL",
+        help="Map of index name and an integer, representing the sample frequency of docs that should be extracted per index. Ensure that index name also exists in --indices parameter. " +
+        "To specify several indices and doc counts, use format: <index1>:<sample-frequency-1> <index2>:<sample-frequency-2> ...")
 
     compare_parser = subparsers.add_parser("compare", help="Compare two test_executions")
     compare_parser.add_argument(
@@ -1049,6 +1056,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "generator", "output.path", args.output_path)
             cfg.add(config.Scope.applicationOverride, "workload", "workload.name", args.workload)
             cfg.add(config.Scope.applicationOverride, "workload", "custom_queries", args.custom_queries)
+            cfg.add(config.Scope.applicationOverride, "generator", "sample_frequency", args.sample_frequency)
             configure_connection_params(arg_parser, args, cfg)
 
             workload_generator.create_workload(cfg)
