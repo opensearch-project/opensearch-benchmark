@@ -208,7 +208,6 @@ class SequentialCorpusExtractor(CorpusExtractor):
         if total_documents > 0:
             self.logger.info("[%d] total docs in index [%s]. Extracting [%s] docs with sample frequency [%s]", total_documents, index, total_documents, sample_frequency)
 
-            # docs_path = self._get_doc_outpath(output_path, index)
             self.dump_documents(
                 self.client,
                 index,
@@ -216,7 +215,6 @@ class SequentialCorpusExtractor(CorpusExtractor):
                 min(total_documents, self.DEFAULT_TEST_MODE_DOC_COUNT),
                 " for test mode")
 
-            # console.info(timeit.timeit(lambda: dump_documents_with_sample_frequency(client, index, docs_path, number_of_docs_in_index, sample_frequency), setup="pass", number=1))
             docs_path = self._get_doc_outpath(self.custom_workload.workload_path, index)
             self.dump_documents_with_sample_frequency(total_documents, sample_frequency, docs_path, index)
 
@@ -270,11 +268,6 @@ class SequentialCorpusExtractor(CorpusExtractor):
 
                 progress_bar = tqdm(range(number_of_docs_to_fetch), desc=progress_message, ascii=' >=', bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')
 
-                # lst = [doc for doc in helpers.scan(client, query=query, index=index)]
-                # logger.info("List from scan: [%s]", lst)
-                # sleep(200)
-
-                # bytes_bar = tqdm(unit = 'B', ascii = True, unit_scale = True)
                 for n, doc in enumerate(helpers.scan(self.client, query=query, index=index), start=1):
                     if (n % sample_frequency) != 0:
                         continue

@@ -30,7 +30,6 @@ def create_workload(cfg):
     unprocessed_queries: dict = cfg.opts("workload", "custom_queries")
     templates_path: str = os.path.join(cfg.opts("node", "benchmark.root"), "resources")
 
-    # TODO: Move this to argparse
     if number_of_docs and sample_frequency_mapping:
         raise exceptions.SystemSetupError("Parameters --number-of-docs and --sample-frequency cannot be used simultaneously. Choose one or the other.")
 
