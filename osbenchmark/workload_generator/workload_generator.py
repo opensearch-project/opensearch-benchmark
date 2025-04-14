@@ -89,8 +89,11 @@ def create_workload(cfg):
     }
     logger.info("Template vars [%s]", template_vars)
 
+    custom_workload_writer.write_custom_workload_record(template_vars)
+
+    logger.info("Rendering templates")
     # Render all templates
     custom_workload_writer.render_templates(template_vars, custom_workload.queries)
 
     console.println("")
-    console.info(f"Workload {workload_name} has been created. Run it with: {PROGRAM_NAME} --workload-path={custom_workload.workload_path}")
+    console.info(f"Workload {workload_name} has been created. Run it with: {PROGRAM_NAME} execute-test --workload-path={custom_workload.workload_path}")

@@ -75,6 +75,15 @@ class CustomWorkloadWriter:
         io.ensure_dir(self.custom_workload.operations_path)
         io.ensure_dir(self.custom_workload.test_procedures_path)
 
+    def write_custom_workload_record(self, template_vars):
+        filename = f"{self.custom_workload.workload_path}/{self.custom_workload.workload_name}_record.json"
+        try:
+            self.logger.info("Writing custom workload record to filepath [%s]", filename)
+            with open(filename, 'w') as file:
+                json.dump(template_vars, file)
+        except Exception as e:
+            self.logger.error("Could not write to file as CustomWorkloadWriter encountered an error: [%s]", e)
+
     def _has_write_permission(self, directory):
         """
         Verify if output directory for workload has write permissions
@@ -106,6 +115,7 @@ class CustomWorkloadWriter:
         env = Environment(loader=FileSystemLoader(self.templates_path), autoescape=select_autoescape(['html', 'xml']))
 
         return env.get_template(template_file_name)
+
 
 class QueryProcessor:
     def __init__(self, queries: str):
