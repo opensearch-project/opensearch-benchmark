@@ -151,14 +151,14 @@ class SequentialCorpusExtractor(CorpusExtractor):
         self.client = client
         self.logger = logging.getLogger(__name__)
 
-    def template_vars(self,index_name, out_path, doc_count):
-        comp_outpath = out_path + COMP_EXT
+    def template_vars(self,index_name, docs_path, doc_count):
+        comp_outpath = docs_path + COMP_EXT
         return {
             "index_name": index_name,
             "filename": os.path.basename(comp_outpath),
             "path": comp_outpath,
             "doc_count": doc_count,
-            "uncompressed_bytes": os.path.getsize(out_path),
+            "uncompressed_bytes": os.path.getsize(docs_path),
             "compressed_bytes": os.path.getsize(comp_outpath)
         }
 
@@ -172,7 +172,7 @@ class SequentialCorpusExtractor(CorpusExtractor):
 
         :param index: Name of index to dump
         :param documents_limit: The number of documents to extract. Must be equal
-        :param sample_frequency: When extracting documents, frequency to sample documents
+        :param sample_frequency: frequency with which to sample documents
 
         :return: dict of properties describing the corpus for templates
         """
@@ -198,7 +198,7 @@ class SequentialCorpusExtractor(CorpusExtractor):
                 console.warn(documents_to_extract_warning_msg)
 
         if sample_frequency and sample_frequency > 1:
-            # document_limit does not work with sample frequency which is why it's not here
+            # documents_limit does not work with sample frequency which is why it's not here
             return self.sample_frequency_extraction(total_documents, sample_frequency, index)
         else:
             return self.standard_extraction(total_documents, documents_to_extract, index)
@@ -244,7 +244,7 @@ class SequentialCorpusExtractor(CorpusExtractor):
             self.logger.info("Skipping corpus extraction fo index [%s] as it contains no documents.", index)
             return None
 
-    def dump_documents_with_sample_frequency(self, number_of_docs_in_index, sample_frequency, out_path, index):
+    def dump_documents_with_sample_frequency(self, number_of_docs_in_index, sample_frequency, docs_path, index):
         number_of_docs_to_fetch = number_of_docs_in_index // sample_frequency
         number_of_docs_left = number_of_docs_to_fetch
 
@@ -255,15 +255,14 @@ class SequentialCorpusExtractor(CorpusExtractor):
 
         self.logger.info("Number of docs in index: [%s], number of docs to fetch: [%s]", number_of_docs_in_index, number_of_docs_to_fetch)
 
-        freq = 100 / number_of_docs_to_fetch
         self.logger.info("sample_frequency: [%s]", sample_frequency)
 
         compressor = DOCS_COMPRESSOR()
-        comp_outpath = out_path + COMP_EXT
+        comp_outpath = docs_path + COMP_EXT
 
-        with open(out_path, "wb") as outfile:
+        with open(docs_path, "wb") as outfile:
             with open(comp_outpath, "wb") as comp_outfile:
-                self.logger.info("Dumping corpus for index [%s] to [%s].", index, out_path)
+                self.logger.info("Dumping corpus for index [%s] to [%s].", index, docs_path)
                 query = {"query": {"match_all": {}}}
 
                 progress_bar = tqdm(range(number_of_docs_to_fetch), desc=progress_message, ascii=' >=', bar_format='{l_bar}{bar:10}{r_bar}{bar:-10b}')
@@ -277,17 +276,15 @@ class SequentialCorpusExtractor(CorpusExtractor):
 
                     number_of_docs_left -= 1
 
-                    self.logger.info("Nth doc [%s]", n)
                     data = (json.dumps(doc["_source"], separators=(",", ":")) + "\n").encode("utf-8")
 
                     outfile.write(data)
                     comp_outfile.write(compressor.compress(data))
-                    # sleep(0.1)
                     progress_bar.update(1)
 
                 comp_outfile.write(compressor.flush())
 
-    def dump_documents(self, client, index, out_path, number_of_docs, progress_message_suffix=""):
+    def dump_documents(self, client, index, docs_path, number_of_docs, progress_message_suffix=""):
         # pylint: disable=import-outside-toplevel
         from opensearchpy import helpers
 
@@ -296,10 +293,10 @@ class SequentialCorpusExtractor(CorpusExtractor):
 
         progress = console.progress()
         compressor = DOCS_COMPRESSOR()
-        comp_outpath = out_path + COMP_EXT
-        with open(out_path, "wb") as outfile:
+        comp_outpath = docs_path + COMP_EXT
+        with open(docs_path, "wb") as outfile:
             with open(comp_outpath, "wb") as comp_outfile:
-                logger.info("Dumping corpus for index [%s] to [%s].", index, out_path)
+                logger.info("Dumping corpus for index [%s] to [%s].", index, docs_path)
                 query = {"query": {"match_all": {}}}
                 for i, doc in enumerate(helpers.scan(client, query=query, index=index)):
                     if i >= number_of_docs:
