@@ -200,7 +200,8 @@ def create_arg_parser():
         action=opts.StoreKeyPairAsDict,
         nargs='+',
         metavar="KEY:VAL",
-        help="Map of index name and an integer, representing the sample frequency of docs that should be extracted per index. Ensure that index name also exists in --indices parameter. " +
+        help="Map of index name and an integer, representing the sample frequency of docs that should be extracted per index. " +
+        "Ensure that index name also exists in --indices parameter. " +
         "To specify several indices and doc counts, use format: <index1>:<sample-frequency-1> <index2>:<sample-frequency-2> ...")
 
     compare_parser = subparsers.add_parser("compare", help="Compare two test_executions")

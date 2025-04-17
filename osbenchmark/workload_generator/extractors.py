@@ -11,7 +11,6 @@ import json
 import logging
 import os
 from abc import ABC, abstractmethod
-from time import sleep
 
 from tqdm import tqdm
 import opensearchpy.exceptions
