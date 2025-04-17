@@ -125,6 +125,7 @@ develop_require = [
     "tox==3.14.0",
     "coverage==5.5",
     "twine==6.0.1",
+    "pkginfo==1.10.0",
     "wheel>=0.38.4",
     "github3.py==1.3.0",
     "pylint==2.6.0",
