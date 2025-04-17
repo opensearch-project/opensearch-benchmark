@@ -12,7 +12,7 @@ import os
 from osbenchmark import PROGRAM_NAME, exceptions
 from osbenchmark.client import OsClientFactory
 from osbenchmark.workload_generator.config import CustomWorkload
-from osbenchmark.workload_generator.helpers import QueryProcessor, CustomWorkloadWriter, process_indices, validate_index_documents_map
+from osbenchmark.workload_generator.helpers import QueryProcessor, CustomWorkloadWriter, process_indices, validate_index_documents_map, validate_sample_frequency_mapping
 from osbenchmark.workload_generator.extractors import IndexExtractor, SequentialCorpusExtractor
 from osbenchmark.utils import io, opts, console
 
@@ -25,21 +25,23 @@ def create_workload(cfg):
     output_path: str = cfg.opts("generator", "output.path")
     target_hosts: opts.TargetHosts = cfg.opts("client", "hosts")
     client_options: opts.ClientOptions = cfg.opts("client", "options")
-    # document_frequency: int = cfg.opts("generator", "document_frequency") # Enable later
-    document_frequency: int = 0
+    sample_frequency_mapping: int = cfg.opts("generator", "sample_frequency")
     number_of_docs: dict = cfg.opts("generator", "number_of_docs")
     unprocessed_queries: dict = cfg.opts("workload", "custom_queries")
     templates_path: str = os.path.join(cfg.opts("node", "benchmark.root"), "resources")
 
-    # Validation
+    if number_of_docs and sample_frequency_mapping:
+        raise exceptions.SystemSetupError("Parameters --number-of-docs and --sample-frequency cannot be used simultaneously. Choose one or the other.")
+
     validate_index_documents_map(indices, number_of_docs)
+    validate_sample_frequency_mapping(indices, sample_frequency_mapping)
 
     client = OsClientFactory(hosts=target_hosts.all_hosts[opts.TargetHosts.DEFAULT],
                              client_options=client_options.all_client_options[opts.TargetHosts.DEFAULT]).create()
     info = client.info()
     console.info(f"Connected to OpenSearch cluster [{info['name']}] version [{info['version']['number']}].\n", logger=logger)
 
-    processed_indices = process_indices(indices, document_frequency, number_of_docs)
+    processed_indices = process_indices(indices, sample_frequency_mapping, number_of_docs)
     logger.info("Processed Indices: %s", processed_indices)
 
     custom_workload = CustomWorkload(
@@ -71,7 +73,7 @@ def create_workload(cfg):
 
     # Extract Corpora
     for index in custom_workload.indices:
-        index_corpora = corpus_extractor.extract_documents(index.name, index.number_of_docs)
+        index_corpora = corpus_extractor.extract_documents(index.name, index.number_of_docs, sample_frequency=index.sample_frequency)
         custom_workload.corpora.append(index_corpora)
     logger.info("Extracted all corpora [%s]", custom_workload.corpora)
 
@@ -86,8 +88,11 @@ def create_workload(cfg):
     }
     logger.info("Template vars [%s]", template_vars)
 
+    custom_workload_writer.write_custom_workload_record(template_vars)
+
+    logger.info("Rendering templates")
     # Render all templates
     custom_workload_writer.render_templates(template_vars, custom_workload.queries)
 
     console.println("")
-    console.info(f"Workload {workload_name} has been created. Run it with: {PROGRAM_NAME} --workload-path={custom_workload.workload_path}")
+    console.info(f"Workload {workload_name} has been created. Run it with: {PROGRAM_NAME} execute-test --workload-path={custom_workload.workload_path}")
