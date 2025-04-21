@@ -343,7 +343,6 @@ class FeedbackActor(actor.BenchmarkActor):
                 self.clear_queue()
                 self.state = FeedbackState.NEUTRAL
                 self.sleep_start_time = current_time
-
         elif errors:
             self.logger.info("Error messages detected, scaling down...")
             self.state = FeedbackState.SCALING_DOWN
@@ -351,7 +350,6 @@ class FeedbackActor(actor.BenchmarkActor):
                 self.scale_down()
             self.logger.info("Clients scaled down. Active clients: %d", self.total_active_client_count)
             self.last_error_time = current_time
-
         elif self.state == FeedbackState.NEUTRAL:
             self.max_stable_clients = max(self.max_stable_clients, self.total_active_client_count) # update the max number of stable clients
             if (current_time - self.last_error_time >= self.POST_SCALEDOWN_SECONDS and
@@ -368,24 +366,31 @@ class FeedbackActor(actor.BenchmarkActor):
     def scale_down(self, scale_down_percentage=0.10) -> None:
         try:
             clients_to_pause = int(self.total_active_client_count * scale_down_percentage)
-            clients_paused = 0
-            active_clients_by_worker = {}
+            if clients_to_pause <= 0:
+                self.logger.info("No clients to pause during scale down")
+                return
+
+            # Create a flattened list of (worker_id, client_id) tuples for all active clients
+            all_active_clients = []
             for worker_id, client_states in self.shared_client_states.items():
-                active_clients = [(client_id, status) for client_id, status in client_states.items() if status]
-                if active_clients:
-                    active_clients_by_worker[worker_id] = active_clients
-            while clients_paused < clients_to_pause and active_clients_by_worker:
-                for worker_id in list(active_clients_by_worker.keys()):
-                    if clients_paused >= clients_to_pause:
-                        break
-                    if not active_clients_by_worker[worker_id]:
-                        del active_clients_by_worker[worker_id]
-                        continue
-                    client_id, _ = active_clients_by_worker[worker_id].pop(0)
-                    self.shared_client_states[worker_id][client_id] = False
-                    clients_paused += 1
-                    self.total_active_client_count -= 1
-            self.logger.info("Scaling down complete. Paused %d clients", clients_paused)
+                for client_id, status in client_states.items():
+                    if status:  # Only include active clients
+                        all_active_clients.append((worker_id, client_id))
+
+            # If we need to pause more clients than are active, adjust the count
+            clients_to_pause = min(clients_to_pause, len(all_active_clients))
+
+            # Select clients to pause - randomly sample for better distribution
+            import random
+            clients_to_pause_indices = random.sample(range(len(all_active_clients)), clients_to_pause)
+            clients_to_pause_list = [all_active_clients[i] for i in clients_to_pause_indices]
+
+            # Pause the selected clients in a single pass
+            for worker_id, client_id in clients_to_pause_list:
+                self.shared_client_states[worker_id][client_id] = False
+                self.total_active_client_count -= 1
+
+            self.logger.info("Scaling down complete. Paused %d clients", clients_to_pause)
         finally:
             self.state = FeedbackState.SLEEP
             self.clear_queue()
@@ -943,7 +948,10 @@ class WorkerCoordinator:
                     for client_id in clients:
                         client_allocations.add(client_id, self.allocations[client_id])
                         self.clients_per_worker[client_id] = worker_id
-                    self.target.start_worker(worker, worker_id, self.config, self.workload, client_allocations, self.error_queue, self.queue_lock)
+                    if load_test_clients:
+                        self.target.start_worker(worker, worker_id, self.config, self.workload, client_allocations, self.error_queue, self.queue_lock)
+                    else:
+                        self.target.start_worker(worker, worker_id, self.config, self.workload, client_allocations)
                     self.workers.append(worker)
                     worker_id += 1
 

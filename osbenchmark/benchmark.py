@@ -947,7 +947,8 @@ def configure_test(arg_parser, args, cfg):
         opts.csv_to_list(args.load_worker_coordinator_hosts))
     cfg.add(config.Scope.applicationOverride, "workload", "test.mode.enabled", args.test_mode)
     cfg.add(config.Scope.applicationOverride, "workload", "load.test.clients", int(args.load_test_qps))
-    cfg.add(config.Scope.applicationOverride, "workload", "redline.test", int(args.redline_test))
+    if args.redline_test:
+        cfg.add(config.Scope.applicationOverride, "workload", "redline.test", int(args.redline_test))
     cfg.add(config.Scope.applicationOverride, "workload", "latency.percentiles", args.latency_percentiles)
     cfg.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", args.throughput_percentiles)
     cfg.add(config.Scope.applicationOverride, "workload", "randomization.enabled", args.randomization_enabled)
