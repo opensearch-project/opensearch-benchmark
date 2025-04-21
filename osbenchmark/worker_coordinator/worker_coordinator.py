@@ -32,6 +32,7 @@ import logging
 import math
 import multiprocessing
 import queue
+import random
 import sys
 import threading
 from dataclasses import dataclass
@@ -381,7 +382,6 @@ class FeedbackActor(actor.BenchmarkActor):
             clients_to_pause = min(clients_to_pause, len(all_active_clients))
 
             # Select clients to pause - randomly sample for better distribution
-            import random
             clients_to_pause_indices = random.sample(range(len(all_active_clients)), clients_to_pause)
             clients_to_pause_list = [all_active_clients[i] for i in clients_to_pause_indices]
 
