@@ -40,7 +40,10 @@ from os.path import commonprefix
 import multiprocessing
 from typing import List, Optional
 
+import grpc
 import ijson
+from opensearch_protos.protos.services.document_service_pb2_grpc import DocumentServiceStub
+from opensearch_protos.protos.services.search_service_pb2_grpc import SearchServiceStub
 from opensearchpy import ConnectionTimeout
 from opensearchpy import NotFoundError
 
@@ -49,6 +52,8 @@ from osbenchmark.utils import convert
 from osbenchmark.client import RequestContextHolder
 # Mapping from operation type to specific runner
 from osbenchmark.utils.parse import parse_int_parameter, parse_string_parameter, parse_float_parameter
+from osbenchmark.worker_coordinator.proto_helpers.ProtoBulkHelper import ProtoBulkHelper
+from osbenchmark.worker_coordinator.proto_helpers.ProtoQueryHelper import ProtoQueryHelper
 
 __RUNNERS = {}
 
@@ -72,6 +77,8 @@ def register_default_runners():
     register_runner(workload.OperationType.DeletePointInTime, DeletePointInTime(), async_runner=True)
     register_runner(workload.OperationType.ListAllPointInTime, ListAllPointInTime(), async_runner=True)
     register_runner(workload.OperationType.ProduceStreamMessage, ProduceStreamMessage(), async_runner=True)
+    register_runner(workload.OperationType.ProtoSearch, ProtoQuery(), async_runner=True)
+    register_runner(workload.OperationType.ProtoBulk, ProtoBulkIndex(), async_runner=True)
 
     # This is an administrative operation but there is no need for a retry here as we don't issue a request
     register_runner(workload.OperationType.Sleep, Sleep(), async_runner=True)

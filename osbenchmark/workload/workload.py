@@ -606,6 +606,8 @@ class OperationType(Enum):
     TrainKnnModel = 19
     DeleteKnnModel = 20
     ProduceStreamMessage = 21
+    ProtoSearch = 22
+    ProtoBulk = 23
 
     # administrative actions
     ForceMerge = 1001
