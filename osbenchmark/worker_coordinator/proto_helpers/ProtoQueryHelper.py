@@ -1,6 +1,16 @@
 from opensearch_protos.protos.schemas import search_pb2
 from opensearch_protos.protos.schemas import common_pb2
 
+def _get_relation(relation):
+    if relation == 0:
+        return "TOTAL_HITS_RELATION_UNSPECIFIED"
+    elif relation == 1:
+        return "TOTAL_HITS_RELATION_EQ"
+    elif relation == 2:
+        return "TOTAL_HITS_RELATION_GTE"
+    else:
+        return "TOTAL_HITS_RELATION_UNSET"
+
 def _parse_terms_from_query(query):
     terms_map = common_pb2.ObjectMap()
     for key, value in query.items():
@@ -60,7 +70,7 @@ class ProtoQueryHelper:
     * ``detailed-results``: return detailed results, hits, took, hits_relation
     """
     @staticmethod
-    def build_simple_stats(response, params):
+    def build_stats(response, params):
         which_field = response.WhichOneof('response')
         if which_field == 'error_4xx_response' or which_field == 'error_5xx_response':
             raise Exception("Server responded with error: " + str(which_field))
@@ -68,22 +78,15 @@ class ProtoQueryHelper:
         if not isinstance(response.response_body, search_pb2.ResponseBody):
             raise Exception("Unknown response proto: " + str(type(response)))
 
-        print("relation: " + str(response.response_body.hits.total.total_hits.relation))
-        print("val: " + str(response.response_body.hits.total.total_hits.value))
-        exit()
-
-        hits_total = response.hits.total.value
-        hits_relation_total = response.hits.relation.total
-
         if params.get("detailed-results"):
             return {
                 "weight": 1,
                 "unit": "ops",
                 "success": True,
-                "hits": response.hits.total,
-                "hits_relation": response.hits_relation,
-                "timed_out": response.timed_out,
-                "took": response.took,
+                "hits": response.response_body.hits.total.total_hits.value,
+                "hits_relation": _get_relation(response.response_body.hits.total.total_hits.relation),
+                "timed_out": response.response_body.timed_out,
+                "took": response.response_body.took,
             }
 
         return {

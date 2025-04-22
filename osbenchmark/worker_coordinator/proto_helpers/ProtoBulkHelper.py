@@ -16,21 +16,20 @@ def _parse_docs_from_body(body):
     return docList[:-1]
 
 class ProtoBulkHelper:
+    """
+    Helper methods to bulk ingest workload dataset with protobuf.
+    """
+
+    """
+    Build protobuf SearchRequest.
+    Consumed from params dictionary:
+    * ``body``: JSON body of bulk ingest request
+    * ``index``: index name
+    """
     @staticmethod
     def build_proto_request(params):
         index = params.get("index")
         body = params.get("body")
-
-        name = params.get("name") # index-append
-        op_type = params.get("operation-type") # op_type: bulk
-        # ingest_perc = params.get("ingest-percentage")
-        # bulk_size = params.get("bulk-size")
-
-        # UN-USED BY CURRENT OP TYPES
-        # include_pub = params.get("include-in-results_publishing")
-        # type = params.get("type")
-        # action_metadata_present = params.get("action-metadata-present")
-
         doc_list = _parse_docs_from_body(body)
         request  = document_pb2.BulkRequest()
         request.index = index
@@ -42,32 +41,46 @@ class ProtoBulkHelper:
             request.request_body.append(requestBody)
         return request
 
+    """
+    Parse stats from protobuf response.
+    Consumed from params dictionary:
+    * ``index``: index name
+    * ``bulk-size``: documents per bulk request
+    * ``unit``: in the case of bulk always 'ops'
+    * ``detailed-results``: return detailed results, hits, took, hits_relation
+    """
     @staticmethod
-    def build_simple_stats(response, params):
-        respSuccess = None
+    def build_stats(response, params):
         which_field = response.WhichOneof('response')
-        if which_field == 'bulk_response_body':
-            respSuccess = response.bulk_response_body
-        elif which_field == 'bulk_error_response':
-            print(response.bulk_error_response)
-            exit()  # REMOVE THIS AFTER TESTING - REQ FAILURE SET IN STATS BELOW
-        else:
-            exit()  # Fatal error
+        if which_field == 'bulk_error_response':
+            raise Exception("Server responded with error: " + str(which_field))
 
-        stats = {
-            "took": respSuccess.took,
-            "success": not respSuccess.errors,  # true if an op failed
-            "success-count": params.get("bulk-size"),
-            "error-count": 0 # REMOVE THIS AFTER TESTING - SEE ABOVE
-        }
+        if not isinstance(response.response_body, document_pb2.BulkResponse):
+            raise Exception("Unknown response proto: " + str(type(response)))
 
-        meta_data = {
-            "index": params.get("index"),
-            "weight": params.get("bulk-size"),
-            "unit": params.get("unit"),
-        }
+        if params.get("detailed-results"):
+            raise Exception("Detailed stats not supported for proto bulk index.")
 
-        meta_data.update(stats)
-        if not stats["success"]:
-            meta_data["error-type"] = "bulk"
-        return meta_data
+        print("HERE I GO PRINTING ITEMS:")
+        for item in response.response_body.items:
+            print("ITEM:")
+            print(item)
+        exit()
+
+        # stats = {
+        #     "took": response.took,
+        #     "success": not response.errors,  # true if an op failed
+        #     "success-count": params.get("bulk-size"),
+        #     "error-count": 0 # REMOVE THIS AFTER TESTING - SEE ABOVE
+        # }
+        #
+        # meta_data = {
+        #     "index": params.get("index"),
+        #     "weight": params.get("bulk-size"),
+        #     "unit": params.get("unit"),
+        # }
+        #
+        # meta_data.update(stats)
+        # if not stats["success"]:
+        #     meta_data["error-type"] = "bulk"
+        # return meta_data

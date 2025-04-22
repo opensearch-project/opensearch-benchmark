@@ -666,6 +666,8 @@ class OperationType(Enum):
             return OperationType.NodeStats
         elif v == "search":
             return OperationType.Search
+        elif v == "proto-search":
+            return OperationType.ProtoSearch
         elif v == "scroll-search":
             return OperationType.ScrollSearch
         elif v == "paginated-search":
@@ -678,6 +680,8 @@ class OperationType(Enum):
             return OperationType.ClusterHealth
         elif v == "bulk":
             return OperationType.Bulk
+        elif v == "proto-bulk":
+            return OperationType.ProtoBulk
         elif v == "raw-request":
             return OperationType.RawRequest
         elif v == "put-pipeline":

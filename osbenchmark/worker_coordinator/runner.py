@@ -2918,7 +2918,7 @@ class ProtoBulkIndex(Runner):
             bulk_resp = PROTO_DOC_STUB.Bulk(proto_req)
             request_context_holder.on_request_end()
         request_context_holder.on_client_request_end()
-        return ProtoBulkHelper.build_simple_stats(bulk_resp, params)
+        return ProtoBulkHelper.build_stats(bulk_resp, params)
 
     def __repr__(self, *args, **kwargs):
         return "proto-bulk-index"
@@ -2933,7 +2933,7 @@ class ProtoQuery(Runner):
             search_resp = PROTO_QUERY_STUB.Search(proto_req)
             request_context_holder.on_request_end()
         request_context_holder.on_client_request_end()
-        return ProtoQueryHelper.build_simple_stats(search_resp, params)
+        return ProtoQueryHelper.build_stats(search_resp, params)
 
     def __repr__(self, *args, **kwargs):
         return "proto-query-index"
