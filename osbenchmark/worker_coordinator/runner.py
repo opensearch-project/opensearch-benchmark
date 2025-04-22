@@ -2900,3 +2900,33 @@ class ProduceStreamMessage(Runner):
 
     def __repr__(self, *args, **kwargs):
         return "produce-stream-message"
+
+class ProtoBulkIndex(Runner):
+    async def __call__(self, opensearch, params):
+        proto_req = ProtoBulkHelper.build_proto_request(params)
+        request_context_holder.on_client_request_start()
+        with grpc.insecure_channel('localhost:9400') as PROTO_CHANNEL:
+            PROTO_DOC_STUB = DocumentServiceStub(PROTO_CHANNEL)
+            request_context_holder.on_request_start()
+            bulk_resp = PROTO_DOC_STUB.Bulk(proto_req)
+            request_context_holder.on_request_end()
+        request_context_holder.on_client_request_end()
+        return ProtoBulkHelper.build_simple_stats(bulk_resp, params)
+
+    def __repr__(self, *args, **kwargs):
+        return "proto-bulk-index"
+
+class ProtoQuery(Runner):
+    async def __call__(self, opensearch, params):
+        proto_req = ProtoQueryHelper.build_proto_request(params)
+        request_context_holder.on_client_request_start()
+        with grpc.insecure_channel('localhost:9400') as PROTO_CHANNEL:
+            PROTO_QUERY_STUB = SearchServiceStub(PROTO_CHANNEL)
+            request_context_holder.on_request_start()
+            search_resp = PROTO_QUERY_STUB.Search(proto_req)
+            request_context_holder.on_request_end()
+        request_context_holder.on_client_request_end()
+        return ProtoQueryHelper.build_simple_stats(search_resp, params)
+
+    def __repr__(self, *args, **kwargs):
+        return "proto-query-index"
