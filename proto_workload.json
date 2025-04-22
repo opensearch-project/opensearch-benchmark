@@ -1,0 +1,11 @@
+[
+  {
+    "name": "default",
+    "operation-type": "search",
+    "body": {
+      "query": {
+        "match_all": {}
+      }
+    }
+  }
+]
