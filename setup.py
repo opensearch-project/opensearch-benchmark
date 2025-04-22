@@ -110,6 +110,7 @@ install_requires = [
     # License: Apache 2.0
     # Required for Kafka message producer
     "aiokafka>=0.11.0",
+    "tqdm"
 ]
 
 tests_require = [
@@ -123,7 +124,7 @@ tests_require = [
 develop_require = [
     "tox==3.14.0",
     "coverage==5.5",
-    "twine==1.15.0",
+    "twine==6.0.1",
     "wheel>=0.38.4",
     "github3.py==1.3.0",
     "pylint==2.6.0",
