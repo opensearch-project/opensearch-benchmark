@@ -130,7 +130,7 @@ class StartWorker:
     Starts a worker.
     """
 
-    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None, error_queue=None, queue_lock=None):
+    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None, error_queue=None, queue_lock=None, shared_states=None):
         """
         :param worker_id: Unique (numeric) id of the worker.
         :param config: OSB internal configuration object.
@@ -144,6 +144,7 @@ class StartWorker:
         self.feedback_actor = feedback_actor
         self.error_queue = error_queue
         self.queue_lock = queue_lock
+        self.shared_states = shared_states
 
 
 class Drive:
@@ -230,8 +231,8 @@ class FeedbackState(Enum):
     DISABLED = "disabled"
 
 class StartFeedbackActor:
-    def __init__(self, error_queue=None, queue_lock=None, total_workers=None):
-        self.total_workers = total_workers
+    def __init__(self, error_queue=None, queue_lock=None, shared_states=None):
+        self.shared_states = shared_states
         self.error_queue = error_queue
         self.queue_lock = queue_lock
 
@@ -244,7 +245,7 @@ class FeedbackActor(actor.BenchmarkActor):
     def __init__(self) -> None:
         super().__init__()
         self.logger = logging.getLogger(__name__)
-        self.state = FeedbackState.NEUTRAL
+        self.state = FeedbackState.DISABLED
         self.shared_client_states = {}
         self.workers_reported = 0
         self.total_client_count = 0
@@ -257,31 +258,15 @@ class FeedbackActor(actor.BenchmarkActor):
         self.error_queue = None
         self.queue_lock = None
 
-    def receiveMsg_SharedClientStateMessage(self, msg, sender) -> None:
-        """
-        Receives the shared client state dictionary from the WorkerCoordinatorActor.
-        Then flatten the nested structure so we save the shared states as:
-        {
-            worker-0: {client-0:<pause status>, client-1:<pause status>, ... }
-            .
-            .
-            .
-            worker-n: {...client-k-1:<pause status>, client-k:<pause status>}
-        }
-        """
-        self.shared_client_states = {
-            worker_id: worker_data["data"]
-            for worker_id, worker_data in msg.worker_clients_map.items()
-        }
-        self.total_client_count = sum(len(state) for state in self.shared_client_states.values())
-        self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
-
     def receiveMsg_StartFeedbackActor(self, msg, sender) -> None:
         """
-        Initializes the FeedbackActor with expected worker count, error queue, and queue lock.
+        Initializes the FeedbackActor with expected worker count, client dictionaries, error queue, and queue lock.
         """
+        self.shared_client_states = msg.shared_states
+        self.total_client_count = sum(len(state) for state in self.shared_client_states.values())
         self.error_queue = msg.error_queue
         self.queue_lock = msg.queue_lock
+        self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
 
     def receiveMsg_WakeupMessage(self, msg, sender) -> None:
         # Check state and re-schedule wakeups.
@@ -298,6 +283,7 @@ class FeedbackActor(actor.BenchmarkActor):
     def receiveMsg_DisableFeedbackScaling(self, msg, sender):
         self.logger.info("FeedbackActor: scaling disabled.")
         self.state = FeedbackState.DISABLED
+        self.scale_down(scale_down_percentage=1.0)
 
     def receiveMsg_ActorExitRequest(self, msg, sender):
         print("Redline test finished. Maximum stable client number reached: %d" % self.max_stable_clients)
@@ -507,13 +493,6 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
     def receiveMsg_UpdateSamples(self, msg, sender):
         self.coordinator.update_samples(msg.samples)
 
-    def receiveMsg_SharedClientStateMessage(self, msg, sender):
-        self.logger.info("Received shared client states from worker %d", msg.worker_id)
-        self.worker_shared_states[msg.worker_id] = msg.worker_clients_map
-        # start the feedback actor after receiving all the maps
-        if len(self.worker_shared_states) == self.coordinator.total_workers:
-            self.start_feedbackActor()
-
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_WakeupMessage(self, msg, sender):
         if msg.payload == WorkerCoordinatorActor.RESET_RELATIVE_TIME_MARKER:
@@ -529,19 +508,18 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
     def create_client(self, host):
         return self.createActor(Worker, targetActorRequirements=self._requirements(host))
 
-    def start_worker(self, worker_coordinator, worker_id, cfg, workload, allocations, error_queue=None, queue_lock=None):
-        self.send(worker_coordinator, StartWorker(worker_id, cfg, workload, allocations, self.feedback_actor, error_queue, queue_lock))
+    def start_worker(self, worker_coordinator, worker_id, cfg, workload, allocations, error_queue=None, queue_lock=None, shared_states=None):
+        self.send(worker_coordinator, StartWorker(worker_id, cfg, workload, allocations, self.feedback_actor, error_queue, queue_lock, shared_states))
 
-    def start_feedbackActor(self):
+    def start_feedbackActor(self, shared_states):
         self.send(
             self.feedback_actor,
             StartFeedbackActor(
-                total_workers=self.coordinator.total_workers,
+                shared_states=shared_states,
                 error_queue=self.coordinator.error_queue,
                 queue_lock=self.coordinator.queue_lock
                 )
             )
-        self.send(self.feedback_actor, SharedClientStateMessage(worker_id=None, worker_clients_map=self.worker_shared_states))
 
     def drive_at(self, worker_coordinator, client_start_timestamp):
         self.send(worker_coordinator, Drive(client_start_timestamp))
@@ -780,6 +758,7 @@ class WorkerCoordinator:
         # which client ids are assigned to which workers?
         self.clients_per_worker = {}
         self.manager = multiprocessing.Manager()
+        self.shared_client_dict = self.manager.dict()
         self.error_queue = None
         self.queue_lock = self.manager.Lock()
 
@@ -934,13 +913,11 @@ class WorkerCoordinator:
         worker_id = 0
         # redline testing: keep track of the total number of workers
         # and report this to the feedbackActor before starting a redline test
-        self.total_workers = 0
         for assignment in worker_assignments:
             host = assignment["host"]
             for clients in assignment["workers"]:
                 # don't assign workers without any clients
                 if len(clients) > 0:
-                    self.total_workers += 1
                     self.logger.info("Allocating worker [%d] on [%s] with [%d] clients.", worker_id, host, len(clients))
                     worker = self.target.create_client(host)
 
@@ -948,13 +925,20 @@ class WorkerCoordinator:
                     for client_id in clients:
                         client_allocations.add(client_id, self.allocations[client_id])
                         self.clients_per_worker[client_id] = worker_id
+                    # if load testing is enabled, create a shared state dictionary for this worker
                     if load_test_clients:
-                        self.target.start_worker(worker, worker_id, self.config, self.workload, client_allocations, self.error_queue, self.queue_lock)
+                        self.shared_client_dict[worker_id] = self.manager.dict()
+                        for client_id in clients:
+                            self.shared_client_dict[worker_id][client_id] = False
+                        # and send it along with the start_worker message. This way, the worker can pass it down to its assigned clients
+                        self.target.start_worker(worker, worker_id, self.config, self.workload, client_allocations,
+                                                 self.error_queue, self.queue_lock, shared_states=self.shared_client_dict[worker_id])
                     else:
                         self.target.start_worker(worker, worker_id, self.config, self.workload, client_allocations)
                     self.workers.append(worker)
                     worker_id += 1
-
+        if load_test_clients:
+            self.target.start_feedbackActor(self.shared_client_dict)
         self.update_progress_message()
 
     def joinpoint_reached(self, worker_id, worker_local_timestamp, task_allocations):
@@ -962,6 +946,9 @@ class WorkerCoordinator:
         self.workers_completed_current_step[worker_id] = (worker_local_timestamp, time.perf_counter())
         self.logger.info("[%d/%d] workers reached join point [%d/%d].",
                          self.currently_completed, len(self.workers), self.current_step + 1, self.number_of_steps)
+        # if we're in redline test mode, disable the feedback actor and pause all clients when we're at a joinpoint
+        if self.config.opts("workload", "redline.test", mandatory=False):
+            self.target.send(self.target.feedback_actor, DisableFeedbackScaling())
         if self.currently_completed == len(self.workers):
             self.logger.info("All workers completed their tasks until join point [%d/%d].", self.current_step + 1, self.number_of_steps)
             # we can go on to the next step
@@ -993,6 +980,9 @@ class WorkerCoordinator:
                 self.target.on_benchmark_complete(m)
             else:
                 self.move_to_next_task(workers_curr_step)
+                # re-enable the feedback actor for the next task if we're in redline testing
+                if self.config.opts("workload", "redline.test", mandatory=False):
+                    self.target.send(self.target.feedback_actor, EnableFeedbackScaling())
         else:
             self.may_complete_current_task(task_allocations)
 
@@ -1353,6 +1343,7 @@ class Worker(actor.BenchmarkActor):
         self.current_task_index = 0
         self.cancel.clear()
         self.feedback_actor = msg.feedback_actor
+        self.shared_states = msg.shared_states
         self.error_queue = msg.error_queue
         self.queue_lock = msg.queue_lock
         # we need to wake up more often in test mode
@@ -1361,27 +1352,6 @@ class Worker(actor.BenchmarkActor):
         runner.register_default_runners()
         if self.workload.has_plugins:
             workload.load_workload_plugins(self.config, self.workload.name, runner.register_runner, scheduler.register_scheduler)
-
-        # if redline testing is enabled, let's create shared state dictionaries
-        # these will be shared between the FeedbackActor, as well as clients inside AsyncExecutor
-        # and will tell clients whether they should be sending requests or not
-        if self.config.opts("workload", "redline.test", mandatory=False):
-            self.manager = multiprocessing.Manager()
-            self.shared_states = {
-                "worker_id": msg.worker_id,
-                "data": self.manager.dict()
-            }
-            # now let's add the clients assigned to this worker, from the allocations already calculated for us
-            for allocation in msg.client_allocations.allocations:
-                client_id = allocation["client_id"]
-                self.shared_states["data"][client_id] = False
-            # now let's send this up to the WorkerCoordinator
-            shared_state_message = SharedClientStateMessage(
-                worker_id=msg.worker_id,
-                worker_clients_map=self.shared_states
-            )
-            self.send(self.master, shared_state_message)
-
         self.drive()
 
     @actor.no_retry("worker")  # pylint: disable=no-value-for-parameter
@@ -1484,9 +1454,6 @@ class Worker(actor.BenchmarkActor):
 
         if self.at_joinpoint():
             self.logger.info("Worker[%d] reached join point at index [%d].", self.worker_id, self.current_task_index)
-            # redline testing: if we're at a joinpoint, we should disable the feedbackactor to ensure we're not scaling clients that are waiting at a joinpoint.
-            if self.config.opts("workload", "redline.test", mandatory=False):
-                self.send(self.feedback_actor, DisableFeedbackScaling())
             # clients that don't execute tasks don't need to care about waiting
             if self.executor_future is not None:
                 self.executor_future.result()
@@ -1503,8 +1470,6 @@ class Worker(actor.BenchmarkActor):
                 self.logger.info("Worker[%d] skips tasks at index [%d] because it has been asked to complete all "
                                  "tasks until next join point.", self.worker_id, self.current_task_index)
             else:
-                if self.config.opts("workload", "redline.test", mandatory=False):
-                    self.send(self.feedback_actor, EnableFeedbackScaling())
                 self.logger.info("Worker[%d] is executing tasks at index [%d].", self.worker_id, self.current_task_index)
                 self.sampler = Sampler(start_timestamp=time.perf_counter(), buffer_size=self.sample_queue_size)
                 executor = AsyncIoAdapter(self.config, self.workload, task_allocations, self.sampler,
@@ -1959,8 +1924,9 @@ class AsyncExecutor:
                 # redline testing: check whether this client should be running
                 # if redline testing is not enabled, there won't be a dictionary shared to this client,
                 # so we evaluate to a truthy value by default, allowing it to run normally in a regular benchmark
-                client_state = (self.shared_states or {}).get('data', {}).get(self.client_id, True)
+                client_state = (self.shared_states or {}).get(self.client_id, True)
                 if client_state and was_paused:
+                    print("Client %d is now unpaused" % self.client_id)
                     now = time.perf_counter()
                     total_start = now - expected_scheduled_time
                     was_paused = False
