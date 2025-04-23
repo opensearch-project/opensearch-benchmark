@@ -59,11 +59,11 @@ __RUNNERS = {}
 
 
 def register_default_runners():
-    register_runner(workload.OperationType.Bulk, BulkIndex(), async_runner=True)
+    register_runner(workload.OperationType.Bulk, ProtoBulkIndex(), async_runner=True)
     register_runner(workload.OperationType.ForceMerge, ForceMerge(), async_runner=True)
     register_runner(workload.OperationType.IndexStats, Retry(IndicesStats()), async_runner=True)
     register_runner(workload.OperationType.NodeStats, NodeStats(), async_runner=True)
-    register_runner(workload.OperationType.Search, Query(), async_runner=True)
+    register_runner(workload.OperationType.Search, ProtoQuery(), async_runner=True)
     register_runner(workload.OperationType.PaginatedSearch, Query(), async_runner=True)
     register_runner(workload.OperationType.ScrollSearch, Query(), async_runner=True)
     register_runner(workload.OperationType.VectorSearch, Query(), async_runner=True)
