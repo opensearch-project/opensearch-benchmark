@@ -752,4 +752,3 @@ class ComparisonResultsPublisher:
         else:
             # tabulate needs this to align all values correctly
             return color_neutral("%.2f%%" % percentage_diff),color_neutral("%.5f" % diff)
-
