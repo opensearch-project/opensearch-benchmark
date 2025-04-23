@@ -47,7 +47,7 @@ class ProtoBulkHelper:
     * ``index``: index name
     * ``bulk-size``: documents per bulk request
     * ``unit``: in the case of bulk always 'ops'
-    * ``detailed-results``: return detailed results, hits, took, hits_relation
+    * ``detailed-results``: return detailed results - Unsupported by proto bulk -> Raise exception
     """
     @staticmethod
     def build_stats(response, params):
@@ -55,32 +55,31 @@ class ProtoBulkHelper:
         if which_field == 'bulk_error_response':
             raise Exception("Server responded with error: " + str(which_field))
 
-        if not isinstance(response.response_body, document_pb2.BulkResponse):
+        if not isinstance(response.bulk_response_body, document_pb2.BulkResponseBody):
             raise Exception("Unknown response proto: " + str(type(response)))
 
         if params.get("detailed-results"):
             raise Exception("Detailed stats not supported for proto bulk index.")
 
-        print("HERE I GO PRINTING ITEMS:")
-        for item in response.response_body.items:
-            print("ITEM:")
-            print(item)
-        exit()
+        success_count = 0
+        error_count = 0
+        for item in response.bulk_response_body.items:
+            if item.index.status > 299:
+                error_count += 1
+            else:
+                success_count += 1
 
-        # stats = {
-        #     "took": response.took,
-        #     "success": not response.errors,  # true if an op failed
-        #     "success-count": params.get("bulk-size"),
-        #     "error-count": 0 # REMOVE THIS AFTER TESTING - SEE ABOVE
-        # }
-        #
-        # meta_data = {
-        #     "index": params.get("index"),
-        #     "weight": params.get("bulk-size"),
-        #     "unit": params.get("unit"),
-        # }
-        #
-        # meta_data.update(stats)
-        # if not stats["success"]:
-        #     meta_data["error-type"] = "bulk"
-        # return meta_data
+        meta_data = {
+            "index": params.get("index"),
+            "weight": params.get("bulk-size"),
+            "unit": params.get("unit"),
+            "took": response.bulk_response_body.took,
+            "success": error_count == 0,
+            "success-count": success_count,
+            "error-count": error_count,
+        }
+
+        if error_count > 0:
+            meta_data["error-type"] = "bulk"
+
+        return meta_data
