@@ -51,7 +51,7 @@ class ProtoQueryHelper:
         index = [params.get("index")]
         source_config_bool = params.get("source_config") == 'True' or params.get("source_config") == 'true'
         source_config = common_pb2.SourceConfigParam(bool_value=source_config_bool)
-        timeout = str(params.get("request-timeout")) + "ms" # OSB timeout always specified in ms
+        timeout = None if params.get("request-timeout") is None else str(params.get("request-timeout")) + "ms" # OSB timeout always specified in ms
         cache = False if params.get("cache") is None else True if params.get("cache").lower() == "true" else False
         size = params.get("results-per-page")
 
