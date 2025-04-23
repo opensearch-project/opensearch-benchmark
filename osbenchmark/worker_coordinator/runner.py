@@ -29,6 +29,7 @@ import logging
 import random
 import re
 import sys
+import threading
 import time
 import types
 from collections import Counter, OrderedDict
@@ -2908,32 +2909,65 @@ class ProduceStreamMessage(Runner):
     def __repr__(self, *args, **kwargs):
         return "produce-stream-message"
 
-class ProtoBulkIndex(Runner):
+class ProtoChannelRunner(Runner):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.thread_local = threading.local()
+
+    """
+    Configure the gRPC channel to ensure separation of client connections.
+    By default clients are liable to share connections/ports/channels which does not accurately reflect a multi
+    client environment.
+    
+    max_concurrent_streams: concurrent open connections allowed for a single client.
+    so_reuseport: disallow multiple client connections on a single port.
+    use_local_subchannel_pool: force single discrete channel for each client.
+    """
+    def _get_channel(self):
+        if not hasattr(self.thread_local, 'channel'):
+            options = [
+                ('grpc.max_concurrent_streams', 1),
+                ('grpc.so_reuseport', 0),
+                ('grpc.use_local_subchannel_pool', 1)
+            ]
+            self.thread_local.channel = grpc.insecure_channel(
+                'localhost:9400',
+                options=options
+            )
+            return self.thread_local.channel
+        return self.thread_local.channel
+
+    def __del__(self):
+        if hasattr(self, 'thread_local') and hasattr(self.thread_local, 'channel'):
+            self.thread_local.channel.close()
+
+    def __repr__(self, *args, **kwargs):
+        return "abstract-proto-channel-runner"
+
+class ProtoBulkIndex(ProtoChannelRunner):
     async def __call__(self, opensearch, params):
         proto_req = ProtoBulkHelper.build_proto_request(params)
         request_context_holder.on_client_request_start()
-        with grpc.insecure_channel('localhost:9400') as PROTO_CHANNEL:
-            PROTO_DOC_STUB = DocumentServiceStub(PROTO_CHANNEL)
-            request_context_holder.on_request_start()
-            bulk_resp = PROTO_DOC_STUB.Bulk(proto_req)
-            request_context_holder.on_request_end()
+        stub = DocumentServiceStub(self._get_channel())
+        request_context_holder.on_request_start()
+        bulk_resp = stub.Bulk(proto_req)
+        request_context_holder.on_request_end()
         request_context_holder.on_client_request_end()
         return ProtoBulkHelper.build_stats(bulk_resp, params)
 
     def __repr__(self, *args, **kwargs):
         return "proto-bulk-index"
 
-class ProtoQuery(Runner):
+class ProtoQuery(ProtoChannelRunner):
     async def __call__(self, opensearch, params):
         proto_req = ProtoQueryHelper.build_proto_request(params)
         request_context_holder.on_client_request_start()
-        with grpc.insecure_channel('localhost:9400') as PROTO_CHANNEL:
-            PROTO_QUERY_STUB = SearchServiceStub(PROTO_CHANNEL)
-            request_context_holder.on_request_start()
-            search_resp = PROTO_QUERY_STUB.Search(proto_req)
-            request_context_holder.on_request_end()
+        stub = SearchServiceStub(self._get_channel())
+        request_context_holder.on_request_start()
+        search_resp = stub.Search(proto_req)
+        request_context_holder.on_request_end()
         request_context_holder.on_client_request_end()
         return ProtoQueryHelper.build_stats(search_resp, params)
 
     def __repr__(self, *args, **kwargs):
-        return "proto-query-index"
+        return "proto-query"
