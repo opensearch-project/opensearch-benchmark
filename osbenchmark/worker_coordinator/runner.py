@@ -2753,8 +2753,19 @@ class RegisterMlModel(Runner):
             }
         search_body = {
             "query": {
-                "match": {
-                    "name": body['name']
+                "bool": {
+                    "should": [
+                        {
+                            "term": {
+                                "name.keyword": body['name']
+                            }
+                        }
+                    ],
+                    "must_not": {
+                        "exists": {
+                            "field": "chunk_number"
+                        }
+                    }
                 }
             }
         }
