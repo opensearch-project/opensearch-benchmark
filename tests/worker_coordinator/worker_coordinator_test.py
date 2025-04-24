@@ -1867,26 +1867,38 @@ class FeedbackActorTests(TestCase):
 
     def test_receive_shared_client_state_sets_total_client_count(self):
         self.actor.wakeupAfter = mock.MagicMock()
-        mock_data = {
-            0: {'worker_id': 0, 'data': {0: False, 1: False}},
-            1: {'worker_id': 1, 'data': {2: False, 3: False, 4: False}}
+        shared_states = {
+            0: {0: False, 1: False},
+            1: {2: False, 3: False, 4: False}
         }
-        message = worker_coordinator.SharedClientStateMessage(worker_clients_map=mock_data)
-        self.actor.receiveMsg_SharedClientStateMessage(message, sender=None)
+        message = worker_coordinator.StartFeedbackActor(
+            shared_states=shared_states,
+            error_queue=queue.Queue(),
+            queue_lock=mock.MagicMock()
+        )
+        self.actor.receiveMsg_StartFeedbackActor(message, sender=None)
 
         assert self.actor.total_client_count == 5
         assert self.actor.total_active_client_count == 0
         self.actor.wakeupAfter.assert_called_once()
 
     def test_receive_start_feedback_actor_sets_queue_refs(self):
+        self.actor.wakeupAfter = mock.MagicMock()
         dummy_error_queue = mock.MagicMock()
         dummy_queue_lock = mock.MagicMock()
+        dummy_states = {0: {0: False}}
 
-        message = worker_coordinator.StartFeedbackActor(total_workers=2, error_queue=dummy_error_queue, queue_lock=dummy_queue_lock)
+        message = worker_coordinator.StartFeedbackActor(
+            shared_states=dummy_states,
+            error_queue=dummy_error_queue,
+            queue_lock=dummy_queue_lock
+        )
         self.actor.receiveMsg_StartFeedbackActor(message, sender=None)
 
         assert self.actor.error_queue == dummy_error_queue
         assert self.actor.queue_lock == dummy_queue_lock
+        assert self.actor.shared_client_states == dummy_states
+        self.actor.wakeupAfter.assert_called_once()
 
     def test_scale_up_only_activates_n_clients(self):
         self.actor.shared_client_states = {
