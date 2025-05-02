@@ -38,22 +38,20 @@ class ProtoQueryHelper:
     """
     Build protobuf SearchRequest.
     Consumed from params dictionary:
-    * ``body``: query body as loaded from workload
+    * ``body``: query body as loaded from workload - Contains `_size` and `source`
     * ``index``: index name
-    * ``source_config``: whether to include source in response
     * ``request-timeout``: request timeout
-    * ``results-per-page``: size of hits returned
     * ``cache``: enabled request cache
     """
     @staticmethod
     def build_proto_request(params):
         body = params.get("body")
+        size = body.get("size") if "size" in body else None
+        source = body.get("_source") if "_source" in body else None
         index = [params.get("index")]
-        source_config_bool = params.get("source_config") == 'True' or params.get("source_config") == 'true'
-        source_config = common_pb2.SourceConfigParam(bool_value=source_config_bool)
+        source_config = common_pb2.SourceConfigParam(bool_value=source)
         timeout = None if params.get("request-timeout") is None else str(params.get("request-timeout")) + "ms" # OSB timeout always specified in ms
         cache = False if params.get("cache") is None else True if params.get("cache").lower() == "true" else False
-        size = params.get("results-per-page")
 
         return search_pb2.SearchRequest(
             request_body=search_pb2.SearchRequestBody(query=_parse_query_from_body(body)),

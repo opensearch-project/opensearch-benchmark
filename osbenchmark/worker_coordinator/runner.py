@@ -60,7 +60,7 @@ __RUNNERS = {}
 
 
 def register_default_runners():
-    register_runner(workload.OperationType.Bulk, ProtoBulkIndex(), async_runner=True)
+    register_runner(workload.OperationType.Bulk, BulkIndex(), async_runner=True)
     register_runner(workload.OperationType.ForceMerge, ForceMerge(), async_runner=True)
     register_runner(workload.OperationType.IndexStats, Retry(IndicesStats()), async_runner=True)
     register_runner(workload.OperationType.NodeStats, NodeStats(), async_runner=True)
@@ -2928,7 +2928,9 @@ class ProtoChannelRunner(Runner):
             options = [
                 ('grpc.max_concurrent_streams', 1),
                 ('grpc.so_reuseport', 0),
-                ('grpc.use_local_subchannel_pool', 1)
+                ('grpc.use_local_subchannel_pool', 1),
+                ('grpc.max_send_message_length', 10 * 1024 * 1024),  # 10 MB
+                ('grpc.max_receive_message_length', 10 * 1024 * 1024)  # 10 MB
             ]
             self.thread_local.channel = grpc.insecure_channel(
                 'localhost:9400',
