@@ -22,6 +22,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 import asyncio
 import contextvars
 import json
@@ -60,11 +61,24 @@ __RUNNERS = {}
 
 
 def register_default_runners():
-    register_runner(workload.OperationType.Bulk, BulkIndex(), async_runner=True)
+    if os.environ.get("OSB_BULK_TYPE") == "ProtoBulkIndex":
+        print("Register runner: ProtoBulkIndex")
+        register_runner(workload.OperationType.Bulk, ProtoBulkIndex(), async_runner=True)
+    else:
+        print("Register runner: BulkIndex")
+        register_runner(workload.OperationType.Bulk, BulkIndex(), async_runner=True)
+
     register_runner(workload.OperationType.ForceMerge, ForceMerge(), async_runner=True)
     register_runner(workload.OperationType.IndexStats, Retry(IndicesStats()), async_runner=True)
     register_runner(workload.OperationType.NodeStats, NodeStats(), async_runner=True)
-    register_runner(workload.OperationType.Search, ProtoQuery(), async_runner=True)
+
+    if os.environ.get("OSB_QUERY_TYPE") == "ProtoQuery":
+        print("Register runner: ProtoQuery")
+        register_runner(workload.OperationType.Search, ProtoQuery(), async_runner=True)
+    else:
+        print("Register runner: Query")
+        register_runner(workload.OperationType.Search, Query(), async_runner=True)
+
     register_runner(workload.OperationType.PaginatedSearch, Query(), async_runner=True)
     register_runner(workload.OperationType.ScrollSearch, Query(), async_runner=True)
     register_runner(workload.OperationType.VectorSearch, Query(), async_runner=True)
@@ -2932,8 +2946,14 @@ class ProtoChannelRunner(Runner):
                 ('grpc.max_send_message_length', 10 * 1024 * 1024),  # 10 MB
                 ('grpc.max_receive_message_length', 10 * 1024 * 1024)  # 10 MB
             ]
+
+            grpc_host = os.environ.get('OS_HOST', 'localhost')
+            grpc_port = os.environ.get('OS_PORT', '9400')
+            grpc_addr = grpc_host + ":" + grpc_port
+            print("Create gRPC channel: " + grpc_addr)
+
             self.thread_local.channel = grpc.insecure_channel(
-                'localhost:9400',
+                grpc_addr,
                 options=options
             )
             return self.thread_local.channel
