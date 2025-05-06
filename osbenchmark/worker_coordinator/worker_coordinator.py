@@ -250,6 +250,8 @@ class FeedbackActor(actor.BenchmarkActor):
         self.workers_reported = 0
         self.total_client_count = 0
         self.total_active_client_count = 0  # must be tracked for scaling up/down
+        self.num_clients_to_scale_up = 5
+        self.percentage_clients_to_scale_down = 0.10
         self.sleep_start_time = time.perf_counter()
         self.last_error_time = time.perf_counter() - FeedbackActor.POST_SCALEDOWN_SECONDS
         self.last_scaleup_time = time.perf_counter() - FeedbackActor.POST_SCALEDOWN_SECONDS
@@ -350,9 +352,9 @@ class FeedbackActor(actor.BenchmarkActor):
             self.logger.info("Clients scaled up. Active clients: %d", self.total_active_client_count)
             self.state = FeedbackState.NEUTRAL
 
-    def scale_down(self, scale_down_percentage=0.10) -> None:
+    def scale_down(self) -> None:
         try:
-            clients_to_pause = int(self.total_active_client_count * scale_down_percentage)
+            clients_to_pause = int(self.total_active_client_count * self.percentage_clients_to_scale_down)
             if clients_to_pause <= 0:
                 self.logger.info("No clients to pause during scale down")
                 return
@@ -382,17 +384,17 @@ class FeedbackActor(actor.BenchmarkActor):
             self.clear_queue()
             self.sleep_start_time = self.last_scaleup_time = time.perf_counter()
 
-    def scale_up(self, n_clients=5) -> None:
+    def scale_up(self) -> None:
         try:
             clients_activated = 0
-            while clients_activated < n_clients:
+            while clients_activated < self.num_clients_to_scale_up:
                 inactive_clients_by_worker = {}
                 for worker_id, client_states in self.shared_client_states.items():
                     inactive_clients = [(client_id, status) for client_id, status in client_states.items() if not status]
                     if inactive_clients:
                         inactive_clients_by_worker[worker_id] = inactive_clients
                 for worker_id in inactive_clients_by_worker:
-                    if clients_activated >= n_clients:
+                    if clients_activated >= self.num_clients_to_scale_up:
                         break
                     if inactive_clients_by_worker[worker_id]:
                         client_id, _ = inactive_clients_by_worker[worker_id][0]
@@ -400,7 +402,7 @@ class FeedbackActor(actor.BenchmarkActor):
                         self.total_active_client_count += 1
                         clients_activated += 1
                         self.logger.info("Unpaused client %d on worker %d", client_id, worker_id)
-                if clients_activated < n_clients:
+                if clients_activated < self.num_clients_to_scale_up:
                     self.logger.info("Not enough inactive clients to activate. Activated %d clients", clients_activated)
                     break
         finally:
@@ -1328,6 +1330,8 @@ class Worker(actor.BenchmarkActor):
         self.sample_queue_size = None
         self.shared_states = None
         self.feedback_actor = None
+        self.error_queue = None
+        self.queue_lock = None
 
     @actor.no_retry("worker")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StartWorker(self, msg, sender):
