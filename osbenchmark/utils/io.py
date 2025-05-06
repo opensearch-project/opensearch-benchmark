@@ -251,8 +251,6 @@ def ensure_symlink(source, link_name):
                 os.remove(link_name)
                 os.symlink(source, link_name)
                 logger.info("Updated symlink: %s -> %s", link_name, source)
-            else:
-                logger.info("Symlink already correct: %s -> %s", link_name, source)
         elif os.path.isdir(link_name):
             shutil.rmtree(link_name)
             os.symlink(source, link_name)
