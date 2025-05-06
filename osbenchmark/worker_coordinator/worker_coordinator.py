@@ -285,7 +285,8 @@ class FeedbackActor(actor.BenchmarkActor):
     def receiveMsg_DisableFeedbackScaling(self, msg, sender):
         self.logger.info("FeedbackActor: scaling disabled.")
         self.state = FeedbackState.DISABLED
-        self.scale_down(scale_down_percentage=1.0)
+        self.percentage_clients_to_scale_down = 1.0
+        self.scale_down()
 
     def receiveMsg_ActorExitRequest(self, msg, sender):
         print("Redline test finished. Maximum stable client number reached: %d" % self.max_stable_clients)
