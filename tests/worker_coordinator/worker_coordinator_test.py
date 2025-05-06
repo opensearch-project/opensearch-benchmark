@@ -1907,7 +1907,8 @@ class FeedbackActorTests(TestCase):
         }
         self.actor.total_active_client_count = 0
 
-        self.actor.scale_up(n_clients=2)
+        self.actor.num_clients_to_scale_up = 2
+        self.actor.scale_up()
         assert self.actor.total_active_client_count == 2
 
     def test_scale_down_pauses_percentage(self):
@@ -1917,7 +1918,8 @@ class FeedbackActorTests(TestCase):
         }
         self.actor.total_active_client_count = 4  # 4 active clients
 
-        self.actor.scale_down(scale_down_percentage=0.5) # scale down half (2 clients)
+        self.actor.percentage_clients_to_scale_down = 0.5
+        self.actor.scale_down()
 
         assert self.actor.total_active_client_count == 2
 
