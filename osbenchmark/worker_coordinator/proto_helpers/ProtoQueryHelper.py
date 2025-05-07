@@ -16,7 +16,14 @@ def _get_terms_dict(query):
     for key, value in query.items():
         terms[key] = []
     for key, value in query.items():
-        terms[key].append(value.get("value"))
+        if type(value) is list:
+            for item in value:
+                terms[key].append(item)
+        elif type(value) is dict:
+            for ignore, term_value in value.items():
+                terms[key].append(term_value.get("value"))
+        else:
+            raise Exception("Error parsing query - Term(s) are neither list nor dictionary: " + str(query))
     return terms
 
 """
