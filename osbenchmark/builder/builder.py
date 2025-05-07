@@ -36,6 +36,7 @@ import thespian.actors
 from osbenchmark import actor, client, paths, config, metrics, exceptions, PROGRAM_NAME
 from osbenchmark.builder import supplier, provisioner, launcher, provision_config
 from osbenchmark.utils import net, console
+from opensearchpy.exceptions import NotFoundError
 
 METRIC_FLUSH_INTERVAL_SECONDS = 30
 
@@ -274,7 +275,14 @@ def cluster_distribution_version(cfg, client_factory=client.OsClientFactory):
     # unconditionally wait for the REST layer - if it's not up by then, we'll intentionally raise the original error
     client.wait_for_rest_layer(opensearch)
     try:
-        distribution_version = opensearch.info()["version"]["number"]
+        info = opensearch.info()
+        distribution_version = info["version"]["number"]
+    except NotFoundError as e:
+        if e.status_code == 404:
+            console.info("Root url not found, setting distribution version to oss")
+            distribution_version = "oss"
+        else:
+            distribution_version = None
     except Exception:
         console.warn("Could not determine distribution version from endpoint, use --distribution-version to specify")
         distribution_version = None
