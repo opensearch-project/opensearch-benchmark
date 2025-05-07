@@ -1931,7 +1931,6 @@ class AsyncExecutor:
                 # so we evaluate to a truthy value by default, allowing it to run normally in a regular benchmark
                 client_state = (self.shared_states or {}).get(self.client_id, True)
                 if client_state and was_paused:
-                    print("Client %d is now unpaused" % self.client_id)
                     now = time.perf_counter()
                     total_start = now - expected_scheduled_time
                     was_paused = False
