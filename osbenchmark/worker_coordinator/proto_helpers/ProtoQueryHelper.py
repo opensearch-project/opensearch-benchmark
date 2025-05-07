@@ -11,12 +11,42 @@ def _get_relation(relation):
     else:
         return "TOTAL_HITS_RELATION_UNSET"
 
-def _parse_terms_from_query(query):
-    terms_map = common_pb2.ObjectMap()
+def _get_terms_dict(query):
+    terms = {}
     for key, value in query.items():
-        obj_map_val = common_pb2.ObjectMap.Value(string=value.get("value"))
-        terms_map.FieldsEntry(key=key, value=obj_map_val)
-    return common_pb2.FieldValue(object_map=terms_map)
+        terms[key] = []
+    for key, value in query.items():
+        terms[key].append(value.get("value"))
+    return terms
+
+"""
+Parse term query into `common_pb2.TermQuery` protobuf.
+Term query supports a single term on single field.
+"""
+def _parse_term_from_query(query):
+    terms = _get_terms_dict(query)
+    if len(terms.keys()) > 1:
+        raise Exception("Error parsing query - Term query contains multiple distinct fields: " + str(query))
+    if len(terms.values()) > 1:
+        raise Exception("Error parsing query - Term query contains multiple terms: " + str(query))
+    term_field = next(iter(terms.keys()))
+    first_term_string = next(iter(terms[term_field]))
+    return {term_field: common_pb2.TermQuery(
+        value=common_pb2.FieldValue(string_value=first_term_string)
+    )}
+
+"""
+Parse terms query into `common_pb2.TermQuery` protobuf.
+Terms query supports multiple terms for a single field.
+"""
+def _parse_terms_from_query(query):
+    terms = _get_terms_dict(query)
+    if len(terms.keys()) > 1:
+        raise Exception("Error parsing query - Term query contains multiple distinct fields: " + str(query))
+    term_field = next(iter(terms.keys()))
+    terms_array = common_pb2.StringArray(string_array=terms[term_field])
+    terms_lookup_map = common_pb2.TermsLookupFieldStringArrayMap(string_array=terms_array)
+    return common_pb2.TermsQueryField(terms_lookup_field_string_array_map={term_field: terms_lookup_map})
 
 def _parse_query_from_body(body):
     query_body = body.get("query")
@@ -24,8 +54,9 @@ def _parse_query_from_body(body):
         if key == "match_all":
             return common_pb2.QueryContainer(match_all=common_pb2.MatchAllQuery())
         if key == "term":
-            search_terms = _parse_terms_from_query(query_body.get("term"))
-            return common_pb2.QueryContainer(term={"term_q": common_pb2.TermQuery(value=search_terms)})
+            return common_pb2.QueryContainer(term=_parse_term_from_query(query_body.get("term")))
+        if key == "terms":
+            return common_pb2.QueryContainer(terms=_parse_terms_from_query(query_body.get("terms")))
     raise Exception("Unknown query type: " + str(query_body))
 
 class ProtoQueryHelper:
