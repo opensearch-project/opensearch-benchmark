@@ -285,8 +285,10 @@ class FeedbackActor(actor.BenchmarkActor):
     def receiveMsg_DisableFeedbackScaling(self, msg, sender):
         self.logger.info("FeedbackActor: scaling disabled.")
         self.state = FeedbackState.DISABLED
+        temp_percentage = self.percentage_clients_to_scale_down # store scale down value so it doesn't stay at 100% after doing this
         self.percentage_clients_to_scale_down = 1.0
         self.scale_down()
+        self.percentage_clients_to_scale_down = temp_percentage
 
     def receiveMsg_ActorExitRequest(self, msg, sender):
         print("Redline test finished. Maximum stable client number reached: %d" % self.max_stable_clients)
@@ -1931,7 +1933,6 @@ class AsyncExecutor:
                 # so we evaluate to a truthy value by default, allowing it to run normally in a regular benchmark
                 client_state = (self.shared_states or {}).get(self.client_id, True)
                 if client_state and was_paused:
-                    print("Client %d is now unpaused" % self.client_id)
                     now = time.perf_counter()
                     total_start = now - expected_scheduled_time
                     was_paused = False
