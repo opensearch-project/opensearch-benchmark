@@ -752,7 +752,6 @@ class CreateMlConnector(Runner):
         return "create-ml-connector"
 
 class DeleteMlConnector(Runner):
-
     @time_func
     async def __call__(self, opensearch, params):
         body = {
@@ -764,16 +763,13 @@ class DeleteMlConnector(Runner):
         }
 
         connector_id = None
-        try:
-            resp = await opensearch.transport.perform_request('POST', '_plugins/_ml/connectors/_search', body=body)
-            for item in resp['hits']['hits']:
-                doc = item.get('_source')
-                if doc:
-                    connector_id = doc.get('_id')
-                    if connector_id:
-                        break
-        except:
-            pass
+        resp = await opensearch.transport.perform_request('POST', '_plugins/_ml/connectors/_search', body=body)
+        for item in resp['hits']['hits']:
+            doc = item.get('_source')
+            if doc:
+                connector_id = doc.get('_id')
+                if connector_id:
+                    break
 
         if connector_id:
             await opensearch.transport.perform_request('DELETE', '_plugins/_ml/connectors/' + connector_id)
@@ -804,7 +800,7 @@ class RegisterRemoteMlModel(Runner):
             state = resp.get('state')
         if state == 'FAILED':
             raise exceptions.BenchmarkError("Failed to register remote ml-model. Model name: {}".format(body['name']))
-        if state == 'CREATED':
+        elif state == 'CREATED':
             raise TimeoutError("Timeout when registering remote ml-model. Model name: {}".format(body['name']))
         model_id = resp.get('model_id')
 
