@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 from osbenchmark.utils import console
 from osbenchmark.exceptions import SystemSetupError, ConfigError
-from osbenchmark.synthetic_data_generator.helpers import write_chunk, get_generation_settings
+from osbenchmark.synthetic_data_generator.helpers import write_chunk, get_generation_settings, setup_custom_tqdm_formatting
 
 def load_user_module(file_path):
     allowed_extensions = ['.py']
@@ -64,30 +64,6 @@ def get_avg_document_size(generate_fake_document: callable, custom_providers: di
     os.remove('/tmp/test-size.json')
 
     return size
-
-def format_size(bytes):
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if bytes < 1024:
-            return f"{bytes:.2f} {unit}"
-        bytes /= 1024
-    return f"{bytes:.2f} PB"
-
-def format_time(seconds):
-    if seconds < 60:
-        return f"{seconds:.1f}s"
-    elif seconds < 3600:
-        minutes, seconds = divmod(seconds, 60)
-        return f"{int(minutes)}m {int(seconds)}s"
-    else:
-        hours, remainder = divmod(seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        return f"{int(hours)}h {int(minutes)}m {int(seconds)}s"
-
-def setup_custom_tqdm_formatting(progress_bar):
-    progress_bar.format_dict['n_fmt'] = lambda n: format_size(n)
-    progress_bar.format_dict['total_fmt'] = lambda t: format_size(t)
-    progress_bar.format_dict['elapsed'] = lambda e: format_time(e)
-    progress_bar.format_dict['remaining'] = lambda r: format_time(r)
 
 def instantiate_all_providers(custom_providers):
     g = Generic(locale=Locale.DEFAULT)

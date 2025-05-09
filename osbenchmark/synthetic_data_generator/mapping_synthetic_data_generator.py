@@ -26,7 +26,7 @@ from tqdm import tqdm
 from osbenchmark.utils import console
 import osbenchmark.exceptions
 from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorConfig
-from osbenchmark.synthetic_data_generator.helpers import get_generation_settings, write_chunk
+from osbenchmark.synthetic_data_generator.helpers import get_generation_settings, write_chunk, setup_custom_tqdm_formatting
 
 class MappingSyntheticDataGenerator:
     def __init__(self, mapping_config=None):
@@ -321,30 +321,6 @@ def generate_seeds_for_workers(regenerate=False):
         seeds.append(seed)
 
     return seeds
-
-def format_size(bytes):
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if bytes < 1024:
-            return f"{bytes:.2f} {unit}"
-        bytes /= 1024
-    return f"{bytes:.2f} PB"
-
-def format_time(seconds):
-    if seconds < 60:
-        return f"{seconds:.1f}s"
-    elif seconds < 3600:
-        minutes, seconds = divmod(seconds, 60)
-        return f"{int(minutes)}m {int(seconds)}s"
-    else:
-        hours, remainder = divmod(seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        return f"{int(hours)}h {int(minutes)}m {int(seconds)}s"
-
-def setup_custom_tqdm_formatting(progress_bar):
-    progress_bar.format_dict['n_fmt'] = lambda n: format_size(n)
-    progress_bar.format_dict['total_fmt'] = lambda t: format_size(t)
-    progress_bar.format_dict['elapsed'] = lambda e: format_time(e)
-    progress_bar.format_dict['remaining'] = lambda r: format_time(r)
 
 def get_avg_document_size(index_mappings: dict, mapping_config: dict) -> int:
     document = [generate_test_document(index_mappings, mapping_config)]
