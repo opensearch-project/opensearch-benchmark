@@ -1766,6 +1766,9 @@ class WorkloadSpecificationReader:
         default_warmup_time_period = self._r(ops_spec, "warmup-time-period", error_ctx="parallel", mandatory=False)
         default_time_period = self._r(ops_spec, "time-period", error_ctx="parallel", mandatory=False)
         default_ramp_up_time_period = self._r(ops_spec, "ramp-up-time-period", error_ctx="parallel", mandatory=False)
+        default_scale_step = self._r(ops_spec, "scale-step", error_ctx="parallel", mandatory=False)
+        default_scale_down_percentage = self._r(ops_spec, "scale-down-percentage", error_ctx="parallel", mandatory=False)
+        default_post_scaledown_sleep = self._r(ops_spec, "post-scaledown-sleep", error_ctx="parallel", mandatory=False)
         clients = self._r(ops_spec, "clients", error_ctx="parallel", mandatory=False)
         completed_by = self._r(ops_spec, "completed-by", error_ctx="parallel", mandatory=False)
 
@@ -1773,7 +1776,8 @@ class WorkloadSpecificationReader:
         tasks = []
         for task in self._r(ops_spec, "tasks", error_ctx="parallel"):
             tasks.append(self.parse_task(task, ops, test_procedure_name, default_warmup_iterations, default_iterations,
-                                         default_warmup_time_period, default_time_period, default_ramp_up_time_period, completed_by))
+                                         default_warmup_time_period, default_time_period, default_ramp_up_time_period,
+                                         default_scale_step, default_scale_down_percentage, default_post_scaledown_sleep, completed_by))
 
         for task in tasks:
             if task.ramp_up_time_period != default_ramp_up_time_period:
@@ -1799,7 +1803,7 @@ class WorkloadSpecificationReader:
 
     def parse_task(self, task_spec, ops, test_procedure_name, default_warmup_iterations=None, default_iterations=None,
                    default_warmup_time_period=None, default_time_period=None, default_ramp_up_time_period=None,
-                   completed_by_name=None):
+                   default_scale_step=None, default_scale_down_percentage=None, default_post_scaledown_sleep=None, completed_by_name=None):
 
         op_spec = task_spec["operation"]
         if isinstance(op_spec, str) and op_spec in ops:
@@ -1825,6 +1829,9 @@ class WorkloadSpecificationReader:
                           ramp_up_time_period=self._r(task_spec, "ramp-up-time-period", error_ctx=op.name,
                                                          mandatory=False, default_value=default_ramp_up_time_period),
                           clients=self._r(task_spec, "clients", error_ctx=op.name, mandatory=False, default_value=1),
+                          scale_step = self._r(task_spec, "scale-step", error_ctx=op.name, mandatory=False, default_value=default_scale_step),
+                          scale_down_percentage = self._r(task_spec, "scale-down-percentage", error_ctx=op.name, mandatory=False, default_value=default_scale_down_percentage),
+                          post_scaledown_sleep = self._r(task_spec, "post-scaledown-sleep", error_ctx=op.name, mandatory=False, default_value=default_post_scaledown_sleep),
                           completes_parent=(task_name == completed_by_name),
                           schedule=schedule,
                           # this is to provide scheduler-specific parameters for custom schedulers.
