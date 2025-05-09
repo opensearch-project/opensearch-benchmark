@@ -85,7 +85,6 @@ def format_time(seconds):
         return f"{int(hours)}h {int(minutes)}m {int(seconds)}s"
 
 def setup_custom_tqdm_formatting(progress_bar):
-    """Set up custom formatting for the tqdm progress bar."""
     progress_bar.format_dict['n_fmt'] = lambda n: format_size(n)
     progress_bar.format_dict['total_fmt'] = lambda t: format_size(t)
     progress_bar.format_dict['elapsed'] = lambda e: format_time(e)
