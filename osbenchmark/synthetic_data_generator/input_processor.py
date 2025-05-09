@@ -6,10 +6,7 @@
 # Modifications Copyright OpenSearch Contributors. See
 # GitHub history for details.
 
-import yaml
 import logging
-
-from osbenchmark.utils import io, opts, console
 
 from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorConfig
 from osbenchmark.exceptions import ConfigError

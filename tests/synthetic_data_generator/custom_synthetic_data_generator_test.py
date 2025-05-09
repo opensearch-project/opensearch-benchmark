@@ -6,10 +6,10 @@
 # Modifications Copyright OpenSearch Contributors. See
 # GitHub history for details.
 
-import os
-import tempfile
+from unittest.mock import MagicMock
 import pytest
-from unittest.mock import patch, MagicMock
+
+from mimesis.providers.base import BaseProvider
 
 from osbenchmark.synthetic_data_generator.custom_synthetic_data_generator import (
     generate_data_chunk,
@@ -18,9 +18,6 @@ from osbenchmark.synthetic_data_generator.custom_synthetic_data_generator import
     add_custom_providers,
     generate_test_document
 )
-
-from mimesis.providers.base import BaseProvider
-from osbenchmark.exceptions import SystemSetupError, ConfigError
 
 class TestProviders:
     def test_instantiate_all_providers(self):

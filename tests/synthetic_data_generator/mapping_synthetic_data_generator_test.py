@@ -6,9 +6,9 @@
 # Modifications Copyright OpenSearch Contributors. See
 # GitHub history for details.
 
-from unittest.mock import patch, MagicMock, mock_open
-import pytest
 from datetime import datetime
+
+import pytest
 
 from osbenchmark.synthetic_data_generator.mapping_synthetic_data_generator import MappingSyntheticDataGenerator, MappingSyntheticDataGeneratorWorker
 from osbenchmark.exceptions import ConfigError
@@ -302,7 +302,7 @@ class TestMappingSyntheticDataGenerator:
             assert "Mark S" in work["title"]
 
         author_profile = transformed_mapping["author_profile"]()
-        assert "marktwain@gmail.com" == author_profile["email"]
+        assert author_profile["email"] == "marktwain@gmail.com"
 
     def test_generate_fake_document(self, mapping_synthetic_data_generator, sample_mapping):
         transformed_mapping = mapping_synthetic_data_generator.transform_mapping_to_generators(sample_mapping)

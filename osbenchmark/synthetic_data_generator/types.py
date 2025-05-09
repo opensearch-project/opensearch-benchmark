@@ -6,16 +6,9 @@
 # Modifications Copyright OpenSearch Contributors. See
 # GitHub history for details.
 
-import argparse
 import os
 from dataclasses import dataclass, field
-from typing import List, Optional
-
-from osbenchmark.utils import io, opts, console
-from enum import Enum
-
-DEFAULT_MAX_FILE_SIZE_GB=40
-DEFAULT_CHUNK_SIZE=10000
+from typing import Optional
 
 DEFAULT_GENERATION_SETTINGS = {
     "workers": os.cpu_count(),

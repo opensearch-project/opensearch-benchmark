@@ -9,30 +9,13 @@
 import logging
 
 import json
-import time
 import os
-import numpy as np
-import hashlib
-import sys
-import importlib.util
-import yaml
 
-import dask
-from dask.distributed import Client, as_completed, get_client
-from multiprocessing import Process, Queue
-from mimesis import Generic
-from mimesis.schema import Schema
-from mimesis.locales import Locale
-from mimesis.random import Random
-from mimesis import Cryptographic
-from mimesis.providers.base import BaseProvider
-from mimesis.random import Random
-from tqdm import tqdm
+from dask.distributed import Client
 
 from osbenchmark.utils import console
 from osbenchmark.synthetic_data_generator.input_processor import create_sdg_config_from_args, use_custom_synthetic_data_generator, use_mappings_synthetic_data_generator
 from osbenchmark.synthetic_data_generator.helpers import load_config, write_record_and_publish_summary_to_console
-from osbenchmark.synthetic_data_generator.types import DEFAULT_MAX_FILE_SIZE_GB, DEFAULT_CHUNK_SIZE
 from osbenchmark.synthetic_data_generator import custom_synthetic_data_generator, mapping_synthetic_data_generator
 
 def orchestrate_data_generation_for_custom_synthetic_data_generator(cfg, sdg_config, custom_config, dask_client):
@@ -58,7 +41,11 @@ def orchestrate_data_generation_for_custom_synthetic_data_generator(cfg, sdg_con
         # Generate all documents
         custom_module = custom_synthetic_data_generator.load_user_module(sdg_config.custom_module_path)
 
-        total_time_to_generate_dataset, generated_dataset_details = custom_synthetic_data_generator.generate_dataset_with_user_module(dask_client, sdg_config, custom_module, custom_config)
+        total_time_to_generate_dataset, generated_dataset_details = custom_synthetic_data_generator.generate_dataset_with_user_module(
+            dask_client, sdg_config,
+            custom_module,
+            custom_config
+        )
 
         write_record_and_publish_summary_to_console(sdg_config, total_time_to_generate_dataset, generated_dataset_details)
 
@@ -78,7 +65,12 @@ def orchestrate_data_generation_for_mapping_synthetic_data_generator(cfg, sdg_co
         # Generate all documents
         raw_mappings, mapping_config = mapping_synthetic_data_generator.load_mapping_and_config(sdg_config.index_mappings_path, sdg_config.custom_config_path)
 
-        total_time_to_generate_dataset, generated_dataset_details = mapping_synthetic_data_generator.generate_dataset_with_mappings(dask_client, sdg_config, raw_mappings, mapping_config)
+        total_time_to_generate_dataset, generated_dataset_details = mapping_synthetic_data_generator.generate_dataset_with_mappings(
+            dask_client,
+            sdg_config,
+            raw_mappings,
+            mapping_config
+        )
 
         write_record_and_publish_summary_to_console(sdg_config, total_time_to_generate_dataset, generated_dataset_details)
 

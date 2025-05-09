@@ -1115,15 +1115,15 @@ def dispatch_sub_command(arg_parser, args, cfg):
             else:
                 console.info("Please enter a valid number of test iterations")
         elif sub_command == "generate-data":
-                cfg.add(config.Scope.applicationOverride, "synthetic_data_generator", "index_name", args.index_name)
-                cfg.add(config.Scope.applicationOverride, "synthetic_data_generator", "index_mappings", args.index_mappings)
-                cfg.add(config.Scope.applicationOverride, "synthetic_data_generator", "custom_module", args.custom_module)
-                cfg.add(config.Scope.applicationOverride, "synthetic_data_generator", "custom_config", args.custom_config)
-                cfg.add(config.Scope.applicationOverride, "synthetic_data_generator", "output_path", args.output_path)
-                cfg.add(config.Scope.applicationOverride, "synthetic_data_generator", "total_size", args.total_size)
-                cfg.add(config.Scope.applicationOverride, "synthetic_data_generator", "test_document", args.test_document)
+            cfg.add(config.Scope.applicationOverride, "synthetic_data_generator", "index_name", args.index_name)
+            cfg.add(config.Scope.applicationOverride, "synthetic_data_generator", "index_mappings", args.index_mappings)
+            cfg.add(config.Scope.applicationOverride, "synthetic_data_generator", "custom_module", args.custom_module)
+            cfg.add(config.Scope.applicationOverride, "synthetic_data_generator", "custom_config", args.custom_config)
+            cfg.add(config.Scope.applicationOverride, "synthetic_data_generator", "output_path", args.output_path)
+            cfg.add(config.Scope.applicationOverride, "synthetic_data_generator", "total_size", args.total_size)
+            cfg.add(config.Scope.applicationOverride, "synthetic_data_generator", "test_document", args.test_document)
 
-                synthetic_data_generator.orchestrate_data_generation(cfg)
+            synthetic_data_generator.orchestrate_data_generation(cfg)
 
         elif sub_command == "create-workload":
             cfg.add(config.Scope.applicationOverride, "generator", "indices", args.indices)

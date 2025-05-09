@@ -8,8 +8,9 @@
 
 import os
 import logging
-import yaml
 import json
+
+import yaml
 
 from osbenchmark.utils import console
 from osbenchmark.exceptions import SystemSetupError
@@ -26,7 +27,7 @@ def load_config(config_path):
         if config_path.endswith(allowed_extensions[0]) or config_path.endswith(allowed_extensions[1]):
             with open(config_path, 'r') as file:
                 return yaml.safe_load(file)
-    except TypeError as e:
+    except TypeError:
         raise SystemSetupError("Error when loading config. Please ensure that the proper config was provided")
 
 def write_chunk(data, file_path):
@@ -50,7 +51,7 @@ def get_generation_settings(input_config: dict) -> dict:
         return generation_settings
     else:
         # Traverse and update valid settings that user specified.
-        for k, v in generation_settings.items():
+        for k in generation_settings:
             if k in user_generation_settings and user_generation_settings[k] is not None:
                 generation_settings[k] = user_generation_settings[k]
             else:

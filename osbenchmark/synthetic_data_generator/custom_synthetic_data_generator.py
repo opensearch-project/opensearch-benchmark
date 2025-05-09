@@ -8,29 +8,21 @@
 
 import logging
 
-import json
 import time
 import os
-import numpy as np
 import hashlib
 import importlib.util
-import yaml
 
-import dask
-from dask.distributed import Client, as_completed, get_client
-from multiprocessing import Process, Queue
+from dask.distributed import get_client
 from mimesis import Generic
-from mimesis.schema import Schema
 from mimesis.locales import Locale
 from mimesis.random import Random
-from mimesis import Cryptographic
 from mimesis.providers.base import BaseProvider
 from mimesis.random import Random
 from tqdm import tqdm
 
 from osbenchmark.utils import console
 from osbenchmark.exceptions import SystemSetupError, ConfigError
-from osbenchmark.synthetic_data_generator.types import DEFAULT_MAX_FILE_SIZE_GB, DEFAULT_CHUNK_SIZE
 from osbenchmark.synthetic_data_generator.helpers import write_chunk, get_generation_settings
 
 def load_user_module(file_path):
@@ -137,8 +129,8 @@ def generate_test_document(generate_fake_document: callable, custom_lists: dict,
         try:
             document = generate_fake_document(providers=providers, **custom_lists)
         except AttributeError as e:
-            msg = f"Encountered AttributeError when setting up custom_providers and custom_lists. " + \
-                  f"It seems that your module might be using custom_lists and custom_providers." + \
+            msg = "Encountered AttributeError when setting up custom_providers and custom_lists. " + \
+                  "It seems that your module might be using custom_lists and custom_providers." + \
                     f"Please ensure you have provided a custom config with custom_providers and custom_lists: {e}"
             raise ConfigError(msg)
         return document
@@ -188,8 +180,8 @@ def generate_dataset_with_user_module(client, sdg_config, user_module, user_conf
         try:
             custom_lists = custom_module_components.get('custom_lists', {})
             custom_providers = {name: getattr(user_module, name) for name in custom_module_components.get('custom_providers', [])}
-        except TypeError as e:
-            msg = f"Custom config has custom_lists and custom_providers pointing to null values. Either populate or remove."
+        except TypeError:
+            msg = "Custom config has custom_lists and custom_providers pointing to null values. Either populate or remove."
             raise ConfigError(msg)
 
         max_file_size_bytes = generation_settings.get('max_file_size_gb') * 1024 * 1024 * 1024
@@ -274,7 +266,6 @@ def generate_dataset_with_user_module(client, sdg_config, user_module, user_conf
             total_time_to_generate_dataset = round(end_time - start_time)
             progress_bar.update(total_size_bytes - progress_bar.n)
 
-            dataset_size = current_size
             logger.info("Generated dataset in %s seconds. Dataset generation details: %s", total_time_to_generate_dataset, generated_dataset_details)
 
             return total_time_to_generate_dataset, generated_dataset_details

@@ -10,26 +10,22 @@ import json
 import random
 import datetime
 import uuid
-import yaml
 import os
 import time
 import logging
 import hashlib
-from typing import Dict, Any, Callable, Optional
+from typing import Dict, Any, Callable
 
-import dask
-from dask.distributed import Client, as_completed, get_client
+import yaml
+from dask.distributed import Client, get_client
 from mimesis import Generic
-from mimesis.schema import Schema
 from mimesis.locales import Locale
 from mimesis.random import Random
-from mimesis import Cryptographic
-from mimesis.providers.base import BaseProvider
 from tqdm import tqdm
 
 from osbenchmark.utils import console
 import osbenchmark.exceptions
-from osbenchmark.synthetic_data_generator.types import DEFAULT_MAX_FILE_SIZE_GB, DEFAULT_CHUNK_SIZE, SyntheticDataGeneratorConfig
+from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorConfig
 from osbenchmark.synthetic_data_generator.helpers import get_generation_settings, write_chunk
 
 class MappingSyntheticDataGenerator:
@@ -461,7 +457,6 @@ def generate_dataset_with_mappings(client: Client, sdg_config: SyntheticDataGene
             total_time_to_generate_dataset = round(end_time - start_time)
             progress_bar.update(total_size_bytes - progress_bar.n)
 
-            dataset_size = current_size
             logger.info("Generated dataset in %s seconds. Dataset generation details: %s", total_time_to_generate_dataset, generated_dataset_details)
 
             return total_time_to_generate_dataset, generated_dataset_details
