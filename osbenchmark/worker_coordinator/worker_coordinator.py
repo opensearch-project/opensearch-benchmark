@@ -204,23 +204,18 @@ class TaskFinished:
         self.metrics = metrics
         self.next_task_scheduled_in = next_task_scheduled_in
 
-class ClusterErrorMessage:
-    """Message sent from the client when a request fails during load testing"""
-    def __init__(self, client_id, request_metadata):
-        self.client_id = client_id
-        self.request_metadata = request_metadata
-
-class SharedClientStateMessage:
-    """Message sent from the Worker to the FeedbackActor to share client state dictionaries"""
-    def __init__(self, worker_id=None, worker_clients_map=None):
-        self.worker_id = worker_id
-        self.worker_clients_map = worker_clients_map
-
 class EnableFeedbackScaling:
     pass
 
 class DisableFeedbackScaling:
     pass
+
+class ConfigureFeedbackScaling:
+    def __init__(self, scale_step=5, scale_down_pct=0.10, sleep_seconds=30, max_clients=None):
+        self.scale_step = scale_step
+        self.scale_down_pct = scale_down_pct
+        self.sleep_seconds = sleep_seconds
+        self.max_clients = max_clients
 
 class FeedbackState(Enum):
     """Various states for the FeedbackActor"""
@@ -269,6 +264,14 @@ class FeedbackActor(actor.BenchmarkActor):
         self.error_queue = msg.error_queue
         self.queue_lock = msg.queue_lock
         self.wakeupAfter(datetime.timedelta(seconds=FeedbackActor.WAKEUP_INTERVAL))
+
+    def receiveMsg_ConfigureFeedbackScaling(self, msg, sender):
+        self.logger.info("Configuring FeedbackActor: scale_step=%d, scale_down_pct=%.2f, sleep=%ds, max_clients=%s",
+                        msg.scale_step, msg.scale_down_pct, msg.sleep_seconds, msg.max_clients)
+        self.num_clients_to_scale_up = msg.scale_step
+        self.percentage_clients_to_scale_down = msg.scale_down_pct
+        self.POST_SCALEDOWN_SECONDS = msg.sleep_seconds
+        self.total_client_count = msg.max_clients
 
     def receiveMsg_WakeupMessage(self, msg, sender) -> None:
         # Check state and re-schedule wakeups.
@@ -954,6 +957,10 @@ class WorkerCoordinator:
         # if we're in redline test mode, disable the feedback actor and pause all clients when we're at a joinpoint
         if self.config.opts("workload", "redline.test", mandatory=False):
             self.target.send(self.target.feedback_actor, DisableFeedbackScaling())
+            # get the workload params for the current step and update the feedback actor
+            redline_config = self.redline_config_for(self.test_procedure.schedule[self.current_step + 1])
+            self.target.send(self.target.feedback_actor, ConfigureFeedbackScaling(scale_step=redline_config["scale_step"], scale_down_pct=redline_config["scale_down_pct"],
+                                                                                  sleep_seconds=redline_config["sleep_seconds"], max_clients=redline_config["max_clients"]))
         if self.currently_completed == len(self.workers):
             self.logger.info("All workers completed their tasks until join point [%d/%d].", self.current_step + 1, self.number_of_steps)
             # we can go on to the next step
@@ -1046,6 +1053,15 @@ class WorkerCoordinator:
                     self.logger.info("[%d] clients did not yet finish.", len(pending_client_ids))
                 else:
                     self.logger.info("Client id(s) [%s] did not yet finish.", ",".join(map(str, pending_client_ids)))
+
+    def redline_config_for(self, task):
+        """returns redline-related params for a given task object."""
+        return {
+            "scale_step": task.scale_step,
+            "scale_down_pct": task.scale_down_percentage,
+            "sleep_seconds": task.post_scaledown_sleep,
+            "max_clients": task.clients
+        }
 
     def reset_relative_time(self):
         self.logger.debug("Resetting relative time of request metrics store.")
