@@ -27,6 +27,7 @@ from osbenchmark.synthetic_data_generator.helpers import get_generation_settings
 class MappingSyntheticDataGenerator:
     def __init__(self, mapping_config=None):
         self.logger = logging.getLogger(__name__)
+        # TODO: Set self.mapping_config to automatically point to MappingSyntheticDataGenerator
         self.mapping_config = mapping_config or {}
         # self.locale = self.mapping_config.get('mimesis_locale', 'DEFAULT')
         seed = 1
@@ -164,7 +165,7 @@ class MappingSyntheticDataGenerator:
         transformed_mapping = {}
 
         # Extract configuration settings (both default generators and field overrides) from config user provided
-        # TODO: Should self.mapping_config already point to MappingSyntheticDataGenerator?
+        # TODO: Set self.mapping_config to automatically point to MappingSyntheticDataGenerator
         config = self.mapping_config.get("MappingSyntheticDataGenerator", {}) if self.mapping_config else {}
         generator_overrides = config.get("generator_overrides", {})
         field_overrides = config.get("field_overrides", {})
@@ -181,7 +182,8 @@ class MappingSyntheticDataGenerator:
             current_field_path = f"{field_path_prefix}.{field_name}" if field_path_prefix else field_name
 
             # Fields with no types provided but have properties field are considered type object by default
-            # NOTE: We do not care for multifields. This is more of an ingestion technique where OpenSearch ingests the same field in different ways.
+            # NOTE: We do not care for multifields. This is more of an ingestion technique
+            # where OpenSearch ingests the same field in different ways.
             # It does not change the data generated.
             if field_type is None and "properties" in field_def:
                 field_type = "object"
@@ -189,15 +191,12 @@ class MappingSyntheticDataGenerator:
             if field_type in {"object", "nested"} and "properties" in field_def:
                 nested_generator = self.transform_mapping_to_generators(mapping_dict=field_def, field_path_prefix=current_field_path)
                 if field_type == "object":
-                    # print("Field Name: ", field_name)
                     transformed_mapping[field_name] = lambda f=field_def, ng=nested_generator: self._generate_obj(f, ng)
-                else:  # nested
-                    # print("Field Name: ", field_name)
+                else:
                     transformed_mapping[field_name] = lambda f=field_def, ng=nested_generator: self._generate_nested_array(f, ng)
                 continue
 
             if current_field_path in field_overrides:
-                # print(current_field_path)
                 override = field_overrides[current_field_path]
                 gen_name = override.get("generator")
                 gen_func = getattr(self, gen_name, None)

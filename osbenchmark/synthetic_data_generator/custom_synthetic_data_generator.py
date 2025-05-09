@@ -22,7 +22,6 @@ from tqdm import tqdm
 
 from osbenchmark.utils import console
 from osbenchmark.exceptions import SystemSetupError, ConfigError
-# from osbenchmark.synthetic_data_generator.input_processor import create_sdg_config_from_args, use_custom_synthetic_data_generator
 from osbenchmark.synthetic_data_generator.types import DEFAULT_MAX_FILE_SIZE_GB, DEFAULT_CHUNK_SIZE
 from osbenchmark.synthetic_data_generator.helpers import write_chunk, get_generation_settings
 

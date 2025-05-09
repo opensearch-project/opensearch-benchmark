@@ -67,6 +67,7 @@ def orchestrate_data_generation_for_mapping_synthetic_data_generator(cfg, sdg_co
         console.println("Please verify that the output is generated as intended. \n")
         print(json.dumps(document, indent=2))
     else:
+        # Generate all documents
         raw_mappings, mapping_config = mapping_synthetic_data_generator.load_mapping_and_config(sdg_config.index_mappings_path, sdg_config.custom_config_path)
 
         total_time_to_generate_dataset, generated_dataset_details = mapping_synthetic_data_generator.generate_dataset_with_mappings(dask_client, sdg_config, raw_mappings, mapping_config)
@@ -78,10 +79,9 @@ def orchestrate_data_generation(cfg):
     sdg_config = create_sdg_config_from_args(cfg)
 
     # TODO: Rename custom config
-    # TODO: Handle if no custom config provided
     custom_config = load_config(sdg_config.custom_config_path) if sdg_config.custom_config_path else {}
 
-    # TODO: Move client creation to outside of orchestrator so that synthetic data generators can call on it
+    # TODO: Move client creation deeper so that cancellation is easier on the command line
     workers = custom_config.get("settings", {}).get("workers", os.cpu_count())
     dask_client = Client(n_workers=workers, threads_per_worker=1)  # We keep it to 1 thread because generating random data is CPU intensive
     logger.info("Number of workers to use: %s", workers)

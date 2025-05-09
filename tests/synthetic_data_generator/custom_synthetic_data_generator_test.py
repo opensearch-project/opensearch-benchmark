@@ -3,10 +3,6 @@ import tempfile
 import pytest
 from unittest.mock import patch, MagicMock
 
-import sys
-sys.path.append('../')  # Adjust as needed to find the module
-
-# Import the specific functions to test
 from osbenchmark.synthetic_data_generator.custom_synthetic_data_generator import (
     generate_data_chunk,
     instantiate_all_providers,
