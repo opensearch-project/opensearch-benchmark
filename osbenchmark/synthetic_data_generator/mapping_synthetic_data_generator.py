@@ -362,101 +362,101 @@ def generate_test_document(index_mappings: dict, mapping_config: dict) -> dict:
     return mapping_generator.generate_fake_document(transformed_mapping=converted_mappings)
 
 def generate_dataset_with_mappings(client: Client, sdg_config: SyntheticDataGeneratorConfig, index_mappings: dict, input_config: dict):
-        """
-        param: client: Dask client that performs multiprocessing and creates dashboard to visualize task streams
-        param: sdg_config: SyntheticDataGenerationConfig instance that houses information related to data corpora to generate
-        param: index_mappings: OpenSearch index mappings that user provided
-        param: input_config: Optional config that specifies custom lists and custom data providers that the custom module uses to generate data.
-            This also contains configuration details related to how data is generated (i.e. number of workers to use, max file size in GB, and number of documents in a chunk)
+    """
+    param: client: Dask client that performs multiprocessing and creates dashboard to visualize task streams
+    param: sdg_config: SyntheticDataGenerationConfig instance that houses information related to data corpora to generate
+    param: index_mappings: OpenSearch index mappings that user provided
+    param: input_config: Optional config that specifies custom lists and custom data providers that the custom module uses to generate data.
+        This also contains configuration details related to how data is generated (i.e. number of workers to use, max file size in GB, and number of documents in a chunk)
 
-        returns: Does not return results but writes documents to output path
-        """
-        logger = logging.getLogger(__name__)
+    returns: Does not return results but writes documents to output path
+    """
+    logger = logging.getLogger(__name__)
 
-        # Fetch settings and input config that user provided
-        generation_settings = get_generation_settings(input_config)
-        mapping_config = input_config
+    # Fetch settings and input config that user provided
+    generation_settings = get_generation_settings(input_config)
+    mapping_config = input_config
 
-        max_file_size_bytes = generation_settings.get('max_file_size_gb') * 1024 * 1024 * 1024
-        total_size_bytes = sdg_config.total_size_gb * 1024 * 1024 * 1024
-        chunk_size = generation_settings.get('chunk_size')
-        avg_document_size = get_avg_document_size(index_mappings, mapping_config)
+    max_file_size_bytes = generation_settings.get('max_file_size_gb') * 1024 * 1024 * 1024
+    total_size_bytes = sdg_config.total_size_gb * 1024 * 1024 * 1024
+    chunk_size = generation_settings.get('chunk_size')
+    avg_document_size = get_avg_document_size(index_mappings, mapping_config)
 
-        current_size = 0
-        docs_written = 0
-        file_counter = 0
-        generated_dataset_details = []
+    current_size = 0
+    docs_written = 0
+    file_counter = 0
+    generated_dataset_details = []
 
-        logger.info("Average document size: %s", avg_document_size)
-        logger.info("Chunk size: %s docs", chunk_size)
-        logger.info("Total GB to generate: %s", sdg_config.total_size_gb)
-        logger.info("Max file size in GB: %s", generation_settings.get('max_file_size_gb'))
+    logger.info("Average document size: %s", avg_document_size)
+    logger.info("Chunk size: %s docs", chunk_size)
+    logger.info("Total GB to generate: %s", sdg_config.total_size_gb)
+    logger.info("Max file size in GB: %s", generation_settings.get('max_file_size_gb'))
 
-        console.println(f"Total GB to generate: {sdg_config.total_size_gb}\n"
-                        f"Average document size: {avg_document_size}\n"
-                        f"Max file size in GB: {generation_settings.get('max_file_size_gb')}\n")
+    console.println(f"Total GB to generate: {sdg_config.total_size_gb}\n"
+                    f"Average document size: {avg_document_size}\n"
+                    f"Max file size in GB: {generation_settings.get('max_file_size_gb')}\n")
 
-        start_time = time.time()
-        with tqdm(total=total_size_bytes,
-                  unit='B',
-                  unit_scale=True,
-                  bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]") as progress_bar:
+    start_time = time.time()
+    with tqdm(total=total_size_bytes,
+                unit='B',
+                unit_scale=True,
+                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]") as progress_bar:
 
-            setup_custom_tqdm_formatting(progress_bar)
-            while current_size < total_size_bytes:
-                file_path = os.path.join(sdg_config.output_path, f"{sdg_config.index_name}_{file_counter}.json")
-                file_size = 0
-                docs_written = 0
+        setup_custom_tqdm_formatting(progress_bar)
+        while current_size < total_size_bytes:
+            file_path = os.path.join(sdg_config.output_path, f"{sdg_config.index_name}_{file_counter}.json")
+            file_size = 0
+            docs_written = 0
 
-                while file_size < max_file_size_bytes:
-                    generation_start_time = time.time()
-                    seeds = generate_seeds_for_workers(regenerate=True)
-                    logger.info("Using seeds: %s", seeds)
+            while file_size < max_file_size_bytes:
+                generation_start_time = time.time()
+                seeds = generate_seeds_for_workers(regenerate=True)
+                logger.info("Using seeds: %s", seeds)
 
-                    # TODO: Submit the seeds to the client so that each client is producing different variations of documents
-                    futures = [client.submit(MappingSyntheticDataGeneratorWorker.generate_documents_from_worker, index_mappings, mapping_config, chunk_size) for seed in seeds]
-                    results = client.gather(futures) # if using AS_COMPLETED remove this line
+                # TODO: Submit the seeds to the client so that each client is producing different variations of documents
+                futures = [client.submit(MappingSyntheticDataGeneratorWorker.generate_documents_from_worker, index_mappings, mapping_config, chunk_size) for seed in seeds]
+                results = client.gather(futures) # if using AS_COMPLETED remove this line
 
-                    writing_start_time = time.time()
-                    for data in results:
-                        written = write_chunk(data, file_path)
-                        docs_written += written
-                        written_size = written * avg_document_size
-                        current_size += written_size
-                        progress_bar.update(written_size)
+                writing_start_time = time.time()
+                for data in results:
+                    written = write_chunk(data, file_path)
+                    docs_written += written
+                    written_size = written * avg_document_size
+                    current_size += written_size
+                    progress_bar.update(written_size)
 
-                    writing_end_time = time.time()
+                writing_end_time = time.time()
 
-                    file_size = os.path.getsize(file_path)
-                    # If it exceeds the max file size, then append this to keep track of record
-                    if file_size >= max_file_size_bytes:
-                        file_name = file_path.split("/")[-1]
-                        generated_dataset_details.append({
-                            "file_name": file_name,
-                            "docs": docs_written,
-                            "file_size_bytes": file_size
-                        })
+                file_size = os.path.getsize(file_path)
+                # If it exceeds the max file size, then append this to keep track of record
+                if file_size >= max_file_size_bytes:
+                    file_name = file_path.split("/")[-1]
+                    generated_dataset_details.append({
+                        "file_name": file_name,
+                        "docs": docs_written,
+                        "file_size_bytes": file_size
+                    })
 
-                    generating_took_time = writing_start_time - generation_start_time
-                    writing_took_time = writing_end_time - writing_start_time
-                    logger.info("Generating took [%s] seconds", generating_took_time)
-                    logger.info("Writing took [%s] seconds", writing_took_time)
+                generating_took_time = writing_start_time - generation_start_time
+                writing_took_time = writing_end_time - writing_start_time
+                logger.info("Generating took [%s] seconds", generating_took_time)
+                logger.info("Writing took [%s] seconds", writing_took_time)
 
-                    if current_size >= total_size_bytes:
-                        file_name = file_path.split("/")[-1]
-                        generated_dataset_details.append({
-                            "file_name": file_name,
-                            "docs": docs_written,
-                            "file_size_bytes": file_size
-                        })
-                        break
+                if current_size >= total_size_bytes:
+                    file_name = file_path.split("/")[-1]
+                    generated_dataset_details.append({
+                        "file_name": file_name,
+                        "docs": docs_written,
+                        "file_size_bytes": file_size
+                    })
+                    break
 
-                file_counter += 1
+            file_counter += 1
 
-            end_time = time.time()
-            total_time_to_generate_dataset = round(end_time - start_time)
-            progress_bar.update(total_size_bytes - progress_bar.n)
+        end_time = time.time()
+        total_time_to_generate_dataset = round(end_time - start_time)
+        progress_bar.update(total_size_bytes - progress_bar.n)
 
-            logger.info("Generated dataset in %s seconds. Dataset generation details: %s", total_time_to_generate_dataset, generated_dataset_details)
+        logger.info("Generated dataset in %s seconds. Dataset generation details: %s", total_time_to_generate_dataset, generated_dataset_details)
 
-            return total_time_to_generate_dataset, generated_dataset_details
+        return total_time_to_generate_dataset, generated_dataset_details

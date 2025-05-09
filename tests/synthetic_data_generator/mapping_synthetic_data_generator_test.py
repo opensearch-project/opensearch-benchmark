@@ -13,6 +13,7 @@ import pytest
 from osbenchmark.synthetic_data_generator.mapping_synthetic_data_generator import MappingSyntheticDataGenerator, MappingSyntheticDataGeneratorWorker
 from osbenchmark.exceptions import ConfigError
 
+# pylint: disable=R0904
 class TestMappingSyntheticDataGenerator:
 
     @pytest.fixture
@@ -161,7 +162,7 @@ class TestMappingSyntheticDataGenerator:
         # Test with min and max
         integer_with_min_and_max = mapping_synthetic_data_generator.generate_integer(field_definition, min=1, max=10)
         assert isinstance(integer_with_min_and_max, int)
-        assert integer_with_min_and_max <= 10 and integer_with_min_and_max >= 1
+        assert 1 <= integer_with_min_and_max <= 10
 
     def test_generate_short(self, mapping_synthetic_data_generator):
         field_definition = {"type": "short"}
@@ -191,7 +192,7 @@ class TestMappingSyntheticDataGenerator:
         # Test with choices
         float_result = mapping_synthetic_data_generator.generate_float(field_definition, min=1, max=10)
         assert isinstance(float_result, float)
-        assert float_result <= 10 and float_result >= 1
+        assert  1 <= float_result <= 10
 
     def test_generate_boolean(self, mapping_synthetic_data_generator):
         field_definition = {"type": "boolean"}
@@ -232,6 +233,7 @@ class TestMappingSyntheticDataGenerator:
             "author": lambda: "Mark Twain",
             "text": lambda: "What's for dinner kids?"
         }
+        # pylint: disable=W0212
         generated_object = mapping_synthetic_data_generator._generate_obj({}, nested_generators)
 
         assert isinstance(generated_object, dict)
@@ -243,6 +245,7 @@ class TestMappingSyntheticDataGenerator:
             "author": lambda: "Mark Twain",
             "text": lambda: "What's for dinner kids?"
         }
+        # pylint: disable=W0212
         nested_array = mapping_synthetic_data_generator._generate_nested_array({}, nested_generators, min_items=5, max_items=5)
 
         assert isinstance(nested_array, list)
