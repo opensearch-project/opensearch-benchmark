@@ -111,6 +111,9 @@ def register_default_runners():
     register_runner(workload.OperationType.DeleteKnnModel, Retry(DeleteKnnModel()), async_runner=True)
     register_runner(workload.OperationType.UpdateConcurrentSegmentSearchSettings,
                     Retry(UpdateConcurrentSegmentSearchSettings()), async_runner=True)
+    register_runner(workload.OperationType.CreateMlConnector, Retry(CreateMlConnector()), async_runner=True)
+    register_runner(workload.OperationType.DeleteMlConnector, Retry(DeleteMlConnector()), async_runner=True)
+    register_runner(workload.OperationType.RegisterRemoteMlModel, Retry(RegisterRemoteMlModel()), async_runner=True)
 
 def runner_for(operation_type):
     try:
@@ -732,6 +735,81 @@ class DeleteKnnModel(Runner):
     def __repr__(self, *args, **kwargs):
         return self.NAME
 
+
+class CreateMlConnector(Runner):
+    @time_func
+    async def __call__(self, opensearch, params):
+        body = mandatory(params, "body", self)
+
+        resp = await opensearch.transport.perform_request('POST', '_plugins/_ml/connectors/_create', body=body)
+        connector_id = resp.get('connector_id')
+
+        with open('connector_id.json', 'w') as f:
+            d = {'connector_id': connector_id}
+            f.write(json.dumps(d))
+
+    def __repr__(self, *args, **kwargs):
+        return "create-ml-connector"
+
+class DeleteMlConnector(Runner):
+    @time_func
+    async def __call__(self, opensearch, params):
+        body = {
+            "query": {
+                "term": {
+                    "name.keyword": params.get('connector_name')
+                }
+            }
+        }
+
+        connector_id = None
+        resp = await opensearch.transport.perform_request('POST', '_plugins/_ml/connectors/_search', body=body)
+        for item in resp['hits']['hits']:
+            doc = item.get('_source')
+            if doc:
+                connector_id = doc.get('_id')
+                if connector_id:
+                    break
+
+        if connector_id:
+            await opensearch.transport.perform_request('DELETE', '_plugins/_ml/connectors/' + connector_id)
+
+    def __repr__(self, *args, **kwargs):
+        return "delete-ml-connector"
+
+class RegisterRemoteMlModel(Runner):
+    @time_func
+    async def __call__(self, opensearch, params):
+
+        body = mandatory(params, "body", self)
+
+        if "connector_id" not in body:
+            with open('connector_id.json', 'r') as f:
+                d = json.loads(f.read())
+                connector_id = d['connector_id']
+                body['connector_id'] = connector_id
+
+        resp = await opensearch.transport.perform_request('POST', '_plugins/_ml/models/_register', body=body)
+        task_id = resp.get('task_id')
+        timeout = 120
+        end = time.time() + timeout
+        state = 'CREATED'
+        while state == 'CREATED' and time.time() < end:
+            await asyncio.sleep(5)
+            resp = await opensearch.transport.perform_request('GET', '_plugins/_ml/tasks/' + task_id)
+            state = resp.get('state')
+        if state == 'FAILED':
+            raise exceptions.BenchmarkError("Failed to register remote ml-model. Model name: {}".format(body['name']))
+        elif state == 'CREATED':
+            raise TimeoutError("Timeout when registering remote ml-model. Model name: {}".format(body['name']))
+        model_id = resp.get('model_id')
+
+        with open('model_id.json', 'w') as f:
+            d = { 'model_id': model_id }
+            f.write(json.dumps(d))
+
+    def __repr__(self, *args, **kwargs):
+        return "register-remote-ml-model"
 
 class TrainKnnModel(Runner):
     """
