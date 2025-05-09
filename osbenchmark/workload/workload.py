@@ -899,7 +899,7 @@ class Task:
     IGNORE_RESPONSE_ERROR_LEVEL_WHITELIST = ["non-fatal"]
 
     def __init__(self, name, operation, tags=None, meta_data=None, warmup_iterations=None, iterations=None,
-                 warmup_time_period=None, time_period=None, ramp_up_time_period=None, scale_step=None, scale_down_percentage=None, post_scaledown_sleep=None, 
+                 warmup_time_period=None, time_period=None, ramp_up_time_period=None, scale_step=None, scale_down_percentage=None, post_scaledown_sleep=None,
                  clients=1, completes_parent=False, schedule=None, params=None):
         self.name = name
         self.operation = operation
