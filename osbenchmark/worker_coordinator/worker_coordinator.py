@@ -1070,13 +1070,14 @@ class WorkerCoordinator:
                     self.logger.info("Client id(s) [%s] did not yet finish.", ",".join(map(str, pending_client_ids)))
 
     def redline_config_for(self, task):
-        """returns redline-related params for a given task object."""
+        """returns redline-related params for a given task object. Defaults to None if params are missing"""
         return {
-            "scale_step": task.scale_step,
-            "scale_down_pct": task.scale_down_percentage,
-            "sleep_seconds": task.post_scaledown_sleep,
-            "max_clients": task.clients
+            "scale_step": getattr(task, "scale_step", None),
+            "scale_down_pct": getattr(task, "scale_down_percentage", None),
+            "sleep_seconds": getattr(task, "post_scaledown_sleep", None),
+            "max_clients": getattr(task, "clients", None)
         }
+
 
     def reset_relative_time(self):
         self.logger.debug("Resetting relative time of request metrics store.")
