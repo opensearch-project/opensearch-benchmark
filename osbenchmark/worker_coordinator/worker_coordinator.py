@@ -211,11 +211,11 @@ class DisableFeedbackScaling:
     pass
 
 class ConfigureFeedbackScaling:
-    def __init__(self, scale_step=5, scale_down_pct=0.10, sleep_seconds=30, max_clients=None):
-        self.scale_step = scale_step
-        self.scale_down_pct = scale_down_pct
-        self.sleep_seconds = sleep_seconds
-        self.max_clients = max_clients
+    def __init__(self, scale_step=None, scale_down_pct=None, sleep_seconds=None, max_clients=None):
+        self.scale_step = scale_step if scale_step is not None else 5
+        self.scale_down_pct = scale_down_pct if scale_down_pct is not None else 0.10
+        self.sleep_seconds = sleep_seconds if sleep_seconds is not None else 30
+        self.max_clients = max_clients if max_clients is not None else 1000
 
 class FeedbackState(Enum):
     """Various states for the FeedbackActor"""
