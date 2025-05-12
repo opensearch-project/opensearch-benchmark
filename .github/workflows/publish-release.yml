@@ -8,6 +8,10 @@ on:
 jobs:
   publish-release:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: write
+      issues: write
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
@@ -32,6 +36,9 @@ jobs:
         run: |
           make build
           tar zcvf artifacts.tar.gz dist
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: Publish release
         uses: softprops/action-gh-release@v1
