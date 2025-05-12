@@ -624,7 +624,7 @@ class OperationType(Enum):
     ClusterHealth = (23, AdminStatus.Yes, ServerlessStatus.Blocked)
     PutPipeline = (24, AdminStatus.Yes, ServerlessStatus.Public)
     DeletePipeline = (25, AdminStatus.Yes, ServerlessStatus.Public)
-    Refresh = (26, AdminStatus.Yes, ServerlessStatus.Public)
+    Refresh = (26, AdminStatus.Yes, ServerlessStatus.Blocked)
     CreateIndex = (27, AdminStatus.Yes, ServerlessStatus.Public)
     DeleteIndex = (28, AdminStatus.Yes, ServerlessStatus.Public)
     CreateIndexTemplate = (29, AdminStatus.Yes, ServerlessStatus.Blocked)
@@ -651,9 +651,12 @@ class OperationType(Enum):
     RegisterMlModel = (50, AdminStatus.Yes, ServerlessStatus.Public)
     DeployMlModel = (51, AdminStatus.Yes, ServerlessStatus.Public)
     UpdateConcurrentSegmentSearchSettings = (52, AdminStatus.Yes, ServerlessStatus.Blocked)
+    CreateMlConnector = (53, AdminStatus.Yes, ServerlessStatus.Public)
+    RegisterRemoteMlModel = (54, AdminStatus.Yes, ServerlessStatus.Public)
+    DeleteMlConnector = (55, AdminStatus.Yes, ServerlessStatus.Public)
 
-    def __init__(self, id: int, admin_status: AdminStatus, serverless_status: ServerlessStatus):
-        self.id = id
+    def __init__(self, op_id: int, admin_status: AdminStatus, serverless_status: ServerlessStatus):
+        self.op_id = op_id
         self.admin_status = admin_status
         self.serverless_status = serverless_status
 

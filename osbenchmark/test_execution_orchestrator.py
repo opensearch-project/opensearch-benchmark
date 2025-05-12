@@ -183,11 +183,12 @@ class BenchmarkCoordinator:
         # to load the workload we need to know the correct cluster distribution version. Usually, this value should be set
         # but there are rare cases (external pipeline and user did not specify the distribution version) where we need
         # to derive it ourselves. For source builds we always assume "master"
+        oss_distribution_version = "2.11.0"
         if not sources and not self.cfg.exists("builder", "distribution.version"):
             distribution_version = builder.cluster_distribution_version(self.cfg)
             if distribution_version == 'oss':
                 self.logger.info("Automatically derived serverless collection, setting distribution version to 2.11.0")
-                distribution_version = '2.11.0'
+                distribution_version = oss_distribution_version
                 if not self.cfg.exists("worker_coordinator", "serverless.mode"):
                     self.cfg.add(config.Scope.benchmark, "worker_coordinator", "serverless.mode", True)
 

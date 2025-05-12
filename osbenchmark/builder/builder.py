@@ -32,11 +32,13 @@ import traceback
 from collections import defaultdict
 
 import thespian.actors
-
-from osbenchmark import actor, client, paths, config, metrics, exceptions, PROGRAM_NAME
-from osbenchmark.builder import supplier, provisioner, launcher, provision_config
-from osbenchmark.utils import net, console
 from opensearchpy.exceptions import NotFoundError
+
+from osbenchmark import (PROGRAM_NAME, actor, client, config, exceptions,
+                         metrics, paths)
+from osbenchmark.builder import (launcher, provision_config, provisioner,
+                                 supplier)
+from osbenchmark.utils import console, net
 
 METRIC_FLUSH_INTERVAL_SECONDS = 30
 

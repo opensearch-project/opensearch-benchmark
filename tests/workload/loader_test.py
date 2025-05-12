@@ -4371,7 +4371,7 @@ class WorkloadProcessorRegistryTests(TestCase):
 
 
 class TestServerlessTaskFilter:
-    workload_sprcification = {
+    workload_specification = {
         "description": "description for unit test",
         "indices": [{"name": "test-index", "auto-managed": False}],
         "operations": [
@@ -4463,10 +4463,12 @@ class TestServerlessTaskFilter:
 
     def test_filters_tasks_operator_false(self):
         reader = loader.WorkloadSpecificationReader()
-        full_workload = reader("unittest", copy.deepcopy(self.workload_sprcification), "/mappings")
+        full_workload = reader("unittest", copy.deepcopy(self.workload_specification), "/mappings")
         assert len(full_workload.test_procedures[0].schedule) == 6
 
         filtered_workload = self.filter(full_workload, serverless_mode=True, serverless_operator=True)
 
-        assert filtered_workload.test_procedures[0].serverless_info == ["Treating parallel task in test-procedure [default-test-procedure] as public.",
-                                                                        "Excluding [check-cluster-health], [bulk-index] as test-procedure [default-test-procedure] is run on serverless."]
+        assert filtered_workload.test_procedures[0].serverless_info == ["Treating parallel task in test-procedure "
+                                                                        "[default-test-procedure] as public.",
+                                                                        "Excluding [check-cluster-health], [bulk-index] "
+                                                                        "as test-procedure [default-test-procedure] is run on serverless."]
