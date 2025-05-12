@@ -888,7 +888,6 @@ class ServerlessFilterWorkloadProcessor(WorkloadProcessor):
         self.serverless_operator = convert.to_bool(cfg.opts("worker_coordinator", "serverless.operator", mandatory=False, default_value=False))
 
     def _is_filtered_task(self, operation):
-        print("I AM HERE 1")
         if operation.run_on_serverless is not None:
             return not operation.run_on_serverless
 
@@ -897,9 +896,7 @@ class ServerlessFilterWorkloadProcessor(WorkloadProcessor):
 
         try:
             op = workload.OperationType.from_hyphenated_string(operation.type)
-            print("I AM NOT SERVERLESS MODE")
             if self.serverless_mode:
-                print("I AM SERVERLESS MODE")
                 return op.serverless_status < workload.ServerlessStatus.Public
         except KeyError:
             self.logger.info("Treating user-provided operation type [%s] for operation [%s] as public.", operation.type, operation.name)
@@ -907,14 +904,13 @@ class ServerlessFilterWorkloadProcessor(WorkloadProcessor):
 
     def on_after_load_workload(self, input_workload, **kwargs):
         if not self.serverless_mode:
-            print("WHAT!!!")
             return input_workload
 
         for test_procedure in input_workload.test_procedures:
             tasks_to_remove = []
             for task in test_procedure.schedule:
                 if isinstance(task, Parallel):
-                    test_procedure.serverless_info.append(f"Treating parallel task in challenge [{test_procedure}] as public.")
+                    test_procedure.serverless_info.append(f"Treating parallel task in test-procedure [{test_procedure}] as public.")
                 elif self._is_filtered_task(task.operation):
                     tasks_to_remove.append(task)
 
@@ -923,7 +919,7 @@ class ServerlessFilterWorkloadProcessor(WorkloadProcessor):
 
             if tasks_to_remove:
                 task_str = ", ".join(f"[{task}]" for task in tasks_to_remove)
-                test_procedure.serverless_info.append(f"Excluding {task_str} as challenge [{test_procedure}] is run on serverless.")
+                test_procedure.serverless_info.append(f"Excluding {task_str} as test-procedure [{test_procedure}] is run on serverless.")
         return input_workload
 
 

@@ -21,7 +21,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import copy
 import os
 import random
 import re
@@ -4327,6 +4327,7 @@ class WorkloadProcessorRegistryTests(TestCase):
             loader.TaskFilterWorkloadProcessor,
             loader.TestModeWorkloadProcessor,
             loader.QueryRandomizerWorkloadProcessor,
+            loader.ServerlessFilterWorkloadProcessor,
             loader.DefaultWorkloadPreparator
         ]
         actual_defaults = [proc.__class__ for proc in tpr.processors]
@@ -4343,6 +4344,7 @@ class WorkloadProcessorRegistryTests(TestCase):
             loader.TaskFilterWorkloadProcessor,
             loader.TestModeWorkloadProcessor,
             loader.QueryRandomizerWorkloadProcessor,
+            loader.ServerlessFilterWorkloadProcessor,
             MyMockWorkloadProcessor
         ]
         actual_processors = [proc.__class__ for proc in tpr.processors]
@@ -4361,7 +4363,110 @@ class WorkloadProcessorRegistryTests(TestCase):
             loader.TestModeWorkloadProcessor,
             loader.QueryRandomizerWorkloadProcessor,
             MyMockWorkloadProcessor,
-            loader.DefaultWorkloadPreparator
+            loader.DefaultWorkloadPreparator,
+            loader.ServerlessFilterWorkloadProcessor
         ]
         actual_processors = [proc.__class__ for proc in tpr.processors]
         self.assertCountEqual(expected_processors, actual_processors)
+
+
+class TestServerlessTaskFilter:
+    workload_sprcification = {
+        "description": "description for unit test",
+        "indices": [{"name": "test-index", "auto-managed": False}],
+        "operations": [
+            {
+                "name": "create-index",
+                "operation-type": "create-index",
+            },
+            {
+                "name": "bulk-index",
+                "operation-type": "bulk",
+            },
+            {
+                "name": "check-cluster-health",
+                "operation-type": "cluster-health",
+            },
+            {
+                "name": "cluster-stats",
+                "operation-type": "custom-operation-type",
+            },
+        ],
+        "test_procedures": [
+            {
+                "name": "default-test-procedure",
+                "schedule": [
+                    {
+                        "operation": "create-index",
+                    },
+                    {
+                        "operation": "check-cluster-health",
+                    },
+                    {
+                        "operation": {
+                            "operation-type": "bulk-index",
+                            "serverless": False,
+                        }
+                    },
+                    {
+                        "parallel": {
+                            "tasks": [
+                                {
+                                    "name": "index-1",
+                                    "operation": "bulk-index",
+                                },
+                                {
+                                    "name": "match-all-parallel",
+                                    "operation": "match-all",
+                                },
+                            ]
+                        }
+                    },
+                    {
+                        "operation": {
+                            "operation-type": "create-index-template",
+                            "serverless": True,
+                        }
+                    },
+                    {
+                        "operation": "cluster-stats",
+                    },
+                ],
+            }
+        ],
+    }
+
+    def filter(self, workload_specification, *, serverless_mode, serverless_operator):
+        cfg = config.Config()
+        cfg.add(config.Scope.benchmark, "worker_coordinator", "serverless.mode", serverless_mode)
+        cfg.add(config.Scope.benchmark, "worker_coordinator", "serverless.operator", serverless_operator)
+
+        processor = loader.ServerlessFilterWorkloadProcessor(cfg)
+        return processor.on_after_load_workload(workload_specification)
+
+    def test_noop_if_not_serverless(self):
+        filtered_task = self.filter(workload_specification={"foo": "bar"}, serverless_mode=False, serverless_operator=False)
+        assert filtered_task == {"foo": "bar"}
+
+    def test_no_message_if_no_filter(self):
+        workload_specification = {"test_procedures": [
+            {
+                "name": "default-test-procedure",
+                "schedule": []
+            }
+        ]}
+
+        reader = loader.WorkloadSpecificationReader()
+        full_workload = reader("unittest", copy.deepcopy(workload_specification), "/mappings")
+        filtered_workload = self.filter(full_workload, serverless_mode=True, serverless_operator=True)
+        assert filtered_workload.test_procedures[0].serverless_info == []
+
+    def test_filters_tasks_operator_false(self):
+        reader = loader.WorkloadSpecificationReader()
+        full_workload = reader("unittest", copy.deepcopy(self.workload_sprcification), "/mappings")
+        assert len(full_workload.test_procedures[0].schedule) == 6
+
+        filtered_workload = self.filter(full_workload, serverless_mode=True, serverless_operator=True)
+
+        assert filtered_workload.test_procedures[0].serverless_info == ["Treating parallel task in test-procedure [default-test-procedure] as public.",
+                                                                        "Excluding [check-cluster-health], [bulk-index] as test-procedure [default-test-procedure] is run on serverless."]
