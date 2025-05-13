@@ -71,14 +71,14 @@ class TestCustomSyntheticDataGeneration:
         assert document == {"fake_field": "fake_value"}
 
     def test_generate_data_chunk(self, mock_generate_fake_document_callable, custom_config):
-        chunk_size = 5
+        docs_per_chunk = 5
         documents = generate_data_chunk(
             mock_generate_fake_document_callable,
-            chunk_size,
+            docs_per_chunk,
             custom_config["lists"],
             custom_config["providers"],
             seed=27
         )
 
-        assert len(documents) == chunk_size
-        assert mock_generate_fake_document_callable.call_count == chunk_size
+        assert len(documents) == docs_per_chunk
+        assert mock_generate_fake_document_callable.call_count == docs_per_chunk

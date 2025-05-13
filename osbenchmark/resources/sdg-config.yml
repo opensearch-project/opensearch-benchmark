@@ -1,7 +1,7 @@
 settings:
   workers: 8
   max_file_size_gb: 40
-  chunk_size: 10000
+  docs_per_chunk: 10000
 
 CustomSyntheticDataGenerator:
   # For users who want to generate data via a custom Python module

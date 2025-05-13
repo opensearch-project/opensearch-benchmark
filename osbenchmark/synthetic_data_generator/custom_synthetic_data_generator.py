@@ -111,14 +111,14 @@ def generate_test_document(generate_fake_document: callable, custom_lists: dict,
         raise ConfigError(msg)
     return document
 
-def generate_data_chunk(user_defined_function: callable, chunk_size: int, custom_lists, custom_providers, seed=None):
+def generate_data_chunk(user_defined_function: callable, docs_per_chunk: int, custom_lists, custom_providers, seed=None):
     """
     Synthetic Data Generator Worker that calls a function that generates a single document.
     The worker will call the function N number of times to generate N docs of data before returning results
 
     :param user_defined_function: This is the callable that the user defined in their module.
         The callable should be named 'generate_fake_document()'
-    :param chunk_size: The number of documents the worker needs to generate before returning them in a list
+    :param docs_per_chunk: The number of documents the worker needs to generate before returning them in a list
     :param custom_lists (optional): These are custom lists that the user_defined_function uses to generate random values
     :param custom_providers (optional): These are custom providers (written in Mimesis or Faker) that generate data in a specific way.
         Users define this in the same file as generate_fake_document() function. Custom providers must extend from the BaseProviders class.
@@ -128,7 +128,7 @@ def generate_data_chunk(user_defined_function: callable, chunk_size: int, custom
     providers = instantiate_all_providers(custom_providers)
     seeded_providers = seed_providers(providers, seed)
 
-    return [user_defined_function(providers=seeded_providers, **custom_lists) for _ in range(chunk_size)]
+    return [user_defined_function(providers=seeded_providers, **custom_lists) for _ in range(docs_per_chunk)]
 
 def generate_dataset_with_user_module(client, sdg_config, user_module, user_config):
     """
@@ -168,7 +168,7 @@ def generate_dataset_with_user_module(client, sdg_config, user_module, user_conf
 
     max_file_size_bytes = generation_settings.get('max_file_size_gb') * GB_TO_BYTES
     total_size_bytes = sdg_config.total_size_gb * GB_TO_BYTES
-    chunk_size = generation_settings.get('chunk_size')
+    docs_per_chunk = generation_settings.get('docs_per_chunk')
 
     generate_fake_document = user_module.generate_fake_document
     avg_document_size = get_avg_document_size(generate_fake_document, custom_providers, custom_lists)
@@ -180,7 +180,7 @@ def generate_dataset_with_user_module(client, sdg_config, user_module, user_conf
     generated_dataset_details = []
 
     logger.info("Average document size: %s", avg_document_size)
-    logger.info("Chunk size: %s docs", chunk_size)
+    logger.info("Chunk size: %s docs", docs_per_chunk)
     logger.info("Total GB to generate: %s", sdg_config.total_size_gb)
     logger.info("Max file size in GB: %s", generation_settings.get('max_file_size_gb'))
 
@@ -205,7 +205,7 @@ def generate_dataset_with_user_module(client, sdg_config, user_module, user_conf
                 seeds = generate_seeds_for_workers(regenerate=True)
                 logger.info("Using seeds: %s", seeds)
 
-                futures = [client.submit(generate_data_chunk, generate_fake_document, chunk_size, custom_lists, custom_providers, seed) for seed in seeds]
+                futures = [client.submit(generate_data_chunk, generate_fake_document, docs_per_chunk, custom_lists, custom_providers, seed) for seed in seeds]
                 results = client.gather(futures) # if using AS_COMPLETED remove this line
 
                 writing_start_time = time.time()

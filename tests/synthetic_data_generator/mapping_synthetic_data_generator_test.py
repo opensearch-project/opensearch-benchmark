@@ -389,11 +389,11 @@ class TestMappingSyntheticDataGeneratorWorker:
         }
 
     def test_generate_documents_from_workers(self, sample_mapping, sample_config):
-        chunk_size = 5
+        docs_per_chunk = 5
         documents = MappingSyntheticDataGeneratorWorker.generate_documents_from_worker(
             index_mappings=sample_mapping,
             mapping_config=sample_config,
-            chunk_size=chunk_size
+            docs_per_chunk=docs_per_chunk
         )
 
         assert isinstance(documents, list)

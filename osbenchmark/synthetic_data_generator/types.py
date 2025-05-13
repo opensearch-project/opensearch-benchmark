@@ -15,7 +15,7 @@ GB_TO_BYTES = 1024 ** 3
 DEFAULT_GENERATION_SETTINGS = {
     "workers": os.cpu_count(),
     "max_file_size_gb": 40,
-    "chunk_size": 10000
+    "docs_per_chunk": 10000
 }
 
 @dataclass

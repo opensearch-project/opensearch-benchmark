@@ -260,7 +260,7 @@ class MappingSyntheticDataGenerator:
 
 class MappingSyntheticDataGeneratorWorker:
     @staticmethod
-    def generate_documents_from_worker(index_mappings, mapping_config, chunk_size):
+    def generate_documents_from_worker(index_mappings, mapping_config, docs_per_chunk):
         """
         Within the scope of a Dask worker. Initially reconstructs the MappingSyntheticDataGenerator and generates documents.
         This is because Dask coordinator needs to serialize and deserialize objects when passing them to a worker.
@@ -276,7 +276,7 @@ class MappingSyntheticDataGeneratorWorker:
         mapping_generator = MappingSyntheticDataGenerator(mapping_config)
         mappings_with_generators = mapping_generator.transform_mapping_to_generators(index_mappings)
 
-        documents = [mapping_generator.generate_fake_document(mappings_with_generators) for _ in range(chunk_size)]
+        documents = [mapping_generator.generate_fake_document(mappings_with_generators) for _ in range(docs_per_chunk)]
 
         return documents
 
@@ -355,7 +355,7 @@ def generate_dataset_with_mappings(client: Client, sdg_config: SyntheticDataGene
 
     max_file_size_bytes = generation_settings.get('max_file_size_gb') * GB_TO_BYTES
     total_size_bytes = sdg_config.total_size_gb * GB_TO_BYTES
-    chunk_size = generation_settings.get('chunk_size')
+    docs_per_chunk = generation_settings.get('docs_per_chunk')
     avg_document_size = get_avg_document_size(index_mappings, mapping_config)
 
     current_size = 0
@@ -364,7 +364,7 @@ def generate_dataset_with_mappings(client: Client, sdg_config: SyntheticDataGene
     generated_dataset_details = []
 
     logger.info("Average document size: %s", avg_document_size)
-    logger.info("Chunk size: %s docs", chunk_size)
+    logger.info("Chunk size: %s docs", docs_per_chunk)
     logger.info("Total GB to generate: %s", sdg_config.total_size_gb)
     logger.info("Max file size in GB: %s", generation_settings.get('max_file_size_gb'))
 
@@ -390,7 +390,7 @@ def generate_dataset_with_mappings(client: Client, sdg_config: SyntheticDataGene
                 logger.info("Using seeds: %s", seeds)
 
                 # TODO: Submit the seeds to the client so that each client is producing different variations of documents
-                futures = [client.submit(MappingSyntheticDataGeneratorWorker.generate_documents_from_worker, index_mappings, mapping_config, chunk_size) for seed in seeds]
+                futures = [client.submit(MappingSyntheticDataGeneratorWorker.generate_documents_from_worker, index_mappings, mapping_config, docs_per_chunk) for seed in seeds]
                 results = client.gather(futures) # if using AS_COMPLETED remove this line
 
                 writing_start_time = time.time()
