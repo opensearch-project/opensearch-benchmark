@@ -284,14 +284,14 @@ class FeedbackActor(actor.BenchmarkActor):
         self.percentage_clients_to_scale_down = 1.0
         self.scale_down()
         self.percentage_clients_to_scale_down = temp_percentage
-    
+
     def receiveMsg_ConfigureFeedbackScaling(self, msg, sender):
         self.num_clients_to_scale_up = msg.scale_step
         self.percentage_clients_to_scale_down = msg.scale_down_pct
         self.POST_SCALEDOWN_SECONDS = msg.sleep_seconds
         self.logger.info(
-        "Feedback Actor has received the following configuration: Max clients = %s, scale step = %d, scale down percentage = %f, sleep time = %d",
-        self.max_clients, self.num_clients_to_scale_up, self.percentage_clients_to_scale_down, self.POST_SCALEDOWN_SECONDS
+        "Feedback actor has received the following configuration: Max clients = %s, scale step = %d, scale down percentage = %f, sleep time = %d",
+        self.total_client_count, self.num_clients_to_scale_up, self.percentage_clients_to_scale_down, self.POST_SCALEDOWN_SECONDS
         )
 
     def receiveMsg_ActorExitRequest(self, msg, sender):
@@ -910,11 +910,12 @@ class WorkerCoordinator:
             self.error_queue = self.manager.Queue(maxsize=1000)
             self.logger.info("Redline test mode enabled. Clients will be managed dynamically per task")
             if max_clients is None:
-                max_clients = self.test_procedure.schedule[0][0].clients
+                max_clients = self.test_procedure.schedule[0].clients
             else:
                 for task in self.test_procedure.schedule:
                     for subtask in task:
                         subtask.params["target-throughput"] = max_clients
+                        subtask.clients = max_clients
         elif load_test_clients:
             self.logger.info("Load test mode enabled - set max client count to %d", load_test_clients)
             for task in self.test_procedure.schedule:
