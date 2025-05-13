@@ -41,12 +41,12 @@ def get_generation_settings(input_config: dict) -> dict:
     If there are missing fields in the user's config, it populates it with the default values
     '''
     generation_settings = DEFAULT_GENERATION_SETTINGS
-    if input_config is None:
+    if input_config is None: # if user did not provide a custom config
         return generation_settings
 
     user_generation_settings = input_config.get('settings', {})
 
-    if not user_generation_settings:
+    if not user_generation_settings: # If user provided custom config but did not include settings
         return generation_settings
     else:
         # Traverse and update valid settings that user specified.
