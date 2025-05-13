@@ -23,8 +23,7 @@ def load_config(config_path):
         extension = os.path.splitext(config_path)[1]
         if extension not in allowed_extensions:
             raise SystemSetupError(f"User provided config with extension [{extension}]. Config must have a {allowed_extensions} extension.")
-
-        if config_path.endswith(allowed_extensions[0]) or config_path.endswith(allowed_extensions[1]):
+        else:
             with open(config_path, 'r') as file:
                 return yaml.safe_load(file)
     except TypeError:
@@ -47,7 +46,7 @@ def get_generation_settings(input_config: dict) -> dict:
 
     user_generation_settings = input_config.get('settings', {})
 
-    if user_generation_settings == {}:
+    if user_generation_settings:
         return generation_settings
     else:
         # Traverse and update valid settings that user specified.

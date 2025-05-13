@@ -10,6 +10,8 @@ import os
 from dataclasses import dataclass, field
 from typing import Optional
 
+GB_TO_BYTES = 1024 ** 3
+
 DEFAULT_GENERATION_SETTINGS = {
     "workers": os.cpu_count(),
     "max_file_size_gb": 40,

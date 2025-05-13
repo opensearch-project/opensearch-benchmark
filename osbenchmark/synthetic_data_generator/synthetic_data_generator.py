@@ -18,11 +18,11 @@ from osbenchmark.synthetic_data_generator.input_processor import create_sdg_conf
 from osbenchmark.synthetic_data_generator.helpers import load_config, write_record_and_publish_summary_to_console
 from osbenchmark.synthetic_data_generator import custom_synthetic_data_generator, mapping_synthetic_data_generator
 
-def orchestrate_data_generation_for_custom_synthetic_data_generator(cfg, sdg_config, custom_config, dask_client):
+def orchestrate_data_generation_for_custom_synthetic_data_generator(test_document_requested, sdg_config, custom_config, dask_client):
     logger = logging.getLogger(__name__)
     logger.info("Generating data with custom synthetic data generator")
 
-    if cfg.opts("synthetic_data_generator", "test_document"):
+    if test_document_requested:
         custom_module = custom_synthetic_data_generator.load_user_module(sdg_config.custom_module_path)
         generate_fake_document = custom_module.generate_fake_document
         custom_module_components = custom_config.get('CustomSyntheticDataGenerator', {})
@@ -49,11 +49,11 @@ def orchestrate_data_generation_for_custom_synthetic_data_generator(cfg, sdg_con
 
         write_record_and_publish_summary_to_console(sdg_config, total_time_to_generate_dataset, generated_dataset_details)
 
-def orchestrate_data_generation_for_mapping_synthetic_data_generator(cfg, sdg_config, dask_client):
+def orchestrate_data_generation_for_mapping_synthetic_data_generator(test_document_requested, sdg_config, dask_client):
     logger = logging.getLogger(__name__)
     logger.info("Generating data with mapping synthetic data generator")
 
-    if cfg.opts("synthetic_data_generator", "test_document"):
+    if test_document_requested:
         # TODO Remove config from this method and just load it in the beginning
         raw_mappings, mapping_config = mapping_synthetic_data_generator.load_mapping_and_config(sdg_config.index_mappings_path, sdg_config.custom_config_path)
         document = mapping_synthetic_data_generator.generate_test_document(raw_mappings, mapping_config)
@@ -77,6 +77,7 @@ def orchestrate_data_generation_for_mapping_synthetic_data_generator(cfg, sdg_co
 def orchestrate_data_generation(cfg):
     logger = logging.getLogger(__name__)
     sdg_config = create_sdg_config_from_args(cfg)
+    test_document_requested = cfg.opts("synthetic_data_generator", "test_document")
 
     # TODO: Rename custom config
     custom_config = load_config(sdg_config.custom_config_path) if sdg_config.custom_config_path else {}
@@ -91,6 +92,6 @@ def orchestrate_data_generation(cfg):
     console.println("")
 
     if use_custom_synthetic_data_generator(sdg_config):
-        orchestrate_data_generation_for_custom_synthetic_data_generator(cfg, sdg_config, custom_config, dask_client)
+        orchestrate_data_generation_for_custom_synthetic_data_generator(test_document_requested, sdg_config, custom_config, dask_client)
     elif use_mappings_synthetic_data_generator(sdg_config):
-        orchestrate_data_generation_for_mapping_synthetic_data_generator(cfg, sdg_config, dask_client)
+        orchestrate_data_generation_for_mapping_synthetic_data_generator(test_document_requested, sdg_config, dask_client)

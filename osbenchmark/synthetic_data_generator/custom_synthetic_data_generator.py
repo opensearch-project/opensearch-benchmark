@@ -22,6 +22,7 @@ from tqdm import tqdm
 
 from osbenchmark.utils import console
 from osbenchmark.exceptions import SystemSetupError, ConfigError
+from osbenchmark.synthetic_data_generator.types import GB_TO_BYTES
 from osbenchmark.synthetic_data_generator.helpers import write_chunk, get_generation_settings, setup_custom_tqdm_formatting
 
 def load_user_module(file_path):
@@ -165,8 +166,8 @@ def generate_dataset_with_user_module(client, sdg_config, user_module, user_conf
         msg = "Custom config has custom_lists and custom_providers pointing to null values. Either populate or remove."
         raise ConfigError(msg)
 
-    max_file_size_bytes = generation_settings.get('max_file_size_gb') * 1024 * 1024 * 1024
-    total_size_bytes = sdg_config.total_size_gb * 1024 * 1024 * 1024
+    max_file_size_bytes = generation_settings.get('max_file_size_gb') * GB_TO_BYTES
+    total_size_bytes = sdg_config.total_size_gb * GB_TO_BYTES
     chunk_size = generation_settings.get('chunk_size')
 
     generate_fake_document = user_module.generate_fake_document

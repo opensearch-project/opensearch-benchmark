@@ -25,7 +25,7 @@ from tqdm import tqdm
 
 from osbenchmark.utils import console
 import osbenchmark.exceptions
-from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorConfig
+from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorConfig, GB_TO_BYTES
 from osbenchmark.synthetic_data_generator.helpers import get_generation_settings, write_chunk, setup_custom_tqdm_formatting
 
 class MappingSyntheticDataGenerator:
@@ -353,8 +353,8 @@ def generate_dataset_with_mappings(client: Client, sdg_config: SyntheticDataGene
     generation_settings = get_generation_settings(input_config)
     mapping_config = input_config
 
-    max_file_size_bytes = generation_settings.get('max_file_size_gb') * 1024 * 1024 * 1024
-    total_size_bytes = sdg_config.total_size_gb * 1024 * 1024 * 1024
+    max_file_size_bytes = generation_settings.get('max_file_size_gb') * GB_TO_BYTES
+    total_size_bytes = sdg_config.total_size_gb * GB_TO_BYTES
     chunk_size = generation_settings.get('chunk_size')
     avg_document_size = get_avg_document_size(index_mappings, mapping_config)
 
