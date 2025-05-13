@@ -46,7 +46,7 @@ def get_generation_settings(input_config: dict) -> dict:
 
     user_generation_settings = input_config.get('settings', {})
 
-    if user_generation_settings:
+    if not user_generation_settings:
         return generation_settings
     else:
         # Traverse and update valid settings that user specified.
