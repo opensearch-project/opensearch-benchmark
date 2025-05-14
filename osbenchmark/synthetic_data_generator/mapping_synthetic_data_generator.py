@@ -17,7 +17,7 @@ import hashlib
 from typing import Dict, Any, Callable
 
 import yaml
-from dask.distributed import Client, get_client
+from dask.distributed import Client, get_client, as_completed
 from mimesis import Generic
 from mimesis.locales import Locale
 from mimesis.random import Random
@@ -394,16 +394,25 @@ def generate_dataset_with_mappings(client: Client, sdg_config: SyntheticDataGene
                     index_mappings,
                     mapping_config,
                     docs_per_chunk) for _ in range(num_of_clients)]
-                results = client.gather(futures) # if using AS_COMPLETED remove this line
+                # results = client.gather(futures) # if using AS_COMPLETED remove this line
+
+                # writing_start_time = time.time()
+                # for data in results:
+                #     written = write_chunk(data, file_path)
+                #     docs_written += written
+                #     written_size = written * avg_document_size
+                #     current_size += written_size
+                #     progress_bar.update(written_size)
+
+                # writing_end_time = time.time()
 
                 writing_start_time = time.time()
-                for data in results:
+                for future, data in as_completed(futures, with_results=True):
                     written = write_chunk(data, file_path)
                     docs_written += written
                     written_size = written * avg_document_size
                     current_size += written_size
                     progress_bar.update(written_size)
-
                 writing_end_time = time.time()
 
                 file_size = os.path.getsize(file_path)

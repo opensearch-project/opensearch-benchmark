@@ -13,7 +13,7 @@ import os
 import hashlib
 import importlib.util
 
-from dask.distributed import get_client
+from dask.distributed import get_client, as_completed
 from mimesis import Generic
 from mimesis.locales import Locale
 from mimesis.random import Random
@@ -206,16 +206,25 @@ def generate_dataset_with_user_module(client, sdg_config, user_module, user_conf
                 logger.info("Using seeds: %s", seeds)
 
                 futures = [client.submit(generate_data_chunk, generate_fake_document, docs_per_chunk, custom_lists, custom_providers, seed) for seed in seeds]
-                results = client.gather(futures) # if using AS_COMPLETED remove this line
+                # results = client.gather(futures) # if using AS_COMPLETED remove this line
+
+                # writing_start_time = time.time()
+                # for data in results:
+                #     written = write_chunk(data, file_path)
+                #     docs_written += written
+                #     written_size = written * avg_document_size
+                #     current_size += written_size
+                #     progress_bar.update(written_size)
+
+                # writing_end_time = time.time()
 
                 writing_start_time = time.time()
-                for data in results:
+                for future, data in as_completed(futures, with_results=True):
                     written = write_chunk(data, file_path)
                     docs_written += written
                     written_size = written * avg_document_size
                     current_size += written_size
                     progress_bar.update(written_size)
-
                 writing_end_time = time.time()
 
                 file_size = os.path.getsize(file_path)
