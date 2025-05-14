@@ -205,10 +205,14 @@ class TaskFinished:
         self.next_task_scheduled_in = next_task_scheduled_in
 
 class ConfigureFeedbackScaling:
+    DEFAULT_SLEEP_SECONDS = 30
+    DEFAULT_SCALE_STEP = 5
+    DEFAULT_SCALEDOWN_PCT = 0.10
+
     def __init__(self, scale_step=None, scale_down_pct=None, sleep_seconds=None, max_clients=None):
-        self.scale_step = scale_step if scale_step is not None else 5
-        self.scale_down_pct = scale_down_pct if scale_down_pct is not None else 0.10
-        self.sleep_seconds = sleep_seconds if sleep_seconds is not None else 30
+        self.scale_step = scale_step if scale_step is not None else self.DEFAULT_SCALE_STEP
+        self.scale_down_pct = scale_down_pct if scale_down_pct is not None else self.DEFAULT_SCALEDOWN_PCT
+        self.sleep_seconds = sleep_seconds if sleep_seconds is not None else self.DEFAULT_SLEEP_SECONDS
         self.max_clients = max_clients
 
 class EnableFeedbackScaling:
@@ -234,7 +238,6 @@ class StartFeedbackActor:
 # pylint: disable=too-many-public-methods
 class FeedbackActor(actor.BenchmarkActor):
     POST_SCALEDOWN_SECONDS = 30
-    STARTUP_TIMEOUT = 30
     WAKEUP_INTERVAL = 1
 
     def __init__(self) -> None:

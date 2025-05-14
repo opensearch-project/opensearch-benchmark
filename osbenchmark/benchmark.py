@@ -41,7 +41,7 @@ from osbenchmark.builder import provision_config, builder
 from osbenchmark.workload_generator import workload_generator
 from osbenchmark.utils import io, convert, process, console, net, opts, versions
 from osbenchmark import aggregator
-
+from osbenchmark.worker_coordinator.worker_coordinator import ConfigureFeedbackScaling
 
 def create_arg_parser():
     def positive_number(v):
@@ -671,20 +671,20 @@ def create_arg_parser():
     test_execution_parser.add_argument(
         "--redline-scale-step",
         type=int,
-        help="How many clients to add per scaling iteration in redline testing (default: 5).",
-        default=5
+        help="How many clients to add while scaling up during redline testing (default: 5).",
+        default=ConfigureFeedbackScaling.DEFAULT_SCALE_STEP
     )
     test_execution_parser.add_argument(
-        "--redline-scale-down-percentage",
+        "--redline-scaledown-percentage",
         type=float,
-        help="What percentage of clients to remove when errors occur (default: 0.10).",
-        default=0.10
+        help="What percentage of clients to remove when errors occur (default: 10%).",
+        default=ConfigureFeedbackScaling.DEFAULT_SCALEDOWN_PCT
     )
     test_execution_parser.add_argument(
         "--redline-post-scaledown-sleep",
         type=int,
         help="How many seconds to wait before scaling up again after a scale down (default: 30).",
-        default=30
+        default=ConfigureFeedbackScaling.DEFAULT_SLEEP_SECONDS
     )
     test_execution_parser.add_argument(
         "--redline-max-clients",
@@ -982,7 +982,7 @@ def configure_test(arg_parser, args, cfg):
     if args.redline_test:
         cfg.add(config.Scope.applicationOverride, "workload", "redline.test", int(args.redline_test))
         cfg.add(config.Scope.applicationOverride, "workload", "redline.scale_step", args.redline_scale_step)
-        cfg.add(config.Scope.applicationOverride, "workload", "redline.scale_down_pct", args.redline_scale_down_percentage)
+        cfg.add(config.Scope.applicationOverride, "workload", "redline.scale_down_pct", args.redline_scaledown_percentage)
         cfg.add(config.Scope.applicationOverride, "workload", "redline.sleep_seconds", args.redline_post_scaledown_sleep)
         cfg.add(config.Scope.applicationOverride, "workload", "redline.max_clients", args.redline_max_clients)
     cfg.add(config.Scope.applicationOverride, "workload", "latency.percentiles", args.latency_percentiles)
