@@ -405,7 +405,7 @@ def generate_dataset_with_mappings(client: Client, sdg_config: SyntheticDataGene
                 file_size = os.path.getsize(file_path)
                 # If it exceeds the max file size, then append this to keep track of record
                 if file_size >= max_file_size_bytes:
-                    file_name = file_path.split("/")[-1]
+                    file_name = os.path.basename(file_path)
                     generated_dataset_details.append({
                         "file_name": file_name,
                         "docs": docs_written,
@@ -418,7 +418,7 @@ def generate_dataset_with_mappings(client: Client, sdg_config: SyntheticDataGene
                 logger.info("Writing took [%s] seconds", writing_took_time)
 
                 if current_size >= total_size_bytes:
-                    file_name = file_path.split("/")[-1]
+                    file_name = os.path.basename(file_path)
                     generated_dataset_details.append({
                         "file_name": file_name,
                         "docs": docs_written,
