@@ -389,7 +389,11 @@ def generate_dataset_with_mappings(client: Client, sdg_config: SyntheticDataGene
                 generation_start_time = time.time()
 
                 # TODO: Test to see if we need to seed these as client.submit() might be submitting at identical times
-                futures = [client.submit(MappingSyntheticDataGeneratorWorker.generate_documents_from_worker, index_mappings, mapping_config, docs_per_chunk) for _ in range(num_of_clients)]
+                futures = [client.submit(
+                    MappingSyntheticDataGeneratorWorker.generate_documents_from_worker,
+                    index_mappings,
+                    mapping_config,
+                    docs_per_chunk) for _ in range(num_of_clients)]
                 results = client.gather(futures) # if using AS_COMPLETED remove this line
 
                 writing_start_time = time.time()
