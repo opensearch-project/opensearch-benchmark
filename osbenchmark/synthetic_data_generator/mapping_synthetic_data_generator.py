@@ -160,7 +160,7 @@ class MappingSyntheticDataGenerator:
 
         Args:
             mapping_dict: OpenSearch mapping provided by user
-            config_dict: custom config in yaml format
+            field_path_prefix: Path leading up to current field. Useful for tracking nested fields
 
         Returns:
             dictionary of field names mapped to generator functions
@@ -357,6 +357,7 @@ def generate_dataset_with_mappings(client: Client, sdg_config: SyntheticDataGene
     total_size_bytes = sdg_config.total_size_gb * GB_TO_BYTES
     docs_per_chunk = generation_settings.get('docs_per_chunk')
     avg_document_size = get_avg_document_size(index_mappings, mapping_config)
+    num_of_clients = generation_settings.get('workers')
 
     current_size = 0
     docs_written = 0
@@ -386,11 +387,9 @@ def generate_dataset_with_mappings(client: Client, sdg_config: SyntheticDataGene
 
             while file_size < max_file_size_bytes:
                 generation_start_time = time.time()
-                seeds = generate_seeds_for_workers(regenerate=True)
-                logger.info("Using seeds: %s", seeds)
 
-                # TODO: Submit the seeds to the client so that each client is producing different variations of documents
-                futures = [client.submit(MappingSyntheticDataGeneratorWorker.generate_documents_from_worker, index_mappings, mapping_config, docs_per_chunk) for seed in seeds]
+                # TODO: Test to see if we need to seed these as client.submit() might be submitting at identical times
+                futures = [client.submit(MappingSyntheticDataGeneratorWorker.generate_documents_from_worker, index_mappings, mapping_config, docs_per_chunk) for _ in num_of_clients]
                 results = client.gather(futures) # if using AS_COMPLETED remove this line
 
                 writing_start_time = time.time()
