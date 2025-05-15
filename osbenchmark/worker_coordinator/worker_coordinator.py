@@ -204,17 +204,16 @@ class TaskFinished:
         self.metrics = metrics
         self.next_task_scheduled_in = next_task_scheduled_in
 
-class ClusterErrorMessage:
-    """Message sent from the client when a request fails during load testing"""
-    def __init__(self, client_id, request_metadata):
-        self.client_id = client_id
-        self.request_metadata = request_metadata
+class ConfigureFeedbackScaling:
+    DEFAULT_SLEEP_SECONDS = 30
+    DEFAULT_SCALE_STEP = 5
+    DEFAULT_SCALEDOWN_PCT = 0.10
 
-class SharedClientStateMessage:
-    """Message sent from the Worker to the FeedbackActor to share client state dictionaries"""
-    def __init__(self, worker_id=None, worker_clients_map=None):
-        self.worker_id = worker_id
-        self.worker_clients_map = worker_clients_map
+    def __init__(self, scale_step=None, scale_down_pct=None, sleep_seconds=None, max_clients=None):
+        self.scale_step = scale_step if scale_step is not None else self.DEFAULT_SCALE_STEP
+        self.scale_down_pct = scale_down_pct if scale_down_pct is not None else self.DEFAULT_SCALEDOWN_PCT
+        self.sleep_seconds = sleep_seconds if sleep_seconds is not None else self.DEFAULT_SLEEP_SECONDS
+        self.max_clients = max_clients
 
 class EnableFeedbackScaling:
     pass
@@ -239,7 +238,6 @@ class StartFeedbackActor:
 # pylint: disable=too-many-public-methods
 class FeedbackActor(actor.BenchmarkActor):
     POST_SCALEDOWN_SECONDS = 30
-    STARTUP_TIMEOUT = 30
     WAKEUP_INTERVAL = 1
 
     def __init__(self) -> None:
@@ -289,6 +287,15 @@ class FeedbackActor(actor.BenchmarkActor):
         self.percentage_clients_to_scale_down = 1.0
         self.scale_down()
         self.percentage_clients_to_scale_down = temp_percentage
+
+    def receiveMsg_ConfigureFeedbackScaling(self, msg, sender):
+        self.num_clients_to_scale_up = msg.scale_step
+        self.percentage_clients_to_scale_down = msg.scale_down_pct
+        self.POST_SCALEDOWN_SECONDS = msg.sleep_seconds
+        self.logger.info(
+        "Feedback actor has received the following configuration: Max clients = %s, scale step = %d, scale down percentage = %f, sleep time = %d",
+        self.total_client_count, self.num_clients_to_scale_up, self.percentage_clients_to_scale_down, self.POST_SCALEDOWN_SECONDS
+        )
 
     def receiveMsg_ActorExitRequest(self, msg, sender):
         print("Redline test finished. Maximum stable client number reached: %d" % self.max_stable_clients)
@@ -390,24 +397,26 @@ class FeedbackActor(actor.BenchmarkActor):
     def scale_up(self) -> None:
         try:
             clients_activated = 0
-            while clients_activated < self.num_clients_to_scale_up:
-                inactive_clients_by_worker = {}
-                for worker_id, client_states in self.shared_client_states.items():
-                    inactive_clients = [(client_id, status) for client_id, status in client_states.items() if not status]
-                    if inactive_clients:
-                        inactive_clients_by_worker[worker_id] = inactive_clients
-                for worker_id in inactive_clients_by_worker:
-                    if clients_activated >= self.num_clients_to_scale_up:
-                        break
-                    if inactive_clients_by_worker[worker_id]:
-                        client_id, _ = inactive_clients_by_worker[worker_id][0]
-                        self.shared_client_states[worker_id][client_id] = True
-                        self.total_active_client_count += 1
-                        clients_activated += 1
-                        self.logger.info("Unpaused client %d on worker %d", client_id, worker_id)
-                if clients_activated < self.num_clients_to_scale_up:
-                    self.logger.info("Not enough inactive clients to activate. Activated %d clients", clients_activated)
+            inactive_clients = [
+                (worker_id, client_id)
+                for worker_id, client_states in self.shared_client_states.items()
+                for client_id, active in client_states.items()
+                if not active
+            ]
+
+            random.shuffle(inactive_clients)
+
+            for worker_id, client_id in inactive_clients:
+                if clients_activated >= self.num_clients_to_scale_up:
                     break
+                self.shared_client_states[worker_id][client_id] = True
+                self.total_active_client_count += 1
+                clients_activated += 1
+                self.logger.info("Unpaused client %d on worker %d", client_id, worker_id)
+
+            if clients_activated < self.num_clients_to_scale_up:
+                self.logger.info("Not enough inactive clients to activate. Activated %d clients", clients_activated)
+
         finally:
             self.last_scaleup_time = time.perf_counter()
             self.state = FeedbackState.NEUTRAL
@@ -894,15 +903,28 @@ class WorkerCoordinator:
         self.logger.info("Cluster-level telemetry devices are now attached.")
         # if redline testing or load testing is enabled, modify the client + throughput number for the task(s)
         # target throughput + clients will then be equal to the qps passed in through --redline-test or --load-test
-        load_test_clients = self.config.opts("workload", "redline.test", mandatory=False) or self.config.opts("workload", "load.test.clients", mandatory=False)
-        if load_test_clients:
+        redline_enabled = self.config.opts("workload", "redline.test", mandatory=False, default_value=False)
+        load_test_clients = self.config.opts("workload", "load.test.clients", mandatory=False)
+        if redline_enabled:
+            max_clients = self.config.opts("workload", "redline.max_clients", mandatory=False, default_value=None)
             self.target.feedback_actor = self.target.createActor(FeedbackActor)
             self.error_queue = self.manager.Queue(maxsize=1000)
+            self.logger.info("Redline test mode enabled. Clients will be managed dynamically per task")
+            if max_clients is None:
+                max_clients = self.test_procedure.schedule[0].clients
+            else:
+                for task in self.test_procedure.schedule:
+                    for subtask in task:
+                        subtask.params["target-throughput"] = max_clients
+                        subtask.clients = max_clients
+        elif load_test_clients:
+            self.logger.info("Load test mode enabled - set max client count to %d", load_test_clients)
             for task in self.test_procedure.schedule:
                 for subtask in task:
                     subtask.clients = load_test_clients
                     subtask.params["target-throughput"] = load_test_clients
             self.logger.info("Load test mode enabled - set max client count to %d", load_test_clients)
+
         allocator = Allocator(self.test_procedure.schedule)
         self.allocations = allocator.allocations
         self.number_of_steps = len(allocator.join_points) - 1
@@ -931,7 +953,7 @@ class WorkerCoordinator:
                         client_allocations.add(client_id, self.allocations[client_id])
                         self.clients_per_worker[client_id] = worker_id
                     # if load testing is enabled, create a shared state dictionary for this worker
-                    if load_test_clients:
+                    if redline_enabled or load_test_clients:
                         self.shared_client_dict[worker_id] = self.manager.dict()
                         for client_id in clients:
                             self.shared_client_dict[worker_id][client_id] = False
@@ -942,8 +964,18 @@ class WorkerCoordinator:
                         self.target.start_worker(worker, worker_id, self.config, self.workload, client_allocations)
                     self.workers.append(worker)
                     worker_id += 1
-        if load_test_clients:
+        if redline_enabled:
+            scale_step = self.config.opts("workload", "redline.scale_step", default_value=5)
+            scale_down_pct = self.config.opts("workload", "redline.scale_down_pct", default_value=0.10)
+            sleep_seconds = self.config.opts("workload", "redline.sleep_seconds", default_value=30)
+            self.target.send(self.target.feedback_actor, ConfigureFeedbackScaling(
+            scale_step=scale_step,
+            scale_down_pct=scale_down_pct,
+            sleep_seconds=sleep_seconds,
+            max_clients=max_clients
+            ))
             self.target.start_feedbackActor(self.shared_client_dict)
+
         self.update_progress_message()
 
     def joinpoint_reached(self, worker_id, worker_local_timestamp, task_allocations):
