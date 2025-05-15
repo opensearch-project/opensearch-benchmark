@@ -7,6 +7,7 @@
 # GitHub history for details.
 
 import logging
+import sys
 
 import json
 import os
@@ -15,7 +16,7 @@ from dask.distributed import Client
 
 from osbenchmark.utils import console
 from osbenchmark.synthetic_data_generator.input_processor import create_sdg_config_from_args, use_custom_synthetic_data_generator, use_mappings_synthetic_data_generator
-from osbenchmark.synthetic_data_generator.helpers import load_config, write_record_and_publish_summary_to_console
+from osbenchmark.synthetic_data_generator.helpers import load_config, write_record_and_publish_summary_to_console, host_has_available_disk_storage
 from osbenchmark.synthetic_data_generator import custom_synthetic_data_generator, mapping_synthetic_data_generator
 
 def orchestrate_data_generation_for_custom_synthetic_data_generator(test_document_requested, sdg_config, custom_config, dask_client):
@@ -91,7 +92,12 @@ def orchestrate_data_generation(cfg):
     console.println("[NOTE] For users who are running generation on a virtual machine, consider tunneling to localhost to view dashboard.")
     console.println("")
 
-    if use_custom_synthetic_data_generator(sdg_config):
-        orchestrate_data_generation_for_custom_synthetic_data_generator(test_document_requested, sdg_config, custom_config, dask_client)
-    elif use_mappings_synthetic_data_generator(sdg_config):
-        orchestrate_data_generation_for_mapping_synthetic_data_generator(test_document_requested, sdg_config, dask_client)
+    if host_has_available_disk_storage(sdg_config):
+        if use_custom_synthetic_data_generator(sdg_config):
+            orchestrate_data_generation_for_custom_synthetic_data_generator(test_document_requested, sdg_config, custom_config, dask_client)
+        elif use_mappings_synthetic_data_generator(sdg_config):
+            orchestrate_data_generation_for_mapping_synthetic_data_generator(test_document_requested, sdg_config, dask_client)
+    else:
+        logger.error("User wants to generate [%s]GB but current host does not have enough available disk storage.", sdg_config.total_size_gb)
+        console.println(f"User wants to generate [{sdg_config.total_size_gb}]GB but current host does not have enough available disk storage")
+        sys.exit(1)

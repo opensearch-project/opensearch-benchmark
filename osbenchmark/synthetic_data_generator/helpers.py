@@ -9,12 +9,27 @@
 import os
 import logging
 import json
+import shutil
 
 import yaml
 
 from osbenchmark.utils import console
 from osbenchmark.exceptions import SystemSetupError
-from osbenchmark.synthetic_data_generator.types import DEFAULT_GENERATION_SETTINGS, SyntheticDataGeneratorConfig
+from osbenchmark.synthetic_data_generator.types import DEFAULT_GENERATION_SETTINGS, SyntheticDataGeneratorConfig, GB_TO_BYTES
+
+def host_has_available_disk_storage(sdg_config: SyntheticDataGeneratorConfig) -> bool:
+    logger = logging.getLogger(__name__)
+    try:
+        requested_size_in_bytes = sdg_config.total_size_gb * GB_TO_BYTES
+        output_path_directory = sdg_config.output_path if os.path.isdir(sdg_config.output_path) else os.path.dirname(sdg_config.output_path)
+
+        free_storage = shutil.disk_usage(output_path_directory)[2]
+        logger.info("Host has [%s] bytes of available storage.", free_storage)
+
+        return free_storage >= requested_size_in_bytes
+    except Exception as e:
+        logger.error("Error checking disk space.")
+        return False
 
 def load_config(config_path):
     try:
