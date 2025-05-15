@@ -237,6 +237,15 @@ class OperationTypeTests(TestCase):
         for op_type in workload.OperationType:
             self.assertEqual(op_type, workload.OperationType.from_hyphenated_string(op_type.to_hyphenated_string()))
 
+    def test_attributes(self):
+        check_cluster_health = workload.OperationType.ClusterHealth
+        assert check_cluster_health.admin_op is True
+        assert check_cluster_health.serverless_status == workload.ServerlessStatus.Blocked
+
+        bulk = workload.OperationType.Bulk
+        assert bulk.admin_op is False
+        assert bulk.serverless_status == workload.ServerlessStatus.Public
+
 
 class TaskFilterTests(TestCase):
     def create_index_task(self):
