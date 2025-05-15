@@ -27,7 +27,7 @@ def host_has_available_disk_storage(sdg_config: SyntheticDataGeneratorConfig) ->
         logger.info("Host has [%s] bytes of available storage.", free_storage)
 
         return free_storage >= requested_size_in_bytes
-    except Exception as e:
+    except:
         logger.error("Error checking disk space.")
         return False
 
