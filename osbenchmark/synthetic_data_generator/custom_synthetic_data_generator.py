@@ -179,13 +179,13 @@ def generate_dataset_with_user_module(client, sdg_config, user_module, user_conf
 
     generated_dataset_details = []
 
-    logger.info("Average document size: %s", avg_document_size)
+    logger.info("Average document size in bytes: %s", avg_document_size)
     logger.info("Chunk size: %s docs", docs_per_chunk)
     logger.info("Total GB to generate: %s", sdg_config.total_size_gb)
     logger.info("Max file size in GB: %s", generation_settings.get('max_file_size_gb'))
 
     console.println(f"Total GB to generate: {sdg_config.total_size_gb}\n"
-                    f"Average document size: {avg_document_size}\n"
+                    f"Average document size in bytes: {avg_document_size}\n"
                     f"Max file size in GB: {generation_settings.get('max_file_size_gb')}\n")
 
     start_time = time.time()
