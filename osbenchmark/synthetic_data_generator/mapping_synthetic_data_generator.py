@@ -24,7 +24,7 @@ from mimesis.random import Random
 from tqdm import tqdm
 
 from osbenchmark.utils import console
-import osbenchmark.exceptions
+from osbenchmark.exceptions import MappingsError
 from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorConfig, GB_TO_BYTES
 from osbenchmark.synthetic_data_generator.helpers import get_generation_settings, write_chunk, setup_custom_tqdm_formatting
 
@@ -174,10 +174,13 @@ class MappingSyntheticDataGenerator:
         generator_overrides = config.get("generator_overrides", {})
         field_overrides = config.get("field_overrides", {})
 
-        if "mappings" in mapping_dict:
-            properties = mapping_dict["mappings"].get("properties", {})
-        else:
-            properties = mapping_dict.get("properties", mapping_dict)
+        try:
+            if "mappings" in mapping_dict:
+                properties = mapping_dict["mappings"].get("properties", {})
+            else:
+                properties = mapping_dict.get("properties", mapping_dict)
+        except KeyError:
+            raise MappingsError("OpenSearch mappings provided are invalid. Please ensure it includes 'mappings' or 'properties' fields.")
 
         # Iterate through all the properties in the index mapping
         for field_name, field_def in properties.items():
