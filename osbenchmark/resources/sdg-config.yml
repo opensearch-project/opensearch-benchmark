@@ -1,0 +1,78 @@
+settings:
+  workers: 8
+  max_file_size_gb: 40
+  docs_per_chunk: 10000
+
+CustomSyntheticDataGenerator:
+  # For users who want to generate data via a custom Python module
+  custom_lists:
+  # Custom lists for users who are using a custom Python module and want to consolidate all values in this YAML file
+    dog_names: [Hana, Youpie, Charlie, Lucy, Cooper, Luna, Rocky, Daisy, Buddy, Molly]
+    dog_breeds: [Jindo, Labrador, German Shepherd, Golden Retriever, Bulldog, Poodle, Beagle, Rottweiler, Boxer, Dachshund, Chihuahua]
+    treats: [cookies, pup_cup, jerky]
+  custom_providers:
+  # OSB's synthetic data generator uses mimesis and custom providers are essentially custom Python classes that adds more functionality to Mimesis
+    - NumericString
+    - MultipleChoices
+
+MappingSyntheticDataGenerator:
+  # For users who want more granular control over how data is generated when providing an OpenSearch mapping
+  generator_overrides:
+    # Overrides all instances of generators with these settings. Specify type and params
+    integer:
+      min: 0
+      max: 20
+    long:
+      min: 0
+      max: 1000
+    float:
+      min: 0.0
+      max: 1.0
+    double:
+      min: 0.0
+      max: 2000.0
+    date:
+      start_date: "2020-01-01"
+      end_date: "2023-01-01"
+      format: "yyyy-mm-dd"
+    text:
+      must_include: ["lorem", "ipsum"]
+    keyword:
+      choices: ["alpha", "beta", "gamma"]
+
+  field_overrides:
+    # Specify field name as key of dict. For its values, specify generator and its params. Params must adhere to existing params for each generator
+    # For nested fields, use dot notation: Example preferences.allergies if allergies is a subfield of preferences object
+    first_name:
+      generator: generate_keyword
+      params:
+        choices: ["Helly R", "Mark S", "Irving B"]
+
+    promo_codes:
+      generator: generate_keyword
+      params:
+        choices: ["HOT_SUMMER", "TREATSYUM!"]
+
+    # Nested fields
+    preferences.language:
+      generator: generate_keyword
+      params:
+        choices: ["Python", "English"]
+
+    # Nested fields
+    payment_methods.type:
+      generator: generate_keyword
+      params:
+        choices: ["Visa", "Mastercard", "Cash", "Venmo"]
+
+    # Nested fields
+    preferences.allergies:
+      generator: generate_keyword
+      params:
+        choices: ["Squirrels", "Cats"]
+
+    # Nested fields
+    favorite_locations.name:
+      generator: generate_keyword
+      params:
+        choices: ["Austin", "NYC", "Amsterdam"]
