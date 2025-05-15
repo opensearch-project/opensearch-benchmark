@@ -397,28 +397,26 @@ class FeedbackActor(actor.BenchmarkActor):
     def scale_up(self) -> None:
         try:
             clients_activated = 0
-            while clients_activated < self.num_clients_to_scale_up:
-                inactive_clients_by_worker = {}
-                for worker_id, client_states in self.shared_client_states.items():
-                    inactive_clients = [(client_id, status) for client_id, status in client_states.items() if not status]
-                    if inactive_clients:
-                        inactive_clients_by_worker[worker_id] = inactive_clients
+            inactive_clients = [
+                (worker_id, client_id)
+                for worker_id, client_states in self.shared_client_states.items()
+                for client_id, active in client_states.items()
+                if not active
+            ]
 
-                for worker_id, inactive_clients in inactive_clients_by_worker.items():
-                    for client_id, _ in inactive_clients:
-                        if clients_activated >= self.num_clients_to_scale_up:
-                            break
-                        self.shared_client_states[worker_id][client_id] = True
-                        self.total_active_client_count += 1
-                        clients_activated += 1
-                        self.logger.info("Unpaused client %d on worker %d", client_id, worker_id)
+            random.shuffle(inactive_clients)
 
-                    if clients_activated >= self.num_clients_to_scale_up:
-                        break
-
-                if clients_activated < self.num_clients_to_scale_up:
-                    self.logger.info("Not enough inactive clients to activate. Activated %d clients", clients_activated)
+            for worker_id, client_id in inactive_clients:
+                if clients_activated >= self.num_clients_to_scale_up:
                     break
+                self.shared_client_states[worker_id][client_id] = True
+                self.total_active_client_count += 1
+                clients_activated += 1
+                self.logger.info("Unpaused client %d on worker %d", client_id, worker_id)
+
+            if clients_activated < self.num_clients_to_scale_up:
+                self.logger.info("Not enough inactive clients to activate. Activated %d clients", clients_activated)
+
         finally:
             self.last_scaleup_time = time.perf_counter()
             self.state = FeedbackState.NEUTRAL
