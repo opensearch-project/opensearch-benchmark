@@ -219,7 +219,7 @@ def generate_dataset_with_user_module(client, sdg_config, user_module, user_conf
                 # writing_end_time = time.time()
 
                 writing_start_time = time.time()
-                for data in as_completed(futures, with_results=True):
+                for _, data in as_completed(futures, with_results=True):
                     written = write_chunk(data, file_path)
                     docs_written += written
                     written_size = written * avg_document_size
