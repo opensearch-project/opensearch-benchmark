@@ -24,7 +24,7 @@ from mimesis.random import Random
 from tqdm import tqdm
 
 from osbenchmark.utils import console
-from osbenchmark.exceptions import MappingsError
+from osbenchmark.exceptions import MappingsError, ConfigError
 from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorConfig, GB_TO_BYTES
 from osbenchmark.synthetic_data_generator.helpers import get_generation_settings, write_chunk, setup_custom_tqdm_formatting
 
@@ -213,7 +213,7 @@ class MappingSyntheticDataGenerator:
                 else:
                     self.logger.info("Config file override for field [%s] specifies non-existent data generator [%s]", current_field_path, gen_name)
                     msg = f"Config file override for field [{current_field_path}] specifies non-existent data generator [{gen_name}]"
-                    raise osbenchmark.exceptions.ConfigError(msg)
+                    raise ConfigError(msg)
             else:
                 # Check if default_generators has overrides for all instances of a type of generator
                 generator_override_params = generator_overrides.get(field_type, {})
