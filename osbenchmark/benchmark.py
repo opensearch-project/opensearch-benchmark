@@ -41,7 +41,7 @@ from osbenchmark.builder import provision_config, builder
 from osbenchmark.workload_generator import workload_generator
 from osbenchmark.utils import io, convert, process, console, net, opts, versions
 from osbenchmark import aggregator
-
+from osbenchmark.worker_coordinator.worker_coordinator import ConfigureFeedbackScaling
 
 def create_arg_parser():
     def positive_number(v):
@@ -661,12 +661,36 @@ def create_arg_parser():
         default=0
     )
     test_execution_parser.add_argument(
-    "--redline-test",
-    help="Run a redline test on your cluster, up to a certain QPS value (default: 1000)",
-    nargs='?',
-    const=1000,  # Value to use when flag is present but no value given
-    default=0,  # Value to use when flag is not present
-    type=int
+        "--redline-test",
+        help="Run a redline test on your cluster, up to a certain QPS value (default: 1000)",
+        nargs='?',
+        const=1000,  # Value to use when flag is present but no value given
+        default=0,  # Value to use when flag is not present
+        type=int
+    )
+    test_execution_parser.add_argument(
+        "--redline-scale-step",
+        type=int,
+        help="How many clients to add while scaling up during redline testing (default: 5).",
+        default=ConfigureFeedbackScaling.DEFAULT_SCALE_STEP
+    )
+    test_execution_parser.add_argument(
+        "--redline-scaledown-percentage",
+        type=float,
+        help="What percentage of clients to remove when errors occur (default: 10%).",
+        default=ConfigureFeedbackScaling.DEFAULT_SCALEDOWN_PCT
+    )
+    test_execution_parser.add_argument(
+        "--redline-post-scaledown-sleep",
+        type=int,
+        help="How many seconds to wait before scaling up again after a scale down (default: 30).",
+        default=ConfigureFeedbackScaling.DEFAULT_SLEEP_SECONDS
+    )
+    test_execution_parser.add_argument(
+        "--redline-max-clients",
+        type=int,
+        help="Maximum number of clients to allow during redline testing. If not set, will default to clients defined in the test procedure.",
+        default=None
     )
 
     ###############################################################################
@@ -957,6 +981,10 @@ def configure_test(arg_parser, args, cfg):
     cfg.add(config.Scope.applicationOverride, "workload", "load.test.clients", int(args.load_test_qps))
     if args.redline_test:
         cfg.add(config.Scope.applicationOverride, "workload", "redline.test", int(args.redline_test))
+        cfg.add(config.Scope.applicationOverride, "workload", "redline.scale_step", args.redline_scale_step)
+        cfg.add(config.Scope.applicationOverride, "workload", "redline.scale_down_pct", args.redline_scaledown_percentage)
+        cfg.add(config.Scope.applicationOverride, "workload", "redline.sleep_seconds", args.redline_post_scaledown_sleep)
+        cfg.add(config.Scope.applicationOverride, "workload", "redline.max_clients", args.redline_max_clients)
     cfg.add(config.Scope.applicationOverride, "workload", "latency.percentiles", args.latency_percentiles)
     cfg.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", args.throughput_percentiles)
     cfg.add(config.Scope.applicationOverride, "workload", "randomization.enabled", args.randomization_enabled)
