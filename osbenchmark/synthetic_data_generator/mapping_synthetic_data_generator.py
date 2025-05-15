@@ -29,17 +29,17 @@ from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorCon
 from osbenchmark.synthetic_data_generator.helpers import get_generation_settings, write_chunk, setup_custom_tqdm_formatting
 
 class MappingSyntheticDataGenerator:
-    def __init__(self, mapping_config=None):
+    def __init__(self, mapping_config=None, seed=1):
         self.logger = logging.getLogger(__name__)
         # TODO: Set self.mapping_config to automatically point to MappingSyntheticDataGenerator
         self.mapping_config = mapping_config or {}
-        # self.locale = self.mapping_config.get('mimesis_locale', 'DEFAULT')
-        seed = 1
+
         self.generic = Generic(locale=Locale.EN)
         self.random = Random()
 
         self.generic.reseed(seed)
         self.random.seed(seed)
+        random.seed(seed)
 
         # seed these
         self.type_generators = {
@@ -260,7 +260,7 @@ class MappingSyntheticDataGenerator:
 
 class MappingSyntheticDataGeneratorWorker:
     @staticmethod
-    def generate_documents_from_worker(index_mappings, mapping_config, docs_per_chunk):
+    def generate_documents_from_worker(index_mappings, mapping_config, docs_per_chunk, seed):
         """
         Within the scope of a Dask worker. Initially reconstructs the MappingSyntheticDataGenerator and generates documents.
         This is because Dask coordinator needs to serialize and deserialize objects when passing them to a worker.
@@ -269,11 +269,12 @@ class MappingSyntheticDataGeneratorWorker:
         param: mapping_dict (dict): The OpenSearch mapping dictionary.
         param: config_dict (dict): Optional YAML-based config for value constraints.
         param: num_docs (int): Number of documents to generate.
+        param: seed (int): Initial number used as starting sequence for random generators
 
         Returns: List of generated documents.
         """
         # Initialize parameters given to worker
-        mapping_generator = MappingSyntheticDataGenerator(mapping_config)
+        mapping_generator = MappingSyntheticDataGenerator(mapping_config, seed)
         mappings_with_generators = mapping_generator.transform_mapping_to_generators(index_mappings)
 
         documents = [mapping_generator.generate_fake_document(mappings_with_generators) for _ in range(docs_per_chunk)]
@@ -387,13 +388,14 @@ def generate_dataset_with_mappings(client: Client, sdg_config: SyntheticDataGene
 
             while file_size < max_file_size_bytes:
                 generation_start_time = time.time()
+                seeds = generate_seeds_for_workers(regenerate=True)
 
-                # TODO: Test to see if we need to seed these as client.submit() might be submitting at identical times
                 futures = [client.submit(
                     MappingSyntheticDataGeneratorWorker.generate_documents_from_worker,
                     index_mappings,
                     mapping_config,
-                    docs_per_chunk) for _ in range(num_of_clients)]
+                    docs_per_chunk,
+                    seed) for seed in seeds]
 
                 writing_start_time = time.time()
                 for _, data in as_completed(futures, with_results=True):
