@@ -339,32 +339,40 @@ class FeedbackActor(actor.BenchmarkActor):
         if self.state == FeedbackState.SLEEP:
             if current_time - self.sleep_start_time >= self.POST_SCALEDOWN_SECONDS:
                 self.logger.info("Sleep period complete, returning to NEUTRAL state")
-                self.clear_queue()
                 self.state = FeedbackState.NEUTRAL
                 self.sleep_start_time = current_time
-        elif errors:
+            return
+
+        if errors:
             self.logger.info("Error messages detected, scaling down...")
+            # max stable client count should be the minimum number without errors
+            # so if we encounter an error we mark that client count with some scaled off
+            self.max_stable_clients = max(self.max_stable_clients, self.total_active_client_count * self.percentage_clients_to_scale_down)
             self.state = FeedbackState.SCALING_DOWN
             with self.queue_lock:  # Block producers while scaling down.
                 self.scale_down()
             self.logger.info("Clients scaled down. Active clients: %d", self.total_active_client_count)
             self.last_error_time = current_time
-        elif self.state == FeedbackState.NEUTRAL:
-            self.max_stable_clients = max(self.max_stable_clients, self.total_active_client_count) # update the max number of stable clients
+            return
+
+        if self.state == FeedbackState.NEUTRAL:
+            # self.max_stable_clients = max(self.max_stable_clients, self.total_active_client_count) # update the max number of stable clients
             if (current_time - self.last_error_time >= self.POST_SCALEDOWN_SECONDS and
                 current_time - self.last_scaleup_time >= self.WAKEUP_INTERVAL):
                 self.logger.info("No errors in the last %d seconds, scaling up", self.POST_SCALEDOWN_SECONDS)
                 self.state = FeedbackState.SCALING_UP
+            return
 
         if self.state == FeedbackState.SCALING_UP:
             self.logger.info("Scaling up...")
             self.scale_up()
             self.logger.info("Clients scaled up. Active clients: %d", self.total_active_client_count)
             self.state = FeedbackState.NEUTRAL
+            return
 
     def scale_down(self) -> None:
         try:
-            clients_to_pause = int(self.total_active_client_count * self.percentage_clients_to_scale_down)
+            clients_to_pause = math.ceil(self.total_active_client_count * self.percentage_clients_to_scale_down)
             if clients_to_pause <= 0:
                 self.logger.info("No clients to pause during scale down")
                 return
