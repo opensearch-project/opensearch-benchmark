@@ -1966,21 +1966,184 @@ class AsyncExecutor:
         self.error_queue = error_queue
         self.queue_lock = queue_lock
         self.redline_enabled = self.cfg.opts("workload", "redline.test", mandatory=False) if self.cfg else False
+        # Variables to keep track of during execution
+        self.expected_scheduled_time = 0
+        self.sample_type = None
+        self.runner = None
+        self.task_completes_parent = False
+
+    async def _wait_for_rampup(self, rampup_wait_time):
+        """Wait for the ramp-up phase if needed."""
+        if rampup_wait_time:
+            self.logger.info("client id [%s] waiting [%.2f]s for ramp-up.", self.client_id, rampup_wait_time)
+            await asyncio.sleep(rampup_wait_time)
+            self.logger.info("Client id [%s] is running now.", self.client_id)
+
+    def _handle_client_state(self, was_paused, client_state, total_start, expected_scheduled_time):
+        """Handle client state for redline testing."""
+        if client_state and was_paused:
+            now = time.perf_counter()
+            total_start = now - expected_scheduled_time
+            was_paused = False
+        elif not client_state:
+            was_paused = True
+        return was_paused, total_start
+
+    async def _prepare_context_manager(self, params):
+        """Prepare the appropriate context manager for the request."""
+        if params is not None and params.get("operation-type") == "produce-stream-message":
+            if self.message_producer is None:
+                self.message_producer = await client.MessageProducerFactory.create(params)
+            params.update({"message-producer": self.message_producer})
+            return self.message_producer.new_request_context()
+        else:
+            context_manager = self.opensearch["default"].new_request_context()
+            # Add parameters for vector-search
+            if params is not None and params.get("operation-type") == "vector-search":
+                available_cores = int(self.cfg.opts("system", "available.cores", mandatory=False,
+                                                    default_value=multiprocessing.cpu_count()))
+                params.update({"num_clients": self.task.clients, "num_cores": available_cores})
+            return context_manager
+
+    async def _execute_request(self, params, expected_scheduled_time, total_start):
+        """Execute a request with timing control."""
+        # Calculate timing and check if throttling is needed
+        absolute_expected_schedule_time = total_start + expected_scheduled_time
+        throughput_throttled = expected_scheduled_time > 0
+
+        if throughput_throttled:
+            rest = absolute_expected_schedule_time - time.perf_counter()
+            if rest > 0:
+                await asyncio.sleep(rest)
+
+        absolute_processing_start = time.time()
+        processing_start = time.perf_counter()
+        self.schedule_handle.before_request(processing_start)
+
+        # Prepare context manager
+        context_manager = await self._prepare_context_manager(params)
+
+        # Execute the request
+        async with context_manager as request_context:
+            total_ops, total_ops_unit, request_meta_data = await execute_single(
+                self.runner, self.opensearch, params, self.on_error, self.redline_enabled)
+            request_start = request_context.request_start
+            request_end = request_context.request_end
+            client_request_start = request_context.client_request_start
+            client_request_end = request_context.client_request_end
+
+            # Handle errors for redline testing
+            if not request_meta_data["success"] and not request_meta_data.get("skipped", False):
+                self._report_error(request_meta_data)
+
+        processing_end = time.perf_counter()
+
+        return {
+            "absolute_processing_start": absolute_processing_start,
+            "processing_start": processing_start,
+            "processing_end": processing_end,
+            "request_start": request_start,
+            "request_end": request_end,
+            "client_request_start": client_request_start,
+            "client_request_end": client_request_end,
+            "total_ops": total_ops,
+            "total_ops_unit": total_ops_unit,
+            "request_meta_data": request_meta_data,
+            "throughput_throttled": throughput_throttled
+        }
+
+    def _report_error(self, request_meta_data):
+        """Report an error to the FeedbackActor."""
+        if self.error_queue is not None:
+            self.logger.error("Real error detected in client %s. Notifying FeedbackActor...", self.client_id)
+            error_info = {
+                "client_id": self.client_id,
+                "task": str(self.task),
+                "error_details": request_meta_data
+            }
+            self.report_error(error_info)
+
+    def _process_results(self, result_data, total_start, client_state, percent_completed):
+        """Process results from a request."""
+        # Calculate execution times
+        service_time = result_data["request_end"] - result_data["request_start"]
+        client_processing_time = (result_data["client_request_end"] - result_data[
+            "client_request_start"]) - service_time
+        processing_time = result_data["processing_end"] - result_data["processing_start"]
+        time_period = result_data["request_end"] - total_start
+
+        # Update statistics
+        self.schedule_handle.after_request(
+            result_data["processing_end"],
+            result_data["total_ops"],
+            result_data["total_ops_unit"],
+            result_data["request_meta_data"]
+        )
+
+        # Check if runner provided throughput
+        throughput = result_data["request_meta_data"].pop("throughput", None)
+
+        # Calculate latency
+        latency = (result_data["request_end"] - (total_start + self.expected_scheduled_time)
+                   if result_data["throughput_throttled"] else service_time)
+
+        # Determine task completion
+        if self.task_completes_parent:
+            completed = self.runner.completed
+        else:
+            completed = self.complete.is_set() or self.runner.completed
+
+        # Determine progress
+        if completed:
+            progress = 1.0
+        elif self.runner.percent_completed:
+            progress = self.runner.percent_completed
+        else:
+            progress = percent_completed
+
+        # Add sample if client is active
+        if client_state:
+            self.sampler.add(
+                self.task, self.client_id, self.sample_type,
+                result_data["request_meta_data"],
+                result_data["absolute_processing_start"],
+                result_data["request_start"],
+                latency, service_time, client_processing_time, processing_time,
+                throughput, result_data["total_ops"], result_data["total_ops_unit"],
+                time_period, progress,
+                result_data["request_meta_data"].pop("dependent_timing", None)
+            )
+
+        return completed
+
+    async def _cleanup(self):
+        """Clean up resources after task execution."""
+        if self.message_producer is not None:
+            await self.message_producer.stop()
+            self.message_producer = None  # Reset for future calls
+
+    def report_error(self, error_info):
+        """Report an error to the error queue."""
+        if self.error_queue is not None:
+            try:
+                self.error_queue.put_nowait(error_info)
+            except queue.Full:
+                self.logger.warning("Error queue full; dropping error from client %s", self.client_id)
 
     async def __call__(self, *args, **kwargs):
-        task_completes_parent = self.task.completes_parent
+        has_run_any_requests = False
+        was_paused = False
+        self.task_completes_parent = self.task.completes_parent
         total_start = time.perf_counter()
-        # lazily initialize the schedule
+
+        # Initialize schedule
         self.logger.debug("Initializing schedule for client id [%s].", self.client_id)
         schedule = self.schedule_handle()
         self.schedule_handle.start()
         rampup_wait_time = self.schedule_handle.ramp_up_wait_time
-        if rampup_wait_time:
-            self.logger.info("client id [%s] waiting [%.2f]s for ramp-up.", self.client_id, rampup_wait_time)
-            await asyncio.sleep(rampup_wait_time)
 
-        if rampup_wait_time:
-            self.logger.info("Client id [%s] is running now.", self.client_id)
+        # Wait for ramp-up
+        await self._wait_for_rampup(rampup_wait_time)
 
         # grab the client options; if user passed no client options then default to empty dict
         try:
@@ -1996,89 +2159,48 @@ class AsyncExecutor:
 
         self.logger.debug("Entering main loop for client id [%s].", self.client_id)
         try:
+            if self.cfg is not None:
+                client_options_obj = self.cfg.opts("client", "options")
+                client_options = getattr(client_options_obj, "all_client_options", {}) or {}
+            else:
+                client_options = {}
+        except exceptions.ConfigError:
+            client_options = {}
+
+        self.logger.debug("Entering main loop for client id [%s].", self.client_id)
+        try:
             async for expected_scheduled_time, sample_type, percent_completed, runner, params in schedule:
-                client_state = (self.shared_states or {}).get(self.client_id, True)
+                self.expected_scheduled_time = expected_scheduled_time
+                self.sample_type = sample_type
+                self.runner = runner
+
+                # Check for task cancellation
                 if self.cancel.is_set():
                     self.logger.info("User cancelled execution.")
                     break
-                absolute_expected_schedule_time = total_start + expected_scheduled_time
-                throughput_throttled = expected_scheduled_time > 0
-                if throughput_throttled:
-                    rest = absolute_expected_schedule_time - time.perf_counter()
-                    if rest > 0:
-                        await asyncio.sleep(rest)
 
-                absolute_processing_start = time.time()
-                processing_start = time.perf_counter()
-                self.schedule_handle.before_request(processing_start)
+                # Handle client state for redline testing
+                client_state = (self.shared_states or {}).get(self.client_id, True)
+                was_paused, total_start = self._handle_client_state(
+                    was_paused, client_state, total_start, expected_scheduled_time
+                )
 
-                # Determine which context manager to use
-                if params is not None and params.get("operation-type") == "produce-stream-message":
-                    if self.message_producer is None:
-                        self.message_producer = await client.MessageProducerFactory.create(params)
-                    params.update({"message-producer": self.message_producer})
-                    context_manager = self.message_producer.new_request_context()
-                else:
-                    context_manager = self.opensearch["default"].new_request_context()
-                    # add num_clients to the parameter so that vector search runner can skip calculating recall
-                    # if num_clients > cpu_count().
-                    if params is not None and params.get("operation-type") == "vector-search":
-                        available_cores = int(self.cfg.opts("system", "available.cores", mandatory=False,
-                            default_value=multiprocessing.cpu_count()))
-                        params.update({"num_clients": self.task.clients, "num_cores": available_cores})
+                # Skip if client is paused
+                if not client_state:
+                    processing_end = time.perf_counter()
+                    self.schedule_handle.after_request(
+                        processing_end, 0, "ops", {"success": False, "skipped": True}
+                    )
+                    if self.complete.is_set():
+                        break
+                    continue
 
-                # Execute with the appropriate context manager
-                async with context_manager as request_context:
-                    if self.redline_enabled:
-                        request_start, request_end, client_request_start, client_request_end, \
-                        request_meta_data, total_ops, total_ops_unit = await self.handle_redline(runner, params, client_state, request_context, base_timeout)
-                    else:
-                        request_start, request_end, client_request_start, client_request_end, \
-                        request_meta_data, total_ops, total_ops_unit = await self.handle_benchmark(runner, params, request_context, base_timeout)
+                # Execute request
+                result_data = await self._execute_request(params, expected_scheduled_time, total_start)
+                has_run_any_requests = True
 
-                processing_end = time.perf_counter()
-                service_time = request_end - request_start
-                client_processing_time = (client_request_end - client_request_start) - service_time
-                processing_time = processing_end - processing_start
-                time_period = request_end - total_start
-                self.schedule_handle.after_request(processing_end, total_ops, total_ops_unit, request_meta_data)
-                # Allow runners to override the throughput calculation in very specific circumstances. Usually, OSB
-                # assumes that throughput is the "amount of work" (determined by the "weight") per unit of time
-                # (determined by the elapsed time period). However, in certain cases (e.g. shard recovery or other
-                # long running operations where there is a dedicated stats API to determine progress), it is
-                # advantageous if the runner calculates throughput directly. The following restrictions apply:
-                #
-                # * Only one client must call that runner (when throughput is calculated, it is aggregated across
-                #   all clients but if the runner provides it, we take the value as is).
-                # * The runner should be rate-limited as each runner call will result in one throughput sample.
-                #
-                throughput = request_meta_data.pop("throughput", None)
-                # Do not calculate latency separately when we run unthrottled. This metric is just confusing then.
-                latency = request_end - absolute_expected_schedule_time if throughput_throttled else service_time
-                # If this task completes the parent task we should *not* check for completion by another client but
-                # instead continue until our own runner has completed. We need to do this because the current
-                # worker (process) could run multiple clients that execute the same task. We do not want all clients to
-                # finish this task as soon as the first of these clients has finished but rather continue until the last
-                # client has finished that task.
-                if task_completes_parent:
-                    completed = runner.completed
-                else:
-                    completed = self.complete.is_set() or runner.completed
-                # last sample should bump progress to 100% if externally completed.
-                if completed:
-                    progress = 1.0
-                elif runner.percent_completed:
-                    progress = runner.percent_completed
-                else:
-                    progress = percent_completed
-
-                # if the request was not skipped (redline testing) or redline testing was not enabled at all, collect the sample
-                if not request_meta_data.get("skipped_request", False) or not self.redline_enabled:
-                    self.sampler.add(self.task, self.client_id, sample_type, request_meta_data,
-                                    absolute_processing_start, request_start,
-                                    latency, service_time, client_processing_time, processing_time, throughput, total_ops, total_ops_unit,
-                                    time_period, progress, request_meta_data.pop("dependent_timing", None))
-
+                # Process results
+                completed = self._process_results(result_data, total_start, client_state, percent_completed)
                 if completed:
                     self.logger.info("Task [%s] is considered completed due to external event.", self.task)
                     break
@@ -2086,21 +2208,14 @@ class AsyncExecutor:
             self.logger.exception("Could not execute schedule")
             raise exceptions.BenchmarkError(f"Cannot run task [{self.task}]: {e}") from None
         finally:
-            # Actively set it if this task completes its parent
-            if task_completes_parent:
-                self.logger.info("Task [%s] completes parent. Client id [%s] is finished executing it and signals completion.",
-                                 self.task, self.client_id)
+            # Signal completion if needed
+            if self.task_completes_parent or (self.redline_enabled and not has_run_any_requests):
+                self.logger.info(
+                    "Task [%s] completes parent. Client id [%s] is finished executing it and signals completion.",
+                    self.task, self.client_id
+                )
                 self.complete.set()
-            if self.message_producer is not None:
-                await self.message_producer.stop()
-                self.message_producer = None  # Reset for future calls.
-
-    def report_error(self, error_info):
-        if self.error_queue is not None:
-            try:
-                self.error_queue.put_nowait(error_info)
-            except queue.Full:
-                self.logger.warning("Error queue full; dropping error from client %s", self.client_id)
+            await self._cleanup()
 
     async def handle_redline(self, runner, params, client_state, request_context, base_timeout):
         try:
