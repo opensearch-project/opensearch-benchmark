@@ -609,7 +609,7 @@ class OperationType(Enum):
     GetAsyncSearch = (10, AdminStatus.No, ServerlessStatus.Blocked)
     DeleteAsyncSearch = (11, AdminStatus.No, ServerlessStatus.Blocked)
     PaginatedSearch = (12, AdminStatus.No, ServerlessStatus.Public)
-    ScrollSearch = (13, AdminStatus.No, ServerlessStatus.Public)
+    ScrollSearch = (13, AdminStatus.No, ServerlessStatus.Blocked)
     CreatePointInTime = (14, AdminStatus.No, ServerlessStatus.Blocked)
     DeletePointInTime = (15, AdminStatus.No, ServerlessStatus.Blocked)
     ListAllPointInTime = (16, AdminStatus.No, ServerlessStatus.Blocked)
