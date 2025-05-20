@@ -42,6 +42,7 @@ import tabulate
 
 from osbenchmark import client, time, exceptions, config, version, paths
 from osbenchmark.utils import convert, console, io, versions
+from osbenchmark.cloud_providers import CloudProviderFactory
 
 
 class OsClient:
@@ -185,54 +186,9 @@ class OsClientFactory:
         secure = convert.to_bool(self._config.opts("results_publishing", "datastore.secure"))
         user = self._config.opts("results_publishing", "datastore.user")
 
-        metrics_amazon_aws_log_in = self._config.opts("results_publishing", "datastore.amazon_aws_log_in",
-                                                      default_value=None, mandatory=False)
-        metrics_aws_access_key_id = None
-        metrics_aws_secret_access_key = None
-        metrics_aws_session_token = None
-        metrics_aws_region = None
-        metrics_aws_service = None
-
-        if metrics_amazon_aws_log_in == 'config':
-            metrics_aws_access_key_id = self._config.opts("results_publishing", "datastore.aws_access_key_id",
-                                                          default_value=None, mandatory=False)
-            metrics_aws_secret_access_key = self._config.opts("results_publishing", "datastore.aws_secret_access_key",
-                                                              default_value=None, mandatory=False)
-            metrics_aws_session_token = self._config.opts("results_publishing", "datastore.aws_session_token",
-                                                          default_value=None, mandatory=False)
-            metrics_aws_region = self._config.opts("results_publishing", "datastore.region",
-                                                   default_value=None, mandatory=False)
-            metrics_aws_service = self._config.opts("results_publishing", "datastore.service",
-                                                    default_value=None, mandatory=False)
-        elif metrics_amazon_aws_log_in == 'environment':
-            metrics_aws_access_key_id = os.getenv("OSB_DATASTORE_AWS_ACCESS_KEY_ID", default=None)
-            metrics_aws_secret_access_key = os.getenv("OSB_DATASTORE_AWS_SECRET_ACCESS_KEY", default=None)
-            metrics_aws_session_token = os.getenv("OSB_DATASTORE_AWS_SESSION_TOKEN", default=None)
-            metrics_aws_region = os.getenv("OSB_DATASTORE_REGION", default=None)
-            metrics_aws_service = os.getenv("OSB_DATASTORE_SERVICE", default=None)
-
-        if metrics_amazon_aws_log_in is not None:
-            if (
-                    not metrics_aws_access_key_id or not metrics_aws_secret_access_key
-                    or not metrics_aws_region or not metrics_aws_service
-            ):
-                if metrics_amazon_aws_log_in == 'environment':
-                    missing_aws_credentials_message = "Missing AWS credentials through " \
-                                                      "OSB_DATASTORE_AWS_ACCESS_KEY_ID, " \
-                                                      "OSB_DATASTORE_AWS_SECRET_ACCESS_KEY, " \
-                                                      "OSB_DATASTORE_REGION, OSB_DATASTORE_SERVICE " \
-                                                      "environment variables."
-                elif metrics_amazon_aws_log_in == 'config':
-                    missing_aws_credentials_message = "Missing AWS credentials through datastore.aws_access_key_id, " \
-                                                      "datastore.aws_secret_access_key, datastore.region, " \
-                                                      "datastore.service in the config file."
-                else:
-                    missing_aws_credentials_message = "datastore.amazon_aws_log_in can only be one of " \
-                                                      "'environment' or 'config'"
-                raise exceptions.ConfigError(missing_aws_credentials_message) from None
-
-            if (metrics_aws_service not in ['es', 'aoss']):
-                raise exceptions.ConfigError("datastore.service can only be one of 'es' or 'aoss'") from None
+        provider = CloudProviderFactory.get_provider_from_config(self._config)
+        if provider:
+            provider.parse_log_in_params_for_metrics(self._config)
 
         try:
             password = os.environ["OSB_DATASTORE_PASSWORD"]
@@ -259,17 +215,8 @@ class OsClientFactory:
             client_options["basic_auth_user"] = user
             client_options["basic_auth_password"] = password
 
-        # add options for aws user login:
-        # pass in aws access key id, aws secret access key, aws session token, service and region on command
-        if metrics_amazon_aws_log_in is not None:
-            client_options["amazon_aws_log_in"] = 'client_option'
-            client_options["aws_access_key_id"] = metrics_aws_access_key_id
-            client_options["aws_secret_access_key"] = metrics_aws_secret_access_key
-            client_options["service"] = metrics_aws_service
-            client_options["region"] = metrics_aws_region
-
-            if metrics_aws_session_token:
-                client_options["aws_session_token"] = metrics_aws_session_token
+        if provider:
+            client_options = provider.update_client_options_for_metrics(client_options)
 
         factory = client.OsClientFactory(hosts=[{"host": host, "port": port}], client_options=client_options)
         self._client = factory.create()

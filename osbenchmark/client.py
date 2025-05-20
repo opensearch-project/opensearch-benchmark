@@ -45,7 +45,7 @@ class OsClientFactory:
         self.hosts = hosts
         self.client_options = dict(client_options)
         self.ssl_context = None
-        self.provider = CloudProviderFactory.get_provider(self.client_options)
+        self.provider = CloudProviderFactory.get_provider_from_client_options(self.client_options)
         self.logger = logging.getLogger(__name__)
 
         masked_client_options = dict(client_options)

@@ -4,7 +4,6 @@ from abc import ABC, abstractmethod
 import opensearchpy
 from botocore.credentials import Credentials
 
-from osbenchmark.context import RequestContextHolder
 from osbenchmark import exceptions, async_connection
 
 class CloudProvider(ABC):
@@ -14,11 +13,23 @@ class CloudProvider(ABC):
         pass
 
     @abstractmethod
+    def validate_config_for_metrics(self, config) -> bool:
+        pass
+
+    @abstractmethod
     def mask_client_options(self, masked_client_options: dict, client_options: dict) -> dict:
         pass
 
     @abstractmethod
     def parse_log_in_params(self, client_options: dict) -> dict:
+        pass
+
+    @abstractmethod
+    def parse_log_in_params_for_metrics(self, config) -> dict:
+        pass
+
+    @abstractmethod
+    def update_client_options_for_metrics(self, client_options) -> dict:
         pass
 
     @abstractmethod
@@ -31,12 +42,23 @@ class CloudProvider(ABC):
 
 class AWSProvider(CloudProvider):
     AVAILABLE_SERVICES = ['es', 'aoss']
+    VALID_CONFIG_SETTINGS = ['config', 'environment']
 
     def __init__(self):
         self.aws_log_in_dict = {}
+        self.aws_metrics_log_in_dict = {}
 
     def validate_client_options(self, client_options) -> bool:
         return "amazon_aws_log_in" in client_options
+
+    def validate_config_for_metrics(self, config) -> bool:
+        metrics_amazon_aws_log_in = config.opts("results_publishing", "datastore.amazon_aws_log_in",
+                                                      default_value=None, mandatory=False)
+
+        if (metrics_amazon_aws_log_in is None) or (metrics_amazon_aws_log_in in AWSProvider.VALID_CONFIG_SETTINGS) :
+            return True
+
+        return False
 
     def mask_client_options(self, masked_client_options, client_options) -> dict:
         self.aws_log_in_dict = self.parse_log_in_params(client_options)
@@ -87,6 +109,78 @@ class AWSProvider(CloudProvider):
             )
         return log_in_dict
 
+    def parse_log_in_params_for_metrics(self, config):
+        metrics_amazon_aws_log_in = config.opts("results_publishing", "datastore.amazon_aws_log_in",
+                                                      default_value=None, mandatory=False)
+        # This is meant to interpret the config and check for aws log in
+        metrics_aws_access_key_id = None
+        metrics_aws_secret_access_key = None
+        metrics_aws_session_token = None
+        metrics_aws_region = None
+        metrics_aws_service = None
+
+        if metrics_amazon_aws_log_in == 'config':
+            metrics_aws_access_key_id = config.opts("results_publishing", "datastore.aws_access_key_id",
+                                                          default_value=None, mandatory=False)
+            metrics_aws_secret_access_key = config.opts("results_publishing", "datastore.aws_secret_access_key",
+                                                              default_value=None, mandatory=False)
+            metrics_aws_session_token = config.opts("results_publishing", "datastore.aws_session_token",
+                                                          default_value=None, mandatory=False)
+            metrics_aws_region = config.opts("results_publishing", "datastore.region",
+                                                   default_value=None, mandatory=False)
+            metrics_aws_service = config.opts("results_publishing", "datastore.service",
+                                                    default_value=None, mandatory=False)
+        elif metrics_amazon_aws_log_in == 'environment':
+            metrics_aws_access_key_id = os.getenv("OSB_DATASTORE_AWS_ACCESS_KEY_ID", default=None)
+            metrics_aws_secret_access_key = os.getenv("OSB_DATASTORE_AWS_SECRET_ACCESS_KEY", default=None)
+            metrics_aws_session_token = os.getenv("OSB_DATASTORE_AWS_SESSION_TOKEN", default=None)
+            metrics_aws_region = os.getenv("OSB_DATASTORE_REGION", default=None)
+            metrics_aws_service = os.getenv("OSB_DATASTORE_SERVICE", default=None)
+
+        if metrics_amazon_aws_log_in is not None:
+            if (
+                    not metrics_aws_access_key_id or not metrics_aws_secret_access_key
+                    or not metrics_aws_region or not metrics_aws_service
+            ):
+                if metrics_amazon_aws_log_in == 'environment':
+                    missing_aws_credentials_message = "Missing AWS credentials through " \
+                                                      "OSB_DATASTORE_AWS_ACCESS_KEY_ID, " \
+                                                      "OSB_DATASTORE_AWS_SECRET_ACCESS_KEY, " \
+                                                      "OSB_DATASTORE_REGION, OSB_DATASTORE_SERVICE " \
+                                                      "environment variables."
+                elif metrics_amazon_aws_log_in == 'config':
+                    missing_aws_credentials_message = "Missing AWS credentials through datastore.aws_access_key_id, " \
+                                                      "datastore.aws_secret_access_key, datastore.region, " \
+                                                      "datastore.service in the config file."
+                else:
+                    missing_aws_credentials_message = "datastore.amazon_aws_log_in can only be one of " \
+                                                      "'environment' or 'config'"
+                raise exceptions.ConfigError(missing_aws_credentials_message) from None
+
+            if (metrics_aws_service not in ['es', 'aoss']):
+                raise exceptions.ConfigError("datastore.service can only be one of 'es' or 'aoss'") from None
+
+        self.aws_metrics_log_in_dict['metrics_aws_log_in_choice'] = metrics_amazon_aws_log_in
+        self.aws_metrics_log_in_dict['metrics_aws_access_key_id'] = metrics_aws_access_key_id
+        self.aws_metrics_log_in_dict['metrics_aws_secret_access_key'] = metrics_aws_secret_access_key
+        self.aws_metrics_log_in_dict['metrics_aws_session_token'] = metrics_aws_session_token
+        self.aws_metrics_log_in_dict['metrics_aws_service'] = metrics_aws_service
+        self.aws_metrics_log_in_dict['metrics_aws_region'] = metrics_aws_region
+
+    def update_client_options_for_metrics(self, client_options):
+        # add options for aws user login:
+        # pass in aws access key id, aws secret access key, aws session token, service and region on command
+        if self.aws_metrics_log_in_dict['metrics_aws_log_in_choice'] is not None:
+            client_options["amazon_aws_log_in"] = 'client_option'
+            client_options["aws_access_key_id"] = self.aws_metrics_log_in_dict['metrics_aws_access_key_id']
+            client_options["aws_secret_access_key"] = self.aws_metrics_log_in_dict['metrics_aws_secret_access_key']
+            client_options["service"] = self.aws_metrics_log_in_dict['metrics_aws_service']
+            client_options["region"] = self.aws_metrics_log_in_dict['metrics_aws_region']
+
+            if self.aws_metrics_log_in_dict['metrics_aws_session_token']:
+                client_options["aws_session_token"] = self.aws_metrics_log_in_dict['metrics_aws_session_token']
+
+        return client_options
 
     def create_client(self, hosts):
         credentials = Credentials(access_key=self.aws_log_in_dict["aws_access_key_id"],
@@ -116,9 +210,17 @@ class CloudProviderFactory:
     ]
 
     @classmethod
-    def get_provider(cls, client_options: dict) -> CloudProvider:
+    def get_provider_from_client_options(cls, client_options) -> CloudProvider:
         for provider in cls.providers:
             if provider.validate_client_options(client_options):
+                return provider
+
+        return None
+
+    @classmethod
+    def get_provider_from_config(cls, config) -> CloudProvider:
+        for provider in cls.providers:
+            if provider.validate_config_for_metrics(config):
                 return provider
 
         return None
