@@ -25,7 +25,7 @@
 import collections
 import numbers
 import re
-from enum import Enum, unique
+from enum import Enum, unique, auto, IntEnum
 
 from osbenchmark import exceptions
 
@@ -551,6 +551,7 @@ class TestProcedure:
         self.user_info = user_info
         self.default = default
         self.selected = selected
+        self.serverless_info = []
         self.auto_generated = auto_generated
         self.schedule = schedule if schedule else []
 
@@ -581,72 +582,88 @@ class TestProcedure:
                 (othr.name, othr.description, othr.default, othr.selected, othr.auto_generated,
                  othr.parameters, othr.meta_data, othr.schedule))
 
+@unique
+class AdminStatus(Enum):
+    # We can't use True/False as they are keywords
+    Yes = auto()
+    No = auto()
+
+
+@unique
+class ServerlessStatus(IntEnum):
+    Blocked = auto()
+    Public = auto()
 
 @unique
 class OperationType(Enum):
     # for the time being we are not considering this action as administrative
-    IndexStats = 1
-    NodeStats = 2
-    Search = 3
-    Bulk = 4
-    RawRequest = 5
-    WaitForRecovery = 6
-    WaitForSnapshotCreate = 7
-    Composite = 8
-    SubmitAsyncSearch = 9
-    GetAsyncSearch = 10
-    DeleteAsyncSearch = 11
-    PaginatedSearch = 12
-    ScrollSearch = 13
-    CreatePointInTime = 14
-    DeletePointInTime = 15
-    ListAllPointInTime = 16
-    VectorSearch = 17
-    BulkVectorDataSet = 18
-    TrainKnnModel = 19
-    DeleteKnnModel = 20
-    ProduceStreamMessage = 21
+    IndexStats = (1, AdminStatus.No, ServerlessStatus.Blocked)
+    NodeStats = (2, AdminStatus.No, ServerlessStatus.Blocked)
+    Search = (3, AdminStatus.No, ServerlessStatus.Public)
+    Bulk = (4, AdminStatus.No, ServerlessStatus.Public)
+    RawRequest = (5, AdminStatus.No, ServerlessStatus.Public)
+    WaitForRecovery = (6, AdminStatus.No, ServerlessStatus.Blocked)
+    WaitForSnapshotCreate = (7, AdminStatus.No, ServerlessStatus.Blocked)
+    Composite = (8, AdminStatus.No, ServerlessStatus.Public)
+    SubmitAsyncSearch = (9, AdminStatus.No, ServerlessStatus.Blocked)
+    GetAsyncSearch = (10, AdminStatus.No, ServerlessStatus.Blocked)
+    DeleteAsyncSearch = (11, AdminStatus.No, ServerlessStatus.Blocked)
+    PaginatedSearch = (12, AdminStatus.No, ServerlessStatus.Public)
+    ScrollSearch = (13, AdminStatus.No, ServerlessStatus.Public)
+    CreatePointInTime = (14, AdminStatus.No, ServerlessStatus.Blocked)
+    DeletePointInTime = (15, AdminStatus.No, ServerlessStatus.Blocked)
+    ListAllPointInTime = (16, AdminStatus.No, ServerlessStatus.Blocked)
+    VectorSearch = (17, AdminStatus.No, ServerlessStatus.Public)
+    BulkVectorDataSet = (18, AdminStatus.No, ServerlessStatus.Public)
+    TrainKnnModel = (19, AdminStatus.No, ServerlessStatus.Public)
+    DeleteKnnModel = (20, AdminStatus.No, ServerlessStatus.Public)
+    ProduceStreamMessage = (21, AdminStatus.No, ServerlessStatus.Blocked)
 
     # administrative actions
-    ForceMerge = 1001
-    ClusterHealth = 1002
-    PutPipeline = 1003
-    DeletePipeline = 1004
-    Refresh = 1005
-    CreateIndex = 1006
-    DeleteIndex = 1007
-    CreateIndexTemplate = 1008
-    DeleteIndexTemplate = 1009
-    ShrinkIndex = 1010
-    Sleep = 1018
-    DeleteSnapshotRepository = 1019
-    CreateSnapshotRepository = 1020
-    CreateSnapshot = 1021
-    RestoreSnapshot = 1022
-    PutSettings = 1023
-    CreateTransform = 1024
-    StartTransform = 1025
-    WaitForTransform = 1026
-    DeleteTransform = 1027
-    CreateDataStream = 1028
-    DeleteDataStream = 1029
-    CreateComposableTemplate = 1030
-    DeleteComposableTemplate = 1031
-    CreateComponentTemplate = 1032
-    DeleteComponentTemplate = 1033
-    CreateSearchPipeline = 1040
-    DeleteMlModel = 1041
-    RegisterMlModel = 1042
-    DeployMlModel = 1043
-    UpdateConcurrentSegmentSearchSettings = 1044
-    CreateMlConnector = 1045
-    DeleteMlConnector = 1046
-    RegisterRemoteMlModel = 1047
+    ForceMerge = (22, AdminStatus.Yes, ServerlessStatus.Blocked)
+    ClusterHealth = (23, AdminStatus.Yes, ServerlessStatus.Blocked)
+    PutPipeline = (24, AdminStatus.Yes, ServerlessStatus.Public)
+    DeletePipeline = (25, AdminStatus.Yes, ServerlessStatus.Public)
+    Refresh = (26, AdminStatus.Yes, ServerlessStatus.Blocked)
+    CreateIndex = (27, AdminStatus.Yes, ServerlessStatus.Public)
+    DeleteIndex = (28, AdminStatus.Yes, ServerlessStatus.Public)
+    CreateIndexTemplate = (29, AdminStatus.Yes, ServerlessStatus.Blocked)
+    DeleteIndexTemplate = (30, AdminStatus.Yes, ServerlessStatus.Blocked)
+    ShrinkIndex = (31, AdminStatus.Yes, ServerlessStatus.Blocked)
+    Sleep = (32, AdminStatus.Yes, ServerlessStatus.Public)
+    DeleteSnapshotRepository = (33, AdminStatus.Yes, ServerlessStatus.Blocked)
+    CreateSnapshotRepository = (34, AdminStatus.Yes, ServerlessStatus.Blocked)
+    CreateSnapshot = (35, AdminStatus.Yes, ServerlessStatus.Blocked)
+    RestoreSnapshot = (36, AdminStatus.Yes, ServerlessStatus.Blocked)
+    PutSettings = (37, AdminStatus.Yes, ServerlessStatus.Blocked)
+    CreateTransform = (38, AdminStatus.Yes, ServerlessStatus.Blocked)
+    StartTransform = (39, AdminStatus.Yes, ServerlessStatus.Blocked)
+    WaitForTransform = (40, AdminStatus.Yes, ServerlessStatus.Blocked)
+    DeleteTransform = (41, AdminStatus.Yes, ServerlessStatus.Blocked)
+    CreateDataStream = (42, AdminStatus.Yes, ServerlessStatus.Blocked)
+    DeleteDataStream = (43, AdminStatus.Yes, ServerlessStatus.Blocked)
+    CreateComposableTemplate = (44, AdminStatus.Yes, ServerlessStatus.Blocked)
+    DeleteComposableTemplate = (45, AdminStatus.Yes, ServerlessStatus.Blocked)
+    CreateComponentTemplate = (46, AdminStatus.Yes, ServerlessStatus.Blocked)
+    DeleteComponentTemplate = (47, AdminStatus.Yes, ServerlessStatus.Blocked)
+    CreateSearchPipeline = (48, AdminStatus.Yes, ServerlessStatus.Public)
+    DeleteMlModel = (49, AdminStatus.Yes, ServerlessStatus.Public)
+    RegisterMlModel = (50, AdminStatus.Yes, ServerlessStatus.Public)
+    DeployMlModel = (51, AdminStatus.Yes, ServerlessStatus.Public)
+    UpdateConcurrentSegmentSearchSettings = (52, AdminStatus.Yes, ServerlessStatus.Blocked)
+    CreateMlConnector = (53, AdminStatus.Yes, ServerlessStatus.Public)
+    RegisterRemoteMlModel = (54, AdminStatus.Yes, ServerlessStatus.Public)
+    DeleteMlConnector = (55, AdminStatus.Yes, ServerlessStatus.Public)
+
+    def __init__(self, op_id: int, admin_status: AdminStatus, serverless_status: ServerlessStatus):
+        self.op_id = op_id
+        self.admin_status = admin_status
+        self.serverless_status = serverless_status
 
     @property
     def admin_op(self):
         # pylint: disable=comparison-with-callable
-        return self.value > 1000
+        return self.admin_status == AdminStatus.Yes
 
     def to_hyphenated_string(self):
         """
@@ -1043,6 +1060,10 @@ class Operation:
     @property
     def include_in_results_publishing(self):
         return self.params.get("include-in-results_publishing", True)
+
+    @property
+    def run_on_serverless(self):
+        return self.params.get("serverless", None)
 
     def __hash__(self):
         return hash(self.name)
