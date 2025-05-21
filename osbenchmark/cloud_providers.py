@@ -55,7 +55,7 @@ class AWSProvider(CloudProvider):
         metrics_amazon_aws_log_in = config.opts("results_publishing", "datastore.amazon_aws_log_in",
                                                       default_value=None, mandatory=False)
 
-        if (metrics_amazon_aws_log_in is None) or (metrics_amazon_aws_log_in in AWSProvider.VALID_CONFIG_SETTINGS) :
+        if (metrics_amazon_aws_log_in in AWSProvider.VALID_CONFIG_SETTINGS):
             return True
 
         return False

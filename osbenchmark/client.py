@@ -55,9 +55,9 @@ class OsClientFactory:
             masked_client_options["http_auth"] = (masked_client_options["http_auth"][0], "*****")
         if self.provider:
             self.provider.mask_client_options(masked_client_options, self.client_options)
+            self.logger.info("Masking client options with cloud provider: [%s]", self.provider)
 
         self.logger.info("Creating OpenSearch client connected to %s with options [%s]", hosts, masked_client_options)
-        self.logger.info("Creating Client with Cloud Provider: [%s]", self.provider)
         # we're using an SSL context now and it is not allowed to have use_ssl present in client options anymore
         if self.client_options.pop("use_ssl", False):
             # pylint: disable=import-outside-toplevel

@@ -184,21 +184,28 @@ class OsClientFactory:
         host = self._config.opts("results_publishing", "datastore.host")
         port = self._config.opts("results_publishing", "datastore.port")
         secure = convert.to_bool(self._config.opts("results_publishing", "datastore.secure"))
-        user = self._config.opts("results_publishing", "datastore.user")
-
+        user = self._config.opts("results_publishing", "datastore.user", default_value=None, mandatory=False)
         provider = CloudProviderFactory.get_provider_from_config(self._config)
+
+        logger = logging.getLogger(__name__)
+        logger.info("User: %s and provider: %s", user, provider)
+
+        if user is None and provider is None:
+            raise exceptions.ConfigError("To use an OpenSearch datastore, specify datastore.user or provider like datastore.amazon_aws_log_in")
+
         if provider:
             provider.parse_log_in_params_for_metrics(self._config)
 
-        try:
-            password = os.environ["OSB_DATASTORE_PASSWORD"]
-        except KeyError:
+        if user:
             try:
-                password = self._config.opts("results_publishing", "datastore.password")
-            except exceptions.ConfigError:
-                raise exceptions.ConfigError(
-                    "No password configured through [results_publishing] configuration or OSB_DATASTORE_PASSWORD environment variable."
-                ) from None
+                password = os.environ["OSB_DATASTORE_PASSWORD"]
+            except KeyError:
+                try:
+                    password = self._config.opts("results_publishing", "datastore.password")
+                except exceptions.ConfigError:
+                    raise exceptions.ConfigError(
+                        "No password configured through [results_publishing] configuration or OSB_DATASTORE_PASSWORD environment variable."
+                    ) from None
         verify = self._config.opts("results_publishing", "datastore.ssl.verification_mode", default_value="full", mandatory=False) != "none"
         ca_path = self._config.opts("results_publishing", "datastore.ssl.certificate_authorities", default_value=None, mandatory=False)
         self.probe_version = self._config.opts("results_publishing", "datastore.probe.cluster_version", default_value=True, mandatory=False)
