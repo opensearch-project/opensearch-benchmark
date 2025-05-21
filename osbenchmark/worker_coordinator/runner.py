@@ -2141,6 +2141,7 @@ class CreateSnapshot(Runner):
 
 
 class WaitForSnapshotCreate(Runner):
+    @time_func
     async def __call__(self, opensearch, params):
         repository = mandatory(params, "repository", repr(self))
         snapshot = mandatory(params, "snapshot", repr(self))
