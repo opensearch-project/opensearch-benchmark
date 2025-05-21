@@ -187,15 +187,10 @@ class OsClientFactory:
         user = self._config.opts("results_publishing", "datastore.user", default_value=None, mandatory=False)
         provider = CloudProviderFactory.get_provider_from_config(self._config)
 
-        logger = logging.getLogger(__name__)
-        logger.info("User: %s and provider: %s", user, provider)
-
         if user is None and provider is None:
             raise exceptions.ConfigError("To use an OpenSearch datastore, specify datastore.user or provider like datastore.amazon_aws_log_in")
-
         if provider:
             provider.parse_log_in_params_for_metrics(self._config)
-
         if user:
             try:
                 password = os.environ["OSB_DATASTORE_PASSWORD"]
