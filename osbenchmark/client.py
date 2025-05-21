@@ -26,11 +26,11 @@ import logging
 import time
 
 import certifi
+import opensearchpy
 import urllib3
 from urllib3.util.ssl_ import is_ipaddress
-from osbenchmark.kafka_client import KafkaMessageProducer
-import opensearchpy
 
+from osbenchmark.kafka_client import KafkaMessageProducer
 from osbenchmark import exceptions, doc_link, async_connection
 from osbenchmark.context import RequestContextHolder
 from osbenchmark.utils import console, convert
@@ -172,7 +172,6 @@ class OsClientFactory:
 
     def create_async(self):
         # pylint: disable=import-outside-toplevel
-        import opensearchpy
         import io
         import aiohttp
 
@@ -231,7 +230,6 @@ def wait_for_rest_layer(opensearch, max_attempts=40):
     for attempt in range(max_attempts):
         logger.debug("REST API is available after %s attempts", attempt)
         # pylint: disable=import-outside-toplevel
-        import opensearchpy
         try:
             # see also WaitForHttpResource in OpenSearch tests. Contrary to the ES tests we consider the API also
             # available when the cluster status is RED (as long as all required nodes are present)
