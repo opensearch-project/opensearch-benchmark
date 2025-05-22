@@ -1972,8 +1972,6 @@ class AsyncExecutor:
         self.redline_enabled = self.cfg.opts("workload", "redline.test", mandatory=False) if self.cfg else False
 
     async def __call__(self, *args, **kwargs):
-        has_run_any_requests = False
-        was_paused = False
         task_completes_parent = self.task.completes_parent
         total_start = time.perf_counter()
         # lazily initialize the schedule
@@ -2023,40 +2021,12 @@ class AsyncExecutor:
 
                 # Execute with the appropriate context manager
                 async with context_manager as request_context:
-                    try:
-                        # apply per-request timeout (20s)
-                        total_ops, total_ops_unit, request_meta_data = await asyncio.wait_for(
-                            execute_single(runner, self.opensearch, params, self.on_error,
-                                           self.redline_enabled, client_enabled=client_state), 60)
-                    except asyncio.TimeoutError:
-                        if not client_state:
-                            print("Fake request timed out")
-                        self.logger.error("Client %s request timed out after 20s", self.client_id)
-                        # treat as failed operation with default timings
-                        total_ops = 0
-                        total_ops_unit = "ops"
-                        request_meta_data = {"success": False, "error-type": "timeout"}
-                        # set timing defaults so no KeyError
-                        request_context_holder.on_client_request_start()
-                        request_context_holder.on_request_start()
-                        request_context_holder.on_request_end()
-                        request_context_holder.on_client_request_end()
+                    if self.redline_enabled:
+                        request_start, request_end, client_request_start, client_request_end, \
+                        request_meta_data, total_ops, total_ops_unit = await self.handle_redline(runner, params, client_state, request_context)
                     else:
-                        # normal path: read timings from context
-                        request_start = request_context.request_start
-                        request_end = request_context.request_end
-                        client_request_start = request_context.client_request_start
-                        client_request_end = request_context.client_request_end
-                    # redline testing: send any bad requests to the FeedbackActor
-                    if not request_meta_data["success"]:
-                        if self.error_queue is not None:
-                            self.logger.error("Real error detected in client %s. Notifying FeedbackActor...", self.client_id)
-                            error_info = {
-                                "client_id": self.client_id,
-                                "task": str(self.task),
-                                "error_details": request_meta_data
-                            }
-                            self.report_error(error_info)
+                        request_start, request_end, client_request_start, client_request_end, \
+                        request_meta_data, total_ops, total_ops_unit = await self.handle_benchmark(runner, params, request_context)
 
                 processing_end = time.perf_counter()
                 service_time = request_end - request_start
@@ -2094,7 +2064,8 @@ class AsyncExecutor:
                 else:
                     progress = percent_completed
 
-                if request_meta_data.get("skipped", False) == False:
+                # if the request was not skipped (redline testing) or redline testing was not enabled at all, collect the sample
+                if not request_meta_data.get("skipped_request", False) or not self.redline_enabled:
                     self.sampler.add(self.task, self.client_id, sample_type, request_meta_data,
                                     absolute_processing_start, request_start,
                                     latency, service_time, client_processing_time, processing_time, throughput, total_ops, total_ops_unit,
@@ -2123,10 +2094,57 @@ class AsyncExecutor:
             except queue.Full:
                 self.logger.warning("Error queue full; dropping error from client %s", self.client_id)
 
+    async def handle_redline(self, runner, params, client_state, request_context):
+        try:
+            # apply per-request timeout
+            total_ops, total_ops_unit, request_meta_data = await asyncio.wait_for(
+                execute_single(runner, self.opensearch, params, self.on_error,
+                                redline_enabled=True, client_enabled=client_state), 60)
+        except asyncio.TimeoutError:
+            self.logger.error("Client %s request timed out", self.client_id)
+            # treat as failed operation with default timings
+            total_ops = 0
+            total_ops_unit = "ops"
+            request_meta_data = {"success": False, "error-type": "timeout"}
+            # set timing defaults so no KeyError
+            request_context_holder.on_client_request_start()
+            request_context_holder.on_request_start()
+            request_context_holder.on_request_end()
+            request_context_holder.on_client_request_end()
+            request_start = request_context.request_start
+            request_end = request_context.request_end
+            client_request_start = request_context.client_request_start
+            client_request_end = request_context.client_request_end
+        else:
+            # normal path: read timings from context
+            request_start = request_context.request_start
+            request_end = request_context.request_end
+            client_request_start = request_context.client_request_start
+            client_request_end = request_context.client_request_end
+        # redline testing: send any bad requests to the FeedbackActor
+        if not request_meta_data["success"]:
+            if self.error_queue is not None:
+                self.logger.error("Real error detected in client %s. Notifying FeedbackActor...", self.client_id)
+                error_info = {
+                    "client_id": self.client_id,
+                    "task": str(self.task),
+                    "error_details": request_meta_data
+                }
+                self.report_error(error_info)
+        return request_start, request_end, client_request_start, client_request_end, request_meta_data, total_ops, total_ops_unit
+    
+    async def handle_benchmark(self, runner, params, request_context):
+        total_ops, total_ops_unit, request_meta_data = await execute_single(runner, opensearch=self.opensearch, params=params, on_error=self.on_error, redline_enabled=False, client_enabled=True)
+        request_start = request_context.request_start
+        request_end = request_context.request_end
+        client_request_start = request_context.client_request_start
+        client_request_end = request_context.client_request_end
+        return request_start, request_end, client_request_start, client_request_end, request_meta_data, total_ops, total_ops_unit
+
 request_context_holder = client.RequestContextHolder()
 
 
-async def execute_single(runner, opensearch, params, on_error, redline_enabled=False, client_enabled=True):
+async def execute_single(runner, opensearch, params, on_error, redline_enabled, client_enabled=True):
     """
     Invokes the given runner once and provides the runner's return value in a uniform structure.
 
@@ -2184,8 +2202,9 @@ async def execute_single(runner, opensearch, params, on_error, redline_enabled=F
             request_context_holder.on_client_request_end()
             logging.getLogger(__name__).exception("Cannot execute runner [%s]; most likely due to missing parameters.", str(runner))
             msg = "Cannot execute [%s]. Provided parameters are: %s. Error: [%s]." % (str(runner), list(params.keys()), str(e))
-            console.error(msg)
-            raise exceptions.SystemSetupError(msg)
+            if not redline_enabled:
+                console.error(msg)
+                raise exceptions.SystemSetupError(msg)
 
         if not request_meta_data["success"]:
             if on_error == "abort" or fatal_error:
@@ -2195,7 +2214,8 @@ async def execute_single(runner, opensearch, params, on_error, redline_enabled=F
                     msg += ", Description: %s" % description
                     if not redline_enabled:
                         console.error(msg)
-                raise exceptions.BenchmarkAssertionError(msg)
+                if not redline_enabled:
+                    raise exceptions.BenchmarkAssertionError(msg)
 
             if 'error-description' in request_meta_data:
                 try:
@@ -2211,11 +2231,7 @@ async def execute_single(runner, opensearch, params, on_error, redline_enabled=F
                 if not redline_enabled:
                     logging.getLogger(__name__).error(request_meta_data["error-description"])
         now = time.perf_counter()
-        # print(f"Fake request took {now - before} seconds")
     else:
-        now = time.perf_counter()
-        if now - before >= 19:
-            print(f"Fake request took {now - before} seconds")
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         total_ops = 0
