@@ -1,4 +1,4 @@
-name: Docker Build
+name: Docker Push Release
 on:
   push:
     branches:
@@ -12,9 +12,6 @@ jobs:
   docker:
     if: github.repository == 'opensearch-project/opensearch-benchmark'
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        platform: ['linux/amd64', 'linux/arm64']
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -49,10 +46,10 @@ jobs:
           username: ${{ secrets.BENCHMARK_DOCKERHUB_USERNAME }}
           password: ${{ steps.retrieve-password.outputs.dockerhub-password }}
 
-      - name: Docker Build ${{ matrix.platform }}
+      - name: Docker Build Multi-Platform
         run: |
             docker buildx version
-            tag=osb-`echo ${{ matrix.platform }} | tr '/' '-'`
+            tag=osb-latest-development
             set -x
-            docker buildx build --platform ${{ matrix.platform }} --build-arg VERSION=`cat version.txt` --build-arg BUILD_DATE=`date -u +%Y-%m-%dT%H:%M:%SZ` -f docker/Dockerfile -t opensearchstaging/opensearch-benchmark:"$tag" --push .
+            docker buildx build  --platform linux/amd64,linux/arm64 --build-arg VERSION=`cat version.txt` --build-arg BUILD_DATE=`date -u +%Y-%m-%dT%H:%M:%SZ` -f docker/Dockerfile -t opensearchstaging/opensearch-benchmark:"$tag" --push .
             set +x
