@@ -171,8 +171,6 @@ class AWSProvider(CloudProvider):
                 )
 
     def update_client_options_for_metrics(self, client_options):
-        # add options for aws user login:
-        # pass in aws access key id, aws secret access key, aws session token, service and region on command
         if self.aws_metrics_log_in_dict['metrics_aws_log_in_choice'] is not None:
             client_options["amazon_aws_log_in"] = 'client_option'
             client_options["aws_access_key_id"] = self.aws_metrics_log_in_dict['metrics_aws_access_key_id']
