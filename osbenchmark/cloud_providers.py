@@ -1,4 +1,5 @@
 import os
+import logging
 from abc import ABC, abstractmethod
 
 import opensearchpy
@@ -47,6 +48,7 @@ class AWSProvider(CloudProvider):
     def __init__(self):
         self.aws_log_in_dict = {}
         self.aws_metrics_log_in_dict = {}
+        self.logger = logging.getLogger(__name__)
 
     def validate_client_options(self, client_options) -> bool:
         return "amazon_aws_log_in" in client_options
@@ -100,7 +102,7 @@ class AWSProvider(CloudProvider):
                 "aws_secret_access_key, and region."
             )
 
-        if log_in_dict["service"] not in ['es', 'aoss']:
+        if log_in_dict["service"] not in AWSProvider.AVAILABLE_SERVICES:
             self.logger.error("Service for aws log in should be one %s", AWSProvider.AVAILABLE_SERVICES)
             raise exceptions.SystemSetupError(
                 "Cannot specify service as '{}'. Accepted values are {}.".format(
@@ -157,7 +159,7 @@ class AWSProvider(CloudProvider):
                                                       "'environment' or 'config'"
                 raise exceptions.ConfigError(missing_aws_credentials_message) from None
 
-            if (metrics_aws_service not in ['es', 'aoss']):
+            if metrics_aws_service not in AWSProvider.AVAILABLE_SERVICES:
                 raise exceptions.ConfigError("datastore.service can only be one of 'es' or 'aoss'") from None
 
         self.aws_metrics_log_in_dict['metrics_aws_log_in_choice'] = metrics_amazon_aws_log_in
