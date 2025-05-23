@@ -49,7 +49,7 @@ jobs:
       - name: Docker Build Multi-Platform
         run: |
             docker buildx version
-            tag=latest-main
+            tag=main-latest
             set -x
             docker buildx build  --platform linux/amd64,linux/arm64 --build-arg VERSION=`cat version.txt` --build-arg BUILD_DATE=`date -u +%Y-%m-%dT%H:%M:%SZ` -f docker/Dockerfile -t opensearchstaging/opensearch-benchmark:"$tag" --push .
             set +x
