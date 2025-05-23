@@ -2147,7 +2147,7 @@ class AsyncExecutor:
 request_context_holder = client.RequestContextHolder()
 
 
-async def execute_single(runner, opensearch, params, on_error, redline_enabled, client_enabled):
+async def execute_single(runner, opensearch, params, on_error, redline_enabled=False, client_enabled=True):
     """
     Invokes the given runner once and provides the runner's return value in a uniform structure.
 
