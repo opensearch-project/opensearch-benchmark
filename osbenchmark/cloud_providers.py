@@ -69,12 +69,13 @@ class AWSProvider(CloudProvider):
 
     def parse_log_in_params(self, client_options=None, config=None, for_metrics_datastore=False) -> dict:
         if for_metrics_datastore:
+            # This is meant for the situation where benchmark.ini specifies datastore with AWS credentials
             if config is None:
                 raise exceptions.ConfigError("Missing config when parsing log in params for metrics.")
 
             metrics_amazon_aws_log_in = config.opts("results_publishing", "datastore.amazon_aws_log_in",
                                                 default_value=None, mandatory=False)
-            # This is meant to interpret the config and check for aws log in
+
             metrics_aws_access_key_id = None
             metrics_aws_secret_access_key = None
             metrics_aws_session_token = None
@@ -130,6 +131,7 @@ class AWSProvider(CloudProvider):
             self.aws_metrics_log_in_dict['metrics_aws_region'] = metrics_aws_region
 
         else:
+            # This is for all other client use-cases
             if client_options is None:
                 raise exceptions.ConfigurationError("Missing client options when parsing log in params")
 
