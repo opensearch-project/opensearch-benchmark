@@ -290,10 +290,6 @@ class FeedbackActor(actor.BenchmarkActor):
     def receiveMsg_DisableFeedbackScaling(self, msg, sender):
         self.logger.info("FeedbackActor: scaling disabled.")
         self.state = FeedbackState.DISABLED
-        temp_percentage = self.percentage_clients_to_scale_down # store scale down value so it doesn't stay at 100% after doing this
-        self.percentage_clients_to_scale_down = 1.0
-        # self.scale_down()
-        self.percentage_clients_to_scale_down = temp_percentage
 
     def receiveMsg_ConfigureFeedbackScaling(self, msg, sender):
         self.num_clients_to_scale_up = msg.scale_step
@@ -305,7 +301,7 @@ class FeedbackActor(actor.BenchmarkActor):
         )
 
     def receiveMsg_ActorExitRequest(self, msg, sender):
-        print("Redline test finished. Maximum stable client number reached: %d" % self.total_active_client_count)
+        print("Redline test finished. Maximum stable client number reached: %d" % self.max_error_threshold)
         self.logger.info("FeedbackActor received ActorExitRequest and will shutdown")
         if hasattr(self, 'shared_client_states'):
             self.shared_client_states.clear()
@@ -958,7 +954,7 @@ class WorkerCoordinator:
         elif load_test_clients:
             for task in self.test_procedure.schedule:
                 for subtask in task:
-                    subtask.params["clients"] = load_test_clients
+                    subtask.clients = load_test_clients
                     subtask.params["target-throughput"] = load_test_clients
             self.logger.info("Load test mode enabled - set max client count to %d", load_test_clients)
         allocator = Allocator(self.test_procedure.schedule)
@@ -2022,6 +2018,7 @@ class AsyncExecutor:
                 # Execute with the appropriate context manager
                 async with context_manager as request_context:
                     if self.redline_enabled:
+                        all_client_options = self.cfg.opts("client", "options").all_client_options
                         request_start, request_end, client_request_start, client_request_end, \
                         request_meta_data, total_ops, total_ops_unit = await self.handle_redline(runner, params, client_state, request_context)
                     else:
@@ -2097,9 +2094,10 @@ class AsyncExecutor:
     async def handle_redline(self, runner, params, client_state, request_context):
         try:
             # apply per-request timeout
-            total_ops, total_ops_unit, request_meta_data = await asyncio.wait_for(
-                execute_single(runner, self.opensearch, params, self.on_error,
-                                redline_enabled=True, client_enabled=client_state), 60)
+            total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch,
+                                                                                params, self.on_error,
+                                                                                redline_enabled=True,
+                                                                                client_enabled=client_state)
         except asyncio.TimeoutError:
             self.logger.error("Client %s request timed out", self.client_id)
             # treat as failed operation with default timings
@@ -2134,7 +2132,12 @@ class AsyncExecutor:
         return request_start, request_end, client_request_start, client_request_end, request_meta_data, total_ops, total_ops_unit
     
     async def handle_benchmark(self, runner, params, request_context):
-        total_ops, total_ops_unit, request_meta_data = await execute_single(runner, opensearch=self.opensearch, params=params, on_error=self.on_error, redline_enabled=False, client_enabled=True)
+        total_ops, total_ops_unit, request_meta_data = await execute_single(runner,
+                                                                            opensearch=self.opensearch,
+                                                                            params=params,
+                                                                            on_error=self.on_error,
+                                                                            redline_enabled=False,
+                                                                            client_enabled=True)
         request_start = request_context.request_start
         request_end = request_context.request_end
         client_request_start = request_context.client_request_start
@@ -2144,7 +2147,7 @@ class AsyncExecutor:
 request_context_holder = client.RequestContextHolder()
 
 
-async def execute_single(runner, opensearch, params, on_error, redline_enabled, client_enabled=True):
+async def execute_single(runner, opensearch, params, on_error, redline_enabled, client_enabled):
     """
     Invokes the given runner once and provides the runner's return value in a uniform structure.
 
