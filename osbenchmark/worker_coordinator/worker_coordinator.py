@@ -301,7 +301,7 @@ class FeedbackActor(actor.BenchmarkActor):
         )
 
     def receiveMsg_ActorExitRequest(self, msg, sender):
-        print("Redline test finished. Maximum stable client number reached: %d" % self.max_error_threshold)
+        print("Redline test finished. Maximum stable client number reached: %d" % self.total_active_client_count)
         self.logger.info("FeedbackActor received ActorExitRequest and will shutdown")
         if hasattr(self, 'shared_client_states'):
             self.shared_client_states.clear()
@@ -2018,7 +2018,6 @@ class AsyncExecutor:
                 # Execute with the appropriate context manager
                 async with context_manager as request_context:
                     if self.redline_enabled:
-                        all_client_options = self.cfg.opts("client", "options").all_client_options
                         request_start, request_end, client_request_start, client_request_end, \
                         request_meta_data, total_ops, total_ops_unit = await self.handle_redline(runner, params, client_state, request_context)
                     else:
@@ -2130,7 +2129,7 @@ class AsyncExecutor:
                 }
                 self.report_error(error_info)
         return request_start, request_end, client_request_start, client_request_end, request_meta_data, total_ops, total_ops_unit
-    
+
     async def handle_benchmark(self, runner, params, request_context):
         total_ops, total_ops_unit, request_meta_data = await execute_single(runner,
                                                                             opensearch=self.opensearch,
@@ -2156,7 +2155,6 @@ async def execute_single(runner, opensearch, params, on_error, redline_enabled=F
     # pylint: disable=import-outside-toplevel
     import opensearchpy
     fatal_error = False
-    before = time.perf_counter()
     if client_enabled:
         try:
             async with runner:
@@ -2233,7 +2231,6 @@ async def execute_single(runner, opensearch, params, on_error, redline_enabled=F
                         console.error(request_meta_data["error-description"])
                 if not redline_enabled:
                     logging.getLogger(__name__).error(request_meta_data["error-description"])
-        now = time.perf_counter()
     else:
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
