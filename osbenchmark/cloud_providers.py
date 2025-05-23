@@ -22,7 +22,7 @@ class CloudProvider(ABC):
         pass
 
     @abstractmethod
-    def parse_log_in_params(self, client_options: dict) -> dict:
+    def parse_log_in_params(self, client_options=None, config=None, for_metrics_datastore=False) -> dict:
         pass
 
     @abstractmethod
