@@ -190,7 +190,7 @@ class OsClientFactory:
         if user is None and provider is None:
             raise exceptions.ConfigError("To use an OpenSearch datastore, specify datastore.user or provider like datastore.amazon_aws_log_in")
         if provider:
-            provider.parse_log_in_params_for_metrics(self._config)
+            provider.parse_log_in_params(config=self._config, for_metrics_datastore=True)
         if user:
             try:
                 password = os.environ["OSB_DATASTORE_PASSWORD"]

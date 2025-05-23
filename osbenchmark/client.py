@@ -54,6 +54,7 @@ class OsClientFactory:
         if "http_auth" in masked_client_options:
             masked_client_options["http_auth"] = (masked_client_options["http_auth"][0], "*****")
         if self.provider:
+            self.provider.parse_log_in_params(client_options=self.client_options)
             self.provider.mask_client_options(masked_client_options, self.client_options)
             self.logger.info("Masking client options with cloud provider: [%s]", self.provider)
 
