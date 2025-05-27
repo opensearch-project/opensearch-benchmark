@@ -42,8 +42,8 @@ class AWSProvider(CloudProvider):
     VALID_CONFIG_SETTINGS = ['config', 'environment']
 
     def __init__(self):
-        self.aws_log_in_dict = {}
-        self.aws_metrics_log_in_dict = {}
+        self.aws_log_in_config = {}
+        self.aws_metrics_log_in_config = {}
         self.logger = logging.getLogger(__name__)
 
     def validate_client_options(self, client_options) -> bool:
@@ -62,7 +62,7 @@ class AWSProvider(CloudProvider):
         masked_client_options["aws_access_key_id"] = "*****"
         masked_client_options["aws_secret_access_key"] = "*****"
         # session_token is optional and used only for role based access
-        if self.aws_log_in_dict.get("aws_session_token", None):
+        if self.aws_log_in_config.get("aws_session_token", None):
             masked_client_options["aws_session_token"] = "*****"
 
         return masked_client_options
@@ -123,12 +123,12 @@ class AWSProvider(CloudProvider):
                 if metrics_aws_service not in AWSProvider.AVAILABLE_SERVICES:
                     raise exceptions.ConfigError("datastore.service can only be one of 'es' or 'aoss'") from None
 
-            self.aws_metrics_log_in_dict['metrics_aws_log_in_choice'] = metrics_amazon_aws_log_in
-            self.aws_metrics_log_in_dict['metrics_aws_access_key_id'] = metrics_aws_access_key_id
-            self.aws_metrics_log_in_dict['metrics_aws_secret_access_key'] = metrics_aws_secret_access_key
-            self.aws_metrics_log_in_dict['metrics_aws_session_token'] = metrics_aws_session_token
-            self.aws_metrics_log_in_dict['metrics_aws_service'] = metrics_aws_service
-            self.aws_metrics_log_in_dict['metrics_aws_region'] = metrics_aws_region
+            self.aws_metrics_log_in_config['metrics_aws_log_in_choice'] = metrics_amazon_aws_log_in
+            self.aws_metrics_log_in_config['metrics_aws_access_key_id'] = metrics_aws_access_key_id
+            self.aws_metrics_log_in_config['metrics_aws_secret_access_key'] = metrics_aws_secret_access_key
+            self.aws_metrics_log_in_config['metrics_aws_session_token'] = metrics_aws_session_token
+            self.aws_metrics_log_in_config['metrics_aws_service'] = metrics_aws_service
+            self.aws_metrics_log_in_config['metrics_aws_region'] = metrics_aws_region
 
         else:
             # This is for all other client use-cases
@@ -137,24 +137,24 @@ class AWSProvider(CloudProvider):
 
             # AWS log in : option 1) pass in parameters from os environment variables
             if client_options["amazon_aws_log_in"] == "environment":
-                self.aws_log_in_dict["aws_access_key_id"] = os.environ.get("OSB_AWS_ACCESS_KEY_ID")
-                self.aws_log_in_dict["aws_secret_access_key"] = os.environ.get("OSB_AWS_SECRET_ACCESS_KEY")
-                self.aws_log_in_dict["region"] = os.environ.get("OSB_REGION")
-                self.aws_log_in_dict["service"] = os.environ.get("OSB_SERVICE")
+                self.aws_log_in_config["aws_access_key_id"] = os.environ.get("OSB_AWS_ACCESS_KEY_ID")
+                self.aws_log_in_config["aws_secret_access_key"] = os.environ.get("OSB_AWS_SECRET_ACCESS_KEY")
+                self.aws_log_in_config["region"] = os.environ.get("OSB_REGION")
+                self.aws_log_in_config["service"] = os.environ.get("OSB_SERVICE")
                 # optional: applicable only for role-based access
-                self.aws_log_in_dict["aws_session_token"] = os.environ.get("OSB_AWS_SESSION_TOKEN")
+                self.aws_log_in_config["aws_session_token"] = os.environ.get("OSB_AWS_SESSION_TOKEN")
 
             # AWS log in : option 2) parameters are passed in from command line
             elif client_options["amazon_aws_log_in"] == "client_option":
-                self.aws_log_in_dict["aws_access_key_id"] = client_options.get("aws_access_key_id")
-                self.aws_log_in_dict["aws_secret_access_key"] = client_options.get("aws_secret_access_key")
-                self.aws_log_in_dict["region"] = client_options.get("region")
-                self.aws_log_in_dict["service"] = client_options.get("service")
+                self.aws_log_in_config["aws_access_key_id"] = client_options.get("aws_access_key_id")
+                self.aws_log_in_config["aws_secret_access_key"] = client_options.get("aws_secret_access_key")
+                self.aws_log_in_config["region"] = client_options.get("region")
+                self.aws_log_in_config["service"] = client_options.get("service")
                 # optional: applicable only for role-based access
-                self.aws_log_in_dict["aws_session_token"] = client_options.get("aws_session_token")
+                self.aws_log_in_config["aws_session_token"] = client_options.get("aws_session_token")
 
-            if (not self.aws_log_in_dict["aws_access_key_id"] or not self.aws_log_in_dict["aws_secret_access_key"]
-                    or not self.aws_log_in_dict["service"] or not self.aws_log_in_dict["region"]):
+            if (not self.aws_log_in_config["aws_access_key_id"] or not self.aws_log_in_config["aws_secret_access_key"]
+                    or not self.aws_log_in_config["service"] or not self.aws_log_in_config["region"]):
                 self.logger.error("Invalid AWS log in parameters, required inputs are aws_access_key_id, "
                                 "aws_secret_access_key, service and region.")
                 raise exceptions.SystemSetupError(
@@ -162,43 +162,43 @@ class AWSProvider(CloudProvider):
                     "aws_secret_access_key, and region."
                 )
 
-            if self.aws_log_in_dict["service"] not in AWSProvider.AVAILABLE_SERVICES:
+            if self.aws_log_in_config["service"] not in AWSProvider.AVAILABLE_SERVICES:
                 self.logger.error("Service for AWS log in should be one %s", AWSProvider.AVAILABLE_SERVICES)
                 raise exceptions.SystemSetupError(
                     "Cannot specify service as '{}'. Accepted values are {}.".format(
-                        self.aws_log_in_dict["service"],
+                        self.aws_log_in_config["service"],
                         AWSProvider.AVAILABLE_SERVICES)
                 )
 
     def update_client_options_for_metrics(self, client_options):
-        if self.aws_metrics_log_in_dict['metrics_aws_log_in_choice'] is not None:
+        if self.aws_metrics_log_in_config['metrics_aws_log_in_choice'] is not None:
             client_options["amazon_aws_log_in"] = 'client_option'
-            client_options["aws_access_key_id"] = self.aws_metrics_log_in_dict['metrics_aws_access_key_id']
-            client_options["aws_secret_access_key"] = self.aws_metrics_log_in_dict['metrics_aws_secret_access_key']
-            client_options["service"] = self.aws_metrics_log_in_dict['metrics_aws_service']
-            client_options["region"] = self.aws_metrics_log_in_dict['metrics_aws_region']
+            client_options["aws_access_key_id"] = self.aws_metrics_log_in_config['metrics_aws_access_key_id']
+            client_options["aws_secret_access_key"] = self.aws_metrics_log_in_config['metrics_aws_secret_access_key']
+            client_options["service"] = self.aws_metrics_log_in_config['metrics_aws_service']
+            client_options["region"] = self.aws_metrics_log_in_config['metrics_aws_region']
 
-            if self.aws_metrics_log_in_dict['metrics_aws_session_token']:
-                client_options["aws_session_token"] = self.aws_metrics_log_in_dict['metrics_aws_session_token']
+            if self.aws_metrics_log_in_config['metrics_aws_session_token']:
+                client_options["aws_session_token"] = self.aws_metrics_log_in_config['metrics_aws_session_token']
 
         return client_options
 
     def create_client(self, hosts):
-        credentials = Credentials(access_key=self.aws_log_in_dict["aws_access_key_id"],
-                                  secret_key=self.aws_log_in_dict["aws_secret_access_key"],
-                                  token=self.aws_log_in_dict["aws_session_token"])
-        aws_auth = opensearchpy.Urllib3AWSV4SignerAuth(credentials, self.aws_log_in_dict["region"],
-                                                self.aws_log_in_dict["service"])
+        credentials = Credentials(access_key=self.aws_log_in_config["aws_access_key_id"],
+                                  secret_key=self.aws_log_in_config["aws_secret_access_key"],
+                                  token=self.aws_log_in_config["aws_session_token"])
+        aws_auth = opensearchpy.Urllib3AWSV4SignerAuth(credentials, self.aws_log_in_config["region"],
+                                                self.aws_log_in_config["service"])
         return opensearchpy.OpenSearch(hosts=hosts, use_ssl=True, verify_certs=True, http_auth=aws_auth,
                                        connection_class=opensearchpy.Urllib3HttpConnection)
 
 
     def create_async_client(self, hosts, client_options, client_class):
-        credentials = Credentials(access_key=self.aws_log_in_dict["aws_access_key_id"],
-                            secret_key=self.aws_log_in_dict["aws_secret_access_key"],
-                            token=self.aws_log_in_dict["aws_session_token"])
-        aws_auth = opensearchpy.AWSV4SignerAsyncAuth(credentials, self.aws_log_in_dict["region"],
-                                                     self.aws_log_in_dict["service"])
+        credentials = Credentials(access_key=self.aws_log_in_config["aws_access_key_id"],
+                            secret_key=self.aws_log_in_config["aws_secret_access_key"],
+                            token=self.aws_log_in_config["aws_session_token"])
+        aws_auth = opensearchpy.AWSV4SignerAsyncAuth(credentials, self.aws_log_in_config["region"],
+                                                     self.aws_log_in_config["service"])
         return client_class(hosts=hosts,
                                         connection_class=async_connection.AsyncHttpConnection,
                                         use_ssl=True, verify_certs=True, http_auth=aws_auth,
