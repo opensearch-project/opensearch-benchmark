@@ -155,10 +155,10 @@ class AWSProvider(CloudProvider):
 
             if (not self.aws_log_in_dict["aws_access_key_id"] or not self.aws_log_in_dict["aws_secret_access_key"]
                     or not self.aws_log_in_dict["service"] or not self.aws_log_in_dict["region"]):
-                self.logger.error("Invalid amazon AWS log in parameters, required input aws_access_key_id, "
+                self.logger.error("Invalid AWS log in parameters, required inputs are aws_access_key_id, "
                                 "aws_secret_access_key, service and region.")
                 raise exceptions.SystemSetupError(
-                    "Invalid amazon AWS log in parameters, required input aws_access_key_id, "
+                    "Invalid AWS log in parameters, required inputs are aws_access_key_id, "
                     "aws_secret_access_key, and region."
                 )
 
