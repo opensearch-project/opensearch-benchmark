@@ -135,7 +135,7 @@ class AWSProvider(CloudProvider):
             if client_options is None:
                 raise exceptions.ConfigurationError("Missing client options when parsing log in params")
 
-            # aws log in : option 1) pass in parameters from os environment variables
+            # AWS log in : option 1) pass in parameters from os environment variables
             if client_options["amazon_aws_log_in"] == "environment":
                 self.aws_log_in_dict["aws_access_key_id"] = os.environ.get("OSB_AWS_ACCESS_KEY_ID")
                 self.aws_log_in_dict["aws_secret_access_key"] = os.environ.get("OSB_AWS_SECRET_ACCESS_KEY")
@@ -144,7 +144,7 @@ class AWSProvider(CloudProvider):
                 # optional: applicable only for role-based access
                 self.aws_log_in_dict["aws_session_token"] = os.environ.get("OSB_AWS_SESSION_TOKEN")
 
-            # aws log in : option 2) parameters are passed in from command line
+            # AWS log in : option 2) parameters are passed in from command line
             elif client_options["amazon_aws_log_in"] == "client_option":
                 self.aws_log_in_dict["aws_access_key_id"] = client_options.get("aws_access_key_id")
                 self.aws_log_in_dict["aws_secret_access_key"] = client_options.get("aws_secret_access_key")
@@ -155,15 +155,15 @@ class AWSProvider(CloudProvider):
 
             if (not self.aws_log_in_dict["aws_access_key_id"] or not self.aws_log_in_dict["aws_secret_access_key"]
                     or not self.aws_log_in_dict["service"] or not self.aws_log_in_dict["region"]):
-                self.logger.error("Invalid amazon aws log in parameters, required input aws_access_key_id, "
+                self.logger.error("Invalid amazon AWS log in parameters, required input aws_access_key_id, "
                                 "aws_secret_access_key, service and region.")
                 raise exceptions.SystemSetupError(
-                    "Invalid amazon aws log in parameters, required input aws_access_key_id, "
+                    "Invalid amazon AWS log in parameters, required input aws_access_key_id, "
                     "aws_secret_access_key, and region."
                 )
 
             if self.aws_log_in_dict["service"] not in AWSProvider.AVAILABLE_SERVICES:
-                self.logger.error("Service for aws log in should be one %s", AWSProvider.AVAILABLE_SERVICES)
+                self.logger.error("Service for AWS log in should be one %s", AWSProvider.AVAILABLE_SERVICES)
                 raise exceptions.SystemSetupError(
                     "Cannot specify service as '{}'. Accepted values are {}.".format(
                         self.aws_log_in_dict["service"],
