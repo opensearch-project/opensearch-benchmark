@@ -40,9 +40,5 @@ class CloudProvider(ABC):
         pass
 
     @abstractmethod
-    def create_client(self, hosts):
-        pass
-
-    @abstractmethod
-    def create_async_client(self, hosts, client_options, client_class):
+    def create_client(self, hosts, client_options, client_class=None, use_async=False):
         pass

@@ -166,7 +166,7 @@ class OsClientFactory:
     def create(self):
         if self.provider:
             self.logger.info("Creating OpenSearch client with provider %s", self.provider)
-            return self.provider.create_client(self.hosts)
+            return self.provider.create_client(self.hosts, self.client_options)
 
         else:
             return opensearchpy.OpenSearch(hosts=self.hosts, ssl_context=self.ssl_context, **self.client_options)
@@ -207,7 +207,8 @@ class OsClientFactory:
 
         if self.provider:
             self.logger.info("Creating OpenSearch Async Client with provider %s", self.provider)
-            return self.provider.create_async_client(self.hosts, self.client_options, BenchmarkAsyncOpenSearch)
+            return self.provider.create_client(self.hosts, self.client_options,
+                                               client_class=BenchmarkAsyncOpenSearch, use_async=True)
         else:
             return BenchmarkAsyncOpenSearch(hosts=self.hosts,
                                             connection_class=async_connection.AIOHttpConnection,

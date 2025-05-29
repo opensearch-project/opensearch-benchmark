@@ -171,22 +171,19 @@ class AWSProvider(CloudProvider):
 
         return client_options
 
-    def create_client(self, hosts):
+    def create_client(self, hosts, client_options, client_class=None, use_async=False):
         credentials = Credentials(access_key=self.aws_log_in_config["aws_access_key_id"],
                                   secret_key=self.aws_log_in_config["aws_secret_access_key"],
                                   token=self.aws_log_in_config["aws_session_token"])
-        aws_auth = opensearchpy.Urllib3AWSV4SignerAuth(credentials, self.aws_log_in_config["region"],
-                                                self.aws_log_in_config["service"])
-        return opensearchpy.OpenSearch(hosts=hosts, use_ssl=True, verify_certs=True, http_auth=aws_auth,
-                                       connection_class=opensearchpy.Urllib3HttpConnection)
 
-
-    def create_async_client(self, hosts, client_options, client_class):
-        credentials = Credentials(access_key=self.aws_log_in_config["aws_access_key_id"],
-                            secret_key=self.aws_log_in_config["aws_secret_access_key"],
-                            token=self.aws_log_in_config["aws_session_token"])
-        aws_auth = opensearchpy.AWSV4SignerAsyncAuth(credentials, self.aws_log_in_config["region"],
+        if use_async:
+            aws_auth = opensearchpy.AWSV4SignerAsyncAuth(credentials, self.aws_log_in_config["region"],
                                                      self.aws_log_in_config["service"])
-        return client_class(hosts=hosts, use_ssl=True, verify_certs=True, http_auth=aws_auth,
+            return client_class(hosts=hosts, use_ssl=True, verify_certs=True, http_auth=aws_auth,
                                         connection_class=async_connection.AsyncHttpConnection,
                                         **client_options)
+        else:
+            aws_auth = opensearchpy.Urllib3AWSV4SignerAuth(credentials, self.aws_log_in_config["region"],
+                                                    self.aws_log_in_config["service"])
+            return opensearchpy.OpenSearch(hosts=hosts, use_ssl=True, verify_certs=True, http_auth=aws_auth,
+                                        connection_class=opensearchpy.Urllib3HttpConnection)
