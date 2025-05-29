@@ -15,8 +15,6 @@
 #
 #	http://www.apache.org/licenses/LICENSE-2.0
 
-import logging
-
 from osbenchmark.cloud_provider.cloud_provider import CloudProvider
 from osbenchmark.cloud_provider.vendors import aws
 
