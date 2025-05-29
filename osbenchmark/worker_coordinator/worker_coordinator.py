@@ -1982,6 +1982,10 @@ class AsyncExecutor:
         if rampup_wait_time:
             self.logger.info("Client id [%s] is running now.", self.client_id)
 
+        if self.redline_enabled:
+            client_options = self.cfg.opts("client", "options").all_client_options
+            base_timeout = int(1.5 * client_options.get("default", {}).get("timeout", 30))
+
         self.logger.debug("Entering main loop for client id [%s].", self.client_id)
         try:
             async for expected_scheduled_time, sample_type, percent_completed, runner, params in schedule:
@@ -2019,7 +2023,7 @@ class AsyncExecutor:
                 async with context_manager as request_context:
                     if self.redline_enabled:
                         request_start, request_end, client_request_start, client_request_end, \
-                        request_meta_data, total_ops, total_ops_unit = await self.handle_redline(runner, params, client_state, request_context)
+                        request_meta_data, total_ops, total_ops_unit = await self.handle_redline(runner, params, client_state, request_context, base_timeout)
                     else:
                         request_start, request_end, client_request_start, client_request_end, \
                         request_meta_data, total_ops, total_ops_unit = await self.handle_benchmark(runner, params, request_context)
@@ -2090,13 +2094,13 @@ class AsyncExecutor:
             except queue.Full:
                 self.logger.warning("Error queue full; dropping error from client %s", self.client_id)
 
-    async def handle_redline(self, runner, params, client_state, request_context):
+    async def handle_redline(self, runner, params, client_state, request_context, base_timeout):
         try:
             # apply per-request timeout
-            total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch,
+            total_ops, total_ops_unit, request_meta_data = await asyncio.wait_for(execute_single(runner, self.opensearch,
                                                                                 params, self.on_error,
                                                                                 redline_enabled=True,
-                                                                                client_enabled=client_state)
+                                                                                client_enabled=client_state), base_timeout)
         except asyncio.TimeoutError:
             self.logger.error("Client %s request timed out", self.client_id)
             # treat as failed operation with default timings
