@@ -124,10 +124,3 @@ class ConfigurationError(BenchmarkError):
     Attributes:
         message -- explanation of the error
     """
-
-class MappingsError(BenchmarkError):
-    """Exception raised for errors in OpenSearch mappings provided.
-
-    Attributes:
-        message -- explanation of the error
-    """
