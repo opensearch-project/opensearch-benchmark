@@ -34,7 +34,7 @@ from osbenchmark.kafka_client import KafkaMessageProducer
 from osbenchmark import exceptions, doc_link, async_connection
 from osbenchmark.context import RequestContextHolder
 from osbenchmark.utils import console, convert
-from osbenchmark.cloud_providers import CloudProviderFactory
+from osbenchmark.cloud_provider import CloudProviderFactory
 
 
 class OsClientFactory:

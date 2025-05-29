@@ -42,7 +42,7 @@ import tabulate
 
 from osbenchmark import client, time, exceptions, config, version, paths
 from osbenchmark.utils import convert, console, io, versions
-from osbenchmark.cloud_providers import CloudProviderFactory
+from osbenchmark.cloud_provider import CloudProviderFactory
 
 
 class OsClient:

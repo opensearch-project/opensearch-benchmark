@@ -1,41 +1,27 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# The OpenSearch Contributors require contributions made to
+# this file be licensed under the Apache-2.0 license or a
+# compatible open source license.
+# Modifications Copyright OpenSearch Contributors. See
+# GitHub history for details.
+# Licensed to Elasticsearch B.V. under one or more contributor
+# license agreements. See the NOTICE file distributed with
+# this work for additional information regarding copyright
+# ownership. Elasticsearch B.V. licenses this file to you under
+# the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
 import os
 import logging
-from abc import ABC, abstractmethod
 
 import opensearchpy
 from botocore.credentials import Credentials
 
 from osbenchmark import exceptions, async_connection
-
-class CloudProvider(ABC):
-
-    @abstractmethod
-    def validate_client_options(self, client_options: dict) -> bool:
-        pass
-
-    @abstractmethod
-    def validate_config_for_metrics(self, config) -> bool:
-        pass
-
-    @abstractmethod
-    def mask_client_options(self, masked_client_options: dict, client_options: dict) -> dict:
-        pass
-
-    @abstractmethod
-    def parse_log_in_params(self, client_options=None, config=None, for_metrics_datastore=False) -> dict:
-        pass
-
-    @abstractmethod
-    def update_client_options_for_metrics(self, client_options) -> dict:
-        pass
-
-    @abstractmethod
-    def create_client(self, hosts):
-        pass
-
-    @abstractmethod
-    def create_async_client(self, hosts, client_options, client_class):
-        pass
+from ..cloud_provider import CloudProvider
 
 class AWSProvider(CloudProvider):
     AVAILABLE_SERVICES = ['es', 'aoss']
@@ -102,8 +88,10 @@ class AWSProvider(CloudProvider):
 
             if metrics_amazon_aws_log_in is not None:
                 if (
-                        not metrics_aws_access_key_id or not metrics_aws_secret_access_key
-                        or not metrics_aws_region or not metrics_aws_service
+                        not metrics_aws_access_key_id or
+                        not metrics_aws_secret_access_key or
+                        not metrics_aws_region or
+                        not metrics_aws_service
                 ):
                     if metrics_amazon_aws_log_in == 'environment':
                         missing_aws_credentials_message = "Missing AWS credentials through " \
@@ -121,7 +109,7 @@ class AWSProvider(CloudProvider):
                     raise exceptions.ConfigError(missing_aws_credentials_message) from None
 
                 if metrics_aws_service not in AWSProvider.AVAILABLE_SERVICES:
-                    raise exceptions.ConfigError("datastore.service can only be one of 'es' or 'aoss'") from None
+                    raise exceptions.ConfigError(f"datastore.service can only be one of {AWSProvider.AVAILABLE_SERVICES}") from None
 
             self.aws_metrics_log_in_config['metrics_aws_log_in_choice'] = metrics_amazon_aws_log_in
             self.aws_metrics_log_in_config['metrics_aws_access_key_id'] = metrics_aws_access_key_id
@@ -153,14 +141,14 @@ class AWSProvider(CloudProvider):
                 # optional: applicable only for role-based access
                 self.aws_log_in_config["aws_session_token"] = client_options.get("aws_session_token")
 
-            if (not self.aws_log_in_config["aws_access_key_id"] or not self.aws_log_in_config["aws_secret_access_key"]
-                    or not self.aws_log_in_config["service"] or not self.aws_log_in_config["region"]):
-                self.logger.error("Invalid AWS log in parameters, required inputs are aws_access_key_id, "
-                                "aws_secret_access_key, service and region.")
-                raise exceptions.SystemSetupError(
-                    "Invalid AWS log in parameters, required inputs are aws_access_key_id, "
-                    "aws_secret_access_key, and region."
-                )
+            # Validate aws_log_in_config
+            required_fields = ["aws_access_key_id", "aws_secret_access_key", "service", "region"]
+            for field in required_fields:
+                if not self.aws_log_in_config[field]:
+                    msg = "Invalid AWS log in parameters, required inputs are aws_access_key_id, \
+                        aws_secret_access_key, service and region."
+                    self.logger.error(msg)
+                    raise exceptions.SystemSetupError(msg)
 
             if self.aws_log_in_config["service"] not in AWSProvider.AVAILABLE_SERVICES:
                 self.logger.error("Service for AWS log in should be one %s", AWSProvider.AVAILABLE_SERVICES)
@@ -199,29 +187,6 @@ class AWSProvider(CloudProvider):
                             token=self.aws_log_in_config["aws_session_token"])
         aws_auth = opensearchpy.AWSV4SignerAsyncAuth(credentials, self.aws_log_in_config["region"],
                                                      self.aws_log_in_config["service"])
-        return client_class(hosts=hosts,
+        return client_class(hosts=hosts, use_ssl=True, verify_certs=True, http_auth=aws_auth,
                                         connection_class=async_connection.AsyncHttpConnection,
-                                        use_ssl=True, verify_certs=True, http_auth=aws_auth,
                                         **client_options)
-
-class CloudProviderFactory:
-
-    providers = [
-        AWSProvider()
-    ]
-
-    @classmethod
-    def get_provider_from_client_options(cls, client_options) -> CloudProvider:
-        for provider in cls.providers:
-            if provider.validate_client_options(client_options):
-                return provider
-
-        return None
-
-    @classmethod
-    def get_provider_from_config(cls, config) -> CloudProvider:
-        for provider in cls.providers:
-            if provider.validate_config_for_metrics(config):
-                return provider
-
-        return None
