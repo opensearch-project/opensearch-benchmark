@@ -677,7 +677,7 @@ def create_arg_parser():
     test_execution_parser.add_argument(
         "--redline-scaledown-percentage",
         type=float,
-        help="What percentage of clients to remove when errors occur (default: 10%).",
+        help="What percentage of clients to remove when errors occur (default: 10%%).",
         default=ConfigureFeedbackScaling.DEFAULT_SCALEDOWN_PCT
     )
     test_execution_parser.add_argument(
