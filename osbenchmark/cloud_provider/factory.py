@@ -15,6 +15,8 @@
 #
 #	http://www.apache.org/licenses/LICENSE-2.0
 
+from typing import Optional
+
 from osbenchmark.cloud_provider.cloud_provider import CloudProvider
 from osbenchmark.cloud_provider.vendors import aws
 
@@ -25,7 +27,7 @@ class CloudProviderFactory:
     ]
 
     @classmethod
-    def get_provider_from_client_options(cls, client_options) -> CloudProvider:
+    def get_provider_from_client_options(cls, client_options) -> Optional[CloudProvider]:
         for provider in cls.providers:
             if provider.validate_client_options(client_options):
                 return provider
@@ -33,7 +35,7 @@ class CloudProviderFactory:
         return None
 
     @classmethod
-    def get_provider_from_config(cls, config) -> CloudProvider:
+    def get_provider_from_config(cls, config) -> Optional[CloudProvider]:
         for provider in cls.providers:
             if provider.validate_config_for_metrics(config):
                 return provider
