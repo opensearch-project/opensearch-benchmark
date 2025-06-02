@@ -81,26 +81,25 @@ git checkout <VERSION BRANCH>
     6. Run a basic workload on Linux and MacOS:  `opensearch-benchmark execute-test --workload pmc --test-mode`
     7. If you are fastidious, you can check the installed source files at `` `python3 -m site --user-site`/osbenchmark `` to verify that a recent change is indeed present.
 
-7. **Verify Docker Hub Staging OSB Image Works:** Revisit and test out the latest `dev` image.
+7. **Verify Docker Hub staging OSB dev image works:** Revisit and test out the latest `dev` image.
     1. The staging images are at https://hub.docker.com/r/opensearchstaging/opensearch-benchmark/tags.
     2. Pull the latest image: `docker pull opensearchstaging/opensearch-benchmark:dev`
     3. Check the version of OSB: `docker run opensearchstaging/opensearch-benchmark:dev —version`
     4. Run any other commands listed on the Docker Hub overview tab.
 
-8. **Trigger Docker Hub Copy-Over:** Contact the oncall managing OpenSearch repositories and request a copy-over.
-- After confirming that the `dev` image contains the latest changes and latest version, we can copy over this image to an image with the `<VERSION>` tag.
-- For example, if we are releasing `1.4.0`, ask the oncall to run the following workfow: repository: opensearchstaging, image: opensearch-benchmark:dev → repository: opensearchstaging, image: opensearch-benchmark:<VERSION>
+8. **Trigger Docker Hub copy-over workflow:** Contact the oncall managing OpenSearch repositories and request a `copy-over` workflow.After confirming that the `dev` image in Doker Hub staging repository contains the latest changes and latest version, we can copy over this image to an image with the `<VERSION>` tag in the same repository.
+    - For example, if we are releasing `1.4.0`, ask the oncall to run the following workfow: repository: opensearchstaging, image: opensearch-benchmark:dev → repository: opensearchstaging, image: opensearch-benchmark:<VERSION>
 - The reason this is done because `dev` is the image with the latest changes from `main`, which should also be the latest changes from the version branch we created earlier.
 - Verify that the created image with the tag `<VERSION>` shares the same compressed sizes as the `dev` image.
 
 
-9. **Trigger Docker Hub Promotion:** Run `Docker Promotion` workflow on the image created from the previous step.
-- This should  Docker Hub Staging to Docker Hub Production and ECR: Once you have verified that PyPI and Docker Hub staging image (latest image with `dev` tag) works, contact Admin team member. Admin team member will help initiate `Docker Promotion` workflow, where Jenkins copies the Docker image from Docker Hub staging account to both Docker Hub prod account and ECR.
-- Running `Docker Promotion` workflow will automatically trigger four `copy-over` workflows:
+9. **Trigger Docker Hub Promote workflow:** Run `Docker Promote` workflow on the image created from the previous step.
+- This workflow will take the image created in the previous step and promotes it to to both Docker Hub prod account and ECR.
+- Running `Docker Promote` workflow will automatically trigger four `copy-over` workflows:
         1. repository: opensearchstaging, image: opensearch-benchmark:<VERSION> → repository: opensearchproject, image: opensearch-benchmark:<VERSION>
         2. repository: opensearchstaging, image: opensearch-benchmark:<VERSION> → repository: opensearchproject, image: opensearch-benchmark:latest
-        3. repository: public.ecr.aws/opensearchstaging, image: opensearch-benchmark:<VERSION> → repository: public.ecr.aws/opensearchproject, image: opensearch-benchmark:<VERSION>
-        4. repository: public.ecr.aws/opensearchstaging, image: opensearch-benchmark:latest → repository: public.ecr.aws/opensearchproject, image: opensearch-benchmark:latest
+        3. repository: opensearchstaging, image: opensearch-benchmark:<VERSION> → repository: public.ecr.aws/opensearchproject, image: opensearch-benchmark:<VERSION>
+        4. repository: opensearchstaging, image: opensearch-benchmark:latest → repository: public.ecr.aws/opensearchproject, image: opensearch-benchmark:latest
 
 10. **Verify release draft and that Dockerhub Production and ECR Production have newest tags:**
     1. Check that the version appears in GitHub (https://github.com/opensearch-project/opensearch-benchmark/releases) and is marked as the “latest” release.  There should be an associated changelog as well.  Clicking on the “Tags” tab should indicate the version number is one of the project’s tags and its timestamp should match that of the last commit.  If there was an error that prevented the release from being published, but this was fixed manually, click on the edit button (pencil icon) next to the release.  This will provide options to generate the release notes, publish the release and label it as the "latest" one.
