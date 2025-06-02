@@ -93,9 +93,9 @@ git checkout <VERSION BRANCH>
 - Verify that the created image with the tag `<VERSION>` shares the same compressed sizes as the `dev` image.
 
 
-9. **Trigger Docker Hub Promote workflow:** Run `Docker Promote` workflow on the image created from the previous step.
+9. **Trigger docker-promotion workflow:** Run `docker-promotion` workflow on the image created from the previous step.
 - This workflow will take the image created in the previous step and promotes it to to both Docker Hub prod account and ECR.
-- Running `Docker Promote` workflow will automatically trigger four `copy-over` workflows:
+- Running `docker-promotion` workflow will automatically trigger four `copy-over` workflows:
         1. repository: opensearchstaging, image: opensearch-benchmark:<VERSION> → repository: opensearchproject, image: opensearch-benchmark:<VERSION>
         2. repository: opensearchstaging, image: opensearch-benchmark:<VERSION> → repository: opensearchproject, image: opensearch-benchmark:latest
         3. repository: opensearchstaging, image: opensearch-benchmark:<VERSION> → repository: public.ecr.aws/opensearchproject, image: opensearch-benchmark:<VERSION>
