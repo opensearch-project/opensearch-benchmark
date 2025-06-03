@@ -61,7 +61,7 @@ git checkout <VERSION BRANCH>
 
 4. **Create and push tag:** From the command-line, create and push a tag to the version branch.
 - This starts a Github Actions workflow and creates an automated issue in the OSB repository. The issue needs to be commented on by a maintainer of the repository for the release process to proceed.
-- The Github ACtions workflow uploads OSB to PyPI.
+- The Github Actions workflow uploads OSB to PyPI.
 ```
     # Create tag
     git tag 1.4.0 1.4
