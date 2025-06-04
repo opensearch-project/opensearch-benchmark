@@ -110,7 +110,19 @@ install_requires = [
     # License: Apache 2.0
     # Required for Kafka message producer
     "aiokafka>=0.11.0",
-    "tqdm"
+    # License: MIT
+    "tqdm",
+    # License: MIT
+    "faker",
+    # License: MIT
+    # This version is required for Python 3.8 and 3.9 to work
+    "mimesis==11.1.0",
+    # Licence: BSD-3-Clause
+    "dask",
+    # Licence: BSD-3-Clause
+    "dask[distributed]",
+    # Licence: BSD-3-Clause
+    "bokeh!=3.0.*,>=2.4.2"
 ]
 
 tests_require = [
