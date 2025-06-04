@@ -1,0 +1,211 @@
+{
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "user": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "keyword"
+            },
+            "email": {
+              "type": "keyword"
+            },
+            "name": {
+              "type": "text",
+              "fields": {
+                "keyword": {
+                  "type": "keyword",
+                  "ignore_above": 256
+                },
+                "completion": {
+                  "type": "completion"
+                }
+              },
+              "analyzer": "standard"
+            },
+            "address": {
+              "type": "object",
+              "properties": {
+                "street": {
+                  "type": "text"
+                },
+                "city": {
+                  "type": "keyword"
+                },
+                "state": {
+                  "type": "keyword"
+                },
+                "zip": {
+                  "type": "keyword"
+                },
+                "location": {
+                  "type": "geo_point"
+                }
+              }
+            },
+            "preferences": {
+              "type": "object",
+              "dynamic": true
+            }
+          }
+        },
+        "orders": {
+          "type": "nested",
+          "properties": {
+            "id": {
+              "type": "keyword"
+            },
+            "date": {
+              "type": "date",
+              "format": "strict_date_optional_time||epoch_millis"
+            },
+            "amount": {
+              "type": "float"
+            },
+            "status": {
+              "type": "keyword"
+            },
+            "items": {
+              "type": "nested",
+              "properties": {
+                "product_id": {
+                  "type": "keyword"
+                },
+                "name": {
+                  "type": "text",
+                  "fields": {
+                    "keyword": {
+                      "type": "keyword"
+                    }
+                  }
+                },
+                "quantity": {
+                  "type": "short"
+                },
+                "price": {
+                  "type": "float"
+                },
+                "categories": {
+                  "type": "keyword"
+                }
+              }
+            },
+            "shipping_address": {
+              "type": "object",
+              "properties": {
+                "street": {
+                  "type": "text"
+                },
+                "city": {
+                  "type": "keyword"
+                },
+                "state": {
+                  "type": "keyword"
+                },
+                "zip": {
+                  "type": "keyword"
+                },
+                "location": {
+                  "type": "geo_point"
+                }
+              }
+            }
+          }
+        },
+        "activity_log": {
+          "type": "nested",
+          "properties": {
+            "timestamp": {
+              "type": "date"
+            },
+            "action": {
+              "type": "keyword"
+            },
+            "ip_address": {
+              "type": "ip"
+            },
+            "details": {
+              "type": "object",
+              "enabled": false
+            }
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "properties": {
+            "created_at": {
+              "type": "date"
+            },
+            "updated_at": {
+              "type": "date"
+            },
+            "tags": {
+              "type": "keyword"
+            },
+            "source": {
+              "type": "keyword"
+            },
+            "version": {
+              "type": "integer"
+            }
+          }
+        },
+        "description": {
+          "type": "text",
+          "analyzer": "english",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            },
+            "standard": {
+              "type": "text",
+              "analyzer": "standard"
+            }
+          }
+        },
+        "ranking_scores": {
+          "type": "object",
+          "properties": {
+            "popularity": {
+              "type": "float"
+            },
+            "relevance": {
+              "type": "float"
+            },
+            "quality": {
+              "type": "float"
+            }
+          }
+        },
+        "permissions": {
+          "type": "nested",
+          "properties": {
+            "user_id": {
+              "type": "keyword"
+            },
+            "role": {
+              "type": "keyword"
+            },
+            "granted_at": {
+              "type": "date"
+            }
+          }
+        }
+      }
+    },
+    "settings": {
+      "number_of_shards": 3,
+      "number_of_replicas": 2,
+      "analysis": {
+        "analyzer": {
+          "email_analyzer": {
+            "type": "custom",
+            "tokenizer": "uax_url_email",
+            "filter": ["lowercase", "stop"]
+          }
+        }
+      }
+    }
+  }
