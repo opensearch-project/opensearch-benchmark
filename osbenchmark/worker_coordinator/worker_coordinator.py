@@ -301,7 +301,7 @@ class FeedbackActor(actor.BenchmarkActor):
         )
 
     def receiveMsg_ActorExitRequest(self, msg, sender):
-        print("Redline test finished. Maximum stable client number reached: %d" % self.total_active_client_count)
+        console.info("Redline test finished. Maximum stable client number reached: %d" % self.total_active_client_count)
         self.logger.info("FeedbackActor received ActorExitRequest and will shutdown")
         if hasattr(self, 'shared_client_states'):
             self.shared_client_states.clear()
@@ -1982,9 +1982,9 @@ class AsyncExecutor:
         if rampup_wait_time:
             self.logger.info("Client id [%s] is running now.", self.client_id)
 
-        if self.redline_enabled:
-            client_options = self.cfg.opts("client", "options").all_client_options
-            base_timeout = int(1.5 * client_options.get("default", {}).get("timeout", 30))
+        # timeout for client requests
+        client_options = self.cfg.opts("client", "options").all_client_options
+        base_timeout = int(1.5 * client_options.get("default", {}).get("timeout", 30))
 
         self.logger.debug("Entering main loop for client id [%s].", self.client_id)
         try:
@@ -2026,7 +2026,7 @@ class AsyncExecutor:
                         request_meta_data, total_ops, total_ops_unit = await self.handle_redline(runner, params, client_state, request_context, base_timeout)
                     else:
                         request_start, request_end, client_request_start, client_request_end, \
-                        request_meta_data, total_ops, total_ops_unit = await self.handle_benchmark(runner, params, request_context)
+                        request_meta_data, total_ops, total_ops_unit = await self.handle_benchmark(runner, params, request_context, base_timeout)
 
                 processing_end = time.perf_counter()
                 service_time = request_end - request_start
@@ -2134,13 +2134,13 @@ class AsyncExecutor:
                 self.report_error(error_info)
         return request_start, request_end, client_request_start, client_request_end, request_meta_data, total_ops, total_ops_unit
 
-    async def handle_benchmark(self, runner, params, request_context):
-        total_ops, total_ops_unit, request_meta_data = await execute_single(runner,
+    async def handle_benchmark(self, runner, params, request_context, base_timeout):
+        total_ops, total_ops_unit, request_meta_data = await asyncio.wait_for(execute_single(runner,
                                                                             opensearch=self.opensearch,
                                                                             params=params,
                                                                             on_error=self.on_error,
                                                                             redline_enabled=False,
-                                                                            client_enabled=True)
+                                                                            client_enabled=True), base_timeout)
         request_start = request_context.request_start
         request_end = request_context.request_end
         client_request_start = request_context.client_request_start
