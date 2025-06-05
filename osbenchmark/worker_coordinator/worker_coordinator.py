@@ -1982,8 +1982,16 @@ class AsyncExecutor:
         if rampup_wait_time:
             self.logger.info("Client id [%s] is running now.", self.client_id)
 
-        # timeout for client requests
-        client_options = self.cfg.opts("client", "options").all_client_options
+        # grab the client options; if user passed no client options then default to empty dict
+        try:
+            if self.cfg is not None:
+                client_options_obj = self.cfg.opts("client", "options")
+                client_options = getattr(client_options_obj, "all_client_options", {}) or {}
+            else:
+                client_options = {}
+        except exceptions.ConfigError:
+            client_options = {}
+
         base_timeout = int(1.5 * client_options.get("default", {}).get("timeout", 30))
 
         self.logger.debug("Entering main loop for client id [%s].", self.client_id)
