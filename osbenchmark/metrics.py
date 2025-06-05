@@ -461,7 +461,7 @@ class MetricsStore:
         :param test_run_timestamp: The test run timestamp as a datetime.
         :param workload_name: Workload name.
         :param test_procedure_name: TestProcedure name.
-        :param cluster_config_name: ProvisionConfigInstance name.
+        :param cluster_config_name: ClusterConfigInstance name.
         :param ctx: An metrics store open context retrieved from another metrics store with ``#open_context``.
         :param create: True if an index should be created (if necessary). This is typically True, when attempting to write metrics and
         False when it is just opened for reading (as we can assume all necessary indices exist at this point).
@@ -471,7 +471,7 @@ class MetricsStore:
             self._test_run_timestamp = ctx["test-run-timestamp"]
             self._workload = ctx["workload"]
             self._test_procedure = ctx["test_procedure"]
-            self._cluster_config = ctx["provision-config-instance"]
+            self._cluster_config = ctx["cluster-config-instance"]
         else:
             self._test_run_id = test_run_id
             self._test_run_timestamp = time.to_iso8601(test_run_timestamp)
@@ -556,7 +556,7 @@ class MetricsStore:
             "test-run-timestamp": self._test_run_timestamp,
             "workload": self._workload,
             "test_procedure": self._test_procedure,
-            "provision-config-instance": self._cluster_config
+            "cluster-config-instance": self._cluster_config
         }
 
     def put_value_cluster_level(self, name, value, unit=None, task=None, operation=None, operation_type=None, sample_type=SampleType.Normal,
@@ -628,7 +628,7 @@ class MetricsStore:
             "environment": self._environment_name,
             "workload": self._workload,
             "test_procedure": self._test_procedure,
-            "provision-config-instance": self._cluster_config_name,
+            "cluster-config-instance": self._cluster_config_name,
             "name": name,
             "value": value,
             "unit": unit,
@@ -685,7 +685,7 @@ class MetricsStore:
             "environment": self._environment_name,
             "workload": self._workload,
             "test_procedure": self._test_procedure,
-            "provision-config-instance": self._cluster_config_name,
+            "cluster-config-instance": self._cluster_config_name,
 
         })
         if meta:
@@ -1306,10 +1306,10 @@ def list_test_helper(store_item, title):
                 "Workload",
                 "Workload Parameters",
                 "TestProcedure",
-                "ProvisionConfigInstance",
+                "ClusterConfigInstance",
                 "User Tags",
                 "workload Revision",
-                "Provision Config Revision"
+                "Cluster Config Revision"
                 ]))
     else:
         console.println("")
@@ -1424,7 +1424,7 @@ class TestRun:
             "pipeline": self.pipeline,
             "user-tags": self.user_tags,
             "workload": self.workload_name,
-            "provision-config-instance": self.cluster_config,
+            "cluster-config-instance": self.cluster_config,
             "cluster": {
                 "revision": self.revision,
                 "distribution-version": self.distribution_version,
@@ -1441,7 +1441,7 @@ class TestRun:
         if self.workload_params:
             d["workload-params"] = self.workload_params
         if self.cluster_config_params:
-            d["provision-config-instance-params"] = self.cluster_config_params
+            d["cluster-config-instance-params"] = self.cluster_config_params
         if self.plugin_params:
             d["plugin-params"] = self.plugin_params
         return d
@@ -1460,7 +1460,7 @@ class TestRun:
             "user-tags": self.user_tags,
             "workload": self.workload_name,
             "test_procedure": self.test_procedure_name,
-            "provision-config-instance": self.cluster_config_name,
+            "cluster-config-instance": self.cluster_config_name,
             # allow to logically delete records, e.g. for UI purposes when we only want to show the latest result
             "active": True
         }
@@ -1473,7 +1473,7 @@ class TestRun:
         if self.workload_params:
             result_template["workload-params"] = self.workload_params
         if self.cluster_config_params:
-            result_template["provision-config-instance-params"] = self.cluster_config_params
+            result_template["cluster-config-instance-params"] = self.cluster_config_params
         if self.plugin_params:
             result_template["plugin-params"] = self.plugin_params
         if self.meta_data:
@@ -1496,8 +1496,8 @@ class TestRun:
         return TestRun(d["benchmark-version"], d.get("benchmark-revision"), d["environment"], d["test-run-id"],
                     time.from_is8601(d["test-run-timestamp"]),
                     d["pipeline"], user_tags, d["workload"], d.get("workload-params"),
-                    d.get("test_procedure"), d["provision-config-instance"],
-                    d.get("provision-config-instance-params"), d.get("plugin-params"),
+                    d.get("test_procedure"), d["cluster-config-instance"],
+                    d.get("cluster-config-instance-params"), d.get("plugin-params"),
                     workload_revision=d.get("workload-revision"),
                     cluster_config_revision=cluster.get("cluster-config-revision"),
                     distribution_version=cluster.get("distribution-version"),

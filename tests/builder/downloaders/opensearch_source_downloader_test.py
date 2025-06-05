@@ -2,7 +2,7 @@ from unittest import TestCase, mock
 from unittest.mock import Mock
 
 from osbenchmark.builder.downloaders.opensearch_source_downloader import OpenSearchSourceDownloader
-from osbenchmark.builder.provision_config import ProvisionConfigInstance
+from osbenchmark.builder.cluster_config import ClusterConfigInstance
 from osbenchmark.builder.utils.binary_keys import BinaryKeys
 
 
@@ -16,7 +16,7 @@ class OpenSearchSourceDownloaderTest(TestCase):
         self.template_renderer = Mock()
         self.artifact_variables_provider = Mock()
 
-        self.cluster_config = ProvisionConfigInstance(names="fake", root_path="also fake", config_paths="fake2", variables={
+        self.cluster_config = ClusterConfigInstance(names="fake", root_path="also fake", config_paths="fake2", variables={
             "source": {
                 "root": {
                     "dir": "/fake/dir/for/source"

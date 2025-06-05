@@ -4,7 +4,7 @@ from unittest.mock import Mock
 from osbenchmark.builder.installers.bare_installer import BareInstaller
 from osbenchmark.builder.installers.preparers.plugin_preparer import PluginPreparer
 from osbenchmark.builder.models.host import Host
-from osbenchmark.builder.provision_config import ProvisionConfigInstance, BootstrapPhase
+from osbenchmark.builder.cluster_config import ClusterConfigInstance, BootstrapPhase
 
 
 class BareInstallerTests(TestCase):
@@ -21,7 +21,7 @@ class BareInstallerTests(TestCase):
         self.preparer = Mock()
         self.preparer2 = Mock()
 
-        self.cluster_config = ProvisionConfigInstance(
+        self.cluster_config = ClusterConfigInstance(
             names="defaults",
             root_path="fake",
             config_paths=["/tmp"],

@@ -3,13 +3,13 @@ from unittest.mock import Mock
 
 from osbenchmark.builder.downloaders.repositories.opensearch_distribution_repository_provider import \
     OpenSearchDistributionRepositoryProvider
-from osbenchmark.builder.provision_config import ProvisionConfigInstance
+from osbenchmark.builder.cluster_config import ClusterConfigInstance
 
 
 class OpenSearchDistributionRepositoryProviderTest(TestCase):
     def setUp(self):
         self.host = None
-        self.cluster_config = ProvisionConfigInstance(names=None, config_paths=None, root_path=None, variables={
+        self.cluster_config = ClusterConfigInstance(names=None, config_paths=None, root_path=None, variables={
             "system": {
                 "runtime": {
                     "jdk": {

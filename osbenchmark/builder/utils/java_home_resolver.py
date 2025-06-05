@@ -17,7 +17,7 @@ class JavaHomeResolver:
         try:
             allowed_runtime_jdks = [int(v) for v in runtime_jdks.split(",")]
         except ValueError:
-            raise SystemSetupError(f"ProvisionConfigInstance variable key \"runtime.jdk\" is invalid: \"{runtime_jdks}\" (must be int)")
+            raise SystemSetupError(f"ClusterConfigInstance variable key \"runtime.jdk\" is invalid: \"{runtime_jdks}\" (must be int)")
 
         if is_runtime_jdk_bundled:
             return self._handle_bundled_jdk(host, allowed_runtime_jdks)

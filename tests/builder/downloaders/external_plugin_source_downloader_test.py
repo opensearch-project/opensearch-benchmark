@@ -2,7 +2,7 @@ from unittest import TestCase, mock
 from unittest.mock import Mock
 
 from osbenchmark.builder.downloaders.external_plugin_source_downloader import ExternalPluginSourceDownloader
-from osbenchmark.builder.provision_config import PluginDescriptor
+from osbenchmark.builder.cluster_config import PluginDescriptor
 
 
 class ExternalPluginSourceDownloaderTest(TestCase):

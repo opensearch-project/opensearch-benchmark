@@ -116,7 +116,7 @@ def auto_load_local_config(base_config, additional_sections=None, config_file_cl
     # consistent across all nodes here.
     cfg.add_all(base_config, "reporting")
     cfg.add_all(base_config, "workloads")
-    cfg.add_all(base_config, "provision_configs")
+    cfg.add_all(base_config, "cluster_configs")
     cfg.add_all(base_config, "distributions")
     cfg.add_all(base_config, "defaults")
     # needed e.g. for "time.start"
@@ -249,8 +249,8 @@ class Config:
             (Scope.application, "benchmarks", "workload.default.repository"): "default",
             (Scope.application, "provisioning", "node.name.prefix"): "benchmark-node",
             (Scope.application, "provisioning", "node.http.port"): 39200,
-            (Scope.application, "builder", "provision_config.repository.dir"): "provision_configs",
-            (Scope.application, "builder", "provision_config.default.repository"): "default",
+            (Scope.application, "builder", "cluster_config.repository.dir"): "cluster_configs",
+            (Scope.application, "builder", "cluster_config.default.repository"): "default",
 
         }
 

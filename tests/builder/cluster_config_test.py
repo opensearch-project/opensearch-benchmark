@@ -26,20 +26,20 @@ import os
 from unittest import TestCase
 
 from osbenchmark import exceptions
-from osbenchmark.builder import provision_config
+from osbenchmark.builder import cluster_config
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
 
-class ProvisionConfigInstanceLoaderTests(TestCase):
+class ClusterConfigInstanceLoaderTests(TestCase):
     def __init__(self, args):
         super().__init__(args)
-        self.provision_config_dir = None
+        self.cluster_config_dir = None
         self.loader = None
 
     def setUp(self):
-        self.provision_config_dir = os.path.join(current_dir, "data")
-        self.loader = provision_config.ProvisionConfigInstanceLoader(self.provision_config_dir)
+        self.cluster_config_dir = os.path.join(current_dir, "data")
+        self.loader = cluster_config.ClusterConfigInstanceLoader(self.cluster_config_dir)
 
     def test_lists_cluster_config_names(self):
         # contrary to the name this assertion compares contents but does not care about order.
@@ -49,90 +49,90 @@ class ProvisionConfigInstanceLoaderTests(TestCase):
         )
 
     def test_load_known_cluster_config(self):
-        cluster_config = provision_config.load_cluster_config(
-            self.provision_config_dir, ["default"],
+        loaded_cluster_config = cluster_config.load_cluster_config(
+            self.cluster_config_dir, ["default"],
             cluster_config_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
-        self.assertEqual("default", cluster_config.name)
+        self.assertEqual("default", loaded_cluster_config.name)
         self.assertEqual(
             [os.path.join(current_dir, "data", "cluster_configs", "v1", "vanilla", "templates")],
-            cluster_config.config_paths)
-        self.assertIsNone(cluster_config.root_path)
+            loaded_cluster_config.config_paths)
+        self.assertIsNone(loaded_cluster_config.root_path)
         self.assertDictEqual({
             "heap_size": "1g",
             "clean_command": "./gradlew clean",
             "data_paths": ["/mnt/disk0", "/mnt/disk1"]
-        }, cluster_config.variables)
-        self.assertIsNone(cluster_config.root_path)
+        }, loaded_cluster_config.variables)
+        self.assertIsNone(loaded_cluster_config.root_path)
 
     def test_load_cluster_config_with_mixin_single_config_base(self):
-        cluster_config = provision_config.load_cluster_config(self.provision_config_dir, ["32gheap", "ea"])
-        self.assertEqual("32gheap+ea", cluster_config.name)
+        loaded_cluster_config = cluster_config.load_cluster_config(self.cluster_config_dir, ["32gheap", "ea"])
+        self.assertEqual("32gheap+ea", loaded_cluster_config.name)
         self.assertEqual(
             [os.path.join(current_dir, "data", "cluster_configs", "v1", "vanilla", "templates")],
-            cluster_config.config_paths)
-        self.assertIsNone(cluster_config.root_path)
+            loaded_cluster_config.config_paths)
+        self.assertIsNone(loaded_cluster_config.root_path)
         self.assertEqual({
             "heap_size": "32g",
             "clean_command": "./gradlew clean",
             "assertions": "true"
-        }, cluster_config.variables)
-        self.assertIsNone(cluster_config.root_path)
+        }, loaded_cluster_config.variables)
+        self.assertIsNone(loaded_cluster_config.root_path)
 
     def test_load_cluster_config_with_mixin_multiple_config_bases(self):
-        cluster_config = provision_config.load_cluster_config(self.provision_config_dir, ["32gheap", "ea", "verbose"])
-        self.assertEqual("32gheap+ea+verbose", cluster_config.name)
+        loaded_cluster_config = cluster_config.load_cluster_config(self.cluster_config_dir, ["32gheap", "ea", "verbose"])
+        self.assertEqual("32gheap+ea+verbose", loaded_cluster_config.name)
         self.assertEqual([
             os.path.join(current_dir, "data", "cluster_configs", "v1", "vanilla", "templates"),
             os.path.join(current_dir, "data", "cluster_configs", "v1", "verbose_logging", "templates"),
-        ], cluster_config.config_paths)
-        self.assertIsNone(cluster_config.root_path)
+        ], loaded_cluster_config.config_paths)
+        self.assertIsNone(loaded_cluster_config.root_path)
         self.assertEqual({
             "heap_size": "32g",
             "clean_command": "./gradlew clean",
             "verbose_logging": "true",
             "assertions": "true"
-        }, cluster_config.variables)
+        }, loaded_cluster_config.variables)
 
     def test_load_cluster_config_with_install_hook(self):
-        cluster_config = provision_config.load_cluster_config(
-            self.provision_config_dir,
+        loaded_cluster_config = cluster_config.load_cluster_config(
+            self.cluster_config_dir,
             ["default", "with_hook"],
             cluster_config_params={"data_paths": ["/mnt/disk0", "/mnt/disk1"]})
-        self.assertEqual("default+with_hook", cluster_config.name)
+        self.assertEqual("default+with_hook", loaded_cluster_config.name)
         self.assertEqual([
             os.path.join(current_dir, "data", "cluster_configs", "v1", "vanilla", "templates"),
             os.path.join(current_dir, "data", "cluster_configs", "v1", "with_hook", "templates"),
-        ], cluster_config.config_paths)
+        ], loaded_cluster_config.config_paths)
         self.assertEqual(
             os.path.join(current_dir, "data", "cluster_configs", "v1", "with_hook"),
-            cluster_config.root_path)
+            loaded_cluster_config.root_path)
         self.assertDictEqual({
             "heap_size": "1g",
             "clean_command": "./gradlew clean",
             "data_paths": ["/mnt/disk0", "/mnt/disk1"]
-        }, cluster_config.variables)
+        }, loaded_cluster_config.variables)
 
     def test_load_cluster_config_with_multiple_bases_referring_same_install_hook(self):
-        cluster_config = provision_config.load_cluster_config(
-            self.provision_config_dir, ["with_hook", "another_with_hook"])
-        self.assertEqual("with_hook+another_with_hook", cluster_config.name)
+        loaded_cluster_config = cluster_config.load_cluster_config(
+            self.cluster_config_dir, ["with_hook", "another_with_hook"])
+        self.assertEqual("with_hook+another_with_hook", loaded_cluster_config.name)
         self.assertEqual([
             os.path.join(current_dir, "data", "cluster_configs", "v1", "vanilla", "templates"),
             os.path.join(current_dir, "data", "cluster_configs", "v1", "with_hook", "templates"),
             os.path.join(current_dir, "data", "cluster_configs", "v1", "verbose_logging", "templates")
-        ], cluster_config.config_paths)
+        ], loaded_cluster_config.config_paths)
         self.assertEqual(
             os.path.join(current_dir, "data", "cluster_configs", "v1", "with_hook"),
-            cluster_config.root_path)
+            loaded_cluster_config.root_path)
         self.assertDictEqual({
             "heap_size": "16g",
             "clean_command": "./gradlew clean",
             "verbose_logging": "true"
-        }, cluster_config.variables)
+        }, loaded_cluster_config.variables)
 
     def test_raises_error_on_unknown_cluster_config(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            provision_config.load_cluster_config(self.provision_config_dir, ["don_t-know-you"])
+            cluster_config.load_cluster_config(self.cluster_config_dir, ["don_t-know-you"])
         self.assertRegex(
             ctx.exception.args[0],
             r"Unknown cluster-config \[don_t-know-you\]. "
@@ -140,17 +140,17 @@ class ProvisionConfigInstanceLoaderTests(TestCase):
 
     def test_raises_error_on_empty_config_base(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            provision_config.load_cluster_config(self.provision_config_dir, ["empty_cfg_base"])
+            cluster_config.load_cluster_config(self.cluster_config_dir, ["empty_cfg_base"])
         self.assertEqual("At least one config base is required for cluster_config ['empty_cfg_base']", ctx.exception.args[0])
 
     def test_raises_error_on_missing_config_base(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            provision_config.load_cluster_config(self.provision_config_dir, ["missing_cfg_base"])
+            cluster_config.load_cluster_config(self.cluster_config_dir, ["missing_cfg_base"])
         self.assertEqual("At least one config base is required for cluster_config ['missing_cfg_base']", ctx.exception.args[0])
 
     def test_raises_error_if_more_than_one_different_install_hook(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
-            provision_config.load_cluster_config(self.provision_config_dir, ["multi_hook"])
+            cluster_config.load_cluster_config(self.cluster_config_dir, ["multi_hook"])
         self.assertEqual(
             "Invalid cluster_config: ['multi_hook']. Multiple bootstrap hooks are forbidden.",
             ctx.exception.args[0])
@@ -162,20 +162,20 @@ class PluginLoaderTests(TestCase):
         self.loader = None
 
     def setUp(self):
-        self.loader = provision_config.PluginLoader(os.path.join(current_dir, "data"))
+        self.loader = cluster_config.PluginLoader(os.path.join(current_dir, "data"))
 
     def test_lists_plugins(self):
         self.assertCountEqual(
             [
-                provision_config.PluginDescriptor(name="complex-plugin", config="config-a"),
-                provision_config.PluginDescriptor(name="complex-plugin", config="config-b"),
-                provision_config.PluginDescriptor(name="my-analysis-plugin", core_plugin=True),
-                provision_config.PluginDescriptor(name="my-ingest-plugin", core_plugin=True),
-                provision_config.PluginDescriptor(name="my-core-plugin-with-config", core_plugin=True)
+                cluster_config.PluginDescriptor(name="complex-plugin", config="config-a"),
+                cluster_config.PluginDescriptor(name="complex-plugin", config="config-b"),
+                cluster_config.PluginDescriptor(name="my-analysis-plugin", core_plugin=True),
+                cluster_config.PluginDescriptor(name="my-ingest-plugin", core_plugin=True),
+                cluster_config.PluginDescriptor(name="my-core-plugin-with-config", core_plugin=True)
             ], self.loader.plugins())
 
     def test_loads_core_plugin(self):
-        self.assertEqual(provision_config.PluginDescriptor(name="my-analysis-plugin", core_plugin=True, variables={"dbg": True}),
+        self.assertEqual(cluster_config.PluginDescriptor(name="my-analysis-plugin", core_plugin=True, variables={"dbg": True}),
                          self.loader.load_plugin("my-analysis-plugin", config_names=None, plugin_params={"dbg": True}))
 
     def test_loads_core_plugin_with_config(self):
@@ -201,7 +201,7 @@ class PluginLoaderTests(TestCase):
                                                 r"--distribution-version=VERSION.")
 
     def test_loads_community_plugin_without_configuration(self):
-        self.assertEqual(provision_config.PluginDescriptor("my-community-plugin"), self.loader.load_plugin("my-community-plugin", None))
+        self.assertEqual(cluster_config.PluginDescriptor("my-community-plugin"), self.loader.load_plugin("my-community-plugin", None))
 
     def test_cannot_load_community_plugin_with_missing_config(self):
         with self.assertRaises(exceptions.SystemSetupError) as ctx:
@@ -259,9 +259,9 @@ class BootstrapHookHandlerTests(TestCase):
             handler.register(self.phase, self.post_install_hook)
 
     def test_loads_module(self):
-        plugin = provision_config.PluginDescriptor("unittest-plugin")
+        plugin = cluster_config.PluginDescriptor("unittest-plugin")
         hook = BootstrapHookHandlerTests.UnitTestHook()
-        handler = provision_config.BootstrapHookHandler(plugin, loader_class=BootstrapHookHandlerTests.UnitTestComponentLoader)
+        handler = cluster_config.BootstrapHookHandler(plugin, loader_class=BootstrapHookHandlerTests.UnitTestComponentLoader)
 
         handler.loader.registration_function = hook
         handler.load()
@@ -272,9 +272,9 @@ class BootstrapHookHandlerTests(TestCase):
         self.assertEqual(hook.call_counter, 2 * 4)
 
     def test_cannot_register_for_unknown_phase(self):
-        plugin = provision_config.PluginDescriptor("unittest-plugin")
+        plugin = cluster_config.PluginDescriptor("unittest-plugin")
         hook = BootstrapHookHandlerTests.UnitTestHook(phase="this_is_an_unknown_install_phase")
-        handler = provision_config.BootstrapHookHandler(plugin, loader_class=BootstrapHookHandlerTests.UnitTestComponentLoader)
+        handler = cluster_config.BootstrapHookHandler(plugin, loader_class=BootstrapHookHandlerTests.UnitTestComponentLoader)
 
         handler.loader.registration_function = hook
         with self.assertRaises(exceptions.SystemSetupError) as ctx:

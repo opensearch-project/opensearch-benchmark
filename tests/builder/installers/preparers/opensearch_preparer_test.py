@@ -5,7 +5,7 @@ from unittest.mock import Mock
 from osbenchmark.builder.installers.preparers.opensearch_preparer import OpenSearchPreparer
 from osbenchmark.builder.models.host import Host
 from osbenchmark.builder.models.node import Node
-from osbenchmark.builder.provision_config import ProvisionConfigInstance
+from osbenchmark.builder.cluster_config import ClusterConfigInstance
 from osbenchmark.builder.utils.binary_keys import BinaryKeys
 
 
@@ -25,7 +25,7 @@ class OpenSearchPreparerTests(TestCase):
         self.executor = Mock()
         self.hook_handler_class = Mock()
 
-        self.cluster_config = ProvisionConfigInstance(
+        self.cluster_config = ClusterConfigInstance(
             names="defaults",
             root_path="fake",
             config_paths=["/tmp"],

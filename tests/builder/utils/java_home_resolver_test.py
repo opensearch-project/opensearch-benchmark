@@ -1,7 +1,7 @@
 from unittest import TestCase
 from unittest.mock import Mock
 
-from osbenchmark.builder.provision_config import ProvisionConfigInstance
+from osbenchmark.builder.cluster_config import ClusterConfigInstance
 from osbenchmark.builder.utils.java_home_resolver import JavaHomeResolver
 from osbenchmark.exceptions import SystemSetupError
 
@@ -23,7 +23,7 @@ class JavaHomeResolverTests(TestCase):
                 }
             }
         }
-        self.cluster_config = ProvisionConfigInstance("fake_cluster_config", "/path/to/root",
+        self.cluster_config = ClusterConfigInstance("fake_cluster_config", "/path/to/root",
                                                                  ["/path/to/config"], variables=self.variables)
 
     def test_resolves_java_home_for_default_runtime_jdk(self):

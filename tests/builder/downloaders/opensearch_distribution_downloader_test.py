@@ -2,7 +2,7 @@ from unittest import TestCase, mock
 from unittest.mock import Mock
 
 from osbenchmark.builder.downloaders.opensearch_distribution_downloader import OpenSearchDistributionDownloader
-from osbenchmark.builder.provision_config import ProvisionConfigInstance
+from osbenchmark.builder.cluster_config import ClusterConfigInstance
 from osbenchmark.exceptions import ExecutorError
 
 
@@ -11,7 +11,7 @@ class OpenSearchDistributionDownloaderTest(TestCase):
         self.host = None
 
         self.executor = Mock()
-        self.cluster_config = ProvisionConfigInstance(names="fake", root_path="also fake", config_paths="fake2", variables={
+        self.cluster_config = ClusterConfigInstance(names="fake", root_path="also fake", config_paths="fake2", variables={
             "node": {
                 "root": {
                     "dir": "/fake/dir/for/download"

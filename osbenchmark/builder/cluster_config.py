@@ -34,18 +34,18 @@ from osbenchmark.builder.models.cluster_flavors import ClusterFlavor
 from osbenchmark.builder.models.cluster_infra_providers import ClusterInfraProvider
 from osbenchmark.utils import console, repo, io, modules
 
-PROVISION_CONFIG_FORMAT_VERSION = 1
+CLUSTER_CONFIG_FORMAT_VERSION = 1
 
 
-def _path_for(provision_config_root_path, provision_config_member_type):
-    root_path = os.path.join(provision_config_root_path, provision_config_member_type, "v{}".format(PROVISION_CONFIG_FORMAT_VERSION))
+def _path_for(cluster_config_root_path, cluster_config_member_type):
+    root_path = os.path.join(cluster_config_root_path, cluster_config_member_type, "v{}".format(CLUSTER_CONFIG_FORMAT_VERSION))
     if not os.path.exists(root_path):
-        raise exceptions.SystemSetupError("Path {} for {} does not exist.".format(root_path, provision_config_member_type))
+        raise exceptions.SystemSetupError("Path {} for {} does not exist.".format(root_path, cluster_config_member_type))
     return root_path
 
 
 def list_cluster_configs(cfg):
-    loader = ProvisionConfigInstanceLoader(cluster_config_path(cfg))
+    loader = ClusterConfigInstanceLoader(cluster_config_path(cfg))
     cluster_configs = []
     for name in loader.cluster_config_names():
         cluster_configs.append(loader.load_cluster_config(name))
@@ -71,13 +71,13 @@ def load_cluster_config(repo, name, cluster_config_params=None):
     all_cluster_config_vars = {}
 
     for n in name:
-        descriptor = ProvisionConfigInstanceLoader(repo).load_cluster_config(n, cluster_config_params)
+        descriptor = ClusterConfigInstanceLoader(repo).load_cluster_config(n, cluster_config_params)
         for p in descriptor.config_paths:
             if p not in all_config_paths:
                 all_config_paths.append(p)
         for p in descriptor.root_paths:
             # probe whether we have a root path
-            if BootstrapHookHandler(Component(root_path=p, entry_point=ProvisionConfigInstance.entry_point)).can_load():
+            if BootstrapHookHandler(Component(root_path=p, entry_point=ClusterConfigInstance.entry_point)).can_load():
                 if not root_path:
                     root_path = p
                 # multiple cluster_configs are based on the same hook
@@ -94,7 +94,7 @@ def load_cluster_config(repo, name, cluster_config_params=None):
     variables.update(all_config_base_vars)
     variables.update(all_cluster_config_vars)
 
-    return ProvisionConfigInstance(name, root_path, all_config_paths, variables=variables)
+    return ClusterConfigInstance(name, root_path, all_config_paths, variables=variables)
 
 
 def list_plugins(cfg):
@@ -129,7 +129,7 @@ def load_plugins(repo, plugin_names, plugin_params=None):
 
 
 def cluster_config_path(cfg):
-    root_path = cfg.opts("builder", "provision_config.path", mandatory=False)
+    root_path = cfg.opts("builder", "cluster_config.path", mandatory=False)
     if root_path:
         return root_path
     else:
@@ -137,22 +137,22 @@ def cluster_config_path(cfg):
         repo_name = cfg.opts("builder", "repository.name")
         repo_revision = cfg.opts("builder", "repository.revision")
         offline = cfg.opts("system", "offline.mode")
-        default_directory = cfg.opts("provision_configs", "%s.dir" % repo_name, mandatory=False)
+        default_directory = cfg.opts("cluster_configs", "%s.dir" % repo_name, mandatory=False)
         root = cfg.opts("node", "root.dir")
-        provision_config_repositories = cfg.opts("builder", "provision_config.repository.dir")
-        provision_configs_dir = os.path.join(root, provision_config_repositories)
+        cluster_config_repositories = cfg.opts("builder", "cluster_config.repository.dir")
+        cluster_configs_dir = os.path.join(root, cluster_config_repositories)
 
-        current_provision_config_repo = repo.BenchmarkRepository(
-            default_directory, provision_configs_dir,
-            repo_name, "provision_configs", offline)
+        current_cluster_config_repo = repo.BenchmarkRepository(
+            default_directory, cluster_configs_dir,
+            repo_name, "cluster_configs", offline)
 
-        current_provision_config_repo.set_provision_configs_dir(repo_revision, distribution_version, cfg)
-        return current_provision_config_repo.repo_dir
+        current_cluster_config_repo.set_cluster_configs_dir(repo_revision, distribution_version, cfg)
+        return current_cluster_config_repo.repo_dir
 
 
-class ProvisionConfigInstanceLoader:
-    def __init__(self, provision_config_root_path):
-        self.cluster_configs_dir = _path_for(provision_config_root_path, "cluster_configs")
+class ClusterConfigInstanceLoader:
+    def __init__(self, cluster_config_root_path):
+        self.cluster_configs_dir = _path_for(cluster_config_root_path, "cluster_configs")
         self.logger = logging.getLogger(__name__)
 
     def cluster_config_names(self):
@@ -181,7 +181,7 @@ class ProvisionConfigInstanceLoader:
         config_paths = []
         config_base_vars = {}
         description = self._value(config, ["meta", "description"], default="")
-        cluster_config_type = self._value(config, ["meta", "type"], default="provision-config-instance")
+        cluster_config_type = self._value(config, ["meta", "type"], default="cluster-config-instance")
         config_bases = self._value(config, ["config", "base"], default="").split(",")
         for base in config_bases:
             if base:
@@ -195,13 +195,13 @@ class ProvisionConfigInstanceLoader:
 
         # it's possible that some cluster_configs don't have a config base, e.g. mixins which only override variables
         if len(config_paths) == 0:
-            self.logger.info("ProvisionConfigInstance [%s] does not define any config paths. Assuming that it is used as a mixin.", name)
+            self.logger.info("ClusterConfigInstance [%s] does not define any config paths. Assuming that it is used as a mixin.", name)
         variables = self._copy_section(config, "variables", {})
         # add all cluster_config params here to override any defaults
         if cluster_config_params:
             variables.update(cluster_config_params)
 
-        return ProvisionConfigInstanceDescriptor(
+        return ClusterConfigInstanceDescriptor(
             name, description, cluster_config_type,
             root_paths, config_paths, config_base_vars, variables)
 
@@ -229,7 +229,7 @@ class ProvisionConfigInstanceLoader:
         return target
 
 
-class ProvisionConfigInstanceDescriptor:
+class ClusterConfigInstanceDescriptor:
     def __init__(self, name, description, type, root_paths, config_paths, config_base_variables, variables):
         self.name = name
         self.description = description
@@ -246,7 +246,7 @@ class ProvisionConfigInstanceDescriptor:
         return isinstance(other, type(self)) and self.name == other.name
 
 
-class ProvisionConfigInstance:
+class ClusterConfigInstance:
     # name of the initial Python file to load for cluster_configs.
     entry_point = "config"
 
@@ -278,7 +278,7 @@ class ProvisionConfigInstance:
         try:
             return self.variables[name]
         except KeyError:
-            raise exceptions.SystemSetupError("ProvisionConfigInstance \"{}\" requires config key \"{}\"".format(self.name, name))
+            raise exceptions.SystemSetupError("ClusterConfigInstance \"{}\" requires config key \"{}\"".format(self.name, name))
 
     @property
     def name(self):
@@ -298,8 +298,8 @@ class ProvisionConfigInstance:
 
 
 class PluginLoader:
-    def __init__(self, provision_config_root_path):
-        self.plugins_root_path = _path_for(provision_config_root_path, "plugins")
+    def __init__(self, cluster_config_root_path):
+        self.plugins_root_path = _path_for(cluster_config_root_path, "plugins")
         self.logger = logging.getLogger(__name__)
 
     def plugins(self, variables=None):
@@ -477,7 +477,7 @@ class BootstrapHookHandler:
         Creates a new BootstrapHookHandler.
 
         :param component: The component that should be loaded.
-        In practice, this is a PluginDescriptor or a ProvisionConfigInstance instance.
+        In practice, this is a PluginDescriptor or a ClusterConfigInstance instance.
         :param loader_class: The implementation that loads the provided component's code.
         """
         self.component = component

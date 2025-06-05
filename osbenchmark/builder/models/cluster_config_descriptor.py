@@ -9,9 +9,9 @@ from osbenchmark.builder.models.cluster_config_types import ClusterConfigType
 @dataclass
 class ClusterConfigDescriptor:
     """
-    A ProvisionConfigInstanceDescriptor represents a single source of provision config definition. These descriptors serve
+    A ClusterConfigInstanceDescriptor represents a single source of provision config definition. These descriptors serve
     as an intermediary store of the cluster to be provisioned. Descriptors are created from each config source and played
-    on top of one another to create the final ProvisionConfigInstance to be used by the Builder system.
+    on top of one another to create the final ClusterConfigInstance to be used by the Builder system.
 
     :param name: Descriptive name for this provision config instance source.
     :param description: A description for this provision config instance source.
@@ -25,7 +25,7 @@ class ClusterConfigDescriptor:
 
     name: str
     description: str = ""
-    type: ClusterConfigType = ClusterConfigType.PROVISION_CONFIG_INSTANCE
+    type: ClusterConfigType = ClusterConfigType.CLUSTER_CONFIG_INSTANCE
     root_paths: List[str] = field(default_factory=list)
     provider: ClusterInfraProvider = None
     flavor: ClusterFlavor = None

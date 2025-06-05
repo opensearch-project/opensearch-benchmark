@@ -47,7 +47,7 @@ def java_home(cluster_config_runtime_jdks, specified_runtime_jdk=None, provides_
 
     except ValueError:
         raise exceptions.SystemSetupError(
-            "ProvisionConfigInstance config key \"runtime.jdk\" is invalid: \"{}\" (must be int)".format(
+            "ClusterConfigInstance config key \"runtime.jdk\" is invalid: \"{}\" (must be int)".format(
                 cluster_config_runtime_jdks))
 
     runtime_jdk_versions = determine_runtime_jdks()

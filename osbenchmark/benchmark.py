@@ -37,7 +37,7 @@ from osbenchmark import PROGRAM_NAME, BANNER, FORUM_LINK, SKULL, check_python_ve
 from osbenchmark import version, actor, config, paths, \
     test_run_orchestrator, publisher, \
         metrics, workload, exceptions, log
-from osbenchmark.builder import provision_config, builder
+from osbenchmark.builder import cluster_config, builder
 from osbenchmark.synthetic_data_generator import synthetic_data_generator
 from osbenchmark.workload_generator import workload_generator
 from osbenchmark.utils import io, convert, process, console, net, opts, versions
@@ -799,9 +799,9 @@ def dispatch_list(cfg):
     elif what == "aggregated_results":
         metrics.list_aggregated_results(cfg)
     elif what == "cluster-configs":
-        provision_config.list_cluster_configs(cfg)
+        cluster_config.list_cluster_configs(cfg)
     elif what == "opensearch-plugins":
-        provision_config.list_plugins(cfg)
+        cluster_config.list_plugins(cfg)
     else:
         raise exceptions.SystemSetupError("Cannot list unknown configuration option [%s]" % what)
 
@@ -1051,7 +1051,7 @@ def configure_test(arg_parser, args, cfg):
     cfg.add(config.Scope.applicationOverride, "builder", "runtime.jdk", args.runtime_jdk)
     cfg.add(config.Scope.applicationOverride, "builder", "source.revision", args.revision)
     cfg.add(config.Scope.applicationOverride, "builder",
-    "provision_config_instance.plugins", opts.csv_to_list(
+    "cluster_config_instance.plugins", opts.csv_to_list(
         args.opensearch_plugins))
     cfg.add(config.Scope.applicationOverride, "builder", "plugin.params", opts.to_dict(args.plugin_params))
     cfg.add(config.Scope.applicationOverride, "builder", "preserve.install", convert.to_bool(args.preserve_install))

@@ -1,6 +1,6 @@
 from osbenchmark.builder.installers.installer import Installer
 from osbenchmark.builder.installers.preparers.plugin_preparer import PluginPreparer
-from osbenchmark.builder.provision_config import BootstrapPhase
+from osbenchmark.builder.cluster_config import BootstrapPhase
 from osbenchmark.builder.utils.config_applier import ConfigApplier
 from osbenchmark.builder.utils.java_home_resolver import JavaHomeResolver
 from osbenchmark.builder.utils.path_manager import PathManager

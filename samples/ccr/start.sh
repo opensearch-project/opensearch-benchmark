@@ -134,8 +134,8 @@ datastore.password = admin
 [workloads]
 default.url = https://github.com/opensearch-project/opensearch-benchmark-workloads
 
-[provision_configs]
-default.dir = default-provision-config
+[cluster_configs]
+default.dir = default-cluster-config
 
 [defaults]
 preserve_benchmark_candidate = false

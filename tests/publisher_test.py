@@ -74,7 +74,7 @@ class FormatterTests(TestCase):
 
         config.opts.side_effect = config_opts_side_effect
 
-        publisher = publisher.ComparisonPublisher(config)
+        comparison_publisher = publisher.ComparisonPublisher(config)
 
         # Mock for regular test run
         regular_stats = Mock()
@@ -103,13 +103,13 @@ class FormatterTests(TestCase):
         }
 
         # Test with regular stats
-        result_regular = publisher._publish_throughput(regular_stats, regular_stats, "test_task")
+        result_regular = comparison_publisher._publish_throughput(regular_stats, regular_stats, "test_task")
         self.assertEqual(len(result_regular), 4)
         self.assertEqual(result_regular[0][2], 100)  # baseline min
         self.assertEqual(result_regular[3][3], 200)  # contender max
 
         # Test with aggregated stats
-        result_aggregated = publisher._publish_throughput(aggregated_stats, aggregated_stats, "test_task")
+        result_aggregated = comparison_publisher._publish_throughput(aggregated_stats, aggregated_stats, "test_task")
         self.assertEqual(len(result_aggregated), 4)
         self.assertEqual(result_aggregated[0][2], 95)  # baseline overall_min
         self.assertEqual(result_aggregated[3][3], 205)  # contender overall_max

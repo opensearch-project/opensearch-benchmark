@@ -562,7 +562,7 @@ class OsMetricsTests(TestCase):
                 "shard-count": 3
             },
             "test_procedure": "append",
-            "provision-config-instance": "defaults",
+            "cluster-config-instance": "defaults",
             "name": "indexing_throughput",
             "value": throughput,
             "unit": "docs/s",
@@ -594,7 +594,7 @@ class OsMetricsTests(TestCase):
                 "shard-count": 3
             },
             "test_procedure": "append",
-            "provision-config-instance": "defaults",
+            "cluster-config-instance": "defaults",
             "name": "indexing_throughput",
             "value": throughput,
             "unit": "docs/s",
@@ -635,7 +635,7 @@ class OsMetricsTests(TestCase):
                 "shard-count": 3
             },
             "test_procedure": "append",
-            "provision-config-instance": "defaults",
+            "cluster-config-instance": "defaults",
             "name": "indexing_throughput",
             "value": throughput,
             "unit": "docs/s",
@@ -675,7 +675,7 @@ class OsMetricsTests(TestCase):
                 "shard-count": 3
             },
             "test_procedure": "append",
-            "provision-config-instance": "defaults",
+            "cluster-config-instance": "defaults",
             "name": "custom_metric",
             "total": 1234567,
             "per-shard": [17, 18, 1289, 273, 222],
@@ -723,7 +723,7 @@ class OsMetricsTests(TestCase):
                 "shard-count": 3
             },
             "test_procedure": "append",
-            "provision-config-instance": "defaults",
+            "cluster-config-instance": "defaults",
             "name": "custom_metric",
             "total": 1234567,
             "per-shard": [17, 18, 1289, 273, 222],
@@ -1253,7 +1253,7 @@ class OsTestRunStoreTests(TestCase):
                             "workload": "unittest",
                             "test_procedure": "index",
                             "workload-revision": "abc1",
-                            "provision-config-instance": "defaults",
+                            "cluster-config-instance": "defaults",
                             "results": {
                                 "young_gc_time": 100,
                                 "old_gc_time": 5,
@@ -1337,8 +1337,8 @@ class OsTestRunStoreTests(TestCase):
             },
             "test_procedure": "index",
             "workload-revision": "abc1",
-            "provision-config-instance": "defaults",
-            "provision-config-instance-params": {
+            "cluster-config-instance": "defaults",
+            "cluster-config-instance-params": {
                 "heap_size": "512mb"
             },
             "cluster": {
@@ -1449,7 +1449,7 @@ class OsResultsStoreTests(TestCase):
                 "cluster-config-revision": "123ab",
                 "workload-revision": "abc1",
                 "test_procedure": "index",
-                "provision-config-instance": "4gheap",
+                "cluster-config-instance": "4gheap",
                 "plugin-params": {
                     "some-param": True
                 },
@@ -1479,7 +1479,7 @@ class OsResultsStoreTests(TestCase):
                 "cluster-config-revision": "123ab",
                 "workload-revision": "abc1",
                 "test_procedure": "index",
-                "provision-config-instance": "4gheap",
+                "cluster-config-instance": "4gheap",
                 "plugin-params": {
                     "some-param": True
                 },
@@ -1515,7 +1515,7 @@ class OsResultsStoreTests(TestCase):
                 "cluster-config-revision": "123ab",
                 "workload-revision": "abc1",
                 "test_procedure": "index",
-                "provision-config-instance": "4gheap",
+                "cluster-config-instance": "4gheap",
                 "plugin-params": {
                     "some-param": True
                 },
@@ -1600,7 +1600,7 @@ class OsResultsStoreTests(TestCase):
                 "cluster-config-revision": "123ab",
                 "workload-revision": "abc1",
                 "test_procedure": "index",
-                "provision-config-instance": "4gheap",
+                "cluster-config-instance": "4gheap",
                 "active": True,
                 "name": "old_gc_time",
                 "value": {
@@ -1626,7 +1626,7 @@ class OsResultsStoreTests(TestCase):
                 "cluster-config-revision": "123ab",
                 "workload-revision": "abc1",
                 "test_procedure": "index",
-                "provision-config-instance": "4gheap",
+                "cluster-config-instance": "4gheap",
                 "active": True,
                 "name": "throughput",
                 "task": "index #1",
@@ -1658,7 +1658,7 @@ class OsResultsStoreTests(TestCase):
                 "cluster-config-revision": "123ab",
                 "workload-revision": "abc1",
                 "test_procedure": "index",
-                "provision-config-instance": "4gheap",
+                "cluster-config-instance": "4gheap",
                 "active": True,
                 "name": "young_gc_time",
                 "value": {
@@ -2188,7 +2188,7 @@ class GlobalStatsCalculatorTests(TestCase):
                                         "test-run-id": "fb26018b-428d-4528-b36b-cf8c54a303ec",
                                         "test-run-timestamp": "20200728T003905Z", "environment": "local",
                                         "workload": "geonames", "test_procedure": "append-fast-with-conflicts",
-                                        "provision-config-instance": "defaults", "name": "service_time", "value": 72.67997100007051,
+                                        "cluster-config-instance": "defaults", "name": "service_time", "value": 72.67997100007051,
                                         "unit": "ms", "sample-type": "normal",
                                         "meta": {"source_revision": "7f634e9f44834fbc12724506cc1da681b0c3b1e3",
                                                  "distribution_version": "7.6.0", "distribution_flavor": "oss",

@@ -62,7 +62,7 @@ def create(cfg, sources, distribution, cluster_config, plugins=None):
         try:
             build_jdk = int(raw_build_jdk)
         except ValueError:
-            raise exceptions.SystemSetupError(f"ProvisionConfigInstance config key [build.jdk] is invalid: [{raw_build_jdk}] (must be int)")
+            raise exceptions.SystemSetupError(f"ClusterConfigInstance config key [build.jdk] is invalid: [{raw_build_jdk}] (must be int)")
 
         os_src_dir = os.path.join(_src_dir(cfg), _config_value(src_config, "opensearch.src.subdir"))
         builder = Builder(os_src_dir, build_jdk, paths.logs())
@@ -727,7 +727,7 @@ class DistributionRepository:
 
     @property
     def download_url(self):
-        # provision_config repo
+        # cluster_config repo
         self.logger.info("runtime_jdk_bundled? [%s]", self.runtime_jdk_bundled)
         if self.runtime_jdk_bundled:
             default_key = "jdk.bundled.{}_url".format(self.name)
@@ -744,7 +744,7 @@ class DistributionRepository:
         return url[url.rfind("/") + 1:]
 
     def plugin_download_url(self, plugin_name):
-        # provision_config repo
+        # cluster_config repo
         default_key = "plugin_{}_{}_url".format(plugin_name, self.name)
         # benchmark.ini
         override_key = "plugin.{}.{}.url".format(plugin_name, self.name)

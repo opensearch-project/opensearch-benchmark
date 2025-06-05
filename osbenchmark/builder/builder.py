@@ -36,7 +36,7 @@ from opensearchpy.exceptions import NotFoundError
 
 from osbenchmark import (PROGRAM_NAME, actor, client, config, exceptions,
                          metrics, paths)
-from osbenchmark.builder import (launcher, provision_config, provisioner,
+from osbenchmark.builder import (launcher, cluster_config, provisioner,
                                  supplier)
 from osbenchmark.utils import console, net
 
@@ -44,7 +44,7 @@ METRIC_FLUSH_INTERVAL_SECONDS = 30
 
 
 def download(cfg):
-    cluster_config, plugins = load_provision_config(cfg, external=False)
+    cluster_config, plugins = load_cluster_config(cfg, external=False)
 
     s = supplier.create(cfg, sources=False, distribution=True, cluster_config=cluster_config, plugins=plugins)
     binaries = s()
@@ -53,7 +53,7 @@ def download(cfg):
 
 def install(cfg):
     root_path = paths.install_root(cfg)
-    cluster_config, plugins = load_provision_config(cfg, external=False)
+    cluster_config, plugins = load_cluster_config(cfg, external=False)
 
     # A non-empty distribution-version is provided
     distribution = bool(cfg.opts("builder", "distribution.version", mandatory=False))
@@ -374,8 +374,8 @@ class BuilderActor(actor.BenchmarkActor):
         self.logger.info("Received signal from test run orchestrator to start engine.")
         self.test_run_orchestrator = sender
         self.cfg = msg.cfg
-        self.cluster_config, _ = load_provision_config(self.cfg, msg.external)
-        # TODO: This is implicitly set by #load_provision_config() - can we gather this elsewhere?
+        self.cluster_config, _ = load_cluster_config(self.cfg, msg.external)
+        # TODO: This is implicitly set by #load_cluster_config() - can we gather this elsewhere?
         self.cluster_config_revision = self.cfg.opts("builder", "repository.revision")
 
         # In our startup procedure we first create all builders. Only if this succeeds we'll continue.
@@ -627,18 +627,18 @@ class NodeBuilderActor(actor.BenchmarkActor):
 # Internal API (only used by the actor and for tests)
 #####################################################
 
-def load_provision_config(cfg, external):
+def load_cluster_config(cfg, external):
     # externally provisioned clusters do not support cluster_configs / plugins
     if external:
         cluster_config = None
         plugins = []
     else:
-        cluster_config_path = provision_config.cluster_config_path(cfg)
-        cluster_config = provision_config.load_cluster_config(
+        cluster_config_path = cluster_config.cluster_config_path(cfg)
+        cluster_config = cluster_config.load_cluster_config(
             cluster_config_path,
             cfg.opts("builder", "cluster_config.names"),
             cfg.opts("builder", "cluster_config.params"))
-        plugins = provision_config.load_plugins(cluster_config_path,
+        plugins = cluster_config.load_plugins(cluster_config_path,
                                     cfg.opts("builder", "cluster_config.plugins", mandatory=False),
                                     cfg.opts("builder", "plugin.params", mandatory=False))
     return cluster_config, plugins
@@ -649,7 +649,7 @@ def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_i
     test_run_root_path = paths.test_run_root(cfg)
     node_ids = cfg.opts("provisioning", "node.ids", mandatory=False)
     node_name_prefix = cfg.opts("provisioning", "node.name.prefix")
-    cluster_config, plugins = load_provision_config(cfg, external)
+    cluster_config, plugins = load_cluster_config(cfg, external)
 
     if sources or distribution:
         s = supplier.create(cfg, sources, distribution, cluster_config, plugins)

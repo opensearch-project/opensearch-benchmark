@@ -33,7 +33,7 @@ import jinja2
 from jinja2 import select_autoescape
 
 from osbenchmark import exceptions
-from osbenchmark.builder import provision_config, java_resolver
+from osbenchmark.builder import cluster_config, java_resolver
 from osbenchmark.utils import console, convert, io, process, versions
 
 
@@ -80,8 +80,8 @@ class NodeConfiguration:
     def as_dict(self):
         return {
             "build-type": self.build_type,
-            "provision-config-instance-runtime-jdks": self.cluster_config_runtime_jdks,
-            "provision-config-instance-provides-bundled-jdk": self.cluster_config_provides_bundled_jdk,
+            "cluster-config-instance-runtime-jdks": self.cluster_config_runtime_jdks,
+            "cluster-config-instance-provides-bundled-jdk": self.cluster_config_provides_bundled_jdk,
             "ip": self.ip,
             "node-name": self.node_name,
             "node-root-path": self.node_root_path,
@@ -92,8 +92,8 @@ class NodeConfiguration:
     @staticmethod
     def from_dict(d):
         return NodeConfiguration(
-            d["build-type"], d["provision-config-instance-runtime-jdks"],
-            d["provision-config-instance-provides-bundled-jdk"], d["ip"],
+            d["build-type"], d["cluster-config-instance-runtime-jdks"],
+            d["cluster-config-instance-provides-bundled-jdk"], d["ip"],
                                  d["node-name"], d["node-root-path"], d["binary-path"], d["data-paths"])
 
 
@@ -202,9 +202,9 @@ class BareProvisioner:
                 self.apply_config(plugin_config_path, target_root_path, provisioner_vars)
 
         # Never let install hooks modify our original provisioner variables and just provide a copy!
-        self.os_installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, provisioner_vars.copy())
+        self.os_installer.invoke_install_hook(cluster_config.BootstrapPhase.post_install, provisioner_vars.copy())
         for installer in self.plugin_installers:
-            installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, provisioner_vars.copy())
+            installer.invoke_install_hook(cluster_config.BootstrapPhase.post_install, provisioner_vars.copy())
 
         return NodeConfiguration("tar", self.os_installer.cluster_config.mandatory_var("runtime.jdk"),
                                  convert.to_bool(self.os_installer.cluster_config.mandatory_var("runtime.jdk.bundled")),
@@ -242,7 +242,7 @@ class BareProvisioner:
 
 class OpenSearchInstaller:
     def __init__(self, cluster_config, java_home, node_name, node_root_dir, all_node_ips, all_node_names, ip, http_port,
-                 hook_handler_class=provision_config.BootstrapHookHandler):
+                 hook_handler_class=cluster_config.BootstrapHookHandler):
         self.cluster_config = cluster_config
         self.java_home = java_home
         self.node_name = node_name
@@ -329,7 +329,7 @@ class OpenSearchInstaller:
 
 
 class PluginInstaller:
-    def __init__(self, plugin, java_home, hook_handler_class=provision_config.BootstrapHookHandler):
+    def __init__(self, plugin, java_home, hook_handler_class=cluster_config.BootstrapHookHandler):
         self.plugin = plugin
         self.java_home = java_home
         self.hook_handler = hook_handler_class(self.plugin)

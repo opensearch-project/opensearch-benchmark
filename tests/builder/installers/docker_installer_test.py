@@ -6,7 +6,7 @@ from unittest import TestCase, mock
 from unittest.mock import Mock
 
 from osbenchmark.builder.installers.docker_installer import DockerInstaller
-from osbenchmark.builder.provision_config import ProvisionConfigInstance
+from osbenchmark.builder.cluster_config import ClusterConfigInstance
 
 
 class DockerProvisionerTests(TestCase):
@@ -23,7 +23,7 @@ class DockerProvisionerTests(TestCase):
         self.node_heap_dump_dir = os.path.join(self.node_root_dir, "heapdump")
 
         self.executor = Mock()
-        self.cluster_config = ProvisionConfigInstance(
+        self.cluster_config = ClusterConfigInstance(
             names="fake",
             root_path=None,
             config_paths="/tmp",

@@ -9,7 +9,7 @@ from psutil import NoSuchProcess
 from osbenchmark import telemetry
 from osbenchmark.builder import cluster
 from osbenchmark.builder.launchers.local_process_launcher import LocalProcessLauncher
-from osbenchmark.builder.provision_config import ProvisionConfigInstance
+from osbenchmark.builder.cluster_config import ClusterConfigInstance
 from osbenchmark.builder.provisioner import NodeConfiguration
 
 
@@ -32,7 +32,7 @@ class LocalProcessLauncherTests(TestCase):
                 "params": None
             }
         }
-        self.cluster_config = ProvisionConfigInstance("fake_cluster_config", "/path/to/root",
+        self.cluster_config = ClusterConfigInstance("fake_cluster_config", "/path/to/root",
                                                                  ["/path/to/config"], variables=self.variables)
 
         self.launcher = LocalProcessLauncher(self.cluster_config, self.shell_executor, self.metrics_store)
