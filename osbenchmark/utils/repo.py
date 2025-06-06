@@ -32,10 +32,10 @@ from osbenchmark.utils import io, git, console, versions
 
 class BenchmarkRepository:
     """
-    Manages OSB resources (e.g. provision_configs or workloads).
+    Manages OSB resources (e.g. cluster_configs or workloads).
     """
 
-    default = "default-provision-config"
+    default = "default-cluster-config"
 
     def __init__(self, default_directory, root_dir, repo_name, resource_name, offline, fetch=True):
         # If no URL is found, we consider this a local only repo (but still require that it is a git repo)
@@ -121,9 +121,9 @@ class BenchmarkRepository:
         self.logger.info("Checking out revision [%s] in [%s].", revision, self.repo_dir)
         git.checkout(self.repo_dir, revision)
 
-    def set_provision_configs_dir(self, repo_revision, distribution_version, cfg):
+    def set_cluster_configs_dir(self, repo_revision, distribution_version, cfg):
         if self.directory == BenchmarkRepository.default:
-            self._use_default_provision_configs_dir(distribution_version, cfg)
+            self._use_default_cluster_configs_dir(distribution_version, cfg)
         elif repo_revision:
             self.checkout(repo_revision)
         else:
@@ -132,18 +132,18 @@ class BenchmarkRepository:
 
         return cfg
 
-    def _use_default_provision_configs_dir(self, distribution_version, cfg):
-        self.logger.info("Using default-provision-config directory within repository")
+    def _use_default_cluster_configs_dir(self, distribution_version, cfg):
+        self.logger.info("Using default-cluster-config directory within repository")
         root_dir = cfg.opts("node", "benchmark.root")
-        provision_configs_path = os.path.join(root_dir, "resources/provision_configs")
+        cluster_configs_path = os.path.join(root_dir, "resources/cluster_configs")
 
-        branch_version = self._select_branch_version(distribution_version, provision_configs_path)
+        branch_version = self._select_branch_version(distribution_version, cluster_configs_path)
 
         # Include selected branch
-        self.repo_dir = os.path.join(provision_configs_path, branch_version)
+        self.repo_dir = os.path.join(cluster_configs_path, branch_version)
 
     def _select_branch_version(self, distribution_version, pc_path):
-        # Branches have been moved into resources/provision_configs
+        # Branches have been moved into resources/cluster_configs
         branches = [b for b in os.listdir(pc_path) if os.path.isdir(os.path.join(pc_path, b)) and b != "main"]
         branches.sort(key=lambda b: list(map(int, b.split('.'))), reverse=True)
         self.logger.info("branches: %s", branches)
@@ -154,7 +154,7 @@ class BenchmarkRepository:
                 if convert(distribution_version) >= convert(branch):
                     return branch
 
-            raise Exception("Distribution version is less than available ES versions for provision-configs.")
+            raise Exception("Distribution version is less than available ES or OpenSearch versions for cluster-configs.")
 
         # Distribution version is Nonetype if not specified in command line
         return "main"

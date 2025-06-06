@@ -17,7 +17,7 @@ class ConfigPathResolver:
         return root_path
 
     def _get_config_root_path(self):
-        root_path = self.cfg.opts("builder", "provision_config.path", mandatory=False)
+        root_path = self.cfg.opts("builder", "cluster_config.path", mandatory=False)
         if root_path:
             return root_path
         else:
@@ -25,14 +25,14 @@ class ConfigPathResolver:
             repo_name = self.cfg.opts("builder", "repository.name")
             repo_revision = self.cfg.opts("builder", "repository.revision")
             offline = self.cfg.opts("system", "offline.mode")
-            default_directory = self.cfg.opts("provision_configs", "%s.dir" % repo_name, mandatory=False)
+            default_directory = self.cfg.opts("cluster_configs", "%s.dir" % repo_name, mandatory=False)
             root = self.cfg.opts("node", "root.dir")
-            provision_config_repositories = self.cfg.opts("builder", "provision_config.repository.dir")
-            provision_configs_dir = os.path.join(root, provision_config_repositories)
+            cluster_config_repositories = self.cfg.opts("builder", "cluster_config.repository.dir")
+            cluster_configs_dir = os.path.join(root, cluster_config_repositories)
 
-            current_provision_config_repo = BenchmarkRepository(
-                default_directory, provision_configs_dir,
-                repo_name, "provision_configs", offline)
+            current_cluster_config_repo = BenchmarkRepository(
+                default_directory, cluster_configs_dir,
+                repo_name, "cluster_configs", offline)
 
-            current_provision_config_repo.set_provision_configs_dir(repo_revision, distribution_version, self.cfg)
-            return current_provision_config_repo.repo_dir
+            current_cluster_config_repo.set_cluster_configs_dir(repo_revision, distribution_version, self.cfg)
+            return current_cluster_config_repo.repo_dir

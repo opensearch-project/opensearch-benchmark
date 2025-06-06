@@ -3,7 +3,7 @@ from unittest.mock import Mock
 
 from osbenchmark.builder.downloaders.repositories.plugin_distribution_repository_provider import \
     PluginDistributionRepositoryProvider
-from osbenchmark.builder.provision_config import PluginDescriptor
+from osbenchmark.builder.cluster_config import PluginDescriptor
 
 
 class PluginDistributionRepositoryProviderTest(TestCase):

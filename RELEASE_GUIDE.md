@@ -43,7 +43,7 @@ Add backport labels to PRs and commits so that changes can be added to `main` br
 * Since releases are generally published on Thursdays, maintainers should try to ensure all changes are merged in by Tuesday.
 * A week prior to the scheduled release, maintainers should announce the fact in the [#performance channel](https://opensearch.slack.com/archives/C0516H8EJ7R) within the OpenSearch Slack community.
 * Ensure that documentation is appropriately updated with respect to incoming changes prior to the release.
-  
+
 ## Release the new version of OpenSearch Benchmark to PyPI, Docker, and ECR
 
 1. Clone the official OpenSearch Benchmark git repository and change directory to it.  This is where the following commands will be issued.
@@ -123,7 +123,7 @@ Send this message in the following channels in OpenSearch Community Slack:
 
 If an error occurs during build process and you need to retrigger the workflow, do the following:
 
-* Delete the tag locally: `git tag -d <VERSION>` 
+* Delete the tag locally: `git tag -d <VERSION>`
 * Delete the tag on GitHub: `git push --delete origin <VERSION>`
 * Delete the draft release on GitHub
 * Create the tag again and push it to re-initiate the release process.

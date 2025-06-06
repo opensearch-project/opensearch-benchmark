@@ -36,24 +36,25 @@ from opensearchpy.exceptions import NotFoundError
 
 from osbenchmark import (PROGRAM_NAME, actor, client, config, exceptions,
                          metrics, paths)
-from osbenchmark.builder import (launcher, provision_config, provisioner,
+from osbenchmark.builder import (launcher, provisioner,
                                  supplier)
+from osbenchmark.builder import cluster_config as cc
 from osbenchmark.utils import console, net
 
 METRIC_FLUSH_INTERVAL_SECONDS = 30
 
 
 def download(cfg):
-    provision_config_instance, plugins = load_provision_config(cfg, external=False)
+    cluster_config, plugins = load_cluster_config(cfg, external=False)
 
-    s = supplier.create(cfg, sources=False, distribution=True, provision_config_instance=provision_config_instance, plugins=plugins)
+    s = supplier.create(cfg, sources=False, distribution=True, cluster_config=cluster_config, plugins=plugins)
     binaries = s()
     console.println(json.dumps(binaries, indent=2), force=True)
 
 
 def install(cfg):
     root_path = paths.install_root(cfg)
-    provision_config_instance, plugins = load_provision_config(cfg, external=False)
+    cluster_config, plugins = load_cluster_config(cfg, external=False)
 
     # A non-empty distribution-version is provided
     distribution = bool(cfg.opts("builder", "distribution.version", mandatory=False))
@@ -74,8 +75,8 @@ def install(cfg):
         master_nodes = [node_name]
 
     if build_type == "tar":
-        binary_supplier = supplier.create(cfg, sources, distribution, provision_config_instance, plugins)
-        p = provisioner.local(cfg=cfg, provision_config_instance=provision_config_instance, plugins=plugins, ip=ip, http_port=http_port,
+        binary_supplier = supplier.create(cfg, sources, distribution, cluster_config, plugins)
+        p = provisioner.local(cfg=cfg, cluster_config=cluster_config, plugins=plugins, ip=ip, http_port=http_port,
                               all_node_ips=seed_hosts, all_node_names=master_nodes, target_root=root_path,
                               node_name=node_name)
         node_config = p.prepare(binary=binary_supplier())
@@ -84,7 +85,7 @@ def install(cfg):
             raise exceptions.SystemSetupError("You cannot specify any plugins for Docker clusters. Please remove "
                                               "\"--opensearch-plugins\" and try again.")
         p = provisioner.docker(
-            cfg=cfg, provision_config_instance=provision_config_instance,
+            cfg=cfg, cluster_config=cluster_config,
             ip=ip, http_port=http_port, target_root=root_path, node_name=node_name)
         # there is no binary for Docker that can be downloaded / built upfront
         node_config = p.prepare(binary=None)
@@ -97,7 +98,7 @@ def install(cfg):
 
 def start(cfg):
     root_path = paths.install_root(cfg)
-    test_execution_id = cfg.opts("system", "test_execution.id")
+    test_run_id = cfg.opts("system", "test_run.id")
     # avoid double-launching - we expect that the node file is absent
     with contextlib.suppress(FileNotFoundError):
         _load_node_file(root_path)
@@ -114,7 +115,7 @@ def start(cfg):
     else:
         raise exceptions.SystemSetupError("Unknown build type [{}]".format(node_config.build_type))
     nodes = node_launcher.start([node_config])
-    _store_node_file(root_path, (nodes, test_execution_id))
+    _store_node_file(root_path, (nodes, test_run_id))
 
 
 def stop(cfg):
@@ -127,35 +128,35 @@ def stop(cfg):
     else:
         raise exceptions.SystemSetupError("Unknown build type [{}]".format(node_config.build_type))
 
-    nodes, test_execution_id = _load_node_file(root_path)
+    nodes, test_run_id = _load_node_file(root_path)
 
     cls = metrics.metrics_store_class(cfg)
     metrics_store = cls(cfg)
 
-    test_execution_store = metrics.test_execution_store(cfg)
+    test_run_store = metrics.test_run_store(cfg)
     try:
-        current_test_execution = test_execution_store.find_by_test_execution_id(test_execution_id)
+        current_test_run = test_run_store.find_by_test_run_id(test_run_id)
         metrics_store.open(
-            test_ex_id=current_test_execution.test_execution_id,
-            test_ex_timestamp=current_test_execution.test_execution_timestamp,
-            workload_name=current_test_execution.workload_name,
-            test_procedure_name=current_test_execution.test_procedure_name
+            test_run_id=current_test_run.test_run_id,
+            test_run_timestamp=current_test_run.test_run_timestamp,
+            workload_name=current_test_run.workload_name,
+            test_procedure_name=current_test_run.test_procedure_name
         )
     except exceptions.NotFound:
-        logging.getLogger(__name__).info("Could not find test_execution [%s] and will thus not persist system metrics.", test_execution_id)
-        # Don't persist system metrics if we can't retrieve the test_execution as we cannot derive the required meta-data.
-        current_test_execution = None
+        logging.getLogger(__name__).info("Could not find test_run [%s] and will thus not persist system metrics.", test_run_id)
+        # Don't persist system metrics if we can't retrieve the test_run as we cannot derive the required meta-data.
+        current_test_run = None
         metrics_store = None
 
     node_launcher.stop(nodes, metrics_store)
     _delete_node_file(root_path)
 
-    if current_test_execution:
+    if current_test_run:
         metrics_store.flush(refresh=True)
         for node in nodes:
             results = metrics.calculate_system_results(metrics_store, node.node_name)
-            current_test_execution.add_results(results)
-            metrics.results_store(cfg).store_results(current_test_execution)
+            current_test_run.add_results(results)
+            metrics.results_store(cfg).store_results(current_test_run)
 
         metrics_store.close()
 
@@ -213,8 +214,8 @@ class StartEngine:
 
 
 class EngineStarted:
-    def __init__(self, provision_config_revision):
-        self.provision_config_revision = provision_config_revision
+    def __init__(self, cluster_config_revision):
+        self.cluster_config_revision = cluster_config_revision
 
 
 class StopEngine:
@@ -341,11 +342,11 @@ class BuilderActor(actor.BenchmarkActor):
     def __init__(self):
         super().__init__()
         self.cfg = None
-        self.test_execution_orchestrator = None
+        self.test_run_orchestrator = None
         self.cluster_launcher = None
         self.cluster = None
-        self.provision_config_instance = None
-        self.provision_config_revision = None
+        self.cluster_config = None
+        self.cluster_config_revision = None
         self.externally_provisioned = False
 
     def receiveUnrecognizedMessage(self, msg, sender):
@@ -357,7 +358,7 @@ class BuilderActor(actor.BenchmarkActor):
             return
         failmsg = "Child actor exited with [%s] while in status [%s]." % (msg, self.status)
         self.logger.error(failmsg)
-        self.send(self.test_execution_orchestrator, actor.BenchmarkFailure(failmsg))
+        self.send(self.test_run_orchestrator, actor.BenchmarkFailure(failmsg))
 
     def receiveMsg_PoisonMessage(self, msg, sender):
         self.logger.info("BuilderActor#receiveMessage poison(msg = [%s] sender = [%s])", str(msg.poisonMessage), str(sender))
@@ -367,16 +368,16 @@ class BuilderActor(actor.BenchmarkActor):
         else:
             failmsg = msg.details
         self.logger.error(failmsg)
-        self.send(self.test_execution_orchestrator, actor.BenchmarkFailure(failmsg))
+        self.send(self.test_run_orchestrator, actor.BenchmarkFailure(failmsg))
 
     @actor.no_retry("builder")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StartEngine(self, msg, sender):
-        self.logger.info("Received signal from test execution orchestrator to start engine.")
-        self.test_execution_orchestrator = sender
+        self.logger.info("Received signal from test run orchestrator to start engine.")
+        self.test_run_orchestrator = sender
         self.cfg = msg.cfg
-        self.provision_config_instance, _ = load_provision_config(self.cfg, msg.external)
-        # TODO: This is implicitly set by #load_provision_config() - can we gather this elsewhere?
-        self.provision_config_revision = self.cfg.opts("builder", "repository.revision")
+        self.cluster_config, _ = load_cluster_config(self.cfg, msg.external)
+        # TODO: This is implicitly set by #load_cluster_config() - can we gather this elsewhere?
+        self.cluster_config_revision = self.cfg.opts("builder", "repository.revision")
 
         # In our startup procedure we first create all builders. Only if this succeeds we'll continue.
         hosts = self.cfg.opts("client", "hosts").default
@@ -391,7 +392,7 @@ class BuilderActor(actor.BenchmarkActor):
             self.on_all_nodes_started()
             self.status = "cluster_started"
         else:
-            console.info("Preparing for test execution ...", flush=True)
+            console.info("Preparing for test run ...", flush=True)
             self.logger.info("Cluster consisting of %s will be provisioned by OSB.", hosts)
             msg.hosts = hosts
             # Initialize the children array to have the right size to
@@ -427,7 +428,7 @@ class BuilderActor(actor.BenchmarkActor):
             raise exceptions.BenchmarkAssertionError("Unknown wakeup reason [{}]".format(msg.payload))
 
     def receiveMsg_BenchmarkFailure(self, msg, sender):
-        self.send(self.test_execution_orchestrator, msg)
+        self.send(self.test_run_orchestrator, msg)
 
     @actor.no_retry("builder")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StopEngine(self, msg, sender):
@@ -443,14 +444,14 @@ class BuilderActor(actor.BenchmarkActor):
         self.transition_when_all_children_responded(sender, msg, "cluster_stopping", "cluster_stopped", self.on_all_nodes_stopped)
 
     def on_all_nodes_started(self):
-        self.send(self.test_execution_orchestrator, EngineStarted(self.provision_config_revision))
+        self.send(self.test_run_orchestrator, EngineStarted(self.cluster_config_revision))
 
     def reset_relative_time(self):
         for m in self.children:
             self.send(m, ResetRelativeTime(0))
 
     def on_all_nodes_stopped(self):
-        self.send(self.test_execution_orchestrator, EngineStopped())
+        self.send(self.test_run_orchestrator, EngineStopped())
         # clear all state as the builder might get reused later
         for m in self.children:
             self.send(m, thespian.actors.ActorExitRequest())
@@ -567,8 +568,8 @@ class NodeBuilderActor(actor.BenchmarkActor):
             cfg = config.auto_load_local_config(msg.cfg, additional_sections=[
                 # only copy the relevant bits
                 "workload", "builder", "client", "telemetry",
-                # allow metrics store to extract test_execution meta-data
-                "test_execution",
+                # allow metrics store to extract test_run meta-data
+                "test_run",
                 "source"
             ])
             # set root path (normally done by the main entry point)
@@ -627,39 +628,39 @@ class NodeBuilderActor(actor.BenchmarkActor):
 # Internal API (only used by the actor and for tests)
 #####################################################
 
-def load_provision_config(cfg, external):
-    # externally provisioned clusters do not support provision_config_instances / plugins
+def load_cluster_config(cfg, external):
+    # externally provisioned clusters do not support cluster_configs / plugins
     if external:
-        provision_config_instance = None
+        cluster_config = None
         plugins = []
     else:
-        provision_config_path = provision_config.provision_config_path(cfg)
-        provision_config_instance = provision_config.load_provision_config_instance(
-            provision_config_path,
-            cfg.opts("builder", "provision_config_instance.names"),
-            cfg.opts("builder", "provision_config_instance.params"))
-        plugins = provision_config.load_plugins(provision_config_path,
-                                    cfg.opts("builder", "provision_config_instance.plugins", mandatory=False),
+        cluster_config_path = cc.cluster_config_path(cfg)
+        cluster_config = cc.load_cluster_config(
+            cluster_config_path,
+            cfg.opts("builder", "cluster_config.names"),
+            cfg.opts("builder", "cluster_config.params"))
+        plugins = cc.load_plugins(cluster_config_path,
+                                    cfg.opts("builder", "cluster_config.plugins", mandatory=False),
                                     cfg.opts("builder", "plugin.params", mandatory=False))
-    return provision_config_instance, plugins
+    return cluster_config, plugins
 
 
 def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_ids, sources=False, distribution=False,
            external=False, docker=False):
-    test_execution_root_path = paths.test_execution_root(cfg)
+    test_run_root_path = paths.test_run_root(cfg)
     node_ids = cfg.opts("provisioning", "node.ids", mandatory=False)
     node_name_prefix = cfg.opts("provisioning", "node.name.prefix")
-    provision_config_instance, plugins = load_provision_config(cfg, external)
+    cluster_config, plugins = load_cluster_config(cfg, external)
 
     if sources or distribution:
-        s = supplier.create(cfg, sources, distribution, provision_config_instance, plugins)
+        s = supplier.create(cfg, sources, distribution, cluster_config, plugins)
         p = []
         all_node_names = ["%s-%s" % (node_name_prefix, n) for n in all_node_ids]
         for node_id in node_ids:
             node_name = "%s-%s" % (node_name_prefix, node_id)
             p.append(
-                provisioner.local(cfg, provision_config_instance, plugins, node_ip, node_http_port, all_node_ips,
-                                  all_node_names, test_execution_root_path, node_name))
+                provisioner.local(cfg, cluster_config, plugins, node_ip, node_http_port, all_node_ips,
+                                  all_node_names, test_run_root_path, node_name))
         l = launcher.ProcessLauncher(cfg)
     elif external:
         raise exceptions.BenchmarkAssertionError("Externally provisioned clusters should not need to be managed by OSB's builder")
@@ -671,7 +672,7 @@ def create(cfg, metrics_store, node_ip, node_http_port, all_node_ips, all_node_i
         p = []
         for node_id in node_ids:
             node_name = "%s-%s" % (node_name_prefix, node_id)
-            p.append(provisioner.docker(cfg, provision_config_instance, node_ip, node_http_port, test_execution_root_path, node_name))
+            p.append(provisioner.docker(cfg, cluster_config, node_ip, node_http_port, test_run_root_path, node_name))
         l = launcher.DockerLauncher(cfg)
     else:
         # It is a programmer error (and not a user error) if this function is called with wrong parameters
@@ -718,9 +719,9 @@ class Builder:
         self.launcher.stop(self.nodes, self.metrics_store)
         self.flush_metrics(refresh=True)
         try:
-            current_test_execution = self._current_test_execution()
+            current_test_run = self._current_test_run()
             for node in self.nodes:
-                self._add_results(current_test_execution, node)
+                self._add_results(current_test_run, node)
         except exceptions.NotFound as e:
             self.logger.warning("Cannot store system metrics: %s.", str(e))
 
@@ -732,11 +733,11 @@ class Builder:
                                 data_paths=node_config.data_paths)
         self.node_configs = []
 
-    def _current_test_execution(self):
-        test_execution_id = self.cfg.opts("system", "test_execution.id")
-        return metrics.test_execution_store(self.cfg).find_by_test_execution_id(test_execution_id)
+    def _current_test_run(self):
+        test_run_id = self.cfg.opts("system", "test_run.id")
+        return metrics.test_run_store(self.cfg).find_by_test_run_id(test_run_id)
 
-    def _add_results(self, current_test_execution, node):
+    def _add_results(self, current_test_run, node):
         results = metrics.calculate_system_results(self.metrics_store, node.node_name)
-        current_test_execution.add_results(results)
-        metrics.results_store(self.cfg).store_results(current_test_execution)
+        current_test_run.add_results(results)
+        metrics.results_store(self.cfg).store_results(current_test_run)
