@@ -38,7 +38,7 @@ from osbenchmark import (PROGRAM_NAME, actor, client, config, exceptions,
                          metrics, paths)
 from osbenchmark.builder import (launcher, provisioner,
                                  supplier)
-from osbenechmark.builder import cluster_config as cc
+from osbenchmark.builder import cluster_config as cc
 from osbenchmark.utils import console, net
 
 METRIC_FLUSH_INTERVAL_SECONDS = 30
