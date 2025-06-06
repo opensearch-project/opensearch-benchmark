@@ -1588,15 +1588,6 @@ class FileTestRunStore(TestRunStore):
                 return test_runs[0]
         raise exceptions.NotFound("No test run with test run id [{}]".format(test_run_id))
 
-    def find_by_test_run_id(self, test_run_id):
-        is_aggregated = test_run_id.startswith('aggregate')
-        test_run_file = self._test_run_file(test_run_id=test_run_id, is_aggregated=is_aggregated)
-        if io.exists(test_run_file):
-            test_runs = self._to_test_runs([test_run_file])
-            if test_runs:
-                return test_runs[0]
-        raise exceptions.NotFound("No test run with test run id [{}]".format(test_run_id))
-
     def _to_test_runs(self, results):
         test_runs = []
         for result in results:

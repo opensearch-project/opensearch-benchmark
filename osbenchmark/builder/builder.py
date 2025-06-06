@@ -36,8 +36,9 @@ from opensearchpy.exceptions import NotFoundError
 
 from osbenchmark import (PROGRAM_NAME, actor, client, config, exceptions,
                          metrics, paths)
-from osbenchmark.builder import (launcher, cluster_config, provisioner,
+from osbenchmark.builder import (launcher, provisioner,
                                  supplier)
+from osbenechmark.builder import cluster_config as cc
 from osbenchmark.utils import console, net
 
 METRIC_FLUSH_INTERVAL_SECONDS = 30
@@ -633,12 +634,12 @@ def load_cluster_config(cfg, external):
         cluster_config = None
         plugins = []
     else:
-        cluster_config_path = cluster_config.cluster_config_path(cfg)
-        cluster_config = cluster_config.load_cluster_config(
+        cluster_config_path = cc.cluster_config_path(cfg)
+        cluster_config = cc.load_cluster_config(
             cluster_config_path,
             cfg.opts("builder", "cluster_config.names"),
             cfg.opts("builder", "cluster_config.params"))
-        plugins = cluster_config.load_plugins(cluster_config_path,
+        plugins = cc.load_plugins(cluster_config_path,
                                     cfg.opts("builder", "cluster_config.plugins", mandatory=False),
                                     cfg.opts("builder", "plugin.params", mandatory=False))
     return cluster_config, plugins
