@@ -116,7 +116,6 @@ class CustomWorkloadWriter:
 
         return env.get_template(template_file_name)
 
-
 class QueryProcessor:
     def __init__(self, queries: str):
         self.queries = queries

@@ -98,7 +98,7 @@ class WorkerCoordinatorTests(TestCase):
         self.cfg = config.Config()
         self.cfg.add(config.Scope.application, "system", "env.name", "unittest")
         self.cfg.add(config.Scope.application, "system", "time.start", datetime(year=2017, month=8, day=20, hour=1, minute=0, second=0))
-        self.cfg.add(config.Scope.application, "system", "test_execution.id", "6ebc6e53-ee20-4b0c-99b4-09697987e9f4")
+        self.cfg.add(config.Scope.application, "system", "test_run.id", "6ebc6e53-ee20-4b0c-99b4-09697987e9f4")
         self.cfg.add(config.Scope.application, "system", "available.cores", 8)
         self.cfg.add(config.Scope.application, "node", "root.dir", "/tmp")
         self.cfg.add(config.Scope.application, "workload", "test_procedure.name", "default")
@@ -106,13 +106,13 @@ class WorkerCoordinatorTests(TestCase):
         self.cfg.add(config.Scope.application, "workload", "test.mode.enabled", True)
         self.cfg.add(config.Scope.application, "telemetry", "devices", [])
         self.cfg.add(config.Scope.application, "telemetry", "params", {"ccr-stats-indices": {"default": ["leader_index"]}})
-        self.cfg.add(config.Scope.application, "builder", "provision_config_instance.names", ["default"])
+        self.cfg.add(config.Scope.application, "builder", "cluster_config.names", ["default"])
         self.cfg.add(config.Scope.application, "builder", "skip.rest.api.check", True)
         self.cfg.add(config.Scope.application, "client", "hosts",
                      WorkerCoordinatorTests.Holder(all_hosts={"default": ["localhost:9200"]}))
         self.cfg.add(config.Scope.application, "client", "options", WorkerCoordinatorTests.Holder(all_client_options={"default": {}}))
-        self.cfg.add(config.Scope.application, "worker_coordinator", "load_worker_coordinator_hosts", ["localhost"])
-        self.cfg.add(config.Scope.application, "results_publishing", "datastore.type", "in-memory")
+        self.cfg.add(config.Scope.application, "worker_coordinator", "worker_ips", ["localhost"])
+        self.cfg.add(config.Scope.application, "reporting", "datastore.type", "in-memory")
 
         default_test_procedure = workload.TestProcedure("default", default=True, schedule=[
             workload.Task(name="index", operation=workload.Operation("index", operation_type=workload.OperationType.Bulk), clients=4)
@@ -136,7 +136,7 @@ class WorkerCoordinatorTests(TestCase):
     @mock.patch("osbenchmark.utils.net.resolve")
     def test_start_benchmark_and_prepare_workload(self, resolve):
         # override load worker_coordinator host
-        self.cfg.add(config.Scope.applicationOverride, "worker_coordinator", "load_worker_coordinator_hosts", ["10.5.5.1", "10.5.5.2"])
+        self.cfg.add(config.Scope.applicationOverride, "worker_coordinator", "worker_ips", ["10.5.5.1", "10.5.5.2"])
         resolve.side_effect = ["10.5.5.1", "10.5.5.2"]
 
         target = self.create_test_worker_coordinator_target()
@@ -1309,7 +1309,7 @@ class AsyncExecutorTests(TestCase):
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_execute_schedule_in_throughput_mode(self, opensearch, on_client_request_start, on_client_request_end):
+    async def test_run_schedule_in_throughput_mode(self, opensearch, on_client_request_start, on_client_request_end):
         task_start = time.perf_counter()
         opensearch.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
 
@@ -1378,7 +1378,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_execute_schedule_with_progress_determined_by_runner(self, opensearch):
+    async def test_run_schedule_with_progress_determined_by_runner(self, opensearch):
         task_start = time.perf_counter()
         opensearch.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
 
@@ -1442,7 +1442,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_execute_schedule_runner_overrides_times(self, opensearch):
+    async def test_run_schedule_runner_overrides_times(self, opensearch):
         task_start = time.perf_counter()
         opensearch.new_request_context.return_value = AsyncExecutorTests.StaticRequestTiming(task_start=task_start)
 
@@ -1503,7 +1503,7 @@ class AsyncExecutorTests(TestCase):
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_execute_schedule_throughput_throttled(self, opensearch, on_client_request_start, on_client_request_end):
+    async def test_run_schedule_throughput_throttled(self, opensearch, on_client_request_start, on_client_request_end):
         def perform_request(*args, **kwargs):
             return as_future()
 
@@ -1632,7 +1632,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
-    async def test_execute_schedule_aborts_on_error(self, opensearch):
+    async def test_run_schedule_aborts_on_error(self, opensearch):
         class ExpectedUnitTestException(Exception):
 
             def __str__(self):
@@ -1686,7 +1686,7 @@ class AsyncExecutorTests(TestCase):
         self.assertEqual(0, opensearch.call_count)
 
     @run_async
-    async def test_execute_single_no_return_value(self):
+    async def test_run_single_no_return_value(self):
         opensearch = None
         params = None
         runner = mock.Mock()
@@ -1703,7 +1703,7 @@ class AsyncExecutorTests(TestCase):
         self.assertEqual({"success": True}, request_meta_data)
 
     @run_async
-    async def test_execute_single_tuple(self):
+    async def test_run_single_tuple(self):
         opensearch = None
         params = None
         runner = mock.Mock()
@@ -1720,7 +1720,7 @@ class AsyncExecutorTests(TestCase):
         self.assertEqual({"success": True}, request_meta_data)
 
     @run_async
-    async def test_execute_single_dict(self):
+    async def test_run_single_dict(self):
         opensearch = None
         params = None
         runner = mock.Mock()
@@ -1747,7 +1747,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_execute_single_with_connection_error_always_aborts(self, on_client_request_end):
+    async def test_run_single_with_connection_error_always_aborts(self, on_client_request_end):
         for on_error in ["abort", "continue"]:
             with self.subTest():
                 opensearch = None
@@ -1763,7 +1763,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_execute_single_with_http_400_aborts_when_specified(self, on_client_request_end):
+    async def test_run_single_with_http_400_aborts_when_specified(self, on_client_request_end):
         opensearch = None
         params = None
         runner = mock.Mock(side_effect=
@@ -1777,7 +1777,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_execute_single_with_http_400(self, on_client_request_end):
+    async def test_run_single_with_http_400(self, on_client_request_end):
         opensearch = None
         params = None
         runner = mock.Mock(side_effect=
@@ -1797,7 +1797,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_execute_single_with_http_413(self, on_client_request_end):
+    async def test_run_single_with_http_413(self, on_client_request_end):
         opensearch = None
         params = None
         runner = mock.Mock(side_effect=
@@ -1817,7 +1817,7 @@ class AsyncExecutorTests(TestCase):
 
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
     @run_async
-    async def test_execute_single_with_key_error(self, on_client_request_end):
+    async def test_run_single_with_key_error(self, on_client_request_end):
         class FailingRunner:
             async def __call__(self, *args):
                 raise KeyError("bulk-size missing")
