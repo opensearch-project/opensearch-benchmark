@@ -122,7 +122,7 @@ opensearch.src.subdir = opensearch
 [benchmarks]
 local.dataset.cache = ${HOME}/.benchmark/benchmarks/data
 
-[results_publishing]
+[reporting]
 datastore.type = opensearch
 datastore.host = 127.0.0.1
 datastore.port = 9209
@@ -134,8 +134,8 @@ datastore.password = admin
 [workloads]
 default.url = https://github.com/opensearch-project/opensearch-benchmark-workloads
 
-[provision_configs]
-default.dir = default-provision-config
+[cluster_configs]
+default.dir = default-cluster-config
 
 [defaults]
 preserve_benchmark_candidate = false
@@ -147,4 +147,4 @@ EOF
 
 
 # Start OpenSearch Benchmark
-opensearch-benchmark execute-test --configuration-name=metricstore --workload=geonames --target-hosts=./ccr-target-hosts.json --pipeline=benchmark-only --workload-params="number_of_replicas:1" --client-options=./ccr-client-options.json --kill-running-processes --telemetry="ccr-stats" --telemetry-params=./ccr-telemetry-param.json
+opensearch-benchmark run-test --configuration-name=metricstore --workload=geonames --target-hosts=./ccr-target-hosts.json --pipeline=benchmark-only --workload-params="number_of_replicas:1" --client-options=./ccr-client-options.json --kill-running-processes --telemetry="ccr-stats" --telemetry-params=./ccr-telemetry-param.json

@@ -154,11 +154,11 @@ class TerminatedProcess:
 
 def get_metrics_store(cfg):
     ms = InMemoryMetricsStore(cfg)
-    ms.open(test_ex_id=str(uuid.uuid4()),
-            test_ex_timestamp=datetime.now(),
+    ms.open(test_run_id=str(uuid.uuid4()),
+            test_run_timestamp=datetime.now(),
             workload_name="test",
             test_procedure_name="test",
-            provision_config_instance_name="test")
+            cluster_config_name="test")
     return ms
 
 
@@ -187,8 +187,8 @@ class ProcessLauncherTests(TestCase):
         node_configs = []
         for node in range(2):
             node_configs.append(NodeConfiguration(build_type="tar",
-            provision_config_instance_runtime_jdks="12,11",
-            provision_config_instance_provides_bundled_jdk=True,
+            cluster_config_runtime_jdks="12,11",
+            cluster_config_provides_bundled_jdk=True,
                                                   ip="127.0.0.1",
                                                   node_name="testnode-{}".format(node),
                                                   node_root_path="/tmp",
@@ -295,7 +295,7 @@ class ProcessLauncherTests(TestCase):
         self.assertEqual(os.environ["OPENSEARCH_JAVA_OPTS"], env["OPENSEARCH_JAVA_OPTS"])
 
     @mock.patch("osbenchmark.time.sleep")
-    def test_pidfile_wait_test_execution(self, sleep):
+    def test_pidfile_wait_test_run(self, sleep):
         mo = mock_open()
         with self.assertRaises(exceptions.LaunchError):
             mo.side_effect = FileNotFoundError
@@ -373,8 +373,8 @@ class DockerLauncherTests(TestCase):
         docker = launcher.DockerLauncher(cfg)
 
         node_config = NodeConfiguration(build_type="docker",
-        provision_config_instance_runtime_jdks="12,11",
-        provision_config_instance_provides_bundled_jdk=True,
+        cluster_config_runtime_jdks="12,11",
+        cluster_config_provides_bundled_jdk=True,
                                         ip="127.0.0.1", node_name="testnode",
                                         node_root_path="/tmp", binary_path="/bin",
                                         data_paths="/tmp")
@@ -408,8 +408,8 @@ class DockerLauncherTests(TestCase):
         docker = launcher.DockerLauncher(cfg, clock=TestClock(stop_watch=stop_watch))
 
         node_config = NodeConfiguration(
-            build_type="docker", provision_config_instance_runtime_jdks="12,11",
-            provision_config_instance_provides_bundled_jdk=True,
+            build_type="docker", cluster_config_runtime_jdks="12,11",
+            cluster_config_provides_bundled_jdk=True,
                                         ip="127.0.0.1", node_name="testnode",
                                         node_root_path="/tmp", binary_path="/bin",
                                         data_paths="/tmp")

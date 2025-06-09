@@ -35,11 +35,11 @@ def test_cluster():
     # test with a recent distribution
     dist = it.DISTRIBUTIONS[-1]
     port = 19200
-    test_execution_id = str(uuid.uuid4())
+    test_run_id = str(uuid.uuid4())
 
     it.wait_until_port_is_free(port_number=port)
-    cluster.install(distribution_version=dist, node_name="benchmark-node", provision_config_instance="4gheap", http_port=port)
-    cluster.start(test_execution_id=test_execution_id)
+    cluster.install(distribution_version=dist, node_name="benchmark-node", cluster_config="4gheap", http_port=port)
+    cluster.start(test_run_id=test_run_id)
     yield cluster
     cluster.stop()
 
@@ -49,7 +49,7 @@ def test_create_workload(cfg, tmp_path, test_cluster):
     # prepare some data
     cmd = f"--test-mode --pipeline=benchmark-only --target-hosts=127.0.0.1:{test_cluster.http_port} " \
           f" --workload=geonames --test-procedure=append-no-conflicts-index-only --quiet"
-    assert it.execute_test(cfg, cmd) == 0
+    assert it.run_test(cfg, cmd) == 0
 
     # create the workload
     workload_name = f"test-workload-{uuid.uuid4()}"
@@ -71,4 +71,4 @@ def test_create_workload(cfg, tmp_path, test_cluster):
 
     # run a benchmark with the created workload
     cmd = f"--test-mode --pipeline=benchmark-only --target-hosts=127.0.0.1:{test_cluster.http_port} --workload-path={workload_path}"
-    assert it.execute_test(cfg, cmd) == 0
+    assert it.run_test(cfg, cmd) == 0

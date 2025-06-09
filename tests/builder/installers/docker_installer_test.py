@@ -6,7 +6,7 @@ from unittest import TestCase, mock
 from unittest.mock import Mock
 
 from osbenchmark.builder.installers.docker_installer import DockerInstaller
-from osbenchmark.builder.provision_config import ProvisionConfigInstance
+from osbenchmark.builder.cluster_config import ClusterConfigInstance
 
 
 class DockerProvisionerTests(TestCase):
@@ -16,20 +16,20 @@ class DockerProvisionerTests(TestCase):
         self.node_name = "9dbc682e-d32a-4669-8fbe-56fb77120dd4"
         self.cluster_name = "my-cluster"
         self.port = "39200"
-        self.test_execution_root = tempfile.gettempdir()
-        self.node_root_dir = os.path.join(self.test_execution_root, self.node_name)
+        self.test_run_root = tempfile.gettempdir()
+        self.node_root_dir = os.path.join(self.test_run_root, self.node_name)
         self.node_data_dir = os.path.join(self.node_root_dir, "data", self.node_name)
         self.node_log_dir = os.path.join(self.node_root_dir, "logs", "server")
         self.node_heap_dump_dir = os.path.join(self.node_root_dir, "heapdump")
 
         self.executor = Mock()
-        self.provision_config_instance = ProvisionConfigInstance(
+        self.cluster_config = ClusterConfigInstance(
             names="fake",
             root_path=None,
             config_paths="/tmp",
             variables={
                 "cluster_name": self.cluster_name,
-                "test_execution_root": self.test_execution_root,
+                "test_run_root": self.test_run_root,
                 "node": {
                     "port": self.port
                 },
@@ -44,7 +44,7 @@ class DockerProvisionerTests(TestCase):
             }
         )
 
-        self.installer = DockerInstaller(self.provision_config_instance, self.executor)
+        self.installer = DockerInstaller(self.cluster_config, self.executor)
 
     maxDiff = None
     @mock.patch("uuid.uuid4")
@@ -136,8 +136,8 @@ networks:
         benchmark_root.return_value = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                                                     os.pardir, os.pardir, os.pardir, "osbenchmark"))
 
-        self.provision_config_instance.variables["origin"]["docker"]["docker_mem_limit"] = "256m"
-        self.provision_config_instance.variables["origin"]["docker"]["docker_cpu_count"] = 2
+        self.cluster_config.variables["origin"]["docker"]["docker_mem_limit"] = "256m"
+        self.cluster_config.variables["origin"]["docker"]["docker_cpu_count"] = 2
 
         node = self.installer._create_node()
 

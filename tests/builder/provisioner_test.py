@@ -29,7 +29,7 @@ import unittest.mock as mock
 from unittest import TestCase
 
 from osbenchmark import exceptions
-from osbenchmark.builder import provisioner, provision_config
+from osbenchmark.builder import provisioner, cluster_config
 
 HOME_DIR = os.path.expanduser("~")
 
@@ -45,15 +45,15 @@ class BareProvisionerTests(TestCase):
         def null_apply_config(source_root_path, target_root_path, config_vars):
             apply_config_calls.append((source_root_path, target_root_path, config_vars))
 
-        installer = provisioner.OpenSearchInstaller(provision_config_instance=
-        provision_config.ProvisionConfigInstance(
-            names="unit-test-provision-config-instance",
+        installer = provisioner.OpenSearchInstaller(cluster_config=
+        cluster_config.ClusterConfigInstance(
+            names="unit-test-cluster-config-instance",
             root_path=None,
-            config_paths=[HOME_DIR + "/.benchmark/benchmarks/provision_configs/default/my-provision-config-instance"],
+            config_paths=[HOME_DIR + "/.benchmark/benchmarks/cluster_configs/default/my-cluster-config-instance"],
             variables={"heap": "4g", "runtime.jdk": "8", "runtime.jdk.bundled": "true"}),
             java_home="/usr/local/javas/java8",
             node_name="benchmark-node-0",
-            node_root_dir=HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest",
+            node_root_dir=HOME_DIR + "/.benchmark/benchmarks/test_runs/unittest",
             all_node_ips=["10.17.22.22", "10.17.22.23"],
             all_node_names=["benchmark-node-0", "benchmark-node-1"],
             ip="10.17.22.23",
@@ -64,14 +64,14 @@ class BareProvisionerTests(TestCase):
                                         apply_config=null_apply_config)
 
         node_config = p.prepare({"opensearch": "/opt/opensearch-1.0.0.tar.gz"})
-        self.assertEqual("8", node_config.provision_config_instance_runtime_jdks)
+        self.assertEqual("8", node_config.cluster_config_runtime_jdks)
         self.assertEqual("/opt/opensearch-1.0.0", node_config.binary_path)
         self.assertEqual(["/opt/opensearch-1.0.0/data"], node_config.data_paths)
 
         self.assertEqual(1, len(apply_config_calls))
         source_root_path, target_root_path, config_vars = apply_config_calls[0]
 
-        self.assertEqual(HOME_DIR + "/.benchmark/benchmarks/provision_configs/default/my-provision-config-instance", source_root_path)
+        self.assertEqual(HOME_DIR + "/.benchmark/benchmarks/cluster_configs/default/my-cluster-config-instance", source_root_path)
         self.assertEqual("/opt/opensearch-1.0.0", target_root_path)
         self.assertEqual({
             "cluster_settings": {
@@ -82,8 +82,8 @@ class BareProvisionerTests(TestCase):
             "cluster_name": "benchmark-provisioned-cluster",
             "node_name": "benchmark-node-0",
             "data_paths": ["/opt/opensearch-1.0.0/data"],
-            "log_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/logs/server",
-            "heap_dump_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/heapdump",
+            "log_path": HOME_DIR + "/.benchmark/benchmarks/test_runs/unittest/logs/server",
+            "heap_dump_path": HOME_DIR + "/.benchmark/benchmarks/test_runs/unittest/heapdump",
             "node_ip": "10.17.22.23",
             "network_host": "10.17.22.23",
             "http_port": "9200",
@@ -128,7 +128,7 @@ class OpenSearchInstallerTests(TestCase):
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("shutil.rmtree")
     def test_prepare_default_data_paths(self, mock_rm, mock_ensure_dir, mock_decompress):
-        installer = provisioner.OpenSearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
+        installer = provisioner.OpenSearchInstaller(cluster_config=cluster_config.ClusterConfigInstance(names="defaults",
                                                                     root_path=None,
                                                                     config_paths="/tmp"),
                                                        java_home="/usr/local/javas/java8",
@@ -137,7 +137,7 @@ class OpenSearchInstallerTests(TestCase):
                                                        all_node_names=["benchmark-node-0", "benchmark-node-1"],
                                                        ip="10.17.22.23",
                                                        http_port=9200,
-                                                       node_root_dir=HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest")
+                                                       node_root_dir=HOME_DIR + "/.benchmark/benchmarks/test_runs/unittest")
 
         installer.install("/data/builds/distributions")
         self.assertEqual(installer.os_home_path, "/install/opensearch-5.0.0-SNAPSHOT")
@@ -146,8 +146,8 @@ class OpenSearchInstallerTests(TestCase):
             "cluster_name": "benchmark-provisioned-cluster",
             "node_name": "benchmark-node-0",
             "data_paths": ["/install/opensearch-5.0.0-SNAPSHOT/data"],
-            "log_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/logs/server",
-            "heap_dump_path": HOME_DIR + "/.benchmark/benchmarks/test_executions/unittest/heapdump",
+            "log_path": HOME_DIR + "/.benchmark/benchmarks/test_runs/unittest/logs/server",
+            "heap_dump_path": HOME_DIR + "/.benchmark/benchmarks/test_runs/unittest/heapdump",
             "node_ip": "10.17.22.23",
             "network_host": "10.17.22.23",
             "http_port": "9200",
@@ -165,7 +165,7 @@ class OpenSearchInstallerTests(TestCase):
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("shutil.rmtree")
     def test_prepare_user_provided_data_path(self, mock_rm, mock_ensure_dir, mock_decompress):
-        installer = provisioner.OpenSearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
+        installer = provisioner.OpenSearchInstaller(cluster_config=cluster_config.ClusterConfigInstance(names="defaults",
                                                                     root_path=None,
                                                                     config_paths="/tmp",
                                                                     variables={"data_paths": "/tmp/some/data-path-dir"}),
@@ -175,7 +175,7 @@ class OpenSearchInstallerTests(TestCase):
                                                        all_node_names=["benchmark-node-0", "benchmark-node-1"],
                                                        ip="10.17.22.23",
                                                        http_port=9200,
-                                                       node_root_dir="~/.benchmark/benchmarks/test_executions/unittest")
+                                                       node_root_dir="~/.benchmark/benchmarks/test_runs/unittest")
 
         installer.install("/data/builds/distributions")
         self.assertEqual(installer.os_home_path, "/install/opensearch-5.0.0-SNAPSHOT")
@@ -184,8 +184,8 @@ class OpenSearchInstallerTests(TestCase):
             "cluster_name": "benchmark-provisioned-cluster",
             "node_name": "benchmark-node-0",
             "data_paths": ["/tmp/some/data-path-dir"],
-            "log_path": "~/.benchmark/benchmarks/test_executions/unittest/logs/server",
-            "heap_dump_path": "~/.benchmark/benchmarks/test_executions/unittest/heapdump",
+            "log_path": "~/.benchmark/benchmarks/test_runs/unittest/logs/server",
+            "heap_dump_path": "~/.benchmark/benchmarks/test_runs/unittest/heapdump",
             "node_ip": "10.17.22.23",
             "network_host": "10.17.22.23",
             "http_port": "9200",
@@ -199,7 +199,7 @@ class OpenSearchInstallerTests(TestCase):
         self.assertEqual(installer.data_paths, ["/tmp/some/data-path-dir"])
 
     def test_invokes_hook_with_java_home(self):
-        installer = provisioner.OpenSearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
+        installer = provisioner.OpenSearchInstaller(cluster_config=cluster_config.ClusterConfigInstance(names="defaults",
                                                                     root_path="/tmp",
                                                                     config_paths="/tmp/templates",
                                                                     variables={"data_paths": "/tmp/some/data-path-dir"}),
@@ -209,18 +209,18 @@ class OpenSearchInstallerTests(TestCase):
                                                        all_node_names=["benchmark-node-0", "benchmark-node-1"],
                                                        ip="10.17.22.23",
                                                        http_port=9200,
-                                                       node_root_dir="~/.benchmark/benchmarks/test_executions/unittest",
+                                                       node_root_dir="~/.benchmark/benchmarks/test_runs/unittest",
                                                        hook_handler_class=NoopHookHandler)
 
         self.assertEqual(0, len(installer.hook_handler.hook_calls))
-        installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, {"foo": "bar"})
+        installer.invoke_install_hook(cluster_config.BootstrapPhase.post_install, {"foo": "bar"})
         self.assertEqual(1, len(installer.hook_handler.hook_calls))
         self.assertEqual({"foo": "bar"}, installer.hook_handler.hook_calls["post_install"]["variables"])
         self.assertEqual({"env": {"JAVA_HOME": "/usr/local/javas/java8"}},
                          installer.hook_handler.hook_calls["post_install"]["kwargs"])
 
     def test_invokes_hook_no_java_home(self):
-        installer = provisioner.OpenSearchInstaller(provision_config_instance=provision_config.ProvisionConfigInstance(names="defaults",
+        installer = provisioner.OpenSearchInstaller(cluster_config=cluster_config.ClusterConfigInstance(names="defaults",
                                                                     root_path="/tmp",
                                                                     config_paths="/tmp/templates",
                                                                     variables={"data_paths": "/tmp/some/data-path-dir"}),
@@ -230,11 +230,11 @@ class OpenSearchInstallerTests(TestCase):
                                                        all_node_names=["benchmark-node-0", "benchmark-node-1"],
                                                        ip="10.17.22.23",
                                                        http_port=9200,
-                                                       node_root_dir="~/.benchmark/benchmarks/test_executions/unittest",
+                                                       node_root_dir="~/.benchmark/benchmarks/test_runs/unittest",
                                                        hook_handler_class=NoopHookHandler)
 
         self.assertEqual(0, len(installer.hook_handler.hook_calls))
-        installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, {"foo": "bar"})
+        installer.invoke_install_hook(cluster_config.BootstrapPhase.post_install, {"foo": "bar"})
         self.assertEqual(1, len(installer.hook_handler.hook_calls))
         self.assertEqual({"foo": "bar"}, installer.hook_handler.hook_calls["post_install"]["variables"])
         self.assertEqual({"env": {}}, installer.hook_handler.hook_calls["post_install"]["kwargs"])
@@ -245,7 +245,7 @@ class PluginInstallerTests(TestCase):
     def test_install_plugin_successfully(self, installer_subprocess):
         installer_subprocess.return_value = "output", 0
 
-        plugin = provision_config.PluginDescriptor(name="unit-test-plugin", config="default", variables={"active": True})
+        plugin = cluster_config.PluginDescriptor(name="unit-test-plugin", config="default", variables={"active": True})
         installer = provisioner.PluginInstaller(plugin,
                                                 java_home="/usr/local/javas/java8",
                                                 hook_handler_class=NoopHookHandler)
@@ -260,7 +260,7 @@ class PluginInstallerTests(TestCase):
     def test_install_plugin_with_bundled_jdk(self, installer_subprocess):
         installer_subprocess.return_value = "output", 0
 
-        plugin = provision_config.PluginDescriptor(name="unit-test-plugin", config="default", variables={"active": True})
+        plugin = cluster_config.PluginDescriptor(name="unit-test-plugin", config="default", variables={"active": True})
         installer = provisioner.PluginInstaller(plugin,
                                                 # bundled JDK
                                                 java_home=None,
@@ -277,7 +277,7 @@ class PluginInstallerTests(TestCase):
         # unknown plugin
         installer_subprocess.return_value = "output", 64
 
-        plugin = provision_config.PluginDescriptor(name="unknown")
+        plugin = cluster_config.PluginDescriptor(name="unknown")
         installer = provisioner.PluginInstaller(plugin,
                                                 java_home="/usr/local/javas/java8",
                                                 hook_handler_class=NoopHookHandler)
@@ -295,7 +295,7 @@ class PluginInstallerTests(TestCase):
         # I/O error
         installer_subprocess.return_value = "output", 74
 
-        plugin = provision_config.PluginDescriptor(name="simple")
+        plugin = cluster_config.PluginDescriptor(name="simple")
         installer = provisioner.PluginInstaller(plugin,
                                                 java_home="/usr/local/javas/java8",
                                                 hook_handler_class=NoopHookHandler)
@@ -313,7 +313,7 @@ class PluginInstallerTests(TestCase):
         # some other error
         installer_subprocess.return_value = "output", 12987
 
-        plugin = provision_config.PluginDescriptor(name="simple")
+        plugin = cluster_config.PluginDescriptor(name="simple")
         installer = provisioner.PluginInstaller(plugin,
                                                 java_home="/usr/local/javas/java8",
                                                 hook_handler_class=NoopHookHandler)
@@ -328,7 +328,7 @@ class PluginInstallerTests(TestCase):
             env={"JAVA_HOME": "/usr/local/javas/java8"}, capture_output=True)
 
     def test_pass_plugin_properties(self):
-        plugin = provision_config.PluginDescriptor(name="unit-test-plugin",
+        plugin = cluster_config.PluginDescriptor(name="unit-test-plugin",
                                        config="default",
                                        config_paths=["/etc/plugin"],
                                        variables={"active": True})
@@ -341,7 +341,7 @@ class PluginInstallerTests(TestCase):
         self.assertEqual(["/etc/plugin"], installer.config_source_paths)
 
     def test_invokes_hook_with_java_home(self):
-        plugin = provision_config.PluginDescriptor(name="unit-test-plugin",
+        plugin = cluster_config.PluginDescriptor(name="unit-test-plugin",
                                        config="default",
                                        config_paths=["/etc/plugin"],
                                        variables={"active": True})
@@ -350,14 +350,14 @@ class PluginInstallerTests(TestCase):
                                                 hook_handler_class=NoopHookHandler)
 
         self.assertEqual(0, len(installer.hook_handler.hook_calls))
-        installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, {"foo": "bar"})
+        installer.invoke_install_hook(cluster_config.BootstrapPhase.post_install, {"foo": "bar"})
         self.assertEqual(1, len(installer.hook_handler.hook_calls))
         self.assertEqual({"foo": "bar"}, installer.hook_handler.hook_calls["post_install"]["variables"])
         self.assertEqual({"env": {"JAVA_HOME": "/usr/local/javas/java8"}},
                          installer.hook_handler.hook_calls["post_install"]["kwargs"])
 
     def test_invokes_hook_no_java_home(self):
-        plugin = provision_config.PluginDescriptor(name="unit-test-plugin",
+        plugin = cluster_config.PluginDescriptor(name="unit-test-plugin",
                                        config="default",
                                        config_paths=["/etc/plugin"],
                                        variables={"active": True})
@@ -366,7 +366,7 @@ class PluginInstallerTests(TestCase):
                                                 hook_handler_class=NoopHookHandler)
 
         self.assertEqual(0, len(installer.hook_handler.hook_calls))
-        installer.invoke_install_hook(provision_config.BootstrapPhase.post_install, {"foo": "bar"})
+        installer.invoke_install_hook(cluster_config.BootstrapPhase.post_install, {"foo": "bar"})
         self.assertEqual(1, len(installer.hook_handler.hook_calls))
         self.assertEqual({"foo": "bar"}, installer.hook_handler.hook_calls["post_install"]["variables"])
         self.assertEqual({"env": {}}, installer.hook_handler.hook_calls["post_install"]["kwargs"])
@@ -384,11 +384,11 @@ class DockerProvisionerTests(TestCase):
 
         benchmark_root = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "osbenchmark"))
 
-        c = provision_config.ProvisionConfigInstance("unit-test-provision-config-instance", None, "/tmp", variables={
+        c = cluster_config.ClusterConfigInstance("unit-test-cluster-config-instance", None, "/tmp", variables={
             "docker_image": "opensearchproject/opensearch"
         })
 
-        docker = provisioner.DockerProvisioner(provision_config_instance=c,
+        docker = provisioner.DockerProvisioner(cluster_config=c,
                                                node_name="benchmark-node-0",
                                                ip="10.17.22.33",
                                                http_port=39200,
@@ -477,13 +477,13 @@ networks:
 
         benchmark_root = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir, "osbenchmark"))
 
-        c = provision_config.ProvisionConfigInstance("unit-test-provision-config-instance", None, "/tmp", variables={
+        c = cluster_config.ClusterConfigInstance("unit-test-cluster-config-instance", None, "/tmp", variables={
             "docker_image": "opensearchproject/opensearch",
             "docker_mem_limit": "256m",
             "docker_cpu_count": 2
         })
 
-        docker = provisioner.DockerProvisioner(provision_config_instance=c,
+        docker = provisioner.DockerProvisioner(cluster_config=c,
                                                node_name="benchmark-node-0",
                                                ip="10.17.22.33",
                                                http_port=39200,
@@ -547,8 +547,8 @@ class CleanupTests(TestCase):
 
         provisioner.cleanup(
             preserve=True,
-            install_dir="./benchmark/test_executions/install",
-            data_paths=["./benchmark/test_executions/data"])
+            install_dir="./benchmark/test_runs/install",
+            data_paths=["./benchmark/test_runs/data"])
 
         self.assertEqual(mock_path_exists.call_count, 0)
         self.assertEqual(mock_rm.call_count, 0)
@@ -560,8 +560,8 @@ class CleanupTests(TestCase):
 
         provisioner.cleanup(
             preserve=False,
-            install_dir="./benchmark/test_executions/install",
-            data_paths=["./benchmark/test_executions/data"])
+            install_dir="./benchmark/test_runs/install",
+            data_paths=["./benchmark/test_runs/data"])
 
         expected_dir_calls = [mock.call("/tmp/some/data-path-dir"), mock.call("/benchmark-root/workload/test_procedure/es-bin")]
         mock_path_exists.mock_calls = expected_dir_calls
