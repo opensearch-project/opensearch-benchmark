@@ -1935,7 +1935,8 @@ class FeedbackActorTests(TestCase):
 
         self.monkeypatch.setattr(self.actor, "check_for_errors", lambda: [])
 
-        self.actor.handle_state()
+        self.actor.handle_state() # once to set to SCALING_UP
+        self.actor.handle_state() # once to scale up
 
         assert self.actor.state == worker_coordinator.FeedbackState.NEUTRAL
         assert self.actor.total_active_client_count > 0

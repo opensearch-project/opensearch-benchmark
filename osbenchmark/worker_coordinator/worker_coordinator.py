@@ -257,6 +257,11 @@ class FeedbackActor(actor.BenchmarkActor):
         # These will be passed in via StartFeedbackActor:
         self.error_queue = None
         self.queue_lock = None
+        self.max_error_threshold = 10000
+        # Probing configuration
+        self.probe_probability = 0.05
+        self.probe_interval = 10
+        self._cycles_since_probe = 0
 
     def receiveMsg_StartFeedbackActor(self, msg, sender) -> None:
         """
@@ -278,15 +283,13 @@ class FeedbackActor(actor.BenchmarkActor):
 
     def receiveMsg_EnableFeedbackScaling(self, msg, sender):
         self.logger.info("FeedbackActor: scaling enabled.")
+        self.max_error_threshold = 10000
+        self._cycles_since_probe = 0
         self.state = FeedbackState.SCALING_UP
 
     def receiveMsg_DisableFeedbackScaling(self, msg, sender):
         self.logger.info("FeedbackActor: scaling disabled.")
         self.state = FeedbackState.DISABLED
-        temp_percentage = self.percentage_clients_to_scale_down # store scale down value so it doesn't stay at 100% after doing this
-        self.percentage_clients_to_scale_down = 1.0
-        self.scale_down()
-        self.percentage_clients_to_scale_down = temp_percentage
 
     def receiveMsg_ConfigureFeedbackScaling(self, msg, sender):
         self.num_clients_to_scale_up = msg.scale_step
@@ -298,10 +301,15 @@ class FeedbackActor(actor.BenchmarkActor):
         )
 
     def receiveMsg_ActorExitRequest(self, msg, sender):
-        print("Redline test finished. Maximum stable client number reached: %d" % self.max_stable_clients)
+        console.info("Redline test finished. Maximum stable client number reached: %d" % self.total_active_client_count)
         self.logger.info("FeedbackActor received ActorExitRequest and will shutdown")
         if hasattr(self, 'shared_client_states'):
             self.shared_client_states.clear()
+
+    def receiveMsg_ResetErrorThreshold(self, msg, sender):
+        """Reset the max error threshold to allow scaling up again."""
+        self.max_error_threshold = float('inf')
+        self.logger.info("Error threshold has been reset, allowing full scale-up")
 
     def check_for_errors(self) -> List[Dict[str, Any]]:
         """Poll the error queue for errors."""
@@ -339,32 +347,38 @@ class FeedbackActor(actor.BenchmarkActor):
         if self.state == FeedbackState.SLEEP:
             if current_time - self.sleep_start_time >= self.POST_SCALEDOWN_SECONDS:
                 self.logger.info("Sleep period complete, returning to NEUTRAL state")
-                self.clear_queue()
                 self.state = FeedbackState.NEUTRAL
                 self.sleep_start_time = current_time
-        elif errors:
+            return
+        if errors:
             self.logger.info("Error messages detected, scaling down...")
             self.state = FeedbackState.SCALING_DOWN
             with self.queue_lock:  # Block producers while scaling down.
                 self.scale_down()
             self.logger.info("Clients scaled down. Active clients: %d", self.total_active_client_count)
             self.last_error_time = current_time
-        elif self.state == FeedbackState.NEUTRAL:
+            return
+
+        if self.state == FeedbackState.NEUTRAL:
             self.max_stable_clients = max(self.max_stable_clients, self.total_active_client_count) # update the max number of stable clients
             if (current_time - self.last_error_time >= self.POST_SCALEDOWN_SECONDS and
                 current_time - self.last_scaleup_time >= self.WAKEUP_INTERVAL):
                 self.logger.info("No errors in the last %d seconds, scaling up", self.POST_SCALEDOWN_SECONDS)
                 self.state = FeedbackState.SCALING_UP
+            return
 
         if self.state == FeedbackState.SCALING_UP:
             self.logger.info("Scaling up...")
             self.scale_up()
             self.logger.info("Clients scaled up. Active clients: %d", self.total_active_client_count)
             self.state = FeedbackState.NEUTRAL
+            return
 
     def scale_down(self) -> None:
         try:
-            clients_to_pause = int(self.total_active_client_count * self.percentage_clients_to_scale_down)
+            self.max_error_threshold = self.total_active_client_count
+            self.logger.info("New max error threshold: %d", self.max_error_threshold)
+            clients_to_pause = math.ceil(self.total_active_client_count * self.percentage_clients_to_scale_down)
             if clients_to_pause <= 0:
                 self.logger.info("No clients to pause during scale down")
                 return
@@ -396,6 +410,26 @@ class FeedbackActor(actor.BenchmarkActor):
 
     def scale_up(self) -> None:
         try:
+            self.logger.info("Max error threshold: %d", self.max_error_threshold)
+            gap = self.max_error_threshold - self.total_active_client_count
+            max_clients_to_add = min(self.num_clients_to_scale_up, gap)
+            self.logger.info("Max clients to add: %d", max_clients_to_add)
+
+            if max_clients_to_add <= 0:
+                probe = False
+                if random.random() < self.probe_probability:
+                    probe = True
+                self._cycles_since_probe += 1
+                if self._cycles_since_probe >= self.probe_interval:
+                    probe = True
+                    self._cycles_since_probe = 0
+                if probe:
+                    self.logger.info("Probing above ceiling %s; forcing 1 extra client", self.max_error_threshold)
+                    max_clients_to_add = 1
+                else:
+                    self.logger.debug("Ceiling reached; skipping scale_up")
+                    return
+
             clients_activated = 0
             inactive_clients = [
                 (worker_id, client_id)
@@ -407,14 +441,14 @@ class FeedbackActor(actor.BenchmarkActor):
             random.shuffle(inactive_clients)
 
             for worker_id, client_id in inactive_clients:
-                if clients_activated >= self.num_clients_to_scale_up:
+                if clients_activated >= max_clients_to_add:
                     break
                 self.shared_client_states[worker_id][client_id] = True
                 self.total_active_client_count += 1
                 clients_activated += 1
                 self.logger.info("Unpaused client %d on worker %d", client_id, worker_id)
 
-            if clients_activated < self.num_clients_to_scale_up:
+            if clients_activated < max_clients_to_add:
                 self.logger.info("Not enough inactive clients to activate. Activated %d clients", clients_activated)
 
         finally:
@@ -918,13 +952,11 @@ class WorkerCoordinator:
                         subtask.params["target-throughput"] = max_clients
                         subtask.clients = max_clients
         elif load_test_clients:
-            self.logger.info("Load test mode enabled - set max client count to %d", load_test_clients)
             for task in self.test_procedure.schedule:
                 for subtask in task:
                     subtask.clients = load_test_clients
                     subtask.params["target-throughput"] = load_test_clients
             self.logger.info("Load test mode enabled - set max client count to %d", load_test_clients)
-
         allocator = Allocator(self.test_procedure.schedule)
         self.allocations = allocator.allocations
         self.number_of_steps = len(allocator.join_points) - 1
@@ -1936,8 +1968,6 @@ class AsyncExecutor:
         self.redline_enabled = self.cfg.opts("workload", "redline.test", mandatory=False) if self.cfg else False
 
     async def __call__(self, *args, **kwargs):
-        has_run_any_requests = False
-        was_paused = False
         task_completes_parent = self.task.completes_parent
         total_start = time.perf_counter()
         # lazily initialize the schedule
@@ -1952,33 +1982,25 @@ class AsyncExecutor:
         if rampup_wait_time:
             self.logger.info("Client id [%s] is running now.", self.client_id)
 
+        # grab the client options; if user passed no client options then default to empty dict
+        try:
+            if self.cfg is not None:
+                client_options_obj = self.cfg.opts("client", "options")
+                client_options = getattr(client_options_obj, "all_client_options", {}) or {}
+            else:
+                client_options = {}
+        except exceptions.ConfigError:
+            client_options = {}
+
+        base_timeout = int(1.5 * client_options.get("default", {}).get("timeout", 30))
+
         self.logger.debug("Entering main loop for client id [%s].", self.client_id)
-        # noinspection PyBroadException
         try:
             async for expected_scheduled_time, sample_type, percent_completed, runner, params in schedule:
+                client_state = (self.shared_states or {}).get(self.client_id, True)
                 if self.cancel.is_set():
                     self.logger.info("User cancelled execution.")
                     break
-
-                # redline testing: check whether this client should be running
-                # if redline testing is not enabled, there won't be a dictionary shared to this client,
-                # so we evaluate to a truthy value by default, allowing it to run normally in a regular benchmark
-                client_state = (self.shared_states or {}).get(self.client_id, True)
-                if client_state and was_paused:
-                    now = time.perf_counter()
-                    total_start = now - expected_scheduled_time
-                    was_paused = False
-                elif not client_state:
-                    was_paused = True
-                    processing_end = time.perf_counter()
-                    total_ops = 0
-                    total_ops_unit = "ops"
-                    request_meta_data = {"success": False, "skipped": True}
-                    self.schedule_handle.after_request(processing_end, total_ops, total_ops_unit, request_meta_data)
-                    if self.complete.is_set():
-                        break
-                    continue
-
                 absolute_expected_schedule_time = total_start + expected_scheduled_time
                 throughput_throttled = expected_scheduled_time > 0
                 if throughput_throttled:
@@ -2007,21 +2029,12 @@ class AsyncExecutor:
 
                 # Execute with the appropriate context manager
                 async with context_manager as request_context:
-                    total_ops, total_ops_unit, request_meta_data = await execute_single(runner, self.opensearch, params, self.on_error, self.redline_enabled)
-                    request_start = request_context.request_start
-                    request_end = request_context.request_end
-                    client_request_start = request_context.client_request_start
-                    client_request_end = request_context.client_request_end
-                    # redline testing: send any bad requests to the FeedbackActor
-                    if not request_meta_data["success"] and not request_meta_data.get("skipped", False):
-                        if self.error_queue is not None:
-                            self.logger.error("Real error detected in client %s. Notifying FeedbackActor...", self.client_id)
-                            error_info = {
-                                "client_id": self.client_id,
-                                "task": str(self.task),
-                                "error_details": request_meta_data
-                            }
-                            self.report_error(error_info)
+                    if self.redline_enabled:
+                        request_start, request_end, client_request_start, client_request_end, \
+                        request_meta_data, total_ops, total_ops_unit = await self.handle_redline(runner, params, client_state, request_context, base_timeout)
+                    else:
+                        request_start, request_end, client_request_start, client_request_end, \
+                        request_meta_data, total_ops, total_ops_unit = await self.handle_benchmark(runner, params, request_context, base_timeout)
 
                 processing_end = time.perf_counter()
                 service_time = request_end - request_start
@@ -2059,7 +2072,8 @@ class AsyncExecutor:
                 else:
                     progress = percent_completed
 
-                if client_state:
+                # if the request was not skipped (redline testing) or redline testing was not enabled at all, collect the sample
+                if not request_meta_data.get("skipped_request", False) or not self.redline_enabled:
                     self.sampler.add(self.task, self.client_id, sample_type, request_meta_data,
                                     absolute_processing_start, request_start,
                                     latency, service_time, client_processing_time, processing_time, throughput, total_ops, total_ops_unit,
@@ -2073,7 +2087,7 @@ class AsyncExecutor:
             raise exceptions.BenchmarkError(f"Cannot run task [{self.task}]: {e}") from None
         finally:
             # Actively set it if this task completes its parent
-            if task_completes_parent or (self.redline_enabled and not has_run_any_requests):
+            if task_completes_parent:
                 self.logger.info("Task [%s] completes parent. Client id [%s] is finished executing it and signals completion.",
                                  self.task, self.client_id)
                 self.complete.set()
@@ -2088,10 +2102,63 @@ class AsyncExecutor:
             except queue.Full:
                 self.logger.warning("Error queue full; dropping error from client %s", self.client_id)
 
+    async def handle_redline(self, runner, params, client_state, request_context, base_timeout):
+        try:
+            # apply per-request timeout
+            total_ops, total_ops_unit, request_meta_data = await asyncio.wait_for(execute_single(runner, self.opensearch,
+                                                                                params, self.on_error,
+                                                                                redline_enabled=True,
+                                                                                client_enabled=client_state), base_timeout)
+        except asyncio.TimeoutError:
+            self.logger.error("Client %s request timed out", self.client_id)
+            # treat as failed operation with default timings
+            total_ops = 0
+            total_ops_unit = "ops"
+            request_meta_data = {"success": False, "error-type": "timeout"}
+            # set timing defaults so no KeyError
+            request_context_holder.on_client_request_start()
+            request_context_holder.on_request_start()
+            request_context_holder.on_request_end()
+            request_context_holder.on_client_request_end()
+            request_start = request_context.request_start
+            request_end = request_context.request_end
+            client_request_start = request_context.client_request_start
+            client_request_end = request_context.client_request_end
+        else:
+            # normal path: read timings from context
+            request_start = request_context.request_start
+            request_end = request_context.request_end
+            client_request_start = request_context.client_request_start
+            client_request_end = request_context.client_request_end
+        # redline testing: send any bad requests to the FeedbackActor
+        if not request_meta_data["success"]:
+            if self.error_queue is not None:
+                self.logger.error("Real error detected in client %s. Notifying FeedbackActor...", self.client_id)
+                error_info = {
+                    "client_id": self.client_id,
+                    "task": str(self.task),
+                    "error_details": request_meta_data
+                }
+                self.report_error(error_info)
+        return request_start, request_end, client_request_start, client_request_end, request_meta_data, total_ops, total_ops_unit
+
+    async def handle_benchmark(self, runner, params, request_context, base_timeout):
+        total_ops, total_ops_unit, request_meta_data = await asyncio.wait_for(execute_single(runner,
+                                                                            opensearch=self.opensearch,
+                                                                            params=params,
+                                                                            on_error=self.on_error,
+                                                                            redline_enabled=False,
+                                                                            client_enabled=True), base_timeout)
+        request_start = request_context.request_start
+        request_end = request_context.request_end
+        client_request_start = request_context.client_request_start
+        client_request_end = request_context.client_request_end
+        return request_start, request_end, client_request_start, client_request_end, request_meta_data, total_ops, total_ops_unit
+
 request_context_holder = client.RequestContextHolder()
 
 
-async def execute_single(runner, opensearch, params, on_error, redline_enabled=False):
+async def execute_single(runner, opensearch, params, on_error, redline_enabled=False, client_enabled=True):
     """
     Invokes the given runner once and provides the runner's return value in a uniform structure.
 
@@ -2100,80 +2167,93 @@ async def execute_single(runner, opensearch, params, on_error, redline_enabled=F
     # pylint: disable=import-outside-toplevel
     import opensearchpy
     fatal_error = False
-    try:
-        async with runner:
-            return_value = await runner(opensearch, params)
-        if isinstance(return_value, tuple) and len(return_value) == 2:
-            total_ops, total_ops_unit = return_value
-            request_meta_data = {"success": True}
-        elif isinstance(return_value, dict):
-            total_ops = return_value.pop("weight", 1)
-            total_ops_unit = return_value.pop("unit", "ops")
-            request_meta_data = return_value
-            if "success" not in request_meta_data:
-                request_meta_data["success"] = True
-        else:
-            total_ops = 1
-            total_ops_unit = "ops"
-            request_meta_data = {"success": True}
-    except opensearchpy.TransportError as e:
-        request_context_holder.on_client_request_end()
-        # we *specifically* want to distinguish connection refused (a node died?) from connection timeouts
-        # pylint: disable=unidiomatic-typecheck
-        if type(e) is opensearchpy.ConnectionError:
-            fatal_error = True
+    if client_enabled:
+        try:
+            async with runner:
+                return_value = await runner(opensearch, params)
+            if isinstance(return_value, tuple) and len(return_value) == 2:
+                total_ops, total_ops_unit = return_value
+                request_meta_data = {"success": True}
+            elif isinstance(return_value, dict):
+                total_ops = return_value.pop("weight", 1)
+                total_ops_unit = return_value.pop("unit", "ops")
+                request_meta_data = return_value
+                if "success" not in request_meta_data:
+                    request_meta_data["success"] = True
+            else:
+                total_ops = 1
+                total_ops_unit = "ops"
+                request_meta_data = {"success": True}
+        except opensearchpy.TransportError as e:
+            request_context_holder.on_client_request_end()
+            # we *specifically* want to distinguish connection refused (a node died?) from connection timeouts
+            # pylint: disable=unidiomatic-typecheck
+            if type(e) is opensearchpy.ConnectionError:
+                fatal_error = True
 
+            total_ops = 0
+            total_ops_unit = "ops"
+            request_meta_data = {
+                "success": False,
+                "error-type": "transport"
+            }
+            # The OS client will sometimes return string like "N/A" or "TIMEOUT" for connection errors.
+            if isinstance(e.status_code, int):
+                request_meta_data["http-status"] = e.status_code
+            # connection timeout errors don't provide a helpful description
+            if isinstance(e, opensearchpy.ConnectionTimeout):
+                request_meta_data["error-description"] = "network connection timed out"
+            elif e.info:
+                request_meta_data["error-description"] = f"{e.error} ({e.info})"
+            else:
+                if isinstance(e.error, bytes):
+                    error_description = e.error.decode("utf-8")
+                else:
+                    error_description = str(e.error)
+                request_meta_data["error-description"] = error_description
+        except KeyError as e:
+            request_context_holder.on_client_request_end()
+            logging.getLogger(__name__).exception("Cannot execute runner [%s]; most likely due to missing parameters.", str(runner))
+            msg = "Cannot execute [%s]. Provided parameters are: %s. Error: [%s]." % (str(runner), list(params.keys()), str(e))
+            if not redline_enabled:
+                console.error(msg)
+                raise exceptions.SystemSetupError(msg)
+
+        if not request_meta_data["success"]:
+            if on_error == "abort" or fatal_error:
+                msg = "Request returned an error. Error type: %s" % request_meta_data.get("error-type", "Unknown")
+                description = request_meta_data.get("error-description")
+                if description:
+                    msg += ", Description: %s" % description
+                    if not redline_enabled:
+                        console.error(msg)
+                if not redline_enabled:
+                    raise exceptions.BenchmarkAssertionError(msg)
+
+            if 'error-description' in request_meta_data:
+                try:
+                    error_metadata = json.loads(request_meta_data["error-description"])
+                    # parse error-description metadata
+                    opensearch_operation_error = parse_error(error_metadata)
+                    if not redline_enabled:
+                        console.error(opensearch_operation_error.get_error_message())
+                except Exception as e:
+                    # error-description is not a valid json so we just print it
+                    if not redline_enabled:
+                        console.error(request_meta_data["error-description"])
+                if not redline_enabled:
+                    logging.getLogger(__name__).error(request_meta_data["error-description"])
+    else:
+        request_context_holder.on_client_request_start()
+        request_context_holder.on_request_start()
         total_ops = 0
         total_ops_unit = "ops"
         request_meta_data = {
-            "success": False,
-            "error-type": "transport"
+            "success": True,
+            "skipped_request": True
         }
-        # The OS client will sometimes return string like "N/A" or "TIMEOUT" for connection errors.
-        if isinstance(e.status_code, int):
-            request_meta_data["http-status"] = e.status_code
-        # connection timeout errors don't provide a helpful description
-        if isinstance(e, opensearchpy.ConnectionTimeout):
-            request_meta_data["error-description"] = "network connection timed out"
-        elif e.info:
-            request_meta_data["error-description"] = f"{e.error} ({e.info})"
-        else:
-            if isinstance(e.error, bytes):
-                error_description = e.error.decode("utf-8")
-            else:
-                error_description = str(e.error)
-            request_meta_data["error-description"] = error_description
-    except KeyError as e:
+        request_context_holder.on_request_end()
         request_context_holder.on_client_request_end()
-        logging.getLogger(__name__).exception("Cannot execute runner [%s]; most likely due to missing parameters.", str(runner))
-        msg = "Cannot execute [%s]. Provided parameters are: %s. Error: [%s]." % (str(runner), list(params.keys()), str(e))
-        console.error(msg)
-        raise exceptions.SystemSetupError(msg)
-
-    if not request_meta_data["success"]:
-        if on_error == "abort" or fatal_error:
-            msg = "Request returned an error. Error type: %s" % request_meta_data.get("error-type", "Unknown")
-            description = request_meta_data.get("error-description")
-            if description:
-                msg += ", Description: %s" % description
-                if not redline_enabled:
-                    console.error(msg)
-            raise exceptions.BenchmarkAssertionError(msg)
-
-        if 'error-description' in request_meta_data:
-            try:
-                error_metadata = json.loads(request_meta_data["error-description"])
-                # parse error-description metadata
-                opensearch_operation_error = parse_error(error_metadata)
-                if not redline_enabled:
-                    console.error(opensearch_operation_error.get_error_message())
-            except Exception as e:
-                # error-description is not a valid json so we just print it
-                if not redline_enabled:
-                    console.error(request_meta_data["error-description"])
-            if not redline_enabled:
-                logging.getLogger(__name__).error(request_meta_data["error-description"])
-
     return total_ops, total_ops_unit, request_meta_data
 
 
