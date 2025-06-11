@@ -208,12 +208,16 @@ class ConfigureFeedbackScaling:
     DEFAULT_SLEEP_SECONDS = 30
     DEFAULT_SCALE_STEP = 5
     DEFAULT_SCALEDOWN_PCT = 0.10
+    DEFAULT_CPU_WINDOW_SECONDS = 30
+    DEFAULT_CPU_CHECK_INTERVAL = 30
 
     def __init__(self, scale_step=None, scale_down_pct=None, sleep_seconds=None, max_clients=None, cpu_max=None,
-                metrics_index=None, test_execution_id=None, cfg=None):
+                cpu_window_seconds=None, cpu_check_interval=None, metrics_index=None, test_execution_id=None, cfg=None):
         self.scale_step = scale_step if scale_step is not None else self.DEFAULT_SCALE_STEP
         self.scale_down_pct = scale_down_pct if scale_down_pct is not None else self.DEFAULT_SCALEDOWN_PCT
         self.sleep_seconds = sleep_seconds if sleep_seconds is not None else self.DEFAULT_SLEEP_SECONDS
+        self.cpu_window_seconds = cpu_window_seconds if cpu_window_seconds is not None else self.DEFAULT_CPU_WINDOW_SECONDS
+        self.cpu_check_interval = cpu_check_interval if cpu_check_interval is not None else self.DEFAULT_CPU_CHECK_INTERVAL
         self.max_clients = max_clients
         self.cpu_max=cpu_max
         self.cfg=cfg
@@ -270,6 +274,8 @@ class FeedbackActor(actor.BenchmarkActor):
         # for cpu based feedback
         self.last_cpu_check = time.perf_counter()
         self.max_cpu_threshold = None
+        self.cpu_window_seconds = None
+        self.cpu_check_interval = None
         # client, index, and test execution ID for querying
         self.os_client = None
         self.metrics_index = None
@@ -309,13 +315,18 @@ class FeedbackActor(actor.BenchmarkActor):
         self.POST_SCALEDOWN_SECONDS = msg.sleep_seconds
         # CPU feedback related items
         self.max_cpu_threshold = msg.cpu_max
+        self.cpu_window_seconds = msg.cpu_window_seconds
+        self.cpu_check_interval = msg.cpu_check_interval
         self.test_execution_id=msg.test_execution_id
         self.cfg=msg.cfg
         self.metrics_index = msg.metrics_index
         if self.max_cpu_threshold:
             # create a new client to query the datastore for CPU based feedback
             # we can't pass the original metrics_store object from the WorkerCoordinator since it can't be pickled in a thespianpy message
-            self.os_client = metrics.OsClientFactory(self.cfg).create()
+            try:
+                self.os_client = metrics.OsClientFactory(self.cfg).create()
+            except Exception:
+                raise exceptions.SystemSetupError("OS Client could not be created for redline testing. Ensure you are passing the correct config for your metrics store.")
         self.logger.info(
         "Feedback actor has received the following configuration: Max clients = %s, scale step = %d, scale down percentage = %f, sleep time = %d",
         self.total_client_count, self.num_clients_to_scale_up, self.percentage_clients_to_scale_down, self.POST_SCALEDOWN_SECONDS
@@ -354,7 +365,7 @@ class FeedbackActor(actor.BenchmarkActor):
     def handle_state(self) -> None:
         current_time = time.perf_counter()
         # check CPU usage every N seconds
-        if (self.max_cpu_threshold and current_time - self.last_cpu_check >= self.POST_SCALEDOWN_SECONDS):
+        if (self.max_cpu_threshold and current_time - self.last_cpu_check >= self.cpu_check_interval):
             self._check_cpu_usage()
             self.last_cpu_check = current_time
         errors = self.check_for_errors()
@@ -492,7 +503,7 @@ class FeedbackActor(actor.BenchmarkActor):
                 "filter": [
                     { "term":  { "name": "node-stats" }},
                     { "term":  { "test-execution-id": self.test_execution_id }},
-                    { "range": { "@timestamp": { "gte": "now-30s", "lte": "now" }}}
+                    { "range": { "@timestamp": { "gte": f"now-{self.cpu_window_seconds}s", "lte": "now" }}}
                 ]
                 }
             },
@@ -1079,19 +1090,27 @@ class WorkerCoordinator:
             cpu_max = self.config.opts("workload", "redline.max_cpu_usage", default_value=None)
             if cpu_max and type(self.metrics_store) == metrics.InMemoryMetricsStore:
                 raise exceptions.SystemSetupError("CPU-based feedback requires a metrics store. You are using an in-memory metrics store")
+            elif cpu_max and 'node-stats' not in self.config.opts("telemetry", "devices"):
+                raise exceptions.SystemSetupError("Node stats not enabled. You must use `--telemetry node-stats` flag for CPU-based feedback")
             elif cpu_max and type(self.metrics_store) == metrics.OsMetricsStore:
                 # pass over the index and test execution ID so the feedbackActor can query the datastore
                 metrics_index = self.metrics_store._index
                 test_execution_id = self.metrics_store._test_execution_id
+
             scale_step = self.config.opts("workload", "redline.scale_step", default_value=5)
             scale_down_pct = self.config.opts("workload", "redline.scale_down_pct", default_value=0.10)
             sleep_seconds = self.config.opts("workload", "redline.sleep_seconds", default_value=30)
+            cpu_window_seconds = self.config.opts("workload", "redline.cpu_window_seconds", default_value=30)
+            cpu_check_interval = self.config.opts("workload", "redline.cpu_check_interval", default_value=30)
+
             self.target.send(self.target.feedback_actor, ConfigureFeedbackScaling(
             scale_step=scale_step,
             scale_down_pct=scale_down_pct,
             sleep_seconds=sleep_seconds,
             max_clients=max_clients,
             cpu_max=cpu_max,
+            cpu_window_seconds=cpu_window_seconds,
+            cpu_check_interval=cpu_check_interval,
             cfg=self.config,
             metrics_index=metrics_index,
             test_execution_id=test_execution_id
