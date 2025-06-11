@@ -209,11 +209,16 @@ class ConfigureFeedbackScaling:
     DEFAULT_SCALE_STEP = 5
     DEFAULT_SCALEDOWN_PCT = 0.10
 
-    def __init__(self, scale_step=None, scale_down_pct=None, sleep_seconds=None, max_clients=None):
+    def __init__(self, scale_step=None, scale_down_pct=None, sleep_seconds=None, max_clients=None, cpu_max=None,
+                metrics_index=None, test_execution_id=None, cfg=None):
         self.scale_step = scale_step if scale_step is not None else self.DEFAULT_SCALE_STEP
         self.scale_down_pct = scale_down_pct if scale_down_pct is not None else self.DEFAULT_SCALEDOWN_PCT
         self.sleep_seconds = sleep_seconds if sleep_seconds is not None else self.DEFAULT_SLEEP_SECONDS
         self.max_clients = max_clients
+        self.cpu_max=cpu_max
+        self.cfg=cfg
+        self.metrics_index=metrics_index
+        self.test_execution_id=test_execution_id
 
 class EnableFeedbackScaling:
     pass
@@ -262,6 +267,13 @@ class FeedbackActor(actor.BenchmarkActor):
         self.probe_probability = 0.05
         self.probe_interval = 10
         self._cycles_since_probe = 0
+        # for cpu based feedback
+        self.last_cpu_check = time.perf_counter()
+        self.max_cpu_threshold = None
+        # client, index, and test execution ID for querying
+        self.os_client = None
+        self.metrics_index = None
+        self.test_execution_id=None
 
     def receiveMsg_StartFeedbackActor(self, msg, sender) -> None:
         """
@@ -295,6 +307,15 @@ class FeedbackActor(actor.BenchmarkActor):
         self.num_clients_to_scale_up = msg.scale_step
         self.percentage_clients_to_scale_down = msg.scale_down_pct
         self.POST_SCALEDOWN_SECONDS = msg.sleep_seconds
+        # CPU feedback related items
+        self.max_cpu_threshold = msg.cpu_max
+        self.test_execution_id=msg.test_execution_id
+        self.cfg=msg.cfg
+        self.metrics_index = msg.metrics_index
+        if self.max_cpu_threshold:
+            # create a new client to query the datastore for CPU based feedback
+            # we can't pass the original metrics_store object from the WorkerCoordinator since it can't be pickled in a thespianpy message
+            self.os_client = metrics.OsClientFactory(self.cfg).create()
         self.logger.info(
         "Feedback actor has received the following configuration: Max clients = %s, scale step = %d, scale down percentage = %f, sleep time = %d",
         self.total_client_count, self.num_clients_to_scale_up, self.percentage_clients_to_scale_down, self.POST_SCALEDOWN_SECONDS
@@ -332,6 +353,10 @@ class FeedbackActor(actor.BenchmarkActor):
 
     def handle_state(self) -> None:
         current_time = time.perf_counter()
+        # check CPU usage every N seconds
+        if (self.max_cpu_threshold and current_time - self.last_cpu_check >= self.POST_SCALEDOWN_SECONDS):
+            self._check_cpu_usage()
+            self.last_cpu_check = current_time
         errors = self.check_for_errors()
 
         sys.stdout.write("\x1b[s")               # Save cursor position
@@ -454,6 +479,57 @@ class FeedbackActor(actor.BenchmarkActor):
         finally:
             self.last_scaleup_time = time.perf_counter()
             self.state = FeedbackState.NEUTRAL
+
+    def _check_cpu_usage(self):
+        """
+        Grab the average CPU load per-node in the past N seconds
+        If any exceed the threshold given, report to the error queue
+        """
+        body = {
+            "size": 0,
+            "query": {
+                "bool": {
+                "filter": [
+                    { "term":  { "name": "node-stats" }},
+                    { "term":  { "test-execution-id": self.test_execution_id }},
+                    { "range": { "@timestamp": { "gte": "now-30s", "lte": "now" }}}
+                ]
+                }
+            },
+            "aggs": {
+                "nodes": {
+                "terms": {
+                    "field": "meta.node_name",
+                    "size": 1000
+                },
+                "aggs": {
+                    "avg_cpu": {
+                    "avg": { "field": "process_cpu_percent" }
+                    },
+                    "hot_node_filter": {
+                    "bucket_selector": {
+                        "buckets_path": { "avgCpu": "avg_cpu" },
+                        "script": f"params.avgCpu > {self.max_cpu_threshold}"
+                    }
+                    }
+                }
+                }
+            }
+        }
+        resp = self.os_client.search(index=self.metrics_index, body=body)
+        buckets = resp['aggregations']['nodes']['buckets']
+        if len(buckets):
+            for bucket in buckets:
+                self.logger.info("Node %s avg CPU=%.1f%% > threshold %.1f%%", bucket['key'], bucket['avg_cpu']['value'], self.max_cpu_threshold)
+                try:
+                    self.error_queue.put_nowait({
+                        "type":       "cpu_threshold_exceeded",
+                        "node_name":  bucket['key'],
+                        "value":      bucket['avg_cpu']['value']
+                    })
+                except queue.Full:
+                    self.logger.warning("Error queue full; dropping cpu_threshold_exceeded for node %s", bucket['key'])
+                break # we only need one error message to trigger a scaledown
 
 class WorkerCoordinatorActor(actor.BenchmarkActor):
     RESET_RELATIVE_TIME_MARKER = "reset_relative_time"
@@ -997,6 +1073,16 @@ class WorkerCoordinator:
                     self.workers.append(worker)
                     worker_id += 1
         if redline_enabled:
+            metrics_index = None
+            test_execution_id = None
+            # we must have a metrics store connected for CPU based feedback
+            cpu_max = self.config.opts("workload", "redline.max_cpu_usage", default_value=None)
+            if cpu_max and type(self.metrics_store) == metrics.InMemoryMetricsStore:
+                raise exceptions.SystemSetupError("CPU-based feedback requires a metrics store. You are using an in-memory metrics store")
+            elif cpu_max and type(self.metrics_store) == metrics.OsMetricsStore:
+                # pass over the index and test execution ID so the feedbackActor can query the datastore
+                metrics_index = self.metrics_store._index
+                test_execution_id = self.metrics_store._test_execution_id
             scale_step = self.config.opts("workload", "redline.scale_step", default_value=5)
             scale_down_pct = self.config.opts("workload", "redline.scale_down_pct", default_value=0.10)
             sleep_seconds = self.config.opts("workload", "redline.sleep_seconds", default_value=30)
@@ -1004,7 +1090,11 @@ class WorkerCoordinator:
             scale_step=scale_step,
             scale_down_pct=scale_down_pct,
             sleep_seconds=sleep_seconds,
-            max_clients=max_clients
+            max_clients=max_clients,
+            cpu_max=cpu_max,
+            cfg=self.config,
+            metrics_index=metrics_index,
+            test_execution_id=test_execution_id
             ))
             self.target.start_feedbackActor(self.shared_client_dict)
 
