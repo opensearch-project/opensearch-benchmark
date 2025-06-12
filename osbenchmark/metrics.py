@@ -1088,6 +1088,14 @@ class OsMetricsStore(MetricsStore):
         # no need for an externalizable representation - stores everything directly
         return None
 
+    @property
+    def index(self) -> str:
+        return self._index
+
+    @property
+    def test_execution_id(self) -> str:
+        return self._test_execution_id
+
     def __str__(self):
         return "OpenSearch metrics store"
 

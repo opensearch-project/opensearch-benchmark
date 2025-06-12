@@ -529,7 +529,7 @@ class FeedbackActor(actor.BenchmarkActor):
         }
         resp = self.os_client.search(index=self.metrics_index, body=body)
         buckets = resp['aggregations']['nodes']['buckets']
-        if len(buckets):
+        if buckets:
             for bucket in buckets:
                 self.logger.info("Node %s avg CPU=%.1f%% > threshold %.1f%%", bucket['key'], bucket['avg_cpu']['value'], self.max_cpu_threshold)
                 try:
@@ -1088,14 +1088,14 @@ class WorkerCoordinator:
             test_execution_id = None
             # we must have a metrics store connected for CPU based feedback
             cpu_max = self.config.opts("workload", "redline.max_cpu_usage", default_value=None)
-            if cpu_max and type(self.metrics_store) == metrics.InMemoryMetricsStore:
+            if cpu_max and isinstance(self.metrics_store, metrics.InMemoryMetricsStore):
                 raise exceptions.SystemSetupError("CPU-based feedback requires a metrics store. You are using an in-memory metrics store")
             elif cpu_max and 'node-stats' not in self.config.opts("telemetry", "devices"):
                 raise exceptions.SystemSetupError("Node stats not enabled. You must use `--telemetry node-stats` flag for CPU-based feedback")
-            elif cpu_max and type(self.metrics_store) == metrics.OsMetricsStore:
+            elif cpu_max and isinstance(self.metrics_store, metrics.OsMetricsStore):
                 # pass over the index and test execution ID so the feedbackActor can query the datastore
-                metrics_index = self.metrics_store._index
-                test_execution_id = self.metrics_store._test_execution_id
+                metrics_index = self.metrics_store.index
+                test_execution_id = self.metrics_store.test_execution_id
 
             scale_step = self.config.opts("workload", "redline.scale_step", default_value=5)
             scale_down_pct = self.config.opts("workload", "redline.scale_down_pct", default_value=0.10)
