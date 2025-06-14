@@ -1839,6 +1839,270 @@ class AsyncExecutorTests(TestCase):
             ctx.exception.args[0])
 
 
+class AsyncExecutorHelperMethodsTests(TestCase):
+    """
+    This class contains unit tests for the new helper methods of AsyncExecutor.
+    Each test focuses on a single method in isolation.
+    """
+
+    def setUp(self):
+        """Set up a basic AsyncExecutor instance with mocks."""
+        params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
+
+        self.cfg = config.Config()
+        self.cfg.add(config.Scope.application, "system", "env.name", "unittest")
+        self.cfg.add(config.Scope.application, "system", "available.cores", 8)
+        self.cfg.add(config.Scope.application, "workload", "test.mode.enabled", True)
+
+        all_client_options = {"default": {"base_timeout": 10}}
+        self.cfg.add(config.Scope.application, "client", "options",
+                     WorkerCoordinatorTests.Holder(all_client_options=all_client_options))
+
+        self.task = workload.Task("test-task",
+                                  workload.Operation("test-op", workload.OperationType.Bulk),
+                                  clients=2)
+        self.sampler = mock.Mock()
+        self.cancel = threading.Event()
+        self.complete = threading.Event()
+        self.schedule_handle = mock.Mock()
+
+        opensearch_mock = mock.Mock()
+        opensearch_mock.new_request_context.return_value = mock.Mock()
+        self.opensearch = {"default": opensearch_mock}
+
+        self.shared_states = {0: True}
+        self.error_queue = queue.Queue()
+        self.queue_lock = threading.Lock()
+
+        self.executor = worker_coordinator.AsyncExecutor(
+            client_id=0,
+            task=self.task,
+            schedule=self.schedule_handle,
+            opensearch=self.opensearch,
+            sampler=self.sampler,
+            cancel=self.cancel,
+            complete=self.complete,
+            on_error="abort",
+            config=self.cfg,
+            shared_states=self.shared_states,
+            error_queue=self.error_queue,
+            queue_lock=self.queue_lock
+        )
+
+    def test_get_client_options_with_valid_config(self):
+        """Test that _get_client_options returns correct options from config."""
+        options = self.executor._get_client_options()
+        self.assertIsInstance(options, dict)
+        self.assertEqual(options.get("default", {}).get("base_timeout"), 10)
+
+    def test_get_client_options_with_no_config(self):
+        """Test that _get_client_options returns empty dict when config is None."""
+        self.executor.cfg = None
+        options = self.executor._get_client_options()
+        self.assertEqual(options, {})
+
+    def test_get_client_options_with_config_error(self):
+        """Test that _get_client_options handles ConfigError gracefully."""
+        self.executor.cfg.opts = mock.Mock(side_effect=exceptions.ConfigError("test error"))
+        options = self.executor._get_client_options()
+        self.assertEqual(options, {})
+
+    @run_async
+    async def test_wait_for_rampup_with_time(self):
+        """Test that _wait_for_rampup waits for the specified time."""
+        start_time = time.perf_counter()
+        await self.executor._wait_for_rampup(0.1)
+        end_time = time.perf_counter()
+        self.assertGreaterEqual(end_time - start_time, 0.09)
+
+    @run_async
+    async def test_wait_for_rampup_with_zero_time(self):
+        """Test that _wait_for_rampup doesn't wait when time is 0."""
+        start_time = time.perf_counter()
+        await self.executor._wait_for_rampup(0)
+        end_time = time.perf_counter()
+        self.assertLess(end_time - start_time, 0.01)
+
+    def test_handle_client_state_client_becomes_active(self):
+        """Test _handle_client_state when a paused client becomes active."""
+        with mock.patch('time.perf_counter', return_value=20.0):
+            new_was_paused, new_total_start = self.executor._handle_client_state(
+                was_paused=True, client_state=True, total_start=10.0, expected_scheduled_time=5.0
+            )
+        self.assertFalse(new_was_paused)
+        self.assertEqual(new_total_start, 15.0)  # 20.0 (now) - 5.0 (expected_scheduled_time)
+
+    def test_handle_client_state_client_becomes_inactive(self):
+        """Test _handle_client_state when an active client is paused."""
+        new_was_paused, new_total_start = self.executor._handle_client_state(
+            was_paused=False, client_state=False, total_start=10.0, expected_scheduled_time=5.0
+        )
+        self.assertTrue(new_was_paused)
+        self.assertEqual(new_total_start, 10.0)  # total_start should not change
+
+    @run_async
+    async def test_prepare_context_manager_for_default_operation(self):
+        """Test _prepare_context_manager for a default operation."""
+        context_mock = mock.Mock()
+        self.opensearch["default"].new_request_context.return_value = context_mock
+        result = await self.executor._prepare_context_manager({})
+        self.assertEqual(result, context_mock)
+        self.opensearch["default"].new_request_context.assert_called_once()
+
+    @run_async
+    async def test_prepare_context_manager_for_vector_search(self):
+        """Test _prepare_context_manager adds correct params for vector-search."""
+        params = {"operation-type": "vector-search"}
+        await self.executor._prepare_context_manager(params)
+        self.assertEqual(params["num_clients"], self.task.clients)
+        self.assertEqual(params["num_cores"], 8)
+
+    @run_async
+    async def test_prepare_context_manager_for_stream_message(self):
+        """Test _prepare_context_manager creates a message producer for streaming."""
+        params = {"operation-type": "produce-stream-message"}
+        message_producer_mock = mock.Mock()
+        context_mock = mock.Mock()
+        message_producer_mock.new_request_context.return_value = context_mock
+
+        with mock.patch('osbenchmark.client.MessageProducerFactory.create',
+                        new=mock.AsyncMock(return_value=message_producer_mock)) as factory_mock:
+            result = await self.executor._prepare_context_manager(params)
+            factory_mock.assert_called_once_with(params)
+            self.assertEqual(result, context_mock)
+            self.assertEqual(self.executor.message_producer, message_producer_mock)
+
+    def test_report_error_with_queue(self):
+        """Test _report_error puts an error into the queue if it exists."""
+        request_meta_data = {"success": False, "error": "test error"}
+        self.executor._report_error(request_meta_data)
+        self.assertFalse(self.error_queue.empty())
+        error_info = self.error_queue.get_nowait()
+        self.assertEqual(error_info["client_id"], 0)
+        self.assertEqual(error_info["task"], str(self.task))
+
+    def test_report_error_without_queue(self):
+        """Test _report_error does nothing if the queue is None."""
+        self.executor.error_queue = None
+        self.executor._report_error({"success": False})
+
+    def test_process_results_with_active_client(self):
+        """Test _process_results adds a sample for an active client."""
+        result_data = {
+            "absolute_processing_start": time.time(),
+            "request_start": 10.0, "request_end": 11.0,
+            "client_request_start": 9.9, "client_request_end": 11.1,
+            "processing_start": 9.8, "processing_end": 11.2,
+            "total_ops": 100, "total_ops_unit": "docs",
+            "request_meta_data": {"success": True}, "throughput_throttled": True
+        }
+        self.executor.runner = mock.Mock(completed=False, percent_completed=0.5)
+        self.executor.task_completes_parent = False
+        self.executor.sample_type = metrics.SampleType.Normal
+        self.executor.expected_scheduled_time = 0
+
+        completed = self.executor._process_results(
+            result_data, total_start=5.0, client_state=True, percent_completed=0.8
+        )
+        self.assertFalse(completed)
+        self.schedule_handle.after_request.assert_called_once()
+        self.sampler.add.assert_called_once()
+
+    def test_process_results_with_inactive_client(self):
+        """Test _process_results does not add a sample for an inactive client."""
+        result_data = {
+            "absolute_processing_start": time.time(),
+            "request_start": 10.0, "request_end": 11.0,
+            "client_request_start": 9.9, "client_request_end": 11.1,
+            "processing_start": 9.8, "processing_end": 11.2,
+            "total_ops": 100, "total_ops_unit": "docs",
+            "request_meta_data": {"success": True}, "throughput_throttled": True
+        }
+        self.executor.runner = mock.Mock(completed=False, percent_completed=0.5)
+        self.executor.task_completes_parent = False
+        self.executor.sample_type = metrics.SampleType.Normal
+        self.executor.expected_scheduled_time = 0
+
+        completed = self.executor._process_results(
+            result_data, total_start=5.0, client_state=False, percent_completed=0.8
+        )
+        self.assertFalse(completed)
+        self.schedule_handle.after_request.assert_called_once()
+        self.sampler.add.assert_not_called()
+
+    @run_async
+    async def test_cleanup_with_message_producer(self):
+        """Test _cleanup stops the message producer if it exists."""
+        message_producer_mock = mock.AsyncMock()
+        self.executor.message_producer = message_producer_mock
+        await self.executor._cleanup()
+        message_producer_mock.stop.assert_called_once()
+        self.assertIsNone(self.executor.message_producer)
+
+    @run_async
+    async def test_execute_request_success(self):
+        """Test _execute_request with successful execution."""
+        params = {"test": "param"}
+        expected_scheduled_time = 0.5
+        total_start = 10.0
+        client_state = True
+
+        context_manager = mock.AsyncMock()
+        context_obj = mock.Mock()
+        context_obj.request_start = 11.0
+        context_obj.request_end = 12.0
+        context_obj.client_request_start = 10.9
+        context_obj.client_request_end = 12.1
+        context_manager.__aenter__.return_value = context_obj
+
+        self.executor._prepare_context_manager = mock.AsyncMock(return_value=context_manager)
+        self.executor.runner = mock.Mock()
+
+        with mock.patch('osbenchmark.worker_coordinator.worker_coordinator.execute_single') as execute_mock:
+            with mock.patch('asyncio.wait_for') as wait_for_mock:
+                wait_for_mock.return_value = (100, "docs", {"success": True})
+
+                result = await self.executor._execute_request(
+                    params, expected_scheduled_time, total_start, client_state
+                )
+
+        self.assertEqual(result["total_ops"], 100)
+        self.assertEqual(result["total_ops_unit"], "docs")
+        self.assertTrue(result["request_meta_data"]["success"])
+        self.assertTrue(result["throughput_throttled"])
+
+    @run_async
+    async def test_execute_request_with_throttling(self):
+        """Test _execute_request correctly sleeps when throttling is needed."""
+        params = {"test": "param"}
+        expected_scheduled_time = 1.0
+        total_start = 10.0
+        client_state = True
+
+        context_manager = mock.AsyncMock()
+        context_obj = mock.Mock()
+        context_obj.request_start = 11.5
+        context_obj.request_end = 12.5
+        context_obj.client_request_start = 11.4
+        context_obj.client_request_end = 12.6
+        context_manager.__aenter__.return_value = context_obj
+
+        self.executor._prepare_context_manager = mock.AsyncMock(return_value=context_manager)
+        self.executor.runner = mock.Mock()
+
+        with mock.patch('time.perf_counter', side_effect=[10.0, 10.5, 13.0]):
+            with mock.patch('asyncio.sleep') as sleep_mock:
+                with mock.patch('asyncio.wait_for') as wait_for_mock:
+                    wait_for_mock.return_value = (50, "docs", {"success": True})
+
+                    result = await self.executor._execute_request(
+                        params, expected_scheduled_time, total_start, client_state
+                    )
+
+        sleep_mock.assert_called_once_with(1.0)
+        self.assertTrue(result["throughput_throttled"])
+
+
 class AsyncProfilerTests(TestCase):
     @pytest.mark.skip(reason="latency is system-dependent")
     @run_async
