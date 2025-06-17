@@ -672,19 +672,19 @@ def create_arg_parser():
         "--redline-scale-step",
         type=int,
         help="How many clients to add while scaling up during redline testing (default: 5).",
-        default=ConfigureFeedbackScaling.DEFAULT_SCALE_STEP
+        default=None
     )
     test_execution_parser.add_argument(
         "--redline-scaledown-percentage",
         type=float,
         help="What percentage of clients to remove when errors occur (default: 10%%).",
-        default=ConfigureFeedbackScaling.DEFAULT_SCALEDOWN_PCT
+        default=None
     )
     test_execution_parser.add_argument(
         "--redline-post-scaledown-sleep",
         type=int,
         help="How many seconds to wait before scaling up again after a scale down (default: 30).",
-        default=ConfigureFeedbackScaling.DEFAULT_SLEEP_SECONDS
+        default=None
     )
     test_execution_parser.add_argument(
         "--redline-max-clients",
@@ -702,13 +702,13 @@ def create_arg_parser():
         "--redline-cpu-window-seconds",
         type=int,
         help="How many seconds the window for average CPU load should be in seconds during CPU-based redline testing. (Default: 30)",
-        default=ConfigureFeedbackScaling.DEFAULT_CPU_WINDOW_SECONDS
+        default=None
     )
     test_execution_parser.add_argument(
         "--redline-cpu-check-interval",
         type=int,
         help="How many seconds between CPU checks there should be during CPU-based redline testing. (Default: 30)",
-        default=ConfigureFeedbackScaling.DEFAULT_CPU_CHECK_INTERVAL
+        default=None
     )
 
     ###############################################################################

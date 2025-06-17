@@ -25,12 +25,14 @@
 import asyncio
 import collections
 import concurrent.futures
+import configparser
 import datetime
 import itertools
 import json
 import logging
 import math
 import multiprocessing
+import os
 import queue
 import random
 import sys
@@ -204,6 +206,33 @@ class TaskFinished:
         self.metrics = metrics
         self.next_task_scheduled_in = next_task_scheduled_in
 
+def load_redline_config():
+    config = configparser.ConfigParser()
+    benchmark_home = os.environ.get('BENCHMARK_HOME') or os.environ['HOME']
+    benchmark_ini = benchmark_home + '/.benchmark/benchmark.ini'
+    if not os.path.isfile(benchmark_ini):
+        print(f"WARNING: redline config file {benchmark_ini} not found. Proceeding with default values.")
+        return {}
+
+    config.read(benchmark_ini)
+    config_object = {}
+
+    if "redline" in config:
+        redline = config["redline"]
+        for key in [
+            "scale_step",
+            "scaledown_percentage",
+            "post_scaledown_sleep",
+            "max_cpu_usage",
+            "cpu_window_seconds",
+            "cpu_check_interval",
+            "max_clients"
+        ]:
+            if key in redline:
+                config_object[key] = redline[key]
+    
+    return config_object
+
 class ConfigureFeedbackScaling:
     DEFAULT_SLEEP_SECONDS = 30
     DEFAULT_SCALE_STEP = 5
@@ -213,11 +242,15 @@ class ConfigureFeedbackScaling:
 
     def __init__(self, scale_step=None, scale_down_pct=None, sleep_seconds=None, max_clients=None, cpu_max=None,
                 cpu_window_seconds=None, cpu_check_interval=None, metrics_index=None, test_execution_id=None, cfg=None):
-        self.scale_step = scale_step if scale_step is not None else self.DEFAULT_SCALE_STEP
-        self.scale_down_pct = scale_down_pct if scale_down_pct is not None else self.DEFAULT_SCALEDOWN_PCT
-        self.sleep_seconds = sleep_seconds if sleep_seconds is not None else self.DEFAULT_SLEEP_SECONDS
-        self.cpu_window_seconds = cpu_window_seconds if cpu_window_seconds is not None else self.DEFAULT_CPU_WINDOW_SECONDS
-        self.cpu_check_interval = cpu_check_interval if cpu_check_interval is not None else self.DEFAULT_CPU_CHECK_INTERVAL
+
+        config_object = load_redline_config()
+
+        # priority: command flags -> config object -> default values
+        self.scale_step = int(scale_step if scale_step is not None else config_object.get("scale_step", self.DEFAULT_SCALE_STEP))
+        self.scale_down_pct = float(scale_down_pct if scale_down_pct is not None else config_object.get("scaledown_percentage", self.DEFAULT_SCALEDOWN_PCT))
+        self.sleep_seconds = int(sleep_seconds if sleep_seconds is not None else config_object.get("post_scaledown_sleep", self.DEFAULT_SLEEP_SECONDS))
+        self.cpu_window_seconds = int(cpu_window_seconds if cpu_window_seconds is not None else config_object.get("cpu_window_seconds", self.DEFAULT_CPU_WINDOW_SECONDS))
+        self.cpu_check_interval = int(cpu_check_interval if cpu_check_interval is not None else config_object.get("cpu_check_interval", self.DEFAULT_CPU_CHECK_INTERVAL))
         self.max_clients = max_clients
         self.cpu_max=cpu_max
         self.cfg=cfg
@@ -1110,11 +1143,11 @@ class WorkerCoordinator:
                 metrics_index = self.metrics_store.index
                 test_execution_id = self.metrics_store.test_execution_id
 
-            scale_step = self.config.opts("workload", "redline.scale_step", default_value=5)
-            scale_down_pct = self.config.opts("workload", "redline.scale_down_pct", default_value=0.10)
-            sleep_seconds = self.config.opts("workload", "redline.sleep_seconds", default_value=30)
-            cpu_window_seconds = self.config.opts("workload", "redline.cpu_window_seconds", default_value=30)
-            cpu_check_interval = self.config.opts("workload", "redline.cpu_check_interval", default_value=30)
+            scale_step = self.config.opts("workload", "redline.scale_step", default_value=0)
+            scale_down_pct = self.config.opts("workload", "redline.scale_down_pct", default_value=0)
+            sleep_seconds = self.config.opts("workload", "redline.sleep_seconds", default_value=0)
+            cpu_window_seconds = self.config.opts("workload", "redline.cpu_window_seconds", default_value=0)
+            cpu_check_interval = self.config.opts("workload", "redline.cpu_check_interval", default_value=0)
 
             self.target.send(self.target.feedback_actor, ConfigureFeedbackScaling(
             scale_step=scale_step,
