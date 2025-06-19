@@ -1840,6 +1840,7 @@ class AsyncExecutorTests(TestCase):
 
 
 class AsyncExecutorHelperMethodsTests(TestCase):
+    # pylint: disable=protected-access
     """
     This class contains unit tests for the new helper methods of AsyncExecutor.
     Each test focuses on a single method in isolation.
@@ -2058,7 +2059,7 @@ class AsyncExecutorHelperMethodsTests(TestCase):
         self.executor._prepare_context_manager = mock.AsyncMock(return_value=context_manager)
         self.executor.runner = mock.Mock()
 
-        with mock.patch('osbenchmark.worker_coordinator.worker_coordinator.execute_single') as execute_mock:
+        with mock.patch('osbenchmark.worker_coordinator.worker_coordinator.execute_single'):
             with mock.patch('asyncio.wait_for') as wait_for_mock:
                 wait_for_mock.return_value = (100, "docs", {"success": True})
 
