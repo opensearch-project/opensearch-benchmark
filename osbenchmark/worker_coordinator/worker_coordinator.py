@@ -1940,14 +1940,6 @@ class AsyncExecutor:
                  config=None, shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
         """
         Executes tasks according to the schedule for a given operation.
-
-        :param task: The task that is executed.
-        :param schedule: The schedule for this task.
-        :param opensearch: OpenSearch client that will be used to execute the operation.
-        :param sampler: A container to store raw samples.
-        :param cancel: A shared boolean that indicates we need to cancel execution.
-        :param complete: A shared boolean that indicates we need to prematurely complete execution.
-        :param on_error: A string specifying how the load generator should behave on errors.
         """
         self.client_id = client_id
         self.task = task
@@ -1966,6 +1958,11 @@ class AsyncExecutor:
         self.error_queue = error_queue
         self.queue_lock = queue_lock
         self.redline_enabled = self.cfg.opts("workload", "redline.test", mandatory=False) if self.cfg else False
+
+        # Client options are fetched once during initialization, not on every request.
+        self.client_options = self._get_client_options()
+        self.base_timeout = int(self.client_options.get("base_timeout", 5))
+
         # Variables to keep track of during execution
         self.expected_scheduled_time = 0
         self.sample_type = None
@@ -1990,17 +1987,6 @@ class AsyncExecutor:
             await asyncio.sleep(rampup_wait_time)
             self.logger.info("Client id [%s] is running now.", self.client_id)
 
-    def _handle_client_state(self, was_paused: bool, client_state: bool, total_start: float,
-                             expected_scheduled_time: float) -> tuple:
-        """Handle client state for redline testing."""
-        if client_state and was_paused:
-            now = time.perf_counter()
-            total_start = now - expected_scheduled_time
-            was_paused = False
-        elif not client_state:
-            was_paused = True
-        return was_paused, total_start
-
     async def _prepare_context_manager(self, params: dict):
         """Prepare the appropriate context manager for the request."""
         if params is not None and params.get("operation-type") == "produce-stream-message":
@@ -2010,7 +1996,6 @@ class AsyncExecutor:
             return self.message_producer.new_request_context()
         else:
             context_manager = self.opensearch["default"].new_request_context()
-            # Add parameters for vector-search
             if params is not None and params.get("operation-type") == "vector-search":
                 available_cores = int(self.cfg.opts("system", "available.cores", mandatory=False,
                                                     default_value=multiprocessing.cpu_count()))
@@ -2019,8 +2004,7 @@ class AsyncExecutor:
 
     async def _execute_request(self, params: dict, expected_scheduled_time: float, total_start: float,
                                client_state: bool) -> dict:
-        """Execute a request with timing control."""
-        # Calculate timing and check if throttling is needed
+        """Execute a request with timing control and error handling."""
         absolute_expected_schedule_time = total_start + expected_scheduled_time
         throughput_throttled = expected_scheduled_time > 0
 
@@ -2033,32 +2017,42 @@ class AsyncExecutor:
         processing_start = time.perf_counter()
         self.schedule_handle.before_request(processing_start)
 
-        # Prepare context manager
         context_manager = await self._prepare_context_manager(params)
 
-        # Get client options and base timeout
-        client_options = self._get_client_options()
-        base_timeout = int(client_options.get("base_timeout", 5))
+        # Variables for all probable paths (success, error, timeout)
+        request_start, request_end, client_request_start, client_request_end = 0, 0, 0, 0
+        total_ops, total_ops_unit, request_meta_data = 0, "ops", {}
 
-        # Execute the request with timeout
-        async with context_manager as request_context:
-            # apply per-request timeout
-            total_ops, total_ops_unit, request_meta_data = await asyncio.wait_for(
-                execute_single(
-                    self.runner, self.opensearch, params, self.on_error,
-                    redline_enabled=self.redline_enabled, client_enabled=client_state
-                ),
-                base_timeout
-            )
+        try:
+            async with context_manager as request_context:
+                total_ops, total_ops_unit, request_meta_data = await asyncio.wait_for(
+                    execute_single(
+                        self.runner, self.opensearch, params, self.on_error,
+                        redline_enabled=self.redline_enabled, client_enabled=client_state
+                    ),
+                    self.base_timeout
+                )
 
-            request_start = request_context.request_start
-            request_end = request_context.request_end
-            client_request_start = request_context.client_request_start
-            client_request_end = request_context.client_request_end
+                request_start = request_context.request_start
+                request_end = request_context.request_end
+                client_request_start = request_context.client_request_start
+                client_request_end = request_context.client_request_end
 
-            # Handle errors for redline testing
-            if not request_meta_data["success"] and not request_meta_data.get("skipped", False):
-                self._report_error(request_meta_data)
+                if not request_meta_data["success"] and not request_meta_data.get("skipped", False):
+                    self._report_error(request_meta_data)
+
+        except asyncio.TimeoutError:
+            request_meta_data = {
+                "success": False,
+                "error-type": "timeout",
+                "error-description": f"Request timed out after {self.base_timeout} seconds."
+            }
+            # Ensure request times are set to avoid errors in metrics calculation
+            request_start = processing_start
+            request_end = time.perf_counter()
+            client_request_start = processing_start
+            client_request_end = request_end
+            self._report_error(request_meta_data)
 
         processing_end = time.perf_counter()
 
@@ -2090,14 +2084,19 @@ class AsyncExecutor:
     def _process_results(self, result_data: dict, total_start: float, client_state: bool,
                          percent_completed: float) -> bool:
         """Process results from a request."""
-        # Calculate execution times
+        # Handle cases where the request was skipped (no-op)
+        if result_data["request_meta_data"].get("skipped_request"):
+            self.schedule_handle.after_request(
+                result_data["processing_end"], 0, "ops", {"success": False, "skipped": True}
+            )
+            return self.complete.is_set()
+
         service_time = result_data["request_end"] - result_data["request_start"]
         client_processing_time = (result_data["client_request_end"] - result_data[
             "client_request_start"]) - service_time
         processing_time = result_data["processing_end"] - result_data["processing_start"]
         time_period = result_data["request_end"] - total_start
 
-        # Update statistics
         self.schedule_handle.after_request(
             result_data["processing_end"],
             result_data["total_ops"],
@@ -2105,20 +2104,15 @@ class AsyncExecutor:
             result_data["request_meta_data"]
         )
 
-        # Check if runner provided throughput
         throughput = result_data["request_meta_data"].pop("throughput", None)
-
-        # Calculate latency
         latency = (result_data["request_end"] - (total_start + self.expected_scheduled_time)
                    if result_data["throughput_throttled"] else service_time)
 
-        # Determine task completion
         if self.task_completes_parent:
             completed = self.runner.completed
         else:
             completed = self.complete.is_set() or self.runner.completed
 
-        # Determine progress
         if completed:
             progress = 1.0
         elif self.runner.percent_completed:
@@ -2126,7 +2120,6 @@ class AsyncExecutor:
         else:
             progress = percent_completed
 
-        # Add sample if client is active
         if client_state:
             self.sampler.add(
                 self.task, self.client_id, self.sample_type,
@@ -2144,7 +2137,7 @@ class AsyncExecutor:
         """Clean up resources after task execution."""
         if self.message_producer is not None:
             await self.message_producer.stop()
-            self.message_producer = None  # Reset for future calls
+            self.message_producer = None
 
     def report_error(self, error_info: dict) -> None:
         """Report an error to the error queue."""
@@ -2155,55 +2148,32 @@ class AsyncExecutor:
                 self.logger.warning("Error queue full; dropping error from client %s", self.client_id)
 
     async def __call__(self, *args, **kwargs):
-        has_run_any_requests = False
-        was_paused = False
         self.task_completes_parent = self.task.completes_parent
         total_start = time.perf_counter()
 
-        # Initialize schedule
         self.logger.debug("Initializing schedule for client id [%s].", self.client_id)
         schedule = self.schedule_handle()
         self.schedule_handle.start()
         rampup_wait_time = self.schedule_handle.ramp_up_wait_time
 
-        # Wait for ramp-up
         await self._wait_for_rampup(rampup_wait_time)
 
         self.logger.debug("Entering main loop for client id [%s].", self.client_id)
-        # noinspection PyBroadException
         try:
             async for expected_scheduled_time, sample_type, percent_completed, runner, params in schedule:
                 self.expected_scheduled_time = expected_scheduled_time
                 self.sample_type = sample_type
                 self.runner = runner
 
-                # Check for task cancellation
                 if self.cancel.is_set():
                     self.logger.info("User cancelled execution.")
                     break
 
-                # Handle client state for redline testing
+                # `execute_single` will handle the no-op if the client is paused.
                 client_state = (self.shared_states or {}).get(self.client_id, True)
-                was_paused, total_start = self._handle_client_state(
-                    was_paused, client_state, total_start, expected_scheduled_time
-                )
 
-                # Skip if client is paused
-                if not client_state:
-                    processing_end = time.perf_counter()
-                    self.schedule_handle.after_request(
-                        processing_end, 0, "ops", {"success": False, "skipped": True}
-                    )
-
-                    if self.complete.is_set():
-                        break
-                    continue
-
-                # Execute request
                 result_data = await self._execute_request(params, expected_scheduled_time, total_start, client_state)
-                has_run_any_requests = True
 
-                # Process results
                 completed = self._process_results(result_data, total_start, client_state, percent_completed)
 
                 if completed:
@@ -2213,8 +2183,7 @@ class AsyncExecutor:
             self.logger.exception("Could not execute schedule")
             raise exceptions.BenchmarkError(f"Cannot run task [{self.task}]: {e}") from None
         finally:
-            # Signal completion if needed
-            if self.task_completes_parent or (self.redline_enabled and not has_run_any_requests):
+            if self.task_completes_parent:
                 self.logger.info(
                     "Task [%s] completes parent. Client id [%s] is finished executing it and signals completion.",
                     self.task, self.client_id
