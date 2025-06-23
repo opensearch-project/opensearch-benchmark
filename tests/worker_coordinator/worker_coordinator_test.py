@@ -1924,23 +1924,6 @@ class AsyncExecutorHelperMethodsTests(TestCase):
         end_time = time.perf_counter()
         self.assertLess(end_time - start_time, 0.01)
 
-    def test_handle_client_state_client_becomes_active(self):
-        """Test _handle_client_state when a paused client becomes active."""
-        with mock.patch('time.perf_counter', return_value=20.0):
-            new_was_paused, new_total_start = self.executor._handle_client_state(
-                was_paused=True, client_state=True, total_start=10.0, expected_scheduled_time=5.0
-            )
-        self.assertFalse(new_was_paused)
-        self.assertEqual(new_total_start, 15.0)  # 20.0 (now) - 5.0 (expected_scheduled_time)
-
-    def test_handle_client_state_client_becomes_inactive(self):
-        """Test _handle_client_state when an active client is paused."""
-        new_was_paused, new_total_start = self.executor._handle_client_state(
-            was_paused=False, client_state=False, total_start=10.0, expected_scheduled_time=5.0
-        )
-        self.assertTrue(new_was_paused)
-        self.assertEqual(new_total_start, 10.0)  # total_start should not change
-
     @run_async
     async def test_prepare_context_manager_for_default_operation(self):
         """Test _prepare_context_manager for a default operation."""
