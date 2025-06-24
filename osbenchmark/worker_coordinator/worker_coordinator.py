@@ -276,7 +276,7 @@ class FeedbackActor(actor.BenchmarkActor):
         self.max_cpu_threshold = None
         self.cpu_window_seconds = None
         self.cpu_check_interval = None
-        # client, index, and test execution ID for querying
+        # client, index, and test execution ID for querying users' data store
         self.os_client = None
         self.metrics_index = None
         self.test_execution_id=None
@@ -314,13 +314,13 @@ class FeedbackActor(actor.BenchmarkActor):
         self.percentage_clients_to_scale_down = msg.scale_down_pct
         self.POST_SCALEDOWN_SECONDS = msg.sleep_seconds
         # CPU feedback related items
-        self.max_cpu_threshold = msg.cpu_max
         self.cpu_window_seconds = msg.cpu_window_seconds
         self.cpu_check_interval = msg.cpu_check_interval
         self.test_execution_id=msg.test_execution_id
         self.cfg=msg.cfg
         self.metrics_index = msg.metrics_index
-        if self.max_cpu_threshold:
+        if msg.cpu_max:
+            self.max_cpu_threshold = msg.cpu_max
             # create a new client to query the datastore for CPU based feedback
             # we can't pass the original metrics_store object from the WorkerCoordinator since it can't be pickled in a thespianpy message
             try:
@@ -541,6 +541,8 @@ class FeedbackActor(actor.BenchmarkActor):
                 except queue.Full:
                     self.logger.warning("Error queue full; dropping cpu_threshold_exceeded for node %s", bucket['key'])
                 break # we only need one error message to trigger a scaledown
+        else:
+            self.logger.info("All nodes are currently under max usage threshold")
 
 class WorkerCoordinatorActor(actor.BenchmarkActor):
     RESET_RELATIVE_TIME_MARKER = "reset_relative_time"
@@ -996,6 +998,17 @@ class WorkerCoordinator:
         else:
             self.wait_for_rest_api(os_clients)
             self.target.on_cluster_details_retrieved(self.retrieve_cluster_info(os_clients))
+        
+        # Redline testing: Check if cpu feedback is enabled. Enable the node-stats telemetry device if we need to
+        cpu_max = self.config.opts("workload", "redline.max_cpu_usage", default_value=[])
+        if cpu_max:
+            devices = self.config.opts("telemetry", "devices", default_value=[])
+            if "node-stats" not in devices:
+                # if node stats aren't enabled but cpu feedback is, add the node-stats telemetry device
+                self.logger.info("Enabling node stats telemetry device for CPU-based redline testing.")
+                devices = self.config.opts("telemetry", "devices", default_value=[])
+                devices.append("node-stats")
+                self.config.add(config.Scope.application, "telemetry", "devices", devices)
 
         # Avoid issuing any requests to the target cluster when static responses are enabled. The results
         # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
@@ -1090,8 +1103,8 @@ class WorkerCoordinator:
             cpu_max = self.config.opts("workload", "redline.max_cpu_usage", default_value=None)
             if cpu_max and isinstance(self.metrics_store, metrics.InMemoryMetricsStore):
                 raise exceptions.SystemSetupError("CPU-based feedback requires a metrics store. You are using an in-memory metrics store")
-            elif cpu_max and 'node-stats' not in self.config.opts("telemetry", "devices"):
-                raise exceptions.SystemSetupError("Node stats not enabled. You must use `--telemetry node-stats` flag for CPU-based feedback")
+            elif cpu_max and "node-stats" not in self.config.opts("telemetry", "devices"):
+                raise exceptions.SystemSetupError("Node stats telemetry not enabled — this is required for CPU-based redline feedback.")
             elif cpu_max and isinstance(self.metrics_store, metrics.OsMetricsStore):
                 # pass over the index and test execution ID so the feedbackActor can query the datastore
                 metrics_index = self.metrics_store.index

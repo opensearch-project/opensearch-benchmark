@@ -806,6 +806,19 @@ def execute_test(cfg, kill_running_processes=False):
                   f"Otherwise, you need to manually kill them."
             raise exceptions.BenchmarkError(msg)
 
+    # redline testing: check metrics store type before running cpu based feedback test
+    cpu_max = cfg.opts("workload", "redline.max_cpu_usage", default_value=None)
+    if cpu_max is not None:
+        store = metrics.metrics_store(cfg, workload="dummy", test_procedure="dummy", read_only=False)
+        try:
+            if isinstance(store, metrics.InMemoryMetricsStore):
+                raise exceptions.SystemSetupError(
+                    "CPU-based feedback requires a metrics store, but you're using the in-memory store. "
+                    "Specify a metrics store in your benchmark.ini or via CLI to continue."
+                )
+        finally:
+            store.close()
+
     with_actor_system(test_execution_orchestrator.run, cfg)
 
 
