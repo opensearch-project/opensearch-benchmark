@@ -1961,7 +1961,7 @@ class AsyncExecutor:
 
         # Client options are fetched once during initialization, not on every request.
         self.client_options = self._get_client_options()
-        self.base_timeout = int(self.client_options.get("base_timeout", 5))
+        self.base_timeout = int(self.client_options.get("base_timeout", 10))
 
         # Variables to keep track of during execution
         self.expected_scheduled_time = 0
@@ -2019,8 +2019,6 @@ class AsyncExecutor:
 
         context_manager = await self._prepare_context_manager(params)
 
-        # Variables for all probable paths (success, error, timeout)
-        request_start, request_end, client_request_start, client_request_end = 0, 0, 0, 0
         total_ops, total_ops_unit, request_meta_data = 0, "ops", {}
 
         try:
@@ -2033,27 +2031,47 @@ class AsyncExecutor:
                     self.base_timeout
                 )
 
-                request_start = request_context.request_start
-                request_end = request_context.request_end
-                client_request_start = request_context.client_request_start
-                client_request_end = request_context.client_request_end
-
                 if not request_meta_data["success"] and not request_meta_data.get("skipped", False):
-                    self._report_error(request_meta_data)
+                    error_info = {
+                        "client_id": self.client_id,
+                        "task": str(self.task),
+                        "error_details": request_meta_data
+                    }
+                    self.report_error(error_info)
 
         except asyncio.TimeoutError:
-            request_meta_data = {
-                "success": False,
-                "error-type": "timeout",
-                "error-description": f"Request timed out after {self.base_timeout} seconds."
+            self.logger.error("Client %s request timed out", self.client_id)
+            # treat as failed operation with default timings
+            total_ops = 0
+            total_ops_unit = "ops"
+            request_meta_data = {"success": False, "error-type": "timeout"}
+            # set timing defaults so no KeyError
+            request_context_holder.on_client_request_start()
+            request_context_holder.on_request_start()
+            request_context_holder.on_request_end()
+            request_context_holder.on_client_request_end()
+            request_start = request_context.request_start
+            request_end = request_context.request_end
+            client_request_start = request_context.client_request_start
+            client_request_end = request_context.client_request_end
+            error_info = {
+                "client_id": self.client_id,
+                "task": str(self.task),
+                "error_details": request_meta_data
             }
-            # Ensure request times are set to avoid errors in metrics calculation
-            request_start = processing_start
-            request_end = time.perf_counter()
-            client_request_start = processing_start
-            client_request_end = request_end
-            self._report_error(request_meta_data)
-
+            self.report_error(error_info)
+        else:
+            # normal path: read timings from context
+            request_start = request_context.request_start
+            request_end = request_context.request_end
+            client_request_start = request_context.client_request_start
+            client_request_end = request_context.client_request_end
+            error_info = {
+                "client_id": self.client_id,
+                "task": str(self.task),
+                "error_details": request_meta_data
+            }
+            self.report_error(error_info)
         processing_end = time.perf_counter()
 
         return {
@@ -2069,17 +2087,6 @@ class AsyncExecutor:
             "request_meta_data": request_meta_data,
             "throughput_throttled": throughput_throttled
         }
-
-    def _report_error(self, request_meta_data: dict) -> None:
-        """Report an error to the FeedbackActor."""
-        if self.error_queue is not None:
-            self.logger.error("Real error detected in client %s. Notifying FeedbackActor...", self.client_id)
-            error_info = {
-                "client_id": self.client_id,
-                "task": str(self.task),
-                "error_details": request_meta_data
-            }
-            self.report_error(error_info)
 
     def _process_results(self, result_data: dict, total_start: float, client_state: bool,
                          percent_completed: float) -> bool:

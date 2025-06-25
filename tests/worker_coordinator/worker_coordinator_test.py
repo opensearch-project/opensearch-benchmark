@@ -1957,18 +1957,27 @@ class AsyncExecutorHelperMethodsTests(TestCase):
             self.assertEqual(self.executor.message_producer, message_producer_mock)
 
     def test_report_error_with_queue(self):
-        """Test _report_error puts an error into the queue if it exists."""
-        request_meta_data = {"success": False, "error": "test error"}
-        self.executor._report_error(request_meta_data)
-        self.assertFalse(self.error_queue.empty())
-        error_info = self.error_queue.get_nowait()
-        self.assertEqual(error_info["client_id"], 0)
-        self.assertEqual(error_info["task"], str(self.task))
+        """Test report_error when an error queue is present."""
+        error_q = queue.Queue()
+        self.executor.error_queue = error_q
+        error_info = {
+            "client_id": self.executor.client_id,
+            "task": str(self.executor.task),
+            "error_details": {"success": False, "error-type": "test-error"}
+        }
+        self.executor.report_error(error_info)
+        queued_error = error_q.get_nowait()
+        self.assertEqual(queued_error, error_info)
 
     def test_report_error_without_queue(self):
-        """Test _report_error does nothing if the queue is None."""
+        """Test report_error runs without error when the error queue is None."""
         self.executor.error_queue = None
-        self.executor._report_error({"success": False})
+        error_info = {
+            "client_id": self.executor.client_id,
+            "task": str(self.executor.task),
+            "error_details": {"success": False, "error-type": "test-error"}
+        }
+        self.executor.report_error(error_info)
 
     def test_process_results_with_active_client(self):
         """Test _process_results adds a sample for an active client."""
