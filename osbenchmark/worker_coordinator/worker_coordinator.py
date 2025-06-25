@@ -2019,6 +2019,7 @@ class AsyncExecutor:
 
         context_manager = await self._prepare_context_manager(params)
 
+        request_start = request_end = client_request_start = client_request_end = None
         total_ops, total_ops_unit, request_meta_data = 0, "ops", {}
 
         try:
@@ -2030,48 +2031,36 @@ class AsyncExecutor:
                     ),
                     self.base_timeout
                 )
-
-                if not request_meta_data["success"] and not request_meta_data.get("skipped", False):
-                    error_info = {
-                        "client_id": self.client_id,
-                        "task": str(self.task),
-                        "error_details": request_meta_data
-                    }
-                    self.report_error(error_info)
-
+                request_start = getattr(request_context, "request_start", None)
+                request_end = getattr(request_context, "request_end", None)
+                client_request_start = getattr(request_context, "client_request_start", None)
+                client_request_end = getattr(request_context, "client_request_end", None)
         except asyncio.TimeoutError:
             self.logger.error("Client %s request timed out", self.client_id)
-            # treat as failed operation with default timings
-            total_ops = 0
-            total_ops_unit = "ops"
             request_meta_data = {"success": False, "error-type": "timeout"}
-            # set timing defaults so no KeyError
-            request_context_holder.on_client_request_start()
-            request_context_holder.on_request_start()
-            request_context_holder.on_request_end()
-            request_context_holder.on_client_request_end()
-            request_start = request_context.request_start
-            request_end = request_context.request_end
-            client_request_start = request_context.client_request_start
-            client_request_end = request_context.client_request_end
-            error_info = {
-                "client_id": self.client_id,
-                "task": str(self.task),
-                "error_details": request_meta_data
-            }
-            self.report_error(error_info)
-        else:
-            # normal path: read timings from context
-            request_start = request_context.request_start
-            request_end = request_context.request_end
-            client_request_start = request_context.client_request_start
-            client_request_end = request_context.client_request_end
-            error_info = {
-                "client_id": self.client_id,
-                "task": str(self.task),
-                "error_details": request_meta_data
-            }
-            self.report_error(error_info)
+        except Exception as e:
+            self.logger.error("Request failed: %s", e)
+            request_meta_data = {"success": False, "error-type": "exception", "error-description": str(e)}
+
+        if not request_meta_data.get("success") or None in (request_start, request_end, client_request_start,
+                                                            client_request_end):
+            if request_start is None:
+                request_start = processing_start
+            if client_request_start is None:
+                client_request_start = processing_start
+            now = time.perf_counter()
+            if request_end is None:
+                request_end = now
+            if client_request_end is None:
+                client_request_end = now
+            if not request_meta_data.get("skipped", False):
+                error_info = {
+                    "client_id": self.client_id,
+                    "task": str(self.task),
+                    "error_details": request_meta_data
+                }
+                self.report_error(error_info)
+
         processing_end = time.perf_counter()
 
         return {
