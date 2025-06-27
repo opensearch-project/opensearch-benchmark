@@ -2031,16 +2031,14 @@ class AsyncExecutor:
                     ),
                     self.base_timeout
                 )
-                request_start = getattr(request_context, "request_start", None)
-                request_end = getattr(request_context, "request_end", None)
-                client_request_start = getattr(request_context, "client_request_start", None)
-                client_request_end = getattr(request_context, "client_request_end", None)
+                request_start = request_context.request_start
+                request_end = request_context.request_end
+                client_request_start = request_context.client_request_start
+                client_request_end = request_context.client_request_end
+
         except asyncio.TimeoutError:
-            self.logger.error("Client %s request timed out", self.client_id)
+            self.logger.error("Client %s request timed out after %s s", self.client_id, self.base_timeout)
             request_meta_data = {"success": False, "error-type": "timeout"}
-        except Exception as e:
-            self.logger.error("Request failed: %s", e)
-            request_meta_data = {"success": False, "error-type": "exception", "error-description": str(e)}
 
         if not request_meta_data.get("success") or None in (request_start, request_end, client_request_start,
                                                             client_request_end):
@@ -2104,15 +2102,18 @@ class AsyncExecutor:
         latency = (result_data["request_end"] - (total_start + self.expected_scheduled_time)
                    if result_data["throughput_throttled"] else service_time)
 
+        runner_completed = getattr(self.runner, "completed", False)
+        runner_percent_completed = getattr(self.runner, "percent_completed", None)
+
         if self.task_completes_parent:
-            completed = self.runner.completed
+            completed = runner_completed
         else:
-            completed = self.complete.is_set() or self.runner.completed
+            completed = self.complete.is_set() or runner_completed
 
         if completed:
             progress = 1.0
-        elif self.runner.percent_completed:
-            progress = self.runner.percent_completed
+        elif runner_percent_completed is not None:
+            progress = runner_percent_completed
         else:
             progress = percent_completed
 
