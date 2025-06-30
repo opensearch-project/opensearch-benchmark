@@ -1,6 +1,6 @@
 from osbenchmark.builder.installers.installer import Installer
 from osbenchmark.builder.installers.preparers.plugin_preparer import PluginPreparer
-from osbenchmark.builder.provision_config import BootstrapPhase
+from osbenchmark.builder.cluster_config import BootstrapPhase
 from osbenchmark.builder.utils.config_applier import ConfigApplier
 from osbenchmark.builder.utils.java_home_resolver import JavaHomeResolver
 from osbenchmark.builder.utils.path_manager import PathManager
@@ -8,9 +8,9 @@ from osbenchmark.builder.utils.template_renderer import TemplateRenderer
 
 
 class BareInstaller(Installer):
-    def __init__(self, provision_config_instance, executor, preparers):
+    def __init__(self, cluster_config, executor, preparers):
         super().__init__(executor)
-        self.provision_config_instance = provision_config_instance
+        self.cluster_config = cluster_config
         if isinstance(preparers, list):
             self.preparers = preparers
         else:
@@ -54,7 +54,7 @@ class BareInstaller(Installer):
             self.config_applier.apply_configs(host, node, preparer.get_config_paths(), config_vars)
 
     def _invoke_install_hooks(self, host, config_vars):
-        _, java_home = self.java_home_resolver.resolve_java_home(host, self.provision_config_instance)
+        _, java_home = self.java_home_resolver.resolve_java_home(host, self.cluster_config)
 
         env = {}
         if java_home:
