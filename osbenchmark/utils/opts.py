@@ -152,7 +152,7 @@ class ConnectOptions:
 
     def __getitem__(self, key):
         """
-        TestExecution expects the cfg object to be subscriptable
+        TestRun expects the cfg object to be subscriptable
         Just return 'default'
         """
         return self.default
