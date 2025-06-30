@@ -998,7 +998,7 @@ class WorkerCoordinator:
         else:
             self.wait_for_rest_api(os_clients)
             self.target.on_cluster_details_retrieved(self.retrieve_cluster_info(os_clients))
-        
+
         # Redline testing: Check if cpu feedback is enabled. Enable the node-stats telemetry device if we need to
         cpu_max = self.config.opts("workload", "redline.max_cpu_usage", default_value=[])
         if cpu_max:
