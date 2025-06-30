@@ -1957,3 +1957,83 @@ class FeedbackActorTests(TestCase):
 
         assert self.actor.state == worker_coordinator.FeedbackState.SLEEP
         assert self.actor.total_active_client_count < 4
+
+    def test_check_cpu_usage_adds_error_when_threshold_exceeded(self):
+        self.actor.max_cpu_threshold = 80
+        self.actor.test_execution_id = "abc123"
+        self.actor.cpu_window_seconds = 60
+        self.actor.metrics_index = "metrics-index"
+        self.actor.error_queue = queue.Queue()
+
+        mock_os_client = mock.Mock()
+        mock_os_client.search.return_value = {
+            "aggregations": {
+                "nodes": {
+                    "buckets": [
+                        {
+                            "key": "node-1",
+                            "avg_cpu": {"value": 85.0}
+                        }
+                    ]
+                }
+            }
+        }
+        self.actor.os_client = mock_os_client
+
+        self.actor._check_cpu_usage()
+
+        assert not self.actor.error_queue.empty()
+        error = self.actor.error_queue.get_nowait()
+        assert error["type"] == "cpu_threshold_exceeded"
+        assert error["node_name"] == "node-1"
+        assert error["value"] == 85.0
+
+    def test_check_cpu_usage_no_errors_when_under_threshold(self):
+        self.actor.max_cpu_threshold = 80
+        self.actor.test_execution_id = "abc123"
+        self.actor.cpu_window_seconds = 60
+        self.actor.metrics_index = "metrics-index"
+        self.actor.error_queue = queue.Queue()
+
+        mock_os_client = mock.Mock()
+        mock_os_client.search.return_value = {
+            "aggregations": {
+                "nodes": {
+                    "buckets": []
+                }
+            }
+        }
+        self.actor.os_client = mock_os_client
+
+        self.actor._check_cpu_usage()
+
+        assert self.actor.error_queue.empty()
+
+    def test_check_cpu_usage_drops_error_when_queue_full(self):
+        self.actor.max_cpu_threshold = 80
+        self.actor.test_execution_id = "abc123"
+        self.actor.cpu_window_seconds = 60
+        self.actor.metrics_index = "metrics-index"
+
+        full_queue = queue.Queue(maxsize=1)
+        full_queue.put("already full")
+        self.actor.error_queue = full_queue
+
+        mock_os_client = mock.Mock()
+        mock_os_client.search.return_value = {
+            "aggregations": {
+                "nodes": {
+                    "buckets": [
+                        {
+                            "key": "node-1",
+                            "avg_cpu": {"value": 90.0}
+                        }
+                    ]
+                }
+            }
+        }
+        self.actor.os_client = mock_os_client
+
+        # Should not raise
+        self.actor._check_cpu_usage()
+        assert full_queue.qsize() == 1  # Still full; error dropped
