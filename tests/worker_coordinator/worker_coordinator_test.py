@@ -104,6 +104,7 @@ class WorkerCoordinatorTests(TestCase):
         self.cfg.add(config.Scope.application, "workload", "test_procedure.name", "default")
         self.cfg.add(config.Scope.application, "workload", "params", {})
         self.cfg.add(config.Scope.application, "workload", "test.mode.enabled", True)
+        self.cfg.add(config.Scope.applicationOverride, "workload", "test_procedure.name", "default")
         self.cfg.add(config.Scope.application, "telemetry", "devices", [])
         self.cfg.add(config.Scope.application, "telemetry", "params", {"ccr-stats-indices": {"default": ["leader_index"]}})
         self.cfg.add(config.Scope.application, "builder", "provision_config_instance.names", ["default"])
@@ -113,6 +114,7 @@ class WorkerCoordinatorTests(TestCase):
         self.cfg.add(config.Scope.application, "client", "options", WorkerCoordinatorTests.Holder(all_client_options={"default": {}}))
         self.cfg.add(config.Scope.application, "worker_coordinator", "load_worker_coordinator_hosts", ["localhost"])
         self.cfg.add(config.Scope.application, "results_publishing", "datastore.type", "in-memory")
+        self.cfg.add(config.Scope.applicationOverride, "workload", "redline.max_cpu_usage", None)
 
         default_test_procedure = workload.TestProcedure("default", default=True, schedule=[
             workload.Task(name="index", operation=workload.Operation("index", operation_type=workload.OperationType.Bulk), clients=4)
@@ -1980,7 +1982,7 @@ class FeedbackActorTests(TestCase):
         }
         self.actor.os_client = mock_os_client
 
-        self.actor._check_cpu_usage()
+        self.actor._check_cpu_usage() # pylint: disable=protected-access
 
         assert not self.actor.error_queue.empty()
         error = self.actor.error_queue.get_nowait()
@@ -2005,7 +2007,7 @@ class FeedbackActorTests(TestCase):
         }
         self.actor.os_client = mock_os_client
 
-        self.actor._check_cpu_usage()
+        self.actor._check_cpu_usage() # pylint: disable=protected-access
 
         assert self.actor.error_queue.empty()
 
@@ -2035,5 +2037,5 @@ class FeedbackActorTests(TestCase):
         self.actor.os_client = mock_os_client
 
         # Should not raise
-        self.actor._check_cpu_usage()
+        self.actor._check_cpu_usage() # pylint: disable=protected-access
         assert full_queue.qsize() == 1  # Still full; error dropped
