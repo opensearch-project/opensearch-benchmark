@@ -4,7 +4,7 @@ from unittest.mock import Mock
 from osbenchmark.builder.installers.preparers.plugin_preparer import PluginPreparer
 from osbenchmark.builder.models.host import Host
 from osbenchmark.builder.models.node import Node
-from osbenchmark.builder.provision_config import PluginDescriptor
+from osbenchmark.builder.cluster_config import PluginDescriptor
 
 
 class PluginPreparerTest(TestCase):

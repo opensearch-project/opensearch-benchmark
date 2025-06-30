@@ -785,7 +785,7 @@ class NodeStatsRecorder:
             if isinstance(self.include_indices_metrics, str):
                 self.include_indices_metrics_list = opts.csv_to_list(self.include_indices_metrics)
             else:
-                # we don't validate the allowable metrics as they may change across ES versions
+                # we don't validate the allowable metrics as they may change across ES or OpenSearch versions
                 raise exceptions.SystemSetupError(
                     "The telemetry parameter 'node-stats-include-indices-metrics' must be a comma-separated string but was {}".format(
                         type(self.include_indices_metrics))
@@ -1494,7 +1494,7 @@ class ExternalEnvironmentInfo(InternalTelemetryDevice):
 
 class JvmStatsSummary(InternalTelemetryDevice):
     """
-    Gathers a summary of various JVM statistics during the whole test execution.
+    Gathers a summary of various JVM statistics during the whole test run.
     """
     def __init__(self, client, metrics_store):
         super().__init__()
