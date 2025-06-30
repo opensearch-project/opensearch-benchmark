@@ -925,7 +925,7 @@ class WorkerCoordinator:
         self.workload = None
         self.test_procedure = None
         self.metrics_store = None
-        self.load_worker_coordinator_hosts = []
+        self.worker_ips = []
         self.workers = []
         # which client ids are assigned to which workers?
         self.clients_per_worker = {}
@@ -934,7 +934,7 @@ class WorkerCoordinator:
         self.error_queue = None
         self.queue_lock = self.manager.Lock()
 
-        self.progress_results_publisher = console.progress()
+        self.progress_publisher = console.progress()
         self.progress_counter = 0
         self.quiet = False
         self.allocations = None
@@ -967,7 +967,7 @@ class WorkerCoordinator:
     def prepare_telemetry(self, opensearch, enable):
         enabled_devices = self.config.opts("telemetry", "devices")
         telemetry_params = self.config.opts("telemetry", "params")
-        log_root = paths.test_execution_root(self.config)
+        log_root = paths.test_run_root(self.config)
 
         os_default = opensearch["default"]
 
@@ -1012,7 +1012,7 @@ class WorkerCoordinator:
         self.test_procedure = select_test_procedure(self.config, self.workload)
         self.quiet = self.config.opts("system", "quiet.mode", mandatory=False, default_value=False)
         downsample_factor = int(self.config.opts(
-            "results_publishing", "metrics.request.downsample.factor",
+            "reporting", "metrics.request.downsample.factor",
             mandatory=False, default_value=1))
         self.metrics_store = metrics.metrics_store(cfg=self.config,
                                                    workload=self.workload.name,
@@ -1051,7 +1051,7 @@ class WorkerCoordinator:
         # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
         self.prepare_telemetry(os_clients, enable=not uses_static_responses)
 
-        for host in self.config.opts("worker_coordinator", "load_worker_coordinator_hosts"):
+        for host in self.config.opts("worker_coordinator", "worker_ips"):
             host_config = {
                 # for simplicity we assume that all benchmark machines have the same specs
                 "cores": num_cores(self.config)
@@ -1061,9 +1061,9 @@ class WorkerCoordinator:
             else:
                 host_config["host"] = host
 
-            self.load_worker_coordinator_hosts.append(host_config)
+            self.worker_ips.append(host_config)
 
-        self.target.prepare_workload([h["host"] for h in self.load_worker_coordinator_hosts], self.config, self.workload)
+        self.target.prepare_workload([h["host"] for h in self.worker_ips], self.config, self.workload)
 
     def start_benchmark(self):
         self.logger.info("OSB is about to start.")
@@ -1105,7 +1105,7 @@ class WorkerCoordinator:
         if allocator.clients < 128:
             self.logger.info("Allocation matrix:\n%s", "\n".join([str(a) for a in self.allocations]))
 
-        worker_assignments = calculate_worker_assignments(self.load_worker_coordinator_hosts, allocator.clients)
+        worker_assignments = calculate_worker_assignments(self.worker_ips, allocator.clients)
         worker_id = 0
         # redline testing: keep track of the total number of workers
         # and report this to the feedbackActor before starting a redline test
@@ -1278,7 +1278,7 @@ class WorkerCoordinator:
         return self.current_step == self.number_of_steps
 
     def close(self):
-        self.progress_results_publisher.finish()
+        self.progress_publisher.finish()
         if self.metrics_store and self.metrics_store.opened:
             self.metrics_store.close()
 
@@ -1308,9 +1308,9 @@ class WorkerCoordinator:
 
                 num_clients = max(len(progress_per_client), 1)
                 total_progress = sum(progress_per_client) / num_clients
-            self.progress_results_publisher.print("Running %s" % tasks, "[%3d%% done]" % (round(total_progress * 100)))
+            self.progress_publisher.print("Running %s" % tasks, "[%3d%% done]" % (round(total_progress * 100)))
             if task_finished:
-                self.progress_results_publisher.finish()
+                self.progress_publisher.finish()
 
     def post_process_samples(self):
         # we do *not* do this here to avoid concurrent updates (actors are single-threaded) but rather to make it clear that we use
@@ -1652,7 +1652,7 @@ class Worker(actor.BenchmarkActor):
         self.worker_id = msg.worker_id
         self.config = load_local_config(msg.config)
         self.on_error = self.config.opts("worker_coordinator", "on.error")
-        self.sample_queue_size = int(self.config.opts("results_publishing", "sample.queue.size", mandatory=False, default_value=1 << 20))
+        self.sample_queue_size = int(self.config.opts("reporting", "sample.queue.size", mandatory=False, default_value=1 << 20))
         self.workload = msg.workload
         workload.set_absolute_data_path(self.config, self.workload)
         self.client_allocations = msg.client_allocations

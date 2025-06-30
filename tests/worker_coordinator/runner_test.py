@@ -6834,7 +6834,7 @@ class CompositeTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
     @mock.patch('osbenchmark.client.RequestContextHolder.new_request_context')
     @run_async
-    async def test_execute_multiple_streams(self, opensearch, on_client_request_start, on_client_request_end,new_request_context):
+    async def test_run_multiple_streams(self, opensearch, on_client_request_start, on_client_request_end,new_request_context):
         opensearch.transport.perform_request.side_effect = [
             # raw-request
             as_future(),
@@ -6976,7 +6976,7 @@ class CompositeTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
     @mock.patch('osbenchmark.client.RequestContextHolder.new_request_context')
     @run_async
-    async def test_executes_tasks_in_specified_order(self, opensearch, on_client_request_start, on_client_request_end, new_request_context):
+    async def test_runs_tasks_in_specified_order(self, opensearch, on_client_request_start, on_client_request_end, new_request_context):
         opensearch.transport.perform_request.return_value = as_future()
 
         params = {

@@ -12,7 +12,7 @@ class DockerLauncher(Launcher):
     CONTAINER_WAIT_TIMEOUT_SECONDS = 10 * 60
     CONTAINER_WAIT_INTERVAL_SECONDS = 0.5
 
-    def __init__(self, provision_config_instance, shell_executor, metrics_store, clock=time.Clock):
+    def __init__(self, cluster_config, shell_executor, metrics_store, clock=time.Clock):
         super().__init__(shell_executor)
         self.logger = logging.getLogger(__name__)
         self.metrics_store = metrics_store
