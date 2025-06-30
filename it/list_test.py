@@ -26,14 +26,14 @@ import it
 
 
 @it.all_benchmark_configs
-def test_list_test_executions(cfg):
-    assert it.osbenchmark(cfg, "list test_executions") == 0
+def test_list_test_runs(cfg):
+    assert it.osbenchmark(cfg, "list test-runs") == 0
 
 
 @it.benchmark_in_mem
-def test_list_provision_config_instances(cfg):
-    assert it.osbenchmark(cfg, "list provision_config_instances") == 0
-    assert it.osbenchmark(cfg, "list provision_config_instances --provision-config-repository=default") == 0
+def test_list_cluster_configs(cfg):
+    assert it.osbenchmark(cfg, "list cluster-configs") == 0
+    assert it.osbenchmark(cfg, "list cluster-configs --cluster-config-repository=default") == 0
 
 
 @it.benchmark_in_mem

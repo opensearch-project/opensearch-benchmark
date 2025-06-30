@@ -36,7 +36,7 @@ class AWSProvider(CloudProvider):
         return "amazon_aws_log_in" in client_options
 
     def validate_config_for_metrics(self, config) -> bool:
-        metrics_amazon_aws_log_in = config.opts("results_publishing", "datastore.amazon_aws_log_in",
+        metrics_amazon_aws_log_in = config.opts("reporting", "datastore.amazon_aws_log_in",
                                                       default_value=None, mandatory=False)
 
         if metrics_amazon_aws_log_in in AWSProvider.VALID_CONFIG_SETTINGS:
@@ -59,7 +59,7 @@ class AWSProvider(CloudProvider):
             if config is None:
                 raise exceptions.ConfigError("Missing config when parsing log in params for metrics.")
 
-            metrics_amazon_aws_log_in = config.opts("results_publishing", "datastore.amazon_aws_log_in",
+            metrics_amazon_aws_log_in = config.opts("reporting", "datastore.amazon_aws_log_in",
                                                 default_value=None, mandatory=False)
 
             metrics_aws_access_key_id = None
@@ -69,15 +69,15 @@ class AWSProvider(CloudProvider):
             metrics_aws_service = None
 
             if metrics_amazon_aws_log_in == 'config':
-                metrics_aws_access_key_id = config.opts("results_publishing", "datastore.aws_access_key_id",
+                metrics_aws_access_key_id = config.opts("reporting", "datastore.aws_access_key_id",
                                                             default_value=None, mandatory=False)
-                metrics_aws_secret_access_key = config.opts("results_publishing", "datastore.aws_secret_access_key",
+                metrics_aws_secret_access_key = config.opts("reporting", "datastore.aws_secret_access_key",
                                                                 default_value=None, mandatory=False)
-                metrics_aws_session_token = config.opts("results_publishing", "datastore.aws_session_token",
+                metrics_aws_session_token = config.opts("reporting", "datastore.aws_session_token",
                                                             default_value=None, mandatory=False)
-                metrics_aws_region = config.opts("results_publishing", "datastore.region",
+                metrics_aws_region = config.opts("reporting", "datastore.region",
                                                     default_value=None, mandatory=False)
-                metrics_aws_service = config.opts("results_publishing", "datastore.service",
+                metrics_aws_service = config.opts("reporting", "datastore.service",
                                                         default_value=None, mandatory=False)
             elif metrics_amazon_aws_log_in == 'environment':
                 metrics_aws_access_key_id = os.getenv("OSB_DATASTORE_AWS_ACCESS_KEY_ID", default=None)
