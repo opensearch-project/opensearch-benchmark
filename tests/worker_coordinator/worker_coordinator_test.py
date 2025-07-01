@@ -104,6 +104,7 @@ class WorkerCoordinatorTests(TestCase):
         self.cfg.add(config.Scope.application, "workload", "test_procedure.name", "default")
         self.cfg.add(config.Scope.application, "workload", "params", {})
         self.cfg.add(config.Scope.application, "workload", "test.mode.enabled", True)
+        self.cfg.add(config.Scope.applicationOverride, "workload", "test_procedure.name", "default")
         self.cfg.add(config.Scope.application, "telemetry", "devices", [])
         self.cfg.add(config.Scope.application, "telemetry", "params", {"ccr-stats-indices": {"default": ["leader_index"]}})
         self.cfg.add(config.Scope.application, "builder", "provision_config_instance.names", ["default"])
@@ -113,6 +114,7 @@ class WorkerCoordinatorTests(TestCase):
         self.cfg.add(config.Scope.application, "client", "options", WorkerCoordinatorTests.Holder(all_client_options={"default": {}}))
         self.cfg.add(config.Scope.application, "worker_coordinator", "load_worker_coordinator_hosts", ["localhost"])
         self.cfg.add(config.Scope.application, "results_publishing", "datastore.type", "in-memory")
+        self.cfg.add(config.Scope.applicationOverride, "workload", "redline.max_cpu_usage", None)
 
         default_test_procedure = workload.TestProcedure("default", default=True, schedule=[
             workload.Task(name="index", operation=workload.Operation("index", operation_type=workload.OperationType.Bulk), clients=4)
@@ -1957,3 +1959,83 @@ class FeedbackActorTests(TestCase):
 
         assert self.actor.state == worker_coordinator.FeedbackState.SLEEP
         assert self.actor.total_active_client_count < 4
+
+    def test_check_cpu_usage_adds_error_when_threshold_exceeded(self):
+        self.actor.max_cpu_threshold = 80
+        self.actor.test_execution_id = "abc123"
+        self.actor.cpu_window_seconds = 60
+        self.actor.metrics_index = "metrics-index"
+        self.actor.error_queue = queue.Queue()
+
+        mock_os_client = mock.Mock()
+        mock_os_client.search.return_value = {
+            "aggregations": {
+                "nodes": {
+                    "buckets": [
+                        {
+                            "key": "node-1",
+                            "avg_cpu": {"value": 85.0}
+                        }
+                    ]
+                }
+            }
+        }
+        self.actor.os_client = mock_os_client
+
+        self.actor._check_cpu_usage() # pylint: disable=protected-access
+
+        assert not self.actor.error_queue.empty()
+        error = self.actor.error_queue.get_nowait()
+        assert error["type"] == "cpu_threshold_exceeded"
+        assert error["node_name"] == "node-1"
+        assert error["value"] == 85.0
+
+    def test_check_cpu_usage_no_errors_when_under_threshold(self):
+        self.actor.max_cpu_threshold = 80
+        self.actor.test_execution_id = "abc123"
+        self.actor.cpu_window_seconds = 60
+        self.actor.metrics_index = "metrics-index"
+        self.actor.error_queue = queue.Queue()
+
+        mock_os_client = mock.Mock()
+        mock_os_client.search.return_value = {
+            "aggregations": {
+                "nodes": {
+                    "buckets": []
+                }
+            }
+        }
+        self.actor.os_client = mock_os_client
+
+        self.actor._check_cpu_usage() # pylint: disable=protected-access
+
+        assert self.actor.error_queue.empty()
+
+    def test_check_cpu_usage_drops_error_when_queue_full(self):
+        self.actor.max_cpu_threshold = 80
+        self.actor.test_execution_id = "abc123"
+        self.actor.cpu_window_seconds = 60
+        self.actor.metrics_index = "metrics-index"
+
+        full_queue = queue.Queue(maxsize=1)
+        full_queue.put("already full")
+        self.actor.error_queue = full_queue
+
+        mock_os_client = mock.Mock()
+        mock_os_client.search.return_value = {
+            "aggregations": {
+                "nodes": {
+                    "buckets": [
+                        {
+                            "key": "node-1",
+                            "avg_cpu": {"value": 90.0}
+                        }
+                    ]
+                }
+            }
+        }
+        self.actor.os_client = mock_os_client
+
+        # Should not raise
+        self.actor._check_cpu_usage() # pylint: disable=protected-access
+        assert full_queue.qsize() == 1  # Still full; error dropped

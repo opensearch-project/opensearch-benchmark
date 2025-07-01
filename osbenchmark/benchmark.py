@@ -745,6 +745,24 @@ def create_arg_parser():
         help="Maximum number of clients to allow during redline testing. If not set, will default to clients defined in the test procedure.",
         default=None
     )
+    test_execution_parser.add_argument(
+        "--redline-max-cpu-usage",
+        type=int,
+        help="Maximum CPU utilization before scaling back client numbers. Used to activate CPU-based feedback in OSB.",
+        default=None
+    )
+    test_execution_parser.add_argument(
+        "--redline-cpu-window-seconds",
+        type=int,
+        help="How many seconds the window for average CPU load should be in seconds during CPU-based redline testing. (Default: 30)",
+        default=ConfigureFeedbackScaling.DEFAULT_CPU_WINDOW_SECONDS
+    )
+    test_execution_parser.add_argument(
+        "--redline-cpu-check-interval",
+        type=int,
+        help="How many seconds between CPU checks there should be during CPU-based redline testing. (Default: 30)",
+        default=ConfigureFeedbackScaling.DEFAULT_CPU_CHECK_INTERVAL
+    )
 
     ###############################################################################
     #
@@ -840,6 +858,19 @@ def execute_test(cfg, kill_running_processes=False):
                   f"to kill running processes automatically and allow OSB to continue to run a new benchmark. " \
                   f"Otherwise, you need to manually kill them."
             raise exceptions.BenchmarkError(msg)
+
+    # redline testing: check metrics store type before running cpu based feedback test
+    cpu_max = cfg.opts("workload", "redline.max_cpu_usage", default_value=None)
+    if cpu_max is not None:
+        store = metrics.metrics_store(cfg, read_only=False)
+        try:
+            if isinstance(store, metrics.InMemoryMetricsStore):
+                raise exceptions.SystemSetupError(
+                    "CPU-based feedback requires a metrics store, but you're using the in-memory store. "
+                    "Specify a metrics store in your benchmark.ini or via CLI to continue."
+                )
+        finally:
+            store.close()
 
     with_actor_system(test_execution_orchestrator.run, cfg)
 
@@ -1038,6 +1069,9 @@ def configure_test(arg_parser, args, cfg):
         cfg.add(config.Scope.applicationOverride, "workload", "redline.scale_down_pct", args.redline_scaledown_percentage)
         cfg.add(config.Scope.applicationOverride, "workload", "redline.sleep_seconds", args.redline_post_scaledown_sleep)
         cfg.add(config.Scope.applicationOverride, "workload", "redline.max_clients", args.redline_max_clients)
+        cfg.add(config.Scope.applicationOverride, "workload", "redline.max_cpu_usage", args.redline_max_cpu_usage)
+        cfg.add(config.Scope.applicationOverride, "workload", "redline.cpu_window_seconds", args.redline_cpu_window_seconds)
+        cfg.add(config.Scope.applicationOverride, "workload", "redline.cpu_check_interval", args.redline_cpu_check_interval)
     cfg.add(config.Scope.applicationOverride, "workload", "latency.percentiles", args.latency_percentiles)
     cfg.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", args.throughput_percentiles)
     cfg.add(config.Scope.applicationOverride, "workload", "randomization.enabled", args.randomization_enabled)
