@@ -807,7 +807,7 @@ def execute_test(cfg, kill_running_processes=False):
             raise exceptions.BenchmarkError(msg)
 
     # redline testing: check metrics store type before running cpu based feedback test
-    cpu_max = cfg.opts("workload", "redline.max_cpu_usage", default_value=None)
+    cpu_max = cfg.opts("workload", "redline.max_cpu_usage", default_value=None, mandatory=False)
     if cpu_max is not None:
         store = metrics.metrics_store(cfg, read_only=False)
         try:
