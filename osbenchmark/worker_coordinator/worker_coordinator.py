@@ -2022,24 +2022,32 @@ class AsyncExecutor:
         request_start = request_end = client_request_start = client_request_end = None
         total_ops, total_ops_unit, request_meta_data = 0, "ops", {}
 
-        try:
-            async with context_manager as request_context:
+        async with context_manager as request_context:
+            try:
                 total_ops, total_ops_unit, request_meta_data = await asyncio.wait_for(
                     execute_single(
                         self.runner, self.opensearch, params, self.on_error,
                         redline_enabled=self.redline_enabled, client_enabled=client_state
                     ),
-                    self.base_timeout
+                    timeout=self.base_timeout
                 )
-                request_start = request_context.request_start
-                request_end = request_context.request_end
-                client_request_start = request_context.client_request_start
-                client_request_end = request_context.client_request_end
+            except asyncio.TimeoutError:
+                self.logger.error("Client %s request timed out after %s s", self.client_id, self.base_timeout)
+                request_meta_data = {"success": False, "error-type": "timeout"}
 
-        except asyncio.TimeoutError:
-            self.logger.error("Client %s request timed out after %s s", self.client_id, self.base_timeout)
-            request_meta_data = {"success": False, "error-type": "timeout"}
+                # Simulate full timing lifecycle
+                request_context_holder.on_client_request_start()
+                request_context_holder.on_request_start()
+                request_context_holder.on_request_end()
+                request_context_holder.on_client_request_end()
 
+            # Now safely extract request timings
+            request_start = request_context.request_start
+            request_end = request_context.request_end
+            client_request_start = request_context.client_request_start
+            client_request_end = request_context.client_request_end
+
+        # If request failed or timings weren't properly captured, fall back
         if not request_meta_data.get("success") or None in (request_start, request_end, client_request_start,
                                                             client_request_end):
             if request_start is None:
@@ -2051,6 +2059,7 @@ class AsyncExecutor:
                 request_end = now
             if client_request_end is None:
                 client_request_end = now
+
             if not request_meta_data.get("skipped", False):
                 error_info = {
                     "client_id": self.client_id,
