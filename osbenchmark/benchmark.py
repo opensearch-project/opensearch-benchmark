@@ -41,7 +41,6 @@ from osbenchmark.builder import provision_config, builder
 from osbenchmark.workload_generator import workload_generator
 from osbenchmark.utils import io, convert, process, console, net, opts, versions
 from osbenchmark import aggregator
-from osbenchmark.worker_coordinator.worker_coordinator import ConfigureFeedbackScaling
 
 def create_arg_parser():
     def positive_number(v):

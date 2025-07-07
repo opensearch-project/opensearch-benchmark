@@ -230,7 +230,7 @@ def load_redline_config():
         ]:
             if key in redline:
                 config_object[key] = redline[key]
-    
+
     return config_object
 
 class ConfigureFeedbackScaling:
