@@ -125,6 +125,15 @@ class ConfigurationError(BenchmarkError):
         message -- explanation of the error
     """
 
+
+class DataStreamingError(BenchmarkError):
+    """Exception raised for errors in the data streaming module.
+
+    Attributes:
+        message -- explanation of the error
+    """
+
+
 class MappingsError(BenchmarkError):
     """Exception raised for errors in OpenSearch mappings provided.
 
