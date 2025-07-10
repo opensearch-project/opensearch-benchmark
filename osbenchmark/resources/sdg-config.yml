@@ -3,7 +3,7 @@ settings:
   max_file_size_gb: 40
   docs_per_chunk: 10000
 
-CustomSyntheticDataGenerator:
+CustomGenerationValues:
   # For users who want to generate data via a custom Python module
   custom_lists:
   # Custom lists for users who are using a custom Python module and want to consolidate all values in this YAML file
@@ -15,7 +15,7 @@ CustomSyntheticDataGenerator:
     - NumericString
     - MultipleChoices
 
-MappingSyntheticDataGenerator:
+MappingGenerationValues:
   # For users who want more granular control over how data is generated when providing an OpenSearch mapping
   generator_overrides:
     # Overrides all instances of generators with these settings. Specify type and params

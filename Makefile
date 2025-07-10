@@ -48,7 +48,7 @@ check-java:
 	fi
 
 install-deps: check-pip
-	$(PIP) install --upgrade pip setuptools wheel
+	$(PIP) install --upgrade pip setuptools==80.8.0 wheel
 
 # pylint does not work with Python versions >3.8:
 #   Value 'Optional' is unsubscriptable (unsubscriptable-object)
