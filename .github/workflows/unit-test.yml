@@ -24,3 +24,6 @@ jobs:
 
       - name: Run the CI build script
         run: bash .ci/build.sh build_and_unit_test
+
+      - name: Run deprecated term lint checker
+        run: .ci/scripts/check_deprecated_terms.py
