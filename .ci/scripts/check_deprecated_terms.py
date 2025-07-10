@@ -11,25 +11,27 @@ DEPRECATED_TERMS = [
     "execute-test",
 ]
 
+SKIP_DIRS = [".git", "venv", "__pycache__", ".pytest_cache"]
+VALID_EXTENSIONS = (".py", ".yml", ".yaml", ".md", ".sh", ".json", ".txt")
+
 VARIANT_PATTERNS = []
 
-# Generate regex variants (hyphen, underscore, camelCase, word-order naive permutations)
 def generate_variants(term):
     base = term.replace("-", " ").replace("_", " ")
     words = base.split()
     variants = set()
 
-    # kebab-case, snake_case, camelCase, PascalCase, permutations
+    # kebab-case, snake_case, PascalCase, camelCase
     variants.add("-".join(words))
     variants.add("_".join(words))
     variants.add("".join([w.capitalize() for w in words]))        # PascalCase
     variants.add(words[0] + "".join([w.capitalize() for w in words[1:]]))  # camelCase
 
-    # Word order permutations (naive)
+    # Word order flip for 2-word terms
     if len(words) == 2:
         variants.add("-".join(words[::-1]))
         variants.add("_".join(words[::-1]))
-        variants.add(words[1] + words[0].capitalize())  # camelCase flip
+        variants.add(words[1] + words[0].capitalize())  # camelCase reverse
 
     return variants
 
@@ -38,13 +40,13 @@ for term in DEPRECATED_TERMS:
         VARIANT_PATTERNS.append(re.compile(re.escape(variant), re.IGNORECASE))
 
 def should_check_file(filename):
-    return filename.endswith((".py", ".yml", ".yaml", ".md", ".sh", ".json", ".txt"))
+    return filename.endswith(VALID_EXTENSIONS)
 
 def main():
     error_found = False
 
     for root, _, files in os.walk("."):
-        if any(skip in root for skip in [".git", "venv", "__pycache__", ".pytest_cache"]):
+        if any(skip in root for skip in SKIP_DIRS):
             continue
 
         for f in files:
