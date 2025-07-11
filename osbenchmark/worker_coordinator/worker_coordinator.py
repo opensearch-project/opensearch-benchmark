@@ -171,9 +171,10 @@ class UpdateSamples:
     Used to send samples from a load generator node to the master.
     """
 
-    def __init__(self, client_id, samples):
+    def __init__(self, client_id, samples, profile_samples):
         self.client_id = client_id
         self.samples = samples
+        self.profile_samples = profile_samples
 
 
 class JoinPointReached:
@@ -628,7 +629,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_UpdateSamples(self, msg, sender):
-        self.coordinator.update_samples(msg.samples)
+        self.coordinator.update_samples(msg.samples, msg.profile_samples)
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_WakeupMessage(self, msg, sender):
@@ -904,8 +905,10 @@ class WorkerCoordinator:
         self.quiet = False
         self.allocations = None
         self.raw_samples = []
+        self.raw_profile_samples = []
         self.most_recent_sample_per_client = {}
         self.sample_post_processor = None
+        self.profile_metrics_post_processor = None
 
         self.number_of_steps = 0
         self.currently_completed = 0
@@ -986,6 +989,9 @@ class WorkerCoordinator:
                                                          downsample_factor,
                                                          self.workload.meta_data,
                                                          self.test_procedure.meta_data)
+        self.profile_metrics_post_processor = ProfileMetricsSamplePostprocessor(self.metrics_store,
+                                                                                self.workload.meta_data,
+                                                                                self.test_procedure.meta_data)
 
         os_clients = self.create_os_clients()
 
@@ -1245,12 +1251,14 @@ class WorkerCoordinator:
         if self.metrics_store and self.metrics_store.opened:
             self.metrics_store.close()
 
-    def update_samples(self, samples):
+    def update_samples(self, samples, profile_samples):
         if len(samples) > 0:
             self.raw_samples += samples
             # We need to check all samples, they will be from different clients
             for s in samples:
                 self.most_recent_sample_per_client[s.client_id] = s
+        if len(profile_samples) > 0:
+            self.raw_profile_samples += profile_samples
 
     def update_progress_message(self, task_finished=False):
         if not self.quiet and self.current_step >= 0:
@@ -1277,6 +1285,9 @@ class WorkerCoordinator:
         raw_samples = self.raw_samples
         self.raw_samples = []
         self.sample_post_processor(raw_samples)
+        profile_samples = self.raw_profile_samples
+        self.raw_profile_samples = []
+        self.profile_metrics_post_processor(profile_samples)
 
 
 class SamplePostprocessor:
@@ -1307,10 +1318,11 @@ class SamplePostprocessor:
             # if request_meta_data exists then it will have {"success": true/false} as a parameter.
             if sample.request_meta_data and len(sample.request_meta_data) > 1:
                 self.logger.debug("Found: %s", sample.request_meta_data)
+
                 recall_metric_names = ["recall@k", "recall@1"]
 
-                for recall_metric_name in recall_metric_names:
-                    if recall_metric_name in sample.request_meta_data:
+                for knn_metric_name in recall_metric_names:
+                    if knn_metric_name in sample.request_meta_data:
                         meta_data = self.merge(
                             self.workload_meta_data,
                             self.test_procedure_meta_data,
@@ -1320,8 +1332,31 @@ class SamplePostprocessor:
                         )
 
                         self.metrics_store.put_value_cluster_level(
-                            name=recall_metric_name,
-                            value=sample.request_meta_data[recall_metric_name],
+                            name=knn_metric_name,
+                            value=sample.request_meta_data[knn_metric_name],
+                            unit="",
+                            task=sample.task.name,
+                            operation=sample.operation_name,
+                            operation_type=sample.operation_type,
+                            sample_type=sample.sample_type,
+                            absolute_time=sample.absolute_time,
+                            relative_time=sample.relative_time,
+                            meta_data=meta_data,
+                        )
+
+                if "profile-metrics" in sample.request_meta_data:
+                    for metric_name, metric_value in sample.request_meta_data["profile-metrics"].items():
+                        meta_data = self.merge(
+                            self.workload_meta_data,
+                            self.test_procedure_meta_data,
+                            sample.operation_meta_data,
+                            sample.task.meta_data,
+                            sample.request_meta_data,
+                        )
+
+                        self.metrics_store.put_value_cluster_level(
+                            name=metric_name,
+                            value=metric_value,
                             unit="",
                             task=sample.task.name,
                             operation=sample.operation_name,
@@ -1395,6 +1430,76 @@ class SamplePostprocessor:
         end = time.perf_counter()
         self.logger.debug("Storing throughput took [%f] seconds.", (end - start))
         start = end
+        # this will be a noop for the in-memory metrics store. If we use an ES metrics store however, this will ensure that we already send
+        # the data and also clear the in-memory buffer. This allows users to see data already while running the benchmark. In cases where
+        # it does not matter (i.e. in-memory) we will still defer this step until the end.
+        #
+        # Don't force refresh here in the interest of short processing times. We don't need to query immediately afterwards so there is
+        # no need for frequent refreshes.
+        self.metrics_store.flush(refresh=False)
+        end = time.perf_counter()
+        self.logger.debug("Flushing the metrics store took [%f] seconds.", (end - start))
+        self.logger.debug("Postprocessing [%d] raw samples (downsampled to [%d] samples) took [%f] seconds in total.",
+                          len(raw_samples), final_sample_count, (end - total_start))
+
+    def merge(self, *args):
+        result = {}
+        for arg in args:
+            if arg is not None:
+                result.update(arg)
+        return result
+
+class ProfileMetricsSamplePostprocessor:
+    def __init__(self, metrics_store, workload_meta_data, test_procedure_meta_data):
+        self.logger = logging.getLogger(__name__)
+        self.metrics_store = metrics_store
+        self.workload_meta_data = workload_meta_data
+        self.test_procedure_meta_data = test_procedure_meta_data
+
+    def __call__(self, raw_samples):
+        if len(raw_samples) == 0:
+            return
+        total_start = time.perf_counter()
+        start = total_start
+        final_sample_count = 0
+        for idx, sample in enumerate(raw_samples):
+            self.logger.debug(
+                "All sample meta data: [%s],[%s],[%s],[%s],[%s]",
+                self.workload_meta_data,
+                self.test_procedure_meta_data,
+                sample.operation_meta_data,
+                sample.task.meta_data,
+                sample.request_meta_data,
+            )
+
+            # if request_meta_data exists then it will have {"success": true/false} as a parameter.
+            if sample.request_meta_data and len(sample.request_meta_data) > 1:
+                self.logger.debug("Found: %s", sample.request_meta_data)
+
+                if "profile-metrics" in sample.request_meta_data:
+                    for metric_name, metric_value in sample.request_meta_data["profile-metrics"].items():
+                        meta_data = self.merge(
+                            self.workload_meta_data,
+                            self.test_procedure_meta_data,
+                            sample.operation_meta_data,
+                            sample.task.meta_data,
+                            sample.request_meta_data,
+                        )
+
+                        self.metrics_store.put_value_cluster_level(
+                            name=metric_name,
+                            value=metric_value,
+                            unit="",
+                            task=sample.task.name,
+                            operation=sample.operation_name,
+                            operation_type=sample.operation_type,
+                            sample_type=sample.sample_type,
+                            absolute_time=sample.absolute_time,
+                            relative_time=sample.relative_time,
+                            meta_data=meta_data,
+                        )
+    
+        start = time.perf_counter()
         # this will be a noop for the in-memory metrics store. If we use an ES metrics store however, this will ensure that we already send
         # the data and also clear the in-memory buffer. This allows users to see data already while running the benchmark. In cases where
         # it does not matter (i.e. in-memory) we will still defer this step until the end.
@@ -1664,8 +1769,9 @@ class Worker(actor.BenchmarkActor):
                                  "tasks until next join point.", self.worker_id, self.current_task_index)
             else:
                 self.logger.info("Worker[%d] is executing tasks at index [%d].", self.worker_id, self.current_task_index)
-                self.sampler = Sampler(start_timestamp=time.perf_counter(), buffer_size=self.sample_queue_size)
-                executor = AsyncIoAdapter(self.config, self.workload, task_allocations, self.sampler,
+                self.sampler = DefaultSampler(start_timestamp=time.perf_counter(), buffer_size=self.sample_queue_size)
+                self.profile_sampler = ProfileMetricsSampler(start_timestamp=time.perf_counter(), buffer_size=self.sample_queue_size)
+                executor = AsyncIoAdapter(self.config, self.workload, task_allocations, self.sampler, self.profile_sampler,
                                           self.cancel, self.complete, self.on_error, self.shared_states, self.feedback_actor, self.error_queue, self.queue_lock)
 
                 self.executor_future = self.pool.submit(executor)
@@ -1685,7 +1791,7 @@ class Worker(actor.BenchmarkActor):
         if self.sampler:
             samples = self.sampler.samples
             if len(samples) > 0:
-                self.send(self.master, UpdateSamples(self.worker_id, samples))
+                self.send(self.master, UpdateSamples(self.worker_id, samples, self.profile_sampler.samples))
             return samples
         return None
 
@@ -1700,17 +1806,6 @@ class Sampler:
         self.q = queue.Queue(maxsize=buffer_size)
         self.logger = logging.getLogger(__name__)
 
-    def add(self, task, client_id, sample_type, meta_data, absolute_time, request_start, latency, service_time,
-            client_processing_time, processing_time, throughput, ops, ops_unit, time_period, percent_completed,
-            dependent_timing=None):
-        try:
-            self.q.put_nowait(
-                Sample(client_id, absolute_time, request_start, self.start_timestamp, task, sample_type, meta_data,
-                       latency, service_time, client_processing_time, processing_time, throughput, ops, ops_unit, time_period,
-                       percent_completed, dependent_timing))
-        except queue.Full:
-            self.logger.warning("Dropping sample for [%s] due to a full sampling queue.", task.operation.name)
-
     @property
     def samples(self):
         samples = []
@@ -1720,12 +1815,77 @@ class Sampler:
         except queue.Empty:
             pass
         return samples
+    
+class DefaultSampler(Sampler):
+    """
+    Encapsulates management of gathered default samples.
+    """
+
+    def add(self, task, client_id, sample_type, meta_data, absolute_time, request_start, latency, service_time,
+            client_processing_time, processing_time, throughput, ops, ops_unit, time_period, percent_completed,
+            dependent_timing=None):
+        try:
+            self.q.put_nowait(
+                DefaultSample(client_id, absolute_time, request_start, self.start_timestamp, task, sample_type, meta_data,
+                       latency, service_time, client_processing_time, processing_time, throughput, ops, ops_unit, time_period,
+                       percent_completed, dependent_timing))
+        except queue.Full:
+            self.logger.warning("Dropping sample for [%s] due to a full sampling queue.", task.operation.name)
+
+class ProfileMetricsSampler(Sampler):
+    """
+    Encapsulates management of gathered profile metrics samples.
+    """
+
+    def add(self, task, client_id, sample_type, meta_data, absolute_time, request_start, time_period, percent_completed,
+            dependent_timing=None):
+        try:
+            self.q.put_nowait(
+                ProfileMetricsSample(client_id, absolute_time, request_start, self.start_timestamp, task, sample_type, meta_data,
+                       time_period, percent_completed, dependent_timing))
+        except queue.Full:
+            self.logger.warning("Dropping sample for [%s] due to a full sampling queue.", task.operation.name)
 
 
 class Sample:
+    def __init__(self, client_id, absolute_time, request_start, task_start, task, sample_type, request_meta_data,
+                time_period, percent_completed, dependent_timing=None):
+        self.client_id = client_id
+        self.absolute_time = absolute_time
+        self.request_start = request_start
+        self.task_start = task_start
+        self.task = task
+        self.sample_type = sample_type
+        self.request_meta_data = request_meta_data
+        self.time_period = time_period
+        self._dependent_timing = dependent_timing
+        # may be None for eternal tasks!
+        self.percent_completed = percent_completed
+
+    @property
+    def operation_name(self):
+        return self.task.operation.name
+
+    @property
+    def operation_type(self):
+        return self.task.operation.type
+
+    @property
+    def operation_meta_data(self):
+        return self.task.operation.meta_data
+
+    @property
+    def relative_time(self):
+        return self.request_start - self.task_start
+
+    def __repr__(self, *args, **kwargs):
+        return f"[{self.absolute_time}; {self.relative_time}] [client [{self.client_id}]] [{self.task}] " \
+               f"[{self.sample_type}]"
+    
+class DefaultSample(Sample):
     def __init__(self, client_id, absolute_time, request_start, task_start, task, sample_type, request_meta_data, latency,
                  service_time, client_processing_time, processing_time, throughput, total_ops, total_ops_unit, time_period,
-                 percent_completed, dependent_timing=None, operation_name=None, operation_type=None):
+                 percent_completed, dependent_timing=None):
         self.client_id = client_id
         self.absolute_time = absolute_time
         self.request_start = request_start
@@ -1742,32 +1902,14 @@ class Sample:
         self.total_ops_unit = total_ops_unit
         self.time_period = time_period
         self._dependent_timing = dependent_timing
-        self._operation_name = operation_name
-        self._operation_type = operation_type
         # may be None for eternal tasks!
         self.percent_completed = percent_completed
-
-    @property
-    def operation_name(self):
-        return self._operation_name if self._operation_name else self.task.operation.name
-
-    @property
-    def operation_type(self):
-        return self._operation_type if self._operation_type else self.task.operation.type
-
-    @property
-    def operation_meta_data(self):
-        return self.task.operation.meta_data
-
-    @property
-    def relative_time(self):
-        return self.request_start - self.task_start
 
     @property
     def dependent_timings(self):
         if self._dependent_timing:
             for t in self._dependent_timing:
-                yield Sample(self.client_id, t["absolute_time"], t["request_start"], self.task_start, self.task,
+                yield DefaultSample(self.client_id, t["absolute_time"], t["request_start"], self.task_start, self.task,
                              self.sample_type, self.request_meta_data, 0, t["service_time"], 0, 0, 0, self.total_ops,
                              self.total_ops_unit, self.time_period, self.percent_completed, None,
                              t["operation"], t["operation-type"])
@@ -1776,6 +1918,16 @@ class Sample:
         return f"[{self.absolute_time}; {self.relative_time}] [client [{self.client_id}]] [{self.task}] " \
                f"[{self.sample_type}]: [{self.latency}s] request latency, [{self.service_time}s] service time, " \
                f"[{self.total_ops} {self.total_ops_unit}]"
+
+class ProfileMetricsSample(Sample):
+
+    @property
+    def dependent_timings(self):
+        if self._dependent_timing:
+            for t in self._dependent_timing:
+                yield ProfileMetricsSample(self.client_id, t["absolute_time"], t["request_start"], self.task_start, self.task,
+                             self.sample_type, self.request_meta_data, 0, t["service_time"], 0, 0, 0, self.time_period, self.percent_completed, None,
+                             t["operation"], t["operation-type"])
 
 
 def select_test_procedure(config, t):
@@ -1935,11 +2087,12 @@ class ThroughputCalculator:
 
 
 class AsyncIoAdapter:
-    def __init__(self, cfg, workload, task_allocations, sampler, cancel, complete, abort_on_error, shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
+    def __init__(self, cfg, workload, task_allocations, sampler, profile_sampler, cancel, complete, abort_on_error, shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
         self.cfg = cfg
         self.workload = workload
         self.task_allocations = task_allocations
         self.sampler = sampler
+        self.profile_sampler = profile_sampler
         self.cancel = cancel
         self.complete = complete
         self.abort_on_error = abort_on_error
@@ -2005,7 +2158,7 @@ class AsyncIoAdapter:
             # need to start from (client) index 0 in both cases instead of 0 for indexA and 4 for indexB.
             schedule = schedule_for(task_allocation, params_per_task[task])
             async_executor = AsyncExecutor(
-                client_id, task, schedule, opensearch, self.sampler, self.cancel, self.complete,
+                client_id, task, schedule, opensearch, self.sampler, self.profile_sampler, self.cancel, self.complete,
                 task.error_behavior(self.abort_on_error), self.cfg, self.shared_states, self.feedback_actor, self.error_queue, self.queue_lock)
             final_executor = AsyncProfiler(async_executor) if self.profiling_enabled else async_executor
             aws.append(final_executor())
@@ -2058,7 +2211,7 @@ class AsyncProfiler:
 
 
 class AsyncExecutor:
-    def __init__(self, client_id, task, schedule, opensearch, sampler, cancel, complete, on_error,
+    def __init__(self, client_id, task, schedule, opensearch, sampler, profile_sampler, cancel, complete, on_error,
                  config=None, shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
         """
         Executes tasks according to the schedule for a given operation.
@@ -2069,6 +2222,7 @@ class AsyncExecutor:
         self.schedule_handle = schedule
         self.opensearch = opensearch
         self.sampler = sampler
+        self.profile_sampler = profile_sampler
         self.cancel = cancel
         self.complete = complete
         self.on_error = on_error
@@ -2207,7 +2361,7 @@ class AsyncExecutor:
         }
 
     def _process_results(self, result_data: dict, total_start: float, client_state: bool,
-                         percent_completed: float) -> bool:
+                         percent_completed: float, add_profile_metric_sample: bool) -> bool:
         """Process results from a request."""
         # Handle cases where the request was skipped (no-op)
         if result_data["request_meta_data"].get("skipped_request"):
@@ -2249,16 +2403,26 @@ class AsyncExecutor:
             progress = percent_completed
 
         if client_state:
-            self.sampler.add(
-                self.task, self.client_id, self.sample_type,
-                result_data["request_meta_data"],
-                result_data["absolute_processing_start"],
-                result_data["request_start"],
-                latency, service_time, client_processing_time, processing_time,
-                throughput, result_data["total_ops"], result_data["total_ops_unit"],
-                time_period, progress,
-                result_data["request_meta_data"].pop("dependent_timing", None)
-            )
+            if add_profile_metric_sample:
+                self.profile_sampler.add(
+                    self.task, self.client_id, self.sample_type, 
+                    result_data["request_meta_data"],
+                    result_data["absolute_processing_start"],
+                    result_data["request_start"],
+                    time_period, 
+                    progress, 
+                    result_data["request_meta_data"].pop("dependent_timing", None))
+            else:
+                self.sampler.add(
+                    self.task, self.client_id, self.sample_type,
+                    result_data["request_meta_data"],
+                    result_data["absolute_processing_start"],
+                    result_data["request_start"],
+                    latency, service_time, client_processing_time, processing_time,
+                    throughput, result_data["total_ops"], result_data["total_ops_unit"],
+                    time_period, progress,
+                    result_data["request_meta_data"].pop("dependent_timing", None)
+                )
         return completed
 
     async def _cleanup(self) -> None:
@@ -2287,6 +2451,7 @@ class AsyncExecutor:
         await self._wait_for_rampup(rampup_wait_time)
 
         self.logger.debug("Entering main loop for client id [%s].", self.client_id)
+        profile_metrics_sample_count = 0
         try:
             async for expected_scheduled_time, sample_type, percent_completed, runner, params in schedule:
                 self.expected_scheduled_time = expected_scheduled_time
@@ -2300,9 +2465,17 @@ class AsyncExecutor:
                 # `execute_single` will handle the no-op if the client is paused.
                 client_state = (self.shared_states or {}).get(self.client_id, True)
 
-                result_data = await self._execute_request(params, expected_scheduled_time, total_start, client_state)
+                profile_metrics_sample_size = params.get("profile-metrics-sample-size", None)
+                add_profile_metric_sample = profile_metrics_sample_size and profile_metrics_sample_count < profile_metrics_sample_size
+                if add_profile_metric_sample:
+                    profile_metrics_sample_count += 1
+                    params["profile-query"] = True
+                else:
+                    params["profile-query"] = False
 
-                completed = self._process_results(result_data, total_start, client_state, percent_completed)
+                result_data = await self._execute_request(params, expected_scheduled_time, total_start, client_state)
+                
+                completed = self._process_results(result_data, total_start, client_state, percent_completed, add_profile_metric_sample)
 
                 if completed:
                     self.logger.info("Task [%s] is considered completed due to external event.", self.task)
