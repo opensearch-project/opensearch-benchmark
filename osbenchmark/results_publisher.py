@@ -199,6 +199,10 @@ class SummaryResultsPublisher:
             if recall_keys_in_task_dict and "mean" in record["recall@1"] and "mean" in record["recall@k"]:
                 metrics_table.extend(self._publish_recall(record, task))
 
+        for record in stats.profile_metrics:
+            task = record["task"]
+            metrics_table.extend(self._publish_profile_metrics(record["metrics"], task))
+
         self.write_results(metrics_table)
 
         if warnings:
@@ -250,6 +254,13 @@ class SummaryResultsPublisher:
         return self._join(
             self._line("Mean recall@k", task, recall_k_mean, "", lambda v: "%.2f" % v),
             self._line("Mean recall@1", task, recall_1_mean, "", lambda v: "%.2f" % v)
+        )
+
+    def _publish_profile_metrics(self, metrics, task):
+        percentiles = [self._publish_percentiles(key, task, value) for key, value in metrics.items()]
+
+        return self._join(
+            *[item for percentile in percentiles for item in percentile]
         )
 
     def _publish_best_client_settings(self, record, task):

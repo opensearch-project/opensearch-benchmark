@@ -1840,8 +1840,17 @@ class GlobalStatsCalculator:
                         self.single_latency(t, op_type, metric_name="recall@k"),
                         self.single_latency(t, op_type, metric_name="recall@1"),
                         error_rate,
-                        duration,
+                        duration
                     )
+
+                    profile_metrics = task.operation.params.get("profile-metrics", None)
+                    if profile_metrics:
+                        profile_metrics.append("query_time")
+                        result.add_profile_metrics(
+                            t,
+                            task.operation.name,
+                            {name: self.single_latency(t, op_type, metric_name=name) for name in profile_metrics}
+                        )
 
         self.logger.debug("Gathering indexing metrics.")
         result.total_time = self.sum("indexing_total_time")
@@ -2038,6 +2047,7 @@ class GlobalStats:
     def __init__(self, d=None):
         self.op_metrics = self.v(d, "op_metrics", default=[])
         self.correctness_metrics = self.v(d, "correctness_metrics", default=[])
+        self.profile_metrics = self.v(d, "profile_metrics", default=[])
         self.total_time = self.v(d, "total_time")
         self.total_time_per_shard = self.v(d, "total_time_per_shard", default={})
         self.indexing_throttle_time = self.v(d, "indexing_throttle_time")
@@ -2125,20 +2135,24 @@ class GlobalStats:
                     })
             elif metric == "correctness_metrics":
                 for item in value:
-                    if "recall@k" in item:
-                        all_results.append({
-                            "task": item["task"],
-                            "operation": item["operation"],
-                            "name": "recall@k",
-                            "value": item["recall@k"]
-                        })
-                    if "recall@1" in item:
-                        all_results.append({
-                            "task": item["task"],
-                            "operation": item["operation"],
-                            "name": "recall@1",
-                            "value": item["recall@1"]
-                        })
+                    for knn_metric in ["recall@k", "recall@1"]:
+                        if knn_metric in item:
+                            all_results.append({
+                                "task": item["task"],
+                                "operation": item["operation"],
+                                "name": knn_metric,
+                                "value": item[knn_metric]
+                            })
+            elif metric == "profile_metrics":
+                for item in value:
+                    for metric_name in item.keys():
+                        if metric_name not in ["task, operation, error_rate, duration"]:
+                            all_results.append({
+                                "task": item["task"],
+                                "operation": item["operation"],
+                                "name": metric_name,
+                                "value": item[metric_name]
+                            })
             elif metric.startswith("total_transform_") and value is not None:
                 for item in value:
                     all_results.append({
@@ -2189,9 +2203,15 @@ class GlobalStats:
             "recall@k": recall_at_k_stats,
             "recall@1":recall_at_1_stats,
             "error_rate": error_rate,
-            "duration": duration
-            }
-            )
+            "duration": duration,
+            })
+        
+    def add_profile_metrics(self, task, operation, profile_metrics):
+        self.profile_metrics.append({
+            "task": task,
+            "operation": operation,
+            "metrics": profile_metrics
+            })
 
     def tasks(self):
         # ensure we can read test_execution.json files before OSB 0.8.0
