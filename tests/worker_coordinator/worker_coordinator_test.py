@@ -322,10 +322,10 @@ class SamplePostprocessorTests(TestCase):
 
         task = workload.Task("index", workload.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
         samples = [
-            worker_coordinator.Sample(
+            worker_coordinator.DefaultSample(
                 0, 38598, 24, 0, task, metrics.SampleType.Normal,
                 None, 0.01, 0.007, 0.0007, 0.009, None, 5000, "docs", 1, 1 / 2),
-            worker_coordinator.Sample(
+            worker_coordinator.DefaultSample(
                 0, 38599, 25, 0, task, metrics.SampleType.Normal,
                 None, 0.01, 0.007, 0.0007, 0.009, None, 5000, "docs", 2, 2 / 2),
         ]
@@ -352,10 +352,10 @@ class SamplePostprocessorTests(TestCase):
         task = workload.Task("index", workload.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
 
         samples = [
-            worker_coordinator.Sample(
+            worker_coordinator.DefaultSample(
                 0, 38598, 24, 0, task, metrics.SampleType.Normal,
                 None, 0.01, 0.007, 0.0007, 0.009, None, 5000, "docs", 1, 1 / 2),
-            worker_coordinator.Sample(
+            worker_coordinator.DefaultSample(
                 0, 38599, 25, 0, task, metrics.SampleType.Normal,
                 None, 0.01, 0.007, 0.0007, 0.009, None, 5000, "docs", 2, 2 / 2),
         ]
@@ -380,7 +380,7 @@ class SamplePostprocessorTests(TestCase):
 
         task = workload.Task("index", workload.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
         samples = [
-            worker_coordinator.Sample(
+            worker_coordinator.DefaultSample(
                 0, 38598, 24, 0, task, metrics.SampleType.Normal,
                 None, 0.01, 0.007, 0.0007, 0.009, None, 5000, "docs", 1, 1 / 2,
                           dependent_timing=[
@@ -784,9 +784,9 @@ class MetricsAggregationTests(TestCase):
         op = workload.Operation("index", workload.OperationType.Bulk, param_source="worker-coordinator-test-param-source")
 
         samples = [
-            worker_coordinator.Sample(0, 1470838595, 21, 0, op, metrics.SampleType.Warmup,
+            worker_coordinator.DefaultSample(0, 1470838595, 21, 0, op, metrics.SampleType.Warmup,
                                       None, -1, -1, -1, -1, None, 3000, "docs", 1, 1),
-            worker_coordinator.Sample(0, 1470838595.5, 21.5, 0, op, metrics.SampleType.Normal,
+            worker_coordinator.DefaultSample(0, 1470838595.5, 21.5, 0, op, metrics.SampleType.Normal,
                                       None, -1, -1, -1, -1, None, 2500, "docs", 1, 1),
         ]
 
@@ -804,17 +804,17 @@ class MetricsAggregationTests(TestCase):
         op = workload.Operation("index", workload.OperationType.Bulk, param_source="worker-coordinator-test-param-source")
 
         samples = [
-            worker_coordinator.Sample(0, 38595, 21, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 1, 1 / 9),
-            worker_coordinator.Sample(0, 38596, 22, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 2, 2 / 9),
-            worker_coordinator.Sample(0, 38597, 23, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 3, 3 / 9),
-            worker_coordinator.Sample(0, 38598, 24, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 4, 4 / 9),
-            worker_coordinator.Sample(0, 38599, 25, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 5, 5 / 9),
-            worker_coordinator.Sample(0, 38600, 26, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 6, 6 / 9),
-            worker_coordinator.Sample(1, 38598.5, 24.5, 0, op, metrics.SampleType.Normal,
+            worker_coordinator.DefaultSample(0, 38595, 21, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 1, 1 / 9),
+            worker_coordinator.DefaultSample(0, 38596, 22, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 2, 2 / 9),
+            worker_coordinator.DefaultSample(0, 38597, 23, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 3, 3 / 9),
+            worker_coordinator.DefaultSample(0, 38598, 24, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 4, 4 / 9),
+            worker_coordinator.DefaultSample(0, 38599, 25, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 5, 5 / 9),
+            worker_coordinator.DefaultSample(0, 38600, 26, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, None, 5000, "docs", 6, 6 / 9),
+            worker_coordinator.DefaultSample(1, 38598.5, 24.5, 0, op, metrics.SampleType.Normal,
                                       None, -1, -1, -1, -1, None, 5000, "docs", 4.5, 7 / 9),
-            worker_coordinator.Sample(1, 38599.5, 25.5, 0, op, metrics.SampleType.Normal,
+            worker_coordinator.DefaultSample(1, 38599.5, 25.5, 0, op, metrics.SampleType.Normal,
                                       None, -1, -1, -1, -1, None, 5000, "docs", 5.5, 8 / 9),
-            worker_coordinator.Sample(1, 38600.5, 26.5, 0, op, metrics.SampleType.Normal,
+            worker_coordinator.DefaultSample(1, 38600.5, 26.5, 0, op, metrics.SampleType.Normal,
                                       None, -1, -1, -1, -1, None, 5000, "docs", 6.5, 9 / 9)
         ]
 
@@ -838,9 +838,9 @@ class MetricsAggregationTests(TestCase):
                              param_source="worker-coordinator-test-param-source")
 
         samples = [
-            worker_coordinator.Sample(0, 38595, 21, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, 8000, 5000, "byte", 1, 1 / 3),
-            worker_coordinator.Sample(0, 38596, 22, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, 8000, 5000, "byte", 2, 2 / 3),
-            worker_coordinator.Sample(0, 38597, 23, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, 8000, 5000, "byte", 3, 3 / 3),
+            worker_coordinator.DefaultSample(0, 38595, 21, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, 8000, 5000, "byte", 1, 1 / 3),
+            worker_coordinator.DefaultSample(0, 38596, 22, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, 8000, 5000, "byte", 2, 2 / 3),
+            worker_coordinator.DefaultSample(0, 38597, 23, 0, op, metrics.SampleType.Normal, None, -1, -1, -1, -1, 8000, 5000, "byte", 3, 3 / 3),
         ]
 
         aggregated = self.calculate_global_throughput(samples)
@@ -1342,7 +1342,8 @@ class AsyncExecutorTests(TestCase):
                                                             total_clients=task.clients)
         schedule = worker_coordinator.schedule_for(
             task_allocation, param_source)
-        sampler = worker_coordinator.Sampler(start_timestamp=task_start)
+        sampler = worker_coordinator.DefaultSampler(start_timestamp=task_start)
+        profile_sampler = worker_coordinator.ProfileMetricsSampler(start_timestamp=task_start)
         cancel = threading.Event()
         complete = threading.Event()
 
@@ -1353,6 +1354,7 @@ class AsyncExecutorTests(TestCase):
                                                     "default": opensearch
                                                 },
                                                 sampler=sampler,
+                                                profile_sampler=profile_sampler,
                                                 cancel=cancel,
                                                 complete=complete,
                                                 on_error="continue")
@@ -1402,7 +1404,8 @@ class AsyncExecutorTests(TestCase):
         schedule = worker_coordinator.schedule_for(
             task_allocation, param_source)
 
-        sampler = worker_coordinator.Sampler(start_timestamp=task_start)
+        sampler = worker_coordinator.DefaultSampler(start_timestamp=task_start)
+        profile_sampler = worker_coordinator.ProfileMetricsSampler(start_timestamp=task_start)
         cancel = threading.Event()
         complete = threading.Event()
 
@@ -1413,6 +1416,7 @@ class AsyncExecutorTests(TestCase):
                                                     "default": opensearch
                                                 },
                                                 sampler=sampler,
+                                                profile_sampler=profile_sampler,
                                                 cancel=cancel,
                                                 complete=complete,
                                                 on_error="continue")
@@ -1469,7 +1473,8 @@ class AsyncExecutorTests(TestCase):
         schedule = worker_coordinator.schedule_for(
             task_allocation, param_source)
 
-        sampler = worker_coordinator.Sampler(start_timestamp=task_start)
+        sampler = worker_coordinator.DefaultSampler(start_timestamp=task_start)
+        profile_sampler = worker_coordinator.ProfileMetricsSampler(start_timestamp=task_start)
         cancel = threading.Event()
         complete = threading.Event()
 
@@ -1480,6 +1485,7 @@ class AsyncExecutorTests(TestCase):
                                                     "default": opensearch
                                                 },
                                                 sampler=sampler,
+                                                profile_sampler=profile_sampler,
                                                 cancel=cancel,
                                                 complete=complete,
                                                 on_error="continue")
@@ -1540,8 +1546,8 @@ class AsyncExecutorTests(TestCase):
                               warmup_time_period=0.5, time_period=0.5, clients=4,
                               params={"target-throughput": target_throughput, "clients": 4},
                               completes_parent=True)
-            sampler = worker_coordinator.Sampler(start_timestamp=0)
-
+            sampler = worker_coordinator.DefaultSampler(start_timestamp=0)
+            profile_sampler = worker_coordinator.ProfileMetricsSampler(start_timestamp=0)
             cancel = threading.Event()
             complete = threading.Event()
 
@@ -1559,6 +1565,7 @@ class AsyncExecutorTests(TestCase):
                                                         "default": opensearch
                                                     },
                                                     sampler=sampler,
+                                                    profile_sampler=profile_sampler,
                                                     cancel=cancel,
                                                     complete=complete,
                                                     on_error="continue")
@@ -1609,8 +1616,8 @@ class AsyncExecutorTests(TestCase):
                                                                 total_clients=task.clients)
             schedule = worker_coordinator.schedule_for(
                 task_allocation, param_source)
-            sampler = worker_coordinator.Sampler(start_timestamp=0)
-
+            sampler = worker_coordinator.DefaultSampler(start_timestamp=0)
+            profile_sampler = worker_coordinator.ProfileMetricsSampler(start_timestamp=0)
             cancel = threading.Event()
             complete = threading.Event()
             execute_schedule = worker_coordinator.AsyncExecutor(client_id=0,
@@ -1620,6 +1627,7 @@ class AsyncExecutorTests(TestCase):
                                                         "default": opensearch
                                                     },
                                                     sampler=sampler,
+                                                    profile_sampler=profile_sampler,
                                                     cancel=cancel,
                                                     complete=complete,
                                                     on_error="continue")
@@ -1668,7 +1676,8 @@ class AsyncExecutorTests(TestCase):
                           warmup_time_period=0.5, time_period=0.5, clients=4,
                           params={"clients": 4})
 
-        sampler = worker_coordinator.Sampler(start_timestamp=0)
+        sampler = worker_coordinator.DefaultSampler(start_timestamp=0)
+        profile_sampler = worker_coordinator.ProfileMetricsSampler(start_timestamp=0)
         cancel = threading.Event()
         complete = threading.Event()
         execute_schedule = worker_coordinator.AsyncExecutor(client_id=2,
@@ -1678,6 +1687,7 @@ class AsyncExecutorTests(TestCase):
                                                     "default": opensearch
                                                 },
                                                 sampler=sampler,
+                                                profile_sampler=profile_sampler,
                                                 cancel=cancel,
                                                 complete=complete,
                                                 on_error="continue")
@@ -1865,6 +1875,7 @@ class AsyncExecutorHelperMethodsTests(TestCase):
                                   workload.Operation("test-op", workload.OperationType.Bulk),
                                   clients=2)
         self.sampler = mock.Mock()
+        self.profile_sampler = mock.Mock()
         self.cancel = threading.Event()
         self.complete = threading.Event()
         self.schedule_handle = mock.Mock()
@@ -1883,6 +1894,7 @@ class AsyncExecutorHelperMethodsTests(TestCase):
             schedule=self.schedule_handle,
             opensearch=self.opensearch,
             sampler=self.sampler,
+            profile_sampler=self.profile_sampler,
             cancel=self.cancel,
             complete=self.complete,
             on_error="abort",
@@ -2002,6 +2014,7 @@ class AsyncExecutorHelperMethodsTests(TestCase):
         self.assertFalse(completed)
         self.schedule_handle.after_request.assert_called_once()
         self.sampler.add.assert_called_once()
+        self.profile_sampler.add.assert_not_called()
 
     def test_process_results_with_inactive_client(self):
         """Test _process_results does not add a sample for an inactive client."""
@@ -2024,6 +2037,7 @@ class AsyncExecutorHelperMethodsTests(TestCase):
         self.assertFalse(completed)
         self.schedule_handle.after_request.assert_called_once()
         self.sampler.add.assert_not_called()
+        self.profile_sampler.add.assert_not_called()
 
     @run_async
     async def test_cleanup_with_message_producer(self):

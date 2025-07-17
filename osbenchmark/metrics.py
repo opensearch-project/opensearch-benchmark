@@ -1809,21 +1809,21 @@ class GlobalStatsCalculator:
 
         for tasks in self.test_procedure.schedule:
             for task in tasks:
-                t = task.name
+                task_name = task.name
                 op_type = task.operation.type
-                error_rate = self.error_rate(t, op_type)
-                duration = self.duration(t)
+                error_rate = self.error_rate(task_name, op_type)
+                duration = self.duration(task_name)
 
                 if task.operation.include_in_results_publishing or error_rate > 0:
-                    self.logger.debug("Gathering request metrics for [%s].", t)
+                    self.logger.debug("Gathering request metrics for [%s].", task_name)
                     result.add_op_metrics(
-                        t,
+                        task_name,
                         task.operation.name,
-                        self.summary_stats("throughput", t, op_type, percentiles_list=self.throughput_percentiles),
-                        self.single_latency(t, op_type),
-                        self.single_latency(t, op_type, metric_name="service_time"),
-                        self.single_latency(t, op_type, metric_name="client_processing_time"),
-                        self.single_latency(t, op_type, metric_name="processing_time"),
+                        self.summary_stats("throughput", task_name, op_type, percentiles_list=self.throughput_percentiles),
+                        self.single_latency(task_name, op_type),
+                        self.single_latency(task_name, op_type, metric_name="service_time"),
+                        self.single_latency(task_name, op_type, metric_name="client_processing_time"),
+                        self.single_latency(task_name, op_type, metric_name="processing_time"),
                         error_rate,
                         duration,
                         self.merge(
@@ -1835,10 +1835,10 @@ class GlobalStatsCalculator:
                     )
 
                     result.add_correctness_metrics(
-                        t,
+                        task_name,
                         task.operation.name,
-                        self.single_latency(t, op_type, metric_name="recall@k"),
-                        self.single_latency(t, op_type, metric_name="recall@1"),
+                        self.single_latency(task_name, op_type, metric_name="recall@k"),
+                        self.single_latency(task_name, op_type, metric_name="recall@1"),
                         error_rate,
                         duration
                     )
@@ -1847,9 +1847,9 @@ class GlobalStatsCalculator:
                     if profile_metrics:
                         profile_metrics.append("query_time")
                         result.add_profile_metrics(
-                            t,
+                            task_name,
                             task.operation.name,
-                            {name: self.single_latency(t, op_type, metric_name=name) for name in profile_metrics}
+                            {name: self.single_latency(task_name, op_type, metric_name=name) for name in profile_metrics}
                         )
 
         self.logger.debug("Gathering indexing metrics.")
@@ -2146,7 +2146,7 @@ class GlobalStats:
             elif metric == "profile_metrics":
                 for item in value:
                     for metric_name in item.keys():
-                        if metric_name not in ["task, operation, error_rate, duration"]:
+                        if metric_name not in ["task", "operation", "error_rate", "duration"]:
                             all_results.append({
                                 "task": item["task"],
                                 "operation": item["operation"],

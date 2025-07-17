@@ -629,7 +629,8 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_UpdateSamples(self, msg, sender):
-        self.coordinator.update_samples(msg.samples, msg.profile_samples)
+        self.coordinator.update_samples(msg.samples)
+        self.coordinator.update_profile_samples(msg.profile_samples)
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_WakeupMessage(self, msg, sender):
@@ -1251,12 +1252,14 @@ class WorkerCoordinator:
         if self.metrics_store and self.metrics_store.opened:
             self.metrics_store.close()
 
-    def update_samples(self, samples, profile_samples):
+    def update_samples(self, samples):
         if len(samples) > 0:
             self.raw_samples += samples
             # We need to check all samples, they will be from different clients
             for s in samples:
                 self.most_recent_sample_per_client[s.client_id] = s
+    
+    def update_profile_samples(self, profile_samples):
         if len(profile_samples) > 0:
             self.raw_profile_samples += profile_samples
 
@@ -1334,29 +1337,6 @@ class SamplePostprocessor:
                         self.metrics_store.put_value_cluster_level(
                             name=knn_metric_name,
                             value=sample.request_meta_data[knn_metric_name],
-                            unit="",
-                            task=sample.task.name,
-                            operation=sample.operation_name,
-                            operation_type=sample.operation_type,
-                            sample_type=sample.sample_type,
-                            absolute_time=sample.absolute_time,
-                            relative_time=sample.relative_time,
-                            meta_data=meta_data,
-                        )
-
-                if "profile-metrics" in sample.request_meta_data:
-                    for metric_name, metric_value in sample.request_meta_data["profile-metrics"].items():
-                        meta_data = self.merge(
-                            self.workload_meta_data,
-                            self.test_procedure_meta_data,
-                            sample.operation_meta_data,
-                            sample.task.meta_data,
-                            sample.request_meta_data,
-                        )
-
-                        self.metrics_store.put_value_cluster_level(
-                            name=metric_name,
-                            value=metric_value,
                             unit="",
                             task=sample.task.name,
                             operation=sample.operation_name,
@@ -1449,7 +1429,7 @@ class SamplePostprocessor:
                 result.update(arg)
         return result
 
-class ProfileMetricsSamplePostprocessor:
+class ProfileMetricsSamplePostprocessor(SamplePostprocessor):
     def __init__(self, metrics_store, workload_meta_data, test_procedure_meta_data):
         self.logger = logging.getLogger(__name__)
         self.metrics_store = metrics_store
@@ -1463,6 +1443,7 @@ class ProfileMetricsSamplePostprocessor:
         start = total_start
         final_sample_count = 0
         for idx, sample in enumerate(raw_samples):
+            final_sample_count += 1
             self.logger.debug(
                 "All sample meta data: [%s],[%s],[%s],[%s],[%s]",
                 self.workload_meta_data,
@@ -1511,13 +1492,6 @@ class ProfileMetricsSamplePostprocessor:
         self.logger.debug("Flushing the metrics store took [%f] seconds.", (end - start))
         self.logger.debug("Postprocessing [%d] raw samples (downsampled to [%d] samples) took [%f] seconds in total.",
                           len(raw_samples), final_sample_count, (end - total_start))
-
-    def merge(self, *args):
-        result = {}
-        for arg in args:
-            if arg is not None:
-                result.update(arg)
-        return result
 
 
 def calculate_worker_assignments(host_configs, client_count):
@@ -1911,8 +1885,7 @@ class DefaultSample(Sample):
             for t in self._dependent_timing:
                 yield DefaultSample(self.client_id, t["absolute_time"], t["request_start"], self.task_start, self.task,
                              self.sample_type, self.request_meta_data, 0, t["service_time"], 0, 0, 0, self.total_ops,
-                             self.total_ops_unit, self.time_period, self.percent_completed, None,
-                             t["operation"], t["operation-type"])
+                             self.total_ops_unit, self.time_period, self.percent_completed, None)
 
     def __repr__(self, *args, **kwargs):
         return f"[{self.absolute_time}; {self.relative_time}] [client [{self.client_id}]] [{self.task}] " \
@@ -1926,8 +1899,7 @@ class ProfileMetricsSample(Sample):
         if self._dependent_timing:
             for t in self._dependent_timing:
                 yield ProfileMetricsSample(self.client_id, t["absolute_time"], t["request_start"], self.task_start, self.task,
-                             self.sample_type, self.request_meta_data, 0, t["service_time"], 0, 0, 0, self.time_period, self.percent_completed, None,
-                             t["operation"], t["operation-type"])
+                             self.sample_type, self.request_meta_data, self.time_period, self.percent_completed, None)
 
 
 def select_test_procedure(config, t):
@@ -2361,7 +2333,7 @@ class AsyncExecutor:
         }
 
     def _process_results(self, result_data: dict, total_start: float, client_state: bool,
-                         percent_completed: float, add_profile_metric_sample: bool) -> bool:
+                         percent_completed: float, add_profile_metric_sample: bool = False) -> bool:
         """Process results from a request."""
         # Handle cases where the request was skipped (no-op)
         if result_data["request_meta_data"].get("skipped_request"):
