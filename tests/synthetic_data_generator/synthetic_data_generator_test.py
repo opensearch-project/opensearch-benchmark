@@ -70,8 +70,8 @@ class TestSyntheticDataGeneratorWithCustomStrategy:
         return custom_strategy
 
     @pytest.fixture
-    def setup_custom_sdg(self, setup_sdg_metadata, mock_sdg_config, mock_dask_client, setup_custom_strategy):
-        return SyntheticDataGenerator(setup_sdg_metadata, mock_sdg_config, mock_dask_client, setup_custom_strategy)
+    def setup_custom_sdg(self, setup_sdg_metadata, mock_sdg_config, setup_custom_strategy):
+        return SyntheticDataGenerator(setup_sdg_metadata, mock_sdg_config, setup_custom_strategy)
 
     # Patch how it's used in SDG
     @patch('osbenchmark.synthetic_data_generator.synthetic_data_generator.get_client')
@@ -151,8 +151,8 @@ class TestSyntheticDataGeneratorWithMappingStrategy:
         return mapping_strategy
 
     @pytest.fixture
-    def setup_custom_sdg(self, setup_sdg_metadata, mock_sdg_config, mock_dask_client, setup_mapping_strategy):
-        return SyntheticDataGenerator(setup_sdg_metadata, mock_sdg_config, mock_dask_client, setup_mapping_strategy)
+    def setup_custom_sdg(self, setup_sdg_metadata, mock_sdg_config, setup_mapping_strategy):
+        return SyntheticDataGenerator(setup_sdg_metadata, mock_sdg_config, setup_mapping_strategy)
 
     # Patch how it's used in SDG
     @patch('osbenchmark.synthetic_data_generator.synthetic_data_generator.get_client')
