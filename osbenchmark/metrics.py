@@ -2205,7 +2205,7 @@ class GlobalStats:
             "error_rate": error_rate,
             "duration": duration,
             })
-        
+
     def add_profile_metrics(self, task, operation, profile_metrics):
         self.profile_metrics.append({
             "task": task,

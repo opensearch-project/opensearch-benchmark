@@ -315,7 +315,7 @@ class SamplePostprocessorTests(TestCase):
 
     @mock.patch("osbenchmark.metrics.MetricsStore")
     def test_all_samples(self, metrics_store):
-        post_process = worker_coordinator.SamplePostprocessor(metrics_store,
+        post_process = worker_coordinator.DefaultSamplePostprocessor(metrics_store,
                                                   downsample_factor=1,
                                                   workload_meta_data={},
                                                   test_procedure_meta_data={})
@@ -344,7 +344,7 @@ class SamplePostprocessorTests(TestCase):
 
     @mock.patch("osbenchmark.metrics.MetricsStore")
     def test_downsamples(self, metrics_store):
-        post_process = worker_coordinator.SamplePostprocessor(metrics_store,
+        post_process = worker_coordinator.DefaultSamplePostprocessor(metrics_store,
                                                   downsample_factor=2,
                                                   workload_meta_data={},
                                                   test_procedure_meta_data={})
@@ -373,7 +373,7 @@ class SamplePostprocessorTests(TestCase):
 
     @mock.patch("osbenchmark.metrics.MetricsStore")
     def test_dependent_samples(self, metrics_store):
-        post_process = worker_coordinator.SamplePostprocessor(metrics_store,
+        post_process = worker_coordinator.DefaultSamplePostprocessor(metrics_store,
                                                   downsample_factor=1,
                                                   workload_meta_data={},
                                                   test_procedure_meta_data={})

@@ -986,7 +986,7 @@ class WorkerCoordinator:
                                                    test_procedure=self.test_procedure.name,
                                                    read_only=False)
 
-        self.sample_post_processor = SamplePostprocessor(self.metrics_store,
+        self.sample_post_processor = DefaultSamplePostprocessor(self.metrics_store,
                                                          downsample_factor,
                                                          self.workload.meta_data,
                                                          self.test_procedure.meta_data)
@@ -1258,7 +1258,7 @@ class WorkerCoordinator:
             # We need to check all samples, they will be from different clients
             for s in samples:
                 self.most_recent_sample_per_client[s.client_id] = s
-    
+
     def update_profile_samples(self, profile_samples):
         if len(profile_samples) > 0:
             self.raw_profile_samples += profile_samples
@@ -1292,13 +1292,24 @@ class WorkerCoordinator:
         self.raw_profile_samples = []
         self.profile_metrics_post_processor(profile_samples)
 
-
-class SamplePostprocessor:
-    def __init__(self, metrics_store, downsample_factor, workload_meta_data, test_procedure_meta_data):
+class SamplePostprocessor():
+    def __init__(self, metrics_store, workload_meta_data, test_procedure_meta_data):
         self.logger = logging.getLogger(__name__)
         self.metrics_store = metrics_store
         self.workload_meta_data = workload_meta_data
         self.test_procedure_meta_data = test_procedure_meta_data
+
+    def merge(self, *args):
+        result = {}
+        for arg in args:
+            if arg is not None:
+                result.update(arg)
+        return result
+
+
+class DefaultSamplePostprocessor(SamplePostprocessor):
+    def __init__(self, metrics_store, downsample_factor, workload_meta_data, test_procedure_meta_data):
+        super().__init__(metrics_store, workload_meta_data, test_procedure_meta_data)
         self.throughput_calculator = ThroughputCalculator()
         self.downsample_factor = downsample_factor
 
@@ -1422,19 +1433,8 @@ class SamplePostprocessor:
         self.logger.debug("Postprocessing [%d] raw samples (downsampled to [%d] samples) took [%f] seconds in total.",
                           len(raw_samples), final_sample_count, (end - total_start))
 
-    def merge(self, *args):
-        result = {}
-        for arg in args:
-            if arg is not None:
-                result.update(arg)
-        return result
 
 class ProfileMetricsSamplePostprocessor(SamplePostprocessor):
-    def __init__(self, metrics_store, workload_meta_data, test_procedure_meta_data):
-        self.logger = logging.getLogger(__name__)
-        self.metrics_store = metrics_store
-        self.workload_meta_data = workload_meta_data
-        self.test_procedure_meta_data = test_procedure_meta_data
 
     def __call__(self, raw_samples):
         if len(raw_samples) == 0:
@@ -1442,7 +1442,7 @@ class ProfileMetricsSamplePostprocessor(SamplePostprocessor):
         total_start = time.perf_counter()
         start = total_start
         final_sample_count = 0
-        for idx, sample in enumerate(raw_samples):
+        for sample in raw_samples:
             final_sample_count += 1
             self.logger.debug(
                 "All sample meta data: [%s],[%s],[%s],[%s],[%s]",
@@ -1479,7 +1479,7 @@ class ProfileMetricsSamplePostprocessor(SamplePostprocessor):
                             relative_time=sample.relative_time,
                             meta_data=meta_data,
                         )
-    
+
         start = time.perf_counter()
         # this will be a noop for the in-memory metrics store. If we use an ES metrics store however, this will ensure that we already send
         # the data and also clear the in-memory buffer. This allows users to see data already while running the benchmark. In cases where
@@ -1789,7 +1789,7 @@ class Sampler:
         except queue.Empty:
             pass
         return samples
-    
+
 class DefaultSampler(Sampler):
     """
     Encapsulates management of gathered default samples.
@@ -1855,18 +1855,12 @@ class Sample:
     def __repr__(self, *args, **kwargs):
         return f"[{self.absolute_time}; {self.relative_time}] [client [{self.client_id}]] [{self.task}] " \
                f"[{self.sample_type}]"
-    
+
 class DefaultSample(Sample):
     def __init__(self, client_id, absolute_time, request_start, task_start, task, sample_type, request_meta_data, latency,
                  service_time, client_processing_time, processing_time, throughput, total_ops, total_ops_unit, time_period,
                  percent_completed, dependent_timing=None):
-        self.client_id = client_id
-        self.absolute_time = absolute_time
-        self.request_start = request_start
-        self.task_start = task_start
-        self.task = task
-        self.sample_type = sample_type
-        self.request_meta_data = request_meta_data
+        super().__init__(client_id, absolute_time, request_start, task_start, task, sample_type, request_meta_data, time_period, percent_completed, dependent_timing)
         self.latency = latency
         self.service_time = service_time
         self.client_processing_time = client_processing_time
@@ -1874,10 +1868,6 @@ class DefaultSample(Sample):
         self.throughput = throughput
         self.total_ops = total_ops
         self.total_ops_unit = total_ops_unit
-        self.time_period = time_period
-        self._dependent_timing = dependent_timing
-        # may be None for eternal tasks!
-        self.percent_completed = percent_completed
 
     @property
     def dependent_timings(self):
@@ -2059,7 +2049,8 @@ class ThroughputCalculator:
 
 
 class AsyncIoAdapter:
-    def __init__(self, cfg, workload, task_allocations, sampler, profile_sampler, cancel, complete, abort_on_error, shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
+    def __init__(self, cfg, workload, task_allocations, sampler, profile_sampler, cancel, complete, abort_on_error,
+                 shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
         self.cfg = cfg
         self.workload = workload
         self.task_allocations = task_allocations
@@ -2377,12 +2368,12 @@ class AsyncExecutor:
         if client_state:
             if add_profile_metric_sample:
                 self.profile_sampler.add(
-                    self.task, self.client_id, self.sample_type, 
+                    self.task, self.client_id, self.sample_type,
                     result_data["request_meta_data"],
                     result_data["absolute_processing_start"],
                     result_data["request_start"],
-                    time_period, 
-                    progress, 
+                    time_period,
+                    progress,
                     result_data["request_meta_data"].pop("dependent_timing", None))
             else:
                 self.sampler.add(
@@ -2437,16 +2428,16 @@ class AsyncExecutor:
                 # `execute_single` will handle the no-op if the client is paused.
                 client_state = (self.shared_states or {}).get(self.client_id, True)
 
-                profile_metrics_sample_size = params.get("profile-metrics-sample-size", None)
+                profile_metrics_sample_size = (params or {}).get("profile-metrics-sample-size", None)
                 add_profile_metric_sample = profile_metrics_sample_size and profile_metrics_sample_count < profile_metrics_sample_size
                 if add_profile_metric_sample:
                     profile_metrics_sample_count += 1
                     params["profile-query"] = True
-                else:
+                elif params:
                     params["profile-query"] = False
 
                 result_data = await self._execute_request(params, expected_scheduled_time, total_start, client_state)
-                
+
                 completed = self._process_results(result_data, total_start, client_state, percent_completed, add_profile_metric_sample)
 
                 if completed:

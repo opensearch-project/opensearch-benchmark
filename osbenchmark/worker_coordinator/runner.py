@@ -1192,7 +1192,7 @@ class Query(Runner):
                         children = query['children']
                         for child in children:
                             _get_query_timings(child)
-                
+
                 metrics.append("query_time")
                 metric_timings = dict.fromkeys(metrics, 0)
                 shards = response_json['profile']['shards']
@@ -1283,7 +1283,8 @@ class Query(Runner):
                     "took": took
                 })
 
-            add_profile_to_results(json.loads(r.getvalue()), params, result)
+            if r:
+                add_profile_to_results(json.loads(r.getvalue()), params, result)
 
             return result
 
@@ -1530,7 +1531,7 @@ class Query(Runner):
 
             recall_processing_start = time.perf_counter()
             response_json = json.loads(response.getvalue())
-            
+
             add_profile_to_results(response_json, params, result)
 
             if _is_empty_search_results(response_json):
