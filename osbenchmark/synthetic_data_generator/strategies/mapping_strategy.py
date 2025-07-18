@@ -6,33 +6,86 @@
 # Modifications Copyright OpenSearch Contributors. See
 # GitHub history for details.
 
-import json
+import logging
+from typing import Optional, Callable
+import os
 import random
 import datetime
 import uuid
-import os
-import time
 import logging
-import hashlib
 from typing import Dict, Any, Callable
 
-import yaml
 from dask.distributed import Client, get_client, as_completed
 from mimesis import Generic
 from mimesis.locales import Locale
 from mimesis.random import Random
+from mimesis.providers.base import BaseProvider
 from tqdm import tqdm
 
-from osbenchmark.utils import console
-from osbenchmark.exceptions import MappingsError, ConfigError
-from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorConfig, GB_TO_BYTES
-from osbenchmark.synthetic_data_generator.helpers import get_generation_settings, write_chunk, setup_custom_tqdm_formatting
+from osbenchmark.exceptions import ConfigError, MappingsError
+from osbenchmark.synthetic_data_generator.strategies import DataGenerationStrategy
+from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorMetadata
+from osbenchmark.synthetic_data_generator.helpers import write_chunk, get_generation_settings, setup_custom_tqdm_formatting
 
-class MappingSyntheticDataGenerator:
-    def __init__(self, mapping_config=None, seed=1):
+class MappingStrategy(DataGenerationStrategy):
+    def __init__(self, sdg_metadata: SyntheticDataGeneratorMetadata,  sdg_config: dict, index_mapping: dict) -> None:
+        self.sdg_metadata = sdg_metadata
+        self.sdg_config = sdg_config # Optional YAML-based config for value constraints
+        self.index_mapping = index_mapping # OpenSearch Mapping
+        self.mapping_generation_values = self.sdg_config.get("MappingGenerationValues", {}) if self.sdg_config else {}
+
         self.logger = logging.getLogger(__name__)
-        # TODO: Set self.mapping_config to automatically point to MappingSyntheticDataGenerator
-        self.mapping_config = mapping_config or {}
+
+    def generate_data_chunks_across_workers(self, dask_client: Client, docs_per_chunk: int, seeds: list ) -> list:
+        """
+        Submits workers to generate data chunks and returns Dask futures
+
+        Returns: list of Dask Futures
+        """
+        futures = [dask_client.submit(self.generate_data_chunk_from_worker, docs_per_chunk, seed) for seed in seeds]
+
+        return futures
+
+    def generate_data_chunk_from_worker(self, docs_per_chunk: int, seed: Optional[int]) -> list:
+        """
+        This method is submitted to Dask worker and can be thought of as the worker performing a job, which is calling the
+        MappingConverter's static method generate_fake_document() function to generate documents.
+        The worker will call the function N number of times to generate N docs of data before returning results.
+
+        Note: This method reconstructs the MappingConverter because Dask coordinator requires serializing and deserializing objects
+        when passing them to a worker. Generates the generate_fake_document, which gets invoked N number of times
+        before returning a list of documents.
+
+        Returns: List of generated documents.
+        """
+        # Initialize mapping generation values (params from sdg-config.yml) given to worker
+        mapping_generator_logic = MappingConverter(self.mapping_generation_values, seed)
+        mappings_with_generators = mapping_generator_logic.transform_mapping_to_generators(self.index_mapping)
+
+        documents = [MappingConverter.generate_fake_document(mappings_with_generators) for _ in range(docs_per_chunk)]
+
+        return documents
+
+    def generate_test_document(self):
+        mapping_converter = MappingConverter(self.mapping_generation_values)
+        converted_mappings = mapping_converter.transform_mapping_to_generators(self.index_mapping)
+
+        return MappingConverter.generate_fake_document(transformed_mapping=converted_mappings)
+
+    def calculate_avg_doc_size(self):
+        # Didn't do pickle because this seems to be more accurate
+        output = [self.generate_test_document()]
+        write_chunk(output, '/tmp/test-size.json')
+
+        size = os.path.getsize('/tmp/test-size.json')
+        os.remove('/tmp/test-size.json')
+
+        return size
+
+class MappingConverter:
+    def __init__(self, mapping_generation_values={}, seed=1):
+        self.logger = logging.getLogger(__name__)
+        self.mapping_config = mapping_generation_values
 
         self.generic = Generic(locale=Locale.EN)
         self.random = Random()
@@ -58,6 +111,23 @@ class MappingSyntheticDataGenerator:
             "nested": self.generate_nested,
             "geo_point": self.generate_geo_point,
         }
+
+    @staticmethod
+    def generate_fake_document(transformed_mapping: Dict[str, Callable]) -> Dict[str, Any]:
+        """
+        Generate a document using the generator functions
+
+        Args:
+            transformed_mapping: Dictionary of generator functions
+
+        Returns:
+            document containing lambdas that cna be invoked to generate data
+        """
+        document = {}
+        for field_name, generator in transformed_mapping.items():
+            document[field_name] = generator()
+
+        return document
 
     def generate_text(self, field_def: Dict[str, Any],  **params) -> str:
         choices = params.get('must_include', None)
@@ -169,8 +239,8 @@ class MappingSyntheticDataGenerator:
         transformed_mapping = {}
 
         # Extract configuration settings (both default generators and field overrides) from config user provided
-        # TODO: Set self.mapping_config to automatically point to MappingSyntheticDataGenerator
-        config = self.mapping_config.get("MappingSyntheticDataGenerator", {}) if self.mapping_config else {}
+        # TODO: Set self.mapping_config to automatically point to MappingConverter
+        config = self.mapping_config
         generator_overrides = config.get("generator_overrides", {})
         field_overrides = config.get("field_overrides", {})
 
@@ -211,8 +281,8 @@ class MappingSyntheticDataGenerator:
                     params = override.get("params", {})
                     transformed_mapping[field_name] = lambda f=field_def, gen=gen_func, p=params: gen(f, **p)
                 else:
-                    self.logger.info("Config file override for field [%s] specifies non-existent data generator [%s]", current_field_path, gen_name)
-                    msg = f"Config file override for field [{current_field_path}] specifies non-existent data generator [{gen_name}]"
+                    self.logger.info("Issue with sdg-config.yml: override for field [%s] specifies non-existent data generator [%s]", current_field_path, gen_name)
+                    msg = f"Issue with sdg-config.yml: override for field [{current_field_path}] specifies non-existent data generator [{gen_name}]"
                     raise ConfigError(msg)
             else:
                 # Check if default_generators has overrides for all instances of a type of generator
@@ -244,201 +314,3 @@ class MappingSyntheticDataGenerator:
                 obj[field_name] = generator()
             result.append(obj)
         return result
-
-    def generate_fake_document(self, transformed_mapping: Dict[str, Callable]) -> Dict[str, Any]:
-        """
-        Generate a document using the generator functions
-
-        Args:
-            transformed_mapping: Dictionary of generator functions
-
-        Returns:
-            document containing lambdas that cna be invoked to generate data
-        """
-        document = {}
-        for field_name, generator in transformed_mapping.items():
-            document[field_name] = generator()
-
-        return document
-
-class MappingSyntheticDataGeneratorWorker:
-    @staticmethod
-    def generate_documents_from_worker(index_mappings, mapping_config, docs_per_chunk, seed):
-        """
-        Within the scope of a Dask worker. Initially reconstructs the MappingSyntheticDataGenerator and generates documents.
-        This is because Dask coordinator needs to serialize and deserialize objects when passing them to a worker.
-        Generates the generate_fake_document, which gets invoked N number of times before returning a list of documents.
-
-        param: mapping_dict (dict): The OpenSearch mapping dictionary.
-        param: config_dict (dict): Optional YAML-based config for value constraints.
-        param: num_docs (int): Number of documents to generate.
-        param: seed (int): Initial number used as starting sequence for random generators
-
-        Returns: List of generated documents.
-        """
-        # Initialize parameters given to worker
-        mapping_generator = MappingSyntheticDataGenerator(mapping_config, seed)
-        mappings_with_generators = mapping_generator.transform_mapping_to_generators(index_mappings)
-
-        documents = [mapping_generator.generate_fake_document(mappings_with_generators) for _ in range(docs_per_chunk)]
-
-        return documents
-
-
-def load_mapping_and_config(mapping_file_path, config_path=None):
-    """
-    Creates a document generator from an OpenSearch mapping file.
-
-    Args:
-        mapping_file_path (str): Path to the index mappings JSON file
-        config_path (str): Path to the YAML file specifying data ranges.
-
-    Returns:
-        mapping and config as dicts
-    """
-    with open(mapping_file_path, "r") as f:
-        mapping_dict = json.load(f)
-
-    config_dict = None
-    if config_path:
-        with open(config_path, "r") as f:
-            config_dict = yaml.safe_load(f)
-
-    return mapping_dict, config_dict
-
-def generate_seeds_for_workers(regenerate=False):
-    client = get_client()
-    workers = client.scheduler_info()['workers']
-
-    seeds = []
-    for worker_id in workers.keys():
-        hash_object = hashlib.md5(worker_id.encode())
-
-        if regenerate:
-            # Add current timestamp to each hash to improve uniqueness
-            timestamp = str(time.time()).encode()
-            hash_object.update(timestamp)
-
-        hash_hex = hash_object.hexdigest()
-
-        seed = int(hash_hex[:8], 16)
-        seeds.append(seed)
-
-    return seeds
-
-def get_avg_document_size(index_mappings: dict, mapping_config: dict) -> int:
-    document = [generate_test_document(index_mappings, mapping_config)]
-    write_chunk(document, '/tmp/test-size.json')
-
-    size = os.path.getsize('/tmp/test-size.json')
-    os.remove('/tmp/test-size.json')
-
-    return size
-
-def generate_test_document(index_mappings: dict, mapping_config: dict) -> dict:
-    mapping_generator = MappingSyntheticDataGenerator(mapping_config)
-    converted_mappings = mapping_generator.transform_mapping_to_generators(index_mappings)
-
-    return mapping_generator.generate_fake_document(transformed_mapping=converted_mappings)
-
-def generate_dataset_with_mappings(client: Client, sdg_config: SyntheticDataGeneratorConfig, index_mappings: dict, input_config: dict):
-    """
-    param: client: Dask client that performs multiprocessing and creates dashboard to visualize task streams
-    param: sdg_config: SyntheticDataGenerationConfig instance that houses information related to data corpora to generate
-    param: index_mappings: OpenSearch index mappings that user provided
-    param: input_config: Optional config that specifies custom lists and custom data providers that the custom module uses to generate data.
-        This also contains configuration details related to how data is generated (i.e. number of workers to use, max file size in GB, and number of documents in a chunk)
-
-    returns: Does not return results but writes documents to output path
-    """
-    logger = logging.getLogger(__name__)
-
-    # Fetch settings and input config that user provided
-    generation_settings = get_generation_settings(input_config)
-    mapping_config = input_config
-
-    max_file_size_bytes = generation_settings.get('max_file_size_gb') * GB_TO_BYTES
-    total_size_bytes = sdg_config.total_size_gb * GB_TO_BYTES
-    docs_per_chunk = generation_settings.get('docs_per_chunk')
-    avg_document_size = get_avg_document_size(index_mappings, mapping_config)
-
-    current_size = 0
-    docs_written = 0
-    file_counter = 0
-    generated_dataset_details = []
-
-    logger.info("Average document size in bytes: %s", avg_document_size)
-    logger.info("Chunk size: %s docs", docs_per_chunk)
-    logger.info("Total GB to generate: %s", sdg_config.total_size_gb)
-    logger.info("Max file size in GB: %s", generation_settings.get('max_file_size_gb'))
-
-    console.println(f"Total GB to generate: {sdg_config.total_size_gb}\n"
-                    f"Average document size in bytes: {avg_document_size}\n"
-                    f"Max file size in GB: {generation_settings.get('max_file_size_gb')}\n")
-
-    start_time = time.time()
-    with tqdm(total=total_size_bytes,
-                unit='B',
-                unit_scale=True,
-                bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]") as progress_bar:
-
-        setup_custom_tqdm_formatting(progress_bar)
-        while current_size < total_size_bytes:
-            file_path = os.path.join(sdg_config.output_path, f"{sdg_config.index_name}_{file_counter}.json")
-            file_size = 0
-            docs_written = 0
-
-            while file_size < max_file_size_bytes:
-                generation_start_time = time.time()
-                seeds = generate_seeds_for_workers(regenerate=True)
-                logger.info("Mapping SDG seeds: %s", seeds)
-
-                futures = [client.submit(
-                    MappingSyntheticDataGeneratorWorker.generate_documents_from_worker,
-                    index_mappings,
-                    mapping_config,
-                    docs_per_chunk,
-                    seed) for seed in seeds]
-
-                writing_start_time = time.time()
-                for _, data in as_completed(futures, with_results=True):
-                    written = write_chunk(data, file_path)
-                    docs_written += written
-                    written_size = written * avg_document_size
-                    current_size += written_size
-                    progress_bar.update(written_size)
-                writing_end_time = time.time()
-
-                file_size = os.path.getsize(file_path)
-                # If it exceeds the max file size, then append this to keep track of record
-                if file_size >= max_file_size_bytes:
-                    file_name = os.path.basename(file_path)
-                    generated_dataset_details.append({
-                        "file_name": file_name,
-                        "docs": docs_written,
-                        "file_size_bytes": file_size
-                    })
-
-                generating_took_time = writing_start_time - generation_start_time
-                writing_took_time = writing_end_time - writing_start_time
-                logger.info("Generating took [%s] seconds", generating_took_time)
-                logger.info("Writing took [%s] seconds", writing_took_time)
-
-                if current_size >= total_size_bytes:
-                    file_name = os.path.basename(file_path)
-                    generated_dataset_details.append({
-                        "file_name": file_name,
-                        "docs": docs_written,
-                        "file_size_bytes": file_size
-                    })
-                    break
-
-            file_counter += 1
-
-        end_time = time.time()
-        total_time_to_generate_dataset = round(end_time - start_time)
-        progress_bar.update(total_size_bytes - progress_bar.n)
-
-        logger.info("Generated dataset in %s seconds. Dataset generation details: %s", total_time_to_generate_dataset, generated_dataset_details)
-
-        return total_time_to_generate_dataset, generated_dataset_details
