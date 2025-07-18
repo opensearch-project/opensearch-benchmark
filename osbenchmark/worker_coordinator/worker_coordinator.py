@@ -990,9 +990,6 @@ class WorkerCoordinator:
                                                          downsample_factor,
                                                          self.workload.meta_data,
                                                          self.test_procedure.meta_data)
-        self.profile_metrics_post_processor = ProfileMetricsSamplePostprocessor(self.metrics_store,
-                                                                                self.workload.meta_data,
-                                                                                self.test_procedure.meta_data)
 
         os_clients = self.create_os_clients()
 
@@ -1290,9 +1287,17 @@ class WorkerCoordinator:
         self.sample_post_processor(raw_samples)
         profile_samples = self.raw_profile_samples
         self.raw_profile_samples = []
-        self.profile_metrics_post_processor(profile_samples)
+        if len(profile_samples) > 0:
+            if self.profile_metrics_post_processor is None:
+                self.profile_metrics_post_processor = ProfileMetricsSamplePostprocessor(self.metrics_store,
+                                                                                    self.workload.meta_data,
+                                                                                    self.test_procedure.meta_data)
+            self.profile_metrics_post_processor(profile_samples)
 
 class SamplePostprocessor():
+    """
+    Parent class used to process samples into the metrics store
+    """
     def __init__(self, metrics_store, workload_meta_data, test_procedure_meta_data):
         self.logger = logging.getLogger(__name__)
         self.metrics_store = metrics_store
@@ -1308,6 +1313,9 @@ class SamplePostprocessor():
 
 
 class DefaultSamplePostprocessor(SamplePostprocessor):
+    """
+    Processes operational and correctness metric samples by merging and adding to the metrics store
+    """
     def __init__(self, metrics_store, downsample_factor, workload_meta_data, test_procedure_meta_data):
         super().__init__(metrics_store, workload_meta_data, test_procedure_meta_data)
         self.throughput_calculator = ThroughputCalculator()
@@ -1335,8 +1343,8 @@ class DefaultSamplePostprocessor(SamplePostprocessor):
 
                 recall_metric_names = ["recall@k", "recall@1"]
 
-                for knn_metric_name in recall_metric_names:
-                    if knn_metric_name in sample.request_meta_data:
+                for recall_metric_name in recall_metric_names:
+                    if recall_metric_name in sample.request_meta_data:
                         meta_data = self.merge(
                             self.workload_meta_data,
                             self.test_procedure_meta_data,
@@ -1346,8 +1354,8 @@ class DefaultSamplePostprocessor(SamplePostprocessor):
                         )
 
                         self.metrics_store.put_value_cluster_level(
-                            name=knn_metric_name,
-                            value=sample.request_meta_data[knn_metric_name],
+                            name=recall_metric_name,
+                            value=sample.request_meta_data[recall_metric_name],
                             unit="",
                             task=sample.task.name,
                             operation=sample.operation_name,
@@ -1435,6 +1443,9 @@ class DefaultSamplePostprocessor(SamplePostprocessor):
 
 
 class ProfileMetricsSamplePostprocessor(SamplePostprocessor):
+    """
+    Processes profile metric samples by merging and adding to the metrics store
+    """
 
     def __call__(self, raw_samples):
         if len(raw_samples) == 0:
@@ -1792,7 +1803,7 @@ class Sampler:
 
 class DefaultSampler(Sampler):
     """
-    Encapsulates management of gathered default samples.
+    Encapsulates management of gathered default samples (operational and correctness metrics).
     """
 
     def add(self, task, client_id, sample_type, meta_data, absolute_time, request_start, latency, service_time,
@@ -1822,6 +1833,9 @@ class ProfileMetricsSampler(Sampler):
 
 
 class Sample:
+    """
+    Basic information used by metrics store to keep track of samples
+    """
     def __init__(self, client_id, absolute_time, request_start, task_start, task, sample_type, request_meta_data,
                 time_period, percent_completed, dependent_timing=None):
         self.client_id = client_id
@@ -1857,6 +1871,9 @@ class Sample:
                f"[{self.sample_type}]"
 
 class DefaultSample(Sample):
+    """
+    Stores the operational and correctness metrics to later put into the metrics store
+    """
     def __init__(self, client_id, absolute_time, request_start, task_start, task, sample_type, request_meta_data, latency,
                  service_time, client_processing_time, processing_time, throughput, total_ops, total_ops_unit, time_period,
                  percent_completed, dependent_timing=None):
@@ -1883,6 +1900,9 @@ class DefaultSample(Sample):
                f"[{self.total_ops} {self.total_ops_unit}]"
 
 class ProfileMetricsSample(Sample):
+    """
+    Stores the profile metrics to later put into the metrics store
+    """
 
     @property
     def dependent_timings(self):
