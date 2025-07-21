@@ -27,3 +27,4 @@ jobs:
 
       - name: Run deprecated term lint checker
         run: .ci/scripts/check_deprecated_terms.py
+        if: contains(github.event.pull_request.labels.*.name, '2.x-terms-only')
