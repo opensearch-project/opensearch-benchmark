@@ -10,4 +10,4 @@ from .strategy import DataGenerationStrategy
 from .custom_module_strategy import CustomModuleStrategy
 from .mapping_strategy import MappingStrategy
 
-__all__ = [DataGenerationStrategy, CustomModuleStrategy, MappingStrategy]
+__all__ = ["DataGenerationStrategy", "CustomModuleStrategy", "MappingStrategy"]
