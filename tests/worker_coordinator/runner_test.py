@@ -2257,6 +2257,91 @@ class QueryRunnerTests(TestCase):
         )
         opensearch.clear_scroll.assert_not_called()
 
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_query_profile_metrics(self, opensearch, on_client_request_start, on_client_request_end):
+        response = {
+            "timed_out": False,
+            "took": 62,
+            "hits": {
+                "total": {
+                    "value": 2,
+                    "relation": "eq"
+                },
+                "hits": [
+                    {
+                        "title": "some-doc-1"
+                    },
+                    {
+                        "title": "some-doc-2"
+                    }
+
+                ]
+            },
+            "profile" : {
+                "shards" : [
+                    {
+                        "id" : "[oxyOE2XeSf2HODvlPJeMMQ][unittest][0]",
+                        "inbound_network_time_in_millis" : 0,
+                        "outbound_network_time_in_millis" : 0,
+                        "searches" : [
+                            {
+                                "query" : [
+                                    {
+                                        "type" : "TermQuery",
+                                        "description" : "",
+                                        "time_in_nanos" : 10633541,
+                                        "max_slice_time_in_nanos" : 5452833,
+                                        "min_slice_time_in_nanos" : 5346333,
+                                        "avg_slice_time_in_nanos" : 5381749,
+                                        "breakdown" : {
+                                            "create_weight" : 1234567,
+                                            "score" : 5678901,
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(response)))
+
+        query_runner = runner.Query()
+        params = {
+            "index": "unittest",
+            "detailed-results": True,
+            "response-compression-enabled": False,
+            "profile-query": True,
+            "profile-metrics": ["create_weight", "score"],
+            "profile-metrics-sample-size": 1,
+            "body": {
+                "query": {
+                    "match_all": {}
+                }
+            }
+        }
+
+        async with query_runner:
+            result = await query_runner(opensearch, params)
+
+        self.assertEqual(1.234567, result["profile-metrics"]["create_weight"])
+        self.assertEqual(5.678901, result["profile-metrics"]["score"])
+        self.assertEqual(10.633541, result["profile-metrics"]["query_time"])
+        self.assertFalse("error-type" in result)
+
+        opensearch.transport.perform_request.assert_called_once_with(
+            "GET",
+            "/unittest/_search",
+            params={},
+            body=params["body"],
+            headers={"Accept-Encoding": "identity"}
+        )
+        opensearch.clear_scroll.assert_not_called()
+
 
 class DeleteKnnModelRunnerTests(TestCase):
     model_id = "test-model-id"
@@ -3431,7 +3516,8 @@ class VectorSearchQueryRunnerTests(TestCase):
             params={ "clients": num_clients},
             completes_parent=False)
 
-        sampler = worker_coordinator.Sampler(start_timestamp=0)
+        sampler = worker_coordinator.DefaultSampler(start_timestamp=0)
+        profile_sampler = worker_coordinator.ProfileMetricsSampler(start_timestamp=0)
 
         runner.register_runner(operation_type=workload.OperationType.VectorSearch, runner=runner.Query(), async_runner=True)
         param_source = workload.operation_parameters(test_workload, task)
@@ -3451,7 +3537,7 @@ class VectorSearchQueryRunnerTests(TestCase):
             return cfg
         cfg = create_config()
         executor = worker_coordinator.AsyncExecutor(client_id=0, task=task, schedule=schedule, opensearch={"default": opensearch},
-                                                    sampler=sampler, cancel=threading.Event(), complete=threading.Event(),
+                                                    sampler=sampler, profile_sampler=profile_sampler, cancel=threading.Event(), complete=threading.Event(),
                                                     on_error="continue", config=cfg)
         # will run executor + vector search query runner.
         await executor()
@@ -3572,7 +3658,8 @@ class VectorSearchQueryRunnerTests(TestCase):
                 params={ "clients": num_clients},
                 completes_parent=False)
 
-            sampler = worker_coordinator.Sampler(start_timestamp=0)
+            sampler = worker_coordinator.DefaultSampler(start_timestamp=0)
+            profile_sampler = worker_coordinator.ProfileMetricsSampler(start_timestamp=0)
 
             runner.register_runner(operation_type=workload.OperationType.VectorSearch, runner=runner.Query(), async_runner=True)
             param_source = workload.operation_parameters(test_workload, task)
@@ -3591,7 +3678,7 @@ class VectorSearchQueryRunnerTests(TestCase):
                 return cfg
             cfg = create_config()
             executor = worker_coordinator.AsyncExecutor(client_id=0, task=task, schedule=schedule, opensearch={"default": opensearch},
-                                                        sampler=sampler, cancel=threading.Event(), complete=threading.Event(),
+                                                        sampler=sampler, profile_sampler=profile_sampler, cancel=threading.Event(), complete=threading.Event(),
                                                         on_error="continue",config=cfg)
             # will run executor + vector search query runner.
             await executor()
@@ -3600,6 +3687,306 @@ class VectorSearchQueryRunnerTests(TestCase):
             samples = sampler.samples
             recall_k = samples[0].request_meta_data.get("recall@k")
             self.assertEqual(recall_k, 1.0)
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_query_profile_metrics(self, opensearch, on_client_request_start, on_client_request_end):
+        response = {
+            "timed_out": False,
+            "took": 5,
+            "hits": {
+                "total": {
+                    "value": 3,
+                    "relation": "eq"
+                },
+                "hits": [
+                    {
+                        "_id": 101,
+                        "_score": 0.95
+                    },
+                    {
+                        "_id": 102,
+                        "_score": 0.88
+                    },
+                    {
+                        "_id": 103,
+                        "_score": 0.1
+                    }
+                ]
+            },
+            "profile" : {
+                "shards" : [
+                    {
+                        "id" : "[oxyOE2XeSf2HODvlPJeMMQ][unittest][0]",
+                        "inbound_network_time_in_millis" : 0,
+                        "outbound_network_time_in_millis" : 0,
+                        "searches" : [
+                            {
+                                "query" : [
+                                    {
+                                        "type" : "KNNQuery",
+                                        "description" : "",
+                                        "time_in_nanos" : 3000000,
+                                        "max_slice_time_in_nanos" : 5452833,
+                                        "min_slice_time_in_nanos" : 5346333,
+                                        "avg_slice_time_in_nanos" : 5381749,
+                                        "breakdown" : {
+                                            "create_weight" : 1000000,
+                                            "score" : 2000000,
+                                        },
+                                        "children": [
+                                            {
+                                                "type" : "KNNQuery",
+                                                "description" : "",
+                                                "time_in_nanos" : 3000000,
+                                                "max_slice_time_in_nanos" : 5452833,
+                                                "min_slice_time_in_nanos" : 5346333,
+                                                "avg_slice_time_in_nanos" : 5381749,
+                                                "breakdown" : {
+                                                    "create_weight" : 1000000,
+                                                    "score" : 2000000,
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(response)))
+
+        query_runner = runner.Query()
+        params = {
+            "index": "unittest",
+            "detailed-results": True,
+            "response-compression-enabled": False,
+            "profile-query": True,
+            "profile-metrics": ["create_weight", "score"],
+            "profile-metrics-sample-size": 1,
+            "operation-type": "vector-search",
+            "k": 3,
+            "neighbors": [101, 102, 103],
+            "body": {
+                "query": {
+                    "knn": {
+                        "location": {
+                            "vector": [
+                                5,
+                                4
+                            ],
+                            "k": 3
+                        }
+                    }}
+            }
+        }
+
+        async with query_runner:
+            result = await query_runner(opensearch, params)
+
+        self.assertEqual(2.000000, result["profile-metrics"]["create_weight"])
+        self.assertEqual(4.000000, result["profile-metrics"]["score"])
+        self.assertEqual(3.000000, result["profile-metrics"]["query_time"])
+        self.assertFalse("error-type" in result)
+
+        opensearch.transport.perform_request.assert_called_once_with(
+            "GET",
+            "/unittest/_search",
+            params={},
+            body=params["body"],
+            headers={"Accept-Encoding": "identity"}
+        )
+        opensearch.clear_scroll.assert_not_called()
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_query_profile_metrics_sampler(self, opensearch, on_client_request_start, on_client_request_end):
+        num_clients = 9
+        class WorkerCoordinatorTestParamSource:
+            def __init__(self, workload=None, params=None, **kwargs):
+                if params is None:
+                    params = {}
+                self._indices = workload.indices
+                self._params = params
+                self._current = 1
+                self._total = params.get("size")
+                self.infinite = self._total is None
+
+            def partition(self, partition_index, total_partitions):
+                return self
+
+            @property
+            def percent_completed(self):
+                if self.infinite:
+                    return None
+                return self._current / self._total
+
+            def params(self):
+                if not self.infinite and self._current > self._total:
+                    raise StopIteration()
+                self._current += 1
+                return self._params
+        # pylint: disable=C0415
+        from osbenchmark.worker_coordinator import worker_coordinator
+        # pylint: disable=C0415
+        from osbenchmark.workload import params
+        # pylint: disable=C0415
+        from osbenchmark import workload, config
+
+        # create task here
+        # sampler is mock
+        # create actual schedule w new params
+
+        opensearch.init_request_context.return_value = {
+            "client_request_start": 0,
+            "request_start": 1,
+            "request_end": 11,
+            "client_request_end": 12
+        }
+
+        search_response = {
+            "timed_out": False,
+            "took": 5,
+            "hits": {
+                "total": {
+                    "value": 3,
+                    "relation": "eq"
+                },
+                "hits": [
+                    {
+                        "_id": 101,
+                        "_score": 0.95
+                    },
+                    {
+                        "_id": 102,
+                        "_score": 0.88
+                    },
+                    {
+                        "_id": 103,
+                        "_score": 0.1
+                    }
+                ]
+            },
+            "profile" : {
+                "shards" : [
+                    {
+                        "id" : "[oxyOE2XeSf2HODvlPJeMMQ][unittest][0]",
+                        "inbound_network_time_in_millis" : 0,
+                        "outbound_network_time_in_millis" : 0,
+                        "searches" : [
+                            {
+                                "query" : [
+                                    {
+                                        "type" : "KNNQuery",
+                                        "description" : "",
+                                        "time_in_nanos" : 3000000,
+                                        "max_slice_time_in_nanos" : 5452833,
+                                        "min_slice_time_in_nanos" : 5346333,
+                                        "avg_slice_time_in_nanos" : 5381749,
+                                        "breakdown" : {
+                                            "create_weight" : 1000000,
+                                            "score" : 2000000,
+                                        },
+                                        "children": [
+                                            {
+                                                "type" : "KNNQuery",
+                                                "description" : "",
+                                                "time_in_nanos" : 3000000,
+                                                "max_slice_time_in_nanos" : 5452833,
+                                                "min_slice_time_in_nanos" : 5346333,
+                                                "avg_slice_time_in_nanos" : 5381749,
+                                                "breakdown" : {
+                                                    "create_weight" : 1000000,
+                                                    "score" : 2000000,
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+        opensearch.transport.perform_request = mock.AsyncMock(return_value=io.StringIO(json.dumps(search_response)))
+
+        params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
+        test_workload = workload.Workload(name="unittest", description="unittest workload",
+                                indices=None,
+                                test_procedures=None)
+
+        task = workload.Task("time-based", workload.Operation("time-based",
+            workload.OperationType.VectorSearch.to_hyphenated_string(),
+            params={
+                "index": "unittest",
+                "operation-type": "vector-search",
+                "detailed-results": True,
+                "response-compression-enabled": False,
+                "profile-query": True,
+                "profile-metrics": ["create_weight", "score"],
+                "profile-metrics-sample-size": 1,
+                "k": 3,
+                "neighbors": [101, 102, 103],
+                "body": {
+                    "query": {
+                        "knn": {
+                            "location": {
+                                "vector": [
+                                    5,
+                                    4
+                                ],
+                                "k": 3
+                            }
+                        }}
+                },
+                "request-params": {},
+                "cache": False
+            },
+            param_source="worker-coordinator-test-param-source"),
+            warmup_time_period=0.5, time_period=0.5, clients=num_clients,
+            params={ "clients": num_clients},
+            completes_parent=False)
+
+        sampler = worker_coordinator.DefaultSampler(start_timestamp=0)
+        profile_sampler = worker_coordinator.ProfileMetricsSampler(start_timestamp=0)
+
+        runner.register_runner(operation_type=workload.OperationType.VectorSearch, runner=runner.Query(), async_runner=True)
+        param_source = workload.operation_parameters(test_workload, task)
+        task_allocation = worker_coordinator.TaskAllocation(
+            task=task,
+            client_index_in_task=0,
+            global_client_index=0,
+            total_clients=task.clients
+        )
+        # pylint: disable=C0415
+        import threading
+        schedule = worker_coordinator.schedule_for(task_allocation, param_source)
+        # pylint: disable=C0415
+        def create_config():
+            cfg = config.Config()
+            cfg.add(config.Scope.application, "system", "available.cores", 8)
+            return cfg
+        cfg = create_config()
+        executor = worker_coordinator.AsyncExecutor(client_id=0, task=task, schedule=schedule, opensearch={"default": opensearch},
+                                                    sampler=sampler, profile_sampler=profile_sampler, cancel=threading.Event(), complete=threading.Event(),
+                                                    on_error="continue", config=cfg)
+        # will run executor + vector search query runner.
+        await executor()
+
+        # make copy of samples since they disappear once first accessed.
+        samples = profile_sampler.samples
+        metrics = samples[0].request_meta_data.get("profile-metrics")
+        self.assertNotEqual(None, metrics)
+        self.assertEqual(2.0, metrics["create_weight"])
+        self.assertEqual(4.0, metrics["score"])
+        self.assertEqual(3.0, metrics["query_time"])
 
 
 class PutPipelineRunnerTests(TestCase):
