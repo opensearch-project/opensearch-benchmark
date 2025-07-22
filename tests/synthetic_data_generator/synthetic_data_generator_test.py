@@ -10,9 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from osbenchmark.synthetic_data_generator.synthetic_data_generator import SyntheticDataGenerator
-from osbenchmark.synthetic_data_generator.strategies import MappingStrategy, CustomModuleStrategy
 from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorMetadata
-from osbenchmark.synthetic_data_generator import helpers
 
 class TestSyntheticDataGeneratorWithCustomStrategy:
 

@@ -10,14 +10,12 @@ import logging
 import sys
 
 import json
-import os
 
 from osbenchmark.utils import console
 from osbenchmark.synthetic_data_generator.input_processor import create_sdg_metadata_from_args, use_custom_synthetic_data_generator, use_mappings_synthetic_data_generator
 from osbenchmark.synthetic_data_generator import helpers
 from osbenchmark.synthetic_data_generator.synthetic_data_generator import SyntheticDataGenerator
 from osbenchmark.synthetic_data_generator.strategies import CustomModuleStrategy, MappingStrategy
-from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorMetadata
 
 def orchestrate_data_generation(cfg):
     logger = logging.getLogger(__name__)

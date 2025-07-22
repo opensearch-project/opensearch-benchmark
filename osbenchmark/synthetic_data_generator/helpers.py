@@ -7,7 +7,6 @@
 # GitHub history for details.
 
 import os
-import re
 import logging
 import json
 import shutil
@@ -73,7 +72,7 @@ def existing_files_found_in_output_dir(output_path: str, index_name: str) -> boo
 
     return existing_files
 
-def remove_existing_files(existing_files_found: list[str]):
+def remove_existing_files(existing_files_found: list):
     try:
         for file in existing_files_found:
             os.remove(file)
@@ -122,7 +121,7 @@ def get_generation_settings(input_config: dict) -> dict:
     Grabs the user's config's generation settings and compares it with the default generation settings.
     If there are missing fields in the user's config, it populates it with the default values
     '''
-    generation_settings: dict[str, int | None] = DEFAULT_GENERATION_SETTINGS
+    generation_settings = DEFAULT_GENERATION_SETTINGS
     if input_config is None: # if user did not provide a custom config
         return generation_settings
 

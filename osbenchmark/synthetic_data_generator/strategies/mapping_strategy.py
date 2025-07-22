@@ -7,25 +7,21 @@
 # GitHub history for details.
 
 import logging
-from typing import Optional, Callable
+from typing import Optional, Callable, Dict, Any
 import os
 import random
 import datetime
 import uuid
-import logging
-from typing import Dict, Any, Callable
 
-from dask.distributed import Client, get_client, as_completed
+from dask.distributed import Client
 from mimesis import Generic
 from mimesis.locales import Locale
 from mimesis.random import Random
-from mimesis.providers.base import BaseProvider
-from tqdm import tqdm
 
 from osbenchmark.exceptions import ConfigError, MappingsError
 from osbenchmark.synthetic_data_generator.strategies import DataGenerationStrategy
 from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorMetadata
-from osbenchmark.synthetic_data_generator.helpers import write_chunk, get_generation_settings, setup_custom_tqdm_formatting
+from osbenchmark.synthetic_data_generator.helpers import write_chunk
 
 class MappingStrategy(DataGenerationStrategy):
     def __init__(self, sdg_metadata: SyntheticDataGeneratorMetadata,  sdg_config: dict, index_mapping: dict) -> None:
@@ -46,6 +42,7 @@ class MappingStrategy(DataGenerationStrategy):
 
         return futures
 
+    # pylint: disable=arguments-differ
     def generate_data_chunk_from_worker(self, docs_per_chunk: int, seed: Optional[int]) -> list:
         """
         This method is submitted to Dask worker and can be thought of as the worker performing a job, which is calling the
@@ -83,9 +80,9 @@ class MappingStrategy(DataGenerationStrategy):
         return size
 
 class MappingConverter:
-    def __init__(self, mapping_generation_values={}, seed=1):
+    def __init__(self, mapping_generation_values=None, seed=1):
         self.logger = logging.getLogger(__name__)
-        self.mapping_config = mapping_generation_values
+        self.mapping_config = mapping_generation_values if mapping_generation_values else {}
 
         self.generic = Generic(locale=Locale.EN)
         self.random = Random()

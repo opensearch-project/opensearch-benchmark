@@ -1,7 +1,15 @@
-from mimesis.providers.base import BaseProvider
-from mimesis.enums import TimestampFormat
+# SPDX-License-Identifier: Apache-2.0
+#
+# The OpenSearch Contributors require contributions made to
+# this file be licensed under the Apache-2.0 license or a
+# compatible open source license.
+# Modifications Copyright OpenSearch Contributors. See
+# GitHub history for details.
 
+import logging
 import random
+
+from mimesis.providers.base import BaseProvider
 
 GEOGRAPHIC_CLUSTERS = {
     'Manhattan': {
@@ -40,7 +48,6 @@ class MultipleChoices(BaseProvider):
 
     @staticmethod
     def generate(choices, num_of_choices=5) -> str:
-        import logging
         logger = logging.getLogger(__name__)
         logger.info("Choices: %s", choices)
         logger.info("Length: %s", num_of_choices)

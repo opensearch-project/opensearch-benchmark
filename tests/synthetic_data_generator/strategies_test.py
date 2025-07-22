@@ -6,7 +6,9 @@
 # Modifications Copyright OpenSearch Contributors. See
 # GitHub history for details.
 
-from unittest.mock import MagicMock, patch
+import os
+import re
+from unittest.mock import MagicMock
 import pytest
 
 from osbenchmark.exceptions import ConfigError
@@ -39,7 +41,8 @@ class TestCustomStrategy:
                     'settings': {'workers': 8, 'max_file_size_gb': 1, 'chunk_size': 10000},
                     'CustomGenerationValues': {
                         'custom_lists': {'dog_names': ['Hana', 'Youpie', 'Charlie', 'Lucy', 'Cooper', 'Luna', 'Rocky', 'Daisy', 'Buddy', 'Molly'],
-                                        'dog_breeds': ['Jindo', 'Labrador', 'German Shepherd', 'Golden Retriever', 'Bulldog', 'Poodle', 'Beagle', 'Rottweiler', 'Boxer', 'Dachshund', 'Chihuahua'],
+                                        'dog_breeds': ['Jindo', 'Labrador', 'German Shepherd', 'Golden Retriever', 'Bulldog',
+                                                       'Poodle', 'Beagle', 'Rottweiler', 'Boxer', 'Dachshund', 'Chihuahua'],
                                         'treats': ['cookies', 'pup_cup', 'jerky'], 'license_plates': ['WOOF101', 'BARKATAMZN'],
                                         'tips': ['biscuits', 'cash'],
                                         'skills': ['sniffing', 'squirrel_chasing', 'bite_tail', 'smile'],
@@ -54,7 +57,6 @@ class TestCustomStrategy:
 
     @pytest.fixture
     def custom_module_strategy(self, setup_sdg_metadata, mock_sdg_config):
-        import os
         sample_module_path = f"{os.path.dirname(os.path.realpath(__file__))}/sample_custom_module.py"
         custom_module = helpers.load_user_module(sample_module_path)
         strategy = CustomModuleStrategy(setup_sdg_metadata, mock_sdg_config, custom_module)
@@ -91,7 +93,8 @@ class TestCustomStrategy:
              "license_plate": "WOOF101", "current_location": {"lat": 40.75654230013213, "lon": -73.98178219702368}, "status": "busy", "current_ride": "R690202",
              "account_status": "active", "join_date": "03/06/2018", "total_rides": 24, "rating": 2.13,
              "earnings": {"today": {"amount": 1.4, "currency": "USD"}, "this_week": {"amount": 3.89, "currency": "USD"}, "this_month": {"amount": 4.88, "currency": "USD"}},
-             "last_grooming_check": "2023-12-01", "owner": {"first_name": "Avery", "last_name": "Moran", "email": "AveryMoran@gmail.com"}, "special_skills": ["sniffing", "bite_tail", "smile"],
+             "last_grooming_check": "2023-12-01", "owner": {"first_name": "Avery", "last_name": "Moran", "email": "AveryMoran@gmail.com"},
+             "special_skills": ["sniffing", "bite_tail", "smile"],
              "bark_volume": 1.73, "tail_wag_speed": 9.1},
             {"dog_driver_id": "DD2223", "dog_name": "Youpie", "dog_breed": "Boxer", "license_number": "BARKATAMZN7147", "favorite_treats": "jerky",
              "preferred_tip": "cash", "vehicle_type": "suv", "vehicle_make": "nissan", "vehicle_model": "murano", "vehicle_year": 2015, "vehicle_color": "white",
@@ -147,9 +150,9 @@ class TestCustomStrategy:
         docs = [future.result() for future in futures_across_workers]
 
         assert len(docs) == 3
-        assert "Hana" == docs[0][0]["dog_name"]
-        assert "Luna" == docs[1][0]["dog_name"]
-        assert "Youpie" == docs[2][0]["dog_name"]
+        assert docs[0][0]['dog_name'] == 'Hana'
+        assert docs[1][0]['dog_name'] == 'Luna'
+        assert docs[2][0]['dog_name'] == 'Youpie'
 
     def test_generate_data_chunk_from_worker(self, sample_field_names, custom_module_strategy):
         user_defined_function = custom_module_strategy.custom_module.generate_fake_document
@@ -162,14 +165,12 @@ class TestCustomStrategy:
                 assert field in document
 
     def test_custom_module_missing_generate_fake_document_function(self, setup_sdg_metadata, mock_sdg_config):
-        import os
-        import re
         sample_module_path = f"{os.path.dirname(os.path.realpath(__file__))}/incorrect_sample_custom_module.py"
         custom_module = helpers.load_user_module(sample_module_path)
 
         error_msg_expected = re.escape("Custom module at [/path/to/module] does not define a function called generate_fake_document(). Ensure that this method is defined.")
         with pytest.raises(ConfigError, match=error_msg_expected):
-            strategy = CustomModuleStrategy(setup_sdg_metadata, mock_sdg_config, custom_module)
+            CustomModuleStrategy(setup_sdg_metadata, mock_sdg_config, custom_module)
 
 
 class TestMappingStrategy:
@@ -477,17 +478,406 @@ class TestMappingStrategy:
     @pytest.fixture
     def sample_docs_for_basic_mappings(self):
         return [
-            {"title": "ipsum Sample text for 70", "description": "lorem Sample text for 94", "price": 0.0, "created_at": "2020-04-22", "is_available": False, "category_id": 13, "tags": "Mark S"},
-            {"title": "lorem Sample text for 7", "description": "lorem Sample text for 68", "price": 0.78, "created_at": "2022-07-04", "is_available": True, "category_id": 10, "tags": "Helly R"},
-            {"title": "lorem Sample text for 87", "description": "ipsum Sample text for 99", "price": 0.91, "created_at": "2020-02-21", "is_available": True, "category_id": 16, "tags": "Irving B"}
+            {
+                "title": "ipsum Sample text for 70",
+                "description": "lorem Sample text for 94",
+                "price": 0.0, "created_at": "2020-04-22",
+                "is_available": False,
+                "category_id": 13,
+                "tags": "Mark S"
+             },
+            {
+                "title": "lorem Sample text for 7",
+                "description": "lorem Sample text for 68",
+                "price": 0.78,
+                "created_at": "2022-07-04",
+                "is_available": True,
+                "category_id": 10,
+                "tags": "Helly R"
+            },
+            {
+                "title": "lorem Sample text for 87",
+                "description": "ipsum Sample text for 99",
+                "price": 0.91,
+                "created_at": "2020-02-21",
+                "is_available": True,
+                "category_id": 16,
+                "tags": "Irving B"
+            }
         ]
 
     @pytest.fixture
     def sample_docs_for_complex_mappings(self):
         return [
-            {"user": {"id": "sakura", "email": "naruto", "name": "lorem Sample text for 87", "address": {"street": "lorem Sample text for 34", "city": "naruto", "state": "sasuke", "zip": "naruto", "location": {"lat": 26.99576279125438, "lon": -106.55835561335948}}, "preferences": {}}, "orders": [{"id": "sakura", "date": "2021-11-17", "amount": "unknown_type", "status": "naruto", "items": [{"product_id": "sasuke", "name": "ipsum Sample text for 5", "quantity": 19395, "price": 0.31, "categories": "sakura"}, {"product_id": "sakura", "name": "lorem Sample text for 94", "quantity": -5488, "price": 0.76, "categories": "sasuke"}], "shipping_address": {"street": "lorem Sample text for 63", "city": "naruto", "state": "sasuke", "zip": "sakura", "location": {"lat": 40.62216376082151, "lon": -65.29355206583621}}}, {"id": "sakura", "date": "2021-03-05", "amount": "unknown_type", "status": "sasuke", "items": [{"product_id": "sakura", "name": "lorem Sample text for 100", "quantity": -1063, "price": 0.11, "categories": "sakura"}], "shipping_address": {"street": "lorem Sample text for 72", "city": "sasuke", "state": "naruto", "zip": "sasuke", "location": {"lat": 64.92051504356562, "lon": -64.90676398234942}}}, {"id": "naruto", "date": "2020-04-23", "amount": "unknown_type", "status": "sasuke", "items": [{"product_id": "sasuke", "name": "lorem Sample text for 5", "quantity": -27595, "price": 0.73, "categories": "sasuke"}, {"product_id": "sasuke", "name": "ipsum Sample text for 8", "quantity": 3581, "price": 0.65, "categories": "naruto"}], "shipping_address": {"street": "lorem Sample text for 30", "city": "sasuke", "state": "sakura", "zip": "naruto", "location": {"lat": -48.34559264417752, "lon": -178.36558923535966}}}], "activity_log": [{"timestamp": "2021-09-22", "action": "sakura", "ip_address": "101.52.247.55", "details": {}}, {"timestamp": "2022-01-22", "action": "sasuke", "ip_address": "44.189.12.245", "details": {}}, {"timestamp": "2022-07-03", "action": "naruto", "ip_address": "131.232.186.58", "details": {}}], "metadata": {"created_at": "2022-02-09", "updated_at": "2022-04-18", "tags": "sasuke", "source": "sasuke", "version": 6}, "description": "lorem Sample text for 46", "ranking_scores": {"popularity": 0.89, "relevance": 0.79, "quality": 0.95}, "permissions": [{"user_id": "sasuke", "role": "naruto", "granted_at": "2022-09-18"}]},
-            {"user": {"id": "naruto", "email": "sakura", "name": "ipsum Sample text for 62", "address": {"street": "ipsum Sample text for 69", "city": "sasuke", "state": "naruto", "zip": "naruto", "location": {"lat": 18.716170289552792, "lon": 26.676759590182087}}, "preferences": {}}, "orders": [{"id": "sakura", "date": "2020-03-14", "amount": "unknown_type", "status": "sasuke", "items": [{"product_id": "naruto", "name": "ipsum Sample text for 72", "quantity": 8096, "price": 0.98, "categories": "sasuke"}], "shipping_address": {"street": "ipsum Sample text for 70", "city": "sasuke", "state": "naruto", "zip": "sasuke", "location": {"lat": 35.160379130894796, "lon": 142.70658997708557}}}, {"id": "sasuke", "date": "2021-04-10", "amount": "unknown_type", "status": "sasuke", "items": [{"product_id": "sakura", "name": "ipsum Sample text for 95", "quantity": -26888, "price": 0.9, "categories": "sasuke"}, {"product_id": "sakura", "name": "lorem Sample text for 77", "quantity": -4878, "price": 0.68, "categories": "sakura"}, {"product_id": "sasuke", "name": "lorem Sample text for 60", "quantity": 3465, "price": 0.92, "categories": "sakura"}], "shipping_address": {"street": "ipsum Sample text for 69", "city": "sakura", "state": "sasuke", "zip": "sakura", "location": {"lat": -10.880093403565638, "lon": -167.79823045612983}}}, {"id": "sasuke", "date": "2021-11-06", "amount": "unknown_type", "status": "sakura", "items": [{"product_id": "sakura", "name": "lorem Sample text for 55", "quantity": -22916, "price": 0.29, "categories": "naruto"}, {"product_id": "sasuke", "name": "lorem Sample text for 72", "quantity": -5256, "price": 0.45, "categories": "naruto"}], "shipping_address": {"street": "ipsum Sample text for 76", "city": "naruto", "state": "naruto", "zip": "sasuke", "location": {"lat": 89.19863809212737, "lon": 114.09913348615743}}}], "activity_log": [{"timestamp": "2020-06-26", "action": "naruto", "ip_address": "139.179.72.223", "details": {}}], "metadata": {"created_at": "2020-02-11", "updated_at": "2021-05-25", "tags": "sasuke", "source": "sakura", "version": 16}, "description": "ipsum Sample text for 8", "ranking_scores": {"popularity": 0.16, "relevance": 0.06, "quality": 0.72}, "permissions": [{"user_id": "sakura", "role": "sasuke", "granted_at": "2020-01-23"}, {"user_id": "sasuke", "role": "naruto", "granted_at": "2022-11-19"}, {"user_id": "sakura", "role": "naruto", "granted_at": "2021-07-06"}]},
-            {"user": {"id": "sakura", "email": "naruto", "name": "lorem Sample text for 57", "address": {"street": "ipsum Sample text for 83", "city": "sasuke", "state": "sasuke", "zip": "sakura", "location": {"lat": 32.588564110838846, "lon": -23.052179676898845}}, "preferences": {}}, "orders": [{"id": "sakura", "date": "2021-03-21", "amount": "unknown_type", "status": "sasuke", "items": [{"product_id": "sasuke", "name": "ipsum Sample text for 63", "quantity": 7348, "price": 0.37, "categories": "sasuke"}], "shipping_address": {"street": "ipsum Sample text for 34", "city": "naruto", "state": "sakura", "zip": "sasuke", "location": {"lat": -51.05656520056002, "lon": -17.084501461214813}}}, {"id": "sakura", "date": "2021-01-21", "amount": "unknown_type", "status": "sasuke", "items": [{"product_id": "naruto", "name": "ipsum Sample text for 43", "quantity": 28814, "price": 0.91, "categories": "sakura"}, {"product_id": "sasuke", "name": "ipsum Sample text for 80", "quantity": -293, "price": 0.52, "categories": "naruto"}, {"product_id": "sakura", "name": "ipsum Sample text for 72", "quantity": -31854, "price": 0.54, "categories": "sakura"}], "shipping_address": {"street": "lorem Sample text for 19", "city": "sakura", "state": "sasuke", "zip": "sasuke", "location": {"lat": 40.539565425667945, "lon": 59.77455111107835}}}], "activity_log": [{"timestamp": "2021-04-14", "action": "sakura", "ip_address": "155.140.52.23", "details": {}}], "metadata": {"created_at": "2021-06-22", "updated_at": "2020-09-06", "tags": "naruto", "source": "naruto", "version": 9}, "description": "ipsum Sample text for 55", "ranking_scores": {"popularity": 0.49, "relevance": 0.23, "quality": 0.32}, "permissions": [{"user_id": "sakura", "role": "sasuke", "granted_at": "2020-07-29"}, {"user_id": "naruto", "role": "sasuke", "granted_at": "2021-01-19"}]}
+            {
+                "user": {
+                    "id": "sakura",
+                    "email": "naruto",
+                    "name": "lorem Sample text for 87",
+                    "address": {
+                        "street": "lorem Sample text for 34",
+                        "city": "naruto",
+                        "state": "sasuke",
+                        "zip": "naruto",
+                        "location": {
+                            "lat": 26.99576279125438,
+                            "lon": -106.55835561335948
+                        }
+                    },
+                    "preferences": {}
+                },
+                "orders": [{
+                    "id": "sakura",
+                    "date": "2021-11-17",
+                    "amount": "unknown_type",
+                    "status": "naruto",
+                    "items": [{
+                        "product_id": "sasuke",
+                        "name": "ipsum Sample text for 5",
+                        "quantity": 19395,
+                        "price": 0.31,
+                        "categories": "sakura"
+                    }, {
+                        "product_id": "sakura",
+                        "name": "lorem Sample text for 94",
+                        "quantity": -5488,
+                        "price": 0.76,
+                        "categories": "sasuke"
+                    }],
+                    "shipping_address": {
+                        "street": "lorem Sample text for 63",
+                        "city": "naruto",
+                        "state": "sasuke",
+                        "zip": "sakura",
+                        "location": {
+                            "lat": 40.62216376082151,
+                            "lon": -65.29355206583621
+                        }
+                    }
+                }, {
+                    "id": "sakura",
+                    "date": "2021-03-05",
+                    "amount": "unknown_type",
+                    "status": "sasuke",
+                    "items": [{
+                        "product_id": "sakura",
+                        "name": "lorem Sample text for 100",
+                        "quantity": -1063,
+                        "price": 0.11,
+                        "categories": "sakura"
+                    }],
+                    "shipping_address": {
+                        "street": "lorem Sample text for 72",
+                        "city": "sasuke",
+                        "state": "naruto",
+                        "zip": "sasuke",
+                        "location": {
+                            "lat": 64.92051504356562,
+                            "lon": -64.90676398234942
+                        }
+                    }
+                }, {
+                    "id": "naruto",
+                    "date": "2020-04-23",
+                    "amount": "unknown_type",
+                    "status": "sasuke",
+                    "items": [{
+                        "product_id": "sasuke",
+                        "name": "lorem Sample text for 5",
+                        "quantity": -27595,
+                        "price": 0.73,
+                        "categories": "sasuke"
+                    }, {
+                        "product_id": "sasuke",
+                        "name": "ipsum Sample text for 8",
+                        "quantity": 3581,
+                        "price": 0.65,
+                        "categories": "naruto"
+                    }],
+                    "shipping_address": {
+                        "street": "lorem Sample text for 30",
+                        "city": "sasuke",
+                        "state": "sakura",
+                        "zip": "naruto",
+                        "location": {
+                            "lat": -48.34559264417752,
+                            "lon": -178.36558923535966
+                        }
+                    }
+                }],
+                "activity_log": [{
+                    "timestamp": "2021-09-22",
+                    "action": "sakura",
+                    "ip_address": "101.52.247.55",
+                    "details": {}
+                }, {
+                    "timestamp": "2022-01-22",
+                    "action": "sasuke",
+                    "ip_address": "44.189.12.245",
+                    "details": {}
+                }, {
+                    "timestamp": "2022-07-03",
+                    "action": "naruto",
+                    "ip_address": "131.232.186.58",
+                    "details": {}
+                }],
+                "metadata": {
+                    "created_at": "2022-02-09",
+                    "updated_at": "2022-04-18",
+                    "tags": "sasuke",
+                    "source": "sasuke",
+                    "version": 6
+                },
+                "description": "lorem Sample text for 46",
+                "ranking_scores": {
+                    "popularity": 0.89,
+                    "relevance": 0.79,
+                    "quality": 0.95
+                },
+                "permissions": [{
+                    "user_id": "sasuke",
+                    "role": "naruto",
+                    "granted_at": "2022-09-18"
+                }]
+            },
+            {
+                "user": {
+                    "id": "naruto",
+                    "email": "sakura",
+                    "name": "ipsum Sample text for 62",
+                    "address": {
+                        "street": "ipsum Sample text for 69",
+                        "city": "sasuke",
+                        "state": "naruto",
+                        "zip": "naruto",
+                        "location": {
+                            "lat": 18.716170289552792,
+                            "lon": 26.676759590182087
+                        }
+                    },
+                    "preferences": {}
+                },
+                "orders": [{
+                    "id": "sakura",
+                    "date": "2020-03-14",
+                    "amount": "unknown_type",
+                    "status": "sasuke",
+                    "items": [{
+                        "product_id": "naruto",
+                        "name": "ipsum Sample text for 72",
+                        "quantity": 8096,
+                        "price": 0.98,
+                        "categories": "sasuke"
+                    }],
+                    "shipping_address": {
+                        "street": "ipsum Sample text for 70",
+                        "city": "sasuke",
+                        "state": "naruto",
+                        "zip": "sasuke",
+                        "location": {
+                            "lat": 35.160379130894796,
+                            "lon": 142.70658997708557
+                        }
+                    }
+                }, {
+                    "id": "sasuke",
+                    "date": "2021-04-10",
+                    "amount": "unknown_type",
+                    "status": "sasuke",
+                    "items": [{
+                        "product_id": "sakura",
+                        "name": "ipsum Sample text for 95",
+                        "quantity": -26888,
+                        "price": 0.9,
+                        "categories": "sasuke"
+                    }, {
+                        "product_id": "sakura",
+                        "name": "lorem Sample text for 77",
+                        "quantity": -4878,
+                        "price": 0.68,
+                        "categories": "sakura"
+                    }, {
+                        "product_id": "sasuke",
+                        "name": "lorem Sample text for 60",
+                        "quantity": 3465,
+                        "price": 0.92,
+                        "categories": "sakura"
+                    }],
+                    "shipping_address": {
+                        "street": "ipsum Sample text for 69",
+                        "city": "sakura",
+                        "state": "sasuke",
+                        "zip": "sakura",
+                        "location": {
+                            "lat": -10.880093403565638,
+                            "lon": -167.79823045612983
+                        }
+                    }
+                }, {
+                    "id": "sasuke",
+                    "date": "2021-11-06",
+                    "amount": "unknown_type",
+                    "status": "sakura",
+                    "items": [{
+                        "product_id": "sakura",
+                        "name": "lorem Sample text for 55",
+                        "quantity": -22916,
+                        "price": 0.29,
+                        "categories": "naruto"
+                    }, {
+                        "product_id": "sasuke",
+                        "name": "lorem Sample text for 72",
+                        "quantity": -5256,
+                        "price": 0.45,
+                        "categories": "naruto"
+                    }],
+                    "shipping_address": {
+                        "street": "ipsum Sample text for 76",
+                        "city": "naruto",
+                        "state": "naruto",
+                        "zip": "sasuke",
+                        "location": {
+                            "lat": 89.19863809212737,
+                            "lon": 114.09913348615743
+                        }
+                    }
+                }],
+                "activity_log": [{
+                    "timestamp": "2020-06-26",
+                    "action": "naruto",
+                    "ip_address": "139.179.72.223",
+                    "details": {}
+                }],
+                "metadata": {
+                    "created_at": "2020-02-11",
+                    "updated_at": "2021-05-25",
+                    "tags": "sasuke",
+                    "source": "sakura",
+                    "version": 16
+                },
+                "description": "ipsum Sample text for 8",
+                "ranking_scores": {
+                    "popularity": 0.16,
+                    "relevance": 0.06,
+                    "quality": 0.72
+                },
+                "permissions": [{
+                    "user_id": "sakura",
+                    "role": "sasuke",
+                    "granted_at": "2020-01-23"
+                }, {
+                    "user_id": "sasuke",
+                    "role": "naruto",
+                    "granted_at": "2022-11-19"
+                }, {
+                    "user_id": "sakura",
+                    "role": "naruto",
+                    "granted_at": "2021-07-06"
+                }]
+            },
+            {
+                "user": {
+                    "id": "sakura",
+                    "email": "naruto",
+                    "name": "lorem Sample text for 57",
+                    "address": {
+                        "street": "ipsum Sample text for 83",
+                        "city": "sasuke",
+                        "state": "sasuke",
+                        "zip": "sakura",
+                        "location": {
+                            "lat": 32.588564110838846,
+                            "lon": -23.052179676898845
+                        }
+                    },
+                    "preferences": {}
+                },
+                "orders": [{
+                    "id": "sakura",
+                    "date": "2021-03-21",
+                    "amount": "unknown_type",
+                    "status": "sasuke",
+                    "items": [{
+                        "product_id": "sasuke",
+                        "name": "ipsum Sample text for 63",
+                        "quantity": 7348,
+                        "price": 0.37,
+                        "categories": "sasuke"
+                    }],
+                    "shipping_address": {
+                        "street": "ipsum Sample text for 34",
+                        "city": "naruto",
+                        "state": "sakura",
+                        "zip": "sasuke",
+                        "location": {
+                            "lat": -51.05656520056002,
+                            "lon": -17.084501461214813
+                        }
+                    }
+                }, {
+                    "id": "sakura",
+                    "date": "2021-01-21",
+                    "amount": "unknown_type",
+                    "status": "sasuke",
+                    "items": [{
+                        "product_id": "naruto",
+                        "name": "ipsum Sample text for 43",
+                        "quantity": 28814,
+                        "price": 0.91,
+                        "categories": "sakura"
+                    }, {
+                        "product_id": "sasuke",
+                        "name": "ipsum Sample text for 80",
+                        "quantity": -293,
+                        "price": 0.52,
+                        "categories": "naruto"
+                    }, {
+                        "product_id": "sakura",
+                        "name": "ipsum Sample text for 72",
+                        "quantity": -31854,
+                        "price": 0.54,
+                        "categories": "sakura"
+                    }],
+                    "shipping_address": {
+                        "street": "lorem Sample text for 19",
+                        "city": "sakura",
+                        "state": "sasuke",
+                        "zip": "sasuke",
+                        "location": {
+                            "lat": 40.539565425667945,
+                            "lon": 59.77455111107835
+                        }
+                    }
+                }],
+                "activity_log": [{
+                    "timestamp": "2021-04-14",
+                    "action": "sakura",
+                    "ip_address": "155.140.52.23",
+                    "details": {}
+                }],
+                "metadata": {
+                    "created_at": "2021-06-22",
+                    "updated_at": "2020-09-06",
+                    "tags": "naruto",
+                    "source": "naruto",
+                    "version": 9
+                },
+                "description": "ipsum Sample text for 55",
+                "ranking_scores": {
+                    "popularity": 0.49,
+                    "relevance": 0.23,
+                    "quality": 0.32
+                },
+                "permissions": [{
+                    "user_id": "sakura",
+                    "role": "sasuke",
+                    "granted_at": "2020-07-29"
+                }, {
+                    "user_id": "naruto",
+                    "role": "sasuke",
+                    "granted_at": "2021-01-19"
+                }]
+            }
         ]
 
 
@@ -536,9 +926,9 @@ class TestMappingStrategy:
         docs = [future.result() for future in futures_across_workers]
 
         assert len(docs) == 3
-        assert "Mark S" == docs[0][0]["tags"]
-        assert "Helly R" == docs[1][0]["tags"]
-        assert "Irving B" == docs[2][0]["tags"]
+        assert docs[0][0]['tags'] == 'Mark S'
+        assert docs[1][0]['tags'] == 'Helly R'
+        assert docs[2][0]['tags'] == 'Irving B'
 
         for doc in docs:
             for field in fields:

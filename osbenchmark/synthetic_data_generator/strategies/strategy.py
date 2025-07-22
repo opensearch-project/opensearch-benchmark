@@ -11,10 +11,7 @@ from typing import Optional, Callable
 
 from dask.distributed import Client
 
-
-from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorMetadata
-
-class DataGenerationStrategy:
+class DataGenerationStrategy(ABC):
 
     @abstractmethod
     def generate_data_chunks_across_workers(self, dask_client: Client, docs_per_chunk: int, seeds: list ) -> list:
@@ -31,14 +28,11 @@ class DataGenerationStrategy:
 
         returns: list of documents
         """
-        pass
 
     @abstractmethod
     def generate_test_document(self) -> dict:
         """Generate test document from data generation logic"""
-        pass
 
     @abstractmethod
     def calculate_avg_doc_size(self) -> int:
         """Calculates avg doc size based on data generation logic"""
-        pass

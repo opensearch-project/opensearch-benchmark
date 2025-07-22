@@ -9,22 +9,18 @@
 import logging
 from types import ModuleType
 from typing import Optional, Callable
-import time
 import os
-import hashlib
-import importlib.util
 
-from dask.distributed import Client, get_client, as_completed
+from dask.distributed import Client
 from mimesis import Generic
 from mimesis.locales import Locale
 from mimesis.random import Random
 from mimesis.providers.base import BaseProvider
-from tqdm import tqdm
 
 from osbenchmark.exceptions import ConfigError
 from osbenchmark.synthetic_data_generator.strategies import DataGenerationStrategy
 from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorMetadata
-from osbenchmark.synthetic_data_generator.helpers import write_chunk, get_generation_settings, setup_custom_tqdm_formatting
+from osbenchmark.synthetic_data_generator.helpers import write_chunk
 
 class CustomModuleStrategy(DataGenerationStrategy):
     def __init__(self, sdg_metadata: SyntheticDataGeneratorMetadata,  sdg_config: dict, custom_module: ModuleType) -> None:
@@ -48,6 +44,7 @@ class CustomModuleStrategy(DataGenerationStrategy):
 
         self.logger = logging.getLogger(__name__)
 
+    # pylint: disable=arguments-differ
     def generate_data_chunks_across_workers(self, dask_client: Client, docs_per_chunk: int, seeds: list ) -> list:
         """
         Submits workers to generate data chunks and returns Dask futures

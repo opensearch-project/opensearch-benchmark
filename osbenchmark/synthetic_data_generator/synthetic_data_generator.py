@@ -10,7 +10,6 @@ import os
 import logging
 import time
 import hashlib
-from abc import ABC, abstractmethod
 
 from dask.distributed import Client, get_client, as_completed
 from tqdm import tqdm
@@ -57,7 +56,7 @@ class SyntheticDataGenerator:
         """
         Core logic in generating synthetic data. Can use different strategies
         """
-        generation_settings: dict[str, int] = get_generation_settings(self.sdg_config)
+        generation_settings: dict = get_generation_settings(self.sdg_config)
         max_file_size_bytes: int = (generation_settings.get('max_file_size_gb') or 0) * GB_TO_BYTES
         total_size_bytes: int = self.sdg_metadata.total_size_gb * GB_TO_BYTES
         docs_per_chunk: int = generation_settings.get('docs_per_chunk')
