@@ -211,7 +211,7 @@ def load_redline_config():
     benchmark_home = os.environ.get('BENCHMARK_HOME') or os.environ['HOME']
     benchmark_ini = benchmark_home + '/.benchmark/benchmark.ini'
     if not os.path.isfile(benchmark_ini):
-        print(f"WARNING: redline config file {benchmark_ini} not found. Proceeding with default values.")
+        console.println(f"WARNING: redline config file {benchmark_ini} not found. Proceeding with default values.")
         return {}
 
     config.read(benchmark_ini)
