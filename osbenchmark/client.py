@@ -23,23 +23,24 @@
 # under the License.
 
 import io
+import os
 import logging
 import time
+from urllib.parse import parse_qsl
+import ssl
 import urllib3
 import boto3
-
 import aiohttp
 import certifi
 from opensearchpy import AsyncOpenSearch, OpenSearch, Urllib3HttpConnection
 from opensearchpy.serializer import JSONSerializer
 from urllib3.util.ssl_ import is_ipaddress
 from botocore.session import get_session
-from botocore.credentials import RefreshableCredentials
+from botocore.credentials import Credentials, RefreshableCredentials
 from botocore.auth import SigV4Auth
 from botocore.awsrequest import AWSRequest
 from osbenchmark.async_connection import AsyncHttpConnection
 from osbenchmark.kafka_client import KafkaMessageProducer
-
 from osbenchmark import exceptions
 from osbenchmark.context import RequestContextHolder
 from osbenchmark.utils import console, convert
@@ -86,7 +87,6 @@ class PerRequestSigV4Async:
         # Parse the raw query string into key/value tuples, preserving blank values
         params = []
         if raw_query_string:
-            from urllib.parse import parse_qsl
             params = parse_qsl(raw_query_string, keep_blank_values=True)
 
         # Build the AWSRequest for signing
@@ -156,7 +156,6 @@ class OsClientFactory:
         self.logger.info("Creating OpenSearch client connected to %s with options [%s]", hosts, masked_client_options)
 
         if self.client_options.pop("use_ssl", False):
-            import ssl
             self.logger.info("SSL support: on")
             self.client_options["scheme"] = "https"
 
@@ -186,21 +185,18 @@ class OsClientFactory:
             pass
         if self._is_set(self.client_options, "enable_cleanup_closed"):
             self.client_options["enable_cleanup_closed"] = convert.to_bool(self.client_options.pop("enable_cleanup_closed"))
-        
+
         if "amazon_aws_log_in" in self.client_options:
             # detect static env creds first
             creds_id = self.aws_log_in_dict.get("aws_access_key_id")
             creds_secret = self.aws_log_in_dict.get("aws_secret_access_key")
             creds_token = self.aws_log_in_dict.get("aws_session_token")
             if creds_id and creds_secret:
-                from botocore.credentials import Credentials
                 bc_sess = get_session()
                 bc_sess._credentials = Credentials(creds_id, creds_secret, creds_token)
                 self._aws_auth = PerRequestSigV4(bc_sess, self.aws_log_in_dict["service"], self.aws_log_in_dict["region"])
                 self._aws_auth_async = PerRequestSigV4Async(bc_sess, self.aws_log_in_dict["service"], self.aws_log_in_dict["region"])
             else:
-                import os
-                from osbenchmark import exceptions
                 role_arn = os.getenv("OSB_ROLE_ARN")
                 if not role_arn:
                     raise exceptions.SystemSetupError(
@@ -256,15 +252,12 @@ class OsClientFactory:
         else:
             # non-AWS code path
             self._client = OpenSearch(hosts=self.hosts, ssl_context=self.ssl_context, **self.client_options)
-            from osbenchmark.async_connection import AsyncHttpConnection as _AsyncConn
-            self._async_client = AsyncOpenSearch(hosts=self.hosts, connection_class=_AsyncConn, ssl_context=self.ssl_context, **self.client_options)
+            self._async_client = AsyncOpenSearch(hosts=self.hosts, connection_class=AsyncHttpConnection, ssl_context=self.ssl_context, **self.client_options)
 
     def create(self):
-        print("Returning sync client...")
         return self._client
 
     def create_async(self):
-        print("Returning async client...")
         return self._async_client
 
     @staticmethod
@@ -293,7 +286,6 @@ class OsClientFactory:
 
     def parse_aws_log_in_params(self):
         # pylint: disable=import-outside-toplevel
-        import os
         aws_log_in_dict = {}
         # aws log in : option 1) pass in parameters from os environment variables
         if self.client_options["amazon_aws_log_in"] == "environment":
@@ -326,14 +318,6 @@ class OsClientFactory:
                     aws_log_in_dict["service"])
             )
         return aws_log_in_dict
-
-    def create(self):
-        # pylint: disable=import-outside-toplevel
-        return self._client
-
-    def create_async(self):
-        # pylint: disable=import-outside-toplevel
-        return self._async_client
 
 
 def wait_for_rest_layer(opensearch, max_attempts=40):
