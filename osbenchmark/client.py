@@ -22,18 +22,113 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import io
 import logging
 import time
-
-import certifi
 import urllib3
+import boto3
+
+import aiohttp
+import certifi
+from opensearchpy import AsyncOpenSearch, OpenSearch, Urllib3HttpConnection
+from opensearchpy.serializer import JSONSerializer
 from urllib3.util.ssl_ import is_ipaddress
+from botocore.session import get_session
+from botocore.credentials import RefreshableCredentials
+from botocore.auth import SigV4Auth
+from botocore.awsrequest import AWSRequest
+from osbenchmark.async_connection import AsyncHttpConnection
 from osbenchmark.kafka_client import KafkaMessageProducer
 
-from osbenchmark import exceptions, doc_link
+from osbenchmark import exceptions
 from osbenchmark.context import RequestContextHolder
 from osbenchmark.utils import console, convert
 
+class PerRequestSigV4:
+    """
+    Sync HTTP auth matching the 3-arg signature (method, url, body).
+
+    Uses botocore RefreshableCredentials under the hood: each call to
+    `get_frozen_credentials()` checks expiry and triggers a refresh
+    callback if the credentials are stale or near expiry, ensuring
+    every HTTP request is signed with valid SigV4 credentials.
+    """
+    def __init__(self, botocore_session, service, region):
+        self.bc_session = botocore_session
+        self.service = service
+        self.region = region
+
+    def __call__(self, method, url, body):
+        # `get_frozen_credentials()` will auto-refresh if creds are expired or close to expiry
+        creds = self.bc_session.get_credentials().get_frozen_credentials()
+        aws_req = AWSRequest(method=method, url=url, data=body, headers={})
+        SigV4Auth(creds, self.service, self.region).add_auth(aws_req)
+        return dict(aws_req.headers.items())
+
+class PerRequestSigV4Async:
+    """
+    Async HTTP auth matching the 4-arg signature
+    (method: str, url: str, raw_query_string: str, body: bytes) -> dict
+    used by AIOHTTPConnection.perform_request.
+
+    raw_query_string is the URL-encoded query portion of the request,
+    e.g. "foo=bar&baz=qux" or an empty string if no query params.
+    """
+    def __init__(self, botocore_session, service, region):
+        self.bc_session = botocore_session
+        self.service = service
+        self.region = region
+
+    def __call__(self, method: str, url: str, raw_query_string: str, body: bytes) -> dict:
+        # Grab frozen credentials; auto-refresh under the hood
+        creds = self.bc_session.get_credentials().get_frozen_credentials()
+
+        # Parse the raw query string into key/value tuples, preserving blank values
+        params = []
+        if raw_query_string:
+            from urllib.parse import parse_qsl
+            params = parse_qsl(raw_query_string, keep_blank_values=True)
+
+        # Build the AWSRequest for signing
+        aws_req = AWSRequest(
+            method=method,
+            url=url,
+            params=params,
+            data=body,
+            headers={},
+        )
+
+        # Sign with SigV4
+        SigV4Auth(creds, self.service, self.region).add_auth(aws_req)
+
+        # Return signed headers as a simple dict
+        return dict(aws_req.headers.items())
+
+class LazyJSONSerializer(JSONSerializer):
+    def loads(self, s):
+        meta = BenchmarkAsyncOpenSearch.request_context.get()
+        if "raw_response" in meta:
+            return io.BytesIO(s)
+        return super().loads(s)
+
+async def on_request_start(session, trace_config_ctx, params):
+    BenchmarkAsyncOpenSearch.on_request_start()
+
+async def on_request_end(session, trace_config_ctx, params):
+    BenchmarkAsyncOpenSearch.on_request_end()
+
+trace_config = aiohttp.TraceConfig()
+trace_config.on_request_start.append(on_request_start)
+trace_config.on_request_end.append(on_request_end)
+trace_config.on_request_exception.append(on_request_end)
+
+class AWSV4AIOHttpConnection(AsyncHttpConnection):
+    def __init__(self, *args, http_auth=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._http_auth = http_auth
+
+class BenchmarkAsyncOpenSearch(AsyncOpenSearch, RequestContextHolder):
+    pass
 
 class OsClientFactory:
     """
@@ -60,9 +155,7 @@ class OsClientFactory:
                 masked_client_options["aws_session_token"] = "*****"
         self.logger.info("Creating OpenSearch client connected to %s with options [%s]", hosts, masked_client_options)
 
-        # we're using an SSL context now and it is not allowed to have use_ssl present in client options anymore
         if self.client_options.pop("use_ssl", False):
-            # pylint: disable=import-outside-toplevel
             import ssl
             self.logger.info("SSL support: on")
             self.client_options["scheme"] = "https"
@@ -71,53 +164,12 @@ class OsClientFactory:
                                                           cafile=self.client_options.pop("ca_certs", certifi.where()))
 
             if not self.client_options.pop("verify_certs", True):
-                self.logger.info("SSL certificate verification: off")
-                # order matters to avoid ValueError: check_hostname needs a SSL context with either CERT_OPTIONAL or CERT_REQUIRED
                 self.ssl_context.check_hostname = False
                 self.ssl_context.verify_mode = ssl.CERT_NONE
-
-                self.logger.warning("User has enabled SSL but disabled certificate verification. This is dangerous but may be ok for a "
-                                    "benchmark. Disabling urllib warnings now to avoid a logging storm. "
-                                    "See https://urllib3.readthedocs.io/en/latest/advanced-usage.html#ssl-warnings for details.")
-                # disable:  "InsecureRequestWarning: Unverified HTTPS request is being made. Adding certificate verification is strongly \
-                # advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#ssl-warnings"
                 urllib3.disable_warnings()
             else:
-                # The peer's hostname can be matched if only a hostname is provided.
-                # In other words, hostname checking is disabled if an IP address is
-                # found in the host lists.
                 self.ssl_context.check_hostname = self._has_only_hostnames(hosts)
-                self.ssl_context.verify_mode=ssl.CERT_REQUIRED
-                self.logger.info("SSL certificate verification: on")
-
-            # When using SSL_context, all SSL related kwargs in client options get ignored
-            client_cert = self.client_options.pop("client_cert", False)
-            client_key = self.client_options.pop("client_key", False)
-
-            if not client_cert and not client_key:
-                self.logger.info("SSL client authentication: off")
-            elif bool(client_cert) != bool(client_key):
-                self.logger.error(
-                    "Supplied client-options contain only one of client_cert/client_key. "
-                )
-                defined_client_ssl_option = "client_key" if client_key else "client_cert"
-                missing_client_ssl_option = "client_cert" if client_key else "client_key"
-                console.println(
-                    "'{}' is missing from client-options but '{}' has been specified.\n"
-                    "If your OpenSearch setup requires client certificate verification both need to be supplied.\n"
-                    "Read the documentation at {}\n".format(
-                        missing_client_ssl_option,
-                        defined_client_ssl_option,
-                        console.format.link(doc_link("command_line_reference.html#client-options")))
-                )
-                raise exceptions.SystemSetupError(
-                    "Cannot specify '{}' without also specifying '{}' in client-options.".format(
-                        defined_client_ssl_option,
-                        missing_client_ssl_option))
-            elif client_cert and client_key:
-                self.logger.info("SSL client authentication: on")
-                self.ssl_context.load_cert_chain(certfile=client_cert,
-                                                 keyfile=client_key)
+                self.ssl_context.verify_mode = ssl.CERT_REQUIRED
         else:
             self.logger.info("SSL support: off")
             self.client_options["scheme"] = "http"
@@ -129,16 +181,91 @@ class OsClientFactory:
             self.logger.info("HTTP basic authentication: off")
 
         if self._is_set(self.client_options, "compressed"):
-            console.warn("You set the deprecated client option 'compressed'. Please use 'http_compress' instead.", logger=self.logger)
             self.client_options["http_compress"] = self.client_options.pop("compressed")
-
         if self._is_set(self.client_options, "http_compress"):
-            self.logger.info("HTTP compression: on")
-        else:
-            self.logger.info("HTTP compression: off")
-
+            pass
         if self._is_set(self.client_options, "enable_cleanup_closed"):
             self.client_options["enable_cleanup_closed"] = convert.to_bool(self.client_options.pop("enable_cleanup_closed"))
+        
+        if "amazon_aws_log_in" in self.client_options:
+            # detect static env creds first
+            creds_id = self.aws_log_in_dict.get("aws_access_key_id")
+            creds_secret = self.aws_log_in_dict.get("aws_secret_access_key")
+            creds_token = self.aws_log_in_dict.get("aws_session_token")
+            if creds_id and creds_secret:
+                from botocore.credentials import Credentials
+                bc_sess = get_session()
+                bc_sess._credentials = Credentials(creds_id, creds_secret, creds_token)
+                self._aws_auth = PerRequestSigV4(bc_sess, self.aws_log_in_dict["service"], self.aws_log_in_dict["region"])
+                self._aws_auth_async = PerRequestSigV4Async(bc_sess, self.aws_log_in_dict["service"], self.aws_log_in_dict["region"])
+            else:
+                import os
+                from osbenchmark import exceptions
+                role_arn = os.getenv("OSB_ROLE_ARN")
+                if not role_arn:
+                    raise exceptions.SystemSetupError(
+                        "Environment variable OSB_ROLE_ARN must be set to the IAM Role ARN for AWS log-in"
+                    )
+                sts = boto3.client("sts")
+                def _refresh():
+                    resp = sts.assume_role(
+                        RoleArn=role_arn,
+                        RoleSessionName="osbRefreshSession",
+                        DurationSeconds=43200,
+                    )
+                    creds = resp["Credentials"]
+                    return {
+                        "access_key": creds["AccessKeyId"],
+                        "secret_key": creds["SecretAccessKey"],
+                        "token": creds["SessionToken"],
+                        "expiry_time": creds["Expiration"].isoformat(),
+                    }
+                metadata = _refresh()
+                refreshable = RefreshableCredentials.create_from_metadata(
+                    metadata=metadata,
+                    refresh_using=_refresh,
+                    method="sts-session"
+                )
+                bc_sess = get_session()
+                bc_sess._credentials = refreshable
+                self._aws_auth = PerRequestSigV4(bc_sess, self.aws_log_in_dict["service"], self.aws_log_in_dict["region"])
+                self._aws_auth_async = PerRequestSigV4Async(bc_sess, self.aws_log_in_dict["service"], self.aws_log_in_dict["region"])
+
+            # instantiate sync client
+            self._client = OpenSearch(
+                hosts=self.hosts,
+                http_auth=self._aws_auth,
+                use_ssl=True,
+                verify_certs=True,
+                ssl_context=self.ssl_context,
+                connection_class=Urllib3HttpConnection,
+                **self.client_options
+            )
+            # instantiate async client
+            self._async_client = BenchmarkAsyncOpenSearch(
+                hosts=self.hosts,
+                http_auth=self._aws_auth_async,
+                use_ssl=True,
+                verify_certs=True,
+                ssl_context=self.ssl_context,
+                connection_class=AWSV4AIOHttpConnection,
+                serializer=LazyJSONSerializer(),
+                trace_config=trace_config,
+                **self.client_options
+            )
+        else:
+            # non-AWS code path
+            self._client = OpenSearch(hosts=self.hosts, ssl_context=self.ssl_context, **self.client_options)
+            from osbenchmark.async_connection import AsyncHttpConnection as _AsyncConn
+            self._async_client = AsyncOpenSearch(hosts=self.hosts, connection_class=_AsyncConn, ssl_context=self.ssl_context, **self.client_options)
+
+    def create(self):
+        print("Returning sync client...")
+        return self._client
+
+    def create_async(self):
+        print("Returning async client...")
+        return self._async_client
 
     @staticmethod
     def _has_only_hostnames(hosts):
@@ -202,72 +329,11 @@ class OsClientFactory:
 
     def create(self):
         # pylint: disable=import-outside-toplevel
-        import opensearchpy
-        from botocore.credentials import Credentials
-
-        if "amazon_aws_log_in" not in self.client_options:
-            return opensearchpy.OpenSearch(hosts=self.hosts, ssl_context=self.ssl_context, **self.client_options)
-
-        credentials = Credentials(access_key=self.aws_log_in_dict["aws_access_key_id"],
-                                  secret_key=self.aws_log_in_dict["aws_secret_access_key"],
-                                  token=self.aws_log_in_dict["aws_session_token"])
-        aws_auth = opensearchpy.Urllib3AWSV4SignerAuth(credentials, self.aws_log_in_dict["region"],
-                                                self.aws_log_in_dict["service"])
-        return opensearchpy.OpenSearch(hosts=self.hosts, use_ssl=True, verify_certs=True, http_auth=aws_auth,
-                                       connection_class=opensearchpy.Urllib3HttpConnection)
+        return self._client
 
     def create_async(self):
         # pylint: disable=import-outside-toplevel
-        import opensearchpy
-        import osbenchmark.async_connection
-        import io
-        import aiohttp
-
-        from opensearchpy.serializer import JSONSerializer
-        from botocore.credentials import Credentials
-
-        class LazyJSONSerializer(JSONSerializer):
-            def loads(self, s):
-                meta = BenchmarkAsyncOpenSearch.request_context.get()
-                if "raw_response" in meta:
-                    return io.BytesIO(s)
-                else:
-                    return super().loads(s)
-
-        async def on_request_start(session, trace_config_ctx, params):
-            BenchmarkAsyncOpenSearch.on_request_start()
-
-        async def on_request_end(session, trace_config_ctx, params):
-            BenchmarkAsyncOpenSearch.on_request_end()
-
-        trace_config = aiohttp.TraceConfig()
-        trace_config.on_request_start.append(on_request_start)
-        trace_config.on_request_end.append(on_request_end)
-        # ensure that we also stop the timer when a request "ends" with an exception (e.g. a timeout)
-        trace_config.on_request_exception.append(on_request_end)
-
-        # override the builtin JSON serializer
-        self.client_options["serializer"] = LazyJSONSerializer()
-        self.client_options["trace_config"] = trace_config
-
-        class BenchmarkAsyncOpenSearch(opensearchpy.AsyncOpenSearch, RequestContextHolder):
-            pass
-
-        if "amazon_aws_log_in" not in self.client_options:
-            return BenchmarkAsyncOpenSearch(hosts=self.hosts,
-                                            connection_class=osbenchmark.async_connection.AIOHttpConnection,
-                                            ssl_context=self.ssl_context,
-                                            **self.client_options)
-
-        credentials = Credentials(access_key=self.aws_log_in_dict["aws_access_key_id"],
-                                  secret_key=self.aws_log_in_dict["aws_secret_access_key"],
-                                  token=self.aws_log_in_dict["aws_session_token"])
-        aws_auth = opensearchpy.AWSV4SignerAsyncAuth(credentials, self.aws_log_in_dict["region"],
-                                                     self.aws_log_in_dict["service"])
-        return BenchmarkAsyncOpenSearch(hosts=self.hosts,
-                                        connection_class=osbenchmark.async_connection.AsyncHttpConnection,
-                                        use_ssl=True, verify_certs=True, http_auth=aws_auth,
-                                        **self.client_options)
+        return self._async_client
 
 
 def wait_for_rest_layer(opensearch, max_attempts=40):
