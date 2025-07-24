@@ -1184,9 +1184,7 @@ class Query(Runner):
                     breakdown = query['breakdown']
                     # metric_timings["query_time"] += query["time_in_nanos"]
                     for metric in metric_timings.keys():
-                        if metric == "exact_search" and query['type'] == "KNNQuery":
-                            metric_timings[metric] += breakdown["exact_search_after_ann"] + breakdown["exact_search_after_filter"]
-                        elif metric in breakdown:
+                        if metric in breakdown:
                             metric_timings[metric] += breakdown[metric]
                     if "children" in query:
                         children = query['children']
