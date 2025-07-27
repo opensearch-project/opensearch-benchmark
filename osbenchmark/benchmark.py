@@ -113,7 +113,7 @@ def create_arg_parser():
         dest="subcommand",
         help="")
 
-    test_run_parser = subparsers.add_parser("run-test", help="Run a benchmark")
+    test_run_parser = subparsers.add_parser("run", help="Run a benchmark")
     # change in favor of "list telemetry", "list workloads", "list pipelines"
     list_parser = subparsers.add_parser("list", help="List configuration options")
     list_parser.add_argument(
@@ -1115,7 +1115,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "builder", "preserve.install", convert.to_bool(args.preserve_install))
             cfg.add(config.Scope.applicationOverride, "system", "install.id", args.installation_id)
             builder.stop(cfg)
-        elif sub_command == "run-test":
+        elif sub_command == "run":
             iterations = int(args.test_iterations)
             if iterations > 1:
                 test_runs = []
@@ -1193,6 +1193,19 @@ def dispatch_sub_command(arg_parser, args, cfg):
         return False
 
 
+def handle_command_suggestions():
+    """
+    Check for common command mistakes and provide helpful suggestions
+    Returns True if suggestion was provided, False otherwise
+    """
+    if len(sys.argv) > 1 and sys.argv[1] == "execute-test":
+        console.info("Did you mean 'run'?")
+        console.info("Example: opensearch-benchmark run --workload=geonames --test-mode")
+        console.info("For more information, run: opensearch-benchmark run --help")
+        return True
+    return False
+
+
 def main():
     check_python_version()
     log.install_default_log_config()
@@ -1202,6 +1215,10 @@ def main():
 
     # Early init of console output so we start to show everything consistently.
     console.init(quiet=False)
+
+    # Handle command suggestions before argument parsing
+    if handle_command_suggestions():
+        return
 
     arg_parser = create_arg_parser()
     args = arg_parser.parse_args()
