@@ -1198,7 +1198,8 @@ def handle_command_suggestions():
     Check for common command mistakes and provide helpful suggestions
     Returns True if suggestion was provided, False otherwise
     """
-    if len(sys.argv) > 1 and sys.argv[1] == "execute-test":
+    DEPRECATED_SUBCOMMANDS = ["execute-test", "execute"]
+    if len(sys.argv) > 1 and sys.argv[1] in DEPRECATED_SUBCOMMANDS:
         console.info("Did you mean 'run'?")
         console.info("Example: opensearch-benchmark run --workload=geonames --test-mode")
         console.info("For more information, run: opensearch-benchmark run --help")
@@ -1218,7 +1219,7 @@ def main():
 
     # Handle command suggestions before argument parsing
     if handle_command_suggestions():
-        return
+        sys.exit(1)
 
     arg_parser = create_arg_parser()
     args = arg_parser.parse_args()
