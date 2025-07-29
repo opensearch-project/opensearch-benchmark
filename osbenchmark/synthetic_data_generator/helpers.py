@@ -8,6 +8,7 @@
 
 import os
 import logging
+import io
 import json
 import shutil
 import importlib.util
@@ -17,6 +18,7 @@ import yaml
 
 from osbenchmark.utils import console
 from osbenchmark.exceptions import SystemSetupError, ExecutorError
+from osbenchmark.synthetic_data_generator.strategies.strategy import DataGenerationStrategy
 from osbenchmark.synthetic_data_generator.types import DEFAULT_GENERATION_SETTINGS, SyntheticDataGeneratorMetadata, GB_TO_BYTES
 
 def load_user_module(file_path):
@@ -45,17 +47,20 @@ def load_mapping(mapping_file_path):
 
     return mapping_dict
 
-def check_for_exsiting_files(output_path: str, index_name: str):
+def check_for_existing_files(output_path: str, index_name: str):
+    VALID_OPTIONS = ['y', 'yes', 'n', 'no']
+    ALTERNATIVES_FOR_YES = ['y', 'yes']
+
     logger = logging.getLogger(__name__)
     existing_files_found = existing_files_found_in_output_dir(output_path, index_name)
     if existing_files_found:
         user_decision = input(f"Files with the same expected names were found in the output directory {output_path}. " + \
                                 "Would you like to remove them (so that SDG does not append to them)? (y/n): ")
-        while user_decision.lower() not in ['y', 'n']:
-            user_decision = input(f"Files with the same expected names were found in the output directory {output_path}. " + \
+        while user_decision.lower() not in VALID_OPTIONS:
+            user_decision = input(f"Invalid response. Files with the same expected names were found in the output directory {output_path}. " + \
                                 "Would you like to remove them (so that SDG does not append to them)? (y/n): ")
 
-        if user_decision.lower() == "y":
+        if user_decision.lower() in ALTERNATIVES_FOR_YES:
             remove_existing_files(existing_files_found)
             logger.info("Files have been removed at: %s ", output_path)
             console.println(f"Files have been removed at: {output_path}\n")
@@ -76,8 +81,6 @@ def remove_existing_files(existing_files_found: list):
     try:
         for file in existing_files_found:
             os.remove(file)
-    except FileNotFoundError as e:
-        raise ExecutorError("OSB could not remove existing files for SDG because it does not exist: ", e)
     except OSError as e:
         raise ExecutorError("OSB could not remove existing files for SDG: ", e)
 
@@ -115,6 +118,17 @@ def write_chunk(data, file_path):
             f.write(json.dumps(item) + '\n')
             written_bytes += len(pickle.dumps(item))
     return len(data), written_bytes
+
+def calculate_avg_doc_size(strategy: DataGenerationStrategy):
+    # Didn't do pickle because this seems to be more accurate
+    output = strategy.generate_test_document()
+    buffer = io.StringIO()
+    json.dump(output, buffer)
+    size = len(buffer.getvalue())
+
+    buffer.close()
+
+    return size
 
 def get_generation_settings(input_config: dict) -> dict:
     '''
@@ -163,7 +177,7 @@ def setup_custom_tqdm_formatting(progress_bar):
     progress_bar.format_dict['elapsed'] = lambda e: format_time(e) # pylint: disable=unnecessary-lambda
     progress_bar.format_dict['remaining'] = lambda r: format_time(r) # pylint: disable=unnecessary-lambda
 
-def build_record(sdg_metadata: SyntheticDataGeneratorMetadata, total_time_to_generate_dataset, generated_dataset_details: dict) -> dict:
+def build_record(sdg_metadata: SyntheticDataGeneratorMetadata, total_time_to_generate_dataset: int, generated_dataset_details: dict) -> dict:
     total_docs_written = 0
     total_dataset_size_in_bytes = 0
     for file in generated_dataset_details:

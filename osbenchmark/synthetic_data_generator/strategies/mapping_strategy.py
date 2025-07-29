@@ -8,7 +8,6 @@
 
 import logging
 from typing import Optional, Callable, Dict, Any
-import os
 import random
 import datetime
 import uuid
@@ -21,7 +20,6 @@ from mimesis.random import Random
 from osbenchmark.exceptions import ConfigError, MappingsError
 from osbenchmark.synthetic_data_generator.strategies import DataGenerationStrategy
 from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorMetadata
-from osbenchmark.synthetic_data_generator.helpers import write_chunk
 
 class MappingStrategy(DataGenerationStrategy):
     def __init__(self, sdg_metadata: SyntheticDataGeneratorMetadata,  sdg_config: dict, index_mapping: dict) -> None:
@@ -46,11 +44,11 @@ class MappingStrategy(DataGenerationStrategy):
     def generate_data_chunk_from_worker(self, docs_per_chunk: int, seed: Optional[int]) -> list:
         """
         This method is submitted to Dask worker and can be thought of as the worker performing a job, which is calling the
-        MappingConverter's static method generate_fake_document() function to generate documents.
+        MappingConverter's static method generate_synthetic_document() function to generate documents.
         The worker will call the function N number of times to generate N docs of data before returning results.
 
         Note: This method reconstructs the MappingConverter because Dask coordinator requires serializing and deserializing objects
-        when passing them to a worker. Generates the generate_fake_document, which gets invoked N number of times
+        when passing them to a worker. Generates the generate_synthetic_document, which gets invoked N number of times
         before returning a list of documents.
 
         Returns: List of generated documents.
@@ -59,7 +57,7 @@ class MappingStrategy(DataGenerationStrategy):
         mapping_generator_logic = MappingConverter(self.mapping_generation_values, seed)
         mappings_with_generators = mapping_generator_logic.transform_mapping_to_generators(self.index_mapping)
 
-        documents = [MappingConverter.generate_fake_document(mappings_with_generators) for _ in range(docs_per_chunk)]
+        documents = [MappingConverter.generate_synthetic_document(mappings_with_generators) for _ in range(docs_per_chunk)]
 
         return documents
 
@@ -67,17 +65,7 @@ class MappingStrategy(DataGenerationStrategy):
         mapping_converter = MappingConverter(self.mapping_generation_values)
         converted_mappings = mapping_converter.transform_mapping_to_generators(self.index_mapping)
 
-        return MappingConverter.generate_fake_document(transformed_mapping=converted_mappings)
-
-    def calculate_avg_doc_size(self):
-        # Didn't do pickle because this seems to be more accurate
-        output = [self.generate_test_document()]
-        write_chunk(output, '/tmp/test-size.json')
-
-        size = os.path.getsize('/tmp/test-size.json')
-        os.remove('/tmp/test-size.json')
-
-        return size
+        return MappingConverter.generate_synthetic_document(transformed_mapping=converted_mappings)
 
 class MappingConverter:
     def __init__(self, mapping_generation_values=None, seed=1):
@@ -110,7 +98,7 @@ class MappingConverter:
         }
 
     @staticmethod
-    def generate_fake_document(transformed_mapping: Dict[str, Callable]) -> Dict[str, Any]:
+    def generate_synthetic_document(transformed_mapping: Dict[str, Callable]) -> Dict[str, Any]:
         """
         Generate a document using the generator functions
 
@@ -118,7 +106,7 @@ class MappingConverter:
             transformed_mapping: Dictionary of generator functions
 
         Returns:
-            document containing lambdas that cna be invoked to generate data
+            document containing lambdas that can be invoked to generate data
         """
         document = {}
         for field_name, generator in transformed_mapping.items():

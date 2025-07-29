@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from osbenchmark.utils import console
 from osbenchmark.synthetic_data_generator.types import GB_TO_BYTES
-from osbenchmark.synthetic_data_generator.helpers import write_chunk, get_generation_settings, setup_custom_tqdm_formatting, check_for_exsiting_files
+from osbenchmark.synthetic_data_generator import helpers
 from osbenchmark.synthetic_data_generator.strategies import DataGenerationStrategy
 from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorMetadata
 
@@ -56,12 +56,12 @@ class SyntheticDataGenerator:
         """
         Core logic in generating synthetic data. Can use different strategies
         """
-        generation_settings: dict = get_generation_settings(self.sdg_config)
-        max_file_size_bytes: int = (generation_settings.get('max_file_size_gb') or 0) * GB_TO_BYTES
+        generation_settings: dict = helpers.get_generation_settings(self.sdg_config)
+        max_file_size_bytes: int = generation_settings.get('max_file_size_gb') * GB_TO_BYTES
         total_size_bytes: int = self.sdg_metadata.total_size_gb * GB_TO_BYTES
         docs_per_chunk: int = generation_settings.get('docs_per_chunk')
 
-        avg_document_size = self.strategy.calculate_avg_doc_size()
+        avg_document_size = helpers.calculate_avg_doc_size(strategy=self.strategy)
 
         current_size = 0
         docs_written = 0
@@ -69,14 +69,16 @@ class SyntheticDataGenerator:
 
         generated_dataset_details = []
 
-        check_for_exsiting_files(self.sdg_metadata.output_path, self.sdg_metadata.index_name)
+        helpers.check_for_existing_files(self.sdg_metadata.output_path, self.sdg_metadata.index_name)
 
         workers: int = generation_settings.get("workers")
         dask_client = Client(n_workers=workers, threads_per_worker=1)  # We keep it to 1 thread because generating random data is CPU intensive
         self.logger.info("Number of workers to use: [%s]", workers)
 
         console.println(f"[NOTE] ✨ Dashboard link to monitor processes and task streams: [{dask_client.dashboard_link}]")
-        console.println("[NOTE] ✨ For users who are running generation on a virtual machine, consider tunneling to localhost to view dashboard.")
+        console.println("[NOTE] ✨ For users who are running generation on a virtual machine, consider SSH port forwarding (tunneling) to localhost to view dashboard.")
+        console.println("[NOTE] Example of localhost command for SSH port forwarding (tunneling) from an AWS EC2 instance: ")
+        console.println("ssh -i <PEM filepath> -N -L localhost:8787:localhost:8787 ec2-user@<DNS>")
         console.println("")
 
         self.logger.info("Average document size in bytes: [%s]", avg_document_size)
@@ -94,7 +96,7 @@ class SyntheticDataGenerator:
                     unit_scale=True,
                     bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]") as progress_bar:
 
-            setup_custom_tqdm_formatting(progress_bar)
+            helpers.setup_custom_tqdm_formatting(progress_bar)
             while current_size < total_size_bytes:
                 file_path = os.path.join(self.sdg_metadata.output_path, f"{self.sdg_metadata.index_name}_{file_counter}.json")
                 file_size = 0
@@ -110,7 +112,8 @@ class SyntheticDataGenerator:
 
                     writing_start_time = time.time()
                     for _, data in as_completed(futures, with_results=True):
-                        docs_written_from_chunk, written_bytes = write_chunk(data, file_path)
+                        self.logger.info("Future [%s] completed.", _)
+                        docs_written_from_chunk, written_bytes = helpers.write_chunk(data, file_path)
                         docs_written += docs_written_from_chunk
                         current_size += written_bytes
                         progress_bar.update(written_bytes)

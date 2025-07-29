@@ -55,7 +55,7 @@ class MultipleChoices(BaseProvider):
 
         return [choices[random.randint(0, total_choices_available)] for _ in range(num_of_choices)]
 
-def generate_fake_document(providers, **custom_lists):
+def generate_synthetic_document(providers, **custom_lists):
     generic = providers['generic']
     random_mimesis = providers['random']
 

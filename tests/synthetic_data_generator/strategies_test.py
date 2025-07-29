@@ -142,7 +142,7 @@ class TestCustomStrategy:
             assert field_name in document
 
     def test_avg_doc_size(self, custom_module_strategy):
-        avg_doc_size = custom_module_strategy.calculate_avg_doc_size()
+        avg_doc_size = helpers.calculate_avg_doc_size(custom_module_strategy)
         assert isinstance(avg_doc_size, int)
 
     def test_generate_data_chunks_across_workers(self, dask_client, custom_module_strategy):
@@ -155,7 +155,7 @@ class TestCustomStrategy:
         assert docs[2][0]['dog_name'] == 'Youpie'
 
     def test_generate_data_chunk_from_worker(self, sample_field_names, custom_module_strategy):
-        user_defined_function = custom_module_strategy.custom_module.generate_fake_document
+        user_defined_function = custom_module_strategy.custom_module.generate_synthetic_document
         data_chunk = custom_module_strategy.generate_data_chunk_from_worker(user_defined_function, 3, 12345)
 
         assert len(data_chunk) == 3
@@ -164,11 +164,11 @@ class TestCustomStrategy:
             for field in sample_field_names:
                 assert field in document
 
-    def test_custom_module_missing_generate_fake_document_function(self, setup_sdg_metadata, mock_sdg_config):
+    def test_custom_module_missing_generate_synthetic_document_function(self, setup_sdg_metadata, mock_sdg_config):
         sample_module_path = f"{os.path.dirname(os.path.realpath(__file__))}/incorrect_sample_custom_module.py"
         custom_module = helpers.load_user_module(sample_module_path)
 
-        error_msg_expected = re.escape("Custom module at [/path/to/module] does not define a function called generate_fake_document(). Ensure that this method is defined.")
+        error_msg_expected = re.escape("Custom module at [/path/to/module] does not define a function called generate_synthetic_document(). Ensure that this method is defined.")
         with pytest.raises(ConfigError, match=error_msg_expected):
             CustomModuleStrategy(setup_sdg_metadata, mock_sdg_config, custom_module)
 
@@ -917,7 +917,7 @@ class TestMappingStrategy:
             assert field_name in document
 
     def test_avg_doc_size(self, mapping_strategy_with_basic_mappings):
-        avg_doc_size = mapping_strategy_with_basic_mappings.calculate_avg_doc_size()
+        avg_doc_size = helpers.calculate_avg_doc_size(mapping_strategy_with_basic_mappings)
         assert isinstance(avg_doc_size, int)
 
     def test_generate_data_chunks_across_workers(self, dask_client, mapping_strategy_with_basic_mappings):
@@ -1243,7 +1243,7 @@ class TestMappingConverter:
     def test_generating_documents_from_basic_mappings(self, mapping_converter, basic_opensearch_index_mappings):
         mappings_with_generators = mapping_converter.transform_mapping_to_generators(basic_opensearch_index_mappings)
 
-        document = MappingConverter.generate_fake_document(transformed_mapping=mappings_with_generators)
+        document = MappingConverter.generate_synthetic_document(transformed_mapping=mappings_with_generators)
 
         fields = ["title", "description", "price", "created_at", "is_available", "category_id", "tags"]
         for field in fields:
@@ -1253,7 +1253,7 @@ class TestMappingConverter:
     def test_generating_documents_for_complex_mappings(self, mapping_converter, complex_opensearch_index_mappings):
         mappings_with_generators = mapping_converter.transform_mapping_to_generators(complex_opensearch_index_mappings)
 
-        document = MappingConverter.generate_fake_document(transformed_mapping=mappings_with_generators)
+        document = MappingConverter.generate_synthetic_document(transformed_mapping=mappings_with_generators)
 
         fields = ["user", "orders", "activity_log", "metadata", "description", "ranking_scores", "permissions"]
         for field in fields:
@@ -1278,7 +1278,7 @@ class TestMappingConverter:
         }
 
         mappings_with_generators_and_overrides = mapping_converter.transform_mapping_to_generators(basic_mappings)
-        document = MappingConverter.generate_fake_document(transformed_mapping=mappings_with_generators_and_overrides)
+        document = MappingConverter.generate_synthetic_document(transformed_mapping=mappings_with_generators_and_overrides)
 
         fields = ["id", "amount", "created_at", "status"]
 

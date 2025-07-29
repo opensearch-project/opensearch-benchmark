@@ -32,7 +32,3 @@ class DataGenerationStrategy(ABC):
     @abstractmethod
     def generate_test_document(self) -> dict:
         """Generate test document from data generation logic"""
-
-    @abstractmethod
-    def calculate_avg_doc_size(self) -> int:
-        """Calculates avg doc size based on data generation logic"""

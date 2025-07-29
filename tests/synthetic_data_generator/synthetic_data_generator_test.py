@@ -39,7 +39,7 @@ class TestSyntheticDataGeneratorWithCustomStrategy:
     @pytest.fixture
     def mock_custom_module(self):
         mock_module = MagicMock
-        mock_module.generate_fake_document = MagicMock(return_value={'fake_field': 'fake_value'})
+        mock_module.generate_synthetic_document = MagicMock(return_value={'synthetic_field': 'synthetic_value'})
 
         return mock_module
 
@@ -120,7 +120,7 @@ class TestSyntheticDataGeneratorWithMappingStrategy:
     @pytest.fixture
     def mock_custom_module(self):
         mock_module = MagicMock
-        mock_module.generate_fake_document = MagicMock(return_value={'fake_field': 'fake_value'})
+        mock_module.generate_synthetic_document = MagicMock(return_value={'synthetic_field': 'synthetic_value'})
 
         return mock_module
 

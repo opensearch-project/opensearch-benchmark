@@ -47,7 +47,7 @@ def use_custom_synthetic_data_generator(sdg_metadata: SyntheticDataGeneratorMeta
 
 def use_mappings_synthetic_data_generator(sdg_metadata: SyntheticDataGeneratorMetadata) -> bool:
     if sdg_metadata.index_mappings_path and not sdg_metadata.custom_module_path:
-        logger.info("User is using index mappings to generate synthetic data. Index mappings is found in this path: [%s]", sdg_metadata.index_mappings_path)
+        logger.info("User is using index mappings to generate synthetic data. Index mappings are found in this path: [%s]", sdg_metadata.index_mappings_path)
         return True
 
     return False

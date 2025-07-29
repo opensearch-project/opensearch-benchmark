@@ -174,7 +174,7 @@ def create_arg_parser():
         help="Custom Python module that defines how to generate documents. " +
         "It can contain function definitions and even class definitions. " +
         "This gives users more granular control over how data is generated. " +
-        "This module must contain generate_fake_document() definition."
+        "This module must contain generate_synthetic_document() definition."
     )
 
     exclusive_params = synthetic_data_generator_parser.add_mutually_exclusive_group(required=True)
@@ -1215,13 +1215,13 @@ def dispatch_sub_command(arg_parser, args, cfg):
             else:
                 msg += "\n%s%s" % ("\t" * nesting, str(e))
 
-        console.error("❌ Cannot %s. %s" % (sub_command, msg))
+        console.error(f"❌ Cannot {sub_command}. {msg}")
         console.println("")
         print_help_on_errors()
         return False
     except BaseException as e:
         logging.getLogger(__name__).exception("A fatal error occurred while running subcommand [%s].", sub_command)
-        console.error("❌ Cannot %s. %s." % (sub_command, e))
+        console.error(f"❌ Cannot {sub_command}. {e}.")
         console.println("")
         print_help_on_errors()
         return False
