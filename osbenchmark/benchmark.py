@@ -38,7 +38,7 @@ from osbenchmark import version, actor, config, paths, \
     test_execution_orchestrator, results_publisher, \
         metrics, workload, exceptions, log
 from osbenchmark.builder import provision_config, builder
-from osbenchmark.synthetic_data_generator import synthetic_data_generator
+from osbenchmark.synthetic_data_generator import synthetic_data_generator_orchestrator
 from osbenchmark.workload_generator import workload_generator
 from osbenchmark.utils import io, convert, process, console, net, opts, versions
 from osbenchmark import aggregator
@@ -174,7 +174,7 @@ def create_arg_parser():
         help="Custom Python module that defines how to generate documents. " +
         "It can contain function definitions and even class definitions. " +
         "This gives users more granular control over how data is generated. " +
-        "This module must contain generate_fake_document() definition."
+        "This module must contain generate_synthetic_document() definition."
     )
 
     exclusive_params = synthetic_data_generator_parser.add_mutually_exclusive_group(required=True)
@@ -1185,7 +1185,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "synthetic_data_generator", "total_size", args.total_size)
             cfg.add(config.Scope.applicationOverride, "synthetic_data_generator", "test_document", args.test_document)
 
-            synthetic_data_generator.orchestrate_data_generation(cfg)
+            synthetic_data_generator_orchestrator.orchestrate_data_generation(cfg)
 
         elif sub_command == "create-workload":
             cfg.add(config.Scope.applicationOverride, "generator", "indices", args.indices)
@@ -1215,13 +1215,13 @@ def dispatch_sub_command(arg_parser, args, cfg):
             else:
                 msg += "\n%s%s" % ("\t" * nesting, str(e))
 
-        console.error("Cannot %s. %s" % (sub_command, msg))
+        console.error(f"❌ Cannot {sub_command}. {msg}")
         console.println("")
         print_help_on_errors()
         return False
     except BaseException as e:
         logging.getLogger(__name__).exception("A fatal error occurred while running subcommand [%s].", sub_command)
-        console.error("Cannot %s. %s." % (sub_command, e))
+        console.error(f"❌ Cannot {sub_command}. {e}.")
         console.println("")
         print_help_on_errors()
         return False
@@ -1272,10 +1272,10 @@ def main():
     end = time.time()
     if success:
         console.println("")
-        console.info("SUCCESS (took %d seconds)" % (end - start), overline="-", underline="-")
+        console.info("✅ SUCCESS (took %d seconds)" % (end - start), overline="-", underline="-")
     else:
         console.println("")
-        console.info("FAILURE (took %d seconds)" % (end - start), overline="-", underline="-")
+        console.info("❌ FAILURE (took %d seconds)" % (end - start), overline="-", underline="-")
         sys.exit(64)
 
 
