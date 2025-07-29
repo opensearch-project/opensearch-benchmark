@@ -34,6 +34,7 @@ import statistics
 import sys
 import time
 import zlib
+import webbrowser, os
 from enum import Enum, IntEnum
 from http.client import responses
 import psutil
@@ -42,6 +43,7 @@ import tabulate
 
 from osbenchmark import client, time, exceptions, config, version, paths
 from osbenchmark.utils import convert, console, io, versions
+from osbenchmark.visualizations.benchmark_report_renderer import render_results_html
 from osbenchmark.cloud_provider import CloudProviderFactory
 
 
@@ -1390,11 +1392,17 @@ class TestRun:
             }
         }
         if self.results:
-            d["results"] = self.results.as_dict()
+            # if results was loaded from JSON it’s already a dict
+            if isinstance(self.results, dict):
+                d["results"] = self.results
+            elif hasattr(self.results, "as_dict"):
+                d["results"] = self.results.as_dict()
+            else:
+                # Fallback: just stick whatever it is in there
+                d["results"] = self.results
         if self.workload_revision:
             d["workload-revision"] = self.workload_revision
-        if not self.test_procedure.auto_generated:
-            d["test_procedure"] = self.test_procedure_name
+        d["test_procedure"] = self.test_procedure_name
         if self.workload_params:
             d["workload-params"] = self.workload_params
         if self.cluster_config_params:
@@ -1500,25 +1508,72 @@ class CompositeTestRunStore:
         self.file_store.store_test_run(test_run)
         self.os_store.store_test_run(test_run)
 
+    def store_html_results(self, test_run):
+        self.file_store.store_html_results(test_run)
+
+    def store_html_results(self, test_run):
+        self.file_store.store_html_results(test_run)
+
     def list(self):
         return self.os_store.list()
 
 
-class FileTestRunStore(TestRunStore):
+class FileTestExecutionStore(TestExecutionStore):
+    _browser_opened = {}
+
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self._max_results = lambda: int(cfg.opts("system", "list.test_runs.max_results"))
     def store_test_run(self, test_run):
+        open_browser = False
         doc = test_run.as_dict()
         test_run_path = paths.test_run_root(self.cfg, test_run_id=test_run.test_run_id)
         io.ensure_dir(test_run_path)
         with open(self._test_run_file(), mode="wt", encoding="utf-8") as f:
             f.write(json.dumps(doc, indent=True, ensure_ascii=False))
 
-    def store_aggregated_run(self, test_run):
+        # Check if visualization is enabled
+        if self.cfg.opts("workload", "visualize", mandatory=False, default_value=False):
+            # Reset the browser opened flag when we're storing the final results
+            if hasattr(test_run, "results") and test_run.results:
+                FileTestExecutionStore._browser_opened[test_run.test_run_id] = False
+                open_browser = True
+            self.store_html_results(test_run, open_browser)
+
+    def store_aggregated_execution(self, test_run):
         doc = test_run.as_dict()
-        aggregated_test_run_path = paths.aggregated_results_root(self.cfg, test_run_id=test_run.test_run_id)
-        io.ensure_dir(aggregated_test_run_path)
-        aggregated_file = os.path.join(aggregated_test_run_path, "aggregated_test_run.json")
+        aggregated_execution_path = paths.aggregated_results_root(self.cfg, test_run_id=test_run.test_run_id)
+        io.ensure_dir(aggregated_execution_path)
+        aggregated_file = os.path.join(aggregated_execution_path, "aggregated_test_run.json")
         with open(aggregated_file, mode="wt", encoding="utf-8") as f:
             f.write(json.dumps(doc, indent=True, ensure_ascii=False))
+
+    def store_html_results(self, test_run, open_browser=True):
+        if not getattr(test_run, "results", None):
+            return
+
+        test_run_path = paths.test_run_root(
+            self.cfg, test_run_id=test_run.test_run_id
+        )
+
+        # pick report name & type
+        if self.cfg.opts("workload", "redline.test", mandatory=False, default_value=False):
+            report_name, report_type = "redline_report.html", "Redline"
+        else:
+            report_name, report_type = "benchmark_report.html", "Benchmark"
+
+        # render & write
+        html_content = render_results_html(test_run, self.cfg)
+        html_path = os.path.join(test_run_path, report_name)
+        with open(html_path, "wt", encoding="utf-8") as hf:
+            hf.write(html_content)
+
+        # open once
+        file_url = f"file://{html_path}"
+        if open_browser:
+            webbrowser.open(file_url)
+        print(f"{report_type} HTML report written & opened at: {file_url}")
+        return html_path
 
     def _test_run_file(self, test_run_id=None, is_aggregated=False):
         if is_aggregated:
