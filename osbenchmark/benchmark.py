@@ -238,6 +238,19 @@ def create_arg_parser():
         help="Whether to include the comparison in the results file.",
         default=True)
 
+    visualize_parser = subparsers.add_parser("visualize", help="Generate HTML visualization for a test execution")
+    visualize_parser.add_argument(
+        "--test-execution-id",
+        "-tid",
+        dest="test_execution_id",
+        required=True,
+        help=f"TestExecution ID to visualize (see {PROGRAM_NAME} list test_executions).")
+    visualize_parser.add_argument(
+        "--output-path",
+        dest="output_path",
+        help="Path where the HTML report should be saved. If not specified, it will be saved in the test execution directory.",
+        default=None)
+
     aggregate_parser = subparsers.add_parser("aggregate", help="Aggregate multiple test_executions")
     aggregate_parser.add_argument(
         "--test-executions",
@@ -709,6 +722,12 @@ def create_arg_parser():
         help="How many seconds between CPU checks there should be during CPU-based redline testing. (Default: 30)",
         default=None
     )
+    test_execution_parser.add_argument(
+        "--visualize",
+        help="Generate HTML visualizations for benchmark results.",
+        action="store_true",
+        default=False
+    )
 
     ###############################################################################
     #
@@ -730,7 +749,7 @@ def create_arg_parser():
         default=False)
 
     for p in [list_parser, test_execution_parser, compare_parser, aggregate_parser,
-              download_parser, install_parser, start_parser, stop_parser, info_parser, create_workload_parser]:
+              download_parser, install_parser, start_parser, stop_parser, info_parser, create_workload_parser, visualize_parser]:
         # This option is needed to support a separate configuration for the integration tests on the same machine
         p.add_argument(
             "--configuration-name",
@@ -769,6 +788,36 @@ def dispatch_list(cfg):
     else:
         raise exceptions.SystemSetupError("Cannot list unknown configuration option [%s]" % what)
 
+def dispatch_visualize(cfg):
+    import os, shutil
+    from osbenchmark import metrics, exceptions
+
+    test_execution_id = cfg.opts("system", "test_execution.id")
+    output_path = cfg.opts("visualize", "output.path", mandatory=False, default_value=None)
+    store = metrics.test_execution_store(cfg)
+
+    try:
+        # load the execution
+        te = store.find_by_test_execution_id(test_execution_id)
+
+        # render, write, and open the HTML
+        html_path = (
+            store.file_store.store_html_results(te)
+            if isinstance(store, metrics.CompositeTestExecutionStore)
+            else store.store_html_results(te)
+        )
+
+        # if the user asked for --output-path, just copy the file there
+        if output_path:
+            dest = os.path.expanduser(output_path)
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            shutil.copy2(html_path, dest)
+            console.info(f"HTML report copied to: {dest}")
+
+    except exceptions.NotFound:
+        raise exceptions.SystemSetupError(f"No test execution with id [{test_execution_id}]")
+    except Exception as e:
+        raise exceptions.SystemSetupError(f"Error visualizing test execution: {e}")
 
 def print_help_on_errors():
     heading = "Getting further help:"
@@ -1024,6 +1073,7 @@ def configure_test(arg_parser, args, cfg):
     cfg.add(config.Scope.applicationOverride, "workload", "randomization.repeat_frequency", args.randomization_repeat_frequency)
     cfg.add(config.Scope.applicationOverride, "workload", "randomization.n", args.randomization_n)
     cfg.add(config.Scope.applicationOverride, "workload", "randomization.alpha", args.randomization_alpha)
+    cfg.add(config.Scope.applicationOverride, "workload", "visualize", args.visualize)
     configure_workload_params(arg_parser, args, cfg)
     configure_connection_params(arg_parser, args, cfg)
     configure_telemetry_params(args, cfg)
@@ -1132,6 +1182,12 @@ def dispatch_sub_command(arg_parser, args, cfg):
             configure_connection_params(arg_parser, args, cfg)
 
             workload_generator.create_workload(cfg)
+        elif sub_command == "visualize":
+            cfg.add(config.Scope.applicationOverride, "system", "test_execution.id", args.test_execution_id)
+            cfg.add(config.Scope.applicationOverride, "visualize", "output.path", args.output_path)
+            # Always set visualize to true for the visualize command
+            cfg.add(config.Scope.applicationOverride, "workload", "visualize", True)
+            dispatch_visualize(cfg)
         elif sub_command == "info":
             configure_workload_params(arg_parser, args, cfg)
             workload.workload_info(cfg)

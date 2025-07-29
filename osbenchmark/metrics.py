@@ -34,6 +34,7 @@ import statistics
 import sys
 import time
 import zlib
+import webbrowser, os
 from enum import Enum, IntEnum
 from http.client import responses
 import psutil
@@ -42,6 +43,7 @@ import tabulate
 
 from osbenchmark import client, time, exceptions, config, version, paths
 from osbenchmark.utils import convert, console, io, versions
+from osbenchmark.visualizations.benchmark_report_renderer import render_results_html
 
 
 class OsClient:
@@ -1441,11 +1443,17 @@ class TestExecution:
             }
         }
         if self.results:
-            d["results"] = self.results.as_dict()
+            # if results was loaded from JSON it’s already a dict
+            if isinstance(self.results, dict):
+                d["results"] = self.results
+            elif hasattr(self.results, "as_dict"):
+                d["results"] = self.results.as_dict()
+            else:
+                # Fallback: just stick whatever it is in there
+                d["results"] = self.results
         if self.workload_revision:
             d["workload-revision"] = self.workload_revision
-        if not self.test_procedure.auto_generated:
-            d["test_procedure"] = self.test_procedure_name
+        d["test_procedure"] = self.test_procedure_name
         if self.workload_params:
             d["workload-params"] = self.workload_params
         if self.provision_config_instance_params:
@@ -1551,17 +1559,34 @@ class CompositeTestExecutionStore:
         self.file_store.store_test_execution(test_execution)
         self.os_store.store_test_execution(test_execution)
 
+    def store_html_results(self, test_execution):
+        self.file_store.store_html_results(test_execution)
+
     def list(self):
         return self.os_store.list()
 
 
 class FileTestExecutionStore(TestExecutionStore):
+    _browser_opened = {}
+
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        self._max_results = lambda: int(cfg.opts("system", "list.test_executions.max_results"))
     def store_test_execution(self, test_execution):
+        open_browser = False
         doc = test_execution.as_dict()
         test_execution_path = paths.test_execution_root(self.cfg, test_execution_id=test_execution.test_execution_id)
         io.ensure_dir(test_execution_path)
         with open(self._test_execution_file(), mode="wt", encoding="utf-8") as f:
             f.write(json.dumps(doc, indent=True, ensure_ascii=False))
+
+        # Check if visualization is enabled
+        if self.cfg.opts("workload", "visualize", mandatory=False, default_value=False):
+            # Reset the browser opened flag when we're storing the final results
+            if hasattr(test_execution, "results") and test_execution.results:
+                FileTestExecutionStore._browser_opened[test_execution.test_execution_id] = False
+                open_browser = True
+            self.store_html_results(test_execution, open_browser)
 
     def store_aggregated_execution(self, test_execution):
         doc = test_execution.as_dict()
@@ -1570,6 +1595,33 @@ class FileTestExecutionStore(TestExecutionStore):
         aggregated_file = os.path.join(aggregated_execution_path, "aggregated_test_execution.json")
         with open(aggregated_file, mode="wt", encoding="utf-8") as f:
             f.write(json.dumps(doc, indent=True, ensure_ascii=False))
+
+    def store_html_results(self, test_execution, open_browser=True):
+        if not getattr(test_execution, "results", None):
+            return
+
+        test_execution_path = paths.test_execution_root(
+            self.cfg, test_execution_id=test_execution.test_execution_id
+        )
+
+        # pick report name & type
+        if self.cfg.opts("workload", "redline.test", mandatory=False, default_value=False):
+            report_name, report_type = "redline_report.html", "Redline"
+        else:
+            report_name, report_type = "benchmark_report.html", "Benchmark"
+
+        # render & write
+        html_content = render_results_html(test_execution, self.cfg)
+        html_path = os.path.join(test_execution_path, report_name)
+        with open(html_path, "wt", encoding="utf-8") as hf:
+            hf.write(html_content)
+
+        # open once
+        file_url = f"file://{html_path}"
+        if open_browser:
+            webbrowser.open(file_url)
+        print(f"{report_type} HTML report written & opened at: {file_url}")
+        return html_path
 
     def _test_execution_file(self, test_execution_id=None, is_aggregated=False):
         if is_aggregated:
@@ -1606,7 +1658,6 @@ class FileTestExecutionStore(TestExecutionStore):
             except BaseException:
                 logging.getLogger(__name__).exception("Could not load test_execution file [%s] (incompatible format?) Skipping...", result)
         return sorted(test_executions, key=lambda r: r.test_execution_timestamp, reverse=True)
-
 
 class EsTestExecutionStore(TestExecutionStore):
     INDEX_PREFIX = "benchmark-test-executions-"
