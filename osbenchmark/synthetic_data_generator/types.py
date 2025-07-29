@@ -19,7 +19,7 @@ DEFAULT_GENERATION_SETTINGS = {
 }
 
 @dataclass
-class SyntheticDataGeneratorConfig:
+class SyntheticDataGeneratorMetadata:
     index_name: Optional[str] = None
     index_mappings_path: Optional[str] = None
     custom_module_path: Optional[str] = None
