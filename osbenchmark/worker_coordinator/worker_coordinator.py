@@ -242,7 +242,7 @@ class ConfigureFeedbackScaling:
     DEFAULT_CPU_CHECK_INTERVAL = 30
 
     def __init__(self, scale_step=None, scale_down_pct=None, sleep_seconds=None, max_clients=None, cpu_max=None,
-                cpu_window_seconds=None, cpu_check_interval=None, metrics_index=None, test_execution_id=None, cfg=None):
+                cpu_window_seconds=None, cpu_check_interval=None, metrics_index=None, test_run_id=None, cfg=None):
 
         config_object = load_redline_config()
 
@@ -256,7 +256,7 @@ class ConfigureFeedbackScaling:
         self.cpu_max=cpu_max
         self.cfg=cfg
         self.metrics_index=metrics_index
-        self.test_execution_id=test_execution_id
+        self.test_run_id=test_run_id
 
 class EnableFeedbackScaling:
     pass
@@ -310,10 +310,10 @@ class FeedbackActor(actor.BenchmarkActor):
         self.max_cpu_threshold = None
         self.cpu_window_seconds = None
         self.cpu_check_interval = None
-        # client, index, and test execution ID for querying users' data store
+        # client, index, and test run ID for querying users' data store
         self.os_client = None
         self.metrics_index = None
-        self.test_execution_id=None
+        self.test_run_id=None
 
     def receiveMsg_StartFeedbackActor(self, msg, sender) -> None:
         """
@@ -350,7 +350,7 @@ class FeedbackActor(actor.BenchmarkActor):
         # CPU feedback related items
         self.cpu_window_seconds = msg.cpu_window_seconds
         self.cpu_check_interval = msg.cpu_check_interval
-        self.test_execution_id=msg.test_execution_id
+        self.test_run_id=msg.test_run_id
         self.cfg=msg.cfg
         self.metrics_index = msg.metrics_index
         if msg.cpu_max:
@@ -536,7 +536,7 @@ class FeedbackActor(actor.BenchmarkActor):
                 "bool": {
                 "filter": [
                     { "term":  { "name": "node-stats" }},
-                    { "term":  { "test-execution-id": self.test_execution_id }},
+                    { "term":  { "test-run-id": self.test_run_id }},
                     { "range": { "@timestamp": { "gte": f"now-{self.cpu_window_seconds}s", "lte": "now" }}}
                 ]
                 }
@@ -1135,7 +1135,7 @@ class WorkerCoordinator:
                     worker_id += 1
         if redline_enabled:
             metrics_index = None
-            test_execution_id = None
+            test_run_id = None
             # we must have a metrics store connected for CPU based feedback
             cpu_max = self.config.opts("workload", "redline.max_cpu_usage", default_value=None, mandatory=False)
             if cpu_max and isinstance(self.metrics_store, metrics.InMemoryMetricsStore):
@@ -1143,9 +1143,9 @@ class WorkerCoordinator:
             elif cpu_max and "node-stats" not in self.config.opts("telemetry", "devices"):
                 raise exceptions.SystemSetupError("Node stats telemetry not enabled — this is required for CPU-based redline feedback.")
             elif cpu_max and isinstance(self.metrics_store, metrics.OsMetricsStore):
-                # pass over the index and test execution ID so the feedbackActor can query the datastore
+                # pass over the index and test run ID so the feedbackActor can query the datastore
                 metrics_index = self.metrics_store.index
-                test_execution_id = self.metrics_store.test_execution_id
+                test_run_id = self.metrics_store.test_run_id
 
             scale_step = self.config.opts("workload", "redline.scale_step", default_value=0)
             scale_down_pct = self.config.opts("workload", "redline.scale_down_pct", default_value=0)
@@ -1163,7 +1163,7 @@ class WorkerCoordinator:
             cpu_check_interval=cpu_check_interval,
             cfg=self.config,
             metrics_index=metrics_index,
-            test_execution_id=test_execution_id
+            test_run_id=test_run_id
             ))
             self.target.start_feedbackActor(self.shared_client_dict)
 
