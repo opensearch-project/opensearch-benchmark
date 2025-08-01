@@ -30,7 +30,7 @@ class MappingStrategy(DataGenerationStrategy):
 
         self.logger = logging.getLogger(__name__)
 
-    def generate_data_chunks_across_workers(self, dask_client: Client, docs_per_chunk: int, seeds: list ) -> list:
+    def generate_data_chunks_across_workers(self, dask_client: Client, docs_per_chunk: int, seeds: list, timeseries_enabled: dict, timeseries_windows: list) -> list:
         """
         Submits workers to generate data chunks and returns Dask futures
 
