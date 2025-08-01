@@ -1042,8 +1042,8 @@ class OsMetricsStore(MetricsStore):
         return self._index
 
     @property
-    def test_execution_id(self) -> str:
-        return self._test_execution_id
+    def test_run_id(self) -> str:
+        return self._test_run_id
 
     def __str__(self):
         return "OpenSearch metrics store"

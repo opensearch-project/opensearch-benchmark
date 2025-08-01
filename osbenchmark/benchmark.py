@@ -744,19 +744,19 @@ def create_arg_parser():
         help="Maximum number of clients to allow during redline testing. If not set, will default to clients defined in the test procedure.",
         default=None
     )
-    test_execution_parser.add_argument(
+    test_run_parser.add_argument(
         "--redline-max-cpu-usage",
         type=int,
         help="Maximum CPU utilization before scaling back client numbers. Used to activate CPU-based feedback in OSB.",
         default=None
     )
-    test_execution_parser.add_argument(
+    test_run_parser.add_argument(
         "--redline-cpu-window-seconds",
         type=int,
         help="How many seconds the window for average CPU load should be in seconds during CPU-based redline testing. (Default: 30)",
         default=None
     )
-    test_execution_parser.add_argument(
+    test_run_parser.add_argument(
         "--redline-cpu-check-interval",
         type=int,
         help="How many seconds between CPU checks there should be during CPU-based redline testing. (Default: 30)",

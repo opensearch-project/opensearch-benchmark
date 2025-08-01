@@ -5,13 +5,13 @@ parent: OSB API
 nav_order: 10
 ---
 
-The `run-test` command of OpenSearch Benchmark runs tests against your OpenSearch cluster.
+The `run` command of OpenSearch Benchmark runs tests against your OpenSearch cluster.
 
 
 ## Syntax
 
 ```bash
-opensearch-benchmark run-test <arguments>
+opensearch-benchmark run <arguments>
 ```
 
 
@@ -34,7 +34,7 @@ Argument | Description | Required
 *Example 1*
 
 ```
-opensearch-benchmark run-test --workload eventdata --test-mode
+opensearch-benchmark run --workload eventdata --test-mode
 ```
 
 Provision an OpenSearch node on the local machine based on the latest source code in Github and run the `eventdata` workload in test mode.
@@ -42,7 +42,7 @@ Provision an OpenSearch node on the local machine based on the latest source cod
 *Example 2*
 
 ```
-opensearch-benchmark run-test --workload http_logs --pipeline benchmark-only --target-hosts <endpoint> --workload-params "bulk_indexing_clients:1,ingest_percentage:10"
+opensearch-benchmark run --workload http_logs --pipeline benchmark-only --target-hosts <endpoint> --workload-params "bulk_indexing_clients:1,ingest_percentage:10"
 ```
 
 Run the `http_logs` workload against an existing OpenSearch cluster but only use one client for indexing and only ingest 10% of the total data corpus.
@@ -50,7 +50,7 @@ Run the `http_logs` workload against an existing OpenSearch cluster but only use
 *Example 3*
 
 ```
-opensearch-benchmark run-test --workload nyc_taxis --pipeline benchmark-only --target-hosts <endpoint> --client-options "verify_certs:false,use_ssl:true,basic_auth_user:admin,basic_auth_password:admin"
+opensearch-benchmark run --workload nyc_taxis --pipeline benchmark-only --target-hosts <endpoint> --client-options "verify_certs:false,use_ssl:true,basic_auth_user:admin,basic_auth_password:admin"
 ```
 
 Run the `nyc_taxis` workload against an existing OpenSearch cluster with the security plugin enabled.
@@ -79,7 +79,7 @@ Argument | Description | Required
 `opensearch-plugins` | Define the OpenSearch plugins to install. (default: install no plugins). | No
 `plugin-params` | Define a comma-separated list of key:value pairs that are injected verbatim to all plugins as variables. | No
 `target-hosts` | Define a comma-separated list of host:port pairs which should be targeted if using the pipeline 'benchmark-only' (default: `localhost:9200`). | No
-`load-worker-coordinator-hosts` | Define a comma-separated list of hosts which should generate load (default: `localhost`). | No
+`worker-ips` | Define a comma-separated list of hosts which should generate load (default: `localhost`). | No
 `client-options` | Define a comma-separated list of client options to use. The options will be passed to the OpenSearch Python client (default: `timeout:60`). | No
 `on-error` | Controls how OSB behaves on response errors. Options are `continue` and `abort` (default: `continue`). | No
 `telemetry` | Enable the provided telemetry devices, provided as a comma-separated list. List possible telemetry devices with `opensearch-benchmark list telemetry`. | No
