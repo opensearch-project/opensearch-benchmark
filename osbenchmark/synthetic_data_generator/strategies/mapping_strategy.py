@@ -7,7 +7,7 @@
 # GitHub history for details.
 
 import logging
-from typing import Optional, Callable, Dict, Any
+from typing import Optional, Callable, Dict, Any, Generator
 import random
 import datetime
 import uuid
@@ -17,9 +17,10 @@ from mimesis import Generic
 from mimesis.locales import Locale
 from mimesis.random import Random
 
-from osbenchmark.exceptions import ConfigError, MappingsError
+from osbenchmark import exceptions
 from osbenchmark.synthetic_data_generator.strategies import DataGenerationStrategy
 from osbenchmark.synthetic_data_generator.models import SyntheticDataGeneratorMetadata, SDGConfig, MappingGenerationValuesConfig
+from osbenchmark.synthetic_data_generator.timeseries_partitioner import TimeSeriesPartitioner
 
 class MappingStrategy(DataGenerationStrategy):
     def __init__(self, sdg_metadata: SyntheticDataGeneratorMetadata,  sdg_config: SDGConfig, index_mapping: dict) -> None:
@@ -30,18 +31,31 @@ class MappingStrategy(DataGenerationStrategy):
 
         self.logger = logging.getLogger(__name__)
 
-    def generate_data_chunks_across_workers(self, dask_client: Client, docs_per_chunk: int, seeds: list ) -> list:
+    def generate_data_chunks_across_workers(self, dask_client: Client, docs_per_chunk: int, seeds: list, timeseries_enabled: dict, timeseries_windows: list) -> list:
         """
         Submits workers to generate data chunks and returns Dask futures
 
         Returns: list of Dask Futures
         """
-        futures = [dask_client.submit(self.generate_data_chunk_from_worker, docs_per_chunk, seed) for seed in seeds]
+        if timeseries_enabled and timeseries_windows:
+            futures = []
+            for _ in range(len(seeds)):
+                seed = seeds[_]
+                window = timeseries_windows[_]
+                future = dask_client.submit(
+                    self.generate_data_chunk_from_worker,
+                    docs_per_chunk, seed, timeseries_enabled, window,
+                )
+
+                futures.append(future)
+
+        else:
+            futures = [dask_client.submit(self.generate_data_chunk_from_worker, docs_per_chunk, seed) for seed in seeds]
 
         return futures
 
     # pylint: disable=arguments-differ
-    def generate_data_chunk_from_worker(self, docs_per_chunk: int, seed: Optional[int]) -> list:
+    def generate_data_chunk_from_worker(self, docs_per_chunk: int, seed: Optional[int], timeseries_enabled: dict = None, timeseries_window: set = None) -> list:
         """
         This method is submitted to Dask worker and can be thought of as the worker performing a job, which is calling the
         MappingConverter's static method generate_synthetic_document() function to generate documents.
@@ -57,15 +71,41 @@ class MappingStrategy(DataGenerationStrategy):
         mapping_generator_logic = MappingConverter(self.mapping_generation_values, seed)
         mappings_with_generators = mapping_generator_logic.transform_mapping_to_generators(self.index_mapping)
 
+        if timeseries_enabled and timeseries_enabled.timeseries_field:
+            synthetic_docs = []
+            datetimestamps: Generator = TimeSeriesPartitioner.generate_datetimestamps_from_window(
+                window=timeseries_window, frequency=timeseries_enabled.timeseries_frequency, format=timeseries_enabled.timeseries_format
+                )
+            for datetimestamp in datetimestamps:
+                document = MappingConverter.generate_synthetic_document(mappings_with_generators)
+                try:
+                    document[timeseries_enabled.timeseries_field] = datetimestamp
+                    synthetic_docs.append(document)
+
+                except Exception as e:
+                    raise exceptions.DataError(f"Encountered problem when inserting datetimestamps for timeseries data being generated: {e}")
+
+            return synthetic_docs
+
+
         documents = [MappingConverter.generate_synthetic_document(mappings_with_generators) for _ in range(docs_per_chunk)]
 
         return documents
 
-    def generate_test_document(self):
+    def generate_test_document(self, timeseries_enabled: dict = None, timeseries_window: set = None):
         mapping_converter = MappingConverter(self.mapping_generation_values)
         converted_mappings = mapping_converter.transform_mapping_to_generators(self.index_mapping)
 
-        return MappingConverter.generate_synthetic_document(transformed_mapping=converted_mappings)
+        document = MappingConverter.generate_synthetic_document(transformed_mapping=converted_mappings)
+        if timeseries_enabled and timeseries_enabled.timeseries_field:
+            datetimestamps: Generator = TimeSeriesPartitioner.generate_datetimestamps_from_window(
+                window=timeseries_window, frequency=timeseries_enabled.timeseries_frequency, format=timeseries_enabled.timeseries_format
+                )
+            for datetimestamp in datetimestamps:
+                document[timeseries_enabled.timeseries_field] = datetimestamp
+
+        return document
+
 
 class MappingConverter:
     def __init__(self, mapping_generation_values=None, seed=1):
@@ -140,7 +180,9 @@ class MappingConverter:
             return f"key_{uuid.uuid4().hex[:8]}"
 
     def generate_long(self, field_def: Dict[str, Any], **params) -> int:
-        return random.randint(-9223372036854775808, 9223372036854775807)
+        min = params.get('min', -9223372036854775808)
+        max = params.get('max', 9223372036854775807)
+        return random.randint(min, max)
 
     def generate_integer(self, field_def: Dict[str, Any], **params) -> int:
         min = params.get('min', -2147483648)
@@ -149,13 +191,19 @@ class MappingConverter:
         return random.randint(min, max)
 
     def generate_short(self, field_def: Dict[str, Any], **params) -> int:
-        return random.randint(-32768, 32767)
+        min = params.get('min', -32768)
+        max = params.get('max', 32767)
+        return random.randint(min, max)
 
     def generate_byte(self, field_def: Dict[str, Any], **params) -> int:
-        return random.randint(-128, 127)
+        min = params.get('min', -128)
+        max = params.get('max', 127)
+        return random.randint(min, max)
 
     def generate_double(self, field_def: Dict[str, Any], **params) -> float:
-        return random.uniform(-1000000, 1000000)
+        min = params.get('min', -1000000)
+        max = params.get('max', 1000000)
+        return random.uniform(min, max)
 
     def generate_float(self, field_def: Dict[str, Any], **params) -> float:
         min = params.get('min', 0)
@@ -239,7 +287,7 @@ class MappingConverter:
             else:
                 properties = mapping_dict.get("properties", mapping_dict)
         except KeyError:
-            raise MappingsError("OpenSearch mappings provided are invalid. Please ensure it includes 'mappings' or 'properties' fields.")
+            raise exceptions.MappingsError("OpenSearch mappings provided are invalid. Please ensure it includes 'mappings' or 'properties' fields.")
 
         # Iterate through all the properties in the index mapping
         for field_name, field_def in properties.items():
@@ -272,7 +320,7 @@ class MappingConverter:
                 else:
                     self.logger.info("Issue with sdg-config.yml: override for field [%s] specifies non-existent data generator [%s]", current_field_path, gen_name)
                     msg = f"Issue with sdg-config.yml: override for field [{current_field_path}] specifies non-existent data generator [{gen_name}]"
-                    raise ConfigError(msg)
+                    raise exceptions.ConfigError(msg)
             else:
                 # Check if default_generators has overrides for all instances of a type of generator
                 generator_override_params = generator_overrides.get(field_type, {})

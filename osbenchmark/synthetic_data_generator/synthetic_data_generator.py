@@ -10,6 +10,7 @@ import os
 import logging
 import time
 import hashlib
+from typing import Generator
 
 from dask.distributed import Client, get_client, as_completed
 from tqdm import tqdm
@@ -18,6 +19,7 @@ from osbenchmark.utils import console
 from osbenchmark.synthetic_data_generator import helpers
 from osbenchmark.synthetic_data_generator.strategies import DataGenerationStrategy
 from osbenchmark.synthetic_data_generator.models import SyntheticDataGeneratorMetadata, SDGConfig, GB_TO_BYTES
+from osbenchmark.synthetic_data_generator.timeseries_partitioner import TimeSeriesPartitioner
 
 class SyntheticDataGenerator:
     def __init__(self, sdg_metadata: SyntheticDataGeneratorMetadata, sdg_config: SDGConfig, strategy: DataGenerationStrategy) -> None:
@@ -29,6 +31,7 @@ class SyntheticDataGenerator:
 
     def generate_seeds_for_workers(self, regenerate=False):
         # This adds latency so might consider deprecating this
+        seed_generation_start_time = time.time()
         client = get_client()
         workers = client.scheduler_info()['workers']
 
@@ -46,10 +49,41 @@ class SyntheticDataGenerator:
             seed = int(hash_hex[:8], 16)
             seeds.append(seed)
 
+        seed_generation_end_time = time.time()
+        self.logger.info("Seed generation took %s seconds", seed_generation_end_time - seed_generation_start_time)
         return seeds
 
+    def setup_timeseries_window(self, timeseries_enabled_settings: dict, workers: int, docs_per_chunk: int, avg_document_size: int, total_size_bytes: int):
+        self.logger.info("User is using timeseries enabled settings: %s", timeseries_enabled_settings)
+        # Generate timeseries windows
+        timeseries_partitioner = TimeSeriesPartitioner(
+            timeseries_enabled=timeseries_enabled_settings,
+            workers=workers,
+            docs_per_chunk=docs_per_chunk,
+            avg_document_size=avg_document_size,
+            total_size_bytes=total_size_bytes
+        )
+        timeseries_window = timeseries_partitioner.create_window_generator()
+        if timeseries_enabled_settings.timeseries_frequency != timeseries_partitioner.frequency:
+            timeseries_enabled_settings = timeseries_partitioner.get_updated_settings(timeseries_settings=timeseries_enabled_settings)
+        self.logger.info("TimeSeries Windows Generator: %s", timeseries_window)
+
+        return timeseries_enabled_settings, timeseries_window
+
     def generate_test_document(self):
-        return self.strategy.generate_test_document()
+        total_size_bytes: int = self.sdg_metadata.total_size_gb * GB_TO_BYTES
+        timeseries_enabled_settings: dict = self.sdg_config.settings.timeseries_enabled
+        if timeseries_enabled_settings:
+            # Use dummy values for workers, docs_per_chunk, and avg_document_size
+            timeseries_enabled_settings, timeseries_window = self.setup_timeseries_window(
+                timeseries_enabled_settings=timeseries_enabled_settings, workers=1, docs_per_chunk=1,
+                avg_document_size=123, total_size_bytes=total_size_bytes
+            )
+            windows_for_workers = [next(timeseries_window) for _ in range(1)][0] # Just need to get one window for test document
+
+            return self.strategy.generate_test_document(timeseries_enabled_settings, windows_for_workers)
+        else:
+            return self.strategy.generate_test_document()
 
     def generate_dataset(self):
         """
@@ -58,18 +92,26 @@ class SyntheticDataGenerator:
         max_file_size_bytes: int = self.sdg_config.settings.max_file_size_gb * GB_TO_BYTES
         total_size_bytes: int = self.sdg_metadata.total_size_gb * GB_TO_BYTES
         docs_per_chunk: int = self.sdg_config.settings.docs_per_chunk
+        timeseries_enabled_settings: dict = self.sdg_config.settings.timeseries_enabled
 
         avg_document_size = helpers.calculate_avg_doc_size(strategy=self.strategy)
 
         current_size = 0
         docs_written = 0
-        file_counter = 0
+        file_counter = self.sdg_config.settings.filename_suffix_begins_at if self.sdg_config.settings.filename_suffix_begins_at else 0
 
         generated_dataset_details = []
 
         helpers.check_for_existing_files(self.sdg_metadata.output_path, self.sdg_metadata.index_name)
 
+        timeseries_window: Generator = None
         workers: int = self.sdg_config.settings.workers
+        if timeseries_enabled_settings:
+            timeseries_enabled_settings, timeseries_window = self.setup_timeseries_window(
+                timeseries_enabled_settings=timeseries_enabled_settings, workers=workers, docs_per_chunk=docs_per_chunk,
+                avg_document_size=avg_document_size, total_size_bytes=total_size_bytes
+            )
+
         dask_client = Client(n_workers=workers, threads_per_worker=1)  # We keep it to 1 thread because generating random data is CPU intensive
         self.logger.info("Number of workers to use: [%s]", workers)
 
@@ -106,16 +148,37 @@ class SyntheticDataGenerator:
                     seeds = self.generate_seeds_for_workers(regenerate=True)
                     self.logger.info("Using seeds: %s", seeds)
 
-                    futures = self.strategy.generate_data_chunks_across_workers(dask_client, docs_per_chunk, seeds)
+                    if timeseries_window and timeseries_enabled_settings:
+                        windows_for_workers = [next(timeseries_window) for _ in range(workers)]
+                        self.logger.info("Windows for workers: %s", windows_for_workers)
+                        futures = self.strategy.generate_data_chunks_across_workers(
+                            dask_client, docs_per_chunk, seeds,
+                            timeseries_enabled_settings, windows_for_workers
+                        )
+                        results = dask_client.gather(futures)
 
-                    writing_start_time = time.time()
-                    for _, data in as_completed(futures, with_results=True):
-                        self.logger.info("Future [%s] completed.", _)
-                        docs_written_from_chunk, written_bytes = helpers.write_chunk(data, file_path)
-                        docs_written += docs_written_from_chunk
-                        current_size += written_bytes
-                        progress_bar.update(written_bytes)
-                    writing_end_time = time.time()
+                        ordered_results = TimeSeriesPartitioner.sort_results_by_datetimestamps(results, timeseries_enabled_settings.timeseries_field)
+
+                        writing_start_time = time.time()
+                        for i in range(len(ordered_results)):
+                            self.logger.info("Writing results [%s/%s]", i+1, len(ordered_results))
+                            docs_written_from_chunk, written_bytes = helpers.write_chunk(ordered_results[i], file_path)
+                            docs_written += docs_written_from_chunk
+                            current_size += written_bytes
+                            progress_bar.update(written_bytes)
+                        writing_end_time = time.time()
+
+                    else:
+                        futures = self.strategy.generate_data_chunks_across_workers(dask_client, docs_per_chunk, seeds)
+
+                        writing_start_time = time.time()
+                        for _, data in as_completed(futures, with_results=True):
+                            self.logger.info("Future [%s] completed.", _)
+                            docs_written_from_chunk, written_bytes = helpers.write_chunk(data, file_path)
+                            docs_written += docs_written_from_chunk
+                            current_size += written_bytes
+                            progress_bar.update(written_bytes)
+                        writing_end_time = time.time()
 
                     generating_took_time = writing_start_time - generation_start_time
                     writing_took_time = writing_end_time - writing_start_time
