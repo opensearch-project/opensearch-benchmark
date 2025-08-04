@@ -73,6 +73,7 @@ class WorkerCoordinatorTests(TestCase):
             self.all_hosts = all_hosts
             self.all_client_options = all_client_options
             self.uses_static_responses = False
+            self.default = all_client_options.get('default', {}) if all_client_options else {}
 
     def __init__(self, methodName='runTest'):
         super().__init__(methodName)
@@ -1908,7 +1909,7 @@ class AsyncExecutorHelperMethodsTests(TestCase):
         """Test that _get_client_options returns correct options from config."""
         options = self.executor._get_client_options()
         self.assertIsInstance(options, dict)
-        self.assertEqual(options.get("default", {}).get("base_timeout"), 10)
+        self.assertEqual(options.get("timeout"), None)
 
     def test_get_client_options_with_no_config(self):
         """Test that _get_client_options returns empty dict when config is None."""

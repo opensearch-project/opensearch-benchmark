@@ -2253,7 +2253,7 @@ class AsyncExecutor:
 
         # Client options are fetched once during initialization, not on every request.
         self.client_options = self._get_client_options()
-        self.base_timeout = int(self.client_options.get("base_timeout", 10))
+        self.base_timeout = int(self.client_options.get("timeout", 10))
 
         # Variables to keep track of during execution
         self.expected_scheduled_time = 0
@@ -2266,7 +2266,7 @@ class AsyncExecutor:
         try:
             if self.cfg is not None:
                 client_options_obj = self.cfg.opts("client", "options")
-                return getattr(client_options_obj, "all_client_options", {}) or {}
+                return client_options_obj.default or {}
             else:
                 return {}
         except exceptions.ConfigError:
