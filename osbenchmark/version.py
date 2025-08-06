@@ -24,13 +24,14 @@
 
 import re
 from importlib import resources
+from importlib.metadata import version as get_version
 
-import pkg_resources
+
 
 from osbenchmark import paths
 from osbenchmark.utils import git, io
 
-__version__ = pkg_resources.require("opensearch-benchmark")[0].version
+__version__ = get_version("opensearch-benchmark")
 
 __BENCHMARK_VERSION_PATTERN = re.compile(r"^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:.(.+))?$")
 
