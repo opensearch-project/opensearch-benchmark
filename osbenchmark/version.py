@@ -26,8 +26,6 @@ import re
 from importlib import resources
 from importlib.metadata import version as get_version
 
-
-
 from osbenchmark import paths
 from osbenchmark.utils import git, io
 
