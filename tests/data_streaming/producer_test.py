@@ -34,28 +34,28 @@ class TestS3DataProducer(TestCase):
     def test_generate_chunked_data_aligned(self, downloader, outputter):
         downloader.return_value = [ [ b"this is line 1\n" ] ]
         self.producer.generate_chunked_data()
-        outputter.assert_called_with("this is line 1\n", 0)
+        outputter.assert_has_calls([ mock.call("this is line 1\n", 0) ])
 
     @mock.patch("osbenchmark.cloud_provider.vendors.s3_data_producer.S3DataProducer._output_chunk")
     @mock.patch("osbenchmark.cloud_provider.vendors.s3_data_producer.S3DataProducer._get_next_downloader")
     def test_generate_chunked_data_unaligned(self, downloader, outputter):
         downloader.return_value = [ [ b"this is line 1\nthis is line 2" ] ]
         self.producer.generate_chunked_data()
-        outputter.assert_called_with("this is line 1\n", 0)
+        outputter.assert_has_calls([ mock.call("this is line 1\n", 0) ])
 
     @mock.patch("osbenchmark.cloud_provider.vendors.s3_data_producer.S3DataProducer._output_chunk")
     @mock.patch("osbenchmark.cloud_provider.vendors.s3_data_producer.S3DataProducer._get_next_downloader")
     def test_generate_chunked_data_aligned_multiline(self, downloader, outputter):
         downloader.return_value = [ [ b"this is line 0\nthis is line 1\n" ] ]
         self.producer.generate_chunked_data()
-        outputter.assert_called_with("this is line 0\nthis is line 1\n", 0)
+        outputter.assert_has_calls([ mock.call("this is line 0\nthis is line 1\n", 0) ])
 
     @mock.patch("osbenchmark.cloud_provider.vendors.s3_data_producer.S3DataProducer._output_chunk")
     @mock.patch("osbenchmark.cloud_provider.vendors.s3_data_producer.S3DataProducer._get_next_downloader")
     def test_generate_chunked_data_unaligned_multiline(self, downloader, outputter):
         downloader.return_value = [ [ b"this is line 0\nthis is line 1\nthis is line 2" ] ]
         self.producer.generate_chunked_data()
-        outputter.assert_called_with("this is line 0\nthis is line 1\n", 0)
+        outputter.assert_has_calls([ mock.call("this is line 0\nthis is line 1\n", 0) ])
 
     def int_generator(self, n):
         for i in range(n):
