@@ -45,7 +45,7 @@ import thespian.actors
 
 from osbenchmark import actor, config, exceptions, metrics, workload, client, paths, PROGRAM_NAME, telemetry
 from osbenchmark.worker_coordinator import runner, scheduler
-from osbenchmark.workload import WorkloadProcessorRegistry, load_workload, load_workload_plugins
+from osbenchmark.workload import WorkloadProcessorRegistry, load_workload, load_workload_plugins, ingestion_manager
 from osbenchmark.utils import convert, console, net
 from osbenchmark.worker_coordinator.errors import parse_error
 ##################################
@@ -886,6 +886,7 @@ class WorkerCoordinator:
         self.logger = logging.getLogger(__name__)
         self.target = target
         self.config = config
+        ingestion_manager.IngestionManager.config = config
         self.os_client_factory = os_client_factory_class
         self.workload = None
         self.test_procedure = None
