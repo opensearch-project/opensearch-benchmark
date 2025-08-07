@@ -2297,6 +2297,7 @@ class AsyncExecutor:
     async def _execute_request(self, params: dict, expected_scheduled_time: float, total_start: float,
                                client_state: bool) -> dict:
         """Execute a request with timing control and error handling."""
+        request_timeout = (params or {}).get("request-timeout", None)
         absolute_expected_schedule_time = total_start + expected_scheduled_time
         throughput_throttled = expected_scheduled_time > 0
 
@@ -2313,7 +2314,6 @@ class AsyncExecutor:
 
         request_start = request_end = client_request_start = client_request_end = None
         total_ops, total_ops_unit, request_meta_data = 0, "ops", {}
-
         async with context_manager as request_context:
             try:
                 total_ops, total_ops_unit, request_meta_data = await asyncio.wait_for(
@@ -2321,7 +2321,7 @@ class AsyncExecutor:
                         self.runner, self.opensearch, params, self.on_error,
                         redline_enabled=self.redline_enabled, client_enabled=client_state
                     ),
-                    timeout=self.base_timeout
+                    timeout=self.base_timeout if request_timeout is None else request_timeout
                 )
             except asyncio.TimeoutError:
                 self.logger.error("Client %s request timed out after %s s", self.client_id, self.base_timeout)
