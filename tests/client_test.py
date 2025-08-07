@@ -300,9 +300,7 @@ class OsClientFactoryTests(TestCase):
 
             if "aws_session_token" in original_client_options:
                 self.assertIn("aws_session_token", f.client_options)
-
             self.assertDictEqual(original_client_options, client_options)
-
 
     @mock.patch.object(ssl.SSLContext, "load_cert_chain")
     def test_create_https_connection_unverified_certificate_present_client_certificates(self, mocked_load_cert_chain):
@@ -384,6 +382,106 @@ class OsClientFactoryTests(TestCase):
         assert f.hosts == hosts
         assert f.ssl_context.check_hostname is False
         assert f.ssl_context.verify_mode == ssl.CERT_REQUIRED
+
+    @mock.patch('boto3.Session')
+    def test_create_https_connection_with_aws_session_credentials(self, mock_session):
+        hosts = [{"host": "localhost", "port": 9200}]
+        client_options = {
+            "use_ssl": True,
+            "timeout": 120,
+            "amazon_aws_log_in": 'session',
+            "region": "us-east-1",
+            "service": "es",
+            "verify_certs": True
+        }
+        mock_credentials = mock.Mock()
+        mock_session_instance = mock.Mock()
+        mock_session_instance.get_credentials.return_value = mock_credentials
+        mock_session.return_value = mock_session_instance
+
+        original_client_options = dict(client_options)
+        logger = logging.getLogger("osbenchmark.client")
+        with mock.patch.object(logger, "info") as mocked_info_logger:
+            f = client.OsClientFactory(hosts, client_options)
+        mocked_info_logger.assert_has_calls([
+            mock.call("SSL support: on"),
+            mock.call("SSL certificate verification: on"),
+            mock.call("SSL client authentication: off")
+        ])
+
+        self.assertEqual(hosts, f.hosts)
+        self.assertEqual("https", f.client_options["scheme"])
+        self.assertIn("timeout", f.client_options)
+        self.assertIn("amazon_aws_log_in", f.client_options)
+        self.assertIn("region", f.client_options)
+        self.assertIn("service", f.client_options)
+        self.assertDictEqual(original_client_options, client_options)
+
+    def test_raises_error_when_session_auth_missing_region(self):
+        hosts = [{"host": "localhost", "port": 9200}]
+        client_options = {
+            "use_ssl": True,
+            "amazon_aws_log_in": 'session',
+            "service": "es"
+        }
+
+        with self.assertRaises(exceptions.SystemSetupError) as ctx:
+            client.OsClientFactory(hosts, client_options)
+
+        self.assertEqual(
+            "region is mandatory parameter for session client.",
+            ctx.exception.args[0]
+        )
+
+    @mock.patch('boto3.Session')
+    def test_create_sync_client_with_session_credentials(self, mock_session):
+        hosts = [{"host": "localhost", "port": 9200}]
+        client_options = {
+            "amazon_aws_log_in": 'session',
+            "region": "us-east-1",
+            "service": "es"
+        }
+
+        mock_credentials = mock.Mock()
+        mock_session_instance = mock.Mock()
+        mock_session_instance.get_credentials.return_value = mock_credentials
+        mock_session.return_value = mock_session_instance
+
+        f = client.OsClientFactory(hosts, client_options)
+
+        with mock.patch('opensearchpy.OpenSearch') as mock_opensearch, \
+             mock.patch('opensearchpy.Urllib3AWSV4SignerAuth') as mock_auth:
+            f.create()
+
+            mock_session.assert_called_once()
+            mock_session_instance.get_credentials.assert_called_once()
+            mock_auth.assert_called_once_with(mock_credentials, "us-east-1", "es")
+            mock_opensearch.assert_called_once()
+
+    @mock.patch('boto3.Session')
+    def test_create_async_client_with_session_credentials(self, mock_session):
+        hosts = [{"host": "localhost", "port": 9200}]
+        client_options = {
+            "amazon_aws_log_in": 'session',
+            "region": "us-east-1",
+            "service": "es"
+        }
+
+        mock_credentials = mock.Mock()
+        mock_session_instance = mock.Mock()
+        mock_session_instance.get_credentials.return_value = mock_credentials
+        mock_session.return_value = mock_session_instance
+
+        f = client.OsClientFactory(hosts, client_options)
+
+        with mock.patch('opensearchpy.AWSV4SignerAsyncAuth') as mock_auth, \
+             mock.patch('osbenchmark.async_connection.AsyncHttpConnection'):
+            f.create_async()
+
+            mock_session.assert_called_once()
+            mock_session_instance.get_credentials.assert_called_once()
+            mock_auth.assert_called_once_with(mock_credentials, "us-east-1", "es")
+
 
 class RequestContextManagerTests(TestCase):
     @pytest.mark.skip(reason="latency is system-dependent")

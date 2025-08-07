@@ -24,7 +24,7 @@
 
 import logging
 import time
-
+import boto3
 import certifi
 import urllib3
 from urllib3.util.ssl_ import is_ipaddress
@@ -169,6 +169,7 @@ class OsClientFactory:
         import os
         aws_log_in_dict = {}
         # aws log in : option 1) pass in parameters from os environment variables
+        # To-do: Keep only session option for 2.0 and delete the rest.
         if self.client_options["amazon_aws_log_in"] == "environment":
             aws_log_in_dict["aws_access_key_id"] = os.environ.get("OSB_AWS_ACCESS_KEY_ID")
             aws_log_in_dict["aws_secret_access_key"] = os.environ.get("OSB_AWS_SECRET_ACCESS_KEY")
@@ -184,7 +185,11 @@ class OsClientFactory:
             aws_log_in_dict["service"] = self.client_options.get("service")
             # optional: applicable only for role-based access
             aws_log_in_dict["aws_session_token"] = self.client_options.get("aws_session_token")
-        if (not aws_log_in_dict["aws_access_key_id"] or not aws_log_in_dict["aws_secret_access_key"]
+        elif self.client_options["amazon_aws_log_in"] == "session":
+            aws_log_in_dict["region"] = self.client_options.get("region")
+            aws_log_in_dict["service"] = self.client_options.get("service")
+
+        if self.client_options["amazon_aws_log_in"] != "session" and (not aws_log_in_dict["aws_access_key_id"] or not aws_log_in_dict["aws_secret_access_key"]
                 or not aws_log_in_dict["service"] or not aws_log_in_dict["region"]):
             self.logger.error("Invalid amazon aws log in parameters, required input aws_access_key_id, "
                               "aws_secret_access_key, service and region.")
@@ -192,6 +197,12 @@ class OsClientFactory:
                 "Invalid amazon aws log in parameters, required input aws_access_key_id, "
                 "aws_secret_access_key, and region."
             )
+        elif self.client_options['amazon_aws_log_in'] == "session" and not aws_log_in_dict["region"]:
+            self.logger.error("region is mandatory parameter for session client.")
+            raise exceptions.SystemSetupError(
+                "region is mandatory parameter for session client."
+            )
+
         if aws_log_in_dict["service"] not in ['es', 'aoss']:
             self.logger.error("Service for aws log in should be one of 'es' or 'aoss'")
             raise exceptions.SystemSetupError(
@@ -208,13 +219,16 @@ class OsClientFactory:
         if "amazon_aws_log_in" not in self.client_options:
             return opensearchpy.OpenSearch(hosts=self.hosts, ssl_context=self.ssl_context, **self.client_options)
 
-        credentials = Credentials(access_key=self.aws_log_in_dict["aws_access_key_id"],
-                                  secret_key=self.aws_log_in_dict["aws_secret_access_key"],
-                                  token=self.aws_log_in_dict["aws_session_token"])
+        if self.client_options['amazon_aws_log_in'] == "session":
+            credentials = boto3.Session().get_credentials()
+        else:
+            credentials = Credentials(access_key=self.aws_log_in_dict["aws_access_key_id"],
+                                      secret_key=self.aws_log_in_dict["aws_secret_access_key"],
+                                      token=self.aws_log_in_dict["aws_session_token"])
         aws_auth = opensearchpy.Urllib3AWSV4SignerAuth(credentials, self.aws_log_in_dict["region"],
                                                 self.aws_log_in_dict["service"])
         return opensearchpy.OpenSearch(hosts=self.hosts, use_ssl=True, verify_certs=True, http_auth=aws_auth,
-                                       connection_class=opensearchpy.Urllib3HttpConnection)
+                                       connection_class=opensearchpy.Urllib3HttpConnection, **self.client_options)
 
     def create_async(self):
         # pylint: disable=import-outside-toplevel
@@ -259,9 +273,12 @@ class OsClientFactory:
                                             ssl_context=self.ssl_context,
                                             **self.client_options)
 
-        credentials = Credentials(access_key=self.aws_log_in_dict["aws_access_key_id"],
-                                  secret_key=self.aws_log_in_dict["aws_secret_access_key"],
-                                  token=self.aws_log_in_dict["aws_session_token"])
+        if self.client_options['amazon_aws_log_in'] == "session":
+            credentials = boto3.Session().get_credentials()
+        else:
+            credentials = Credentials(access_key=self.aws_log_in_dict["aws_access_key_id"],
+                                      secret_key=self.aws_log_in_dict["aws_secret_access_key"],
+                                      token=self.aws_log_in_dict["aws_session_token"])
         aws_auth = opensearchpy.AWSV4SignerAsyncAuth(credentials, self.aws_log_in_dict["region"],
                                                      self.aws_log_in_dict["service"])
         return BenchmarkAsyncOpenSearch(hosts=self.hosts,
