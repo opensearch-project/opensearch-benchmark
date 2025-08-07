@@ -22,6 +22,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 import collections
 import copy
 import inspect
@@ -31,6 +32,7 @@ import numbers
 import operator
 import random
 import time
+import multiprocessing
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import List, Dict, Any, Optional, Tuple
@@ -43,6 +45,7 @@ from osbenchmark.utils.dataset import DataSet, get_data_set, Context
 from osbenchmark.utils.parse import parse_string_parameter, parse_int_parameter
 from osbenchmark.workload import workload
 from osbenchmark.workload import loader
+from osbenchmark.workload.ingestion_manager import IngestionManager
 
 __PARAM_SOURCES_BY_OP = {}
 __PARAM_SOURCES_BY_NAME = {}
@@ -778,6 +781,8 @@ class PartitionBulkIndexParamSource:
         # use a value > 0 so percent_completed returns a sensible value
         self.total_bulks = 1
         self.infinite = False
+        # TBD: obtain value from workload spec.
+        self.streaming_ingestion = False
 
     def partition(self, partition_index, total_partitions):
         if self.total_partitions is None:
@@ -792,7 +797,7 @@ class PartitionBulkIndexParamSource:
             self._init_internal_params()
         # self.internal_params always reads all files. This is necessary to ensure we terminate early in case
         # the user has specified ingest percentage.
-        if self.current_bulk == self.total_bulks:
+        if not self.streaming_ingestion and self.current_bulk == self.total_bulks:
             raise StopIteration()
         self.current_bulk += 1
         return next(self.internal_params)
@@ -808,12 +813,13 @@ class PartitionBulkIndexParamSource:
                                                self.conflict_probability, self.on_conflict, self.recency,
                                                self.pipeline, self.original_params, self.create_reader)
 
-        all_bulks = number_of_bulks(self.corpora, start_index, end_index, self.total_partitions, self.bulk_size)
-        self.total_bulks = math.ceil((all_bulks * self.ingest_percentage) / 100)
+        if not self.streaming_ingestion:
+            all_bulks = number_of_bulks(self.corpora, start_index, end_index, self.total_partitions, self.bulk_size)
+            self.total_bulks = math.ceil((all_bulks * self.ingest_percentage) / 100)
 
     @property
     def percent_completed(self):
-        return self.current_bulk / self.total_bulks
+        return IngestionManager.rd_index.value if self.streaming_ingestion else self.current_bulk / self.total_bulks
 
 
 class OpenPointInTimeParamSource(ParamSource):
@@ -1551,7 +1557,7 @@ def chain(*iterables):
 
 def create_default_reader(docs, offset, num_lines, num_docs, batch_size, bulk_size, id_conflicts, conflict_probability,
                           on_conflict, recency):
-    source = Slice(io.MmapSource, offset, num_lines)
+    source = Slice(io.MmapSource, offset, num_lines, docs.document_file)
     target = None
     use_create = False
     if docs.target_index:
@@ -1755,7 +1761,7 @@ class GenerateActionMetaData:
 
 
 class Slice:
-    def __init__(self, source_class, offset, number_of_lines):
+    def __init__(self, source_class, offset, number_of_lines, file_name=None):
         self.source_class = source_class
         self.source = None
         self.offset = offset
@@ -1763,6 +1769,27 @@ class Slice:
         self.current_line = 0
         self.bulk_size = None
         self.logger = logging.getLogger(__name__)
+        # TBD: obtain value from workload spec.
+        self.streaming_ingestion = False
+        if self.streaming_ingestion:
+            self.data_dir = os.path.dirname(file_name)
+            Slice.data_dir = self.data_dir
+            with IngestionManager.lock:
+                if IngestionManager.producer_started.value == 0:
+                    IngestionManager.producer_started.value = 1
+                    Slice._start_producer()
+
+    # Interim function: will be updated in the next set of changes.
+    @staticmethod
+    def _start_producer():
+        client_options_obj = IngestionManager.config.opts("client", "options")
+        client_options = getattr(client_options_obj, "all_client_options", {})
+        keys = [ "sorted-http-logs-regenerated_0.json", "sorted-http-logs-regenerated_1.json", "sorted-http-logs-regenerated_2.json" ]
+        # pylint: disable = import-outside-toplevel
+        from osbenchmark.cloud_provider.vendors.s3_data_producer import S3DataProducer
+        producer = S3DataProducer("big5-corpus", keys, client_options, Slice.data_dir)
+        p = multiprocessing.Process(target=producer.generate_chunked_data)
+        p.start()
 
     def open(self, file_name, mode, bulk_size):
         self.bulk_size = bulk_size
@@ -1773,6 +1800,11 @@ class Slice:
         io.skip_lines(file_name, self.source, self.offset)
         end = time.perf_counter()
         self.logger.debug("Skipping [%d] lines took [%f] s.", self.offset, end - start)
+        self.mode = mode
+        if self.streaming_ingestion:
+            with IngestionManager.load_empty:
+                IngestionManager.load_empty.wait()
+                self._open_next()
         return self
 
     def close(self):
@@ -1782,7 +1814,44 @@ class Slice:
     def __iter__(self):
         return self
 
+    def _open_next(self):
+        with IngestionManager.load_empty:
+            while IngestionManager.rd_index.value == IngestionManager.wr_count.value:
+                IngestionManager.load_empty.wait()
+            if os.path.getsize(os.path.join(self.data_dir, f"chunk-{IngestionManager.rd_index.value:05d}")) == 0:
+                return False
+            self.rd_idx = IngestionManager.rd_index.value
+            IngestionManager.rd_index.value += 1
+            if IngestionManager.wr_count.value - self.rd_idx < IngestionManager.ballast:
+                with IngestionManager.load_full:
+                    IngestionManager.load_full.notify()
+        self.fh = self.source_class(os.path.join(self.data_dir, f"chunk-{self.rd_idx:05d}"), self.mode).open()
+        return True
+
+    def _fill_bulk(self):
+        if not self.fh:
+            raise StopIteration()
+        want = self.bulk_size
+        rsl = list()
+        while want > 0:
+            lines = self.fh.readlines(want)
+            rsl.extend(lines)
+            n = len(lines)
+            if n < want:
+                os.remove(os.path.join(self.data_dir, f"chunk-{self.rd_idx:05d}"))
+                self.fh = None
+                if not self._open_next():
+                    if n == 0:
+                        raise StopIteration()
+                    else:
+                        return rsl
+            want -= n
+        return rsl
+
     def __next__(self):
+        if self.streaming_ingestion:
+            return self._fill_bulk()
+
         if self.current_line >= self.number_of_lines:
             raise StopIteration()
         else:
