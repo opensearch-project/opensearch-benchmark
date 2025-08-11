@@ -141,7 +141,7 @@ develop_require = [
     "twine==6.0.1",
     "wheel>=0.38.4",
     "github3.py==1.3.0",
-    "pylint==2.6.0",
+    "pylint==2.9.0",
     "pylint-quotes==0.2.1"
 ]
 
