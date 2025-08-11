@@ -12,7 +12,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from osbenchmark.exceptions import ConfigError
-from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorMetadata
+from osbenchmark.synthetic_data_generator.models import SyntheticDataGeneratorMetadata, SDGConfig, \
+    SettingsConfig, MappingGenerationValuesConfig, CustomGenerationValuesConfig, GeneratorParams, FieldOverride
 from osbenchmark.synthetic_data_generator.strategies import MappingStrategy, CustomModuleStrategy
 from osbenchmark.synthetic_data_generator.strategies.mapping_strategy import MappingConverter
 from osbenchmark.synthetic_data_generator import helpers
@@ -28,16 +29,13 @@ class TestCustomStrategy:
             custom_config_path="/path/to/config",
             custom_module_path="/path/to/module",
             output_path="/path/to/output",
-            total_size_gb=10,
-            mode=None,
-            checkpoint=None,
-            blueprint=None,
-            generators={}
+            total_size_gb=10
         )
 
     @pytest.fixture
     def mock_sdg_config(self):
-        sdg_config = {
+        # This is what yaml.safe_load() would return
+        loaded_sdg_config = {
                     'settings': {'workers': 8, 'max_file_size_gb': 1, 'chunk_size': 10000},
                     'CustomGenerationValues': {
                         'custom_lists': {'dog_names': ['Hana', 'Youpie', 'Charlie', 'Lucy', 'Cooper', 'Luna', 'Rocky', 'Daisy', 'Buddy', 'Molly'],
@@ -53,6 +51,8 @@ class TestCustomStrategy:
                     }
                 }
 
+
+        sdg_config = SDGConfig(**loaded_sdg_config)
         return sdg_config
 
     @pytest.fixture
@@ -183,16 +183,13 @@ class TestMappingStrategy:
             custom_config_path="/path/to/config",
             custom_module_path="/path/to/module",
             output_path="/path/to/output",
-            total_size_gb=10,
-            mode=None,
-            checkpoint=None,
-            blueprint=None,
-            generators={}
+            total_size_gb=10
         )
 
     @pytest.fixture
     def mock_sdg_config(self):
-        sdg_config = {
+        # This is what yaml.safe_load() would return
+        loaded_sdg_config = {
                     'settings': {'workers': 8, 'max_file_size_gb': 1, 'chunk_size': 10000},
                     'MappingGenerationValues': {
                         'generator_overrides': {
@@ -216,6 +213,7 @@ class TestMappingStrategy:
                     }
                 }
 
+        sdg_config = SDGConfig(**loaded_sdg_config)
         return sdg_config
 
     @pytest.fixture
@@ -950,7 +948,8 @@ class TestMappingConverter:
 
     @pytest.fixture
     def mock_sdg_config(self):
-        sdg_config = {
+        # This is what yaml.safe_load() would return
+        loaded_sdg_config = {
                     'settings': {'workers': 8, 'max_file_size_gb': 1, 'chunk_size': 10000},
                     'MappingGenerationValues': {
                         'generator_overrides': {
@@ -964,7 +963,7 @@ class TestMappingConverter:
                         },
                         'field_overrides': {
                             'id': {'generator': 'generate_keyword',
-                                'params': {'choices': ['Helly R', 'Mark S', 'Irving B']}},
+                            'params': {'choices': ['Helly R', 'Mark S', 'Irving B']}},
                             'promo_codes': {'generator': 'generate_keyword', 'params': {'choices': ['HOT_SUMMER', 'TREATSYUM!']}},
                             'preferences.language': {'generator': 'generate_keyword', 'params': {'choices': ['Python', 'English']}},
                             'payment_methods.type': {'generator': 'generate_keyword', 'params': {'choices': ['Visa', 'Mastercard', 'Cash', 'Venmo']}},
@@ -974,6 +973,7 @@ class TestMappingConverter:
                     }
                 }
 
+        sdg_config = SDGConfig(**loaded_sdg_config)
         return sdg_config
 
     @pytest.fixture
@@ -1235,7 +1235,7 @@ class TestMappingConverter:
 
     @pytest.fixture
     def mapping_converter(self, mock_sdg_config):
-        mapping_generation_values = mock_sdg_config.get("MappingGenerationValues", {})
+        mapping_generation_values = mock_sdg_config.MappingGenerationValues
         mapping_converter_logic = MappingConverter(mapping_generation_values, 12345)
 
         return mapping_converter_logic

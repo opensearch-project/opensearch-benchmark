@@ -8,7 +8,7 @@
 
 import os
 import yaml
-from pydantic import BaseModel, Field, validator, ValidationError
+from pydantic import BaseModel, Field, field_validator
 # from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any, Union
 from datetime import datetime
@@ -24,10 +24,10 @@ GB_TO_BYTES = 1024 ** 3
 
 class SettingsConfig(BaseModel):
     workers: Optional[int] = Field(default_factory=os.cpu_count)
-    max_file_size_gb = Optional[int] = 40
+    max_file_size_gb: Optional[int] = 40
     docs_per_chunk: Optional[int] = 10000
 
-    @validator('workers', 'max_file_size_gb', 'docs_per_chunk')
+    @field_validator('workers', 'max_file_size_gb', 'docs_per_chunk')
     def validate_values_are_positive_integers(cls, v):
         if v is not None and v <= 0:
             raise ValueError('Value in Settings portion must be a positive integer.')
@@ -38,7 +38,7 @@ class CustomGenerationValuesConfig(BaseModel):
     custom_lists: Optional[Dict[str, List[Any]]] = None
     custom_providers: Optional[List[Any]] = None
 
-    @validator('custom_lists')
+    @field_validator('custom_lists')
     def validate_custom_lists(cls, v):
         if v is not None:
             for key, value in v.items():
@@ -70,7 +70,7 @@ class FieldOverride(BaseModel):
     generator: str
     params: GeneratorParams
 
-    @validator('generator')
+    @field_validator('generator')
     def validate_generator_name(cls, v):
         valid_generators = [
             'generate_text',
@@ -97,7 +97,7 @@ class MappingGenerationValuesConfig(BaseModel):
     generator_overrides: Optional[Dict[str, GeneratorParams]] = None
     field_overrides: Optional[Dict[str, FieldOverride]] = None
 
-    @validator('generator_overrides')
+    @field_validator('generator_overrides')
     def validate_generator_types(cls, v):
         if v is not None:
             valid_generator_types = ['integer', 'long', 'float', 'double', 'date', 'text', 'keyword']
@@ -108,7 +108,7 @@ class MappingGenerationValuesConfig(BaseModel):
 
         return v
 
-    @validator('field_overrides')
+    @field_validator('field_overrides')
     def validate_field_names(cls, v):
         if v is not None:
             for field_name in v.keys():
@@ -129,6 +129,15 @@ class SyntheticDataGeneratorMetadata(BaseModel):
         extra = 'forbid'
 
 class SDGConfig(BaseModel):
-    settings: Optional[SettingsConfig] = None
+    # If user does not provide YAML fil or provides YAML without all settings fields, it will use default generation settings.
+    settings: Optional[SettingsConfig] = Field(default_factory=SettingsConfig)
     CustomGenerationValues: Optional[CustomGenerationValuesConfig] = None
     MappingGenerationValues: Optional[MappingGenerationValuesConfig] = None
+
+    class Config:
+        extra = 'forbid'
+
+if __name__ == "__main__":
+    sdg_config = SDGConfig()
+    print(sdg_config)
+    print(sdg_config.settings.model_dump())
