@@ -24,3 +24,7 @@ jobs:
 
       - name: Run the CI build script
         run: bash .ci/build.sh build_and_unit_test
+
+      - name: Run 2.X term lint checker
+        run: .ci/scripts/check_for_2-X_terms.py
+        if: contains(github.event.pull_request.labels.*.name, '1.x-terms-only')
