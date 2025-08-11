@@ -16,12 +16,6 @@ import re
 
 GB_TO_BYTES = 1024 ** 3
 
-# DEFAULT_GENERATION_SETTINGS = {
-#     "workers": os.cpu_count(),
-#     "max_file_size_gb": 40,
-#     "docs_per_chunk": 10000
-# }
-
 class SettingsConfig(BaseModel):
     workers: Optional[int] = Field(default_factory=os.cpu_count)
     max_file_size_gb: Optional[int] = 40
@@ -136,8 +130,3 @@ class SDGConfig(BaseModel):
 
     class Config:
         extra = 'forbid'
-
-if __name__ == "__main__":
-    sdg_config = SDGConfig()
-    print(sdg_config)
-    print(sdg_config.settings.model_dump())
