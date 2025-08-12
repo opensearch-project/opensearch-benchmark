@@ -115,7 +115,7 @@ def load_config(config_path: str) -> SDGConfig:
             return SDGConfig(**config_details)
 
     except yaml.YAMLError as e:
-        raise exceptions.ConfigError("Error when loading config due to YAML error: {e}")
+        raise exceptions.ConfigError(f"Error when loading config due to YAML error: {e}")
     except TypeError:
         raise exceptions.SystemSetupError("Error when loading config. Please ensure that the proper config was provided")
 

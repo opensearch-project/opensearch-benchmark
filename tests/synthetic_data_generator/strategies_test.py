@@ -12,8 +12,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from osbenchmark.exceptions import ConfigError
-from osbenchmark.synthetic_data_generator.models import SyntheticDataGeneratorMetadata, SDGConfig, \
-    SettingsConfig, MappingGenerationValuesConfig, CustomGenerationValuesConfig, GeneratorParams, FieldOverride
+from osbenchmark.synthetic_data_generator.models import SyntheticDataGeneratorMetadata, SDGConfig
 from osbenchmark.synthetic_data_generator.strategies import MappingStrategy, CustomModuleStrategy
 from osbenchmark.synthetic_data_generator.strategies.mapping_strategy import MappingConverter
 from osbenchmark.synthetic_data_generator import helpers

@@ -7,10 +7,10 @@
 # GitHub history for details.
 
 import os
-from pydantic import BaseModel, Field, field_validator
-# from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Any, Union
 import re
+
+from pydantic import BaseModel, Field, field_validator
 
 GB_TO_BYTES = 1024 ** 3
 

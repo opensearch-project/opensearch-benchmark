@@ -60,7 +60,7 @@ class CustomModuleStrategy(DataGenerationStrategy):
             self.generate_data_chunk_from_worker, self.custom_module.generate_synthetic_document,
             docs_per_chunk, seed) for seed in seeds]
 
-
+    # pylint: disable=arguments-renamed
     def generate_data_chunk_from_worker(self, generate_synthetic_document: Callable, docs_per_chunk: int, seed: Optional[int]) -> list:
         """
         This method is submitted to Dask worker and can be thought of as the worker performing a job, which is calling the
