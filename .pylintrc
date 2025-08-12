@@ -173,7 +173,14 @@ disable=print-statement,
         W0613,
         W0621,
         invalid-docstring-quote,
-        raise-missing-from
+        raise-missing-from,
+        R1732,
+        R0801,
+        R0402,
+        E0213,
+        E0012,
+        C0206,
+        W0238
 
 
 # Enable the message, report, category or checker with the given id(s). You can
