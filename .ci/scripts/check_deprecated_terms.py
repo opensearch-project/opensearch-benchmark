@@ -23,7 +23,7 @@ TERMS_2X = [
     "test-run",
 ]
 
-SKIP_DIRS = {".git", "venv", "__pycache__", ".pytest_cache"}
+SKIP_DIRS = {".git", "venv", "__pycache__", ".pytest_cache", ".ci", "tests"}
 VALID_EXTENSIONS = (".py", ".yml", ".yaml", ".md", ".sh", ".json", ".txt")
 
 def generate_variants(term: str) -> set[str]:
