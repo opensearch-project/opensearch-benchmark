@@ -16,13 +16,15 @@ from osbenchmark.synthetic_data_generator.input_processor import create_sdg_meta
 from osbenchmark.synthetic_data_generator import helpers
 from osbenchmark.synthetic_data_generator.synthetic_data_generator import SyntheticDataGenerator
 from osbenchmark.synthetic_data_generator.strategies import CustomModuleStrategy, MappingStrategy
+from osbenchmark.synthetic_data_generator.models import SDGConfig
 
 def orchestrate_data_generation(cfg):
     logger = logging.getLogger(__name__)
     sdg_metadata = create_sdg_metadata_from_args(cfg)
     test_document_requested = cfg.opts("synthetic_data_generator", "test_document")
 
-    sdg_config = helpers.load_config(sdg_metadata.custom_config_path) if sdg_metadata.custom_config_path else {}
+    # If no sdg config provided, it instantiates an SDGConfig model with pre-populated settings but rest of fields are None
+    sdg_config: SDGConfig = helpers.load_config(sdg_metadata.custom_config_path) if sdg_metadata.custom_config_path else SDGConfig()
 
     if helpers.host_has_available_disk_storage(sdg_metadata):
         if use_custom_synthetic_data_generator(sdg_metadata):

@@ -122,7 +122,11 @@ install_requires = [
     # Licence: BSD-3-Clause
     "dask[distributed]",
     # Licence: BSD-3-Clause
-    "bokeh!=3.0.*,>=2.4.2"
+    "bokeh!=3.0.*,>=2.4.2",
+    # License: MIT
+    "pydantic>=2.10.6",
+    # License: MIT
+    "pydantic_core>=2.27.2"
 ]
 
 tests_require = [
@@ -139,7 +143,7 @@ develop_require = [
     "twine==6.0.1",
     "wheel>=0.38.4",
     "github3.py==1.3.0",
-    "pylint==2.6.0",
+    "pylint==2.9.0",
     "pylint-quotes==0.2.1"
 ]
 

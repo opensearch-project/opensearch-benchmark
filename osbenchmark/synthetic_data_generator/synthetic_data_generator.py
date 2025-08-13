@@ -15,13 +15,12 @@ from dask.distributed import Client, get_client, as_completed
 from tqdm import tqdm
 
 from osbenchmark.utils import console
-from osbenchmark.synthetic_data_generator.types import GB_TO_BYTES
 from osbenchmark.synthetic_data_generator import helpers
 from osbenchmark.synthetic_data_generator.strategies import DataGenerationStrategy
-from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorMetadata
+from osbenchmark.synthetic_data_generator.models import SyntheticDataGeneratorMetadata, SDGConfig, GB_TO_BYTES
 
 class SyntheticDataGenerator:
-    def __init__(self, sdg_metadata: SyntheticDataGeneratorMetadata, sdg_config: dict, strategy: DataGenerationStrategy) -> None:
+    def __init__(self, sdg_metadata: SyntheticDataGeneratorMetadata, sdg_config: SDGConfig, strategy: DataGenerationStrategy) -> None:
         self.sdg_metadata = sdg_metadata
         self.sdg_config = sdg_config
         self.strategy = strategy
@@ -56,10 +55,9 @@ class SyntheticDataGenerator:
         """
         Core logic in generating synthetic data. Can use different strategies
         """
-        generation_settings: dict = helpers.get_generation_settings(self.sdg_config)
-        max_file_size_bytes: int = generation_settings.get('max_file_size_gb') * GB_TO_BYTES
+        max_file_size_bytes: int = self.sdg_config.settings.max_file_size_gb * GB_TO_BYTES
         total_size_bytes: int = self.sdg_metadata.total_size_gb * GB_TO_BYTES
-        docs_per_chunk: int = generation_settings.get('docs_per_chunk')
+        docs_per_chunk: int = self.sdg_config.settings.docs_per_chunk
 
         avg_document_size = helpers.calculate_avg_doc_size(strategy=self.strategy)
 
@@ -71,7 +69,7 @@ class SyntheticDataGenerator:
 
         helpers.check_for_existing_files(self.sdg_metadata.output_path, self.sdg_metadata.index_name)
 
-        workers: int = generation_settings.get("workers")
+        workers: int = self.sdg_config.settings.workers
         dask_client = Client(n_workers=workers, threads_per_worker=1)  # We keep it to 1 thread because generating random data is CPU intensive
         self.logger.info("Number of workers to use: [%s]", workers)
 
@@ -84,11 +82,11 @@ class SyntheticDataGenerator:
         self.logger.info("Average document size in bytes: [%s]", avg_document_size)
         self.logger.info("Chunk size: [%s] docs", docs_per_chunk)
         self.logger.info("Total GB to generate: [%s]", self.sdg_metadata.total_size_gb)
-        self.logger.info("Max file size in GB: [%s]", generation_settings.get('max_file_size_gb'))
+        self.logger.info("Max file size in GB: [%s]", self.sdg_config.settings.max_file_size_gb)
 
         console.println(f"Total GB to generate: [{self.sdg_metadata.total_size_gb}]\n"
                         f"Average document size in bytes: [{avg_document_size}]\n"
-                        f"Max file size in GB: [{generation_settings.get('max_file_size_gb')}]\n")
+                        f"Max file size in GB: [{self.sdg_config.settings.max_file_size_gb}]\n")
 
         start_time = time.time()
         with tqdm(total=total_size_bytes,
