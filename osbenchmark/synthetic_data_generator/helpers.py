@@ -109,10 +109,7 @@ def load_config(config_path: str) -> SDGConfig:
             with open(config_path, 'r') as file:
                 config_details = yaml.safe_load(file)
 
-            if config_details is None:
-                return SDGConfig()
-
-            return SDGConfig(**config_details)
+        return SDGConfig(**config_details) if config_details else SDGConfig()
 
     except yaml.YAMLError as e:
         raise exceptions.ConfigError(f"Error when loading config due to YAML error: {e}")
