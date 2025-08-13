@@ -1276,7 +1276,7 @@ def list_test_runs(cfg):
     list_test_helper(test_run_store(cfg).list(), "test-runs")
 
 def list_aggregated_results(cfg):
-    list_test_helper(test_run_store(cfg).list_aggregations(), "aggregated_results")
+    list_test_helper(test_run_store(cfg).list_aggregations(), "aggregated-results")
 
 def create_test_run(cfg, workload, test_procedure, workload_revision=None):
     cluster_config = cfg.opts("builder", "cluster_config.names")
