@@ -19,14 +19,14 @@ from mimesis.random import Random
 
 from osbenchmark.exceptions import ConfigError, MappingsError
 from osbenchmark.synthetic_data_generator.strategies import DataGenerationStrategy
-from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorMetadata
+from osbenchmark.synthetic_data_generator.models import SyntheticDataGeneratorMetadata, SDGConfig, MappingGenerationValuesConfig
 
 class MappingStrategy(DataGenerationStrategy):
-    def __init__(self, sdg_metadata: SyntheticDataGeneratorMetadata,  sdg_config: dict, index_mapping: dict) -> None:
+    def __init__(self, sdg_metadata: SyntheticDataGeneratorMetadata,  sdg_config: SDGConfig, index_mapping: dict) -> None:
         self.sdg_metadata = sdg_metadata
         self.sdg_config = sdg_config # Optional YAML-based config for value constraints
         self.index_mapping = index_mapping # OpenSearch Mapping
-        self.mapping_generation_values = self.sdg_config.get("MappingGenerationValues", {}) if self.sdg_config else {}
+        self.mapping_generation_values =  (self.sdg_config.MappingGenerationValues or {}) if self.sdg_config else {}
 
         self.logger = logging.getLogger(__name__)
 
@@ -224,8 +224,12 @@ class MappingConverter:
         transformed_mapping = {}
 
         # Extract configuration settings (both default generators and field overrides) from config user provided
-        # TODO: Set self.mapping_config to automatically point to MappingConverter
-        config = self.mapping_config
+        # Convert the sdg_config's MappingGenerationValues section into a dictionary and access the overrides
+        if isinstance(self.mapping_config, MappingGenerationValuesConfig):
+            config = self.mapping_config.model_dump()
+        else:
+            config = self.mapping_config
+
         generator_overrides = config.get("generator_overrides", {})
         field_overrides = config.get("field_overrides", {})
 

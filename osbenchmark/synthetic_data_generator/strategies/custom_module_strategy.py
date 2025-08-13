@@ -16,12 +16,12 @@ from mimesis.locales import Locale
 from mimesis.random import Random
 from mimesis.providers.base import BaseProvider
 
-from osbenchmark.exceptions import ConfigError
+from osbenchmark import exceptions
 from osbenchmark.synthetic_data_generator.strategies import DataGenerationStrategy
-from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorMetadata
+from osbenchmark.synthetic_data_generator.models import SyntheticDataGeneratorMetadata, SDGConfig
 
 class CustomModuleStrategy(DataGenerationStrategy):
-    def __init__(self, sdg_metadata: SyntheticDataGeneratorMetadata,  sdg_config: dict, custom_module: ModuleType) -> None:
+    def __init__(self, sdg_metadata: SyntheticDataGeneratorMetadata,  sdg_config: SDGConfig, custom_module: ModuleType) -> None:
         self.sdg_metadata = sdg_metadata
         self.sdg_config = sdg_config
         self.custom_module = custom_module
@@ -29,16 +29,25 @@ class CustomModuleStrategy(DataGenerationStrategy):
 
         if not hasattr(self.custom_module, 'generate_synthetic_document'):
             msg = f"Custom module at [{self.sdg_metadata.custom_module_path}] does not define a function called generate_synthetic_document(). Ensure that this method is defined."
-            raise ConfigError(msg)
+            raise exceptions.ConfigError(msg)
 
         # Fetch settings and custom module components from sdg-config.yml
-        custom_module_values = self.sdg_config.get('CustomGenerationValues', {})
-        try:
-            self.custom_lists = custom_module_values.get('custom_lists', {})
-            self.custom_providers = {name: getattr(self.custom_module, name) for name in custom_module_values.get('custom_providers', [])}
-        except TypeError:
-            msg = "Synthetic Data Generator Config has custom_lists and custom_providers pointing to null values. Either populate or remove."
-            raise ConfigError(msg)
+        if self.sdg_config.CustomGenerationValues is None:
+            self.custom_lists = {}
+            self.custom_providers = {}
+        else:
+            try:
+                self.custom_lists = self.sdg_config.CustomGenerationValues.custom_lists or {}
+                provider_names = self.sdg_config.CustomGenerationValues.custom_providers or []
+                self.custom_providers = {
+                    name: getattr(self.custom_module, name) for name in provider_names
+                }
+            except AttributeError as e:
+                msg = f"Error when setting up custom lists and custom providers: {e}"
+                raise exceptions.ConfigError(msg)
+            except TypeError:
+                msg = "Synthetic Data Generator Config has custom_lists and custom_providers pointing to null values. Either populate or remove."
+
 
     # pylint: disable=arguments-differ
     def generate_data_chunks_across_workers(self, dask_client: Client, docs_per_chunk: int, seeds: list ) -> list:
@@ -51,7 +60,7 @@ class CustomModuleStrategy(DataGenerationStrategy):
             self.generate_data_chunk_from_worker, self.custom_module.generate_synthetic_document,
             docs_per_chunk, seed) for seed in seeds]
 
-
+    # pylint: disable=arguments-renamed
     def generate_data_chunk_from_worker(self, generate_synthetic_document: Callable, docs_per_chunk: int, seed: Optional[int]) -> list:
         """
         This method is submitted to Dask worker and can be thought of as the worker performing a job, which is calling the
@@ -83,7 +92,7 @@ class CustomModuleStrategy(DataGenerationStrategy):
             msg = "Encountered AttributeError when setting up custom_providers and custom_lists. " + \
                     "It seems that your module might be using custom_lists and custom_providers." + \
                     f"Please ensure you have provided a custom config with custom_providers and custom_lists: {e}"
-            raise ConfigError(msg)
+            raise exceptions.ConfigError(msg)
         return document
 
     def _instantiate_all_providers(self, custom_providers):

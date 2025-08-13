@@ -166,14 +166,21 @@ disable=print-statement,
         too-many-instance-attributes,
         too-many-statements,
         inconsistent-return-statements,
-        C0302,
+        too-many-lines,
         C4001,
-        R0916,
-        W0201,
-        W0613,
-        W0621,
+        too-many-boolean-expressions,
+        attribute-defined-outside-init,
+        unused-argument,
+        redefined-outer-name,
         invalid-docstring-quote,
-        raise-missing-from
+        raise-missing-from,
+        consider-using-with,
+        duplicate-code,
+        consider-using-from-import,
+        bad-option-value,
+        consider-using-dict-items,
+        unused-private-member,
+        use-a-generator
 
 
 # Enable the message, report, category or checker with the given id(s). You can
