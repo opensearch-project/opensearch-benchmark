@@ -8,7 +8,7 @@
 
 import logging
 
-from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorMetadata
+from osbenchmark.synthetic_data_generator.models import SyntheticDataGeneratorMetadata
 from osbenchmark.exceptions import ConfigError
 
 logger = logging.getLogger(__name__)
