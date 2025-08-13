@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from osbenchmark.synthetic_data_generator.synthetic_data_generator import SyntheticDataGenerator
-from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorMetadata
+from osbenchmark.synthetic_data_generator.models import SyntheticDataGeneratorMetadata
 
 class TestSyntheticDataGeneratorWithCustomStrategy:
 
@@ -22,11 +22,7 @@ class TestSyntheticDataGeneratorWithCustomStrategy:
             custom_config_path="/path/to/config",
             custom_module_path="/path/to/module",
             output_path="/path/to/output",
-            total_size_gb=10,
-            mode=None,
-            checkpoint=None,
-            blueprint=None,
-            generators={}
+            total_size_gb=10
         )
 
     @pytest.fixture
@@ -103,11 +99,7 @@ class TestSyntheticDataGeneratorWithMappingStrategy:
             custom_config_path="/path/to/config",
             custom_module_path="/path/to/module",
             output_path="/path/to/output",
-            total_size_gb=10,
-            mode=None,
-            checkpoint=None,
-            blueprint=None,
-            generators={}
+            total_size_gb=10
         )
 
     @pytest.fixture

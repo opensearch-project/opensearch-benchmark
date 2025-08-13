@@ -17,15 +17,15 @@ import pickle
 import yaml
 
 from osbenchmark.utils import console
-from osbenchmark.exceptions import SystemSetupError, ExecutorError
+from osbenchmark import exceptions
 from osbenchmark.synthetic_data_generator.strategies.strategy import DataGenerationStrategy
-from osbenchmark.synthetic_data_generator.types import DEFAULT_GENERATION_SETTINGS, SyntheticDataGeneratorMetadata, GB_TO_BYTES
+from osbenchmark.synthetic_data_generator.models import SyntheticDataGeneratorMetadata, SDGConfig, GB_TO_BYTES
 
 def load_user_module(file_path):
     allowed_extensions = ['.py']
     extension = os.path.splitext(file_path)[1]
     if extension not in allowed_extensions:
-        raise SystemSetupError(f"User provided module with file extension [{extension}]. Python modules must have {allowed_extensions} extension.")
+        raise exceptions.SystemSetupError(f"User provided module with file extension [{extension}]. Python modules must have {allowed_extensions} extension.")
 
     spec = importlib.util.spec_from_file_location("user_module", file_path)
     user_module = importlib.util.module_from_spec(spec)
@@ -82,7 +82,7 @@ def remove_existing_files(existing_files_found: list):
         for file in existing_files_found:
             os.remove(file)
     except OSError as e:
-        raise ExecutorError("OSB could not remove existing files for SDG: ", e)
+        raise exceptions.ExecutorError("OSB could not remove existing files for SDG: ", e)
 
 def host_has_available_disk_storage(sdg_metadata: SyntheticDataGeneratorMetadata) -> bool:
     logger = logging.getLogger(__name__)
@@ -98,18 +98,23 @@ def host_has_available_disk_storage(sdg_metadata: SyntheticDataGeneratorMetadata
         logger.error("Error checking disk space.")
         return False
 
-def load_config(config_path):
+def load_config(config_path: str) -> SDGConfig:
     try:
         allowed_extensions = ['.yml', '.yaml']
 
         extension = os.path.splitext(config_path)[1]
         if extension not in allowed_extensions:
-            raise SystemSetupError(f"User provided config with extension [{extension}]. Config must have a {allowed_extensions} extension.")
+            raise exceptions.ConfigError(f"User provided config with extension [{extension}]. Config must have a {allowed_extensions} extension.")
         else:
             with open(config_path, 'r') as file:
-                return yaml.safe_load(file)
+                config_details = yaml.safe_load(file)
+
+        return SDGConfig(**config_details) if config_details else SDGConfig()
+
+    except yaml.YAMLError as e:
+        raise exceptions.ConfigError(f"Error when loading config due to YAML error: {e}")
     except TypeError:
-        raise SystemSetupError("Error when loading config. Please ensure that the proper config was provided")
+        raise exceptions.SystemSetupError("Error when loading config. Please ensure that the proper config was provided")
 
 def write_chunk(data, file_path):
     written_bytes = 0
@@ -129,29 +134,6 @@ def calculate_avg_doc_size(strategy: DataGenerationStrategy):
     buffer.close()
 
     return size
-
-def get_generation_settings(input_config: dict) -> dict:
-    '''
-    Grabs the user's config's generation settings and compares it with the default generation settings.
-    If there are missing fields in the user's config, it populates it with the default values
-    '''
-    generation_settings = DEFAULT_GENERATION_SETTINGS
-    if input_config is None: # if user did not provide a custom config
-        return generation_settings
-
-    user_generation_settings = input_config.get('settings', {})
-
-    if not user_generation_settings: # If user provided custom config but did not include settings
-        return generation_settings
-    else:
-        # Traverse and update valid settings that user specified.
-        for k in generation_settings:
-            if k in user_generation_settings and user_generation_settings[k] is not None:
-                generation_settings[k] = user_generation_settings[k]
-            else:
-                continue
-
-        return generation_settings
 
 def format_size(bytes):
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
