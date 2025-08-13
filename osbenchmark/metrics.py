@@ -34,7 +34,7 @@ import statistics
 import sys
 import time
 import zlib
-import webbrowser, os
+import webbrowser
 from enum import Enum, IntEnum
 from http.client import responses
 import psutil
@@ -1511,9 +1511,6 @@ class CompositeTestRunStore:
     def store_html_results(self, test_run):
         self.file_store.store_html_results(test_run)
 
-    def store_html_results(self, test_run):
-        self.file_store.store_html_results(test_run)
-
     def list(self):
         return self.os_store.list()
 
@@ -1551,9 +1548,9 @@ class FileTestRunStore(TestRunStore):
     def store_html_results(self, test_run, open_browser=True):
         # Check if custom output path is specified
         custom_output_path = self.cfg.opts("workload", "visualize.output.path", mandatory=False, default_value=None)
-        
+
         html_content = render_results_html(test_run, self.cfg)
-        
+
         if custom_output_path:
             dest = os.path.expanduser(custom_output_path)
             os.makedirs(os.path.dirname(dest), exist_ok=True)

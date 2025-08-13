@@ -30,6 +30,7 @@ import platform
 import sys
 import time
 import uuid
+import shutil
 
 import thespian.actors
 
@@ -848,9 +849,6 @@ def dispatch_list(cfg):
         raise exceptions.SystemSetupError("Cannot list unknown configuration option [%s]" % what)
 
 def dispatch_visualize(cfg):
-    import os, shutil
-    from osbenchmark import metrics, exceptions
-
     test_run_id = cfg.opts("system", "test_run.id")
     output_path = cfg.opts("visualize", "output.path", mandatory=False, default_value=None)
     store = metrics.test_run_store(cfg)

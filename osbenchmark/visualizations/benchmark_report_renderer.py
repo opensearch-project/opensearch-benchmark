@@ -1,4 +1,3 @@
-import os
 
 def render_results_html(test_run, cfg) -> str:
     """
