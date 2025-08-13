@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# .ci/scripts/check_terms.py
+# .ci/scripts/check_deprecated_terms.py
 
 import os, re, sys, argparse
 

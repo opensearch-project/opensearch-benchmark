@@ -47,4 +47,4 @@ jobs:
         env:
           OSB_TERM_MODE: ${{ steps.detect_mode.outputs.mode }}
         run: |
-          python3 .ci/scripts/check_terms.py --mode "$OSB_TERM_MODE"
+          python3 .ci/scripts/check_deprecated_terms.py --mode "$OSB_TERM_MODE"
