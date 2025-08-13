@@ -1,41 +1,40 @@
 import os
 
-def render_results_html(test_execution, cfg) -> str:
+def render_results_html(test_run, cfg) -> str:
     """
-    Build a “lighter” OpenSearch-themed HTML report for the given TestExecution.
-    This was extracted from metrics._render_results_html.
+    Build a “lighter” OpenSearch-themed HTML report for the given TestRun.
     """
-    # 1) Normalize the test_execution to a dict
-    if isinstance(test_execution, dict):
-        doc = test_execution
-    elif hasattr(test_execution, "as_dict"):
-        doc = test_execution.as_dict()
+    # 1) Normalize the test_run to a dict
+    if isinstance(test_run, dict):
+        doc = test_run
+    elif hasattr(test_run, "as_dict"):
+        doc = test_run.as_dict()
     else:
         # fallback minimal dict
         doc = {
-            "test-execution-id": test_execution.test_execution_id,
-            "benchmark-version": test_execution.benchmark_version,
-            "benchmark-revision": test_execution.benchmark_revision,
-            "environment": test_execution.environment_name,
-            "pipeline": test_execution.pipeline,
-            "workload": test_execution.workload_name,
-            "test-procedure": getattr(test_execution, "test_procedure_name", None),
+            "test-run-id": test_run.test_run_id,
+            "benchmark-version": test_run.benchmark_version,
+            "benchmark-revision": test_run.benchmark_revision,
+            "environment": test_run.environment_name,
+            "pipeline": test_run.pipeline,
+            "workload": test_run.workload_name,
+            "test-procedure": getattr(test_run, "test_procedure_name", None),
             "cluster": {
-                "revision": test_execution.revision,
-                "distribution-version": test_execution.distribution_version,
-                "distribution-flavor": test_execution.distribution_flavor,
-                "provision-config-revision": test_execution.provision_config_revision,
+                "revision": test_run.revision,
+                "distribution-version": test_run.distribution_version,
+                "distribution-flavor": test_run.distribution_flavor,
+                "provision-config-revision": test_run.provision_config_revision,
             }
         }
-        if getattr(test_execution, "results", None):
+        if getattr(test_run, "results", None):
             # results might already be a dict or an object
-            if isinstance(test_execution.results, dict):
-                doc["results"] = test_execution.results
-            elif hasattr(test_execution.results, "as_dict"):
-                doc["results"] = test_execution.results.as_dict()
+            if isinstance(test_run.results, dict):
+                doc["results"] = test_run.results
+            elif hasattr(test_run.results, "as_dict"):
+                doc["results"] = test_run.results.as_dict()
 
     # 2) Pull top-level fields
-    test_id       = doc.get("test-execution-id", "<unknown>")
+    test_id       = doc.get("test-run-id", "<unknown>")
     osb_ver       = doc.get("benchmark-version", "")
     osb_rev       = doc.get("benchmark-revision", "")
     environment   = doc.get("environment", "")

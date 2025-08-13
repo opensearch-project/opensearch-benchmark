@@ -291,17 +291,17 @@ def create_arg_parser():
         help="Whether to include the comparison in the results file.",
         default=True)
 
-    visualize_parser = subparsers.add_parser("visualize", help="Generate HTML visualization for a test execution")
+    visualize_parser = subparsers.add_parser("visualize", help="Generate HTML visualization for a test run")
     visualize_parser.add_argument(
-        "--test-execution-id",
+        "--test-run-id",
         "-tid",
-        dest="test_execution_id",
+        dest="test_run_id",
         required=True,
-        help=f"TestExecution ID to visualize (see {PROGRAM_NAME} list test_executions).")
+        help=f"TestRun ID to visualize (see {PROGRAM_NAME} list test_runs).")
     visualize_parser.add_argument(
         "--output-path",
         dest="output_path",
-        help="Path where the HTML report should be saved. If not specified, it will be saved in the test execution directory.",
+        help="Path where the HTML report should be saved. If not specified, it will be saved in the test run directory, where test_run.json can be found.",
         default=None)
 
     aggregate_parser = subparsers.add_parser("aggregate", help="Aggregate multiple test-runs")
@@ -777,9 +777,14 @@ def create_arg_parser():
     )
     test_run_parser.add_argument(
         "--visualize",
-        help="Generate HTML visualizations for benchmark results.",
+        help="Generate HTML visualizations for benchmark results. Stored in the test runs directory by default",
         action="store_true",
         default=False
+    )
+    test_run_parser.add_argument(
+    "--visualize-output-path",
+    help="Path where the HTML visualization should be saved when --visualize is enabled. If not specified, it will be saved in the test run directory.",
+    default=None
     )
 
     ###############################################################################
@@ -846,18 +851,18 @@ def dispatch_visualize(cfg):
     import os, shutil
     from osbenchmark import metrics, exceptions
 
-    test_execution_id = cfg.opts("system", "test_execution.id")
+    test_run_id = cfg.opts("system", "test_run.id")
     output_path = cfg.opts("visualize", "output.path", mandatory=False, default_value=None)
-    store = metrics.test_execution_store(cfg)
+    store = metrics.test_run_store(cfg)
 
     try:
-        # load the execution
-        te = store.find_by_test_execution_id(test_execution_id)
+        # load the run
+        te = store.find_by_test_run_id(test_run_id)
 
         # render, write, and open the HTML
         html_path = (
             store.file_store.store_html_results(te)
-            if isinstance(store, metrics.CompositeTestExecutionStore)
+            if isinstance(store, metrics.CompositeTestRunStore)
             else store.store_html_results(te)
         )
 
@@ -869,9 +874,9 @@ def dispatch_visualize(cfg):
             console.info(f"HTML report copied to: {dest}")
 
     except exceptions.NotFound:
-        raise exceptions.SystemSetupError(f"No test execution with id [{test_execution_id}]")
+        raise exceptions.SystemSetupError(f"No test run with id [{test_run_id}]")
     except Exception as e:
-        raise exceptions.SystemSetupError(f"Error visualizing test execution: {e}")
+        raise exceptions.SystemSetupError(f"Error visualizing test run: {e}")
 
 def print_help_on_errors():
     heading = "Getting further help:"
@@ -1128,6 +1133,7 @@ def configure_test(arg_parser, args, cfg):
     cfg.add(config.Scope.applicationOverride, "workload", "randomization.n", args.randomization_n)
     cfg.add(config.Scope.applicationOverride, "workload", "randomization.alpha", args.randomization_alpha)
     cfg.add(config.Scope.applicationOverride, "workload", "visualize", args.visualize)
+    cfg.add(config.Scope.applicationOverride, "workload", "visualize.output.path", args.visualize_output_path)
     configure_workload_params(arg_parser, args, cfg)
     configure_connection_params(arg_parser, args, cfg)
     configure_telemetry_params(args, cfg)
@@ -1248,7 +1254,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
 
             workload_generator.create_workload(cfg)
         elif sub_command == "visualize":
-            cfg.add(config.Scope.applicationOverride, "system", "test_execution.id", args.test_execution_id)
+            cfg.add(config.Scope.applicationOverride, "system", "test_run.id", args.test_run_id)
             cfg.add(config.Scope.applicationOverride, "visualize", "output.path", args.output_path)
             # Always set visualize to true for the visualize command
             cfg.add(config.Scope.applicationOverride, "workload", "visualize", True)

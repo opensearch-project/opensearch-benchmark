@@ -1518,7 +1518,7 @@ class CompositeTestRunStore:
         return self.os_store.list()
 
 
-class FileTestExecutionStore(TestExecutionStore):
+class FileTestRunStore(TestRunStore):
     _browser_opened = {}
 
     def __init__(self, cfg):
@@ -1536,7 +1536,7 @@ class FileTestExecutionStore(TestExecutionStore):
         if self.cfg.opts("workload", "visualize", mandatory=False, default_value=False):
             # Reset the browser opened flag when we're storing the final results
             if hasattr(test_run, "results") and test_run.results:
-                FileTestExecutionStore._browser_opened[test_run.test_run_id] = False
+                FileTestRunStore._browser_opened[test_run.test_run_id] = False
                 open_browser = True
             self.store_html_results(test_run, open_browser)
 
@@ -1549,31 +1549,31 @@ class FileTestExecutionStore(TestExecutionStore):
             f.write(json.dumps(doc, indent=True, ensure_ascii=False))
 
     def store_html_results(self, test_run, open_browser=True):
-        if not getattr(test_run, "results", None):
-            return
-
-        test_run_path = paths.test_run_root(
-            self.cfg, test_run_id=test_run.test_run_id
-        )
-
-        # pick report name & type
-        if self.cfg.opts("workload", "redline.test", mandatory=False, default_value=False):
-            report_name, report_type = "redline_report.html", "Redline"
-        else:
-            report_name, report_type = "benchmark_report.html", "Benchmark"
-
-        # render & write
+        # Check if custom output path is specified
+        custom_output_path = self.cfg.opts("workload", "visualize.output.path", mandatory=False, default_value=None)
+        
         html_content = render_results_html(test_run, self.cfg)
-        html_path = os.path.join(test_run_path, report_name)
-        with open(html_path, "wt", encoding="utf-8") as hf:
-            hf.write(html_content)
-
-        # open once
-        file_url = f"file://{html_path}"
-        if open_browser:
-            webbrowser.open(file_url)
-        print(f"{report_type} HTML report written & opened at: {file_url}")
-        return html_path
+        
+        if custom_output_path:
+            dest = os.path.expanduser(custom_output_path)
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            print("[DEBUG]: ", dest)
+            with open(dest, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+            console.info(f"HTML report saved to: {dest}")
+            if open_browser:
+                webbrowser.open(f"file://{dest}")
+            return dest
+        else:
+            # Use default behavior
+            report_file = os.path.join(paths.test_run_root(self.cfg, test_run_id=test_run.test_run_id), "test_run_report.html")
+            print("[DEBUG]: ", report_file)
+            with open(report_file, mode="w", encoding="utf-8") as f:
+                f.write(html_content)
+            if open_browser:
+                webbrowser.open(f"file://{report_file}")
+            console.info(f"HTML report saved to: {report_file}")
+            return report_file
 
     def _test_run_file(self, test_run_id=None, is_aggregated=False):
         if is_aggregated:
