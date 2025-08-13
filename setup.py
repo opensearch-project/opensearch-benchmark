@@ -124,7 +124,7 @@ install_requires = [
     # Licence: BSD-3-Clause
     "bokeh!=3.0.*,>=2.4.2",
     # License: MIT
-    "pydantic>=2.10.6"
+    "pydantic>=2.10.6",
     # License: MIT
     "pydantic_core>=2.27.2"
 ]
