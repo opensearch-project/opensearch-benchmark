@@ -12,6 +12,7 @@ import multiprocessing
 class IngestionManager:
     plimsoll = 4 * os.cpu_count()
     ballast = plimsoll/2
+    chunk_size = 50                     # in MB
     lock = multiprocessing.Lock()
     rd_index = multiprocessing.Value('i', 0)
     wr_count = multiprocessing.Value('i', 0)

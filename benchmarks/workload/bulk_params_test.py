@@ -74,7 +74,7 @@ class StaticSource:
 def create_reader(bulk_size):
     metadata = params.GenerateActionMetaData(index_name="test-idx", type_name=None)
 
-    source = params.Slice(StaticSource, 0, sys.maxsize)
+    source = params.Slice(StaticSource, 0, sys.maxsize, None, None)
     reader = params.MetadataIndexDataReader(data_file="bogus",
                                             batch_size=bulk_size,
                                             bulk_size=bulk_size,

@@ -271,7 +271,10 @@ def set_absolute_data_path(cfg, t):
             if document_set.document_archive:
                 document_set.document_archive = first_existing(data_root, document_set.document_archive)
             if document_set.document_file:
-                document_set.document_file = first_existing(data_root, document_set.document_file)
+                if corpus.streaming_ingestion:
+                    document_set.document_file = os.path.join(data_root[0], document_set.document_file)
+                else:
+                    document_set.document_file = first_existing(data_root, document_set.document_file)
 
 
 def is_simple_workload_mode(cfg):
@@ -412,6 +415,8 @@ class DefaultWorkloadPreparator(WorkloadProcessor):
 
     @staticmethod
     def prepare_docs(cfg, workload, corpus, preparator):
+        if corpus.streaming_ingestion:
+            return
         for document_set in corpus.documents:
             if document_set.is_supported_source_format:
                 data_root = data_dir(cfg, workload.name, corpus.name)
@@ -1582,7 +1587,9 @@ class WorkloadSpecificationReader:
             known_corpora_names.add(name)
 
             meta_data = self._r(corpus_spec, "meta", error_ctx=name, mandatory=False)
-            corpus = workload.DocumentCorpus(name=name, meta_data=meta_data)
+            streaming_ingestion = self._r(corpus_spec, "streaming-ingestion", mandatory=False,
+                                          default_value="")
+            corpus = workload.DocumentCorpus(name=name, streaming_ingestion=streaming_ingestion, meta_data=meta_data)
             # defaults on corpus level
             default_base_url = self._r(corpus_spec, "base-url", mandatory=False, default_value=None)
             default_source_format = self._r(corpus_spec, "source-format", mandatory=False,
@@ -1626,7 +1633,7 @@ class WorkloadSpecificationReader:
                     else:
                         document_archive = None
                         document_file = docs
-                    num_docs = self._r(doc_spec, "document-count")
+                    num_docs = self._r(doc_spec, "document-count", mandatory=not streaming_ingestion)
                     compressed_bytes = self._r(doc_spec, "compressed-bytes", mandatory=False)
                     uncompressed_bytes = self._r(doc_spec, "uncompressed-bytes", mandatory=False)
                     doc_meta_data = self._r(doc_spec, "meta", error_ctx=name, mandatory=False)
