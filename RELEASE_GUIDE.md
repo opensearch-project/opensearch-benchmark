@@ -73,7 +73,7 @@ Add backport labels to PRs and commits so that changes can be added to `main` br
     3. Run `opensearch-benchmark --version` to ensure that it is the correct version
     4. Run `opensearch-benchmark --help`
     5. Run `opensearch-benchmark list workloads`
-    6. Run a basic workload on Linux and MacOS:  `opensearch-benchmark execute-test --workload pmc --test-mode`
+    6. Run a basic workload on Linux and MacOS:  `opensearch-benchmark run --workload pmc --test-mode`
     7. If you are fastidious, you can check the installed source files at `` `python3 -m site --user-site`/osbenchmark `` to verify that a recent change is indeed present.
 
 8. Verify Docker Hub Staging OSB Image Works:
