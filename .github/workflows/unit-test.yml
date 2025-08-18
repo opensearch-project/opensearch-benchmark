@@ -25,6 +25,26 @@ jobs:
       - name: Run the CI build script
         run: bash .ci/build.sh build_and_unit_test
 
-      - name: Run deprecated term lint checker
-        run: .ci/scripts/check_deprecated_terms.py
-        if: contains(github.event.pull_request.labels.*.name, '2.x-terms-only')
+      - name: Detect term-check mode from labels
+        id: detect_mode
+        shell: bash
+        run: |
+          labels='${{ toJson(github.event.pull_request.labels.*.name) }}'
+          echo "PR labels: $labels"
+          mode=""
+
+          if echo "$labels" | grep -qi '"check-1.x-terms"'; then
+            mode="block-1x"
+          elif echo "$labels" | grep -qi '"check-2.x-terms"'; then
+            mode="block-2x"
+          fi
+
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+
+      # 2) Run the checker only if a mode was selected
+      - name: Run term lint checker
+        if: steps.detect_mode.outputs.mode != ''
+        env:
+          OSB_TERM_MODE: ${{ steps.detect_mode.outputs.mode }}
+        run: |
+          python3 .ci/scripts/check_deprecated_terms.py --mode "$OSB_TERM_MODE"
