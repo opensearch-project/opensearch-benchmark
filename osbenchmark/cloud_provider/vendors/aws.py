@@ -26,7 +26,7 @@ from ..cloud_provider import CloudProvider
 
 class AWSProvider(CloudProvider):
     AVAILABLE_SERVICES = ['es', 'aoss']
-    VALID_CONFIG_SETTINGS = ['config', 'environment']
+    VALID_CONFIG_SETTINGS = ['config', 'environment', 'session']
 
     def __init__(self):
         self.aws_log_in_config = {}
@@ -120,6 +120,16 @@ class AWSProvider(CloudProvider):
             self.aws_metrics_log_in_config['metrics_aws_region'] = metrics_aws_region
 
         else:
+            def validate_for_environment_and_client_options():
+                # Validate aws_log_in_config
+                required_fields = ["aws_access_key_id", "aws_secret_access_key", "service", "region"]
+                for field in required_fields:
+                    if not self.aws_log_in_config[field]:
+                        msg = "Invalid AWS log in parameters, required inputs are aws_access_key_id, \
+                            aws_secret_access_key, service and region."
+                        self.logger.error(msg)
+                        raise exceptions.SystemSetupError(msg)
+
             # This is for all other client use-cases
             if client_options is None:
                 raise exceptions.ConfigurationError("Missing client options when parsing log in params")
@@ -132,6 +142,7 @@ class AWSProvider(CloudProvider):
                 self.aws_log_in_config["service"] = os.environ.get("OSB_SERVICE")
                 # optional: applicable only for role-based access
                 self.aws_log_in_config["aws_session_token"] = os.environ.get("OSB_AWS_SESSION_TOKEN")
+                validate_for_environment_and_client_options()
 
             # AWS log in : option 2) parameters are passed in from command line
             elif client_options["amazon_aws_log_in"] == "client_option":
@@ -141,15 +152,19 @@ class AWSProvider(CloudProvider):
                 self.aws_log_in_config["service"] = client_options.get("service")
                 # optional: applicable only for role-based access
                 self.aws_log_in_config["aws_session_token"] = client_options.get("aws_session_token")
+                validate_for_environment_and_client_options()
 
-            # Validate aws_log_in_config
-            required_fields = ["aws_access_key_id", "aws_secret_access_key", "service", "region"]
-            for field in required_fields:
-                if not self.aws_log_in_config[field]:
-                    msg = "Invalid AWS log in parameters, required inputs are aws_access_key_id, \
-                        aws_secret_access_key, service and region."
-                    self.logger.error(msg)
-                    raise exceptions.SystemSetupError(msg)
+            # AWS log in: option 3) parameters are passed in from command line but for session
+            elif client_options["amazon_aws_log_in"] == "session":
+                self.aws_log_in_config["region"] = client_options.get("region")
+                self.aws_log_in_config["service"] = client_options.get("service")
+
+                # Validate session differently from environment and client_option
+                if client_options["amazon_aws_log_in"] == "session" and not self.aws_log_in_config["region"]:
+                    self.logger.error("region is mandatory parameter for session client.")
+                    raise exceptions.SystemSetupError(
+                        "region is mandatory parameter for session client."
+                    )
 
             if self.aws_log_in_config["service"] not in AWSProvider.AVAILABLE_SERVICES:
                 self.logger.error("Service for AWS log in should be one %s", AWSProvider.AVAILABLE_SERVICES)
@@ -173,7 +188,8 @@ class AWSProvider(CloudProvider):
         return client_options
 
     def create_client(self, hosts, client_options, client_class=None, use_async=False):
-        if self.aws_log_in_config['amazon_aws_log_in'] == "session":
+        self.logger.info("client options %s", client_options)
+        if client_options['amazon_aws_log_in'] == "session":
             credentials = boto3.Session().get_credentials()
         else:
             credentials = Credentials(access_key=self.aws_log_in_config["aws_access_key_id"],
