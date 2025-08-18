@@ -22,6 +22,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 import collections
 import copy
 import inspect
@@ -30,7 +31,9 @@ import math
 import numbers
 import operator
 import random
+import re
 import time
+import multiprocessing
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import List, Dict, Any, Optional, Tuple
@@ -41,8 +44,8 @@ from osbenchmark import exceptions
 from osbenchmark.utils import io
 from osbenchmark.utils.dataset import DataSet, get_data_set, Context
 from osbenchmark.utils.parse import parse_string_parameter, parse_int_parameter
-from osbenchmark.workload import workload
-from osbenchmark.workload import loader
+from osbenchmark.workload import loader, workload
+from osbenchmark.workload.ingestion_manager import IngestionManager
 
 __PARAM_SOURCES_BY_OP = {}
 __PARAM_SOURCES_BY_NAME = {}
@@ -724,7 +727,8 @@ class BulkIndexParamSource(ParamSource):
                 filtered_corpus = corpus.filter(source_format=workload.Documents.SOURCE_FORMAT_BULK,
                                                 target_indices=params.get("indices"),
                                                 target_data_streams=params.get("data-streams"))
-                if filtered_corpus.number_of_documents(source_format=workload.Documents.SOURCE_FORMAT_BULK) > 0:
+                if filtered_corpus.streaming_ingestion or \
+                   filtered_corpus.number_of_documents(source_format=workload.Documents.SOURCE_FORMAT_BULK) > 0:
                     corpora.append(filtered_corpus)
 
         # the workload has corpora but none of them match
@@ -778,6 +782,7 @@ class PartitionBulkIndexParamSource:
         # use a value > 0 so percent_completed returns a sensible value
         self.total_bulks = 1
         self.infinite = False
+        self.streaming_ingestion = corpora[0].streaming_ingestion
 
     def partition(self, partition_index, total_partitions):
         if self.total_partitions is None:
@@ -792,7 +797,7 @@ class PartitionBulkIndexParamSource:
             self._init_internal_params()
         # self.internal_params always reads all files. This is necessary to ensure we terminate early in case
         # the user has specified ingest percentage.
-        if self.current_bulk == self.total_bulks:
+        if not self.streaming_ingestion and self.current_bulk == self.total_bulks:
             raise StopIteration()
         self.current_bulk += 1
         return next(self.internal_params)
@@ -808,12 +813,13 @@ class PartitionBulkIndexParamSource:
                                                self.conflict_probability, self.on_conflict, self.recency,
                                                self.pipeline, self.original_params, self.create_reader)
 
-        all_bulks = number_of_bulks(self.corpora, start_index, end_index, self.total_partitions, self.bulk_size)
-        self.total_bulks = math.ceil((all_bulks * self.ingest_percentage) / 100)
+        if not self.streaming_ingestion:
+            all_bulks = number_of_bulks(self.corpora, start_index, end_index, self.total_partitions, self.bulk_size)
+            self.total_bulks = math.ceil((all_bulks * self.ingest_percentage) / 100)
 
     @property
     def percent_completed(self):
-        return self.current_bulk / self.total_bulks
+        return 0 if self.streaming_ingestion else self.current_bulk / self.total_bulks
 
 
 class OpenPointInTimeParamSource(ParamSource):
@@ -1549,9 +1555,9 @@ def chain(*iterables):
                 yield element
 
 
-def create_default_reader(docs, offset, num_lines, num_docs, batch_size, bulk_size, id_conflicts, conflict_probability,
+def create_default_reader(corpus, docs, offset, num_lines, num_docs, batch_size, bulk_size, id_conflicts, conflict_probability,
                           on_conflict, recency):
-    source = Slice(io.MmapSource, offset, num_lines)
+    source = Slice(io.MmapSource, offset, num_lines, corpus, docs)
     target = None
     use_create = False
     if docs.target_index:
@@ -1578,20 +1584,25 @@ def create_readers(num_clients, start_client_index, end_client_index, corpora, b
     readers = []
     for corpus in corpora:
         for docs in corpus.documents:
-            offset, num_docs, num_lines = bounds(docs.number_of_documents, start_client_index, end_client_index,
-                                                 num_clients, docs.includes_action_and_meta_data)
-            if num_docs > 0:
-                target = f"{docs.target_index}/{docs.target_type}" if docs.target_index else "/"
-                if docs.target_data_stream:
-                    target = docs.target_data_stream
-                logger.info("Task-relative clients at index [%d-%d] will bulk index [%d] docs starting from line offset [%d] for [%s] "
-                            "from corpus [%s].", start_client_index, end_client_index, num_docs, offset,
-                            target, corpus.name)
-                readers.append(create_reader(docs, offset, num_lines, num_docs, batch_size, bulk_size, id_conflicts,
+            if corpus.streaming_ingestion:
+                offset = num_lines = num_docs = 0
+                readers.append(create_reader(corpus, docs, offset, num_lines, num_docs, batch_size, bulk_size, id_conflicts,
                                              conflict_probability, on_conflict, recency))
             else:
-                logger.info("Task-relative clients at index [%d-%d] skip [%s] (no documents to read).",
-                            start_client_index, end_client_index, corpus.name)
+                offset, num_docs, num_lines = bounds(docs.number_of_documents, start_client_index, end_client_index,
+                                                     num_clients, docs.includes_action_and_meta_data)
+                if num_docs > 0:
+                    target = f"{docs.target_index}/{docs.target_type}" if docs.target_index else "/"
+                    if docs.target_data_stream:
+                        target = docs.target_data_stream
+                    logger.info("Task-relative clients at index [%d-%d] will bulk index [%d] docs starting from line offset [%d] for [%s] "
+                                "from corpus [%s].", start_client_index, end_client_index, num_docs, offset,
+                                target, corpus.name)
+                    readers.append(create_reader(corpus, docs, offset, num_lines, num_docs, batch_size, bulk_size, id_conflicts,
+                                                 conflict_probability, on_conflict, recency))
+                else:
+                    logger.info("Task-relative clients at index [%d-%d] skip [%s] (no documents to read).",
+                                start_client_index, end_client_index, corpus.name)
     return readers
 
 
@@ -1755,7 +1766,7 @@ class GenerateActionMetaData:
 
 
 class Slice:
-    def __init__(self, source_class, offset, number_of_lines):
+    def __init__(self, source_class, offset, number_of_lines, corpus, docs):
         self.source_class = source_class
         self.source = None
         self.offset = offset
@@ -1763,26 +1774,97 @@ class Slice:
         self.current_line = 0
         self.bulk_size = None
         self.logger = logging.getLogger(__name__)
+        self.fh = None
+        self.streaming_ingestion = corpus.streaming_ingestion
+        self.producer = None
+        if self.streaming_ingestion == 'aws':
+            Slice.data_dir = os.path.dirname(docs.document_file)
+            Slice.base_url = docs.base_url
+            Slice.document_file = docs.document_file
+            with IngestionManager.lock:
+                if IngestionManager.producer_started.value == 0:
+                    IngestionManager.producer_started.value = 1
+                    self.producer = Slice._start_producer()
+
+    @staticmethod
+    def _start_producer():
+        client_options_obj = IngestionManager.config.opts("client", "options")
+        client_options = getattr(client_options_obj, "all_client_options", {})
+        # pylint: disable = import-outside-toplevel
+        from osbenchmark.cloud_provider.vendors.s3_data_producer import S3DataProducer
+        bucket = re.sub('^s3://', "", Slice.base_url)
+        keys = os.path.basename(Slice.document_file)
+        producer = S3DataProducer(bucket, keys, client_options, Slice.data_dir)
+        p = multiprocessing.Process(target=producer.generate_chunked_data)
+        p.start()
+        return p
 
     def open(self, file_name, mode, bulk_size):
+        self.mode = mode
         self.bulk_size = bulk_size
-        self.source = self.source_class(file_name, mode).open()
-        self.logger.info("Will read [%d] lines from [%s] starting from line [%d] with bulk size [%d].",
-                         self.number_of_lines, file_name, self.offset, self.bulk_size)
-        start = time.perf_counter()
-        io.skip_lines(file_name, self.source, self.offset)
-        end = time.perf_counter()
-        self.logger.debug("Skipping [%d] lines took [%f] s.", self.offset, end - start)
+        if self.streaming_ingestion:
+            with IngestionManager.load_empty:
+                IngestionManager.load_empty.wait()
+                self._open_next()
+        else:
+            self.source = self.source_class(file_name, mode).open()
+            self.logger.info("Will read [%d] lines from [%s] starting from line [%d] with bulk size [%d].",
+                             self.number_of_lines, file_name, self.offset, self.bulk_size)
+            start = time.perf_counter()
+            io.skip_lines(file_name, self.source, self.offset)
+            end = time.perf_counter()
+            self.logger.debug("Skipping [%d] lines took [%f] s.", self.offset, end - start)
         return self
 
     def close(self):
-        self.source.close()
-        self.source = None
+        if self.streaming_ingestion:
+            if self.producer:
+                self.producer.join()
+        else:
+            self.source.close()
+            self.source = None
 
     def __iter__(self):
         return self
 
+    def _open_next(self):
+        with IngestionManager.load_empty:
+            while IngestionManager.rd_index.value == IngestionManager.wr_count.value:
+                IngestionManager.load_empty.wait()
+            if os.path.getsize(os.path.join(self.data_dir, f"chunk-{IngestionManager.rd_index.value:05d}")) == 0:
+                return False
+            self.rd_idx = IngestionManager.rd_index.value
+            IngestionManager.rd_index.value += 1
+            if IngestionManager.wr_count.value - self.rd_idx < IngestionManager.ballast:
+                with IngestionManager.load_full:
+                    IngestionManager.load_full.notify()
+        self.fh = self.source_class(os.path.join(self.data_dir, f"chunk-{self.rd_idx:05d}"), self.mode).open()
+        return True
+
+    def _fill_bulk(self):
+        if not self.fh:
+            raise StopIteration()
+        want = self.bulk_size
+        rsl = list()
+        while want > 0:
+            lines = self.fh.readlines(want)
+            rsl.extend(lines)
+            n = len(lines)
+            if n < want:
+                os.remove(os.path.join(self.data_dir, f"chunk-{self.rd_idx:05d}"))
+                self.fh = None
+                if not self._open_next():
+                    if n == 0:
+                        raise StopIteration()
+                    else:
+                        return rsl
+            want -= n
+        return rsl
+
     def __next__(self):
+        if self.streaming_ingestion:
+            return self._fill_bulk()
+
         if self.current_line >= self.number_of_lines:
             raise StopIteration()
         else:
