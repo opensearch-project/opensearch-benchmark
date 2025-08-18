@@ -52,7 +52,7 @@ class Throughput(Enum):
     MEDIAN = "median"
 
 def summarize(results, cfg):
-    SummaryResultsPublisher(results, cfg).publish()
+    SummaryResultsPublisher(results, cfg).publish() # check-deprecated-terms-disable-1x
 
 
 def compare(cfg, baseline_id, contender_id):
@@ -115,7 +115,7 @@ def comma_separated_string_to_number_list(string_list):
     return results
 
 
-
+# check-deprecated-terms-disable-1x
 class SummaryResultsPublisher:
     def __init__(self, results, config):
         self.results = results
