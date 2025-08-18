@@ -393,6 +393,10 @@
             "type": "string",
             "description": "Defines in which format OSB should interpret the data file specified by 'source-file'. Currently, only 'bulk' is supported."
           },
+          "streaming-ingestion": {
+            "type": "string",
+            "description": "If streaming ingestion is to be used, the mode of streaming ingestion.  Currently, only 'aws' is supported."
+          },
           "includes-action-and-meta-data": {
             "type": "boolean",
             "description": "Whether or not the source file already contains an action-and-meta-data line (default: false)."

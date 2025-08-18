@@ -65,7 +65,7 @@ class StaticBulkReader:
 
 class SliceTests(TestCase):
     def test_slice_with_source_larger_than_slice(self):
-        source = params.Slice(io.StringAsFileSource, 2, 5)
+        source = params.Slice(io.StringAsFileSource, 2, 5, self.corpus("a", [self.docs(80)]), None)
         data = [
             '{"key": "value1"}',
             '{"key": "value2"}',
@@ -85,7 +85,7 @@ class SliceTests(TestCase):
         source.close()
 
     def test_slice_with_slice_larger_than_source(self):
-        source = params.Slice(io.StringAsFileSource, 0, 5)
+        source = params.Slice(io.StringAsFileSource, 0, 5, self.corpus("a", [self.docs(80)]), None)
         data = [
             '{"key": "value1"}',
             '{"key": "value2"}',
@@ -96,6 +96,14 @@ class SliceTests(TestCase):
         # lines are returned as a list so we have to wrap our data once more
         self.assertEqual([data], list(source))
         source.close()
+
+    @staticmethod
+    def corpus(name, docs):
+        return workload.DocumentCorpus(name, documents=docs)
+
+    @staticmethod
+    def docs(num_docs):
+        return workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK, number_of_documents=num_docs)
 
 
 class ConflictingIdsBuilderTests(TestCase):
@@ -318,7 +326,7 @@ class IndexDataReaderTests(TestCase):
         ]
         bulk_size = 50
 
-        source = params.Slice(io.StringAsFileSource, 0, len(data))
+        source = params.Slice(io.StringAsFileSource, 0, len(data), self.corpus("a", [self.docs(80)]), None)
         am_handler = params.GenerateActionMetaData("test_index", "test_type")
 
         reader = params.MetadataIndexDataReader(data,
@@ -344,7 +352,7 @@ class IndexDataReaderTests(TestCase):
         ]
         bulk_size = 50
 
-        source = params.Slice(io.StringAsFileSource, 3, len(data))
+        source = params.Slice(io.StringAsFileSource, 3, len(data), self.corpus("a", [self.docs(80)]), None)
         am_handler = params.GenerateActionMetaData("test_index", "test_type")
 
         reader = params.MetadataIndexDataReader(data,
@@ -372,7 +380,7 @@ class IndexDataReaderTests(TestCase):
         ]
         bulk_size = 3
 
-        source = params.Slice(io.StringAsFileSource, 0, len(data))
+        source = params.Slice(io.StringAsFileSource, 0, len(data), self.corpus("a", [self.docs(80)]), None)
         am_handler = params.GenerateActionMetaData("test_index", "test_type")
 
         reader = params.MetadataIndexDataReader(data,
@@ -401,7 +409,7 @@ class IndexDataReaderTests(TestCase):
         bulk_size = 3
 
         # only 5 documents to index for this client
-        source = params.Slice(io.StringAsFileSource, 0, 5)
+        source = params.Slice(io.StringAsFileSource, 0, 5, self.corpus("a", [self.docs(80)]), None)
         am_handler = params.GenerateActionMetaData("test_index", "test_type")
 
         reader = params.MetadataIndexDataReader(data,
@@ -436,7 +444,7 @@ class IndexDataReaderTests(TestCase):
         ]
         bulk_size = 3
 
-        source = params.Slice(io.StringAsFileSource, 0, len(data))
+        source = params.Slice(io.StringAsFileSource, 0, len(data), self.corpus("a", [self.docs(80)]), None)
 
         reader = params.SourceOnlyIndexDataReader(data,
                                                   batch_size=bulk_size,
@@ -475,7 +483,7 @@ class IndexDataReaderTests(TestCase):
         ]
         bulk_size = 2
 
-        source = params.Slice(io.StringAsFileSource, 0, len(data))
+        source = params.Slice(io.StringAsFileSource, 0, len(data), self.corpus("a", [self.docs(80)]), None)
         am_handler = params.GenerateActionMetaData("test_index", "test_type",
                                                    conflicting_ids=[100, 200, 300, 400],
                                                    conflict_probability=25,
@@ -520,7 +528,7 @@ class IndexDataReaderTests(TestCase):
         ]
         bulk_size = 2
 
-        source = params.Slice(io.StringAsFileSource, 0, len(data))
+        source = params.Slice(io.StringAsFileSource, 0, len(data), self.corpus("a", [self.docs(80)]), None)
         am_handler = params.GenerateActionMetaData("test_index", "test_type",
                                                    conflicting_ids=[100, 200, 300, 400],
                                                    conflict_probability=0)
@@ -562,6 +570,14 @@ class IndexDataReaderTests(TestCase):
                     self.assertEqual(expected_line_sizes[bulk_index], bulk.count(b"\n"))
                     bulk_index += 1
             self.assertEqual(len(expected_bulk_sizes), bulk_index, "Not all bulk sizes have been checked")
+
+    @staticmethod
+    def corpus(name, docs):
+        return workload.DocumentCorpus(name, documents=docs)
+
+    @staticmethod
+    def docs(num_docs):
+        return workload.Documents(source_format=workload.Documents.SOURCE_FORMAT_BULK, number_of_documents=num_docs)
 
 
 class InvocationGeneratorTests(TestCase):
@@ -1163,7 +1179,7 @@ class BulkDataGeneratorTests(TestCase):
 
     @classmethod
     def create_test_reader(cls, batches):
-        def inner_create_test_reader(docs, *args):
+        def inner_create_test_reader(corpus, docs, *args):
             return StaticBulkReader(docs.target_index, docs.target_type, batches)
 
         return inner_create_test_reader

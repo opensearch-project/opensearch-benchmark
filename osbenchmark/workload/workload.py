@@ -314,7 +314,7 @@ class Documents:
 
 
 class DocumentCorpus:
-    def __init__(self, name, documents=None, meta_data=None):
+    def __init__(self, name, documents=None, streaming_ingestion=False, meta_data=None):
         """
 
         :param name: The name of this document corpus. Mandatory.
@@ -323,6 +323,7 @@ class DocumentCorpus:
         """
         self.name = name
         self.documents = documents or []
+        self.streaming_ingestion = streaming_ingestion
         self.meta_data = meta_data or {}
 
     def number_of_documents(self, source_format):
@@ -362,7 +363,8 @@ class DocumentCorpus:
                 continue
 
             filtered.append(d)
-        return DocumentCorpus(self.name, filtered, meta_data=dict(self.meta_data))
+        return DocumentCorpus(self.name, filtered, streaming_ingestion=self.streaming_ingestion,
+                              meta_data=dict(self.meta_data))
 
     def union(self, other):
         """
@@ -383,6 +385,7 @@ class DocumentCorpus:
         else:
             return DocumentCorpus(name=self.name,
                                   documents=list(set(self.documents).union(other.documents)),
+                                  streaming_ingestion=self.streaming_ingestion,
                                   meta_data=dict(self.meta_data))
 
     def __str__(self):
