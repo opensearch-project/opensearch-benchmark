@@ -44,8 +44,8 @@ from typing import List, Optional
 
 import grpc
 import ijson
-from opensearch_protos.protos.services.document_service_pb2_grpc import DocumentServiceStub
-from opensearch_protos.protos.services.search_service_pb2_grpc import SearchServiceStub
+from opensearch.protos.services.document_service_pb2_grpc import DocumentServiceStub
+from opensearch.protos.services.search_service_pb2_grpc import SearchServiceStub
 from opensearchpy import ConnectionTimeout
 from opensearchpy import NotFoundError
 

@@ -1,5 +1,5 @@
-from opensearch_protos.protos.schemas import search_pb2
-from opensearch_protos.protos.schemas import common_pb2
+from opensearch.protos.schemas import search_pb2
+from opensearch.protos.schemas import common_pb2
 
 def _get_relation(relation):
     if relation == 0:

@@ -1,4 +1,4 @@
-from opensearch_protos.protos.schemas import document_pb2
+from opensearch.protos.schemas import document_pb2
 
 def _parse_docs_from_body(body):
     lineSplitBody = body.decode('utf-8').split('\n')
