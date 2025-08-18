@@ -1292,6 +1292,7 @@ def handle_command_suggestions():
     Check for common command mistakes and provide helpful suggestions
     Returns True if suggestion was provided, False otherwise
     """
+    # check-deprecated-terms-disable-1x
     DEPRECATED_SUBCOMMANDS = ["execute-test", "execute"]
     if len(sys.argv) > 1 and sys.argv[1] in DEPRECATED_SUBCOMMANDS:
         console.info("Did you mean 'run'?")
