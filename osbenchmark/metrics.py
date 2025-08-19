@@ -1537,7 +1537,7 @@ class FileTestRunStore(TestRunStore):
                 open_browser = True
             self.store_html_results(test_run, open_browser)
 
-    def store_aggregated_execution(self, test_run):
+    def store_aggregated_run(self, test_run):
         doc = test_run.as_dict()
         aggregated_execution_path = paths.aggregated_results_root(self.cfg, test_run_id=test_run.test_run_id)
         io.ensure_dir(aggregated_execution_path)

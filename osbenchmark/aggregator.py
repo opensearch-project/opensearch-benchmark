@@ -159,14 +159,14 @@ class Aggregator:
         """
         current_timestamp = self.config.opts("system", "time.start")
         self.config.add(config.Scope.applicationOverride, "builder",
-                        "cluster_config_instance.names", test_run.cluster_config_instance)
+                        "cluster_config.names", test_run.cluster_config)
         self.config.add(config.Scope.applicationOverride, "system",
                         "env.name", test_run.environment_name)
         self.config.add(config.Scope.applicationOverride, "system", "time.start", current_timestamp)
         self.config.add(config.Scope.applicationOverride, "test_run", "pipeline", test_run.pipeline)
         self.config.add(config.Scope.applicationOverride, "workload", "params", test_run.workload_params)
         self.config.add(config.Scope.applicationOverride, "builder",
-                        "cluster_config_instance.params", test_run.cluster_config_instance_params)
+                        "cluster_config.params", test_run.cluster_config_instance_params)
         self.config.add(config.Scope.applicationOverride, "builder", "plugin.params", test_run.plugin_params)
         self.config.add(config.Scope.applicationOverride, "workload", "latency.percentiles", test_run.latency_percentiles)
         self.config.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", test_run.throughput_percentiles)
