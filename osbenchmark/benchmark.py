@@ -1093,9 +1093,9 @@ def prepare_test_runs_dict(args, cfg):
     return test_runs_dict
 
 def configure_test(arg_parser, args, cfg):
-    # As the run-test command is doing more work than necessary at the moment, we duplicate several parameters
+    # As the run command is doing more work than necessary at the moment, we duplicate several parameters
     # in this section that actually belong to dedicated subcommands (like install, start or stop). Over time
-    # these duplicated parameters will vanish as we move towards dedicated subcommands and use "run-test" only
+    # these duplicated parameters will vanish as we move towards dedicated subcommands and use "run" only
     # to run the actual benchmark (i.e. generating load).
     print_test_run_id(args)
     if args.effective_start_date:
