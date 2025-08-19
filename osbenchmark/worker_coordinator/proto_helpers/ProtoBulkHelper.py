@@ -33,11 +33,13 @@ class ProtoBulkHelper:
         doc_list = _parse_docs_from_body(body)
         request  = document_pb2.BulkRequest()
         request.index = index
+        # All bulk request here are index ops
+        op_cont = document_pb2.OperationContainer()
+        op_cont.index.CopyFrom(document_pb2.IndexOperation())
         for doc in doc_list:
             requestBody = document_pb2.BulkRequestBody()
-            requestBody.doc = doc.encode('utf-8')
-            index_op = document_pb2.IndexOperation()
-            requestBody.index.CopyFrom(index_op)
+            requestBody.object = doc.encode('utf-8')
+            requestBody.operation_container.CopyFrom(op_cont)
             request.request_body.append(requestBody)
         return request
 
