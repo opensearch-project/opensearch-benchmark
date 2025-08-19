@@ -101,7 +101,7 @@ def run_test(cfg, command_line):
     This method should be used for benchmark invocations of the test_run command.
     It sets up some defaults for how the integration tests expect to run test_runs.
     """
-    return osbenchmark(cfg, f"run-test {command_line} --kill-running-processes --on-error='abort'")
+    return osbenchmark(cfg, f"run {command_line} --kill-running-processes --on-error='abort'")
 
 
 def shell_cmd(command_line):
