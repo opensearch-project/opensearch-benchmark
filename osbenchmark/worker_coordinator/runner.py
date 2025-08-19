@@ -2947,8 +2947,8 @@ class ProtoChannelRunner(Runner):
                 ('grpc.max_receive_message_length', 10 * 1024 * 1024)  # 10 MB
             ]
 
-            grpc_host = os.environ.get('OS_HOST', 'localhost')
-            grpc_port = os.environ.get('OS_PORT', '9400')
+            grpc_host = os.environ.get('OS_PROTO_HOST', 'localhost')
+            grpc_port = os.environ.get('OS_PROTO_PORT', '9400')
             grpc_addr = grpc_host + ":" + grpc_port
             print("Create gRPC channel: " + grpc_addr)
 
