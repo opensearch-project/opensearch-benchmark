@@ -81,6 +81,8 @@ class ProtoBulkHelper:
             "error-count": error_count,
         }
 
+        print("TOOK TIME: " + str(response.bulk_response_body.took))
+
         if error_count > 0:
             meta_data["error-type"] = "bulk"
 
