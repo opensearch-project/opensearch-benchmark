@@ -654,8 +654,6 @@ class BulkIndex(Runner):
             "error-count": bulk_error_count
         }
 
-        print("TOOK TIME REST: " + str(props.get("took")))
-
         if bulk_error_count > 0:
             stats["error-type"] = "bulk"
             stats["error-description"] = self.error_description(error_details)
