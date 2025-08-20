@@ -79,6 +79,10 @@
 # ${error.file}
 {%- endif %}
 
+# JDK 21+ settings
+21-:-javaagent:agent/opensearch-agent.jar
+21-:--add-opens=java.base/java.nio=org.apache.arrow.memory.core,ALL-UNNAMED
+
 {%- if additional_java_settings is defined %}
 {%- for value in additional_java_settings %}
 {{value}}

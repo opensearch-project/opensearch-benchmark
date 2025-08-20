@@ -133,10 +133,11 @@ def run_subprocess_with_logging(command_line, header=None, level=logging.INFO, s
 
 def is_benchmark_process(p):
     cmdline = p.cmdline()
-    return p.name() == "opensearch-benchmark" or \
+    return p.name() == "opensearch-benchmark" or p.name() == "osb" or \
         (len(cmdline) > 1 and
          os.path.basename(cmdline[0].lower()).startswith("python") and
-         os.path.basename(cmdline[1]) == "opensearch-benchmark")
+         (os.path.basename(cmdline[1]) == "opensearch-benchmark" or
+          os.path.basename(cmdline[1]) == "osb"))
 
 
 def find_all_other_benchmark_processes():
