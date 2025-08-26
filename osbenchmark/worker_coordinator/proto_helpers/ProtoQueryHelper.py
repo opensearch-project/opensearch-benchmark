@@ -69,7 +69,7 @@ def _parse_query_from_body(body):
 class ProtoQueryHelper:
     """
     Helper methods to build a protobuf query from OSB params dictionary.
-    Supported protobuf types:
+    Supported protobuf types for this runner:
     match all query, term query
     """
 

@@ -56,6 +56,7 @@ from osbenchmark.client import RequestContextHolder
 from osbenchmark.utils.parse import parse_int_parameter, parse_string_parameter, parse_float_parameter
 from osbenchmark.worker_coordinator.proto_helpers.ProtoBulkHelper import ProtoBulkHelper
 from osbenchmark.worker_coordinator.proto_helpers.ProtoQueryHelper import ProtoQueryHelper
+from osbenchmark.worker_coordinator.proto_helpers.ProtoKNNQueryHelper import ProtoKNNQueryHelper
 
 __RUNNERS = {}
 
@@ -65,7 +66,6 @@ def register_default_runners():
         print("Register runner: ProtoBulkIndex")
         register_runner(workload.OperationType.Bulk, ProtoBulkIndex(), async_runner=True)
     else:
-        print("Register runner: BulkIndex")
         register_runner(workload.OperationType.Bulk, BulkIndex(), async_runner=True)
 
     register_runner(workload.OperationType.ForceMerge, ForceMerge(), async_runner=True)
@@ -76,12 +76,17 @@ def register_default_runners():
         print("Register runner: ProtoQuery")
         register_runner(workload.OperationType.Search, ProtoQuery(), async_runner=True)
     else:
-        print("Register runner: Query")
         register_runner(workload.OperationType.Search, Query(), async_runner=True)
 
     register_runner(workload.OperationType.PaginatedSearch, Query(), async_runner=True)
     register_runner(workload.OperationType.ScrollSearch, Query(), async_runner=True)
-    register_runner(workload.OperationType.VectorSearch, Query(), async_runner=True)
+
+    if os.environ.get("OSB_QUERY_TYPE") == "ProtoQuery":
+        print("Register runner: VectorSearch - ProtoQuery")
+        register_runner(workload.OperationType.VectorSearch, ProtoKNNQuery(), async_runner=True)
+    else:
+        register_runner(workload.OperationType.VectorSearch, Query(), async_runner=True)
+
     register_runner(workload.OperationType.BulkVectorDataSet, BulkVectorDataSet(), async_runner=True)
     register_runner(workload.OperationType.RawRequest, RawRequest(), async_runner=True)
     register_runner(workload.OperationType.Composite, Composite(), async_runner=True)
@@ -92,8 +97,9 @@ def register_default_runners():
     register_runner(workload.OperationType.DeletePointInTime, DeletePointInTime(), async_runner=True)
     register_runner(workload.OperationType.ListAllPointInTime, ListAllPointInTime(), async_runner=True)
     register_runner(workload.OperationType.ProduceStreamMessage, ProduceStreamMessage(), async_runner=True)
-    register_runner(workload.OperationType.ProtoSearch, ProtoQuery(), async_runner=True)
     register_runner(workload.OperationType.ProtoBulk, ProtoBulkIndex(), async_runner=True)
+    register_runner(workload.OperationType.ProtoSearch, ProtoQuery(), async_runner=True)
+    register_runner(workload.OperationType.ProtoSearch, ProtoKNNQuery(), async_runner=True)
 
     # This is an administrative operation but there is no need for a retry here as we don't issue a request
     register_runner(workload.OperationType.Sleep, Sleep(), async_runner=True)
@@ -2994,3 +3000,17 @@ class ProtoQuery(ProtoChannelRunner):
 
     def __repr__(self, *args, **kwargs):
         return "proto-query"
+
+class ProtoKNNQuery(ProtoChannelRunner):
+    async def __call__(self, opensearch, params):
+        proto_req = ProtoKNNQueryHelper.build_proto_request(params)
+        request_context_holder.on_client_request_start()
+        stub = SearchServiceStub(self._get_channel())
+        request_context_holder.on_request_start()
+        search_resp = stub.Search(proto_req)
+        request_context_holder.on_request_end()
+        request_context_holder.on_client_request_end()
+        return ProtoQueryHelper.build_stats(search_resp, params)
+
+    def __repr__(self, *args, **kwargs):
+        return "proto-knn-query"
