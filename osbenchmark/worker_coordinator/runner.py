@@ -44,8 +44,7 @@ from typing import List, Optional
 
 import grpc
 import ijson
-from opensearch.protos.services.document_service_pb2_grpc import DocumentServiceStub
-from opensearch.protos.services.search_service_pb2_grpc import SearchServiceStub
+
 from opensearchpy import ConnectionTimeout
 from opensearchpy import NotFoundError
 
@@ -62,31 +61,14 @@ __RUNNERS = {}
 
 
 def register_default_runners():
-    if os.environ.get("OSB_BULK_TYPE") == "ProtoBulkIndex":
-        print("Register runner: ProtoBulkIndex")
-        register_runner(workload.OperationType.Bulk, ProtoBulkIndex(), async_runner=True)
-    else:
-        register_runner(workload.OperationType.Bulk, BulkIndex(), async_runner=True)
-
+    register_runner(workload.OperationType.Bulk, BulkIndex(), async_runner=True)
     register_runner(workload.OperationType.ForceMerge, ForceMerge(), async_runner=True)
     register_runner(workload.OperationType.IndexStats, Retry(IndicesStats()), async_runner=True)
     register_runner(workload.OperationType.NodeStats, NodeStats(), async_runner=True)
-
-    if os.environ.get("OSB_QUERY_TYPE") == "ProtoQuery":
-        print("Register runner: ProtoQuery")
-        register_runner(workload.OperationType.Search, ProtoQuery(), async_runner=True)
-    else:
-        register_runner(workload.OperationType.Search, Query(), async_runner=True)
-
+    register_runner(workload.OperationType.Search, Query(), async_runner=True)
     register_runner(workload.OperationType.PaginatedSearch, Query(), async_runner=True)
     register_runner(workload.OperationType.ScrollSearch, Query(), async_runner=True)
-
-    if os.environ.get("OSB_QUERY_TYPE") == "ProtoQuery":
-        print("Register runner: VectorSearch - ProtoQuery")
-        register_runner(workload.OperationType.VectorSearch, ProtoKNNQuery(), async_runner=True)
-    else:
-        register_runner(workload.OperationType.VectorSearch, Query(), async_runner=True)
-
+    register_runner(workload.OperationType.VectorSearch, Query(), async_runner=True)
     register_runner(workload.OperationType.BulkVectorDataSet, BulkVectorDataSet(), async_runner=True)
     register_runner(workload.OperationType.RawRequest, RawRequest(), async_runner=True)
     register_runner(workload.OperationType.Composite, Composite(), async_runner=True)
@@ -99,7 +81,7 @@ def register_default_runners():
     register_runner(workload.OperationType.ProduceStreamMessage, ProduceStreamMessage(), async_runner=True)
     register_runner(workload.OperationType.ProtoBulk, ProtoBulkIndex(), async_runner=True)
     register_runner(workload.OperationType.ProtoSearch, ProtoQuery(), async_runner=True)
-    register_runner(workload.OperationType.ProtoSearch, ProtoKNNQuery(), async_runner=True)
+    register_runner(workload.OperationType.ProtoVectorSearch, ProtoKNNQuery(), async_runner=True)
 
     # This is an administrative operation but there is no need for a retry here as we don't issue a request
     register_runner(workload.OperationType.Sleep, Sleep(), async_runner=True)
@@ -2973,11 +2955,16 @@ class ProtoChannelRunner(Runner):
     def __repr__(self, *args, **kwargs):
         return "abstract-proto-channel-runner"
 
-class ProtoBulkIndex(ProtoChannelRunner):
+class ProtoBulkIndex(Runner):
     async def __call__(self, opensearch, params):
         proto_req = ProtoBulkHelper.build_proto_request(params)
         request_context_holder.on_client_request_start()
-        stub = DocumentServiceStub(self._get_channel())
+        
+        # Use the unified client's gRPC service
+        stub = opensearch.document_service()
+        if stub is None:
+            raise exceptions.SystemSetupError("gRPC DocumentService not available. Please configure --grpc-target-hosts.")
+            
         request_context_holder.on_request_start()
         bulk_resp = stub.Bulk(proto_req)
         request_context_holder.on_request_end()
@@ -2987,11 +2974,16 @@ class ProtoBulkIndex(ProtoChannelRunner):
     def __repr__(self, *args, **kwargs):
         return "proto-bulk-index"
 
-class ProtoQuery(ProtoChannelRunner):
+class ProtoQuery(Runner):
     async def __call__(self, opensearch, params):
         proto_req = ProtoQueryHelper.build_proto_request(params)
         request_context_holder.on_client_request_start()
-        stub = SearchServiceStub(self._get_channel())
+        
+        # Use the unified client's gRPC service
+        stub = opensearch.search_service()
+        if stub is None:
+            raise exceptions.SystemSetupError("gRPC SearchService not available. Please configure --grpc-target-hosts.")
+            
         request_context_holder.on_request_start()
         search_resp = stub.Search(proto_req)
         request_context_holder.on_request_end()
@@ -3001,11 +2993,16 @@ class ProtoQuery(ProtoChannelRunner):
     def __repr__(self, *args, **kwargs):
         return "proto-query"
 
-class ProtoKNNQuery(ProtoChannelRunner):
+class ProtoKNNQuery(Runner):
     async def __call__(self, opensearch, params):
         proto_req = ProtoKNNQueryHelper.build_proto_request(params)
         request_context_holder.on_client_request_start()
-        stub = SearchServiceStub(self._get_channel())
+        
+        # Use the unified client's gRPC service
+        stub = opensearch.search_service()
+        if stub is None:
+            raise exceptions.SystemSetupError("gRPC SearchService not available. Please configure --grpc-target-hosts.")
+            
         request_context_holder.on_request_start()
         search_resp = stub.Search(proto_req)
         request_context_holder.on_request_end()

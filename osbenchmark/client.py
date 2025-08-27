@@ -34,6 +34,12 @@ from osbenchmark import exceptions, doc_link
 from osbenchmark.context import RequestContextHolder
 from osbenchmark.utils import console, convert
 
+# Import grpc for interceptor classes - only when needed
+try:
+    import grpc
+except ImportError:
+    grpc = None
+
 
 class OsClientFactory:
     """
@@ -333,3 +339,148 @@ class MessageProducerFactory:
             return await KafkaMessageProducer.create(params)
         else:
             raise ValueError(f"Unsupported ingestion source type: {producer_type}")
+
+
+class TimingInterceptor(grpc.UnaryUnaryClientInterceptor if grpc else object):
+    """
+    gRPC interceptor that provides timing similar to OpenSearch REST client's trace_config.
+    This interceptor measures only the network/protocol time, excluding serialization/deserialization.
+    """
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+
+    def intercept_unary_unary(self, continuation, client_call_details, request):
+        from osbenchmark.context import RequestContextHolder
+
+        # Mark the start of the network request (equivalent to trace_config on_request_start)
+        RequestContextHolder.on_request_start()
+
+        try:
+            response = continuation(client_call_details, request)
+            # Mark the end of the network request (equivalent to trace_config on_request_end)
+            RequestContextHolder.on_request_end()
+            return response
+        except Exception as e:
+            # Ensure we mark request end even on exceptions
+            RequestContextHolder.on_request_end()
+            raise
+
+
+class GrpcClientFactory:
+    """
+    Factory for creating gRPC clients with proper timing instrumentation.
+    """
+    def __init__(self, grpc_hosts):
+        self.grpc_hosts = grpc_hosts
+        self.logger = logging.getLogger(__name__)
+        
+    def create_grpc_stubs(self):
+        """
+        Create gRPC service stubs with timing interceptor.
+        Returns a dict of {cluster_name: {service_name: stub}} structure.
+        """
+        # pylint: disable=import-outside-toplevel
+        import grpc
+        from opensearch.protos.services.document_service_pb2_grpc import DocumentServiceStub
+        from opensearch.protos.services.search_service_pb2_grpc import SearchServiceStub
+        
+        if not self.grpc_hosts:
+            return {}
+            
+        stubs = {}
+        timing_interceptor = TimingInterceptor()
+        
+        for cluster_name, hosts in self.grpc_hosts.all_hosts.items():
+            if hosts:
+                # Just use the first host - No load balancing support
+                host = hosts[0]
+                grpc_addr = f"{host['host']}:{host['port']}"
+                self.logger.info(f"Creating gRPC channel for cluster '{cluster_name}' at {grpc_addr}")
+                
+                # Create channel with timing interceptor
+                options = [
+                    ('grpc.max_concurrent_streams', 1),
+                    ('grpc.so_reuseport', 0),
+                    ('grpc.use_local_subchannel_pool', 1),
+                    ('grpc.max_send_message_length', 10 * 1024 * 1024),  # 10 MB
+                    ('grpc.max_receive_message_length', 10 * 1024 * 1024)  # 10 MB
+                ]
+                
+                channel = grpc.insecure_channel(grpc_addr, options=options)
+                intercepted_channel = grpc.intercept_channel(channel, timing_interceptor)
+                
+                stubs[cluster_name] = {
+                    'document_service': DocumentServiceStub(intercepted_channel),
+                    'search_service': SearchServiceStub(intercepted_channel),
+                    '_channel': channel  # Keep reference for cleanup
+                }
+        
+        return stubs
+
+
+class UnifiedClient:
+    """
+    Unified client that wraps both OpenSearch REST client and gRPC stubs.
+    This provides a single interface for runners to access both protocols.
+    """
+    def __init__(self, opensearch_client, grpc_stubs=None):
+        self.opensearch = opensearch_client
+        self.grpc_stubs = grpc_stubs or {}
+        self.logger = logging.getLogger(__name__)
+        
+    def document_service(self, cluster_name="default"):
+        """Get the gRPC DocumentService stub for the specified cluster."""
+        if cluster_name in self.grpc_stubs:
+            return self.grpc_stubs[cluster_name].get('document_service')
+        return None
+        
+    def search_service(self, cluster_name="default"):
+        """Get the gRPC SearchService stub for the specified cluster.""" 
+        if cluster_name in self.grpc_stubs:
+            return self.grpc_stubs[cluster_name].get('search_service')
+        return None
+        
+    def has_grpc_support(self, cluster_name="default"):
+        """Check if gRPC is available for the specified cluster."""
+        return cluster_name in self.grpc_stubs
+        
+    def close_grpc_channels(self):
+        """Close all gRPC channels for cleanup."""
+        for cluster_stubs in self.grpc_stubs.values():
+            if '_channel' in cluster_stubs:
+                try:
+                    cluster_stubs['_channel'].close()
+                except Exception as e:
+                    self.logger.warning(f"Error closing gRPC channel: {e}")
+
+
+class UnifiedClientFactory:
+    """
+    Factory that creates UnifiedClient instances with both REST and gRPC support.
+    """
+    def __init__(self, rest_client_factory, grpc_hosts=None):
+        self.rest_client_factory = rest_client_factory
+        self.grpc_hosts = grpc_hosts
+        self.logger = logging.getLogger(__name__)
+        
+    def create(self):
+        """Create a UnifiedClient with REST client."""
+        opensearch_client = self.rest_client_factory.create()
+        grpc_stubs = None
+        
+        if self.grpc_hosts:
+            grpc_factory = GrpcClientFactory(self.grpc_hosts)
+            grpc_stubs = grpc_factory.create_grpc_stubs()
+            
+        return UnifiedClient(opensearch_client, grpc_stubs)
+        
+    def create_async(self):
+        """Create a UnifiedClient with async REST client."""
+        opensearch_client = self.rest_client_factory.create_async()
+        grpc_stubs = None
+        
+        if self.grpc_hosts:
+            grpc_factory = GrpcClientFactory(self.grpc_hosts)
+            grpc_stubs = grpc_factory.create_grpc_stubs()
+            
+        return UnifiedClient(opensearch_client, grpc_stubs)

@@ -606,8 +606,9 @@ class OperationType(Enum):
     TrainKnnModel = 19
     DeleteKnnModel = 20
     ProduceStreamMessage = 21
-    ProtoSearch = 22
-    ProtoBulk = 23
+    ProtoBulk = 22
+    ProtoSearch = 23
+    ProtoVectorSearch = 24
 
     # administrative actions
     ForceMerge = 1001
@@ -674,6 +675,8 @@ class OperationType(Enum):
             return OperationType.PaginatedSearch
         elif v == "vector-search":
             return OperationType.VectorSearch
+        elif v == "proto-vector-search":
+            return OperationType.ProtoVectorSearch
         elif v == "bulk-vector-data-set":
             return OperationType.BulkVectorDataSet
         elif v == "cluster-health":
