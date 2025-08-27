@@ -422,36 +422,46 @@ class UnifiedClient:
     """
     Unified client that wraps both OpenSearch REST client and gRPC stubs.
     This provides a single interface for runners to access both protocols.
+    Acts as a transparent proxy to the OpenSearch client while adding gRPC capabilities.
     """
     def __init__(self, opensearch_client, grpc_stubs=None):
-        self.opensearch = opensearch_client
-        self.grpc_stubs = grpc_stubs or {}
-        self.logger = logging.getLogger(__name__)
+        self._opensearch = opensearch_client
+        self._grpc_stubs = grpc_stubs or {}
+        self._logger = logging.getLogger(__name__)
+        
+    def __getattr__(self, name):
+        """Delegate all unknown attributes to the underlying OpenSearch client."""
+        return getattr(self._opensearch, name)
         
     def document_service(self, cluster_name="default"):
         """Get the gRPC DocumentService stub for the specified cluster."""
-        if cluster_name in self.grpc_stubs:
-            return self.grpc_stubs[cluster_name].get('document_service')
+        if cluster_name in self._grpc_stubs:
+            return self._grpc_stubs[cluster_name].get('document_service')
         return None
         
     def search_service(self, cluster_name="default"):
         """Get the gRPC SearchService stub for the specified cluster.""" 
-        if cluster_name in self.grpc_stubs:
-            return self.grpc_stubs[cluster_name].get('search_service')
+        if cluster_name in self._grpc_stubs:
+            return self._grpc_stubs[cluster_name].get('search_service')
         return None
         
     def has_grpc_support(self, cluster_name="default"):
         """Check if gRPC is available for the specified cluster."""
-        return cluster_name in self.grpc_stubs
+        return cluster_name in self._grpc_stubs
         
     def close_grpc_channels(self):
         """Close all gRPC channels for cleanup."""
-        for cluster_stubs in self.grpc_stubs.values():
+        for cluster_stubs in self._grpc_stubs.values():
             if '_channel' in cluster_stubs:
                 try:
                     cluster_stubs['_channel'].close()
                 except Exception as e:
-                    self.logger.warning(f"Error closing gRPC channel: {e}")
+                    self._logger.warning(f"Error closing gRPC channel: {e}")
+                    
+    @property
+    def opensearch(self):
+        """Provide access to the underlying OpenSearch client for explicit access."""
+        return self._opensearch
 
 
 class UnifiedClientFactory:
