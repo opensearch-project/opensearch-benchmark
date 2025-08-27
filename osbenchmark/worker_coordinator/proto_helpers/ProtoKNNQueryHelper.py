@@ -43,10 +43,6 @@ class ProtoKNNQueryHelper:
         vector = target_field.get("vector")
         k = target_field.get("k")
 
-        # print("TARGET field : " + str(target_field))
-        # print(vector)
-        # print(k)
-
         knn_query_proto = common_pb2.KnnQuery(
             field="target_field",
             vector=vector,
@@ -74,23 +70,23 @@ class ProtoKNNQueryHelper:
     """
     @staticmethod
     def build_stats(response, params):
-        # which_field = response.WhichOneof('response')
-        # if which_field == 'error_4xx_response' or which_field == 'error_5xx_response':
-        #     raise Exception("Server responded with error: " + str(which_field))
-        #
-        # if not isinstance(response.response_body, search_pb2.ResponseBody):
-        #     raise Exception("Unknown response proto: " + str(type(response)))
-        #
-        # if params.get("detailed-results"):
-        #     return {
-        #         "weight": 1,
-        #         "unit": "ops",
-        #         "success": True,
-        #         "hits": response.response_body.hits.total.total_hits.value,
-        #         "hits_relation": _get_relation(response.response_body.hits.total.total_hits.relation),
-        #         "timed_out": response.response_body.timed_out,
-        #         "took": response.response_body.took,
-        #     }
+        which_field = response.WhichOneof('response')
+        if which_field == 'error_4xx_response' or which_field == 'error_5xx_response':
+            raise Exception("Server responded with error: " + str(which_field))
+
+        if not isinstance(response.response_body, search_pb2.ResponseBody):
+            raise Exception("Unknown response proto: " + str(type(response)))
+
+        if params.get("detailed-results"):
+            return {
+                "weight": 1,
+                "unit": "ops",
+                "success": True,
+                "hits": response.response_body.hits.total.total_hits.value,
+                "hits_relation": _get_relation(response.response_body.hits.total.total_hits.relation),
+                "timed_out": response.response_body.timed_out,
+                "took": response.response_body.took,
+            }
 
         return {
             "weight": 1,
