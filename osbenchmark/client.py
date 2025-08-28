@@ -351,17 +351,12 @@ class TimingInterceptor(grpc.UnaryUnaryClientInterceptor if grpc else object):
 
     def intercept_unary_unary(self, continuation, client_call_details, request):
         from osbenchmark.context import RequestContextHolder
-
-        # Mark the start of the network request (equivalent to trace_config on_request_start)
         RequestContextHolder.on_request_start()
-
         try:
             response = continuation(client_call_details, request)
-            # Mark the end of the network request (equivalent to trace_config on_request_end)
             RequestContextHolder.on_request_end()
             return response
         except Exception as e:
-            # Ensure we mark request end even on exceptions
             RequestContextHolder.on_request_end()
             raise
 
@@ -397,7 +392,6 @@ class GrpcClientFactory:
                 grpc_addr = f"{host['host']}:{host['port']}"
                 self.logger.info(f"Creating gRPC channel for cluster '{cluster_name}' at {grpc_addr}")
                 
-                # Create channel with timing interceptor
                 options = [
                     ('grpc.max_concurrent_streams', 1),
                     ('grpc.so_reuseport', 0),
@@ -405,14 +399,15 @@ class GrpcClientFactory:
                     ('grpc.max_send_message_length', 10 * 1024 * 1024),  # 10 MB
                     ('grpc.max_receive_message_length', 10 * 1024 * 1024)  # 10 MB
                 ]
-                
+
+                # Create channel with timing interceptor
                 channel = grpc.insecure_channel(grpc_addr, options=options)
                 intercepted_channel = grpc.intercept_channel(channel, timing_interceptor)
                 
                 stubs[cluster_name] = {
                     'document_service': DocumentServiceStub(intercepted_channel),
                     'search_service': SearchServiceStub(intercepted_channel),
-                    '_channel': channel  # Keep reference for cleanup
+                    '_channel': channel
                 }
         
         return stubs
