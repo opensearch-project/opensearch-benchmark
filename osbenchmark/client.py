@@ -211,16 +211,19 @@ class OsClientFactory:
         import opensearchpy
         from botocore.credentials import Credentials
 
+        class BenchmarkOpenSearch(opensearchpy.OpenSearch, RequestContextHolder):
+            pass
+
         if "amazon_aws_log_in" not in self.client_options:
-            return opensearchpy.OpenSearch(hosts=self.hosts, ssl_context=self.ssl_context, **self.client_options)
+            return BenchmarkOpenSearch(hosts=self.hosts, ssl_context=self.ssl_context, **self.client_options)
 
         credentials = Credentials(access_key=self.aws_log_in_dict["aws_access_key_id"],
                                   secret_key=self.aws_log_in_dict["aws_secret_access_key"],
                                   token=self.aws_log_in_dict["aws_session_token"])
         aws_auth = opensearchpy.Urllib3AWSV4SignerAuth(credentials, self.aws_log_in_dict["region"],
                                                 self.aws_log_in_dict["service"])
-        return opensearchpy.OpenSearch(hosts=self.hosts, use_ssl=True, verify_certs=True, http_auth=aws_auth,
-                                       connection_class=opensearchpy.Urllib3HttpConnection)
+        return BenchmarkOpenSearch(hosts=self.hosts, use_ssl=True, verify_certs=True, http_auth=aws_auth,
+                                   connection_class=opensearchpy.Urllib3HttpConnection)
 
     def create_async(self):
         # pylint: disable=import-outside-toplevel
@@ -351,13 +354,16 @@ class TimingInterceptor(grpc.UnaryUnaryClientInterceptor if grpc else object):
 
     def intercept_unary_unary(self, continuation, client_call_details, request):
         from osbenchmark.context import RequestContextHolder
+        RequestContextHolder.on_client_request_start()
         RequestContextHolder.on_request_start()
         try:
             response = continuation(client_call_details, request)
             RequestContextHolder.on_request_end()
+            RequestContextHolder.on_client_request_end()
             return response
         except Exception as e:
             RequestContextHolder.on_request_end()
+            RequestContextHolder.on_client_request_end()
             raise
 
 
