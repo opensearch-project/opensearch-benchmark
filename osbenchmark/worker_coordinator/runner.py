@@ -2915,17 +2915,10 @@ class ProduceStreamMessage(Runner):
 class ProtoBulkIndex(Runner):
     async def __call__(self, opensearch, params):
         proto_req = ProtoBulkHelper.build_proto_request(params)
-        request_context_holder.on_client_request_start()
-        
-        # Use the unified client's gRPC service
         stub = opensearch.document_service()
         if stub is None:
             raise exceptions.SystemSetupError("gRPC DocumentService not available. Please configure --grpc-target-hosts.")
-            
-        request_context_holder.on_request_start()
         bulk_resp = stub.Bulk(proto_req)
-        request_context_holder.on_request_end()
-        request_context_holder.on_client_request_end()
         return ProtoBulkHelper.build_stats(bulk_resp, params)
 
     def __repr__(self, *args, **kwargs):
@@ -2934,17 +2927,10 @@ class ProtoBulkIndex(Runner):
 class ProtoQuery(Runner):
     async def __call__(self, opensearch, params):
         proto_req = ProtoQueryHelper.build_proto_request(params)
-        request_context_holder.on_client_request_start()
-        
-        # Use the unified client's gRPC service
         stub = opensearch.search_service()
         if stub is None:
             raise exceptions.SystemSetupError("gRPC SearchService not available. Please configure --grpc-target-hosts.")
-            
-        request_context_holder.on_request_start()
         search_resp = stub.Search(proto_req)
-        request_context_holder.on_request_end()
-        request_context_holder.on_client_request_end()
         return ProtoQueryHelper.build_stats(search_resp, params)
 
     def __repr__(self, *args, **kwargs):
@@ -2953,17 +2939,10 @@ class ProtoQuery(Runner):
 class ProtoKNNQuery(Runner):
     async def __call__(self, opensearch, params):
         proto_req = ProtoKNNQueryHelper.build_proto_request(params)
-        request_context_holder.on_client_request_start()
-        
-        # Use the unified client's gRPC service
         stub = opensearch.search_service()
         if stub is None:
             raise exceptions.SystemSetupError("gRPC SearchService not available. Please configure --grpc-target-hosts.")
-            
-        request_context_holder.on_request_start()
         search_resp = stub.Search(proto_req)
-        request_context_holder.on_request_end()
-        request_context_holder.on_client_request_end()
         return ProtoQueryHelper.build_stats(search_resp, params)
 
     def __repr__(self, *args, **kwargs):
