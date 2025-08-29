@@ -19,12 +19,8 @@ from tqdm import tqdm
 from osbenchmark.utils import console
 from osbenchmark.synthetic_data_generator import helpers
 from osbenchmark.synthetic_data_generator.strategies import DataGenerationStrategy
-<<<<<<< HEAD
 from osbenchmark.synthetic_data_generator.models import SyntheticDataGeneratorMetadata, SDGConfig, GB_TO_BYTES
-=======
-from osbenchmark.synthetic_data_generator.types import SyntheticDataGeneratorMetadata
 from osbenchmark.synthetic_data_generator.timeseries_partitioner import TimeSeriesPartitioner
->>>>>>> eb113331 (Working TimeSeries Partitioner with SDG E2E: Still need to iron out some kinks and optimize)
 
 class SyntheticDataGenerator:
     def __init__(self, sdg_metadata: SyntheticDataGeneratorMetadata, sdg_config: SDGConfig, strategy: DataGenerationStrategy) -> None:
