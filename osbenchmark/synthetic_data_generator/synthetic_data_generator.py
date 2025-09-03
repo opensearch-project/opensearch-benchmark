@@ -64,7 +64,7 @@ class SyntheticDataGenerator:
         max_file_size_bytes: int = self.sdg_config.settings.max_file_size_gb * GB_TO_BYTES
         total_size_bytes: int = self.sdg_metadata.total_size_gb * GB_TO_BYTES
         docs_per_chunk: int = self.sdg_config.settings.docs_per_chunk
-        timeseries_enabled_settings: dict = self.sdg_config.timeseries_enabled
+        timeseries_enabled_settings: dict = self.sdg_config.settings.timeseries_enabled
 
         avg_document_size = helpers.calculate_avg_doc_size(strategy=self.strategy)
 
@@ -89,8 +89,8 @@ class SyntheticDataGenerator:
                 total_size_bytes=total_size_bytes
             )
             timeseries_window = timeseries_partitioner.create_window_generator()
-            if timeseries_enabled_settings['timeseries_frequency'] != timeseries_partitioner.frequency:
-                timeseries_enabled_settings = timeseries_partitioner.get_updated_settings()
+            if timeseries_enabled_settings.timeseries_frequency != timeseries_partitioner.frequency:
+                timeseries_enabled_settings = timeseries_partitioner.get_updated_settings(timeseries_settings=timeseries_enabled_settings)
             self.logger.info("TimeSeries Windows Generator: %s", timeseries_window)
 
         dask_client = Client(n_workers=workers, threads_per_worker=1)  # We keep it to 1 thread because generating random data is CPU intensive
@@ -138,7 +138,7 @@ class SyntheticDataGenerator:
                         )
                         results = dask_client.gather(futures)
 
-                        ordered_results = TimeSeriesPartitioner.sort_results_by_datetimestamps(results, timeseries_enabled_settings['timeseries_field'])
+                        ordered_results = TimeSeriesPartitioner.sort_results_by_datetimestamps(results, timeseries_enabled_settings.timeseries_field)
 
                         writing_start_time = time.time()
                         for i in range(len(ordered_results)):

@@ -63,11 +63,11 @@ class TimeSeriesPartitioner:
         self.avg_document_size = avg_document_size
         self.total_size_bytes = total_size_bytes
 
-        self.timeseries_field = self.timeseries_enabled['timeseries_field']
-        self.start_date = self.timeseries_enabled.get('timeseries_start_date', "1/1/2019")
-        self.end_date = self.timeseries_enabled.get('timeseries_end_date', "12/31/2019")
-        self.frequency = self.timeseries_enabled.get('timeseries_frequency', 'min')
-        self.format = self.timeseries_enabled.get('timeseries_format', "%Y-%m-%dT%H:%M:%S") # Default to ISO 8601 Format
+        self.timeseries_field = self.timeseries_enabled.timeseries_field
+        self.start_date = self.timeseries_enabled.timeseries_start_date if self.timeseries_enabled.timeseries_start_date else "1/01/2019"
+        self.end_date = self.timeseries_enabled.timeseries_end_date if self.timeseries_enabled.timeseries_end_date else "12/31/2019"
+        self.frequency = self.timeseries_enabled.timeseries_frequency if self.timeseries_enabled.timeseries_frequency else "min"
+        self.format = self.timeseries_enabled.timeseries_format if self.timeseries_enabled.timeseries_format else "%Y-%m-%dT%H:%M:%S"
         self.logger = logging.getLogger(__name__)
 
         if self.frequency not in TimeSeriesPartitioner.AVAILABLE_FREQUENCIES:
@@ -78,14 +78,14 @@ class TimeSeriesPartitioner:
             msg = f"Format {self.format} not found in available format {TimeSeriesPartitioner.VALID_DATETIMESTAMPS_FORMATS}"
             raise exceptions.ConfigError(msg)
 
-    def get_updated_settings(self) -> dict:
-        return {
-            "timeseries_field": self.timeseries_field,
-            "timeseries_start_date": self.start_date,
-            "timeseries_end_date": self.end_date,
-            "timeseries_frequency": self.frequency,
-            "timeseries_format": self.format
-        }
+    def get_updated_settings(self, timeseries_settings) -> dict:
+        timeseries_settings.model_update(timeseries_field=self.timeseries_field)
+        timeseries_settings.model_update(timeseries_start_date=self.start_date)
+        timeseries_settings.model_update(timeseries_end_date=self.end_date)
+        timeseries_settings.model_update(timeseries_frequency=self.frequency)
+        timeseries_settings.model_update(timeseries_format=self.format)
+
+        return timeseries_settings
 
     def create_window_generator(self) -> Generator:
         '''

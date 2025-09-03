@@ -99,13 +99,13 @@ class CustomModuleStrategy(DataGenerationStrategy):
         providers = self._instantiate_all_providers(self.custom_providers)
         seeded_providers = self._seed_providers(providers, seed)
 
-        if timeseries_enabled and timeseries_enabled['timeseries_field']:
+        if timeseries_enabled and timeseries_enabled.timeseries_field:
             synthetic_docs = []
-            datetimestamps: Generator = TimeSeriesPartitioner.generate_datetimestamps_from_window(window=timeseries_window, frequency=timeseries_enabled['timeseries_frequency'], format=timeseries_enabled['timeseries_format'])
+            datetimestamps: Generator = TimeSeriesPartitioner.generate_datetimestamps_from_window(window=timeseries_window, frequency=timeseries_enabled.timeseries_frequency, format=timeseries_enabled.timeseries_format)
             for datetimestamp in datetimestamps:
                 document = generate_synthetic_document(providers=seeded_providers, **self.custom_lists)
                 try:
-                    document[timeseries_enabled['timeseries_field']] = datetimestamp
+                    document[timeseries_enabled.timeseries_field] = datetimestamp
                     synthetic_docs.append(document)
 
                 except Exception as e:
