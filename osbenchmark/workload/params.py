@@ -1993,6 +1993,7 @@ class SourceOnlyIndexDataReader(IndexDataReader):
 
 
 register_param_source_for_operation(workload.OperationType.Bulk, BulkIndexParamSource)
+register_param_source_for_operation(workload.OperationType.ProtoBulk, BulkIndexParamSource)
 register_param_source_for_operation(workload.OperationType.BulkVectorDataSet, BulkVectorsFromDataSetParamSource)
 register_param_source_for_operation(workload.OperationType.Search, SearchParamSource)
 register_param_source_for_operation(workload.OperationType.VectorSearch, VectorSearchParamSource)

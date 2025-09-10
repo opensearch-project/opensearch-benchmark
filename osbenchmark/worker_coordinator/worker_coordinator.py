@@ -2144,8 +2144,22 @@ class AsyncIoAdapter:
     async def run(self):
         def os_clients(all_hosts, all_client_options):
             opensearch = {}
+            grpc_hosts = self.cfg.opts("client", "grpc_hosts", mandatory=False)
+            
+            # If gRPC hosts are configured and not empty, use them. Otherwise, use defaults for gRPC operations.
+            if grpc_hosts and grpc_hosts.all_hosts:
+                # Use the provided gRPC hosts
+                pass
+            else:
+                # Provide default gRPC hosts when using gRPC operations
+                # Default: localhost:9400 (matching current environment variable defaults)
+                from osbenchmark.utils import opts
+                grpc_hosts = opts.TargetHosts("localhost:9400")
+            
             for cluster_name, cluster_hosts in all_hosts.items():
-                opensearch[cluster_name] = client.OsClientFactory(cluster_hosts, all_client_options[cluster_name]).create_async()
+                rest_client_factory = client.OsClientFactory(cluster_hosts, all_client_options[cluster_name])
+                unified_client_factory = client.UnifiedClientFactory(rest_client_factory, grpc_hosts)
+                opensearch[cluster_name] = unified_client_factory.create_async()
             return opensearch
 
         # Properly size the internal connection pool to match the number of expected clients but allow the user

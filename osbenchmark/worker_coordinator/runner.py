@@ -22,6 +22,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 import asyncio
 import contextvars
 import json
@@ -29,6 +30,7 @@ import logging
 import random
 import re
 import sys
+import threading
 import time
 import types
 from collections import Counter, OrderedDict
@@ -40,7 +42,9 @@ from os.path import commonprefix
 import multiprocessing
 from typing import Any, Dict, List, Optional
 
+import grpc
 import ijson
+
 from opensearchpy import ConnectionTimeout
 from opensearchpy import NotFoundError
 
@@ -49,6 +53,9 @@ from osbenchmark.utils import convert
 from osbenchmark.client import RequestContextHolder
 # Mapping from operation type to specific runner
 from osbenchmark.utils.parse import parse_int_parameter, parse_string_parameter, parse_float_parameter
+from osbenchmark.worker_coordinator.proto_helpers.ProtoBulkHelper import ProtoBulkHelper
+from osbenchmark.worker_coordinator.proto_helpers.ProtoQueryHelper import ProtoQueryHelper
+from osbenchmark.worker_coordinator.proto_helpers.ProtoKNNQueryHelper import ProtoKNNQueryHelper
 
 __RUNNERS = {}
 
@@ -72,6 +79,9 @@ def register_default_runners():
     register_runner(workload.OperationType.DeletePointInTime, DeletePointInTime(), async_runner=True)
     register_runner(workload.OperationType.ListAllPointInTime, ListAllPointInTime(), async_runner=True)
     register_runner(workload.OperationType.ProduceStreamMessage, ProduceStreamMessage(), async_runner=True)
+    register_runner(workload.OperationType.ProtoBulk, ProtoBulkIndex(), async_runner=True)
+    register_runner(workload.OperationType.ProtoSearch, ProtoQuery(), async_runner=True)
+    register_runner(workload.OperationType.ProtoVectorSearch, ProtoKNNQuery(), async_runner=True)
 
     # This is an administrative operation but there is no need for a retry here as we don't issue a request
     register_runner(workload.OperationType.Sleep, Sleep(), async_runner=True)
@@ -634,6 +644,7 @@ class BulkIndex(Runner):
             "success-count": bulk_success_count,
             "error-count": bulk_error_count
         }
+
         if bulk_error_count > 0:
             stats["error-type"] = "bulk"
             stats["error-description"] = self.error_description(error_details)
@@ -3035,3 +3046,39 @@ class ProduceStreamMessage(Runner):
 
     def __repr__(self, *args, **kwargs):
         return "produce-stream-message"
+
+class ProtoBulkIndex(Runner):
+    async def __call__(self, opensearch, params):
+        proto_req = ProtoBulkHelper.build_proto_request(params)
+        stub = opensearch.document_service()
+        if stub is None:
+            raise exceptions.SystemSetupError("gRPC DocumentService not available. Please configure --grpc-target-hosts.")
+        bulk_resp = await stub.Bulk(proto_req)
+        return ProtoBulkHelper.build_stats(bulk_resp, params)
+
+    def __repr__(self, *args, **kwargs):
+        return "proto-bulk-index"
+
+class ProtoQuery(Runner):
+    async def __call__(self, opensearch, params):
+        proto_req = ProtoQueryHelper.build_proto_request(params)
+        stub = opensearch.search_service()
+        if stub is None:
+            raise exceptions.SystemSetupError("gRPC SearchService not available. Please configure --grpc-target-hosts.")
+        search_resp = await stub.Search(proto_req)
+        return ProtoQueryHelper.build_stats(search_resp, params)
+
+    def __repr__(self, *args, **kwargs):
+        return "proto-query"
+
+class ProtoKNNQuery(Runner):
+    async def __call__(self, opensearch, params):
+        proto_req = ProtoKNNQueryHelper.build_proto_request(params)
+        stub = opensearch.search_service()
+        if stub is None:
+            raise exceptions.SystemSetupError("gRPC SearchService not available. Please configure --grpc-target-hosts.")
+        search_resp = await stub.Search(proto_req)
+        return ProtoQueryHelper.build_stats(search_resp, params)
+
+    def __repr__(self, *args, **kwargs):
+        return "proto-knn-query"
