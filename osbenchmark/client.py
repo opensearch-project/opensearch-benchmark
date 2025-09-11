@@ -287,25 +287,6 @@ class MessageProducerFactory:
             raise ValueError(f"Unsupported ingestion source type: {producer_type}")
 
 
-class TimingInterceptor(grpc.aio.UnaryUnaryClientInterceptor if grpc else object):
-    """
-    gRPC interceptor that provides timing similar to OpenSearch REST client's trace_config.
-    This interceptor measures only the network/protocol time, excluding serialization/deserialization.
-    """
-    def __init__(self):
-        self.logger = logging.getLogger(__name__)
-
-    async def intercept_unary_unary(self, continuation, client_call_details, request):
-        BenchmarkAsyncOpenSearch.on_request_start()
-        try:
-            response = await continuation(client_call_details, request)
-            BenchmarkAsyncOpenSearch.on_request_end()
-            return response
-        except Exception:
-            BenchmarkAsyncOpenSearch.on_request_end()
-            raise
-
-
 class GrpcClientFactory:
     """
     Factory for creating gRPC clients with proper timing instrumentation.
@@ -328,8 +309,7 @@ class GrpcClientFactory:
             return {}
             
         stubs = {}
-        timing_interceptor = TimingInterceptor()
-        
+
         for cluster_name, hosts in self.grpc_hosts.all_hosts.items():
             if hosts:
                 # Just use the first host - No load balancing support
@@ -348,8 +328,7 @@ class GrpcClientFactory:
                 channel = grpc.aio.insecure_channel(
                     target=grpc_addr,
                     options=options,
-                    compression=None,
-                    interceptors=[timing_interceptor]
+                    compression=None
                 )
 
                 stubs[cluster_name] = {
