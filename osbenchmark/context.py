@@ -47,7 +47,11 @@ class RequestContextManager:
 
     @property
     def request_end(self):
-        return max((value for value in self.ctx["request_end_list"] if value < self.client_request_end))
+        filtered_values = [value for value in self.ctx["request_end_list"] if value < self.client_request_end]
+        if not filtered_values:
+            return max(self.ctx["request_end_list"])
+        result = max(filtered_values)
+        return result
 
     @property
     def client_request_start(self):
@@ -120,19 +124,23 @@ class RequestContextHolder:
 
     @classmethod
     def on_client_request_start(cls):
-        cls.update_client_request_start(time.perf_counter())
+        timestamp = time.perf_counter()
+        cls.update_client_request_start(timestamp)
 
     @classmethod
     def on_client_request_end(cls):
-        cls.update_client_request_end(time.perf_counter())
+        timestamp = time.perf_counter()
+        cls.update_client_request_end(timestamp)
 
     @classmethod
     def on_request_start(cls):
-        cls.update_request_start(time.perf_counter())
+        timestamp = time.perf_counter()
+        cls.update_request_start(timestamp)
 
     @classmethod
     def on_request_end(cls):
-        cls.update_request_end(time.perf_counter())
+        timestamp = time.perf_counter()
+        cls.update_request_end(timestamp)
 
     @classmethod
     def return_raw_response(cls):

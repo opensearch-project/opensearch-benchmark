@@ -3049,11 +3049,14 @@ class ProduceStreamMessage(Runner):
 
 class ProtoBulkIndex(Runner):
     async def __call__(self, opensearch, params):
+        from osbenchmark.context import RequestContextHolder
+        RequestContextHolder.on_client_request_start()
         proto_req = ProtoBulkHelper.build_proto_request(params)
         stub = opensearch.document_service()
         if stub is None:
             raise exceptions.SystemSetupError("gRPC DocumentService not available. Please configure --grpc-target-hosts.")
         bulk_resp = await stub.Bulk(proto_req)
+        RequestContextHolder.on_client_request_end()
         return ProtoBulkHelper.build_stats(bulk_resp, params)
 
     def __repr__(self, *args, **kwargs):
@@ -3061,11 +3064,14 @@ class ProtoBulkIndex(Runner):
 
 class ProtoQuery(Runner):
     async def __call__(self, opensearch, params):
+        from osbenchmark.context import RequestContextHolder
+        RequestContextHolder.on_client_request_start()
         proto_req = ProtoQueryHelper.build_proto_request(params)
         stub = opensearch.search_service()
         if stub is None:
             raise exceptions.SystemSetupError("gRPC SearchService not available. Please configure --grpc-target-hosts.")
         search_resp = await stub.Search(proto_req)
+        RequestContextHolder.on_client_request_end()
         return ProtoQueryHelper.build_stats(search_resp, params)
 
     def __repr__(self, *args, **kwargs):
@@ -3073,11 +3079,14 @@ class ProtoQuery(Runner):
 
 class ProtoKNNQuery(Runner):
     async def __call__(self, opensearch, params):
+        from osbenchmark.context import RequestContextHolder
+        RequestContextHolder.on_client_request_start()
         proto_req = ProtoKNNQueryHelper.build_proto_request(params)
         stub = opensearch.search_service()
         if stub is None:
             raise exceptions.SystemSetupError("gRPC SearchService not available. Please configure --grpc-target-hosts.")
         search_resp = await stub.Search(proto_req)
+        RequestContextHolder.on_client_request_end()
         return ProtoQueryHelper.build_stats(search_resp, params)
 
     def __repr__(self, *args, **kwargs):

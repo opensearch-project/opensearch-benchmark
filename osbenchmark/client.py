@@ -42,6 +42,9 @@ try:
 except ImportError:
     grpc = None
 
+class BenchmarkAsyncOpenSearch(opensearchpy.AsyncOpenSearch, RequestContextHolder):
+    pass
+
 class OsClientFactory:
     """
     Abstracts how the OpenSearch client is created. Intended for testing.
@@ -209,9 +212,6 @@ class OsClientFactory:
         self.client_options["serializer"] = LazyJSONSerializer()
         self.client_options["trace_config"] = trace_config
 
-        class BenchmarkAsyncOpenSearch(opensearchpy.AsyncOpenSearch, RequestContextHolder):
-            pass
-
         if self.provider:
             self.logger.info("Creating OpenSearch Async Client with provider %s", self.provider)
             return self.provider.create_client(self.hosts, self.client_options,
@@ -295,18 +295,14 @@ class TimingInterceptor(grpc.aio.UnaryUnaryClientInterceptor if grpc else object
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-    def intercept_unary_unary(self, continuation, client_call_details, request):
-        from osbenchmark.context import RequestContextHolder
-        RequestContextHolder.on_client_request_start()
-        RequestContextHolder.on_request_start()
+    async def intercept_unary_unary(self, continuation, client_call_details, request):
+        BenchmarkAsyncOpenSearch.on_request_start()
         try:
-            response = continuation(client_call_details, request)
-            RequestContextHolder.on_request_end()
-            RequestContextHolder.on_client_request_end()
+            response = await continuation(client_call_details, request)
+            BenchmarkAsyncOpenSearch.on_request_end()
             return response
-        except Exception as e:
-            RequestContextHolder.on_request_end()
-            RequestContextHolder.on_client_request_end()
+        except Exception:
+            BenchmarkAsyncOpenSearch.on_request_end()
             raise
 
 
