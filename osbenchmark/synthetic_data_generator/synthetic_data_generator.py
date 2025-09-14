@@ -55,7 +55,25 @@ class SyntheticDataGenerator:
         return seeds
 
     def generate_test_document(self):
-        return self.strategy.generate_test_document()
+        total_size_bytes: int = self.sdg_metadata.total_size_gb * GB_TO_BYTES
+        timeseries_enabled_settings: dict = self.sdg_config.settings.timeseries_enabled
+        avg_document_size = helpers.calculate_avg_doc_size(strategy=self.strategy)
+        if timeseries_enabled_settings:
+            self.logger.info("User is using timeseries enabled settings: %s", timeseries_enabled_settings)
+            # Generate timeseries windows
+            timeseries_partitioner = TimeSeriesPartitioner(
+                timeseries_enabled=timeseries_enabled_settings,
+                workers=1,
+                docs_per_chunk=1,
+                avg_document_size=avg_document_size,
+                total_size_bytes=total_size_bytes
+            )
+            timeseries_window = timeseries_partitioner.create_window_generator()
+            if timeseries_enabled_settings.timeseries_frequency != timeseries_partitioner.frequency:
+                timeseries_enabled_settings = timeseries_partitioner.get_updated_settings(timeseries_settings=timeseries_enabled_settings)
+            self.logger.info("TimeSeries Windows Generator: %s", timeseries_window)
+
+        return self.strategy.generate_test_document(timeseries_enabled_settings, timeseries_window)
 
     def generate_dataset(self):
         """

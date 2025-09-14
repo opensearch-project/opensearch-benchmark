@@ -90,11 +90,18 @@ class MappingStrategy(DataGenerationStrategy):
 
         return documents
 
-    def generate_test_document(self):
+    def generate_test_document(self, timeseries_enabled: dict = None, timeseries_window: set = None):
         mapping_converter = MappingConverter(self.mapping_generation_values)
         converted_mappings = mapping_converter.transform_mapping_to_generators(self.index_mapping)
 
-        return MappingConverter.generate_synthetic_document(transformed_mapping=converted_mappings)
+        document = MappingConverter.generate_synthetic_document(transformed_mapping=converted_mappings)
+        if timeseries_enabled and timeseries_enabled.timeseries_field:
+            datetimestamps: Generator = TimeSeriesPartitioner.generate_datetimestamps_from_window(window=timeseries_window, frequency=timeseries_enabled.timeseries_frequency, format=timeseries_enabled.timeseries_format)
+            for datetimestamp in datetimestamps:
+                document[timeseries_enabled.timeseries_field] = datetimestamp
+
+        return document
+
 
 class MappingConverter:
     def __init__(self, mapping_generation_values=None, seed=1):

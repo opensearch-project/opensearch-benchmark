@@ -30,5 +30,5 @@ class DataGenerationStrategy(ABC):
         """
 
     @abstractmethod
-    def generate_test_document(self) -> dict:
+    def generate_test_document(self, timeseries_enabled: dict = None, timeseries_window: set = None) -> dict:
         """Generate test document from data generation logic"""

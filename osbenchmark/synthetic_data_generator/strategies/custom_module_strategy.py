@@ -116,17 +116,23 @@ class CustomModuleStrategy(DataGenerationStrategy):
         else:
             return [generate_synthetic_document(providers=seeded_providers, **self.custom_lists) for _ in range(docs_per_chunk)]
 
-    def generate_test_document(self):
+    def generate_test_document(self, timeseries_enabled: dict = None, timeseries_window: set = None):
         providers = self._instantiate_all_providers(self.custom_providers)
         providers = self._seed_providers(providers)
 
         try:
             document = self.custom_module.generate_synthetic_document(providers=providers, **self.custom_lists)
+            if timeseries_enabled and timeseries_enabled.timeseries_field:
+                datetimestamps: Generator = TimeSeriesPartitioner.generate_datetimestamps_from_window(window=timeseries_window, frequency=timeseries_enabled.timeseries_frequency, format=timeseries_enabled.timeseries_format)
+                for datetimestamp in datetimestamps:
+                    document[timeseries_enabled.timeseries_field] = datetimestamp
+
         except AttributeError as e:
             msg = "Encountered AttributeError when setting up custom_providers and custom_lists. " + \
                     "It seems that your module might be using custom_lists and custom_providers." + \
                     f"Please ensure you have provided a custom config with custom_providers and custom_lists: {e}"
             raise exceptions.ConfigError(msg)
+        
         return document
 
     def _instantiate_all_providers(self, custom_providers):
