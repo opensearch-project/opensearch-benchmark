@@ -53,27 +53,33 @@ class SyntheticDataGenerator:
         seed_generation_end_time = time.time()
         self.logger.info("Seed generation took %s seconds", seed_generation_end_time - seed_generation_start_time)
         return seeds
+    
+    def setup_timeseries_window(self, workers: int, docs_per_chunk: int, avg_document_size: int, total_size_bytes: int, ):
+        self.logger.info("User is using timeseries enabled settings: %s", timeseries_enabled_settings)
+        # Generate timeseries windows
+        timeseries_partitioner = TimeSeriesPartitioner(
+            timeseries_enabled=timeseries_enabled_settings,
+            workers=workers,
+            docs_per_chunk=docs_per_chunk,
+            avg_document_size=avg_document_size,
+            total_size_bytes=total_size_bytes
+        )
+        timeseries_window = timeseries_partitioner.create_window_generator()
+        if timeseries_enabled_settings.timeseries_frequency != timeseries_partitioner.frequency:
+            timeseries_enabled_settings = timeseries_partitioner.get_updated_settings(timeseries_settings=timeseries_enabled_settings)
+        self.logger.info("TimeSeries Windows Generator: %s", timeseries_window)
 
+        return timeseries_enabled_settings, timeseries_window
+    
     def generate_test_document(self):
         total_size_bytes: int = self.sdg_metadata.total_size_gb * GB_TO_BYTES
         timeseries_enabled_settings: dict = self.sdg_config.settings.timeseries_enabled
         avg_document_size = helpers.calculate_avg_doc_size(strategy=self.strategy)
         if timeseries_enabled_settings:
-            self.logger.info("User is using timeseries enabled settings: %s", timeseries_enabled_settings)
-            # Generate timeseries windows
-            timeseries_partitioner = TimeSeriesPartitioner(
-                timeseries_enabled=timeseries_enabled_settings,
-                workers=1,
-                docs_per_chunk=1,
-                avg_document_size=avg_document_size,
-                total_size_bytes=total_size_bytes
+            timeseries_enabled_settings, timeseries_window = self.setup_timeseries_window(
+                workers=1, docs_per_chunk=1, avg_document_size=avg_document_size, total_size_bytes=total_size_bytes
             )
-            timeseries_window = timeseries_partitioner.create_window_generator()
-            if timeseries_enabled_settings.timeseries_frequency != timeseries_partitioner.frequency:
-                timeseries_enabled_settings = timeseries_partitioner.get_updated_settings(timeseries_settings=timeseries_enabled_settings)
-            self.logger.info("TimeSeries Windows Generator: %s", timeseries_window)
-
-            windows_for_workers = [next(timeseries_window) for _ in range(1)][0]
+            windows_for_workers = [next(timeseries_window) for _ in range(1)][0] # Just need to get one window for test document
 
             return self.strategy.generate_test_document(timeseries_enabled_settings, windows_for_workers)
     
@@ -101,19 +107,9 @@ class SyntheticDataGenerator:
         timeseries_window: Generator = None
         workers: int = self.sdg_config.settings.workers
         if timeseries_enabled_settings:
-            self.logger.info("User is using timeseries enabled settings: %s", timeseries_enabled_settings)
-            # Generate timeseries windows
-            timeseries_partitioner = TimeSeriesPartitioner(
-                timeseries_enabled=timeseries_enabled_settings,
-                workers=workers,
-                docs_per_chunk=docs_per_chunk,
-                avg_document_size=avg_document_size,
-                total_size_bytes=total_size_bytes
+            timeseries_enabled_settings, timeseries_window = self.setup_timeseries_window(
+                workers=workers, docs_per_chunk=docs_per_chunk, avg_document_size=avg_document_size, total_size_bytes=total_size_bytes
             )
-            timeseries_window = timeseries_partitioner.create_window_generator()
-            if timeseries_enabled_settings.timeseries_frequency != timeseries_partitioner.frequency:
-                timeseries_enabled_settings = timeseries_partitioner.get_updated_settings(timeseries_settings=timeseries_enabled_settings)
-            self.logger.info("TimeSeries Windows Generator: %s", timeseries_window)
 
         dask_client = Client(n_workers=workers, threads_per_worker=1)  # We keep it to 1 thread because generating random data is CPU intensive
         self.logger.info("Number of workers to use: [%s]", workers)
