@@ -54,7 +54,7 @@ class SyntheticDataGenerator:
         self.logger.info("Seed generation took %s seconds", seed_generation_end_time - seed_generation_start_time)
         return seeds
     
-    def setup_timeseries_window(self, workers: int, docs_per_chunk: int, avg_document_size: int, total_size_bytes: int, ):
+    def setup_timeseries_window(self, timeseries_enabled_settings: dict, workers: int, docs_per_chunk: int, avg_document_size: int, total_size_bytes: int):
         self.logger.info("User is using timeseries enabled settings: %s", timeseries_enabled_settings)
         # Generate timeseries windows
         timeseries_partitioner = TimeSeriesPartitioner(
@@ -77,7 +77,8 @@ class SyntheticDataGenerator:
         avg_document_size = helpers.calculate_avg_doc_size(strategy=self.strategy)
         if timeseries_enabled_settings:
             timeseries_enabled_settings, timeseries_window = self.setup_timeseries_window(
-                workers=1, docs_per_chunk=1, avg_document_size=avg_document_size, total_size_bytes=total_size_bytes
+                timeseries_enabled_settings=timeseries_enabled_settings, workers=1, docs_per_chunk=1, 
+                avg_document_size=avg_document_size, total_size_bytes=total_size_bytes
             )
             windows_for_workers = [next(timeseries_window) for _ in range(1)][0] # Just need to get one window for test document
 
@@ -108,7 +109,8 @@ class SyntheticDataGenerator:
         workers: int = self.sdg_config.settings.workers
         if timeseries_enabled_settings:
             timeseries_enabled_settings, timeseries_window = self.setup_timeseries_window(
-                workers=workers, docs_per_chunk=docs_per_chunk, avg_document_size=avg_document_size, total_size_bytes=total_size_bytes
+                timeseries_enabled_settings=timeseries_enabled_settings, workers=workers, docs_per_chunk=docs_per_chunk, 
+                avg_document_size=avg_document_size, total_size_bytes=total_size_bytes
             )
 
         dask_client = Client(n_workers=workers, threads_per_worker=1)  # We keep it to 1 thread because generating random data is CPU intensive
