@@ -74,17 +74,17 @@ class SyntheticDataGenerator:
     def generate_test_document(self):
         total_size_bytes: int = self.sdg_metadata.total_size_gb * GB_TO_BYTES
         timeseries_enabled_settings: dict = self.sdg_config.settings.timeseries_enabled
-        avg_document_size = helpers.calculate_avg_doc_size(strategy=self.strategy)
         if timeseries_enabled_settings:
+            # Use dummy values for workers, docs_per_chunk, and avg_document_size
             timeseries_enabled_settings, timeseries_window = self.setup_timeseries_window(
                 timeseries_enabled_settings=timeseries_enabled_settings, workers=1, docs_per_chunk=1, 
-                avg_document_size=avg_document_size, total_size_bytes=total_size_bytes
+                avg_document_size=123, total_size_bytes=total_size_bytes
             )
             windows_for_workers = [next(timeseries_window) for _ in range(1)][0] # Just need to get one window for test document
 
             return self.strategy.generate_test_document(timeseries_enabled_settings, windows_for_workers)
-    
-        return self.strategy.generate_test_document()
+        else:
+            return self.strategy.generate_test_document()
 
     def generate_dataset(self):
         """

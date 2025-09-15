@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from osbenchmark.synthetic_data_generator.synthetic_data_generator import SyntheticDataGenerator
-from osbenchmark.synthetic_data_generator.models import SyntheticDataGeneratorMetadata
+from osbenchmark.synthetic_data_generator.models import SyntheticDataGeneratorMetadata, SDGConfig
 
 class TestSyntheticDataGeneratorWithCustomStrategy:
 
@@ -27,10 +27,25 @@ class TestSyntheticDataGeneratorWithCustomStrategy:
 
     @pytest.fixture
     def mock_sdg_config(self):
-        return {
-            'providers': {},
-            'lists': {}
-        }
+        loaded_sdg_config = {
+                    'settings': {'workers': 8, 'max_file_size_gb': 1, 'chunk_size': 10000},
+                    'CustomGenerationValues': {
+                        'custom_lists': {'dog_names': ['Hana', 'Youpie', 'Charlie', 'Lucy', 'Cooper', 'Luna', 'Rocky', 'Daisy', 'Buddy', 'Molly'],
+                                        'dog_breeds': ['Jindo', 'Labrador', 'German Shepherd', 'Golden Retriever', 'Bulldog',
+                                                       'Poodle', 'Beagle', 'Rottweiler', 'Boxer', 'Dachshund', 'Chihuahua'],
+                                        'treats': ['cookies', 'pup_cup', 'jerky'], 'license_plates': ['WOOF101', 'BARKATAMZN'],
+                                        'tips': ['biscuits', 'cash'],
+                                        'skills': ['sniffing', 'squirrel_chasing', 'bite_tail', 'smile'],
+                                        'vehicle_types': ['sedan', 'suv', 'truck'], 'vehicle_makes': ['toyta', 'honda', 'nissan'],
+                                        'vehicle_models': ['rav4', 'accord', 'murano'], 'vehicle_years': [2012, 2015, 2019],
+                                        'vehicle_colors': ['white', 'red', 'blue', 'black', 'silver'], 'account_status': ['active', 'inactive']},
+                        'custom_providers': ['NumericString', 'MultipleChoices']
+                    }
+                }
+
+
+        sdg_config = SDGConfig(**loaded_sdg_config)
+        return sdg_config
 
     @pytest.fixture
     def mock_custom_module(self):
@@ -104,10 +119,32 @@ class TestSyntheticDataGeneratorWithMappingStrategy:
 
     @pytest.fixture
     def mock_sdg_config(self):
-        return {
-            'providers': {},
-            'lists': {}
-        }
+        loaded_sdg_config = {
+                    'settings': {'workers': 8, 'max_file_size_gb': 1, 'chunk_size': 10000},
+                    'MappingGenerationValues': {
+                        'generator_overrides': {
+                            'integer': {'min': 0, 'max': 20},
+                            'long': {'min': 0, 'max': 1000},
+                            'float': {'min': 0.0, 'max': 1.0},
+                            'double': {'min': 0.0, 'max': 2000.0},
+                            'date': {'start_date': '2020-01-01', 'end_date': '2023-01-01', 'format': 'yyyy-mm-dd'},
+                            'text': {'must_include': ['lorem', 'ipsum']},
+                            'keyword': {'choices': ['naruto', 'sakura', 'sasuke']}
+                        },
+                        'field_overrides': {
+                            'id': {'generator': 'generate_keyword',
+                            'params': {'choices': ['Helly R', 'Mark S', 'Irving B']}},
+                            'promo_codes': {'generator': 'generate_keyword', 'params': {'choices': ['HOT_SUMMER', 'TREATSYUM!']}},
+                            'preferences.language': {'generator': 'generate_keyword', 'params': {'choices': ['Python', 'English']}},
+                            'payment_methods.type': {'generator': 'generate_keyword', 'params': {'choices': ['Visa', 'Mastercard', 'Cash', 'Venmo']}},
+                            'preferences.allergies': {'generator': 'generate_keyword', 'params': {'choices': ['Squirrels', 'Cats']}},
+                            'favorite_locations.name': {'generator': 'generate_keyword', 'params': {'choices': ['Austin', 'NYC', 'Miami']}}
+                        }
+                    }
+                }
+
+        sdg_config = SDGConfig(**loaded_sdg_config)
+        return sdg_config
 
     @pytest.fixture
     def mock_custom_module(self):
