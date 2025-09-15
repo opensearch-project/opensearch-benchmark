@@ -73,7 +73,9 @@ class SyntheticDataGenerator:
                 timeseries_enabled_settings = timeseries_partitioner.get_updated_settings(timeseries_settings=timeseries_enabled_settings)
             self.logger.info("TimeSeries Windows Generator: %s", timeseries_window)
 
-        return self.strategy.generate_test_document(timeseries_enabled_settings, timeseries_window)
+        windows_for_workers = [next(timeseries_window) for _ in range(1)]
+
+        return self.strategy.generate_test_document(timeseries_enabled_settings, windows_for_workers)
 
     def generate_dataset(self):
         """
