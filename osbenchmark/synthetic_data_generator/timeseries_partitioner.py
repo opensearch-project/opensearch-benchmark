@@ -6,13 +6,13 @@
 # Modifications Copyright OpenSearch Contributors. See
 # GitHub history for details.
 import logging
-import pandas as pd
-import numpy as np
 import math
 from collections import deque
 import sys
 from typing import Generator
 import time
+
+import pandas as pd
 
 import osbenchmark.exceptions as exceptions
 
@@ -222,19 +222,7 @@ class TimeSeriesPartitioner:
             f"Would you like to use [{optimal_frequency}] as the frequency? (y/n): "
             requested_input = input(msg)
 
-        if requested_input.lower() == "y" or requested_input.lower() == "yes":
+        if requested_input.lower() in ['y', 'yes']:
             return True
         else:
             return False
-
-
-
-if __name__ == "__main__":
-    window = [(pd.Timestamp('2019-01-01 00:00:00'), pd.Timestamp('2019-01-01 02:46:39'))]
-    window_2 = (pd.Timestamp('2024-01-01 00:25:20'), pd.Timestamp('2024-01-01 00:25:29.999000'))
-    # datetimestamp_generator = TimeSeriesPartitioner.generate_datetimestamps_from_window(window)
-    datetimestamp_generator_2 = TimeSeriesPartitioner.generate_datetimestamps_from_window(window_2, frequency="ms", format="epoch_s")
-
-    datetimestamps = [datetimestamp for datetimestamp in datetimestamp_generator_2]
-    print(datetimestamps[0:9])
-    print(len(datetimestamps))

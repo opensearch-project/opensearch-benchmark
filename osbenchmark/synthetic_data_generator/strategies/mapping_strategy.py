@@ -73,7 +73,9 @@ class MappingStrategy(DataGenerationStrategy):
 
         if timeseries_enabled and timeseries_enabled.timeseries_field:
             synthetic_docs = []
-            datetimestamps: Generator = TimeSeriesPartitioner.generate_datetimestamps_from_window(window=timeseries_window, frequency=timeseries_enabled.timeseries_frequency, format=timeseries_enabled.timeseries_format)
+            datetimestamps: Generator = TimeSeriesPartitioner.generate_datetimestamps_from_window(
+                window=timeseries_window, frequency=timeseries_enabled.timeseries_frequency, format=timeseries_enabled.timeseries_format
+                )
             for datetimestamp in datetimestamps:
                 document = MappingConverter.generate_synthetic_document(mappings_with_generators)
                 try:
@@ -81,7 +83,7 @@ class MappingStrategy(DataGenerationStrategy):
                     synthetic_docs.append(document)
 
                 except Exception as e:
-                    raise exceptions.DataError("Encountered problem when inserting datetimestamps for timeseries data being generated: {e}")
+                    raise exceptions.DataError(f"Encountered problem when inserting datetimestamps for timeseries data being generated: {e}")
 
             return synthetic_docs
 
@@ -96,7 +98,9 @@ class MappingStrategy(DataGenerationStrategy):
 
         document = MappingConverter.generate_synthetic_document(transformed_mapping=converted_mappings)
         if timeseries_enabled and timeseries_enabled.timeseries_field:
-            datetimestamps: Generator = TimeSeriesPartitioner.generate_datetimestamps_from_window(window=timeseries_window, frequency=timeseries_enabled.timeseries_frequency, format=timeseries_enabled.timeseries_format)
+            datetimestamps: Generator = TimeSeriesPartitioner.generate_datetimestamps_from_window(
+                window=timeseries_window, frequency=timeseries_enabled.timeseries_frequency, format=timeseries_enabled.timeseries_format
+                )
             for datetimestamp in datetimestamps:
                 document[timeseries_enabled.timeseries_field] = datetimestamp
 

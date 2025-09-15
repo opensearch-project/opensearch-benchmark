@@ -80,7 +80,8 @@ class CustomModuleStrategy(DataGenerationStrategy):
                 docs_per_chunk, seed) for seed in seeds]
 
 
-    def generate_data_chunk_from_worker(self, generate_synthetic_document: Callable, docs_per_chunk: int, seed: Optional[int], timeseries_enabled: dict = None, timeseries_window: set = None) -> list:
+    def generate_data_chunk_from_worker(self, generate_synthetic_document: Callable, docs_per_chunk: int, seed: Optional[int],
+                                        timeseries_enabled: dict = None, timeseries_window: set = None) -> list:
         """
         This method is submitted to Dask worker and can be thought of as the worker performing a job, which is calling the
         custom module's generate_synthetic_document() function to generate documents.
@@ -101,7 +102,9 @@ class CustomModuleStrategy(DataGenerationStrategy):
 
         if timeseries_enabled and timeseries_enabled.timeseries_field:
             synthetic_docs = []
-            datetimestamps: Generator = TimeSeriesPartitioner.generate_datetimestamps_from_window(window=timeseries_window, frequency=timeseries_enabled.timeseries_frequency, format=timeseries_enabled.timeseries_format)
+            datetimestamps: Generator = TimeSeriesPartitioner.generate_datetimestamps_from_window(
+                window=timeseries_window, frequency=timeseries_enabled.timeseries_frequency, format=timeseries_enabled.timeseries_format
+                )
             for datetimestamp in datetimestamps:
                 document = generate_synthetic_document(providers=seeded_providers, **self.custom_lists)
                 try:
@@ -123,7 +126,9 @@ class CustomModuleStrategy(DataGenerationStrategy):
         try:
             document = self.custom_module.generate_synthetic_document(providers=providers, **self.custom_lists)
             if timeseries_enabled and timeseries_enabled.timeseries_field:
-                datetimestamps: Generator = TimeSeriesPartitioner.generate_datetimestamps_from_window(window=timeseries_window, frequency=timeseries_enabled.timeseries_frequency, format=timeseries_enabled.timeseries_format)
+                datetimestamps: Generator = TimeSeriesPartitioner.generate_datetimestamps_from_window(
+                    window=timeseries_window, frequency=timeseries_enabled.timeseries_frequency, format=timeseries_enabled.timeseries_format
+                    )
                 for datetimestamp in datetimestamps:
                     document[timeseries_enabled.timeseries_field] = datetimestamp
 
@@ -132,7 +137,7 @@ class CustomModuleStrategy(DataGenerationStrategy):
                     "It seems that your module might be using custom_lists and custom_providers." + \
                     f"Please ensure you have provided a custom config with custom_providers and custom_lists: {e}"
             raise exceptions.ConfigError(msg)
-        
+
         return document
 
     def _instantiate_all_providers(self, custom_providers):

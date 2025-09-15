@@ -22,7 +22,8 @@ class DataGenerationStrategy(ABC):
         """
 
     @abstractmethod
-    def generate_data_chunk_from_worker(self, generate_synthetic_document: Callable, docs_per_chunk: int, seed: Optional[int], timeseries_enabled: dict = None, timeseries_window: set = None) -> list:
+    def generate_data_chunk_from_worker(self, generate_synthetic_document: Callable, docs_per_chunk: int,
+                                        seed: Optional[int], timeseries_enabled: dict = None, timeseries_window: set = None) -> list:
         """
         Generate chunk of docs with data generation logic for Dask worker
 

@@ -12,7 +12,6 @@ import time
 import hashlib
 from typing import Generator
 
-import dask
 from dask.distributed import Client, get_client, as_completed
 from tqdm import tqdm
 
@@ -53,7 +52,7 @@ class SyntheticDataGenerator:
         seed_generation_end_time = time.time()
         self.logger.info("Seed generation took %s seconds", seed_generation_end_time - seed_generation_start_time)
         return seeds
-    
+
     def setup_timeseries_window(self, timeseries_enabled_settings: dict, workers: int, docs_per_chunk: int, avg_document_size: int, total_size_bytes: int):
         self.logger.info("User is using timeseries enabled settings: %s", timeseries_enabled_settings)
         # Generate timeseries windows
@@ -70,14 +69,14 @@ class SyntheticDataGenerator:
         self.logger.info("TimeSeries Windows Generator: %s", timeseries_window)
 
         return timeseries_enabled_settings, timeseries_window
-    
+
     def generate_test_document(self):
         total_size_bytes: int = self.sdg_metadata.total_size_gb * GB_TO_BYTES
         timeseries_enabled_settings: dict = self.sdg_config.settings.timeseries_enabled
         if timeseries_enabled_settings:
             # Use dummy values for workers, docs_per_chunk, and avg_document_size
             timeseries_enabled_settings, timeseries_window = self.setup_timeseries_window(
-                timeseries_enabled_settings=timeseries_enabled_settings, workers=1, docs_per_chunk=1, 
+                timeseries_enabled_settings=timeseries_enabled_settings, workers=1, docs_per_chunk=1,
                 avg_document_size=123, total_size_bytes=total_size_bytes
             )
             windows_for_workers = [next(timeseries_window) for _ in range(1)][0] # Just need to get one window for test document
@@ -109,7 +108,7 @@ class SyntheticDataGenerator:
         workers: int = self.sdg_config.settings.workers
         if timeseries_enabled_settings:
             timeseries_enabled_settings, timeseries_window = self.setup_timeseries_window(
-                timeseries_enabled_settings=timeseries_enabled_settings, workers=workers, docs_per_chunk=docs_per_chunk, 
+                timeseries_enabled_settings=timeseries_enabled_settings, workers=workers, docs_per_chunk=docs_per_chunk,
                 avg_document_size=avg_document_size, total_size_bytes=total_size_bytes
             )
 
