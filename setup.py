@@ -129,7 +129,7 @@ install_requires = [
     "pydantic_core>=2.27.2",
     # License: Apache 2.0
     # gRPC & proto deps
-    "opensearch-protobufs==0.11.0"
+    "opensearch-protobufs==0.13.0"
 ]
 
 tests_require = [
