@@ -227,6 +227,39 @@ class Unthrottled(Scheduler):
         return "unthrottled"
 
 
+class UnhingedScheduler(Scheduler):
+    """
+    Fire-and-forget scheduler that maintains consistent timing without waiting for responses.
+    Designed for maximum throughput scenarios where response handling is disabled.
+    """
+    name = "unhinged"
+
+    def __init__(self, task):
+        self.task = task
+        self.target_interval = self._calculate_target_interval()
+
+    def _calculate_target_interval(self):
+        """Calculate the target interval between requests for this client."""
+        if (hasattr(self.task, 'target_throughput') and
+            self.task.target_throughput and
+            self.task.target_throughput.value > 0 and
+            hasattr(self.task, 'clients') and
+            self.task.clients > 0):
+            # Calculate per-client throughput
+            per_client_tps = self.task.target_throughput.value / self.task.clients
+            return 1.0 / per_client_tps if per_client_tps > 0 else 0.0
+        else:
+            # No throttling if no target throughput specified
+            return 0.0
+
+    def next(self, current):
+        """Return next scheduled time based on target interval."""
+        return current + self.target_interval
+
+    def __str__(self):
+        return f"unhinged (target_interval={self.target_interval:.6f}s)"
+
+
 class DeterministicScheduler(SimpleScheduler):
     """
     Schedules the next execution according to a
@@ -318,3 +351,4 @@ class UnitAwareScheduler(Scheduler):
 
 register_scheduler(DeterministicScheduler.name, DeterministicScheduler)
 register_scheduler(PoissonScheduler.name, PoissonScheduler)
+register_scheduler(UnhingedScheduler.name, UnhingedScheduler)
