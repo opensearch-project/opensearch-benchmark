@@ -203,8 +203,6 @@ class TimeSeriesPartitioner:
             print("Number of docs expected, frequency, and number of timestamps: ", expected_number_of_docs_with_buffer, frequency, number_of_timestamps)
             if number_of_timestamps > expected_number_of_docs_with_buffer:
                 self.logger.info("Using [%s] frequency as this resulted in more timestamps", frequency)
-                # pylint: disable=R1723
-                break
             else:
                 self.logger.info("Using [%s] frequency did not result in more timestamps", frequency)
 
