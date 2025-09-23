@@ -47,6 +47,7 @@ import thespian.actors
 
 from osbenchmark.utils import opts
 from osbenchmark import actor, config, exceptions, metrics, workload, client, paths, PROGRAM_NAME, telemetry
+from osbenchmark.context import RequestContextHolder
 from osbenchmark.worker_coordinator import runner, scheduler
 from osbenchmark.database.factory import DatabaseClientFactory
 from osbenchmark.database.registry import DatabaseType, get_client_factory
@@ -2244,7 +2245,8 @@ class AsyncIoAdapter:
                 client_id, task, schedule, opensearch, self.sampler, self.profile_sampler, self.cancel, self.complete,
                 task.error_behavior(self.abort_on_error), self.cfg, self.shared_states, self.feedback_actor, self.error_queue, self.queue_lock)
             final_executor = AsyncProfiler(async_executor) if self.profiling_enabled else async_executor
-            aws.append(final_executor())
+            executor_task = final_executor()
+            aws.append(executor_task)
         run_start = time.perf_counter()
         try:
             _ = await asyncio.gather(*aws)
@@ -2575,6 +2577,153 @@ class AsyncExecutor:
                 self.complete.set()
             await self._cleanup()
 
+class UnhingedExecutor:
+    def __init__(self, client_id, task, schedule, opensearch, sampler, profile_sampler, cancel, complete, on_error,
+                 config=None, shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
+        """
+        Fire-and-forget executor for maximum throughput without response handling or metrics collection.
+        Only supports search queries.
+        """
+        self.client_id = client_id
+        self.task = task
+        self.op = task.operation
+        self.schedule_handle = schedule
+        self.opensearch = opensearch
+        self.cancel = cancel
+        self.complete = complete
+        self.logger = logging.getLogger(__name__)
+        self.cfg = config
+        self.shared_states = shared_states
+        self.is_0 = int(self.client_id) == 0
+
+        # Variables to keep track of during execution
+        self.expected_scheduled_time = 0
+        self.sample_type = None
+        self.runner = None
+        self.task_completes_parent = False
+
+        # Use shared state for global TPS tracking if available (redline testing only)
+        if self.shared_states and 'global_tps_tracking' not in self.shared_states:
+            self.shared_states['global_tps_tracking'] = {
+                'total_requests': 0,
+                'current_second_requests': 0,
+                'current_second_start': time.perf_counter(),
+                'tps_history': [],
+                'start_time': None,
+                'last_display_time': 0,
+                'lock': asyncio.Lock()
+            }
+
+    async def _wait_for_rampup(self, rampup_wait_time: float) -> None:
+        """Wait for the ramp-up phase if needed."""
+        if rampup_wait_time:
+            self.logger.info("client id [%s] waiting [%.2f]s for ramp-up.", self.client_id, rampup_wait_time)
+            await asyncio.sleep(rampup_wait_time)
+            self.logger.info("Client id [%s] is running now.", self.client_id)
+
+
+    async def _fire_and_forget_request(self, params: dict, expected_scheduled_time: float, total_start: float) -> None:
+        """Execute a request in fire-and-forget mode - no response handling or metrics collection."""
+        absolute_expected_schedule_time = total_start + expected_scheduled_time
+        throughput_throttled = expected_scheduled_time > 0
+
+        if throughput_throttled:
+            rest = absolute_expected_schedule_time - time.perf_counter()
+            if rest > 0:
+                self.logger.debug("Client [%s] sleeping [%s]s for throttling", self.client_id, rest)
+                await asyncio.sleep(rest)
+
+        processing_start = time.perf_counter()
+        self.logger.debug("Client [%s] executing request at processing_start [%s]", self.client_id, processing_start)
+        self.schedule_handle.before_request(processing_start)
+
+        # Fire and forget - create async task to execute request without waiting
+        try:
+            # Add fire_and_forget flag to params for the runner
+            if params is None:
+                params = {}
+            params["fire_and_forget"] = True
+            # Remove any timeout settings to prevent timeout errors
+            params.pop("request-timeout", None)
+
+            # Create fire-and-forget task directly - no nested task creation
+            self.logger.debug("Client [%s] creating direct fire-and-forget task", self.client_id)
+            async def fire_and_forget_runner():
+                try:
+
+                    # Initialize request context for the fire-and-forget task
+                    ctx, token = RequestContextHolder.init_request_context()
+                    try:
+                        async with self.runner:
+                            await self.runner(self.opensearch, params)
+                    finally:
+                        # Clean up the context
+                        RequestContextHolder.restore_context(token)
+
+                except Exception as e:
+                    # Log errors for debugging
+                    pass
+
+            # Create task but don't await - true fire and forget
+            task = asyncio.create_task(fire_and_forget_runner())
+            # Suppress exceptions for fire-and-forget mode
+            def handle_task_completion(t):
+                if not t.cancelled():
+                    t.exception()  # Consume exception to prevent logging
+            task.add_done_callback(handle_task_completion)
+
+        except Exception:
+            # Silently ignore all errors in fire-and-forget mode
+            pass
+
+        processing_end = time.perf_counter()
+        # Minimal metrics - just mark the request as sent
+        self.schedule_handle.after_request(processing_end, 1, "ops", {"success": True, "fire_and_forget": True})
+
+    async def __call__(self, *args, **kwargs):
+        self.task_completes_parent = self.task.completes_parent
+        total_start = time.perf_counter()
+
+        self.logger.debug("Initializing unhinged schedule for client id [%s].", self.client_id)
+        schedule = self.schedule_handle()
+        self.schedule_handle.start()
+        rampup_wait_time = self.schedule_handle.ramp_up_wait_time
+
+        await self._wait_for_rampup(rampup_wait_time)
+
+        self.logger.debug("Entering unhinged main loop for client id [%s].", self.client_id)
+        try:
+            async for expected_scheduled_time, sample_type, percent_completed, runner, params in schedule:
+                self.expected_scheduled_time = expected_scheduled_time
+                self.sample_type = sample_type
+                self.runner = runner
+
+
+                if self.cancel.is_set():
+                    self.logger.info("User cancelled execution.")
+                    break
+
+                # UnhingedScheduler should provide consistent timing, no override needed
+
+                # Fire and forget mode - don't wait for responses
+                await self._fire_and_forget_request(params, expected_scheduled_time, total_start)
+
+                # Check completion status
+                if self.complete.is_set():
+                    self.logger.info("Task [%s] is considered completed due to external event.", self.task)
+                    break
+        except BaseException as e:
+            self.logger.exception("Could not execute unhinged schedule")
+            raise exceptions.BenchmarkError(f"Cannot run task [{self.task}]: {e}") from None
+        finally:
+            if self.task_completes_parent:
+                self.logger.info(
+                    "Task [%s] completes parent. Client id [%s] is finished executing it and signals completion.",
+                    self.task, self.client_id
+                )
+                self.complete.set()
+
+
 request_context_holder = client.RequestContextHolder()
 
 
@@ -2675,6 +2824,8 @@ async def execute_single(runner, opensearch, params, on_error, redline_enabled=F
         request_context_holder.on_request_end()
         request_context_holder.on_client_request_end()
     return total_ops, total_ops_unit, request_meta_data
+
+
 
 
 class JoinPoint:
@@ -2910,6 +3061,54 @@ def schedule_for(task_allocation, parameter_source):
             logger.info("Parameter source will determine when the schedule for [%s] terminates.", task.name)
         else:
             logger.info("%s schedule will determine when the schedule for [%s] terminates.", str(loop_control), task.name)
+
+    return ScheduleHandle(task_allocation, sched, loop_control, runner_for_op, params_for_op)
+
+
+def schedule_for_unhinged(task_allocation, parameter_source):
+    """
+    Creates a schedule for fire-and-forget mode using the UnhingedScheduler.
+    This scheduler maintains consistent timing without waiting for responses.
+    """
+    logger = logging.getLogger(__name__)
+    task = task_allocation.task
+    op = task.operation
+
+    # Force use of UnhingedScheduler for fire-and-forget mode by setting the schedule
+    task.schedule = "unhinged"
+    sched = scheduler.scheduler_for(task)
+
+    client_index = task_allocation.client_index_in_task
+    if client_index == 0:
+        logger.info("Choosing [%s] for [%s] (fire-and-forget mode).", sched, task)
+    runner_for_op = runner.runner_for(op.type)
+    params_for_op = parameter_source.partition(client_index, task.clients)
+
+    if hasattr(sched, "parameter_source"):
+        if client_index == 0:
+            logger.debug("Setting parameter source [%s] for scheduler [%s]", params_for_op, sched)
+        sched.parameter_source = params_for_op
+
+    if requires_time_period_schedule(task, runner_for_op, params_for_op):
+        warmup_time_period = task.warmup_time_period if task.warmup_time_period else 0
+        if client_index == 0:
+            logger.info("Creating time-period based schedule with [%s] distribution for [%s] with a warmup period of [%s] "
+                       "second(s) and a time period of [%s] second(s).", sched, task, warmup_time_period, task.time_period)
+
+        loop_control = TimePeriodBased(warmup_time_period, task.time_period)
+    else:
+        warmup_iterations = task.warmup_iterations if task.warmup_iterations else 0
+        if task.iterations:
+            iterations = task.iterations
+        elif params_for_op.infinite:
+            iterations = 1
+        else:
+            iterations = None
+        if client_index == 0:
+            logger.info("Creating iteration-count based schedule with [%s] distribution for [%s] with [%s] warmup iteration(s) "
+                       "and [%s] iteration(s).", sched, task, warmup_iterations, iterations)
+
+        loop_control = IterationBased(warmup_iterations, iterations)
 
     return ScheduleHandle(task_allocation, sched, loop_control, runner_for_op, params_for_op)
 
