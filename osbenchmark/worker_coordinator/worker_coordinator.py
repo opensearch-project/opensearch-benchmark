@@ -46,6 +46,7 @@ from enum import Enum
 import thespian.actors
 
 from osbenchmark import actor, config, exceptions, metrics, workload, client, paths, PROGRAM_NAME, telemetry
+from osbenchmark.context import RequestContextHolder
 from osbenchmark.worker_coordinator import runner, scheduler
 from osbenchmark.workload import WorkloadProcessorRegistry, load_workload, load_workload_plugins, ingestion_manager
 from osbenchmark.utils import convert, console, net
@@ -2195,7 +2196,8 @@ class AsyncIoAdapter:
                     task.error_behavior(self.abort_on_error), self.cfg, self.shared_states, self.feedback_actor, self.error_queue, self.queue_lock)
 
             final_executor = AsyncProfiler(async_executor) if self.profiling_enabled else async_executor
-            aws.append(final_executor())
+            executor_task = final_executor()
+            aws.append(executor_task)
         run_start = time.perf_counter()
         try:
             _ = await asyncio.gather(*aws)
@@ -2543,6 +2545,7 @@ class UnhingedExecutor:
         self.logger = logging.getLogger(__name__)
         self.cfg = config
         self.shared_states = shared_states
+        self.is_0 = int(self.client_id) == 0
 
         # Variables to keep track of during execution
         self.expected_scheduled_time = 0
@@ -2550,17 +2553,7 @@ class UnhingedExecutor:
         self.runner = None
         self.task_completes_parent = False
 
-        # TPS tracking variables for fire-and-forget mode (per client)
-        self.tps_tracking = {
-            'total_requests': 0,
-            'current_second_requests': 0,
-            'current_second_start': time.perf_counter(),
-            'tps_history': [],  # Last 10 seconds of TPS values
-            'start_time': None,
-            'last_display_time': 0
-        }
-
-        # Use shared state for global TPS tracking if available
+        # Use shared state for global TPS tracking if available (redline testing only)
         if self.shared_states and 'global_tps_tracking' not in self.shared_states:
             self.shared_states['global_tps_tracking'] = {
                 'total_requests': 0,
@@ -2579,96 +2572,6 @@ class UnhingedExecutor:
             await asyncio.sleep(rampup_wait_time)
             self.logger.info("Client id [%s] is running now.", self.client_id)
 
-    async def _update_tps_tracking(self) -> None:
-        """Update TPS tracking metrics for live monitoring."""
-        current_time = time.perf_counter()
-
-        # Update local tracking for this client
-        if self.tps_tracking['start_time'] is None:
-            self.tps_tracking['start_time'] = current_time
-
-        self.tps_tracking['total_requests'] += 1
-        self.tps_tracking['current_second_requests'] += 1
-
-        # Update global tracking if shared states available
-        if self.shared_states and 'global_tps_tracking' in self.shared_states:
-            global_tracking = self.shared_states['global_tps_tracking']
-
-            # Initialize global start time if not set
-            if global_tracking['start_time'] is None:
-                global_tracking['start_time'] = current_time
-
-            # Increment global counters (thread-safe)
-            global_tracking['total_requests'] += 1
-            global_tracking['current_second_requests'] += 1
-
-            # Check if we've passed a full second for global tracking
-            if current_time - global_tracking['current_second_start'] >= 1.0:
-                # Record TPS for this second
-                current_tps = global_tracking['current_second_requests']
-                global_tracking['tps_history'].append(current_tps)
-
-                # Keep only last 10 seconds of history
-                if len(global_tracking['tps_history']) > 10:
-                    global_tracking['tps_history'].pop(0)
-
-                # Reset for next second
-                global_tracking['current_second_requests'] = 0
-                global_tracking['current_second_start'] = current_time
-
-    def _display_tps_status(self) -> None:
-        """Display live TPS status if enough time has passed (client 0 only)."""
-        # Only client 0 should display to prevent conflicts
-        if self.client_id != 0:
-            return
-
-        import sys
-        current_time = time.perf_counter()
-
-        # Use global tracking if available, otherwise fall back to local
-        if self.shared_states and 'global_tps_tracking' in self.shared_states:
-            tracking = self.shared_states['global_tps_tracking']
-        else:
-            tracking = self.tps_tracking
-
-        # Display every 2 seconds
-        if current_time - tracking['last_display_time'] >= 2.0:
-            total_requests = tracking['total_requests']
-            total_time = current_time - tracking['start_time'] if tracking['start_time'] else 1
-
-            # Calculate average TPS over entire run
-            avg_tps = total_requests / total_time if total_time > 0 else 0
-
-            # Calculate current TPS from recent history
-            recent_tps = sum(tracking['tps_history']) / len(tracking['tps_history']) if tracking['tps_history'] else 0
-
-            # Calculate attempted TPS (target rate based on expected schedule time)
-            attempted_tps = 1.0 / self.expected_scheduled_time if self.expected_scheduled_time > 0 else float('inf')
-            if attempted_tps == float('inf'):
-                attempted_str = "∞ (no throttling)"
-            else:
-                attempted_str = f"{attempted_tps:.1f}"
-
-            # Print status line using terminal escape sequences (like FeedbackActor pattern)
-
-            # Fix target TPS display to show aggregate target (total target across all clients)
-            if hasattr(self.task, 'target_throughput') and self.task.target_throughput:
-                aggregate_target_tps = self.task.target_throughput.value
-                target_display = f"{aggregate_target_tps:.0f}"
-            else:
-                target_display = attempted_str
-
-            status = f"🔥 Fire-and-Forget TPS | Target: {target_display} | Current: {recent_tps:.1f} | Avg: {avg_tps:.1f} | Total: {total_requests:,} requests"
-
-            # Use terminal escape sequences to avoid interfering with progress display
-            sys.stdout.write("\x1b[s")               # Save cursor position
-            sys.stdout.write("\x1b[1B")              # Move cursor down 1 line
-            sys.stdout.write("\r\x1b[2K")            # Clear the line
-            sys.stdout.write(status)
-            sys.stdout.write("\x1b[u")               # Restore cursor position
-            sys.stdout.flush()
-
-            tracking['last_display_time'] = current_time
 
     async def _fire_and_forget_request(self, params: dict, expected_scheduled_time: float, total_start: float) -> None:
         """Execute a request in fire-and-forget mode - no response handling or metrics collection."""
@@ -2678,16 +2581,14 @@ class UnhingedExecutor:
         if throughput_throttled:
             rest = absolute_expected_schedule_time - time.perf_counter()
             if rest > 0:
+                self.logger.debug("Client [%s] sleeping [%s]s for throttling", self.client_id, rest)
                 await asyncio.sleep(rest)
 
         processing_start = time.perf_counter()
+        self.logger.debug("Client [%s] executing request at processing_start [%s]", self.client_id, processing_start)
         self.schedule_handle.before_request(processing_start)
 
-        # Update TPS tracking and display status
-        await self._update_tps_tracking()
-        self._display_tps_status()
-
-        # Fire and forget - just execute without waiting for response
+        # Fire and forget - create async task to execute request without waiting
         try:
             # Add fire_and_forget flag to params for the runner
             if params is None:
@@ -2696,18 +2597,34 @@ class UnhingedExecutor:
             # Remove any timeout settings to prevent timeout errors
             params.pop("request-timeout", None)
 
-            # Create a fire-and-forget task with complete exception suppression
-            task = asyncio.create_task(execute_unhinged_single(self.runner, self.opensearch, params))
-            # Add exception suppression callback to prevent any logging
-            def suppress_all_exceptions(t):
+            # Create fire-and-forget task directly - no nested task creation
+            self.logger.debug("Client [%s] creating direct fire-and-forget task", self.client_id)
+            async def fire_and_forget_runner():
                 try:
-                    if not t.cancelled():
-                        t.exception()  # Consume the exception
-                except Exception:
-                    pass  # Silently ignore even the exception handling
-            task.add_done_callback(suppress_all_exceptions)
+
+                    # Initialize request context for the fire-and-forget task
+                    ctx, token = RequestContextHolder.init_request_context()
+                    try:
+                        async with self.runner:
+                            await self.runner(self.opensearch, params)
+                    finally:
+                        # Clean up the context
+                        RequestContextHolder.restore_context(token)
+
+                except Exception as e:
+                    # Log errors for debugging
+                    pass
+
+            # Create task but don't await - true fire and forget
+            task = asyncio.create_task(fire_and_forget_runner())
+            # Suppress exceptions for fire-and-forget mode
+            def handle_task_completion(t):
+                if not t.cancelled():
+                    t.exception()  # Consume exception to prevent logging
+            task.add_done_callback(handle_task_completion)
+
         except Exception:
-            # Silently ignore all errors in fire-and-forget mode - no logging
+            # Silently ignore all errors in fire-and-forget mode
             pass
 
         processing_end = time.perf_counter()
@@ -2724,16 +2641,6 @@ class UnhingedExecutor:
         rampup_wait_time = self.schedule_handle.ramp_up_wait_time
 
         await self._wait_for_rampup(rampup_wait_time)
-
-        # Display fire-and-forget startup message
-        if self.client_id == 0:  # Only show once for the first client
-            print("\n🔥 Fire-and-Forget mode activated! Live TPS monitoring enabled...")
-            print("   Target TPS = requests/second OSB attempts to send")
-            print("   Current TPS = average over last 10 seconds")
-            print("   Avg TPS = average since test start")
-            print("   (Monitoring from client 0 only to prevent display conflicts)")
-            print()
-
 
         self.logger.debug("Entering unhinged main loop for client id [%s].", self.client_id)
         try:
@@ -2760,16 +2667,6 @@ class UnhingedExecutor:
             self.logger.exception("Could not execute unhinged schedule")
             raise exceptions.BenchmarkError(f"Cannot run task [{self.task}]: {e}") from None
         finally:
-            # Display final TPS summary for the first client
-            if self.client_id == 0 and self.tps_tracking['total_requests'] > 0:
-                total_time = time.perf_counter() - self.tps_tracking['start_time'] if self.tps_tracking['start_time'] else 1
-                final_avg_tps = self.tps_tracking['total_requests'] / total_time
-                print(f"\n\n🏁 Fire-and-Forget completed! Final stats:")
-                print(f"   Total requests sent: {self.tps_tracking['total_requests']:,}")
-                print(f"   Total time: {total_time:.1f} seconds")
-                print(f"   Average TPS: {final_avg_tps:.1f}")
-                print()
-
             if self.task_completes_parent:
                 self.logger.info(
                     "Task [%s] completes parent. Client id [%s] is finished executing it and signals completion.",
@@ -2880,21 +2777,6 @@ async def execute_single(runner, opensearch, params, on_error, redline_enabled=F
     return total_ops, total_ops_unit, request_meta_data
 
 
-async def execute_unhinged_single(runner, opensearch, params):
-    """
-    Fire-and-forget execution of a runner without waiting for response or handling errors.
-    Used for maximum throughput unhinged mode.
-    """
-    try:
-        # Just fire the request - don't wait for response
-        async with runner:
-            # Create task but don't await it - true fire and forget
-            task = asyncio.create_task(runner(opensearch, params))
-            # Suppress any exceptions from the task to prevent logging noise
-            task.add_done_callback(lambda t: t.exception() if not t.cancelled() else None)
-    except Exception:
-        # Silently ignore all errors in fire-and-forget mode
-        pass
 
 
 class JoinPoint:
@@ -3137,13 +3019,13 @@ def schedule_for_unhinged(task_allocation, parameter_source):
     task = task_allocation.task
     op = task.operation
 
-    # Force use of UnhingedScheduler for fire-and-forget mode
-    sched = scheduler.UnhingedScheduler(task)
+    # Force use of UnhingedScheduler for fire-and-forget mode by setting the schedule
+    task.schedule = "unhinged"
+    sched = scheduler.scheduler_for(task)
 
     client_index = task_allocation.client_index_in_task
     if client_index == 0:
         logger.info("Choosing [%s] for [%s] (fire-and-forget mode).", sched, task)
-
     runner_for_op = runner.runner_for(op.type)
     params_for_op = parameter_source.partition(client_index, task.clients)
 
