@@ -300,7 +300,6 @@ class GrpcClientFactory:
         Create gRPC service stubs with timing interceptor.
         Returns a dict of {cluster_name: {service_name: stub}} structure.
         """
-        # pylint: disable=import-outside-toplevel
         import grpc
         from opensearch.protobufs.services.document_service_pb2_grpc import DocumentServiceStub
         from opensearch.protobufs.services.search_service_pb2_grpc import SearchServiceStub
