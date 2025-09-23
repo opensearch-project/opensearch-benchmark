@@ -39,6 +39,7 @@ class MappingStrategy(DataGenerationStrategy):
         """
         if timeseries_enabled and timeseries_windows:
             futures = []
+            # pylint: disable=C0200
             for _ in range(len(seeds)):
                 seed = seeds[_]
                 window = timeseries_windows[_]

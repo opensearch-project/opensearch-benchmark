@@ -160,9 +160,9 @@ class SyntheticDataGenerator:
                         ordered_results = TimeSeriesPartitioner.sort_results_by_datetimestamps(results, timeseries_enabled_settings.timeseries_field)
 
                         writing_start_time = time.time()
-                        for i in range(len(ordered_results)):
+                        for i, res in enumerate(ordered_results):
                             self.logger.info("Writing results [%s/%s]", i+1, len(ordered_results))
-                            docs_written_from_chunk, written_bytes = helpers.write_chunk(ordered_results[i], file_path)
+                            docs_written_from_chunk, written_bytes = helpers.write_chunk(res, file_path)
                             docs_written += docs_written_from_chunk
                             current_size += written_bytes
                             progress_bar.update(written_bytes)
