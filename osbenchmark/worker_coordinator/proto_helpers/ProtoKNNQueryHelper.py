@@ -1,6 +1,9 @@
 from opensearch.protobufs.schemas import search_pb2
 from opensearch.protobufs.schemas import common_pb2
 
+from osbenchmark.worker_coordinator.proto_helpers.ProtoQueryHelper import _get_relation
+
+
 class ProtoKNNQueryHelper:
     """
     Helper methods to build a protobuf query from OSB params dictionary.
@@ -70,11 +73,7 @@ class ProtoKNNQueryHelper:
     """
     @staticmethod
     def build_stats(response, params):
-        which_field = response.WhichOneof('response')
-        if which_field == 'error_4xx_response' or which_field == 'error_5xx_response':
-            raise Exception("Server responded with error: " + str(which_field))
-
-        if not isinstance(response.response_body, search_pb2.ResponseBody):
+        if not isinstance(response, search_pb2.SearchResponse):
             raise Exception("Unknown response proto: " + str(type(response)))
 
         if params.get("detailed-results"):
@@ -82,10 +81,10 @@ class ProtoKNNQueryHelper:
                 "weight": 1,
                 "unit": "ops",
                 "success": True,
-                "hits": response.response_body.hits.total.total_hits.value,
-                "hits_relation": _get_relation(response.response_body.hits.total.total_hits.relation),
-                "timed_out": response.response_body.timed_out,
-                "took": response.response_body.took,
+                "hits": response.hits.total.total_hits.value,
+                "hits_relation": _get_relation(response.hits.total.total_hits.relation),
+                "timed_out": response.timed_out,
+                "took": response.took,
             }
 
         return {

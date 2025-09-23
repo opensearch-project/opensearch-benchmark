@@ -53,19 +53,18 @@ class ProtoBulkHelper:
     """
     @staticmethod
     def build_stats(response, params):
-        which_field = response.WhichOneof('response')
-        if which_field == 'bulk_error_response':
-            raise Exception("Server responded with error: " + str(which_field))
-
-        if not isinstance(response.bulk_response_body, document_pb2.BulkResponseBody):
+        if not isinstance(response, document_pb2.BulkResponse):
             raise Exception("Unknown response proto: " + str(type(response)))
+
+        if response.errors:
+            raise Exception("Server responded with errors")
 
         if params.get("detailed-results"):
             raise Exception("Detailed stats not supported for proto bulk index.")
 
         success_count = 0
         error_count = 0
-        for item in response.bulk_response_body.items:
+        for item in response.items:
             if item.index.status > 299:
                 error_count += 1
             else:
@@ -75,7 +74,7 @@ class ProtoBulkHelper:
             "index": params.get("index"),
             "weight": params.get("bulk-size"),
             "unit": params.get("unit"),
-            "took": response.bulk_response_body.took,
+            "took": response.took,
             "success": error_count == 0,
             "success-count": success_count,
             "error-count": error_count,
