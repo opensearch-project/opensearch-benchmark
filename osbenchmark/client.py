@@ -36,12 +36,6 @@ from osbenchmark.context import RequestContextHolder
 from osbenchmark.utils import console, convert
 from osbenchmark.cloud_provider import CloudProviderFactory
 
-# Import grpc for interceptor classes - only when needed
-try:
-    import grpc
-except ImportError:
-    grpc = None
-
 class BenchmarkAsyncOpenSearch(opensearchpy.AsyncOpenSearch, RequestContextHolder):
     pass
 
@@ -365,20 +359,17 @@ class UnifiedClient:
         if cluster_name in self._grpc_stubs:
             return self._grpc_stubs[cluster_name].get('search_service')
         return None
-        
-    def has_grpc_support(self, cluster_name="default"):
-        """Check if gRPC is available for the specified cluster."""
-        return cluster_name in self._grpc_stubs
-        
-    def close_grpc_channels(self):
-        """Close all gRPC channels for cleanup."""
+
+    def __del__(self):
+        """Close all gRPC channels."""
         for cluster_stubs in self._grpc_stubs.values():
             if '_channel' in cluster_stubs:
                 try:
                     cluster_stubs['_channel'].close()
                 except Exception as e:
                     self._logger.warning(f"Error closing gRPC channel: {e}")
-                    
+        self._opensearch.close()
+
     @property
     def opensearch(self):
         """Provide access to the underlying OpenSearch client for explicit access."""
