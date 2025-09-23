@@ -367,7 +367,7 @@ class CcrStats(TelemetryDevice):
                                         self.indices_per_cluster[cluster_name] if self.indices_per_cluster else None)
             sampler = SamplerThread(recorder)
             self.samplers.append(sampler)
-            sampler.setDaemon(True)
+            sampler.daemon = True
             # we don't require starting recorders precisely at the same time
             sampler.start()
 
@@ -544,7 +544,7 @@ class RecoveryStats(TelemetryDevice):
                                              self.indices_per_cluster[cluster_name] if self.indices_per_cluster else "")
             sampler = SamplerThread(recorder)
             self.samplers.append(sampler)
-            sampler.setDaemon(True)
+            sampler.daemon = True
             # we don't require starting recorders precisely at the same time
             sampler.start()
 
@@ -761,7 +761,7 @@ class NodeStats(TelemetryDevice):
             recorder = NodeStatsRecorder(self.telemetry_params, cluster_name, self.clients[cluster_name], self.metrics_store)
             sampler = SamplerThread(recorder)
             self.samplers.append(sampler)
-            sampler.setDaemon(True)
+            sampler.daemon = True
             # we don't require starting recorders precisely at the same time
             sampler.start()
 
@@ -959,7 +959,7 @@ class TransformStats(TelemetryDevice):
                                                   cluster_name] if self.transforms_per_cluster else None)
             sampler = SamplerThread(recorder)
             self.samplers.append(sampler)
-            sampler.setDaemon(True)
+            sampler.daemon = True
             # we don't require starting recorders precisely at the same time
             sampler.start()
 
@@ -1170,7 +1170,7 @@ class SearchableSnapshotsStats(TelemetryDevice):
                 self.indices_per_cluster[cluster_name] if self.indices_per_cluster else None)
             sampler = SamplerThread(recorder)
             self.samplers.append(sampler)
-            sampler.setDaemon(True)
+            sampler.daemon = True
             # we don't require starting recorders precisely at the same time
             sampler.start()
 
@@ -1866,7 +1866,7 @@ class SegmentReplicationStats(TelemetryDevice):
                 self.indices_per_cluster[cluster_name] if self.indices_per_cluster else None)
             sampler = SamplerThread(recorder)
             self.samplers.append(sampler)
-            sampler.setDaemon(True)
+            sampler.daemon = True
             # we don't require starting recorders precisely at the same time
             sampler.start()
 
