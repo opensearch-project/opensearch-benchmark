@@ -10,7 +10,6 @@ import logging
 from types import ModuleType
 from typing import Optional, Callable
 from typing import Generator
-import pandas as pd
 
 from dask.distributed import Client
 from mimesis import Generic
@@ -62,6 +61,7 @@ class CustomModuleStrategy(DataGenerationStrategy):
         self.logger.info("Generating data across workers")
         if timeseries_enabled and timeseries_windows:
             futures = []
+            # pylint: disable=C0200
             for _ in range(len(seeds)):
                 seed = seeds[_]
                 window = timeseries_windows[_]
@@ -112,7 +112,7 @@ class CustomModuleStrategy(DataGenerationStrategy):
                     synthetic_docs.append(document)
 
                 except Exception as e:
-                    raise exceptions.DataError("Encountered problem when inserting datetimestamps for timeseries data being generated: {e}")
+                    raise exceptions.DataError(f"Encountered problem when inserting datetimestamps for timeseries data being generated: {e}")
 
             return synthetic_docs
 

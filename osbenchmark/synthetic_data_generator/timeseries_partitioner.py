@@ -131,7 +131,6 @@ class TimeSeriesPartitioner:
 
     @staticmethod
     def generate_datetimestamps_from_window(window: set, frequency: str = "min", format: str = "%Y-%m-%dT%H:%M:%S") -> Generator:
-        logger = logging.getLogger(__name__)
         if frequency not in TimeSeriesPartitioner.AVAILABLE_FREQUENCIES:
             msg = f"Frequency {frequency} not found in available frequencies {TimeSeriesPartitioner.AVAILABLE_FREQUENCIES}"
             raise exceptions.ConfigError(msg)
@@ -204,6 +203,7 @@ class TimeSeriesPartitioner:
             print("Number of docs expected, frequency, and number of timestamps: ", expected_number_of_docs_with_buffer, frequency, number_of_timestamps)
             if number_of_timestamps > expected_number_of_docs_with_buffer:
                 self.logger.info("Using [%s] frequency as this resulted in more timestamps", frequency)
+                # pylint: disable=R1723
                 break
             else:
                 self.logger.info("Using [%s] frequency did not result in more timestamps", frequency)
@@ -222,7 +222,4 @@ class TimeSeriesPartitioner:
             f"Would you like to use [{optimal_frequency}] as the frequency? (y/n): "
             requested_input = input(msg)
 
-        if requested_input.lower() in ['y', 'yes']:
-            return True
-        else:
-            return False
+        return requested_input.lower() in ['y', 'yes']
