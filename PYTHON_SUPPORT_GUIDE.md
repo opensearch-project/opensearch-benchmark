@@ -2,20 +2,16 @@
 
 This document walks developers through how to add support for new major & minor Python versions in OpenSearch-Benchmark.
 
-### Adding New Python Versions to OpenSearch Benchmark
+### Update Python versions supproted in OpenSearch Benchmark
 
-1. Add a new Python major version as a tuple in this list in [setup.py](https://github.com/opensearch-project/opensearch-benchmark/blob/main/setup.py#L47). For example, if you were to want to add support for Python 3.12, you would just add it at the end of this list as a tuple.
-```
-# Added Python 3.12 as (3, 12) at the end of the list
-supported_python_versions = [(3, 8), (3, 9), (3, 10), (3, 11), (3, 12)]
-```
+* `./ci/variables.json`: Add or remove python variables and update `MIN_PY_VER` if necessary. For example, to add Python `3.12`, ensure there's a variable `PY312` and set it to the version.
+* `.github/workflows/integ-test.yml`: Add or remove Python versions to `python-version`
+* `setup.py`: Add to or remove from `supported_python_versions` tuples.
+* `tox.ini`: Add to or remove from `envlist =` section.
+* `osbenchamrk/__init__.py`: Update logging statement `raise RuntimeError("OSB requires at least <MINIMUM PYTHON VERSION SUPPORTED> but you are using:\n\nPython %s" % str(sys.version))`
 
-2. Add desired major Python version with the semantic format in [.ci/variables.json](https://github.com/opensearch-project/opensearch-benchmark/blob/main/.ci/variables.json). OpenSearch Benchmark uses semantic versioning. If you are unsure what to update the version to, use [this reference](https://semver.org/) as a guide.
-
-3. Update version.txt accordingly. Again, OpenSearch Benchmark uses semantic versioning. If you are unsure what to update the version to, use [this reference](https://semver.org/) as a guide.
-
-**Example: Removing Python 3.8 and 3.9 from and adding Python 3.12 and 3.11 to OpenSearch Benchmark**
-* [Commit](https://github.com/opensearch-project/opensearch-benchmark/pull/961/files)
+For an example, please see the reference the following:
+* [Update Python versions supported to 3.10 - 3.13](https://github.com/opensearch-project/opensearch-benchmark/pull/961/files)
 
 ### Testing New Python Versions After Adding to OpenSearch Benchmark
 
