@@ -2394,7 +2394,7 @@ class UnhingedExecutorTests(TestCase):
 
         executor.runner = mock.AsyncMock()
 
-        await executor._fire_and_forget_request({}, 1.0, 0.0)
+        await executor._fire_and_forget_request({}, 1.0, 0.0)  # pylint: disable=protected-access
 
         mock_create_task.assert_called_once()
 
@@ -2422,7 +2422,7 @@ class UnhingedExecutorTests(TestCase):
 
         executor.runner = mock.AsyncMock()
 
-        await executor._fire_and_forget_request({}, 1.0, 0.0)  # expected_scheduled_time = 1.0
+        await executor._fire_and_forget_request({}, 1.0, 0.0)  # pylint: disable=protected-access  # expected_scheduled_time = 1.0
 
         mock_sleep.assert_called_once_with(0.5)  # Should sleep for the difference
         mock_create_task.assert_called_once()
@@ -2451,7 +2451,7 @@ class UnhingedExecutorTests(TestCase):
 
         executor.runner = mock.AsyncMock()
 
-        await executor._fire_and_forget_request({}, 1.0, 0.0)  # expected_scheduled_time = 1.0
+        await executor._fire_and_forget_request({}, 1.0, 0.0)  # pylint: disable=protected-access  # expected_scheduled_time = 1.0
 
         mock_sleep.assert_not_called()  # No sleep needed
         mock_create_task.assert_called_once()

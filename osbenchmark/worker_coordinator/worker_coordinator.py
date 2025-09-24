@@ -2584,7 +2584,7 @@ class UnhingedExecutor:
                 try:
 
                     # Initialize request context for the fire-and-forget task
-                    ctx, token = RequestContextHolder.init_request_context()
+                    _, token = RequestContextHolder.init_request_context()
                     try:
                         async with self.runner:
                             await self.runner(self.opensearch, params)
@@ -2592,7 +2592,7 @@ class UnhingedExecutor:
                         # Clean up the context
                         RequestContextHolder.restore_context(token)
 
-                except Exception as e:
+                except Exception:
                     # Log errors for debugging
                     pass
 
@@ -2625,7 +2625,7 @@ class UnhingedExecutor:
 
         self.logger.debug("Entering unhinged main loop for client id [%s].", self.client_id)
         try:
-            async for expected_scheduled_time, sample_type, percent_completed, runner, params in schedule:
+            async for expected_scheduled_time, sample_type, _, runner, params in schedule:
                 self.expected_scheduled_time = expected_scheduled_time
                 self.sample_type = sample_type
                 self.runner = runner
