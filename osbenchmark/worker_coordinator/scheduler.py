@@ -226,26 +226,6 @@ class Unthrottled(Scheduler):
     def __str__(self):
         return "unthrottled"
 
-
-class UnhingedScheduler(SimpleScheduler):
-    """
-    Fire-and-forget scheduler that maintains consistent timing without waiting for responses.
-    Designed for maximum throughput scenarios where response handling is disabled.
-    """
-    name = "unhinged"
-
-    def __init__(self, task, target_throughput):
-        super().__init__()
-        self.wait_time = 1 / target_throughput
-
-    def next(self, current):
-        """Return next scheduled time based on target interval."""
-        return current + self.wait_time
-
-    def __str__(self):
-        return f"unhinged (target_interval={self.wait_time:.6f}s)"
-
-
 class DeterministicScheduler(SimpleScheduler):
     """
     Schedules the next execution according to a
@@ -337,4 +317,3 @@ class UnitAwareScheduler(Scheduler):
 
 register_scheduler(DeterministicScheduler.name, DeterministicScheduler)
 register_scheduler(PoissonScheduler.name, PoissonScheduler)
-register_scheduler(UnhingedScheduler.name, UnhingedScheduler)

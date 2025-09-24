@@ -2179,10 +2179,7 @@ class AsyncIoAdapter:
 
             # Check if fire-and-forget mode is enabled and use appropriate schedule
             fire_and_forget = self.cfg.opts("worker_coordinator", "fire_and_forget", mandatory=False, default_value=False)
-            if fire_and_forget:
-                schedule = schedule_for_unhinged(task_allocation, params_per_task[task])
-            else:
-                schedule = schedule_for(task_allocation, params_per_task[task])
+            schedule = schedule_for(task_allocation, params_per_task[task], fire_and_forget)
 
             if fire_and_forget:
                 # Use UnhingedExecutor for fire-and-forget mode
@@ -2553,18 +2550,6 @@ class UnhingedExecutor:
         self.runner = None
         self.task_completes_parent = False
 
-        # Use shared state for global TPS tracking if available (redline testing only)
-        if self.shared_states and 'global_tps_tracking' not in self.shared_states:
-            self.shared_states['global_tps_tracking'] = {
-                'total_requests': 0,
-                'current_second_requests': 0,
-                'current_second_start': time.perf_counter(),
-                'tps_history': [],
-                'start_time': None,
-                'last_display_time': 0,
-                'lock': asyncio.Lock()
-            }
-
     async def _wait_for_rampup(self, rampup_wait_time: float) -> None:
         """Wait for the ramp-up phase if needed."""
         if rampup_wait_time:
@@ -2581,7 +2566,6 @@ class UnhingedExecutor:
         if throughput_throttled:
             rest = absolute_expected_schedule_time - time.perf_counter()
             if rest > 0:
-                self.logger.debug("Client [%s] sleeping [%s]s for throttling", self.client_id, rest)
                 await asyncio.sleep(rest)
 
         processing_start = time.perf_counter()
@@ -2649,12 +2633,9 @@ class UnhingedExecutor:
                 self.sample_type = sample_type
                 self.runner = runner
 
-
                 if self.cancel.is_set():
                     self.logger.info("User cancelled execution.")
                     break
-
-                # UnhingedScheduler should provide consistent timing, no override needed
 
                 # Fire and forget mode - don't wait for responses
                 await self._fire_and_forget_request(params, expected_scheduled_time, total_start)
@@ -2954,25 +2935,34 @@ class Allocator:
 
 # Runs a concrete schedule on one worker client
 # Needs to determine the runners and concrete iterations per client.
-def schedule_for(task_allocation, parameter_source):
+def schedule_for(task_allocation, parameter_source, fire_and_forget=False):
     """
     Calculates a client's schedule for a given task.
 
     :param task: The task that should be executed.
     :param client_index: The current client index.  Must be in the range [0, `task.clients').
     :param parameter_source: The parameter source that should be used for this task.
+    :param fire_and_forget: If True, forces deterministic scheduling for fire-and-forget mode.
     :return: A generator for the operations the given client needs to perform for this task.
     """
     logger = logging.getLogger(__name__)
     task = task_allocation.task
     op = task.operation
+
+    # Force deterministic scheduler for fire-and-forget mode
+    if fire_and_forget and not task.schedule:
+        task.schedule = "deterministic"
+
     sched = scheduler.scheduler_for(task)
 
     client_index = task_allocation.client_index_in_task
     # guard all logging statements with the client index and only emit them for the first client. This information is
     # repetitive and may cause issues in thespian with many clients (an excessive number of actor messages is sent).
     if client_index == 0:
-        logger.info("Choosing [%s] for [%s].", sched, task)
+        if fire_and_forget:
+            logger.info("Choosing [%s] for [%s] (fire-and-forget mode).", sched, task)
+        else:
+            logger.info("Choosing [%s] for [%s].", sched, task)
     runner_for_op = runner.runner_for(op.type)
     params_for_op = parameter_source.partition(client_index, task.clients)
     if hasattr(sched, "parameter_source"):
@@ -3008,55 +2998,6 @@ def schedule_for(task_allocation, parameter_source):
             logger.info("%s schedule will determine when the schedule for [%s] terminates.", str(loop_control), task.name)
 
     return ScheduleHandle(task_allocation, sched, loop_control, runner_for_op, params_for_op)
-
-
-def schedule_for_unhinged(task_allocation, parameter_source):
-    """
-    Creates a schedule for fire-and-forget mode using the UnhingedScheduler.
-    This scheduler maintains consistent timing without waiting for responses.
-    """
-    logger = logging.getLogger(__name__)
-    task = task_allocation.task
-    op = task.operation
-
-    # Force use of UnhingedScheduler for fire-and-forget mode by setting the schedule
-    task.schedule = "unhinged"
-    sched = scheduler.scheduler_for(task)
-
-    client_index = task_allocation.client_index_in_task
-    if client_index == 0:
-        logger.info("Choosing [%s] for [%s] (fire-and-forget mode).", sched, task)
-    runner_for_op = runner.runner_for(op.type)
-    params_for_op = parameter_source.partition(client_index, task.clients)
-
-    if hasattr(sched, "parameter_source"):
-        if client_index == 0:
-            logger.debug("Setting parameter source [%s] for scheduler [%s]", params_for_op, sched)
-        sched.parameter_source = params_for_op
-
-    if requires_time_period_schedule(task, runner_for_op, params_for_op):
-        warmup_time_period = task.warmup_time_period if task.warmup_time_period else 0
-        if client_index == 0:
-            logger.info("Creating time-period based schedule with [%s] distribution for [%s] with a warmup period of [%s] "
-                       "second(s) and a time period of [%s] second(s).", sched, task, warmup_time_period, task.time_period)
-
-        loop_control = TimePeriodBased(warmup_time_period, task.time_period)
-    else:
-        warmup_iterations = task.warmup_iterations if task.warmup_iterations else 0
-        if task.iterations:
-            iterations = task.iterations
-        elif params_for_op.infinite:
-            iterations = 1
-        else:
-            iterations = None
-        if client_index == 0:
-            logger.info("Creating iteration-count based schedule with [%s] distribution for [%s] with [%s] warmup iteration(s) "
-                       "and [%s] iteration(s).", sched, task, warmup_iterations, iterations)
-
-        loop_control = IterationBased(warmup_iterations, iterations)
-
-    return ScheduleHandle(task_allocation, sched, loop_control, runner_for_op, params_for_op)
-
 
 def requires_time_period_schedule(task, task_runner, params):
     if task.warmup_time_period is not None or task.time_period is not None:
