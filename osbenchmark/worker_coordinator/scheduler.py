@@ -226,6 +226,7 @@ class Unthrottled(Scheduler):
     def __str__(self):
         return "unthrottled"
 
+
 class DeterministicScheduler(SimpleScheduler):
     """
     Schedules the next execution according to a

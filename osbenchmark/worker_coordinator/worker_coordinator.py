@@ -2161,8 +2161,6 @@ class AsyncIoAdapter:
         aws = []
         # A parameter source should only be created once per task - it is partitioned later on per client.
         params_per_task = {}
-
-
         for client_id, task_allocation in self.task_allocations:
             task = task_allocation.task
             if task not in params_per_task:
