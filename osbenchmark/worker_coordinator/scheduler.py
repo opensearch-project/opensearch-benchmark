@@ -246,7 +246,6 @@ class UnhingedScheduler(SimpleScheduler):
         return f"unhinged (target_interval={self.wait_time:.6f}s)"
 
 
-
 class DeterministicScheduler(SimpleScheduler):
     """
     Schedules the next execution according to a
