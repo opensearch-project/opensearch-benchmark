@@ -37,7 +37,15 @@ This document will walk you through on what's needed to start contributing code 
 
     For Amazon Linux 2023, run the following command:
     ```
-    sudo yum -y install gcc openssl-devel bzip2-devel libffi-devel ncurses-devel sqlite-devel readline-devel zlib-devel xz-devel
+    sudo yum install -y gcc zlib-devel bzip2 bzip2-devel patch readline-devel sqlite sqlite-devel openssl-devel tk-devel libffi-devel xz-devel git
+
+    git clone https://github.com/pyenv/pyenv.git ~/.pyenv
+
+    echo 'export PYENV_ROOT="$HOME/.pyenv"' >> ~/.bash_profile
+    echo 'export PATH="$PYENV_ROOT/bin:$PATH"' >> ~/.bash_profile
+    echo 'eval "$(pyenv init -)"' >> ~/.bash_profile
+
+    source ~/.bash_profile
     ```
 
     On the Mac platform, XCode needs to be installed as well as some additional required libraries:

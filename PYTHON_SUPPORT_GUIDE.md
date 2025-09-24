@@ -14,9 +14,8 @@ supported_python_versions = [(3, 8), (3, 9), (3, 10), (3, 11), (3, 12)]
 
 3. Update version.txt accordingly. Again, OpenSearch Benchmark uses semantic versioning. If you are unsure what to update the version to, use [this reference](https://semver.org/) as a guide.
 
-**Example of adding Python 3.10 and 3.11 versions to OpenSearch Benchmark:**
-* [Commit](https://github.com/opensearch-project/opensearch-benchmark/commit/c808af899f3b168d47bb55763ede33def0e64a3b)
-* [Issue](https://github.com/opensearch-project/opensearch-benchmark/issues/220)
+**Example: Removing Python 3.8 and 3.9 from and adding Python 3.12 and 3.11 to OpenSearch Benchmark**
+* [Commit](https://github.com/opensearch-project/opensearch-benchmark/pull/961/files)
 
 ### Testing New Python Versions After Adding to OpenSearch Benchmark
 
