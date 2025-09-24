@@ -12,7 +12,7 @@ Make changes to the following files and open a PR titled "Update Python versions
 * `setup.py`: Update supported Python versions in `supported_python_versions`.
 * `tox.ini`: Update supported Python versions in `env_list`
 * `Makefile`: If updating the minimum supported Python version, ensure that the minimum Python version environment variable, the `pyinst<MINIMUM_SUPPORTED_PYTHON_VERSION>` section, and `check-pip` section have been updated.
-    * For example: If changing the minimum supproted Python version to Python `3.10`, ensure the following lines have been updated to use 3.10
+    * For example: If changing the minimum supported Python version to Python `3.10`, ensure the following lines have been updated to use 3.10
 ```
 VERSION310 = $(shell jq -r '.python_versions | .[]' .ci/variables.json | sed '$$d' | grep 3\.10)
 
@@ -23,7 +23,7 @@ pyinst310:
 check-pip:
     @if ! $(PIP) > /dev/null 2>&1 || ! $(PIP) install pip > /dev/null 2>&1; then make pyinst310; fi
 ```
-* `osbenchmark/__init__.py`: If updateing the minimum supported Python version, ensure the <MINIMUM_SUPPORTED_PYTHON_VERSION> has been updated in the following error statement:
+* `osbenchmark/__init__.py`: If updating the minimum supported Python version, ensure the <MINIMUM_SUPPORTED_PYTHON_VERSION> has been updated in the following error statement:
 ```
 raise RuntimeError("OSB requires at least Python <MINIMUM_SUPPORTED_PYTHON_VERSION> but you are using:\n\nPython %s" % str(sys.version))
 ```
