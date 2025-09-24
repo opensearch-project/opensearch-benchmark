@@ -4,14 +4,28 @@ This document walks developers through how to add support for new major & minor 
 
 ### Update Python versions supported in OpenSearch Benchmark
 
-* `./ci/variables.json`: Add or remove python variables and update `MIN_PY_VER` if necessary.
-    * For example, to add Python `3.12`, ensure  `PY312` exists and set it to the latest patched version of `3.12`, such as `3.12.11`.
-* `.github/workflows/integ-test.yml`: Add or remove Python versions to `python-version`
-* `setup.py`: Add to or remove from `supported_python_versions` tuples.
-* `tox.ini`: Add to or remove from `envlist =` section.
-* `osbenchamrk/__init__.py`: Update the following line's `<MINIMUM PYTHON VERSION SUPPORTED>` if the minimum supported Python version was updated.
+Make changes to the following files and open a PR titled "Update Python versions supported to <list of python versions this PR plans to support>.
+
+* `.ci/variables.json`: Update Python variables and `MIN_PY_VER` as needed.
+    * For example: If OSB needs to add support for Python `3.12`, ensure there is a `PY312` variable and make it set to the latest patch release of Python `3.12`, such as `3.12.11`.
+* `.github/workflows/integ-tests.yml`: Update supported Python versions in the `python-versions` section
+* `setup.py`: Update supported Python versions in `supported_python_versions`.
+* `tox.ini`: Update supported Python versions in `env_list`
+* `Makefile`: If updating the minimum supported Python version, ensure that the minimum Python version environment variable, the `pyinst<MINIMUM_SUPPORTED_PYTHON_VERSION>` section, and `check-pip` section have been updated.
+    * For example: If changing the minimum supproted Python version to Python `3.10`, ensure the following lines have been updated to use 3.10
 ```
-raise RuntimeError("OSB requires at least <MINIMUM PYTHON VERSION SUPPORTED> but you are using:\n\nPython %s" % str(sys.version))`
+VERSION310 = $(shell jq -r '.python_versions | .[]' .ci/variables.json | sed '$$d' | grep 3\.10)
+
+pyinst310:
+    pyenv install --skip-existing $(VERSION310)
+	pyenv local $(VERSION310)
+
+check-pip:
+    @if ! $(PIP) > /dev/null 2>&1 || ! $(PIP) install pip > /dev/null 2>&1; then make pyinst310; fi
+```
+* `osbenchmark/__init__.py`: If updateing the minimum supported Python version, ensure the <MINIMUM_SUPPORTED_PYTHON_VERSION> has been updated in the following error statement:
+```
+raise RuntimeError("OSB requires at least Python <MINIMUM_SUPPORTED_PYTHON_VERSION> but you are using:\n\nPython %s" % str(sys.version))
 ```
 
 For an example, please see the reference the following:
