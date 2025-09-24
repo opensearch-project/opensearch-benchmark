@@ -2,13 +2,17 @@
 
 This document walks developers through how to add support for new major & minor Python versions in OpenSearch-Benchmark.
 
-### Update Python versions supproted in OpenSearch Benchmark
+### Update Python versions supported in OpenSearch Benchmark
 
-* `./ci/variables.json`: Add or remove python variables and update `MIN_PY_VER` if necessary. For example, to add Python `3.12`, ensure there's a variable `PY312` and set it to the version.
+* `./ci/variables.json`: Add or remove python variables and update `MIN_PY_VER` if necessary.
+    * For example, to add Python `3.12`, ensure  `PY312` exists and set it to the latest patched version of `3.12`, such as `3.12.11`.
 * `.github/workflows/integ-test.yml`: Add or remove Python versions to `python-version`
 * `setup.py`: Add to or remove from `supported_python_versions` tuples.
 * `tox.ini`: Add to or remove from `envlist =` section.
-* `osbenchamrk/__init__.py`: Update logging statement `raise RuntimeError("OSB requires at least <MINIMUM PYTHON VERSION SUPPORTED> but you are using:\n\nPython %s" % str(sys.version))`
+* `osbenchamrk/__init__.py`: Update the following line's `<MINIMUM PYTHON VERSION SUPPORTED>` if the minimum supported Python version was updated.
+```
+raise RuntimeError("OSB requires at least <MINIMUM PYTHON VERSION SUPPORTED> but you are using:\n\nPython %s" % str(sys.version))`
+```
 
 For an example, please see the reference the following:
 * [Update Python versions supported to 3.10 - 3.13](https://github.com/opensearch-project/opensearch-benchmark/pull/961/files)
