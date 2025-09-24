@@ -4,7 +4,7 @@ This document walks developers through how to add support for new major & minor 
 
 ### Update Python versions supported in OpenSearch Benchmark
 
-Make changes to the following files and open a PR titled "Update Python versions supported to <list of Python versions this PR plans to support>.
+Make changes to the following files and open a PR titled "Update Python versions supported to `<list of Python versions this PR plans to support>`.
 
 * `.ci/variables.json`: Update Python variables and `MIN_PY_VER` as needed.
     * For example: If OSB needs to add support for Python `3.12`, ensure there is a `PY312` variable and make it set to the latest patch release of Python `3.12`, such as `3.12.11`.
