@@ -2193,8 +2193,7 @@ class AsyncIoAdapter:
                     task.error_behavior(self.abort_on_error), self.cfg, self.shared_states, self.feedback_actor, self.error_queue, self.queue_lock)
 
             final_executor = AsyncProfiler(async_executor) if self.profiling_enabled else async_executor
-            executor_task = final_executor()
-            aws.append(executor_task)
+            aws.append(final_executor())
         run_start = time.perf_counter()
         try:
             _ = await asyncio.gather(*aws)
@@ -2756,9 +2755,6 @@ async def execute_single(runner, opensearch, params, on_error, redline_enabled=F
         request_context_holder.on_request_end()
         request_context_holder.on_client_request_end()
     return total_ops, total_ops_unit, request_meta_data
-
-
-
 
 class JoinPoint:
     def __init__(self, id, clients_executing_completing_task=None):
