@@ -145,7 +145,7 @@ class TestCustomStrategy:
         assert isinstance(avg_doc_size, int)
 
     def test_generate_data_chunks_across_workers(self, dask_client, custom_module_strategy):
-        futures_across_workers = custom_module_strategy.generate_data_chunks_across_workers(dask_client, 3, [1,2,3])
+        futures_across_workers = custom_module_strategy.generate_data_chunks_across_workers(dask_client, 3, [1,2,3], None, None)
         docs = [future.result() for future in futures_across_workers]
 
         assert len(docs) == 3
@@ -919,7 +919,7 @@ class TestMappingStrategy:
 
     def test_generate_data_chunks_across_workers(self, dask_client, mapping_strategy_with_basic_mappings):
         fields = ["title", "description", "price", "created_at", "is_available", "category_id", "tags"]
-        futures_across_workers = mapping_strategy_with_basic_mappings.generate_data_chunks_across_workers(dask_client, 3, [1,2,3])
+        futures_across_workers = mapping_strategy_with_basic_mappings.generate_data_chunks_across_workers(dask_client, 3, [1,2,3], None, None)
         docs = [future.result() for future in futures_across_workers]
 
         assert len(docs) == 3
