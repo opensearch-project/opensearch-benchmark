@@ -787,6 +787,12 @@ def create_arg_parser():
     help="Path where the HTML visualization should be saved when --visualize is enabled. If not specified, it will be saved in the test run directory.",
     default=None
     )
+    test_run_parser.add_argument(
+        "--fire-and-forget",
+        help="Enable unhinged mode for maximum throughput without response handling or metrics collection (search queries only).",
+        action="store_true",
+        default=False
+    )
 
     ###############################################################################
     #
@@ -1132,6 +1138,7 @@ def configure_test(arg_parser, args, cfg):
     cfg.add(config.Scope.applicationOverride, "workload", "randomization.alpha", args.randomization_alpha)
     cfg.add(config.Scope.applicationOverride, "workload", "visualize", args.visualize)
     cfg.add(config.Scope.applicationOverride, "workload", "visualize.output.path", args.visualize_output_path)
+    cfg.add(config.Scope.applicationOverride, "worker_coordinator", "fire_and_forget", args.fire_and_forget)
     configure_workload_params(arg_parser, args, cfg)
     configure_connection_params(arg_parser, args, cfg)
     configure_telemetry_params(args, cfg)
