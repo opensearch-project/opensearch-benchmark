@@ -294,10 +294,7 @@ class GrpcClientFactory:
         import grpc
         from opensearch.protobufs.services.document_service_pb2_grpc import DocumentServiceStub
         from opensearch.protobufs.services.search_service_pb2_grpc import SearchServiceStub
-        
-        if not self.grpc_hosts:
-            return {}
-            
+
         stubs = {}
 
         for cluster_name, hosts in self.grpc_hosts.all_hosts.items():
