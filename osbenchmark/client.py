@@ -281,11 +281,19 @@ class MessageProducerFactory:
 class GrpcClientFactory:
     """
     Factory for creating gRPC clients with proper timing instrumentation.
+    Note gRPC channels must default `use_local_subchannel_pool` to true.
+    Sub channels manage the underlying connection with the server. When the global sub channel pool is used gRPC will
+    re-use sub channels and their underlying connections which does not appropriately reflect a multi client scenario.
     """
     def __init__(self, grpc_hosts):
         self.grpc_hosts = grpc_hosts
         self.logger = logging.getLogger(__name__)
-        
+        self.grpc_channel_options = [
+            ('grpc.use_local_subchannel_pool', 1),
+            ('grpc.max_send_message_length', 10 * 1024 * 1024),  # 10 MB
+            ('grpc.max_receive_message_length', 10 * 1024 * 1024)  # 10 MB
+        ]
+
     def create_grpc_stubs(self):
         """
         Create gRPC service stubs with timing interceptor.
@@ -303,18 +311,10 @@ class GrpcClientFactory:
                 host = hosts[0]
                 grpc_addr = f"{host['host']}:{host['port']}"
                 self.logger.info(f"Creating gRPC channel for cluster '{cluster_name}' at {grpc_addr}")
-                
-                options = [
-                    ('grpc.max_concurrent_streams', 100),
-                    ('grpc.so_reuseport', 0),
-                    ('grpc.use_local_subchannel_pool', 1),
-                    ('grpc.max_send_message_length', 10 * 1024 * 1024),  # 10 MB
-                    ('grpc.max_receive_message_length', 10 * 1024 * 1024)  # 10 MB
-                ]
 
                 channel = grpc.aio.insecure_channel(
                     target=grpc_addr,
-                    options=options,
+                    options=self.grpc_channel_options,
                     compression=None
                 )
 
