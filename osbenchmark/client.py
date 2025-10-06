@@ -335,7 +335,7 @@ class UnifiedClient:
     """
     def __init__(self, opensearch_client, grpc_stubs=None):
         self._opensearch = opensearch_client
-        self._grpc_stubs = grpc_stubs or {}
+        self._grpc_stubs = grpc_stubs
         self._logger = logging.getLogger(__name__)
         
     def __getattr__(self, name):
@@ -346,13 +346,17 @@ class UnifiedClient:
         """Get the gRPC DocumentService stub for the specified cluster."""
         if cluster_name in self._grpc_stubs:
             return self._grpc_stubs[cluster_name].get('document_service')
-        return None
+        else:
+            raise exceptions.SystemSetupError(
+                "gRPC DocumentService not available. Please configure --grpc-target-hosts.")
         
     def search_service(self, cluster_name="default"):
         """Get the gRPC SearchService stub for the specified cluster.""" 
         if cluster_name in self._grpc_stubs:
             return self._grpc_stubs[cluster_name].get('search_service')
-        return None
+        else:
+            raise exceptions.SystemSetupError(
+                "gRPC SearchService not available. Please configure --grpc-target-hosts.")
 
     def __del__(self):
         """Close all gRPC channels."""
@@ -380,15 +384,8 @@ class UnifiedClientFactory:
         self.logger = logging.getLogger(__name__)
         
     def create(self):
-        """Create a UnifiedClient with REST client."""
-        opensearch_client = self.rest_client_factory.create()
-        grpc_stubs = None
-        
-        if self.grpc_hosts:
-            grpc_factory = GrpcClientFactory(self.grpc_hosts)
-            grpc_stubs = grpc_factory.create_grpc_stubs()
-            
-        return UnifiedClient(opensearch_client, grpc_stubs)
+        """Non async client is deprecated."""
+        raise NotImplementedError()
         
     def create_async(self):
         """Create a UnifiedClient with async REST client."""

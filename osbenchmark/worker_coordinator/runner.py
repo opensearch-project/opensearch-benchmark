@@ -3053,8 +3053,6 @@ class ProtoBulkIndex(Runner):
         RequestContextHolder.on_client_request_start()
         proto_req = ProtoBulkHelper.build_proto_request(params)
         stub = opensearch.document_service()
-        if stub is None:
-            raise exceptions.SystemSetupError("gRPC DocumentService not available. Please configure --grpc-target-hosts.")
         RequestContextHolder.on_request_start()
         bulk_resp = await stub.Bulk(proto_req)
         RequestContextHolder.on_request_end()
@@ -3070,8 +3068,6 @@ class ProtoQuery(Runner):
         RequestContextHolder.on_client_request_start()
         proto_req = ProtoQueryHelper.build_proto_request(params)
         stub = opensearch.search_service()
-        if stub is None:
-            raise exceptions.SystemSetupError("gRPC SearchService not available. Please configure --grpc-target-hosts.")
         RequestContextHolder.on_request_start()
         search_resp = await stub.Search(proto_req)
         RequestContextHolder.on_request_end()
@@ -3087,8 +3083,6 @@ class ProtoKNNQuery(Runner):
         RequestContextHolder.on_client_request_start()
         proto_req = ProtoKNNQueryHelper.build_proto_request(params)
         stub = opensearch.search_service()
-        if stub is None:
-            raise exceptions.SystemSetupError("gRPC SearchService not available. Please configure --grpc-target-hosts.")
         RequestContextHolder.on_request_start()
         search_resp = await stub.Search(proto_req)
         RequestContextHolder.on_request_end()
