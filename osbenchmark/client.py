@@ -318,6 +318,7 @@ class GrpcClientFactory:
                     compression=None
                 )
 
+                # Retain a reference to underlying channel in our stubs dictionary for graceful shutdown.
                 stubs[cluster_name] = {
                     'document_service': DocumentServiceStub(channel),
                     'search_service': SearchServiceStub(channel),
