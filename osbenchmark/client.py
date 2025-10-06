@@ -36,9 +36,6 @@ from osbenchmark.context import RequestContextHolder
 from osbenchmark.utils import console, convert
 from osbenchmark.cloud_provider import CloudProviderFactory
 
-class BenchmarkAsyncOpenSearch(opensearchpy.AsyncOpenSearch, RequestContextHolder):
-    pass
-
 class OsClientFactory:
     """
     Abstracts how the OpenSearch client is created. Intended for testing.
@@ -169,18 +166,18 @@ class OsClientFactory:
         if self.provider:
             self.logger.info("Creating OpenSearch client with provider %s", self.provider)
             return self.provider.create_client(self.hosts, self.client_options)
+
         else:
-            import opensearchpy
-            class BenchmarkOpenSearch(opensearchpy.OpenSearch, RequestContextHolder):
-                pass
-            return BenchmarkOpenSearch(hosts=self.hosts, ssl_context=self.ssl_context, **self.client_options)
+            return opensearchpy.OpenSearch(hosts=self.hosts, ssl_context=self.ssl_context, **self.client_options)
 
     def create_async(self):
         # pylint: disable=import-outside-toplevel
         import io
         import aiohttp
-
         from opensearchpy.serializer import JSONSerializer
+
+        class BenchmarkAsyncOpenSearch(opensearchpy.AsyncOpenSearch, RequestContextHolder):
+            pass
 
         class LazyJSONSerializer(JSONSerializer):
             def loads(self, s):
