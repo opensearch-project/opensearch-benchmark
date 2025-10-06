@@ -49,32 +49,31 @@ class ProtoBulkHelper:
     * ``index``: index name
     * ``bulk-size``: documents per bulk request
     * ``unit``: in the case of bulk always 'ops'
-    * ``detailed-results``: return detailed results - Unsupported by proto bulk -> Raise exception
+    * ``detailed-results``: gRPC/Protobuf does not support detailed results at this time.
     """
     @staticmethod
     def build_stats(response, params):
-        if not isinstance(response, document_pb2.BulkResponse):
-            raise Exception("Unknown response proto: " + str(type(response)))
-
-        if response.errors:
-            raise Exception("Server responded with errors")
-
         if params.get("detailed-results"):
-            raise Exception("Detailed stats not supported for proto bulk index.")
+            raise Exception("Detailed results not supported for gRPC bulk requests")
 
-        success_count = 0
+        took = None
         error_count = 0
-        for item in response.items:
-            if item.index.status > 299:
-                error_count += 1
-            else:
-                success_count += 1
+        success_count = 0
+        if response.WhichOneof('response') == 'bulk_error_response':
+            error_count = params.get("bulk-size")
+        else:
+            took = response.bulk_response_body.took
+            for item in response.bulk_response_body.items:
+                if item.index.status > 299:
+                    error_count += 1
+                else:
+                    success_count += 1
 
         meta_data = {
             "index": params.get("index"),
             "weight": params.get("bulk-size"),
             "unit": params.get("unit"),
-            "took": response.took,
+            "took": took,
             "success": error_count == 0,
             "success-count": success_count,
             "error-count": error_count,
