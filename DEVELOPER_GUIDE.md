@@ -172,6 +172,16 @@ And we're done! You should be seeing the performance metrics soon enough!
 tail -f ~/.benchmark/logs/benchmark.log
 ```
 
+If you run into below error:
+```json
+[ERROR] ❌ Cannot run. Error in test run orchestrator (No value for mandatory configuration: section='reporting', key='datastore.type')
+```
+This normally happens because you are using the old config cached in `~/.benchmark` and `~/.osb`. You can remove them to force using the latest config.
+```json
+rm -rf ~/.benchmark
+rm -rf ~/.osb
+```
+
 ## running tests
 
 Once setup is complete, you may run the unit and integration tests.
