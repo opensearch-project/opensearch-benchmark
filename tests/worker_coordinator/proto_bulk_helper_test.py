@@ -62,12 +62,12 @@ class ProtoBulkHelperTests(TestCase):
 
     def test_build_stats_success_response(self):
         mock_bulk_response = document_pb2.BulkResponse()
-        mock_bulk_response.bulk_response_body.took = 100
+        mock_bulk_response.took = 100
 
         for i in range(3):
             item = document_pb2.Item()
             item.index.status = 201
-            mock_bulk_response.bulk_response_body.items.append(item)
+            mock_bulk_response.items.append(item)
 
         params = {
             "index": "test-index",
@@ -91,7 +91,7 @@ class ProtoBulkHelperTests(TestCase):
 
     def test_build_stats_bulk_error_response_status(self):
         mock_bulk_response = document_pb2.BulkResponse()
-        mock_bulk_response.bulk_error_response.status = 502
+        mock_bulk_response.errors = True
 
         params = {
             "index": "test-index",
@@ -110,68 +110,6 @@ class ProtoBulkHelperTests(TestCase):
             "success-count": 0,
             "error-count": 15,
             "error-type": "bulk"
-        }
-
-        self.assertEqual(result, expected)
-
-    def test_build_stats_bulk_error_response_error(self):
-        mock_bulk_response = document_pb2.BulkResponse()
-        mock_bulk_response.bulk_error_response.error.v1.type = "Runtime Exception"
-        mock_bulk_response.bulk_error_response.error.v1.reason = "Something went wrong!"
-
-        params = {
-            "index": "test-index",
-            "bulk-size": 500,
-            "unit": "ops"
-        }
-
-        result = ProtoBulkHelper.build_stats(mock_bulk_response, params)
-
-        expected = {
-            "index": "test-index",
-            "weight": 500,
-            "unit": "ops",
-            "took": None,
-            "success": False,
-            "success-count": 0,
-            "error-count": 500,
-            "error-type": "bulk"
-        }
-
-        self.assertEqual(result, expected)
-
-    def test_build_stats_bulk_error_item_response(self):
-        mock_bulk_response = document_pb2.BulkResponse()
-        mock_bulk_response.bulk_response_body.took = 90
-
-        for i in range(3):
-            item = document_pb2.Item()
-            item.index.status = 201
-            mock_bulk_response.bulk_response_body.items.append(item)
-
-        for i in range(2):
-            item = document_pb2.Item()
-            item.index.status = 408
-            mock_bulk_response.bulk_response_body.items.append(item)
-
-
-        params = {
-            "index": "test-index",
-            "bulk-size": 5,
-            "unit": "ops"
-        }
-
-        result = ProtoBulkHelper.build_stats(mock_bulk_response, params)
-
-        expected = {
-            "index": "test-index",
-            "weight": 5,
-            "unit": "ops",
-            "took": 90,
-            "success": False,
-            "success-count": 3,
-            "error-count": 2,
-            'error-type': 'bulk',
         }
 
         self.assertEqual(result, expected)

@@ -52,18 +52,18 @@ class ProtoBulkHelper:
     * ``detailed-results``: gRPC/Protobuf does not support detailed results at this time.
     """
     @staticmethod
-    def build_stats(response, params):
+    def build_stats(response : document_pb2.BulkResponse, params):
         if params.get("detailed-results"):
             raise Exception("Detailed results not supported for gRPC bulk requests")
 
         took = None
         error_count = 0
         success_count = 0
-        if response.WhichOneof('response') == 'bulk_error_response':
+        if response.errors:
             error_count = params.get("bulk-size")
         else:
-            took = response.bulk_response_body.took
-            for item in response.bulk_response_body.items:
+            took = response.took
+            for item in response.items:
                 if item.index.status > 299:
                     error_count += 1
                 else:
