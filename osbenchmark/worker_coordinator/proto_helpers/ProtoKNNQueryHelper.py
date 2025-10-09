@@ -65,30 +65,3 @@ class ProtoKNNQueryHelper:
         )
 
         return search_req
-
-    """
-    Parse stats from protobuf response.
-    Consumed from params dictionary:
-    * ``detailed-results``: return detailed results, hits, took, hits_relation
-    """
-    @staticmethod
-    def build_stats(response, params):
-        if not isinstance(response, search_pb2.SearchResponse):
-            raise Exception("Unknown response proto: " + str(type(response)))
-
-        if params.get("detailed-results"):
-            return {
-                "weight": 1,
-                "unit": "ops",
-                "success": True,
-                "hits": response.hits.total.total_hits.value,
-                "hits_relation": _get_relation(response.hits.total.total_hits.relation),
-                "timed_out": response.timed_out,
-                "took": response.took,
-            }
-
-        return {
-            "weight": 1,
-            "unit": "ops",
-            "success": True
-        }
