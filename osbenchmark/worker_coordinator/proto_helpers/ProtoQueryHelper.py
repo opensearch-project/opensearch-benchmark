@@ -26,57 +26,6 @@ def _get_terms_dict(query):
             raise Exception("Error parsing query - Term(s) are neither list nor dictionary: " + str(query))
     return terms
 
-"""
-Parse term query into `common_pb2.TermQuery` protobuf.
-Term query supports a single term on single field.
-"""
-def _parse_term_from_query(query):
-    term = _get_terms_dict(query)
-    if len(term.keys()) > 1:
-        raise Exception("Error parsing query - Term query contains multiple distinct fields: " + str(query))
-    if len(term.values()) > 1:
-        raise Exception("Error parsing query - Term query contains multiple terms: " + str(query))
-
-    term_field = next(iter(term.keys()))
-    term_value = next(iter(term[term_field]))
-
-    if type(term_value) is not str:
-        raise Exception("Error parsing term query - Type [" + type(term_value) + "] is not supported.")
-
-    f_val = common_pb2.FieldValue(string=term_value)
-    return common_pb2.TermQuery(
-        field=term_field,
-        value=f_val
-    )
-
-"""
-Parse terms query into `common_pb2.TermsQuery` protobuf.
-Terms query supports multiple terms for a single field.
-"""
-def _parse_terms_from_query(query):
-    terms = _get_terms_dict(query)
-    if len(terms.keys()) > 1:
-        raise Exception("Error parsing query - Term query contains multiple distinct fields: " + str(query))
-
-    term_field = next(iter(terms.keys()))
-    terms_array = common_pb2.StringArray(string_array=terms[term_field])
-    terms_lookup_map = common_pb2.TermsLookupFieldStringArrayMap(string_array=terms_array)
-
-    return common_pb2.TermsQueryField(
-        terms_lookup_field_string_array_map={term_field: terms_lookup_map}
-    )
-
-def _parse_query_from_body(body):
-    query_body = body.get("query")
-    for key, value in query_body.items():
-        if key == "match_all":
-            return common_pb2.QueryContainer(match_all=common_pb2.MatchAllQuery())
-        if key == "term":
-            return common_pb2.QueryContainer(term=_parse_term_from_query(query_body.get("term")))
-        if key == "terms":
-            return common_pb2.QueryContainer(terms=_parse_terms_from_query(query_body.get("terms")))
-    raise Exception("Unsupported query type: " + str(query_body))
-
 class ProtoQueryHelper:
     """
     Helper methods to build a protobuf query from OSB params dictionary.
@@ -85,6 +34,74 @@ class ProtoQueryHelper:
     - term query
     - terms query
     """
+
+    """
+    Parse term query into `common_pb2.TermQuery` protobuf.
+    Term query supports a single term on single field.
+    """
+    @staticmethod
+    def term_query_to_proto(query):
+        term = _get_terms_dict(query)
+        if len(term.keys()) > 1:
+            raise Exception("Error parsing query - Term query contains multiple distinct fields: " + str(query))
+        if len(term.values()) > 1:
+            raise Exception("Error parsing query - Term query contains multiple terms: " + str(query))
+
+        # Term query body gives field/value as lists
+        term_field = next(iter(term.keys()))
+        term_value = next(iter(term[term_field]))
+
+        if type(term_value) is not str:
+            raise Exception("Error parsing term query - Type [" + type(term_value) + "] is not supported.")
+
+        f_val = common_pb2.FieldValue(string=term_value)
+        return common_pb2.TermQuery(
+            field=term_field,
+            value=f_val
+        )
+
+    """
+    Parse terms query into `common_pb2.TermsQuery` protobuf.
+    Terms query supports multiple terms for a single field.
+    """
+    @staticmethod
+    def terms_query_to_proto(query):
+        terms = _get_terms_dict(query)
+        if len(terms.keys()) > 1:
+            raise Exception("Error parsing query - Term query contains multiple distinct fields: " + str(query))
+
+        term_field = next(iter(terms.keys()))
+        terms_array = common_pb2.StringArray(string_array=terms[term_field])
+        terms_lookup_map = common_pb2.TermsLookupFieldStringArrayMap(string_array=terms_array)
+
+        terms_field = common_pb2.TermsQueryField()
+
+        return common_pb2.TermsQuery(
+            terms={term_field: terms_lookup_map}
+        )
+
+    """
+    Parse a query body into the corresponding protobuf type.
+    Exceptions are thrown for unsupported query types.
+    (Note that gRPC/protobuf API coverage is not comprehensive) 
+    """
+    @staticmethod
+    def query_body_to_proto(body):
+        query_body = body.get("query")
+        for key, value in query_body.items():
+            if key == "match_all":
+                return common_pb2.QueryContainer(
+                    match_all=common_pb2.MatchAllQuery()
+                )
+            if key == "term":
+                return common_pb2.QueryContainer(
+                    term=ProtoQueryHelper.term_query_to_proto(query_body.get("term"))
+                )
+            if key == "terms":
+                return common_pb2.QueryContainer(
+                    terms=ProtoQueryHelper.terms_query_to_proto(query_body.get("terms"))
+                )
+        raise Exception("Unsupported query type: " + str(query_body))
 
     """
     Build protobuf SearchRequest.
@@ -100,17 +117,19 @@ class ProtoQueryHelper:
         size = body.get("size") if "size" in body else None
         source = body.get("_source") if "_source" in body else False
         index = [params.get("index")]
-        source_config = common_pb2.SourceConfigParam(bool_value=source)
-        timeout = None if params.get("request-timeout") is None else str(params.get("request-timeout")) + "ms" # OSB timeout always specified in ms
+        source_config = common_pb2.SourceConfigParam(bool=source)
+        timeout = None if params.get("request-timeout") is None else str(params.get("request-timeout")) + "ms"
         cache = False if params.get("cache") is None else True if params.get("cache").lower() == "true" else False
 
         return search_pb2.SearchRequest(
-            request_body=search_pb2.SearchRequestBody(query=_parse_query_from_body(body)),
+            request_body=search_pb2.SearchRequestBody(
+                query=ProtoQueryHelper.query_body_to_proto(body),
+                timeout=timeout,
+                size = size
+            ),
             index=index,
             x_source=source_config,
-            timeout=timeout,
-            request_cache=cache,
-            size=size
+            request_cache=cache
         )
 
     """
