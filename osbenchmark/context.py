@@ -47,11 +47,7 @@ class RequestContextManager:
 
     @property
     def request_end(self):
-        filtered_values = [value for value in self.ctx["request_end_list"] if value < self.client_request_end]
-        if not filtered_values:
-            return max(self.ctx["request_end_list"])
-        result = max(filtered_values)
-        return result
+        return max((value for value in self.ctx["request_end_list"] if value < self.client_request_end))
 
     @property
     def client_request_start(self):
@@ -101,7 +97,7 @@ class RequestContextHolder:
     def update_request_start(cls, new_request_start):
         meta = cls.request_context.get()
         # this can happen if multiple requests are sent on the wire for one logical request (e.g. scrolls)
-        if "request_start" not in meta:
+        if "request_start" not in meta and "client_request_start" in meta:
             meta["request_start"] = new_request_start
 
     @classmethod
@@ -124,23 +120,19 @@ class RequestContextHolder:
 
     @classmethod
     def on_client_request_start(cls):
-        timestamp = time.perf_counter()
-        cls.update_client_request_start(timestamp)
+        cls.update_client_request_start(time.perf_counter())
 
     @classmethod
     def on_client_request_end(cls):
-        timestamp = time.perf_counter()
-        cls.update_client_request_end(timestamp)
+        cls.update_client_request_end(time.perf_counter())
 
     @classmethod
     def on_request_start(cls):
-        timestamp = time.perf_counter()
-        cls.update_request_start(timestamp)
+        cls.update_request_start(time.perf_counter())
 
     @classmethod
     def on_request_end(cls):
-        timestamp = time.perf_counter()
-        cls.update_request_end(timestamp)
+        cls.update_request_end(time.perf_counter())
 
     @classmethod
     def return_raw_response(cls):
