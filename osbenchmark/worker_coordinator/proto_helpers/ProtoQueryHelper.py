@@ -15,10 +15,8 @@ def _get_terms_dict(query):
     terms = {}
     for key, value in query.items():
         terms[key] = []
-    for key, value in query.items():
         if type(value) is list:
-            for item in value:
-                terms[key].append(item)
+            terms[key].extend(value)
         elif type(value) is dict:
             for ignore, term_value in value.items():
                 terms[key].append(term_value)
