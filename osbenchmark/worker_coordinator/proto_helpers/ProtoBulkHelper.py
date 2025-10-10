@@ -1,19 +1,11 @@
 from opensearch.protobufs.schemas import document_pb2
 
 def _parse_docs_from_body(body):
-    lineSplitBody = body.decode('utf-8').split('\n')
-    lineList = []
-    opList = []
-    docList = []
-    indexPattern = '{"index":'
-    for lineBody in lineSplitBody:
-        lineList.append(lineBody)
-        if indexPattern in lineBody:
-            opList.append(lineBody)
-        else:
-            docList.append(lineBody)\
-    # Remove empty line at end of body
-    return docList[:-1]
+    index_op_lines = body.decode('utf-8').split('\n')
+    doc_list = []
+    for doc in index_op_lines[1::2]:
+        doc_list.append(doc)
+    return doc_list
 
 class ProtoBulkHelper:
     """
