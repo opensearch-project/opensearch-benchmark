@@ -23,16 +23,16 @@ class ProtoBulkHelper:
         index = params.get("index")
         body = params.get("body")
         doc_list = _parse_docs_from_body(body)
-        request  = document_pb2.BulkRequest()
+        request = document_pb2.BulkRequest()
         request.index = index
-        # All bulk request here are index ops
-        op_cont = document_pb2.OperationContainer()
-        op_cont.index.CopyFrom(document_pb2.IndexOperation())
+        # All bulk requests here are index ops
+        op_container = document_pb2.OperationContainer()
+        op_container.index.CopyFrom(document_pb2.IndexOperation())
         for doc in doc_list:
-            requestBody = document_pb2.BulkRequestBody()
-            requestBody.object = doc.encode('utf-8')
-            requestBody.operation_container.CopyFrom(op_cont)
-            request.request_body.append(requestBody)
+            request_body = document_pb2.BulkRequestBody()
+            request_body.object = doc.encode('utf-8')
+            request_body.operation_container.CopyFrom(op_container)
+            request.request_body.append(request_body)
         return request
 
     """
@@ -56,6 +56,8 @@ class ProtoBulkHelper:
         else:
             took = response.took
             for item in response.items:
+                # status field mirrors http code conventions
+                # https://github.com/opensearch-project/opensearch-protobufs/blob/b6f889416da83b7dc4a0408347965e7820bd61d0/protos/schemas/document.proto#L217-L219
                 if item.index.status > 299:
                     error_count += 1
                 else:
