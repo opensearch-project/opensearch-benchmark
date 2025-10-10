@@ -61,23 +61,19 @@ class ProtoQueryHelper:
         )
 
     """
-    Parse terms query into `common_pb2.TermsQuery` protobuf.
-    Terms query supports multiple terms for a single field.
+    Parse knn query into `common_pb2.KnnQuery` protobuf.
     """
     @staticmethod
-    def terms_query_to_proto(query):
-        terms = _get_terms_dict(query)
-        if len(terms.keys()) > 1:
-            raise Exception("Error parsing query - Term query contains multiple distinct fields: " + str(query))
+    def knn_query_to_proto(query):
+        target_field_key = next(iter(query.keys()))
+        target_field = query.get(target_field_key)
+        vector = target_field.get("vector")
+        k = target_field.get("k")
 
-        term_field = next(iter(terms.keys()))
-        terms_array = common_pb2.StringArray(string_array=terms[term_field])
-        terms_lookup_map = common_pb2.TermsLookupFieldStringArrayMap(string_array=terms_array)
-
-        terms_field = common_pb2.TermsQueryField()
-
-        return common_pb2.TermsQuery(
-            terms={term_field: terms_lookup_map}
+        return common_pb2.KnnQuery(
+            field=target_field_key,
+            vector=vector,
+            k=k
         )
 
     """
@@ -97,9 +93,9 @@ class ProtoQueryHelper:
                 return common_pb2.QueryContainer(
                     term=ProtoQueryHelper.term_query_to_proto(query_body.get("term"))
                 )
-            if key == "terms":
+            if key == "knn":
                 return common_pb2.QueryContainer(
-                    terms=ProtoQueryHelper.terms_query_to_proto(query_body.get("terms"))
+                    knn=ProtoQueryHelper.knn_query_to_proto(query_body.get("knn"))
                 )
         raise Exception("Unsupported query type: " + str(query_body))
 
@@ -119,7 +115,13 @@ class ProtoQueryHelper:
         index = [params.get("index")]
         source_config = common_pb2.SourceConfigParam(bool=source)
         timeout = None if params.get("request-timeout") is None else str(params.get("request-timeout")) + "ms"
-        cache = False if params.get("cache") is None else True if params.get("cache").lower() == "true" else False
+
+        if isinstance(params.get("cache"), bool):
+            cache = params.get("cache")
+        elif isinstance(params.get("cache"), str):
+            cache = params.get("cache").lower() == "true"
+        else:
+            cache = None
 
         return search_pb2.SearchRequest(
             request_body=search_pb2.SearchRequestBody(

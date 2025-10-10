@@ -55,7 +55,6 @@ from osbenchmark.client import RequestContextHolder
 from osbenchmark.utils.parse import parse_int_parameter, parse_string_parameter, parse_float_parameter
 from osbenchmark.worker_coordinator.proto_helpers.ProtoBulkHelper import ProtoBulkHelper
 from osbenchmark.worker_coordinator.proto_helpers.ProtoQueryHelper import ProtoQueryHelper
-from osbenchmark.worker_coordinator.proto_helpers.ProtoKNNQueryHelper import ProtoKNNQueryHelper
 
 __RUNNERS = {}
 
@@ -3081,7 +3080,7 @@ class ProtoKNNQuery(Runner):
     async def __call__(self, opensearch, params):
         from osbenchmark.context import RequestContextHolder
         RequestContextHolder.on_client_request_start()
-        proto_req = ProtoKNNQueryHelper.build_proto_request(params)
+        proto_req = ProtoQueryHelper.build_proto_request(params)
         stub = opensearch.search_service()
         RequestContextHolder.on_request_start()
         search_resp = await stub.Search(proto_req)
