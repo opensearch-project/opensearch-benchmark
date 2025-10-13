@@ -305,25 +305,29 @@ class GrpcClientFactory:
 
         stubs = {}
 
-        for cluster_name, hosts in self.grpc_hosts.all_hosts.items():
-            if hosts:
-                # Just use the first host - No load balancing support
-                host = hosts[0]
-                grpc_addr = f"{host['host']}:{host['port']}"
-                self.logger.info(f"Creating gRPC channel for cluster '{cluster_name}' at {grpc_addr}")
+        if len(self.grpc_hosts.all_hosts.items()) > 1:
+            raise NotImplementedError("Only one gRPC cluster is supported.")
 
-                channel = grpc.aio.insecure_channel(
-                    target=grpc_addr,
-                    options=self.grpc_channel_options,
-                    compression=None
-                )
 
-                # Retain a reference to underlying channel in our stubs dictionary for graceful shutdown.
-                stubs[cluster_name] = {
-                    'document_service': DocumentServiceStub(channel),
-                    'search_service': SearchServiceStub(channel),
-                    '_channel': channel
-                }
+        if len(self.grpc_hosts.all_hosts["default"]) > 1:
+            raise NotImplementedError("Only one gRPC host is supported.")
+
+        host = self.grpc_hosts.all_hosts["default"][0]
+        grpc_addr = f"{host['host']}:{host['port']}"
+
+        self.logger.info(f"Creating gRPC channel for cluster default cluster at {grpc_addr}")
+        channel = grpc.aio.insecure_channel(
+            target=grpc_addr,
+            options=self.grpc_channel_options,
+            compression=None
+        )
+
+        # Retain a reference to underlying channel in our stubs dictionary for graceful shutdown.
+        stubs["default"] = {
+            'document_service': DocumentServiceStub(channel),
+            'search_service': SearchServiceStub(channel),
+            '_channel': channel
+        }
         
         return stubs
 
