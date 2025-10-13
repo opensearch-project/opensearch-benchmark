@@ -141,7 +141,7 @@ class ProtoQueryHelper:
     @staticmethod
     def build_stats(response, params):
         if not isinstance(response, search_pb2.SearchResponse):
-            raise Exception("Unknown response proto: " + str(type(response)))
+            raise Exception("Unknown response proto: " + type(response))
 
         if params.get("detailed-results"):
             return {
