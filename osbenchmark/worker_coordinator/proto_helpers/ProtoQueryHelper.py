@@ -2,14 +2,15 @@ from opensearch.protobufs.schemas import search_pb2
 from opensearch.protobufs.schemas import common_pb2
 
 def _get_relation(relation):
-    if relation == 0:
-        return "TOTAL_HITS_RELATION_UNSPECIFIED"
-    elif relation == 1:
-        return "TOTAL_HITS_RELATION_EQ"
-    elif relation == 2:
-        return "TOTAL_HITS_RELATION_GTE"
-    else:
-        return "TOTAL_HITS_RELATION_UNSET"
+    match relation:
+        case 0:
+            return "TOTAL_HITS_RELATION_UNSPECIFIED"
+        case 1:
+            return "TOTAL_HITS_RELATION_EQ"
+        case 2:
+            return "TOTAL_HITS_RELATION_GTE"
+        case _:
+            return "TOTAL_HITS_RELATION_UNSET"
 
 def _get_terms_dict(query):
     terms = {}
