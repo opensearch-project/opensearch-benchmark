@@ -1359,12 +1359,19 @@ def main():
 
     end = time.time()
     if success:
-        console.println("")
-        console.info("✅ SUCCESS (took %d seconds)" % (end - start), overline="-", underline="-")
+        message = "✅ SUCCESS"
+        status = 0
     else:
-        console.println("")
-        console.info("❌ FAILURE (took %d seconds)" % (end - start), overline="-", underline="-")
-        sys.exit(64)
+        message = "❌ FAILURE"
+        status = 64
+    message = message + f" (took {int(round(end - start))} seconds)"
+    console.println("")
+    console.info(message, overline="-", underline="-")
+    if hasattr(args, "results_file") and args.results_file:
+        with open(args.results_file, "a") as fh:
+            print("\n", message, file=fh)
+
+    sys.exit(status)
 
 
 if __name__ == "__main__":
