@@ -13,6 +13,7 @@ import unittest.mock as mock
 
 from osbenchmark.cloud_provider.vendors.s3_data_producer import S3DataProducer
 
+# pylint: disable=too-many-public-methods
 class TestS3DataProducer(TestCase):
 
     # pylint: disable = arguments-differ
@@ -144,3 +145,28 @@ class TestS3DataProducer(TestCase):
         with mock.patch("osbenchmark.cloud_provider.vendors.s3_data_producer.S3DataProducer._s3_get_object_subrange", wraps=self.get_object_subrange):
             generator = self.producer._s3_multipart_downloader('bucket', 'key', 0, 12)
             self.assertEqual(list(generator), [0, 1])
+
+    def test_get_keys_single(self):
+        self.producer.keys = "file.json"
+        self.assertEqual(self.producer._get_keys(), ["file.json"])
+
+    def test_get_keys_glob_0(self):
+        self.producer.bucket = None
+        self.producer.keys = "file*"
+        self.producer.s3_client = mock.Mock()
+        self.producer.s3_client.list_objects.return_value = { "Contents": [] }
+        self.assertEqual(self.producer._get_keys(), [])
+
+    def test_get_keys_glob_1(self):
+        self.producer.bucket = None
+        self.producer.keys = "file*"
+        self.producer.s3_client = mock.Mock()
+        self.producer.s3_client.list_objects.return_value = { "Contents": [ { "Key": "file1" } ] }
+        self.assertEqual(self.producer._get_keys(), ["file1"])
+
+    def test_get_keys_glob_2(self):
+        self.producer.bucket = None
+        self.producer.keys = "file*"
+        self.producer.s3_client = mock.Mock()
+        self.producer.s3_client.list_objects.return_value = { "Contents": [ { "Key": "file1" }, { "Key": "file2" } ] }
+        self.assertEqual(self.producer._get_keys(), ["file1", "file2"])

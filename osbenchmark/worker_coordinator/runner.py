@@ -281,7 +281,7 @@ def _with_assertions(delegate):
 
 def _with_completion(delegate):
     unwrapped_runner = unwrap(delegate)
-    if hasattr(unwrapped_runner, "completed") and hasattr(unwrapped_runner, "percent_completed"):
+    if hasattr(unwrapped_runner, "completed") and hasattr(unwrapped_runner, "task_progress"):
         return WithCompletion(delegate, unwrapped_runner)
     else:
         return NoCompletion(delegate)
@@ -296,7 +296,7 @@ class NoCompletion(Runner, Delegator):
         return None
 
     @property
-    def percent_completed(self):
+    def task_progress(self):
         return None
 
     async def __call__(self, *args):
@@ -323,8 +323,8 @@ class WithCompletion(Runner, Delegator):
         return self.progressable.completed
 
     @property
-    def percent_completed(self):
-        return self.progressable.percent_completed
+    def task_progress(self):
+        return self.progressable.task_progress
 
     async def __call__(self, *args):
         return await self.delegate(*args)
@@ -2351,7 +2351,7 @@ class WaitForTransform(Runner):
     def __init__(self):
         super().__init__()
         self._completed = False
-        self._percent_completed = 0.0
+        self._task_progress = (0.0, '%')
         self._start_time = None
         self._last_documents_processed = 0
         self._last_processing_time = 0
@@ -2361,8 +2361,8 @@ class WaitForTransform(Runner):
         return self._completed
 
     @property
-    def percent_completed(self):
-        return self._percent_completed
+    def task_progress(self):
+        return self._task_progress
 
     async def __call__(self, opensearch, params):
         """
@@ -2415,10 +2415,10 @@ class WaitForTransform(Runner):
                     f"Transform [{transform_id}] failed with [{failure_reason}].")
             elif state == "stopped" or wait_for_completion is False:
                 self._completed = True
-                self._percent_completed = 1.0
+                self._task_progress = (1.0, '%')
             else:
-                self._percent_completed = stats_response["transforms"][0].get("checkpointing", {}).get("next", {}).get(
-                    "checkpoint_progress", {}).get("percent_complete", 0.0) / 100.0
+                self._task_progress = (stats_response["transforms"][0].get("checkpointing", {}).get("next", {}).get(
+                    "checkpoint_progress", {}).get("percent_complete", 0.0) / 100.0, '%')
 
             documents_processed = transform_stats.get("documents_processed", 0)
             processing_time = transform_stats.get("search_time_in_ms", 0)

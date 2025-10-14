@@ -55,10 +55,10 @@ class WorkerCoordinatorTestParamSource:
         return self
 
     @property
-    def percent_completed(self):
+    def task_progress(self):
         if self.infinite:
             return None
-        return self._current / self._total
+        return (self._current / self._total, '%')
 
     def params(self):
         if not self.infinite and self._current > self._total:
@@ -863,17 +863,17 @@ class SchedulerTests(TestCase):
     class RunnerWithProgress:
         def __init__(self, complete_after=3):
             self.completed = False
-            self.percent_completed = 0.0
+            self.task_progress = (0.0, '%')
             self.calls = 0
             self.complete_after = complete_after
 
         async def __call__(self, *args, **kwargs):
             self.calls += 1
             if not self.completed:
-                self.percent_completed = self.calls / self.complete_after
+                self.task_progress = (self.calls / self.complete_after, '%')
                 self.completed = self.calls == self.complete_after
             else:
-                self.percent_completed = 1.0
+                self.task_progress = (1.0, '%')
 
     class CustomComplexScheduler:
         def __init__(self, task):
@@ -894,6 +894,7 @@ class SchedulerTests(TestCase):
         idx = 0
         schedule_handle.start()
         async for invocation_time, sample_type, progress_percent, runner, params in schedule_handle():
+            progress_percent = progress_percent[0] if progress_percent else None
             schedule_handle.before_request(now=idx)
             exp_invocation_time, exp_sample_type, exp_progress_percent, exp_params = expected_schedule[idx]
             self.assertAlmostEqual(exp_invocation_time, invocation_time, msg="Invocation time for sample at index %d does not match" % idx)
@@ -1209,6 +1210,7 @@ class SchedulerTests(TestCase):
         last_progress = -1
 
         async for invocation_time, sample_type, progress_percent, runner, params in schedule:
+            progress_percent = progress_percent[0] if progress_percent else None
             # we're not throughput throttled
             self.assertEqual(0, invocation_time)
             if progress_percent <= 0.5:
@@ -1279,8 +1281,8 @@ class AsyncExecutorTests(TestCase):
             return self.iterations_left <= 0
 
         @property
-        def percent_completed(self):
-            return (self.iterations - self.iterations_left) / self.iterations
+        def task_progress(self):
+            return ((self.iterations - self.iterations_left) / self.iterations, '%')
 
         async def __call__(self, opensearch, params):
             self.iterations_left -= 1
@@ -1427,7 +1429,7 @@ class AsyncExecutorTests(TestCase):
 
         self.assertEqual(5, len(samples))
         self.assertTrue(self.runner_with_progress.completed)
-        self.assertEqual(1.0, self.runner_with_progress.percent_completed)
+        self.assertEqual((1.0, '%'), self.runner_with_progress.task_progress)
         self.assertFalse(complete.is_set(), "Executor should not auto-complete a normal task")
         previous_absolute_time = -1.0
         previous_relative_time = -1.0
@@ -2004,13 +2006,13 @@ class AsyncExecutorHelperMethodsTests(TestCase):
             "total_ops": 100, "total_ops_unit": "docs",
             "request_meta_data": {"success": True}, "throughput_throttled": True
         }
-        self.executor.runner = mock.Mock(completed=False, percent_completed=0.5)
+        self.executor.runner = mock.Mock(completed=False, task_progress=(0.5, '%'))
         self.executor.task_completes_parent = False
         self.executor.sample_type = metrics.SampleType.Normal
         self.executor.expected_scheduled_time = 0
 
         completed = self.executor._process_results(
-            result_data, total_start=5.0, client_state=True, percent_completed=0.8
+            result_data, total_start=5.0, client_state=True, task_progress=(0.8, '%')
         )
         self.assertFalse(completed)
         self.schedule_handle.after_request.assert_called_once()
@@ -2027,13 +2029,13 @@ class AsyncExecutorHelperMethodsTests(TestCase):
             "total_ops": 100, "total_ops_unit": "docs",
             "request_meta_data": {"success": True}, "throughput_throttled": True
         }
-        self.executor.runner = mock.Mock(completed=False, percent_completed=0.5)
+        self.executor.runner = mock.Mock(completed=False, task_progress=(0.5, '%'))
         self.executor.task_completes_parent = False
         self.executor.sample_type = metrics.SampleType.Normal
         self.executor.expected_scheduled_time = 0
 
         completed = self.executor._process_results(
-            result_data, total_start=5.0, client_state=False, percent_completed=0.8
+            result_data, total_start=5.0, client_state=False, task_progress=(0.8, '%')
         )
         self.assertFalse(completed)
         self.schedule_handle.after_request.assert_called_once()

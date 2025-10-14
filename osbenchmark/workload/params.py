@@ -782,7 +782,7 @@ class PartitionBulkIndexParamSource:
         # this is only intended for unit-testing
         self.create_reader = original_params.pop("__create_reader", create_default_reader)
         self.current_bulk = 0
-        # use a value > 0 so percent_completed returns a sensible value
+        # use a value > 0 so task_progress returns a sensible value
         self.total_bulks = 1
         self.infinite = False
         self.streaming_ingestion = corpora[0].streaming_ingestion
@@ -825,8 +825,8 @@ class PartitionBulkIndexParamSource:
             self.total_bulks = math.ceil((all_bulks * self.ingest_percentage) / 100)
 
     @property
-    def percent_completed(self):
-        return 0 if self.streaming_ingestion else self.current_bulk / self.total_bulks
+    def task_progress(self):
+        return (IngestionManager.rd_index.value * IngestionManager.chunk_size/1000, 'GB') if self.streaming_ingestion else (self.current_bulk / self.total_bulks, '%')
 
 
 class OpenPointInTimeParamSource(ParamSource):
@@ -916,7 +916,7 @@ class VectorDataSetPartitionParamSource(ParamSource):
         total: Number of vectors for the partition
         current: Current vector offset in data set
         infinite: Property of param source signalling that it can be exhausted
-        percent_completed: Progress indicator for how exhausted data set is
+        task_progress: Progress indicator for how exhausted data set is
         offset: Offset into the data set to start at. Relevant when there are
                 multiple partitions
     """
@@ -935,7 +935,7 @@ class VectorDataSetPartitionParamSource(ParamSource):
         self.num_vectors = 0
         self.total = 1
         self.current = 0
-        self.percent_completed = 0
+        self.task_progress = (0, '%')
         self.offset = 0
         self.data_set: DataSet = None
         self.corpora = self.extract_corpora(self.data_set_corpus, self.data_set_format)
@@ -1211,7 +1211,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         self._update_request_params()
         self._update_body_params(vector)
         self.current += 1
-        self.percent_completed = self.current / self.total
+        self.task_progress = (self.current / self.total, '%')
         return self.query_params
 
     def _build_vector_search_query_body(self, vector, efficient_filter=None, filter_type=None, filter_body=None) -> dict:
@@ -1502,7 +1502,7 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
             # in the nested case, we may have irregular number of vectors ingested,
             # so we calculate self.current within bulk_transform method when self.is_nested.
             self.current += size
-        self.percent_completed = self.current / self.total
+        self.task_progress = (self.current / self.total, '%')
 
         return {"body": body, "retries": self.retries, "size": size}
 
@@ -1784,8 +1784,8 @@ class Slice:
         self.fh = None
         self.streaming_ingestion = corpus.streaming_ingestion
         self.producer = None
-        if self.streaming_ingestion == 'aws':
-            Slice.data_dir = os.path.dirname(docs.document_file)
+        if self.streaming_ingestion == "aws":
+            Slice.data_dir = docs.data_dir
             Slice.base_url = docs.base_url
             Slice.document_file = docs.document_file
             with IngestionManager.lock:
@@ -1800,7 +1800,7 @@ class Slice:
         # pylint: disable = import-outside-toplevel
         from osbenchmark.cloud_provider.vendors.s3_data_producer import S3DataProducer
         bucket = re.sub('^s3://', "", Slice.base_url)
-        keys = os.path.basename(Slice.document_file)
+        keys = Slice.document_file
         producer = S3DataProducer(bucket, keys, client_options, Slice.data_dir)
         p = multiprocessing.Process(target=producer.generate_chunked_data)
         p.start()
