@@ -819,7 +819,7 @@ class PartitionBulkIndexParamSource:
 
     @property
     def percent_completed(self):
-        return 0 if self.streaming_ingestion else self.current_bulk / self.total_bulks
+        return IngestionManager.rd_index.value * IngestionManager.chunk_size/1000 if self.streaming_ingestion else self.current_bulk / self.total_bulks
 
 
 class OpenPointInTimeParamSource(ParamSource):
@@ -1777,8 +1777,8 @@ class Slice:
         self.fh = None
         self.streaming_ingestion = corpus.streaming_ingestion
         self.producer = None
-        if self.streaming_ingestion == 'aws':
-            Slice.data_dir = os.path.dirname(docs.document_file)
+        if self.streaming_ingestion == "aws":
+            Slice.data_dir = docs.data_dir
             Slice.base_url = docs.base_url
             Slice.document_file = docs.document_file
             with IngestionManager.lock:
@@ -1793,7 +1793,7 @@ class Slice:
         # pylint: disable = import-outside-toplevel
         from osbenchmark.cloud_provider.vendors.s3_data_producer import S3DataProducer
         bucket = re.sub('^s3://', "", Slice.base_url)
-        keys = os.path.basename(Slice.document_file)
+        keys = Slice.document_file
         producer = S3DataProducer(bucket, keys, client_options, Slice.data_dir)
         p = multiprocessing.Process(target=producer.generate_chunked_data)
         p.start()
