@@ -6,9 +6,6 @@ output "additional-cluster-ips" {
   value = module.os-cluster[0].os-additional-cluster-ips
 }
 
-output "load-generation-ip" {
-  value = module.os-cluster[0].load-generation-ip
-}
 
 output "cluster-password" {
   value     = random_password.cluster-password.result

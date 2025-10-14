@@ -20,11 +20,10 @@ data "aws_caller_identity" "current" {}
 
 locals {
   # start at 4 because first 4 addresses are reserved for AWS
-  load_generation_private_ip = cidrhost(var.subnet_cidr_block, 4)
   cluster_node_private_ips = [
+    cidrhost(var.subnet_cidr_block, 4),
     cidrhost(var.subnet_cidr_block, 5),
-    cidrhost(var.subnet_cidr_block, 6),
-    cidrhost(var.subnet_cidr_block, 7)
+    cidrhost(var.subnet_cidr_block, 6)
   ]
   main_cluster_node_private_ip        = local.cluster_node_private_ips[0]
   nodes_type                          = var.workload == "vectorsearch" ? "multi" : "single"
@@ -137,12 +136,4 @@ resource "aws_instance" "target-cluster-main-node" {
 
   tags       = var.tags
   depends_on = [aws_instance.target-cluster-additional-nodes]
-}
-
-resource "aws_ec2_managed_prefix_list_entry" "prefix-list-entry-load-gen" {
-  count          = length(var.prefix_list_id) > 0 ? 1 : 0
-  provider       = aws.prefix_list_region
-  cidr           = "${aws_instance.load-generation.public_ip}/32"
-  description    = terraform.workspace
-  prefix_list_id = var.prefix_list_id
 }

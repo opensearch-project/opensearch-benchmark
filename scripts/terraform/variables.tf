@@ -20,23 +20,6 @@ variable "prefix_list_region" {
   type        = string
 }
 
-variable "target_cluster_type" {
-  description = "Type of cluster to deploy (ES, OS, etc.)"
-  type        = string
-  validation {
-    condition     = contains(["ElasticSearch", "OpenSearch"], var.target_cluster_type)
-    error_message = "Valid values for var: target_cluster_type are (ElasticSearch, OpenSearch)."
-  }
-  default = "OpenSearch"
-}
-
-
-variable "es_version" {
-  description = "Version of ElasticSearch to deploy"
-  type        = string
-  default     = "9.0.0"
-}
-
 variable "os_version" {
   description = "Version of OpenSearch to deploy"
   type        = string
@@ -83,29 +66,6 @@ variable "test_procedure" {
   description = "Test procedure for Workload to run"
   type        = string
   default     = ""
-}
-
-variable "benchmark_environment" {
-  description = "Benchmark environment, saved as metadata in shared metric data store"
-  type        = string
-}
-
-variable "datastore_host" {
-  description = "Shared data store host"
-  type        = string
-  sensitive   = true
-}
-
-variable "datastore_username" {
-  description = "Shared data store username"
-  type        = string
-  sensitive   = true
-}
-
-variable "datastore_password" {
-  description = "Shared data store password"
-  type        = string
-  sensitive   = true
 }
 
 variable "workload" {

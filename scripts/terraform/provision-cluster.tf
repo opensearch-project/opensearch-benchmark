@@ -99,14 +99,6 @@ resource "aws_vpc_security_group_ingress_rule" "allow_es_cluster_traffic_9200" {
   ip_protocol       = "tcp"
 }
 
-resource "aws_vpc_security_group_ingress_rule" "allow_es_cluster_traffic_9300" {
-  security_group_id = aws_security_group.allow_osb.id
-  cidr_ipv4         = "10.0.0.0/16"
-  from_port         = 9300
-  to_port           = 9300
-  ip_protocol       = "tcp"
-}
-
 resource "aws_vpc_security_group_egress_rule" "allow_all_traffic_ipv4" {
   security_group_id = aws_security_group.allow_osb.id
   cidr_ipv4         = "0.0.0.0/0"
@@ -176,8 +168,8 @@ data "external" "latest_snapshot_version" {
   program = ["python3", "${path.module}/get_latest_snapshot_version.py"]
   query = {
     s3_bucket_name        = var.s3_bucket_name
-    cluster_type          = var.target_cluster_type == "ElasticSearch" ? "ES" : "OS"
-    cluster_version       = var.target_cluster_type == "ElasticSearch" ? var.es_version : var.os_version
+    cluster_type          = "OS"
+    cluster_version       = var.os_version
     workload              = var.workload
     snapshot_version      = var.snapshot_version
   }
@@ -209,7 +201,7 @@ locals {
 }
 
 module "os-cluster" {
-  count = var.target_cluster_type == "OpenSearch" ? 1 : 0
+  count = 1
 
   source                = "./modules/opensearch"
   cluster_instance_type = local.cluster_instance_type
@@ -226,10 +218,6 @@ module "os-cluster" {
   subnet_cidr_block     = aws_subnet.subnet.cidr_block
   password              = random_password.cluster-password.result
   prefix_list_id        = var.prefix_list_id
-  benchmark_environment = var.benchmark_environment
-  datastore_host        = var.datastore_host
-  datastore_username    = var.datastore_username
-  datastore_password    = var.datastore_password
   workload              = var.workload
   osb_version           = var.osb_version
 

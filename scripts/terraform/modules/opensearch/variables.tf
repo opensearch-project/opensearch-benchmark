@@ -104,28 +104,6 @@ variable "test_procedure" {
   default     = ""
 }
 
-variable "benchmark_environment" {
-  description = "Benchmark environment, saved as metadata in shared metric data store"
-  type        = string
-}
-variable "datastore_host" {
-  description = "Shared data store host"
-  type        = string
-  sensitive   = true
-}
-
-variable "datastore_username" {
-  description = "Shared data store username"
-  type        = string
-  sensitive   = true
-}
-
-variable "datastore_password" {
-  description = "Shared data store password"
-  type        = string
-  sensitive   = true
-}
-
 variable "workload" {
   description = "Workload to run on the cluster"
   type        = string
