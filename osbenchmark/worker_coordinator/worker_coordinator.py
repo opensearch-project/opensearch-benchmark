@@ -1296,9 +1296,13 @@ class WorkerCoordinator:
 
     def update_progress_message(self, task_finished=False):
         if not self.quiet and self.current_step >= 0:
+            is_bulk = False
             tasks = ",".join([t.name for t in self.tasks_per_join_point[self.current_step]])
+            if len(self.tasks_per_join_point[self.current_step]) == 1:
+                task = set(self.tasks_per_join_point[self.current_step]).pop()
+                is_bulk = task.operation.type == 'bulk'
 
-            if task_finished:
+            if task_finished and not is_bulk:
                 total_progress = 1.0
             else:
                 # we only count clients which actually contribute to progress. If clients are executing tasks eternally in a parallel
@@ -1309,7 +1313,10 @@ class WorkerCoordinator:
 
                 num_clients = max(len(progress_per_client), 1)
                 total_progress = sum(progress_per_client) / num_clients
-            self.progress_publisher.print("Running %s" % tasks, "[%3d%% done]" % (round(total_progress * 100)))
+            if is_bulk:
+                self.progress_results_publisher.print("Running %s" % tasks, "[%4.1f GB]" % total_progress)
+            else:
+                self.progress_results_publisher.print("Running %s" % tasks, "[%3d%% done]" % (round(total_progress * 100)))
             if task_finished:
                 self.progress_publisher.finish()
 

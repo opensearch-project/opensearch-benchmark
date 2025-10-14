@@ -46,7 +46,12 @@ class S3DataProducer(DataProducer):
 
     def _get_keys(self):
         rsl = list()
-        rsl.append(self.keys)
+        if self.keys[-1] == '*':
+            keys = self.s3_client.list_objects(Bucket=self.bucket, Prefix=self.keys[:-1])
+            for key in keys['Contents']:
+                rsl.append(key['Key'])
+        else:
+            rsl.append(self.keys)
         return rsl
 
     def _get_next_downloader(self):
