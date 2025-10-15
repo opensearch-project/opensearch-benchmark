@@ -2180,8 +2180,8 @@ class AsyncIoAdapter:
             schedule = schedule_for(task_allocation, params_per_task[task], fire_and_forget)
 
             if fire_and_forget:
-                # Use UnhingedExecutor for fire-and-forget mode
-                async_executor = UnhingedExecutor(
+                # Use AsyncNoAwaitExecutor for fire-and-forget mode
+                async_executor = AsyncNoAwaitExecutor(
                     client_id, task, schedule, opensearch, self.sampler, self.profile_sampler, self.cancel, self.complete,
                     task.error_behavior(self.abort_on_error), self.cfg, self.shared_states, self.feedback_actor, self.error_queue, self.queue_lock)
             else:
@@ -2522,7 +2522,7 @@ class AsyncExecutor:
                 self.complete.set()
             await self._cleanup()
 
-class UnhingedExecutor:
+class AsyncNoAwaitExecutor:
     def __init__(self, client_id, task, schedule, opensearch, sampler, profile_sampler, cancel, complete, on_error,
                  config=None, shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
         """
@@ -2555,7 +2555,7 @@ class UnhingedExecutor:
             self.logger.info("Client id [%s] is running now.", self.client_id)
 
 
-    async def _fire_and_forget_request(self, params: dict, expected_scheduled_time: float, total_start: float) -> None:
+    async def _async_no_await_request(self, params: dict, expected_scheduled_time: float, total_start: float) -> None:
         """Execute a request in fire-and-forget mode - no response handling or metrics collection."""
         absolute_expected_schedule_time = total_start + expected_scheduled_time
         throughput_throttled = expected_scheduled_time > 0
@@ -2635,7 +2635,7 @@ class UnhingedExecutor:
                     break
 
                 # Fire and forget mode - don't wait for responses
-                await self._fire_and_forget_request(params, expected_scheduled_time, total_start)
+                await self._async_no_await_request(params, expected_scheduled_time, total_start)
 
                 # Check completion status
                 if self.complete.is_set():
