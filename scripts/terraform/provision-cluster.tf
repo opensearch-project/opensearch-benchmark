@@ -40,6 +40,7 @@ provider "aws" {
   }
 }
 
+# Created to access the ec2 instances
 resource "tls_private_key" "ssh_key" {
   algorithm = "RSA"
   rsa_bits  = 4096
@@ -52,11 +53,18 @@ resource "local_file" "private_key" {
   file_permission = "0600"
 }
 
+# Referred to for ssh`ing into the ec2 instance
 resource "aws_key_pair" "ssh_key" {
   key_name   = "${terraform.workspace}-ssh-key"
   public_key = tls_private_key.ssh_key.public_key_openssh
 }
 
+/*
+In these next steps, we are setting up the security
+configurations for accessing the ec2 instance where 
+OpenSearch is running. This is required for accessing
+the EC2 instances through ssh.
+*/
 resource "aws_vpc" "vpc" {
   cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
