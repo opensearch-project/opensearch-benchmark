@@ -2313,7 +2313,7 @@ class FeedbackActorTests(TestCase):
         assert full_queue.qsize() == 1  # Still full; error dropped
 
 
-class UnhingedExecutorTests(TestCase):
+class AsyncNoAwaitExecutorTests(TestCase):
     def setUp(self):
         params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
 
@@ -2340,7 +2340,7 @@ class UnhingedExecutorTests(TestCase):
         self.opensearch = {"default": opensearch_mock}
 
     def test_unhinged_executor_initialization(self):
-        executor = worker_coordinator.UnhingedExecutor(
+        executor = worker_coordinator.AsyncNoAwaitExecutor(
             client_id=0,
             task=self.task,
             schedule=self.schedule_handle,
@@ -2359,7 +2359,7 @@ class UnhingedExecutorTests(TestCase):
         self.assertTrue(executor.is_0)
 
     def test_unhinged_executor_client_id_not_zero(self):
-        executor = worker_coordinator.UnhingedExecutor(
+        executor = worker_coordinator.AsyncNoAwaitExecutor(
             client_id=1,
             task=self.task,
             schedule=self.schedule_handle,
@@ -2377,10 +2377,10 @@ class UnhingedExecutorTests(TestCase):
     @mock.patch('osbenchmark.worker_coordinator.worker_coordinator.RequestContextHolder')
     @mock.patch('asyncio.create_task')
     @run_async
-    async def test_fire_and_forget_request_creates_task(self, mock_create_task, mock_context_holder):
+    async def test_async_no_await_request_creates_task(self, mock_create_task, mock_context_holder):
         mock_context_holder.init_request_context.return_value = ({}, mock.Mock())
 
-        executor = worker_coordinator.UnhingedExecutor(
+        executor = worker_coordinator.AsyncNoAwaitExecutor(
             client_id=0,
             task=self.task,
             schedule=self.schedule_handle,
@@ -2394,7 +2394,7 @@ class UnhingedExecutorTests(TestCase):
 
         executor.runner = mock.AsyncMock()
 
-        await executor._fire_and_forget_request({}, 1.0, 0.0)  # pylint: disable=protected-access
+        await executor._async_no_await_request({}, 1.0, 0.0)  # pylint: disable=protected-access
 
         mock_create_task.assert_called_once()
 
@@ -2403,12 +2403,12 @@ class UnhingedExecutorTests(TestCase):
     @mock.patch('osbenchmark.worker_coordinator.worker_coordinator.RequestContextHolder')
     @mock.patch('asyncio.create_task')
     @run_async
-    async def test_fire_and_forget_request_with_throttling(self, mock_create_task, mock_context_holder,
+    async def test_async_no_await_request_with_throttling(self, mock_create_task, mock_context_holder,
                                                           mock_sleep, mock_perf_counter):
         mock_context_holder.init_request_context.return_value = ({}, mock.Mock())
         mock_perf_counter.return_value = 0.5  # Current time less than expected schedule time
 
-        executor = worker_coordinator.UnhingedExecutor(
+        executor = worker_coordinator.AsyncNoAwaitExecutor(
             client_id=0,
             task=self.task,
             schedule=self.schedule_handle,
@@ -2422,7 +2422,7 @@ class UnhingedExecutorTests(TestCase):
 
         executor.runner = mock.AsyncMock()
 
-        await executor._fire_and_forget_request({}, 1.0, 0.0)  # pylint: disable=protected-access  # expected_scheduled_time = 1.0
+        await executor._async_no_await_request({}, 1.0, 0.0)  # pylint: disable=protected-access  # expected_scheduled_time = 1.0
 
         mock_sleep.assert_called_once_with(0.5)  # Should sleep for the difference
         mock_create_task.assert_called_once()
@@ -2432,12 +2432,12 @@ class UnhingedExecutorTests(TestCase):
     @mock.patch('osbenchmark.worker_coordinator.worker_coordinator.RequestContextHolder')
     @mock.patch('asyncio.create_task')
     @run_async
-    async def test_fire_and_forget_request_no_throttling_needed(self, mock_create_task, mock_context_holder,
+    async def test_async_no_await_request_no_throttling_needed(self, mock_create_task, mock_context_holder,
                                                                mock_sleep, mock_perf_counter):
         mock_context_holder.init_request_context.return_value = ({}, mock.Mock())
         mock_perf_counter.return_value = 1.5  # Current time exceeds expected schedule time
 
-        executor = worker_coordinator.UnhingedExecutor(
+        executor = worker_coordinator.AsyncNoAwaitExecutor(
             client_id=0,
             task=self.task,
             schedule=self.schedule_handle,
@@ -2451,7 +2451,7 @@ class UnhingedExecutorTests(TestCase):
 
         executor.runner = mock.AsyncMock()
 
-        await executor._fire_and_forget_request({}, 1.0, 0.0)  # pylint: disable=protected-access  # expected_scheduled_time = 1.0
+        await executor._async_no_await_request({}, 1.0, 0.0)  # pylint: disable=protected-access  # expected_scheduled_time = 1.0
 
         mock_sleep.assert_not_called()  # No sleep needed
         mock_create_task.assert_called_once()
