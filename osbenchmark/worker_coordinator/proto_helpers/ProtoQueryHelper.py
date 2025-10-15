@@ -16,9 +16,9 @@ def _get_terms_dict(query):
     terms = {}
     for key, value in query.items():
         terms[key] = []
-        if type(value) is list:
+        if isinstance(value, list):
             terms[key].extend(value)
-        elif type(value) is dict:
+        elif isinstance(value, dict):
             for ignore, term_value in value.items():
                 terms[key].append(term_value)
         else:
@@ -141,7 +141,7 @@ class ProtoQueryHelper:
     @staticmethod
     def build_stats(response, params):
         if not isinstance(response, search_pb2.SearchResponse):
-            raise Exception("Unknown response proto: " + type(response))
+            raise Exception("Unknown response proto: " + response)
 
         if params.get("detailed-results"):
             return {
