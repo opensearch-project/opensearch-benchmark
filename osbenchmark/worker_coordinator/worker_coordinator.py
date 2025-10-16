@@ -45,6 +45,7 @@ from enum import Enum
 
 import thespian.actors
 
+from osbenchmark.utils import opts
 from osbenchmark import actor, config, exceptions, metrics, workload, client, paths, PROGRAM_NAME, telemetry
 from osbenchmark.worker_coordinator import runner, scheduler
 from osbenchmark.workload import WorkloadProcessorRegistry, load_workload, load_workload_plugins, ingestion_manager
@@ -2145,7 +2146,7 @@ class AsyncIoAdapter:
         def os_clients(all_hosts, all_client_options):
             opensearch = {}
             grpc_hosts = self.cfg.opts("client", "grpc_hosts", mandatory=False)
-            
+
             # If gRPC hosts are configured and not empty, use them. Otherwise, use defaults for gRPC operations.
             if grpc_hosts and grpc_hosts.all_hosts:
                 # Use the provided gRPC hosts
@@ -2153,9 +2154,8 @@ class AsyncIoAdapter:
             else:
                 # Provide default gRPC hosts when using gRPC operations
                 # Default: localhost:9400 (matching current environment variable defaults)
-                from osbenchmark.utils import opts
                 grpc_hosts = opts.TargetHosts("localhost:9400")
-            
+
             for cluster_name, cluster_hosts in all_hosts.items():
                 rest_client_factory = client.OsClientFactory(cluster_hosts, all_client_options[cluster_name])
                 unified_client_factory = client.UnifiedClientFactory(rest_client_factory, grpc_hosts)

@@ -1075,7 +1075,7 @@ def configure_connection_params(arg_parser, args, cfg):
     cfg.add(config.Scope.applicationOverride, "client", "hosts", target_hosts)
     client_options = opts.ClientOptions(args.client_options, target_hosts=target_hosts)
     cfg.add(config.Scope.applicationOverride, "client", "options", client_options)
-    
+
     # Configure gRPC target hosts
     grpc_target_hosts = opts.TargetHosts(args.grpc_target_hosts) if args.grpc_target_hosts else None
     cfg.add(config.Scope.applicationOverride, "client", "grpc_hosts", grpc_target_hosts)

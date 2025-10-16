@@ -24,9 +24,8 @@
 
 from unittest import TestCase
 
+from opensearch.protobufs.schemas import document_pb2
 from osbenchmark.worker_coordinator.proto_helpers.ProtoBulkHelper import ProtoBulkHelper
-from opensearch.protobufs.schemas import document_pb2, common_pb2
-
 
 class ProtoBulkHelperTests(TestCase):
     def test_build_proto_request_single_document(self):
@@ -64,7 +63,7 @@ class ProtoBulkHelperTests(TestCase):
         mock_bulk_response = document_pb2.BulkResponse()
         mock_bulk_response.took = 100
 
-        for i in range(3):
+        for _ in range(3):
             item = document_pb2.Item()
             item.index.status = 201
             mock_bulk_response.items.append(item)

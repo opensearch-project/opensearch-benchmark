@@ -8,16 +8,10 @@ def _parse_docs_from_body(body):
     return doc_list
 
 class ProtoBulkHelper:
-    """
-    Helper methods to bulk ingest workload dataset with protobuf.
-    """
-
-    """
-    Build protobuf SearchRequest.
-    Consumed from params dictionary:
-    * ``body``: JSON body of bulk ingest request
-    * ``index``: index name
-    """
+    # Build protobuf SearchRequest.
+    # Consumed from params dictionary:
+    # * ``body``: JSON body of bulk ingest request
+    # * ``index``: index name
     @staticmethod
     def build_proto_request(params):
         index = params.get("index")
@@ -35,14 +29,12 @@ class ProtoBulkHelper:
             request.request_body.append(request_body)
         return request
 
-    """
-    Parse stats from protobuf response.
-    Consumed from params dictionary:
-    * ``index``: index name
-    * ``bulk-size``: documents per bulk request
-    * ``unit``: in the case of bulk always 'ops'
-    * ``detailed-results``: gRPC/Protobuf does not support detailed results at this time.
-    """
+    # Parse stats from protobuf response.
+    # Consumed from params dictionary:
+    # ``index``: index name
+    # ``bulk-size``: documents per bulk request
+    # ``unit``: in the case of bulk always 'ops'
+    # ``detailed-results``: gRPC/Protobuf does not support detailed results at this time.
     @staticmethod
     def build_stats(response : document_pb2.BulkResponse, params):
         if params.get("detailed-results"):

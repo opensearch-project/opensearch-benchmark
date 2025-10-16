@@ -30,6 +30,10 @@ import opensearchpy
 import urllib3
 from urllib3.util.ssl_ import is_ipaddress
 
+import grpc
+from opensearch.protobufs.services.document_service_pb2_grpc import DocumentServiceStub
+from opensearch.protobufs.services.search_service_pb2_grpc import SearchServiceStub
+
 from osbenchmark.kafka_client import KafkaMessageProducer
 from osbenchmark import exceptions, doc_link, async_connection
 from osbenchmark.context import RequestContextHolder
@@ -280,7 +284,7 @@ class MessageProducerFactory:
 
 class GrpcClientFactory:
     """
-    Factory for creating gRPC clients with proper timing instrumentation.
+    Factory for creating gRPC client stubs.
     Note gRPC channels must default `use_local_subchannel_pool` to true.
     Sub channels manage the underlying connection with the server. When the global sub channel pool is used gRPC will
     re-use sub channels and their underlying connections which does not appropriately reflect a multi client scenario.
@@ -296,18 +300,13 @@ class GrpcClientFactory:
 
     def create_grpc_stubs(self):
         """
-        Create gRPC service stubs with timing interceptor.
+        Create gRPC service stubs.
         Returns a dict of {cluster_name: {service_name: stub}} structure.
         """
-        import grpc
-        from opensearch.protobufs.services.document_service_pb2_grpc import DocumentServiceStub
-        from opensearch.protobufs.services.search_service_pb2_grpc import SearchServiceStub
-
         stubs = {}
 
         if len(self.grpc_hosts.all_hosts.items()) > 1:
             raise NotImplementedError("Only one gRPC cluster is supported.")
-
 
         if len(self.grpc_hosts.all_hosts["default"]) > 1:
             raise NotImplementedError("Only one gRPC host is supported.")
@@ -315,7 +314,7 @@ class GrpcClientFactory:
         host = self.grpc_hosts.all_hosts["default"][0]
         grpc_addr = f"{host['host']}:{host['port']}"
 
-        self.logger.info(f"Creating gRPC channel for cluster default cluster at {grpc_addr}")
+        self.logger.info("Creating gRPC channel for cluster default cluster at %s", grpc_addr)
         channel = grpc.aio.insecure_channel(
             target=grpc_addr,
             options=self.grpc_channel_options,
@@ -328,7 +327,7 @@ class GrpcClientFactory:
             'search_service': SearchServiceStub(channel),
             '_channel': channel
         }
-        
+
         return stubs
 
 
@@ -342,11 +341,11 @@ class UnifiedClient:
         self._opensearch = opensearch_client
         self._grpc_stubs = grpc_stubs
         self._logger = logging.getLogger(__name__)
-        
+
     def __getattr__(self, name):
         """Delegate all unknown attributes to the underlying OpenSearch client."""
         return getattr(self._opensearch, name)
-        
+
     def document_service(self, cluster_name="default"):
         """Get the gRPC DocumentService stub for the specified cluster."""
         if cluster_name in self._grpc_stubs:
@@ -354,9 +353,9 @@ class UnifiedClient:
         else:
             raise exceptions.SystemSetupError(
                 "gRPC DocumentService not available. Please configure --grpc-target-hosts.")
-        
+
     def search_service(self, cluster_name="default"):
-        """Get the gRPC SearchService stub for the specified cluster.""" 
+        """Get the gRPC SearchService stub for the specified cluster."""
         if cluster_name in self._grpc_stubs:
             return self._grpc_stubs[cluster_name].get('search_service')
         else:
@@ -370,7 +369,7 @@ class UnifiedClient:
                 try:
                     cluster_stubs['_channel'].close()
                 except Exception as e:
-                    self._logger.warning(f"Error closing gRPC channel: {e}")
+                    self._logger.warning("Error closing gRPC channel: %s", e)
         self._opensearch.close()
 
     @property
@@ -387,18 +386,18 @@ class UnifiedClientFactory:
         self.rest_client_factory = rest_client_factory
         self.grpc_hosts = grpc_hosts
         self.logger = logging.getLogger(__name__)
-        
+
     def create(self):
         """Non async client is deprecated."""
         raise NotImplementedError()
-        
+
     def create_async(self):
         """Create a UnifiedClient with async REST client."""
         opensearch_client = self.rest_client_factory.create_async()
         grpc_stubs = None
-        
+
         if self.grpc_hosts:
             grpc_factory = GrpcClientFactory(self.grpc_hosts)
             grpc_stubs = grpc_factory.create_grpc_stubs()
-            
+
         return UnifiedClient(opensearch_client, grpc_stubs)

@@ -22,7 +22,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
 import asyncio
 import contextvars
 import json
@@ -30,7 +29,6 @@ import logging
 import random
 import re
 import sys
-import threading
 import time
 import types
 from collections import Counter, OrderedDict
@@ -42,7 +40,6 @@ from os.path import commonprefix
 import multiprocessing
 from typing import Any, Dict, List, Optional
 
-import grpc
 import ijson
 
 from opensearchpy import ConnectionTimeout
@@ -3048,7 +3045,6 @@ class ProduceStreamMessage(Runner):
 
 class ProtoBulkIndex(Runner):
     async def __call__(self, opensearch, params):
-        from osbenchmark.context import RequestContextHolder
         RequestContextHolder.on_client_request_start()
         proto_req = ProtoBulkHelper.build_proto_request(params)
         stub = opensearch.document_service()
@@ -3063,7 +3059,6 @@ class ProtoBulkIndex(Runner):
 
 class ProtoQuery(Runner):
     async def __call__(self, opensearch, params):
-        from osbenchmark.context import RequestContextHolder
         RequestContextHolder.on_client_request_start()
         proto_req = ProtoQueryHelper.build_proto_request(params)
         stub = opensearch.search_service()
@@ -3078,7 +3073,6 @@ class ProtoQuery(Runner):
 
 class ProtoKNNQuery(Runner):
     async def __call__(self, opensearch, params):
-        from osbenchmark.context import RequestContextHolder
         RequestContextHolder.on_client_request_start()
         proto_req = ProtoQueryHelper.build_vector_search_proto_request(params)
         stub = opensearch.search_service()

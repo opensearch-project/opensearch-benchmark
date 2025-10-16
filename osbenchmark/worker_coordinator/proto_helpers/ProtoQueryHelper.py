@@ -24,25 +24,15 @@ def _get_terms_dict(query):
         if isinstance(value, list):
             terms[key].extend(value)
         elif isinstance(value, dict):
-            for ignore, term_value in value.items():
+            for _, term_value in value.items():
                 terms[key].append(term_value)
         else:
             raise Exception("Error parsing query - Term(s) are neither list nor dictionary: " + str(query))
     return terms
 
 class ProtoQueryHelper:
-    """
-    Helper methods to build a protobuf query from OSB params dictionary.
-    Supported protobuf types for this runner:
-    - match all query
-    - term query
-    - terms query
-    """
-
-    """
-    Parse term query into `common_pb2.TermQuery` protobuf.
-    Term query supports a single term on single field.
-    """
+    # Parse term query into common_pb2.TermQuery protobuf.
+    # Term query supports a single term on single field.
     @staticmethod
     def term_query_to_proto(query):
         term = _get_terms_dict(query)
@@ -55,8 +45,8 @@ class ProtoQueryHelper:
         term_field = next(iter(term.keys()))
         term_value = next(iter(term[term_field]))
 
-        if type(term_value) is not str:
-            raise Exception("Error parsing term query - Type [" + type(term_value) + "] is not supported.")
+        if not isinstance(term_value, str):
+            raise Exception(f"Error parsing query - Term query field value is not a supported type: {term_value} (type: {type(term_value).__name__})")
 
         f_val = common_pb2.FieldValue(string=term_value)
         return common_pb2.TermQuery(
@@ -64,15 +54,13 @@ class ProtoQueryHelper:
             value=f_val
         )
 
-    """
-    Parse a query body into the corresponding protobuf type.
-    Exceptions are thrown for unsupported query types.
-    (Note that gRPC/protobuf API coverage is not comprehensive) 
-    """
+    # Parse a query body into the corresponding protobuf type.
+    # Exceptions are thrown for unsupported query types.
+    # (Note that gRPC/protobuf API coverage is not comprehensive)
     @staticmethod
     def query_body_to_proto(body):
         query_body = body.get("query")
-        for key, value in query_body.items():
+        for key, _ in query_body.items():
             if key == "match_all":
                 return common_pb2.QueryContainer(
                     match_all=common_pb2.MatchAllQuery()
@@ -83,14 +71,12 @@ class ProtoQueryHelper:
                 )
         raise Exception("Unsupported query type: " + str(query_body))
 
-    """
-    Build protobuf SearchRequest.
-    Consumed from params dictionary:
-    * ``body``: query body as loaded from workload - Contains `_size` and `source`
-    * ``index``: index name
-    * ``request-timeout``: request timeout
-    * ``cache``: enabled request cache
-    """
+    # Build protobuf SearchRequest.
+    # Consumed from params dictionary:
+    # ``body``: query body as loaded from workload - Contains `_size` and `source`
+    # ``index``: index name
+    # ``request-timeout``: request timeout
+    # ``cache``: enabled request cache
     @staticmethod
     def build_proto_request(params):
         body = params.get("body")
@@ -118,16 +104,14 @@ class ProtoQueryHelper:
             request_cache=cache
         )
 
-    """
-    Build protobuf SearchRequest for vector search workload.
-    Vector search requests have a slightly different structure and provide additional params 
-    outside of the query body.
-    * ``body``: knn query body
-    * ``index``: index name
-    * ``request-timeout``: request timeout
-    * ``cache``: enabled request cache
-    * ``request-params``: vector search lists _source here
-    """
+    # Build protobuf SearchRequest for vector search workload.
+    # Vector search requests have a slightly different structure and provide additional params
+    # outside the query body.
+    # ``body``: knn query body
+    # ``index``: index name
+    # ``request-timeout``: request timeout
+    # ``cache``: enabled request cache
+    # ``request-params``: vector search lists _source here
     @staticmethod
     def build_vector_search_proto_request(params):
         if params.get("detailed-results"):
@@ -152,9 +136,7 @@ class ProtoQueryHelper:
         else:
             cache = None
 
-        """
-        Parse knn query into `common_pb2.KnnQuery` protobuf.
-        """
+        # Parse knn query into `common_pb2.KnnQuery` protobuf.
         def knn_query_to_proto(query) -> common_pb2.KnnQuery:
             knn_query = query.get("knn")
             target_field_key = next(iter(knn_query.keys()))
@@ -178,11 +160,8 @@ class ProtoQueryHelper:
             request_cache=cache
         )
 
-    """
-    Parse stats from protobuf response.
-    Consumed from params dictionary:
-    * ``detailed-results``: return detailed results, hits, took, hits_relation
-    """
+    # Parse stats from protobuf response.
+    # ``detailed-results``: return detailed results, hits, took, hits_relation
     @staticmethod
     def build_stats(response, params):
         if not isinstance(response, search_pb2.SearchResponse):

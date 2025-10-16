@@ -205,7 +205,7 @@ class ProtoKNNQueryHelperTests(TestCase):
 
         with self.assertRaises(NotImplementedError) as context:
             ProtoQueryHelper.build_vector_search_proto_request(params)
-        
+
         self.assertIn('Detailed results not supported', str(context.exception))
 
     def test_build_vector_search_proto_request_calculate_recall_raises_error(self):
@@ -230,7 +230,7 @@ class ProtoKNNQueryHelperTests(TestCase):
 
         with self.assertRaises(NotImplementedError) as context:
             ProtoQueryHelper.build_vector_search_proto_request(params)
-        
+
         self.assertIn('Recall calculations not supported', str(context.exception))
 
     def test_build_vector_search_proto_request_compression_raises_error(self):
@@ -255,5 +255,5 @@ class ProtoKNNQueryHelperTests(TestCase):
 
         with self.assertRaises(NotImplementedError) as context:
             ProtoQueryHelper.build_vector_search_proto_request(params)
-        
+
         self.assertIn('Compression not supported', str(context.exception))
