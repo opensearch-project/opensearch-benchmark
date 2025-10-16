@@ -116,14 +116,13 @@ class ProtoQueryHelper:
 
     """
     Build protobuf SearchRequest for vector search workload.
-    Vector search provides additional params outside of the request body which we need to handle in addition to 
-    generic search request request options.
+    Vector search requests have a slightly different structure and provide additional params 
+    outside of the query body.
     * ``body``: knn query body
     * ``index``: index name
     * ``request-timeout``: request timeout
     * ``cache``: enabled request cache
     * ``request-params``: vector search lists _source here
-    * ``k``: k nearest neighbors
     """
     @staticmethod
     def build_vector_search_proto_request(params):
@@ -140,7 +139,6 @@ class ProtoQueryHelper:
         index = [params.get("index")]
         source_config = common_pb2.SourceConfigParam(bool=request_params.get("source"))
         timeout = None if params.get("request-timeout") is None else str(params.get("request-timeout")) + "ms"
-        k_neighbors = params.get("k")
 
         if isinstance(params.get("cache"), bool):
             cache = params.get("cache")
@@ -152,18 +150,18 @@ class ProtoQueryHelper:
         """
         Parse knn query into `common_pb2.KnnQuery` protobuf.
         """
-        def knn_query_to_proto(query, k) -> common_pb2.KnnQuery:
-            target_field_key = next(iter(query.keys()))
-            target_field = query.get(target_field_key)
-            vector = target_field.get("vector")
-
+        def knn_query_to_proto(query) -> common_pb2.KnnQuery:
+            knn_query = query.get("knn")
+            target_field_key = next(iter(knn_query.keys()))
+            vector = knn_query[target_field_key].get("vector")
+            k = knn_query[target_field_key].get("k")
             return common_pb2.KnnQuery(
                 field=target_field_key,
                 vector=vector,
                 k=k
             )
 
-        knn_query_proto = knn_query_to_proto(params.get("body"), k_neighbors)
+        knn_query_proto = knn_query_to_proto(body.get("query"))
         return search_pb2.SearchRequest(
             request_body=search_pb2.SearchRequestBody(
                 query=common_pb2.QueryContainer(knn=knn_query_proto),
