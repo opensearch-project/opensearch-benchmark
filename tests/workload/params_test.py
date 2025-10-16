@@ -1174,6 +1174,48 @@ class BulkIndexParamSourceTests(TestCase):
 
         self.assertEqual("'conflict-probability' must be numeric", ctx.exception.args[0])
 
+    def test_looped_mode(self):
+        def create_unit_test_reader(*args):
+            return StaticBulkReader(
+                "idx",
+                "doc",
+                bulks=[
+                    ['{"location" : [-0.1485188, 51.5250666]}'],
+                    ['{"location" : [-0.1479949, 51.5252071]}'],
+                ],
+            )
+        corpora = [
+            workload.DocumentCorpus(
+                name="default",
+                documents=[
+                    workload.Documents(
+                        source_format=workload.Documents.SOURCE_FORMAT_BULK,
+                        number_of_documents=2,
+                        target_index="test-idx",
+                        target_type="test-type",
+                    )
+                ],
+            ),
+        ]
+
+        source = params.BulkIndexParamSource(
+            workload=workload.Workload(name="unit-test", corpora=corpora),
+            params={
+                "bulk-size": 2,
+                "looped": True,
+                "__create_reader": create_unit_test_reader,
+            },
+        )
+        partition = source.partition(0, 1)
+        partition.params()
+        # should issue 1 bulk with the size of 2
+        assert partition.total_bulks == 1
+        assert partition.current_bulk == 1
+        partition.params()
+        # should have looped back to the beginning
+        assert partition.total_bulks == 1
+        assert partition.current_bulk == 1
+
 
 class BulkDataGeneratorTests(TestCase):
 
