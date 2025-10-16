@@ -1,6 +1,10 @@
-from numpy.lib.utils import source
 from opensearch.protobufs.schemas import search_pb2
 from opensearch.protobufs.schemas import common_pb2
+
+def is_true(value):
+    if isinstance(value, str):
+        return value.lower() == "true"
+    return bool(value)
 
 def _get_relation(relation):
     match relation:
@@ -91,9 +95,9 @@ class ProtoQueryHelper:
     def build_proto_request(params):
         body = params.get("body")
         size = body.get("size") if "size" in body else None
-        source = body.get("_source") if "_source" in body else False
+        fetch_source = is_true(body.get("_source"))
+        source_config = common_pb2.SourceConfigParam(bool=fetch_source)
         index = [params.get("index")]
-        source_config = common_pb2.SourceConfigParam(bool=source)
         timeout = None if params.get("request-timeout") is None else str(params.get("request-timeout")) + "ms"
 
         if isinstance(params.get("cache"), bool):
@@ -136,8 +140,9 @@ class ProtoQueryHelper:
         body = params.get("body")
         size = body.get("size") if "size" in body else None
         request_params = params.get("request-params")
+        fetch_source = is_true(request_params.get("_source"))
+        source_config = common_pb2.SourceConfigParam(bool=fetch_source)
         index = [params.get("index")]
-        source_config = common_pb2.SourceConfigParam(bool=request_params.get("source"))
         timeout = None if params.get("request-timeout") is None else str(params.get("request-timeout")) + "ms"
 
         if isinstance(params.get("cache"), bool):

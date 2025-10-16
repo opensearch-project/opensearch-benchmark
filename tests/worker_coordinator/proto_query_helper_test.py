@@ -109,7 +109,7 @@ class ProtoKNNQueryHelperTests(TestCase):
             },
             'k': 100,
             'request-params': {
-                'source': False
+                '_source': False
             }
         }
 
@@ -140,7 +140,7 @@ class ProtoKNNQueryHelperTests(TestCase):
             },
             'k': 50,
             'request-params': {
-                'source': True
+                '_source': 'true'
             },
             'request-timeout': 5000,
             'cache': True
@@ -175,7 +175,7 @@ class ProtoKNNQueryHelperTests(TestCase):
             },
             'k': 5,
             'request-params': {
-                'source': False
+                '_source': False
             }
         }
 
@@ -198,7 +198,7 @@ class ProtoKNNQueryHelperTests(TestCase):
             },
             'k': 5,
             'request-params': {
-                'source': False
+                '_source': False
             },
             'detailed-results': True
         }
@@ -223,7 +223,7 @@ class ProtoKNNQueryHelperTests(TestCase):
             },
             'k': 5,
             'request-params': {
-                'source': False
+                '_source': False
             },
             'calculate-recall': True
         }
@@ -248,7 +248,7 @@ class ProtoKNNQueryHelperTests(TestCase):
             },
             'k': 5,
             'request-params': {
-                'source': False
+                '_source': False
             },
             'response-compression-enabled': True
         }
