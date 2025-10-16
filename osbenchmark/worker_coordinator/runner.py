@@ -3080,7 +3080,7 @@ class ProtoKNNQuery(Runner):
     async def __call__(self, opensearch, params):
         from osbenchmark.context import RequestContextHolder
         RequestContextHolder.on_client_request_start()
-        proto_req = ProtoQueryHelper.build_proto_request(params)
+        proto_req = ProtoQueryHelper.build_vector_search_proto_request(params)
         stub = opensearch.search_service()
         RequestContextHolder.on_request_start()
         search_resp = await stub.Search(proto_req)

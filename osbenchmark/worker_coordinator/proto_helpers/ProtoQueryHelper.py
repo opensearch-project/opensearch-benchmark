@@ -1,3 +1,4 @@
+from numpy.lib.utils import source
 from opensearch.protobufs.schemas import search_pb2
 from opensearch.protobufs.schemas import common_pb2
 
@@ -60,22 +61,6 @@ class ProtoQueryHelper:
         )
 
     """
-    Parse knn query into `common_pb2.KnnQuery` protobuf.
-    """
-    @staticmethod
-    def knn_query_to_proto(query):
-        target_field_key = next(iter(query.keys()))
-        target_field = query.get(target_field_key)
-        vector = target_field.get("vector")
-        k = target_field.get("k")
-
-        return common_pb2.KnnQuery(
-            field=target_field_key,
-            vector=vector,
-            k=k
-        )
-
-    """
     Parse a query body into the corresponding protobuf type.
     Exceptions are thrown for unsupported query types.
     (Note that gRPC/protobuf API coverage is not comprehensive) 
@@ -91,10 +76,6 @@ class ProtoQueryHelper:
             if key == "term":
                 return common_pb2.QueryContainer(
                     term=ProtoQueryHelper.term_query_to_proto(query_body.get("term"))
-                )
-            if key == "knn":
-                return common_pb2.QueryContainer(
-                    knn=ProtoQueryHelper.knn_query_to_proto(query_body.get("knn"))
                 )
         raise Exception("Unsupported query type: " + str(query_body))
 
@@ -125,6 +106,67 @@ class ProtoQueryHelper:
         return search_pb2.SearchRequest(
             request_body=search_pb2.SearchRequestBody(
                 query=ProtoQueryHelper.query_body_to_proto(body),
+                timeout=timeout,
+                size = size
+            ),
+            index=index,
+            x_source=source_config,
+            request_cache=cache
+        )
+
+    """
+    Build protobuf SearchRequest for vector search workload.
+    Vector search provides additional params outside of the request body which we need to handle in addition to 
+    generic search request request options.
+    * ``body``: knn query body
+    * ``index``: index name
+    * ``request-timeout``: request timeout
+    * ``cache``: enabled request cache
+    * ``request-params``: vector search lists _source here
+    * ``k``: k nearest neighbors
+    """
+    @staticmethod
+    def build_vector_search_proto_request(params):
+        if params.get("detailed-results"):
+            raise NotImplementedError("Detailed results not supported for gRPC/protobuf vector search")
+        if params.get("calculate-recall"):
+            raise NotImplementedError("Recall calculations not supported for gRPC/protobuf vector search")
+        if params.get("response-compression-enabled"):
+            raise NotImplementedError("Compression not supported for gRPC/protobuf transport")
+
+        body = params.get("body")
+        size = body.get("size") if "size" in body else None
+        request_params = params.get("request-params")
+        index = [params.get("index")]
+        source_config = common_pb2.SourceConfigParam(bool=request_params.get("source"))
+        timeout = None if params.get("request-timeout") is None else str(params.get("request-timeout")) + "ms"
+        k_neighbors = params.get("k")
+
+        if isinstance(params.get("cache"), bool):
+            cache = params.get("cache")
+        elif isinstance(params.get("cache"), str):
+            cache = params.get("cache").lower() == "true"
+        else:
+            cache = None
+
+        """
+        Parse knn query into `common_pb2.KnnQuery` protobuf.
+        """
+        def knn_query_to_proto(query, k) -> common_pb2.KnnQuery:
+            target_field_key = next(iter(query.keys()))
+            target_field = query.get(target_field_key)
+            vector = target_field.get("vector")
+
+            return common_pb2.KnnQuery(
+                field=target_field_key,
+                vector=vector,
+                k=k
+            )
+
+        knn_query_proto = knn_query_to_proto(params.get("body"), k_neighbors)
+        return search_pb2.SearchRequest(
+            request_body=search_pb2.SearchRequestBody(
+                query=common_pb2.QueryContainer(knn=knn_query_proto),
                 timeout=timeout,
                 size = size
             ),
