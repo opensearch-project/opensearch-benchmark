@@ -24,6 +24,7 @@
 
 from unittest import TestCase
 
+import numpy as np
 from opensearch.protobufs.schemas import search_pb2
 
 from osbenchmark.worker_coordinator.proto_helpers.ProtoQueryHelper import ProtoQueryHelper
@@ -92,31 +93,167 @@ class ProtoQueryHelperTests(TestCase):
             ProtoQueryHelper.build_proto_request(params)
 
 class ProtoKNNQueryHelperTests(TestCase):
-    def test_build_proto_request_basic_knn(self):
+    def test_build_vector_search_proto_request_basic(self):
         params = {
-            "index": "test-index",
-            "body": {
-                "query": {
-                    "knn": {
-                        "target_field": {
-                            "vector": [0.1, 0.2, 0.3, 0.4],
-                            "k": 10
+            'index': 'target_index',
+            'body': {
+                'query': {
+                    'knn': {
+                        'target_field': {
+                            'vector': np.array([1.49081022e-01], dtype=np.float32),
+                            'k': 100
                         }
                     }
                 },
-                "size": 5
+                'size': 100
             },
-            "cache": True
+            'k': 100,
+            'request-params': {
+                'source': False
+            }
         }
 
-        result = ProtoQueryHelper.build_proto_request(params)
+        request = ProtoQueryHelper.build_vector_search_proto_request(params)
 
-        self.assertIsInstance(result, search_pb2.SearchRequest)
-        self.assertEqual(result.index, ["test-index"])
-        self.assertEqual(result.request_body.size, 5)
-        self.assertTrue(result.request_cache)
-        self.assertTrue(result.request_body.query.HasField("knn"))
-        self.assertEqual(result.request_body.query.knn.field, "target_field")
-        for i, expected in enumerate([0.1, 0.2, 0.3, 0.4]):
-            self.assertAlmostEqual(result.request_body.query.knn.vector[i], expected, places=5)
-        self.assertEqual(result.request_body.query.knn.k, 10)
+        self.assertIsInstance(request, search_pb2.SearchRequest)
+        self.assertEqual(request.index, ['target_index'])
+        self.assertEqual(request.request_body.size, 100)
+        self.assertFalse(request.x_source.bool)
+        self.assertTrue(request.request_body.query.HasField('knn'))
+        self.assertEqual(request.request_body.query.knn.field, 'target_field')
+        self.assertEqual(request.request_body.query.knn.k, 100)
+        self.assertAlmostEqual(request.request_body.query.knn.vector[0], 1.49081022e-01, places=5)
+
+    def test_build_vector_search_proto_request_with_timeout_and_cache(self):
+        params = {
+            'index': 'test_index',
+            'body': {
+                'query': {
+                    'knn': {
+                        'embeddings': {
+                            'vector': np.array([0.1, 0.2, 0.3], dtype=np.float32),
+                            'k': 50
+                        }
+                    }
+                },
+                'size': 50
+            },
+            'k': 50,
+            'request-params': {
+                'source': True
+            },
+            'request-timeout': 5000,
+            'cache': True
+        }
+
+        request = ProtoQueryHelper.build_vector_search_proto_request(params)
+
+        self.assertIsInstance(request, search_pb2.SearchRequest)
+        self.assertEqual(request.index, ['test_index'])
+        self.assertEqual(request.request_body.size, 50)
+        self.assertEqual(request.request_body.timeout, '5000ms')
+        self.assertTrue(request.x_source.bool)
+        self.assertTrue(request.request_cache)
+        self.assertTrue(request.request_body.query.HasField('knn'))
+        self.assertEqual(request.request_body.query.knn.field, 'embeddings')
+        self.assertEqual(request.request_body.query.knn.k, 50)
+        for i, expected in enumerate([0.1, 0.2, 0.3]):
+            self.assertAlmostEqual(request.request_body.query.knn.vector[i], expected, places=5)
+
+    def test_build_vector_search_proto_request_no_size(self):
+        params = {
+            'index': 'test_index',
+            'body': {
+                'query': {
+                    'knn': {
+                        'vector_field': {
+                            'vector': np.array([1.0], dtype=np.float32),
+                            'k': 5
+                        }
+                    }
+                }
+            },
+            'k': 5,
+            'request-params': {
+                'source': False
+            }
+        }
+
+        request = ProtoQueryHelper.build_vector_search_proto_request(params)
+
+        self.assertEqual(request.request_body.size, 0)
+
+    def test_build_vector_search_proto_request_detailed_results_raises_error(self):
+        params = {
+            'index': 'test_index',
+            'body': {
+                'query': {
+                    'knn': {
+                        'vector_field': {
+                            'vector': np.array([1.0], dtype=np.float32),
+                            'k': 5
+                        }
+                    }
+                }
+            },
+            'k': 5,
+            'request-params': {
+                'source': False
+            },
+            'detailed-results': True
+        }
+
+        with self.assertRaises(NotImplementedError) as context:
+            ProtoQueryHelper.build_vector_search_proto_request(params)
+        
+        self.assertIn('Detailed results not supported', str(context.exception))
+
+    def test_build_vector_search_proto_request_calculate_recall_raises_error(self):
+        params = {
+            'index': 'test_index',
+            'body': {
+                'query': {
+                    'knn': {
+                        'vector_field': {
+                            'vector': np.array([1.0], dtype=np.float32),
+                            'k': 5
+                        }
+                    }
+                }
+            },
+            'k': 5,
+            'request-params': {
+                'source': False
+            },
+            'calculate-recall': True
+        }
+
+        with self.assertRaises(NotImplementedError) as context:
+            ProtoQueryHelper.build_vector_search_proto_request(params)
+        
+        self.assertIn('Recall calculations not supported', str(context.exception))
+
+    def test_build_vector_search_proto_request_compression_raises_error(self):
+        params = {
+            'index': 'test_index',
+            'body': {
+                'query': {
+                    'knn': {
+                        'vector_field': {
+                            'vector': np.array([1.0], dtype=np.float32),
+                            'k': 5
+                        }
+                    }
+                }
+            },
+            'k': 5,
+            'request-params': {
+                'source': False
+            },
+            'response-compression-enabled': True
+        }
+
+        with self.assertRaises(NotImplementedError) as context:
+            ProtoQueryHelper.build_vector_search_proto_request(params)
+        
+        self.assertIn('Compression not supported', str(context.exception))
