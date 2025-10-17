@@ -131,7 +131,7 @@ class ProtoKNNQueryHelperTests(TestCase):
         self.assertEqual(request.request_body.size, 100)
         self.assertEqual(request.docvalue_fields, ['_id'])
 
-        self.assertEqual(request.stored_fields, [])
+        self.assertEqual(request.stored_fields, ["_none_"])
 
         self.assertFalse(request.x_source.bool)
         self.assertFalse(request.allow_partial_search_results)
@@ -170,7 +170,7 @@ class ProtoKNNQueryHelperTests(TestCase):
         # expected defaults when these fields are not set
         self.assertEqual(request.request_body.size, 0)
         self.assertEqual(request.docvalue_fields, [])
-        self.assertEqual(request.stored_fields, [])
+        self.assertEqual(request.stored_fields, ["_none_"])
         self.assertFalse(request.x_source.bool)
         self.assertFalse(request.allow_partial_search_results)
         self.assertEqual(request.request_cache, False)
