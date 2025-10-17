@@ -128,7 +128,6 @@ class ProtoQueryHelper:
         index = [params.get("index")]
         body = params.get("body")
         doc_value_fields = body.get("docvalue_fields")
-        stored_fields = body.get("stored_fields") if isinstance(body.get("stored_fields"), list) else None
         size = body.get("size") if "size" in body else None
         request_params = params.get("request-params")
         fetch_source = is_true(request_params.get("_source"))
@@ -137,6 +136,11 @@ class ProtoQueryHelper:
         source_config = common_pb2.SourceConfigParam(bool=fetch_source)
         timeout = params.get("request-timeout")
 
+        if body.get("stored_fields") is None or "_none_":
+            stored_fields = ["_none_"]
+        else:
+            stored_fields = body.get("stored_fields")
+        
         if isinstance(params.get("cache"), bool):
             cache = params.get("cache")
         elif isinstance(params.get("cache"), str):
