@@ -95,7 +95,6 @@ class ProtoQueryHelperTests(TestCase):
 class ProtoKNNQueryHelperTests(TestCase):
     def test_build_vector_search_proto_request_basic(self):
         params = {
-            'index': 'target_index',
             'body': {
                 'query': {
                     'knn': {
@@ -105,83 +104,146 @@ class ProtoKNNQueryHelperTests(TestCase):
                         }
                     }
                 },
-                'size': 100
+                'size': 100,
+                'docvalue_fields': ['_id'],
+                'stored_fields': '_none_',
+            },
+            'request-params': {
+                '_source': False,
+                'allow_partial_search_results': 'false'
             },
             'k': 100,
-            'request-params': {
-                '_source': False
-            }
+            'index': 'target_index',
+            'cache': None,
+            'request-timeout': None,
+            'profile-query': False
+
         }
 
         request = ProtoQueryHelper.build_vector_search_proto_request(params)
 
         self.assertIsInstance(request, search_pb2.SearchRequest)
-        self.assertEqual(request.index, ['target_index'])
-        self.assertEqual(request.request_body.size, 100)
-        self.assertFalse(request.x_source.bool)
         self.assertTrue(request.request_body.query.HasField('knn'))
         self.assertEqual(request.request_body.query.knn.field, 'target_field')
-        self.assertEqual(request.request_body.query.knn.k, 100)
         self.assertAlmostEqual(request.request_body.query.knn.vector[0], 1.49081022e-01, places=5)
+        self.assertEqual(request.request_body.query.knn.k, 100)
 
-    def test_build_vector_search_proto_request_with_timeout_and_cache(self):
+        self.assertEqual(request.request_body.size, 100)
+        self.assertEqual(request.docvalue_fields, ['_id'])
+
+        self.assertEqual(request.stored_fields, [])
+
+        self.assertFalse(request.x_source.bool)
+        self.assertFalse(request.allow_partial_search_results)
+
+        self.assertEqual(request.index, ['target_index'])
+        self.assertEqual(request.request_cache, False)
+        self.assertEqual(request.timeout, '')
+        self.assertEqual(request.request_body.profile, False)
+
+    def test_build_vector_search_proto_defaults_with_optional_fields_empty(self):
         params = {
-            'index': 'test_index',
             'body': {
                 'query': {
                     'knn': {
-                        'embeddings': {
-                            'vector': np.array([0.1, 0.2, 0.3], dtype=np.float32),
-                            'k': 50
+                        'knn_field': {
+                            'vector': np.array([1.49081022e-01], dtype=np.float32),
+                            'k': 100
                         }
                     }
                 },
-                'size': 50
             },
-            'k': 50,
-            'request-params': {
-                '_source': 'true'
-            },
-            'request-timeout': 5000,
-            'cache': True
+            'request-params': {},
+            'index': 'index_required',
+            'k': 100,
         }
 
         request = ProtoQueryHelper.build_vector_search_proto_request(params)
 
         self.assertIsInstance(request, search_pb2.SearchRequest)
-        self.assertEqual(request.index, ['test_index'])
-        self.assertEqual(request.request_body.size, 50)
-        self.assertEqual(request.request_body.timeout, '5000ms')
-        self.assertTrue(request.x_source.bool)
-        self.assertTrue(request.request_cache)
         self.assertTrue(request.request_body.query.HasField('knn'))
-        self.assertEqual(request.request_body.query.knn.field, 'embeddings')
-        self.assertEqual(request.request_body.query.knn.k, 50)
-        for i, expected in enumerate([0.1, 0.2, 0.3]):
-            self.assertAlmostEqual(request.request_body.query.knn.vector[i], expected, places=5)
+        self.assertEqual(request.request_body.query.knn.field, 'knn_field')
+        self.assertAlmostEqual(request.request_body.query.knn.vector[0], 1.49081022e-01, places=5)
+        self.assertEqual(request.request_body.query.knn.k, 100)
+        self.assertEqual(request.index, ['index_required'])
 
-    def test_build_vector_search_proto_request_no_size(self):
+        # expected defaults when these fields are not set
+        self.assertEqual(request.request_body.size, 0)
+        self.assertEqual(request.docvalue_fields, [])
+        self.assertEqual(request.stored_fields, [])
+        self.assertFalse(request.x_source.bool)
+        self.assertFalse(request.allow_partial_search_results)
+        self.assertEqual(request.request_cache, False)
+        self.assertEqual(request.timeout, '')
+        self.assertEqual(request.request_body.profile, False)
+
+    def test_build_vector_search_proto_string_or_bool(self):
         params = {
-            'index': 'test_index',
             'body': {
                 'query': {
                     'knn': {
-                        'vector_field': {
-                            'vector': np.array([1.0], dtype=np.float32),
-                            'k': 5
+                        'target_field': {
+                            'vector': np.array([1.49081022e-01], dtype=np.float32),
+                            'k': 100
                         }
                     }
-                }
+                },
             },
-            'k': 5,
             'request-params': {
-                '_source': False
-            }
+                '_source': "true",
+                'allow_partial_search_results': False,
+            },
+            'cache': None,
+            'k': 100,
+            'index': 'target_index',
+            'profile-query': "fAlSe"
         }
 
         request = ProtoQueryHelper.build_vector_search_proto_request(params)
 
-        self.assertEqual(request.request_body.size, 0)
+        self.assertIsInstance(request, search_pb2.SearchRequest)
+        self.assertTrue(request.request_body.query.HasField('knn'))
+        self.assertEqual(request.request_body.query.knn.field, 'target_field')
+        self.assertAlmostEqual(request.request_body.query.knn.vector[0], 1.49081022e-01, places=5)
+        self.assertEqual(request.request_body.query.knn.k, 100)
+        self.assertEqual(request.index, ['target_index'])
+
+        # bools are provided in several forms: True/False/None/"True"/"False"/"true"/"false"
+        self.assertTrue(request.x_source.bool)
+        self.assertFalse(request.allow_partial_search_results)
+        self.assertEqual(request.request_cache, False)
+        self.assertEqual(request.request_body.profile, False)
+
+    def test_build_vector_search_proto_ignore_params(self):
+        params = {
+            'body': {
+                'query': {
+                    'knn': {
+                        'target_field': {
+                            'vector': np.array([1.49081022e-01], dtype=np.float32),
+                            'k': 100
+                        }
+                    }
+                },
+            },
+            'request-params': {},
+            'index': 'target_index',
+        }
+
+        basic_request = ProtoQueryHelper.build_vector_search_proto_request(params)
+
+        # http params to ignore
+        params["opaque-id"] = '1234'
+        params["headers"] = {
+            'sample_header': 'sample_header'
+        }
+
+        # neighbors not supported but always provided
+        params["neighbors"] = np.array([1.2, 2.3, 5.5], dtype=np.float32)
+
+        ignore_request = ProtoQueryHelper.build_vector_search_proto_request(params)
+
+        self.assertEqual(ignore_request, basic_request)
 
     def test_build_vector_search_proto_request_detailed_results_raises_error(self):
         params = {

@@ -114,20 +114,28 @@ class ProtoQueryHelper:
     # ``request-params``: vector search lists _source here
     @staticmethod
     def build_vector_search_proto_request(params):
-        if params.get("detailed-results"):
+        if is_true(params.get("detailed-results")):
             raise NotImplementedError("Detailed results not supported for gRPC/protobuf vector search")
-        if params.get("calculate-recall"):
+        if is_true(params.get("calculate-recall")) or params.get("id-field-name"):
             raise NotImplementedError("Recall calculations not supported for gRPC/protobuf vector search")
-        if params.get("response-compression-enabled"):
+        if is_true(params.get("response-compression-enabled")):
             raise NotImplementedError("Compression not supported for gRPC/protobuf transport")
+        if params.get("type"):
+            raise NotImplementedError("Doc type not supported for knn query type")
+        if params.get("filter_body") or params.get("filter_type"):
+            raise NotImplementedError("Filter options not supported for gRPC/protobuf vector search")
 
+        index = [params.get("index")]
         body = params.get("body")
+        doc_value_fields = body.get("docvalue_fields")
+        stored_fields = body.get("stored_fields") if isinstance(body.get("stored_fields"), list) else None
         size = body.get("size") if "size" in body else None
         request_params = params.get("request-params")
         fetch_source = is_true(request_params.get("_source"))
+        profile_query = is_true(params.get("profile_query"))
+        partial_results = is_true(request_params.get("allow_partial_search_results"))
         source_config = common_pb2.SourceConfigParam(bool=fetch_source)
-        index = [params.get("index")]
-        timeout = None if params.get("request-timeout") is None else str(params.get("request-timeout")) + "ms"
+        timeout = params.get("request-timeout")
 
         if isinstance(params.get("cache"), bool):
             cache = params.get("cache")
@@ -153,11 +161,15 @@ class ProtoQueryHelper:
             request_body=search_pb2.SearchRequestBody(
                 query=common_pb2.QueryContainer(knn=knn_query_proto),
                 timeout=timeout,
+                profile=profile_query,
                 size = size
             ),
             index=index,
             x_source=source_config,
-            request_cache=cache
+            request_cache=cache,
+            allow_partial_search_results=partial_results,
+            docvalue_fields=doc_value_fields,
+            stored_fields=stored_fields
         )
 
     # Parse stats from protobuf response.
