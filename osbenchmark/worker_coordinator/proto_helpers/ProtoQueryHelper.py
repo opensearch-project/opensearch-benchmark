@@ -1,12 +1,16 @@
 from opensearch.protobufs.schemas import search_pb2
 from opensearch.protobufs.schemas import common_pb2
 
+# In some cases (KNN) we set stored fields explicitly to "_none_" to disable
+# https://github.com/opensearch-project/OpenSearch/blob/3.3/server/src/main/java/org/opensearch/search/fetch/StoredFieldsContext.java#L59
+STORED_FIELDS_NONE = "_none_"
+
 def is_true(value):
     if isinstance(value, str):
         return value.lower() == "true"
     return bool(value)
 
-def _get_relation(relation):
+def get_relation(relation):
     match relation:
         case 0:
             return "TOTAL_HITS_RELATION_UNSPECIFIED"
@@ -17,7 +21,7 @@ def _get_relation(relation):
         case _:
             return "TOTAL_HITS_RELATION_UNSET"
 
-def _get_terms_dict(query):
+def get_terms_dict(query):
     terms = {}
     for key, value in query.items():
         terms[key] = []
@@ -35,7 +39,7 @@ class ProtoQueryHelper:
     # Term query supports a single term on single field.
     @staticmethod
     def term_query_to_proto(query):
-        term = _get_terms_dict(query)
+        term = get_terms_dict(query)
         if len(term.keys()) > 1:
             raise Exception("Error parsing query - Term query contains multiple distinct fields: " + str(query))
         if len(term.values()) > 1:
@@ -136,11 +140,11 @@ class ProtoQueryHelper:
         source_config = common_pb2.SourceConfigParam(bool=fetch_source)
         timeout = params.get("request-timeout")
 
-        if body.get("stored_fields") is None or "_none_":
-            stored_fields = ["_none_"]
+        if body.get("stored_fields") is None or body.get("stored_fields") is STORED_FIELDS_NONE:
+            stored_fields = [STORED_FIELDS_NONE]
         else:
             stored_fields = body.get("stored_fields")
-        
+
         if isinstance(params.get("cache"), bool):
             cache = params.get("cache")
         elif isinstance(params.get("cache"), str):
@@ -189,7 +193,7 @@ class ProtoQueryHelper:
                 "unit": "ops",
                 "success": True,
                 "hits": response.hits.total.total_hits.value,
-                "hits_relation": _get_relation(response.hits.total.total_hits.relation),
+                "hits_relation": get_relation(response.hits.total.total_hits.relation),
                 "timed_out": response.timed_out,
                 "took": response.took,
             }
