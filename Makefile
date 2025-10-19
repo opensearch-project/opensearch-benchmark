@@ -19,7 +19,7 @@ SHELL = /bin/bash
 PYTHON = python3
 PIP = pip3
 VERSIONS = $(shell jq -r '.python_versions | .[]' .ci/variables.json | sed '$$d')
-VERSION38 = $(shell jq -r '.python_versions | .[]' .ci/variables.json | sed '$$d' | grep 3\.8)
+VERSION38 = $(shell jq -r '.python_versions | .[]' .ci/variables.json | sed '$$d' | grep 3\.10)
 PYENV_ERROR = "\033[0;31mIMPORTANT\033[0m: Please install pyenv and run \033[0;31meval \"\$$(pyenv init -)\"\033[0m.\n"
 
 all: develop
