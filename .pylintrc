@@ -173,7 +173,8 @@ disable=print-statement,
         W0613,
         W0621,
         invalid-docstring-quote,
-        raise-missing-from
+        raise-missing-from,
+        unsubscriptable-object
 
 
 # Enable the message, report, category or checker with the given id(s). You can
