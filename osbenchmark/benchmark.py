@@ -588,6 +588,11 @@ def create_arg_parser():
         help="Define a comma-separated list of hosts which should generate load (default: localhost).",
         default="localhost")
     test_run_parser.add_argument(
+        "--grpc-target-hosts",
+        help="Define a comma-separated list of host:port pairs for gRPC endpoints "
+             "(default: localhost:9400).",
+        default="")
+    test_run_parser.add_argument(
         "--client-options",
         "-c",
         help=f"Define a comma-separated list of client options to use. The options will be passed to the OpenSearch "
@@ -1070,6 +1075,10 @@ def configure_connection_params(arg_parser, args, cfg):
     cfg.add(config.Scope.applicationOverride, "client", "hosts", target_hosts)
     client_options = opts.ClientOptions(args.client_options, target_hosts=target_hosts)
     cfg.add(config.Scope.applicationOverride, "client", "options", client_options)
+
+    # Configure gRPC target hosts
+    grpc_target_hosts = opts.TargetHosts(args.grpc_target_hosts) if args.grpc_target_hosts else None
+    cfg.add(config.Scope.applicationOverride, "client", "grpc_hosts", grpc_target_hosts)
     if "timeout" not in client_options.default:
         console.info("You did not provide an explicit timeout in the client options. Assuming default of 10 seconds.")
     if list(target_hosts.all_hosts) != list(client_options.all_client_options):

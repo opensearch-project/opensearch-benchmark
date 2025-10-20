@@ -621,6 +621,9 @@ class OperationType(Enum):
     TrainKnnModel = (19, AdminStatus.No, ServerlessStatus.Public)
     DeleteKnnModel = (20, AdminStatus.No, ServerlessStatus.Public)
     ProduceStreamMessage = (21, AdminStatus.No, ServerlessStatus.Blocked)
+    ProtoBulk = (201, AdminStatus.No, ServerlessStatus.Blocked)
+    ProtoSearch = (202, AdminStatus.No, ServerlessStatus.Blocked)
+    ProtoVectorSearch = (203, AdminStatus.No, ServerlessStatus.Blocked)
 
     # administrative actions
     ForceMerge = (22, AdminStatus.Yes, ServerlessStatus.Blocked)
@@ -687,18 +690,24 @@ class OperationType(Enum):
             return OperationType.NodeStats
         elif v == "search":
             return OperationType.Search
+        elif v == "proto-search":
+            return OperationType.ProtoSearch
         elif v == "scroll-search":
             return OperationType.ScrollSearch
         elif v == "paginated-search":
             return OperationType.PaginatedSearch
         elif v == "vector-search":
             return OperationType.VectorSearch
+        elif v == "proto-vector-search":
+            return OperationType.ProtoVectorSearch
         elif v == "bulk-vector-data-set":
             return OperationType.BulkVectorDataSet
         elif v == "cluster-health":
             return OperationType.ClusterHealth
         elif v == "bulk":
             return OperationType.Bulk
+        elif v == "proto-bulk":
+            return OperationType.ProtoBulk
         elif v == "raw-request":
             return OperationType.RawRequest
         elif v == "put-pipeline":
