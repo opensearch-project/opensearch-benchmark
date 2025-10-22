@@ -121,6 +121,7 @@ class MappingConverter:
         random.seed(seed)
 
         # seed these
+        # TODO: Should apply all of these: https://docs.opensearch.org/latest/mappings/supported-field-types/index/
         self.type_generators = {
             "text": self.generate_text,
             "keyword": self.generate_keyword,
@@ -136,6 +137,8 @@ class MappingConverter:
             "object": self.generate_object,
             "nested": self.generate_nested,
             "geo_point": self.generate_geo_point,
+            "knn_vector": self.generate_knn_vector,
+            "sparse_vector": self.generate_sparse_vector,
         }
 
     @staticmethod
@@ -257,6 +260,95 @@ class MappingConverter:
     def generate_nested(self, field_def: Dict[str, Any], **params) -> list:
         # Will be replaced by a list of nested objects
         return []
+
+    def generate_knn_vector(self, field_def: Dict[str, Any], **params) -> list:
+        """
+        Generate dense vector embeddings for knn_vector field type.
+        Supports both random generation and sample-based generation with noise for realistic clustering
+
+        Args:
+            field_def: Field definition from mapping
+            **params: Optional parameters:
+                dimension: Vector dimensions. Can be retrieved from field_ef (default: 128)
+                sample_vectors: List of base vectors to add noise to. Helps with realistic clustering.
+                               Without sample_vectors, OSB generates uniform random vectors between -1.0 and 1.0
+                noise_factor: Standard deviation (gaussian) or range (uniform) of noise (default: 0.1)
+                             Lower values (0.01-0.05) create tight clusters.
+                             Higher values (0.2-0.5) create diverse distributions.
+                distribution_type: Type of noise distribution (default: "gaussian").
+                              "gaussian": Normal distribution, realistic with outliers
+                              "uniform": Bounded distribution, predictable variation
+                normalize: Whether to normalize the vector after generation (default: False)
+                            Set to True when using cosinesimil space_type in OpenSearch.
+                            Normalized vectors have magnitude = 1.0.
+
+        Returns:
+            List of floats representing the dense vector.
+            When using sample_vectors, creates a realistic variation around sampled clusters provided.
+            Without sample_vectors, it uses random uniform values between -1.0 and 1.0.
+        """
+
+        dims = field_def.get("dimension", params.get("dimension", 128))
+        sample_vectors = params.get("sample_vectors", None)
+
+        if sample_vectors:
+            noise_factor = params.get("noise_factor", 0.1)
+            distribution_type = params.get("distribution_type", "gaussian")
+            normalize = params.get("normalize", False)
+
+            # Pick random sample vector
+            base_vector = random.choice(sample_vectors)
+
+            # Generate noise based on distribution type
+            if distribution_type == "gaussian":
+                noise = [random.gauss(0, noise_factor) for _ in range(dims)]
+            else:  # uniform
+                noise = [random.uniform(-noise_factor, noise_factor) for _ in range(dims)]
+
+            # Add noise to base vector
+            vector = [base_vector[i] + noise[i] for i in range(dims)]
+
+            # Normalize if requested
+            if normalize:
+                magnitude = sum(x**2 for x in vector) ** 0.5
+                if magnitude > 0:
+                    vector = [x / magnitude for x in vector]
+
+            return vector
+
+        else:
+            # Fallback to random generation with each dimension being between -1 and 1
+            return [random.uniform(-1.0, 1.0) for _ in range(dims)]
+
+    def generate_sparse_vector(self, field_def: Dict[str, Any], **params) -> Dict[str, float]:
+        """
+        Generate sparse vector as token_id -> weight pairs for sparse_vector field type.
+
+        Args:
+            field_def: Field definition from mapping
+            **params: The following are optional parameters:
+                num_tokens: Number of token-weight pairs (default: 10)
+                min_weight: Minimum weight value (default: 0.01)
+                max_weight: Maximum weight value (default: 1.0)
+                token_id_start: Starting token ID (default: 1000)
+                token_id_step: Step between token IDs (default: 100)
+
+        Returns:
+            Dict of token_id -> weight pairs with positive float values
+        """
+        num_tokens = params.get('num_tokens', 10)
+        min_weight = params.get('min_weight', 0.01)
+        max_weight = params.get('max_weight', 1.0)
+        token_id_start = params.get('token_id_start', 1000)
+        token_id_step = params.get('token_id_step', 100)
+
+        sparse_vector = {}
+        for i in range(num_tokens):
+            token_id = str(token_id_start + (i * token_id_step))
+            weight = random.uniform(min_weight, max_weight)
+            sparse_vector[token_id] = round(weight, 4) # imitate real neural sparse search models like Splade and DeepImpact
+
+        return sparse_vector
 
     def transform_mapping_to_generators(self, mapping_dict: Dict[str, Any], field_path_prefix="") -> Dict[str, Callable[[], Any]]:
         """

@@ -1285,3 +1285,100 @@ class TestMappingConverter:
             assert field in document
 
         assert document["id"] in ["Helly R", "Mark S", "Irving B"]
+
+    def test_generate_sparse_vector(self, mapping_converter):
+        """Test basic sparse_vector generation"""
+        mapping = {
+            "properties": {
+                "sparse_embedding": {
+                    "type": "sparse_vector"
+                }
+            }
+        }
+
+        generators = mapping_converter.transform_mapping_to_generators(mapping)
+        document = MappingConverter.generate_synthetic_document(generators)
+
+        # Validate field exists
+        assert "sparse_embedding" in document
+
+        # Validate it's a dictionary
+        assert isinstance(document["sparse_embedding"], dict)
+
+        # Validate structure: string keys (token IDs), float values (weights)
+        for token_id, weight in document["sparse_embedding"].items():
+            assert isinstance(token_id, str)
+            assert token_id.isdigit()  # Token IDs should be numeric strings
+            assert isinstance(weight, (int, float))
+            assert weight > 0  # Weights must be positive
+
+    def test_generate_sparse_vector_with_params(self, mapping_converter):
+        """Test sparse_vector generation with custom parameters"""
+        # Override to use custom params
+        mapping_converter.mapping_config = {
+            "generator_overrides": {
+                "sparse_vector": {
+                    "num_tokens": 5,
+                    "min_weight": 0.1,
+                    "max_weight": 0.9,
+                    "token_id_start": 5000,
+                    "token_id_step": 50
+                }
+            },
+            "field_overrides": {}
+        }
+
+        mapping = {
+            "properties": {
+                "embedding": {
+                    "type": "sparse_vector"
+                }
+            }
+        }
+
+        generators = mapping_converter.transform_mapping_to_generators(mapping)
+        document = MappingConverter.generate_synthetic_document(generators)
+
+        # Should have exactly 5 tokens
+        assert len(document["embedding"]) == 5
+
+        # Validate token ID range: should be 5000, 5050, 5100, 5150, 5200
+        expected_token_ids = {"5000", "5050", "5100", "5150", "5200"}
+        assert set(document["embedding"].keys()) == expected_token_ids
+
+        # All weights should be in range [0.1, 0.9]
+        for weight in document["embedding"].values():
+            assert 0.1 <= weight <= 0.9
+
+    def test_generate_sparse_vector_in_complex_mapping(self, mapping_converter):
+        """Test sparse_vector within a complex mapping alongside other field types"""
+        mapping = {
+            "properties": {
+                "text": {"type": "text"},
+                "dense_vector": {"type": "knn_vector", "dimension": 3},
+                "sparse_vector": {"type": "sparse_vector"},
+                "metadata": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "keyword"}
+                    }
+                }
+            }
+        }
+
+        generators = mapping_converter.transform_mapping_to_generators(mapping)
+        document = MappingConverter.generate_synthetic_document(generators)
+
+        # Validate all fields generated
+        assert "text" in document
+        assert "dense_vector" in document
+        assert "sparse_vector" in document
+        assert "metadata" in document
+
+        # Validate sparse_vector is correct format
+        assert isinstance(document["sparse_vector"], dict)
+        assert len(document["sparse_vector"]) > 0
+
+        # Validate dense_vector is different from sparse_vector
+        assert isinstance(document["dense_vector"], list)
+        assert len(document["dense_vector"]) == 3
