@@ -140,10 +140,11 @@ class ProtoQueryHelper:
         source_config = common_pb2.SourceConfigParam(bool=fetch_source)
         timeout = params.get("request-timeout")
 
-        if body.get("stored_fields") is None or body.get("stored_fields") is STORED_FIELDS_NONE:
+        stored_fields = body.get("stored_fields")
+        if stored_fields is None or stored_fields == STORED_FIELDS_NONE:
             stored_fields = [STORED_FIELDS_NONE]
-        else:
-            stored_fields = body.get("stored_fields")
+        elif not isinstance(stored_fields, list):
+            raise Exception("Error parsing query params - Stored fields must be a list")
 
         if isinstance(params.get("cache"), bool):
             cache = params.get("cache")
