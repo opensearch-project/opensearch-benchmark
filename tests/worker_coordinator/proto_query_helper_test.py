@@ -177,6 +177,41 @@ class ProtoKNNQueryHelperTests(TestCase):
         self.assertEqual(request.timeout, '')
         self.assertEqual(request.request_body.profile, False)
 
+    def test_build_vector_search_proto_stored_fields_non_list_parsing(self):
+        params = {
+            'body': {
+                'query': {
+                    'knn': {
+                        'knn_field': {
+                            'vector': np.array([1.0], dtype=np.float32),
+                            'k': 100
+                        }
+                    }
+                },
+                'docvalue_fields': ['_id'],
+                'stored_fields': "_none_",
+            },
+            'request-params': {},
+            'index': 'index_required',
+            'k': 100,
+        }
+
+        request = ProtoQueryHelper.build_vector_search_proto_request(params)
+
+        self.assertEqual(request.stored_fields, ["_none_"])
+
+        params['body']['stored_fields'] = ['field1', 'field2']
+        request = ProtoQueryHelper.build_vector_search_proto_request(params)
+
+        self.assertEqual(request.stored_fields, ['field1', 'field2'])
+
+        params['body']['stored_fields'] = 'field1'
+
+        with self.assertRaises(Exception) as context:
+            ProtoQueryHelper.build_vector_search_proto_request(params)
+
+        self.assertIn('Stored fields must be a list', str(context.exception))
+
     def test_build_vector_search_proto_string_or_bool(self):
         params = {
             'body': {
