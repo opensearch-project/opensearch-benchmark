@@ -80,7 +80,7 @@ $$$$$$$$$$""""           ""$$$$$$$$$$$"
 
 def check_python_version():
     if sys.version_info.major != 3 or sys.version_info.minor < 8:
-        raise RuntimeError("OSB requires at least Python 3.8 but you are using:\n\nPython %s" % str(sys.version))
+        raise RuntimeError("OSB requires at least Python 3.10 but you are using:\n\nPython %s" % str(sys.version))
 
 
 def doc_link(path=None):
