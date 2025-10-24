@@ -272,7 +272,7 @@ def set_absolute_data_path(cfg, t):
                 document_set.document_archive = first_existing(data_root, document_set.document_archive)
             if document_set.document_file:
                 if corpus.streaming_ingestion:
-                    document_set.document_file = os.path.join(data_root[0], document_set.document_file)
+                    document_set.data_dir = data_root[0]
                 else:
                     document_set.document_file = first_existing(data_root, document_set.document_file)
 

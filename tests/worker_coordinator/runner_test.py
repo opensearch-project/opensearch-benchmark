@@ -3427,10 +3427,10 @@ class VectorSearchQueryRunnerTests(TestCase):
                 return self
 
             @property
-            def percent_completed(self):
+            def task_progress(self):
                 if self.infinite:
                     return None
-                return self._current / self._total
+                return (self._current / self._total, '%')
 
             def params(self):
                 if not self.infinite and self._current > self._total:
@@ -3569,10 +3569,10 @@ class VectorSearchQueryRunnerTests(TestCase):
                     return self
 
                 @property
-                def percent_completed(self):
+                def task_progress(self):
                     if self.infinite:
                         return None
-                    return self._current / self._total
+                    return (self._current / self._total, '%')
 
                 def params(self):
                     if not self.infinite and self._current > self._total:
@@ -3822,10 +3822,10 @@ class VectorSearchQueryRunnerTests(TestCase):
                 return self
 
             @property
-            def percent_completed(self):
+            def task_progress(self):
                 if self.infinite:
                     return None
-                return self._current / self._total
+                return (self._current / self._total, '%')
 
             def params(self):
                 if not self.infinite and self._current > self._total:
@@ -6042,12 +6042,12 @@ class WaitForTransformTests(TestCase):
 
         r = runner.WaitForTransform()
         self.assertFalse(r.completed)
-        self.assertEqual(r.percent_completed, 0.0)
+        self.assertEqual(r.task_progress, (0.0, '%'))
 
         result = await r(opensearch, params)
 
         self.assertTrue(r.completed)
-        self.assertEqual(r.percent_completed, 1.0)
+        self.assertEqual(r.task_progress, (1.0, '%'))
         self.assertEqual(2, result["weight"], 2)
         self.assertEqual(result["unit"], "docs")
 
@@ -6220,18 +6220,18 @@ class WaitForTransformTests(TestCase):
 
         r = runner.WaitForTransform()
         self.assertFalse(r.completed)
-        self.assertEqual(r.percent_completed, 0.0)
+        self.assertEqual(r.task_progress, (0.0, '%'))
 
         total_calls = 0
         while not r.completed:
             result = await r(opensearch, params)
             total_calls += 1
             if total_calls < 4:
-                self.assertAlmostEqual(r.percent_completed, (total_calls * 10.20) / 100.0)
+                self.assertAlmostEqual(r.task_progress[0], (total_calls * 10.20) / 100.0)
 
         self.assertEqual(total_calls, 4)
         self.assertTrue(r.completed)
-        self.assertEqual(r.percent_completed, 1.0)
+        self.assertEqual(r.task_progress, (1.0, '%'))
         self.assertEqual(result["weight"], 60000)
         self.assertEqual(result["unit"], "docs")
 

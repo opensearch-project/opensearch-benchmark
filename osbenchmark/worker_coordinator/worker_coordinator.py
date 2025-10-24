@@ -1299,18 +1299,24 @@ class WorkerCoordinator:
         if not self.quiet and self.current_step >= 0:
             tasks = ",".join([t.name for t in self.tasks_per_join_point[self.current_step]])
 
-            if task_finished:
-                total_progress = 1.0
-            else:
-                # we only count clients which actually contribute to progress. If clients are executing tasks eternally in a parallel
-                # structure, we should not count them. The reason is that progress depends entirely on the client(s) that execute the
-                # task that is completing the parallel structure.
-                progress_per_client = [s.percent_completed
-                                       for s in self.most_recent_sample_per_client.values() if s.percent_completed is not None]
+            # we only count clients which actually contribute to progress. If clients are executing tasks eternally in a parallel
+            # structure, we should not count them. The reason is that progress depends entirely on the client(s) that execute the
+            # task that is completing the parallel structure.
+            progress_per_client = [s.task_progress
+                                   for s in self.most_recent_sample_per_client.values() if s.task_progress is not None]
 
-                num_clients = max(len(progress_per_client), 1)
-                total_progress = sum(progress_per_client) / num_clients
-            self.progress_publisher.print("Running %s" % tasks, "[%3d%% done]" % (round(total_progress * 100)))
+            num_clients = len(progress_per_client)
+            assert num_clients > 0, "Number of clients is 0"
+            total_progress = sum([p[0] for p in progress_per_client]) / num_clients
+            units = set(progress_per_client)
+            assert len(units) == 1, "Encountered mix of disparate units while tracking task progress"
+            unit = units.pop()
+            if unit != '%':
+                self.progress_publisher.print("Running %s" % tasks, "[%4.1f GB]" % total_progress)
+            else:
+                if task_finished:
+                    total_progress = 1.0
+                self.progress_publisher.print("Running %s" % tasks, "[%3d%% done]" % (round(total_progress * 100)))
             if task_finished:
                 self.progress_publisher.finish()
 
@@ -1739,9 +1745,9 @@ class Worker(actor.BenchmarkActor):
             else:
                 if current_samples and len(current_samples) > 0:
                     most_recent_sample = current_samples[-1]
-                    if most_recent_sample.percent_completed is not None:
+                    if most_recent_sample.task_progress is not None and most_recent_sample.task_progress[1] == '%':
                         self.logger.debug("Worker[%s] is executing [%s] (%.2f%% complete).",
-                                          str(self.worker_id), most_recent_sample.task, most_recent_sample.percent_completed * 100.0)
+                                          str(self.worker_id), most_recent_sample.task, most_recent_sample.task_progress[0] * 100.0)
                     else:
                         # TODO: This could be misleading given that one worker could execute more than one task...
                         self.logger.debug("Worker[%s] is executing [%s] (dependent eternal task).",
@@ -1842,13 +1848,13 @@ class DefaultSampler(Sampler):
     """
 
     def add(self, task, client_id, sample_type, meta_data, absolute_time, request_start, latency, service_time,
-            client_processing_time, processing_time, throughput, ops, ops_unit, time_period, percent_completed,
+            client_processing_time, processing_time, throughput, ops, ops_unit, time_period, task_progress,
             dependent_timing=None):
         try:
             self.q.put_nowait(
                 DefaultSample(client_id, absolute_time, request_start, self.start_timestamp, task, sample_type, meta_data,
                        latency, service_time, client_processing_time, processing_time, throughput, ops, ops_unit, time_period,
-                       percent_completed, dependent_timing))
+                       task_progress, dependent_timing))
         except queue.Full:
             self.logger.warning("Dropping sample for [%s] due to a full sampling queue.", task.operation.name)
 
@@ -1857,12 +1863,12 @@ class ProfileMetricsSampler(Sampler):
     Encapsulates management of gathered profile metrics samples.
     """
 
-    def add(self, task, client_id, sample_type, meta_data, absolute_time, request_start, time_period, percent_completed,
+    def add(self, task, client_id, sample_type, meta_data, absolute_time, request_start, time_period, task_progress,
             dependent_timing=None):
         try:
             self.q.put_nowait(
                 ProfileMetricsSample(client_id, absolute_time, request_start, self.start_timestamp, task, sample_type, meta_data,
-                       time_period, percent_completed, dependent_timing))
+                       time_period, task_progress, dependent_timing))
         except queue.Full:
             self.logger.warning("Dropping sample for [%s] due to a full sampling queue.", task.operation.name)
 
@@ -1872,7 +1878,7 @@ class Sample:
     Basic information used by metrics store to keep track of samples
     """
     def __init__(self, client_id, absolute_time, request_start, task_start, task, sample_type, request_meta_data,
-                time_period, percent_completed, dependent_timing=None):
+                time_period, task_progress, dependent_timing=None):
         self.client_id = client_id
         self.absolute_time = absolute_time
         self.request_start = request_start
@@ -1883,7 +1889,7 @@ class Sample:
         self.time_period = time_period
         self._dependent_timing = dependent_timing
         # may be None for eternal tasks!
-        self.percent_completed = percent_completed
+        self.task_progress = task_progress
 
     @property
     def operation_name(self):
@@ -1911,8 +1917,8 @@ class DefaultSample(Sample):
     """
     def __init__(self, client_id, absolute_time, request_start, task_start, task, sample_type, request_meta_data, latency,
                  service_time, client_processing_time, processing_time, throughput, total_ops, total_ops_unit, time_period,
-                 percent_completed, dependent_timing=None):
-        super().__init__(client_id, absolute_time, request_start, task_start, task, sample_type, request_meta_data, time_period, percent_completed, dependent_timing)
+                 task_progress, dependent_timing=None):
+        super().__init__(client_id, absolute_time, request_start, task_start, task, sample_type, request_meta_data, time_period, task_progress, dependent_timing)
         self.latency = latency
         self.service_time = service_time
         self.client_processing_time = client_processing_time
@@ -1927,7 +1933,7 @@ class DefaultSample(Sample):
             for t in self._dependent_timing:
                 yield DefaultSample(self.client_id, t["absolute_time"], t["request_start"], self.task_start, self.task,
                              self.sample_type, self.request_meta_data, 0, t["service_time"], 0, 0, 0, self.total_ops,
-                             self.total_ops_unit, self.time_period, self.percent_completed, None)
+                             self.total_ops_unit, self.time_period, self.task_progress, None)
 
     def __repr__(self, *args, **kwargs):
         return f"[{self.absolute_time}; {self.relative_time}] [client [{self.client_id}]] [{self.task}] " \
@@ -1944,7 +1950,7 @@ class ProfileMetricsSample(Sample):
         if self._dependent_timing:
             for t in self._dependent_timing:
                 yield ProfileMetricsSample(self.client_id, t["absolute_time"], t["request_start"], self.task_start, self.task,
-                             self.sample_type, self.request_meta_data, self.time_period, self.percent_completed, None)
+                             self.sample_type, self.request_meta_data, self.time_period, self.task_progress, None)
 
 
 def select_test_procedure(config, t):
@@ -2392,7 +2398,7 @@ class AsyncExecutor:
         }
 
     def _process_results(self, result_data: dict, total_start: float, client_state: bool,
-                         percent_completed: float, add_profile_metric_sample: bool = False) -> bool:
+                         task_progress: tuple, add_profile_metric_sample: bool = False) -> bool:
         """Process results from a request."""
         # Handle cases where the request was skipped (no-op)
         if result_data["request_meta_data"].get("skipped_request"):
@@ -2419,7 +2425,7 @@ class AsyncExecutor:
                    if result_data["throughput_throttled"] else service_time)
 
         runner_completed = getattr(self.runner, "completed", False)
-        runner_percent_completed = getattr(self.runner, "percent_completed", None)
+        runner_task_progress = getattr(self.runner, "task_progress", None)
 
         if self.task_completes_parent:
             completed = runner_completed
@@ -2428,10 +2434,10 @@ class AsyncExecutor:
 
         if completed:
             progress = 1.0
-        elif runner_percent_completed is not None:
-            progress = runner_percent_completed
+        elif runner_task_progress is not None:
+            progress = runner_task_progress
         else:
-            progress = percent_completed
+            progress = task_progress
 
         if client_state:
             if add_profile_metric_sample:
@@ -2484,7 +2490,7 @@ class AsyncExecutor:
         self.logger.debug("Entering main loop for client id [%s].", self.client_id)
         profile_metrics_sample_count = 0
         try:
-            async for expected_scheduled_time, sample_type, percent_completed, runner, params in schedule:
+            async for expected_scheduled_time, sample_type, task_progress, runner, params in schedule:
                 self.expected_scheduled_time = expected_scheduled_time
                 self.sample_type = sample_type
                 self.runner = runner
@@ -2506,7 +2512,7 @@ class AsyncExecutor:
 
                 result_data = await self._execute_request(params, expected_scheduled_time, total_start, client_state)
 
-                completed = self._process_results(result_data, total_start, client_state, percent_completed, add_profile_metric_sample)
+                completed = self._process_results(result_data, total_start, client_state, task_progress, add_profile_metric_sample)
 
                 if completed:
                     self.logger.info("Task [%s] is considered completed due to external event.", self.task)
@@ -2914,14 +2920,14 @@ class ScheduleHandle:
     async def __call__(self):
         next_scheduled = 0
         if self.task_progress_control.infinite:
-            param_source_knows_progress = hasattr(self.params, "percent_completed")
+            param_source_knows_progress = hasattr(self.params, "task_progress")
             while True:
                 try:
                     next_scheduled = self.sched.next(next_scheduled)
                     # does not contribute at all to completion. Hence, we cannot define completion.
-                    percent_completed = self.params.percent_completed if param_source_knows_progress else None
+                    task_progress = self.params.task_progress if param_source_knows_progress else None
                     # current_params = await self.loop.run_in_executor(self.io_pool_exc, self.params.params)
-                    yield (next_scheduled, self.task_progress_control.sample_type, percent_completed, self.runner,
+                    yield (next_scheduled, self.task_progress_control.sample_type, task_progress, self.runner,
                            self.params.params())
                     self.task_progress_control.next()
                 except StopIteration:
@@ -2933,7 +2939,7 @@ class ScheduleHandle:
                     #current_params = await self.loop.run_in_executor(self.io_pool_exc, self.params.params)
                     yield (next_scheduled,
                            self.task_progress_control.sample_type,
-                           self.task_progress_control.percent_completed,
+                           self.task_progress_control.task_progress,
                            self.runner,
                            self.params.params())
                     self.task_progress_control.next()
@@ -2969,8 +2975,8 @@ class TimePeriodBased:
         return self._time_period is None
 
     @property
-    def percent_completed(self):
-        return self._elapsed / self._duration
+    def task_progress(self):
+        return (self._elapsed / self._duration, '%')
 
     @property
     def completed(self):
@@ -3007,8 +3013,8 @@ class IterationBased:
         return self._iterations is None
 
     @property
-    def percent_completed(self):
-        return (self._it + 1) / self._total_iterations
+    def task_progress(self):
+        return ((self._it + 1) / self._total_iterations, '%')
 
     @property
     def completed(self):
