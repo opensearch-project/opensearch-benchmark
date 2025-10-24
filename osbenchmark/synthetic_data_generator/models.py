@@ -12,12 +12,59 @@ import re
 
 from pydantic import BaseModel, Field, field_validator
 
+from osbenchmark.synthetic_data_generator.timeseries_partitioner import TimeSeriesPartitioner
+
 GB_TO_BYTES = 1024 ** 3
+
+class TimeSeriesConfig(BaseModel):
+    timeseries_field: str
+    timeseries_start_date: str
+    timeseries_end_date: str
+    timeseries_frequency: str
+    timeseries_format: str
+
+    # pylint: disable = no-self-argument
+    @field_validator('timeseries_start_date')
+    def validate_start_date(cls, v):
+        if not isinstance(v, str):
+            raise ValueError(f"Timeseries start date requires a string value. Value {v} is not valid.")
+
+        return v
+
+    # pylint: disable = no-self-argument
+    @field_validator('timeseries_end_date')
+    def validate_end_date(cls, v):
+        if not isinstance(v, str):
+            raise ValueError(f"Timeseries end date requires a string value. Value {v} is not valid.")
+
+        return v
+
+    # pylint: disable = no-self-argument
+    @field_validator('timeseries_frequency')
+    def validate_frequency(cls, v):
+        if not isinstance(v, str):
+            raise ValueError(f"Timeseries frequency requires a string value. Value {v} is not valid.")
+        if v not in TimeSeriesPartitioner.AVAILABLE_FREQUENCIES:
+            raise ValueError(f"Timeseries frequeny {v} is not a valid value. Valid values are {TimeSeriesPartitioner.AVAILABLE_FREQUENCIES}")
+
+        return v
+
+    # pylint: disable = no-self-argument
+    @field_validator('timeseries_format')
+    def validate_format(cls, v):
+        if not isinstance(v, str):
+            raise ValueError(f"Timeseries format requires a string value. Value {v} is not valid.")
+        if v not in TimeSeriesPartitioner.VALID_DATETIMESTAMPS_FORMATS:
+            raise ValueError(f"Timeseries format {v} is not a valid value. Valid values are {TimeSeriesPartitioner.VALID_DATETIMESTAMPS_FORMATS}")
+
+        return v
 
 class SettingsConfig(BaseModel):
     workers: Optional[int] = Field(default_factory=os.cpu_count) # Number of workers recommended to not exceed CPU count
     max_file_size_gb: Optional[int] = 40 # Default because some CloudProviders limit the size of files stored
     docs_per_chunk: Optional[int] = 10000 # Default based on testing
+    filename_suffix_begins_at: Optional[int] = 0 # Start at suffix 0
+    timeseries_enabled: Optional[TimeSeriesConfig] = None
 
     # pylint: disable = no-self-argument
     @field_validator('workers', 'max_file_size_gb', 'docs_per_chunk')
