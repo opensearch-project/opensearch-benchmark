@@ -3,11 +3,14 @@
 CLUSTER_PASSWORD=$1
 CLUSTER_VERSION=$2
 CLUSTER_ARCH=$3
-OS_SNAPSHOT_AWS_ACCESS_KEY_ID=$4
-OS_SNAPSHOT_AWS_SECRET_ACCESS_KEY=$5
-CLUSTER_IPS=$6
-NODE_NAME=$7
-NODES_TYPE=$8
+#OS_SNAPSHOT_AWS_ACCESS_KEY_ID=$4
+#OS_SNAPSHOT_AWS_SECRET_ACCESS_KEY=$5
+#CLUSTER_IPS=$6
+#NODE_NAME=$7
+#NODES_TYPE=$8
+CLUSTER_IPS=$4
+NODE_NAME=$5
+NODES_TYPE=$6
 
 # Check if the cluster version is a nightly one
 if [[ $CLUSTER_VERSION == *"-nightly-"* ]]; then
@@ -93,9 +96,6 @@ if [[ -n "$S3_PLUGIN_URL" ]]; then
 else
     sudo $INSTALL_PATH/bin/opensearch-plugin install -b -s repository-s3
 fi
-
-echo "$OS_SNAPSHOT_AWS_ACCESS_KEY_ID" | $INSTALL_PATH/bin/opensearch-keystore add -s -f -x s3.client.default.access_key
-echo "$OS_SNAPSHOT_AWS_SECRET_ACCESS_KEY" | $INSTALL_PATH/bin/opensearch-keystore add -s -f -x s3.client.default.secret_key
 
 if [[ "$CURRENT_OS_VERSION" == "2" ]]; then
     # Manually run security demo config to modify it

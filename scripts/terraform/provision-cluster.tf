@@ -28,18 +28,6 @@ provider "aws" {
   }
 }
 
-provider "aws" {
-  region = var.prefix_list_region
-  alias  = "prefix_list_region"
-
-  default_tags {
-    tags = {
-      Workspace = terraform.workspace
-      Service   = "OSB"
-    }
-  }
-}
-
 # Created to access the ec2 instances
 resource "tls_private_key" "ssh_key" {
   algorithm = "RSA"
@@ -126,12 +114,6 @@ resource "aws_route_table_association" "subnet-association" {
   route_table_id = aws_route_table.route-table-test-env.id
 }
 
-data "aws_ec2_managed_prefix_list" "prefix-list" {
-  count    = length(var.prefix_list_id) > 0 ? 1 : 0
-  provider = aws.prefix_list_region
-  id       = var.prefix_list_id
-}
-
 data "aws_ami" "ubuntu_ami_amd64" {
   most_recent = true
 
@@ -172,40 +154,16 @@ resource "random_password" "cluster-password" {
   min_numeric = 1
 }
 
-data "external" "latest_snapshot_version" {
-  program = ["python3", "${path.module}/get_latest_snapshot_version.py"]
-  query = {
-    s3_bucket_name        = var.s3_bucket_name
-    cluster_type          = "OS"
-    cluster_version       = var.os_version
-    workload              = var.workload
-    snapshot_version      = var.snapshot_version
-  }
-}
-
 locals {
-  # set instance types based on the workload
-  # TODO set r*.4xlarge if vectorsearch with 10 million docs
-  workload_cluster_instance_map = {
-    vectorsearch = "r6gd.4xlarge"
-  }
-  workload_loadgen_instance_map = {
-    vectorsearch = "c5d.4xlarge"
-  }
   default_cluster_instance = "c5d.2xlarge"
   default_loadgen_instance = "c5d.2xlarge"
-  cluster_instance_type    = lookup(local.workload_cluster_instance_map, var.workload, local.default_cluster_instance)
-  loadgen_instance_type    = lookup(local.workload_loadgen_instance_map, var.workload, local.default_loadgen_instance)
+  cluster_instance_type    = local.default_cluster_instance
+  loadgen_instance_type    = local.default_loadgen_instance
 
-  workload_cluster_ami_map = {
-    vectorsearch = data.aws_ami.ubuntu_ami_arm64.id
-  }
-  workload_loadgen_ami_map = {
-  }
   default_cluster_ami = data.aws_ami.ubuntu_ami_amd64.id
   default_loadgen_ami = data.aws_ami.ubuntu_ami_amd64.id
-  cluster_ami_id      = lookup(local.workload_cluster_ami_map, var.workload, local.default_cluster_ami)
-  loadgen_ami_id      = lookup(local.workload_loadgen_ami_map, var.workload, local.default_loadgen_ami)
+  cluster_ami_id      = local.default_cluster_ami
+  loadgen_ami_id      = local.default_loadgen_ami
 }
 
 module "os-cluster" {
@@ -225,20 +183,9 @@ module "os-cluster" {
   subnet_id             = aws_subnet.subnet.id
   subnet_cidr_block     = aws_subnet.subnet.cidr_block
   password              = random_password.cluster-password.result
-  prefix_list_id        = var.prefix_list_id
-  workload              = var.workload
-  osb_version           = var.osb_version
-
-  s3_bucket_name                      = var.s3_bucket_name
-  snapshot_version                    = data.external.latest_snapshot_version.result.latest_version
-  snapshot_user_aws_access_key_id     = var.snapshot_user_aws_access_key_id
-  snapshot_user_aws_secret_access_key = var.snapshot_user_aws_secret_access_key
-  workload_params                     = var.workload_params
-  test_procedure                      = var.test_procedure
 
   providers = {
     aws                    = aws
-    aws.prefix_list_region = aws.prefix_list_region
   }
 
   tags = {

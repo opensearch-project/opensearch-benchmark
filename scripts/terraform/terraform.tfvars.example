@@ -1,18 +1,2 @@
 aws_region                          = "eu-west-1"
 aws_subnet_zone                     = "eu-west-1a"
-target_cluster_type                 = "OpenSearch"
-prefix_list_id                      = "pl-06f77c0b59dbf70fe"
-snapshot_user_aws_access_key_id     = "<ACCESS-KEY>"
-snapshot_user_aws_secret_access_key = "<SECRET-KEY>"
-
-# Workload variables (modify as needed, see workload_params_default/ directory)
-workload        = "noaa_semantic_search"
-workload_params = <<EOF
-{
-     "number_of_replicas": 0,
-     "number_of_shards": 6,
-     "max_num_segments": 8,
-     "concurrent_segment_search_enabled": "false",
-     "search_clients": 8
-}
-EOF

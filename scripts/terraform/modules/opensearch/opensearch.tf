@@ -1,9 +1,6 @@
 locals {
-  cluster_arch_map = {
-    vectorsearch = "arm64"
-  }
   default_cluster_arch = "x64"
-  cluster_arch         = lookup(local.cluster_arch_map, var.workload, local.default_cluster_arch)
+  cluster_arch         = local.default_cluster_arch
 }
 
 terraform {
@@ -11,7 +8,6 @@ terraform {
     aws = {
       source                = "hashicorp/aws"
       version               = "5.65.0"
-      configuration_aliases = [aws.prefix_list_region]
     }
   }
 }
@@ -26,8 +22,8 @@ locals {
     cidrhost(var.subnet_cidr_block, 6)
   ]
   main_cluster_node_private_ip        = local.cluster_node_private_ips[0]
-  nodes_type                          = var.workload == "vectorsearch" ? "multi" : "single"
-  additional_nodes_idx                = var.workload == "vectorsearch" ? 1 : 3
+  nodes_type                          = "single"
+  additional_nodes_idx                = 3
   additional_cluster_node_private_ips = slice(local.cluster_node_private_ips, local.additional_nodes_idx, 3)
 }
 
@@ -51,8 +47,6 @@ resource "aws_instance" "target-cluster-additional-nodes" {
       os_password            = var.password,
       os_version             = var.os_version,
       os_arch                = local.cluster_arch,
-      os_snapshot_access_key = var.snapshot_user_aws_access_key_id,
-      os_snapshot_secret_key = var.snapshot_user_aws_secret_access_key,
       authorized_ssh_key     = var.ssh_pub_key,
       jvm_options_2          = yamlencode(base64gzip(file("${path.module}/jvm.v2.options"))),
       jvm_options_3          = yamlencode(base64gzip(file("${path.module}/jvm.v3.options"))),
@@ -103,8 +97,6 @@ resource "aws_instance" "target-cluster-main-node" {
       os_password            = var.password,
       os_version             = var.os_version,
       os_arch                = local.cluster_arch,
-      os_snapshot_access_key = var.snapshot_user_aws_access_key_id,
-      os_snapshot_secret_key = var.snapshot_user_aws_secret_access_key,
       authorized_ssh_key     = var.ssh_pub_key,
       jvm_options_2          = yamlencode(base64gzip(file("${path.module}/jvm.v2.options"))),
       jvm_options_3          = yamlencode(base64gzip(file("${path.module}/jvm.v3.options"))),

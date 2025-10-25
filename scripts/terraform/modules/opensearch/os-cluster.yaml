@@ -52,4 +52,4 @@ runcmd:
   - [ chown, -R, ubuntu:ubuntu, /mnt ]
   - [ mv, /ssh_pub_key, /home/ubuntu/.ssh/authorized_keys ]
   - [ chown, ubuntu:ubuntu, /home/ubuntu/.ssh/authorized_keys ]
-  - [ sudo, -u, ubuntu, /os_cluster.sh, "${os_password}", "${os_version}", "${os_arch}", "${os_snapshot_access_key}", "${os_snapshot_secret_key}", "${cluster_ips}", "${node_name}", "${nodes_type}" ]
+  - [ sudo, -u, ubuntu, /os_cluster.sh, "${os_password}", "${os_version}", "${os_arch}", "${cluster_ips}", "${node_name}", "${nodes_type}" ]

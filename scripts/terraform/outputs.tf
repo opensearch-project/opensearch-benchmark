@@ -12,10 +12,6 @@ output "cluster-password" {
   sensitive = true
 }
 
-output "snapshot-version" {
-  value = data.external.latest_snapshot_version.result.latest_version
-}
-
 output "ssh_private_key_file" {
   value = local_file.private_key.filename
 }
