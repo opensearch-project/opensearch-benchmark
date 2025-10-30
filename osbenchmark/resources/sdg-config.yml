@@ -2,6 +2,13 @@ settings:
   workers: 8
   max_file_size_gb: 40
   docs_per_chunk: 10000
+  filename_suffix_begins_at: 0
+  timeseries_enabled:
+    timeseries_field: "@timestamp"
+    timeseries_start_date: "1/1/2024"
+    timeseries_end_date: "1/31/2024"
+    timeseries_frequency: "ms"
+    timeseries_format: "epoch_ms"
 
 CustomGenerationValues:
   # For users who want to generate data via a custom Python module
