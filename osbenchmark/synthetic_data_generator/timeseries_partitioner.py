@@ -212,7 +212,7 @@ class TimeSeriesPartitioner:
     def _does_user_want_optimal_frequency(self, user_frequency: str, optimal_frequency: str) -> bool:
         valid_responses = ['y', 'yes', 'n', 'no']
         msg = f"The frequency [{optimal_frequency}] is a better option for the number of docs you are trying to generate " + \
-            f"because the current frequency you've selected does not have enough timestamps to allocate to docs generated." + \
+            "because the current frequency you've selected does not have enough timestamps to allocate to docs generated." + \
             f"If you prefer your current frequency [{user_frequency}], please extend the time frame. " + \
             f"Would you like to use [{optimal_frequency}] as the frequency? (y/n): "
         requested_input = input(msg)
