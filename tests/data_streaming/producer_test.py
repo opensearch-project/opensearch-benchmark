@@ -148,25 +148,25 @@ class TestS3DataProducer(TestCase):
 
     def test_get_keys_single(self):
         self.producer.keys = "file.json"
-        self.assertEqual(self.producer._get_keys(), ["file.json"])
+        self.assertEqual(list(self.producer._get_next_key()), ["file.json"])
 
     def test_get_keys_glob_0(self):
         self.producer.bucket = None
         self.producer.keys = "file*"
         self.producer.s3_client = mock.Mock()
         self.producer.s3_client.list_objects.return_value = { "Contents": [] }
-        self.assertEqual(self.producer._get_keys(), [])
+        self.assertEqual(list(self.producer._get_next_key()), [])
 
     def test_get_keys_glob_1(self):
         self.producer.bucket = None
         self.producer.keys = "file*"
         self.producer.s3_client = mock.Mock()
         self.producer.s3_client.list_objects.return_value = { "Contents": [ { "Key": "file1" } ] }
-        self.assertEqual(self.producer._get_keys(), ["file1"])
+        self.assertEqual(list(self.producer._get_next_key()), ["file1"])
 
     def test_get_keys_glob_2(self):
         self.producer.bucket = None
         self.producer.keys = "file*"
         self.producer.s3_client = mock.Mock()
         self.producer.s3_client.list_objects.return_value = { "Contents": [ { "Key": "file1" }, { "Key": "file2" } ] }
-        self.assertEqual(self.producer._get_keys(), ["file1", "file2"])
+        self.assertEqual(list(self.producer._get_next_key()), ["file1", "file2"])

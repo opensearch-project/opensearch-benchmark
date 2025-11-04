@@ -8,6 +8,7 @@
 
 import os
 import sys
+import time
 import logging
 
 from concurrent.futures import ThreadPoolExecutor, wait
@@ -44,20 +45,33 @@ class S3DataProducer(DataProducer):
         except Exception as e:
             print(f"Error: {e}")
 
-    def _get_keys(self):
-        rsl = list()
-        if self.keys[-1] == '*':
-            keys = self.s3_client.list_objects(Bucket=self.bucket, Prefix=self.keys[:-1])
-            for key in keys['Contents']:
-                rsl.append(key['Key'])
+    def _get_next_key(self):
+        if len(self.keys) > 2 and self.keys.endswith('**'):
+            processed_keys = set()
+            while True:
+                response = self.s3_client.list_objects(Bucket=self.bucket, Prefix=self.keys[:-2])
+                for object in response['Contents']:
+                    key = object['Key']
+                    if key not in processed_keys:
+                        processed_keys.add(key)
+                        size = self.s3_client.head_object(Bucket=self.bucket, Key=key)['ContentLength']
+                        if size == 0:
+                            return
+                        yield key
+                self.logger.info("Waiting for next (or empty) S3 object to appear in target bucket")
+                time.sleep(60)
+        elif len(self.keys) > 1 and self.keys[-1] == '*':
+            response = self.s3_client.list_objects(Bucket=self.bucket, Prefix=self.keys[:-1])
+            for object in response['Contents']:
+                yield object['Key']
         else:
-            rsl.append(self.keys)
-        return rsl
+            yield self.keys
 
     def _get_next_downloader(self):
         "Generator that returns the downloader for the next object to be downloaded."
-        for k in self._get_keys():
+        for k in self._get_next_key():
             # Obtain the object size.
+            self.logger.info("Processing object %s", k)
             response = self.s3_client.head_object(Bucket=self.bucket, Key=k)
             size = response['ContentLength']
             yield self._s3_multipart_downloader(self.bucket, k, 0, size)
@@ -129,8 +143,10 @@ class S3DataProducer(DataProducer):
                 IngestionManager.wr_count.value = chunk_id
                 partial_line = rsl[i:]
                 if chunk_id - IngestionManager.rd_index.value > IngestionManager.plimsoll:
+                    # self.logger.info("S3 data producer waiting for clients to catch up")
                     with IngestionManager.load_full:
                         IngestionManager.load_full.wait()
+                    # self.logger.info("S3 data producer restarting after wait")
         self._output_chunk("", chunk_id)
         chunk_id += 1
         IngestionManager.wr_count.value = chunk_id

@@ -1305,10 +1305,12 @@ class WorkerCoordinator:
             progress_per_client = [s.task_progress
                                    for s in self.most_recent_sample_per_client.values() if s.task_progress is not None]
 
+            if not progress_per_client:
+                # No clients have reported.
+                progress_per_client = [(0.0, '%')]
             num_clients = len(progress_per_client)
-            assert num_clients > 0, "Number of clients is 0"
             total_progress = sum([p[0] for p in progress_per_client]) / num_clients
-            units = set(progress_per_client)
+            units = { p[1] for p in progress_per_client }
             assert len(units) == 1, "Encountered mix of disparate units while tracking task progress"
             unit = units.pop()
             if unit != '%':
