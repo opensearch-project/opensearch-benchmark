@@ -24,46 +24,45 @@ class TimeSeriesConfig(BaseModel):
     timeseries_format: str
 
     # pylint: disable = no-self-argument
-    @field_validator('timeseries_start_date')
-    def validate_start_date(cls, v):
+    @field_validator('timeseries_start_date', 'timeseries_end_date', 'timeseries_frequency', 'timeseries_format')
+    def validate_string_fields(cls, v, info):
+        """Validate that timeseries configuration fields are strings"""
         if not isinstance(v, str):
-            raise ValueError(f"Timeseries start date requires a string value. Value {v} is not valid.")
+            field_name = info.field_name.replace('_', ' ').title()
+            raise ValueError(f"{field_name} requires a string value. Value {v} is not valid.")
+
+        # Additional validation for frequency and format fields
+        if info.field_name == 'timeseries_frequency':
+            if v not in TimeSeriesPartitioner.AVAILABLE_FREQUENCIES:
+                raise ValueError(f"Timeseries frequency {v} is not a valid value. Valid values are {TimeSeriesPartitioner.AVAILABLE_FREQUENCIES}")
+
+        if info.field_name == 'timeseries_format':
+            if v not in TimeSeriesPartitioner.VALID_DATETIMESTAMPS_FORMATS:
+                raise ValueError(f"Timeseries format {v} is not a valid value. Valid values are {TimeSeriesPartitioner.VALID_DATETIMESTAMPS_FORMATS}")
 
         return v
 
     # pylint: disable = no-self-argument
-    @field_validator('timeseries_end_date')
-    def validate_end_date(cls, v):
-        if not isinstance(v, str):
-            raise ValueError(f"Timeseries end date requires a string value. Value {v} is not valid.")
+    @field_validator('timeseries_field')
+    def validate_timeseries_field(cls, v):
+        if not v or not v.strip():
+            raise ValueError("timeseries_field cannot be empty")
 
-        return v
-
-    # pylint: disable = no-self-argument
-    @field_validator('timeseries_frequency')
-    def validate_frequency(cls, v):
-        if not isinstance(v, str):
-            raise ValueError(f"Timeseries frequency requires a string value. Value {v} is not valid.")
-        if v not in TimeSeriesPartitioner.AVAILABLE_FREQUENCIES:
-            raise ValueError(f"Timeseries frequeny {v} is not a valid value. Valid values are {TimeSeriesPartitioner.AVAILABLE_FREQUENCIES}")
-
-        return v
-
-    # pylint: disable = no-self-argument
-    @field_validator('timeseries_format')
-    def validate_format(cls, v):
-        if not isinstance(v, str):
-            raise ValueError(f"Timeseries format requires a string value. Value {v} is not valid.")
-        if v not in TimeSeriesPartitioner.VALID_DATETIMESTAMPS_FORMATS:
-            raise ValueError(f"Timeseries format {v} is not a valid value. Valid values are {TimeSeriesPartitioner.VALID_DATETIMESTAMPS_FORMATS}")
+        # Validate field name format
+        # OpenSearch field names must start with a letter and contain only alphanumeric, underscores, and periods
+        if not re.match(r'^[a-zA-Z][a-zA-Z0-9_.]*$', v):
+            raise ValueError(
+                f"Invalid timeseries_field '{v}'. Field names must start with a letter "
+                "and contain only alphanumeric characters, underscores, and periods."
+            )
 
         return v
 
 class SettingsConfig(BaseModel):
     workers: Optional[int] = Field(default_factory=os.cpu_count) # Number of workers recommended to not exceed CPU count
-    max_file_size_gb: Optional[int] = 40 # Default because some CloudProviders limit the size of files stored
-    docs_per_chunk: Optional[int] = 10000 # Default based on testing
-    filename_suffix_begins_at: Optional[int] = 0 # Start at suffix 0
+    max_file_size_gb: Optional[int] = 40                         # Default because some CloudProviders limit the size of files stored
+    docs_per_chunk: Optional[int] = 10000                        # Default based on testing
+    filename_suffix_begins_at: Optional[int] = 0                 # Start at suffix 0
     timeseries_enabled: Optional[TimeSeriesConfig] = None
 
     # pylint: disable = no-self-argument

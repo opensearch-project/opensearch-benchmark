@@ -61,13 +61,13 @@ class CustomModuleStrategy(DataGenerationStrategy):
         self.logger.info("Generating data across workers")
         if timeseries_enabled and timeseries_windows:
             futures = []
-            # pylint: disable=C0200
+            # pylint: disable=consider-using-enumerate
             for _ in range(len(seeds)):
                 seed = seeds[_]
                 window = timeseries_windows[_]
                 future = dask_client.submit(
                     self.generate_data_chunk_from_worker, self.custom_module.generate_synthetic_document,
-                    docs_per_chunk, seed, timeseries_enabled, window,
+                    docs_per_chunk, seed, timeseries_enabled, window
                 )
 
                 futures.append(future)

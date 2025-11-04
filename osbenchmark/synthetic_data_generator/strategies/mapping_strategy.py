@@ -39,13 +39,13 @@ class MappingStrategy(DataGenerationStrategy):
         """
         if timeseries_enabled and timeseries_windows:
             futures = []
-            # pylint: disable=C0200
+            # pylint: disable=consider-using-enumerate
             for _ in range(len(seeds)):
                 seed = seeds[_]
                 window = timeseries_windows[_]
                 future = dask_client.submit(
                     self.generate_data_chunk_from_worker,
-                    docs_per_chunk, seed, timeseries_enabled, window,
+                    docs_per_chunk, seed, timeseries_enabled, window
                 )
 
                 futures.append(future)
@@ -181,8 +181,8 @@ class MappingConverter:
             return f"key_{uuid.uuid4().hex[:8]}"
 
     def generate_long(self, field_def: Dict[str, Any], **params) -> int:
-        min = params.get('min', -9223372036854775808)
-        max = params.get('max', 9223372036854775807)
+        min = params.get('min', -(2**63 - 1))
+        max = params.get('max', (2**63 - 1))
         return random.randint(min, max)
 
     def generate_integer(self, field_def: Dict[str, Any], **params) -> int:

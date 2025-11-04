@@ -18,8 +18,7 @@ import osbenchmark.exceptions as exceptions
 
 class TimeSeriesPartitioner:
 
-    # Change this into a dictionary that points to which frequencies can have which formats
-    # TODO: Add epoch timestamp in ms and s
+    # TODO: Change this into a dictionary that points to which frequencies can have which formats
     VALID_DATETIMESTAMPS_FORMATS = [
         "%Y-%m-%d",                 # 2023-05-20
         "%Y-%m-%dT%H:%M:%S",        # 2023-05-20T15:30:45
@@ -32,28 +31,29 @@ class TimeSeriesPartitioner:
         "%m-%d-%Y",                 # 05-20-2023
         "%d.%m.%Y",                 # 20.05.2023
         "%Y%m%d",                   # 20230520
-        "%B %d, %Y",               # May 20, 2023
-        "%b %d, %Y",              # May 20, 2023
-        "%d %B %Y",               # 20 May 2023
-        "%d %b %Y",               # 20 May 2023
-        "%Y %B %d",               # 2023 May 20
-        "%d/%m/%Y %H:%M",         # 20/05/2023 15:30
-        "%d/%m/%Y %H:%M:%S",      # 20/05/2023 15:30:45
-        "%Y-%m-%d %I:%M %p",      # 2023-05-20 03:30 PM
-        "%d.%m.%Y %H:%M",         # 20.05.2023 15:30
-        "%H:%M",                  # 15:30
-        "%H:%M:%S",               # 15:30:45
-        "%I:%M %p",              # 03:30 PM
-        "%I:%M:%S %p",           # 03:30:45 PM
-        "%a, %d %b %Y %H:%M:%S", # Sat, 20 May 2023 15:30:45
-        "%Y/%m/%d",              # 2023/05/20
-        "%Y/%m/%d %H:%M:%S",     # 2023/05/20 15:30:45
-        "%Y%m%d%H%M%S",          # 20230520153045
-        "epoch_s",               # Epoch time in seconds format
-        "epoch_ms"               # Epocjh time in ms format
+        "%B %d, %Y",                # May 20, 2023
+        "%b %d, %Y",                # May 20, 2023
+        "%d %B %Y",                 # 20 May 2023
+        "%d %b %Y",                 # 20 May 2023
+        "%Y %B %d",                 # 2023 May 20
+        "%d/%m/%Y %H:%M",           # 20/05/2023 15:30
+        "%d/%m/%Y %H:%M:%S",        # 20/05/2023 15:30:45
+        "%Y-%m-%d %I:%M %p",        # 2023-05-20 03:30 PM
+        "%d.%m.%Y %H:%M",           # 20.05.2023 15:30
+        "%H:%M",                    # 15:30
+        "%H:%M:%S",                 # 15:30:45
+        "%I:%M %p",                 # 03:30 PM
+        "%I:%M:%S %p",              # 03:30:45 PM
+        "%a, %d %b %Y %H:%M:%S",    # Sat, 20 May 2023 15:30:45
+        "%Y/%m/%d",                 # 2023/05/20
+        "%Y/%m/%d %H:%M:%S",        # 2023/05/20 15:30:45
+        "%Y%m%d%H%M%S",             # 20230520153045
+        "epoch_s",                  # Epoch time in seconds format
+        "epoch_ms"                  # Epoch time in ms format
     ]
 
     # TODO: Let's make this a hashmap so that we can ensure the invalid formats are not used (e.g. frequency is updated to ms and format is still seconds)
+    # These frequencies are based on what is supported in the Pandas library
     AVAILABLE_FREQUENCIES = ['B', 'C', 'D', 'h', 'bh', 'cbh', 'min', 's', 'ms']
 
     def __init__(self, timeseries_enabled: dict, workers: int, docs_per_chunk: int, avg_document_size: int, total_size_bytes: int):
@@ -101,10 +101,11 @@ class TimeSeriesPartitioner:
 
         if number_of_timestamps < expected_number_of_docs_with_buffer:
             self.logger.info("Number of timestamps generated is less than expected docs generated. Trying to find the optimal frequency")
-            # Because last in the available frequencies
+            # ms is the smallest unit of time SDG can generate
             if self.frequency == 'ms':
-                self.logger.error("No other time frequencies to try. Not enough timestamps to generate for docs. Please expand dates and frequency accordingly.")
-                raise exceptions.ConfigError("No other time frequencies to try. Not enough timestamps to generate for docs. Please expand dates and frequency accordingly.")
+                msg = "No finer time frequencies available to try than \"ms\". Please expand dates and frequency accordingly."
+                self.logger.error(msg)
+                raise exceptions.ConfigError(msg)
 
             #TODO: Update the timeseries enabled settings too so downstream isn't confused
             optimal_frequency = self._try_other_frequencies(expected_number_of_docs_with_buffer)
@@ -195,7 +196,7 @@ class TimeSeriesPartitioner:
 
     def _try_other_frequencies(self, expected_number_of_docs_with_buffer: int) -> str:
         frequencies_to_try = deque(TimeSeriesPartitioner.AVAILABLE_FREQUENCIES[TimeSeriesPartitioner.AVAILABLE_FREQUENCIES.index(self.frequency)+1:])
-        print(frequencies_to_try)
+
         frequency = ""
         while frequencies_to_try:
             frequency = frequencies_to_try.popleft()
@@ -210,7 +211,8 @@ class TimeSeriesPartitioner:
 
     def _does_user_want_optimal_frequency(self, user_frequency: str, optimal_frequency: str) -> bool:
         valid_responses = ['y', 'yes', 'n', 'no']
-        msg = f"The frequency [{optimal_frequency}] is a better option for the number of docs you are trying to generate. " + \
+        msg = f"The frequency [{optimal_frequency}] is a better option for the number of docs you are trying to generate " + \
+            f"because the current frequency you've selected does not have enough timestamps to allocate to docs generated." + \
             f"If you prefer your current frequency [{user_frequency}], please extend the time frame. " + \
             f"Would you like to use [{optimal_frequency}] as the frequency? (y/n): "
         requested_input = input(msg)
