@@ -151,11 +151,15 @@ class SyntheticDataGenerator:
                     if timeseries_window and timeseries_enabled_settings:
                         windows_for_workers = [next(timeseries_window) for _ in range(workers)]
                         self.logger.info("Windows for workers: %s", windows_for_workers)
+                        mp_generation_start_time = time.time()
                         futures = self.strategy.generate_data_chunks_across_workers(
                             dask_client, docs_per_chunk, seeds,
                             timeseries_enabled_settings, windows_for_workers
                         )
                         results = dask_client.gather(futures)
+                        mp_generation_end_time = time.time()
+                        mp_generation_took_time = mp_generation_end_time - mp_generation_start_time
+                        self.logger.info("Futures for generated docs with timestamp took [%s] seconds", mp_generation_took_time)
 
                         ordered_results = TimeSeriesPartitioner.sort_results_by_datetimestamps(results, timeseries_enabled_settings.timeseries_field)
 
