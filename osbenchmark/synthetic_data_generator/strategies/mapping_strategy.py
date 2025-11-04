@@ -202,8 +202,8 @@ class MappingConverter:
         return random.randint(min, max)
 
     def generate_double(self, field_def: Dict[str, Any], **params) -> float:
-        min = params.get('min', -1000000)
-        max = params.get('max', 1000000)
+        min = params.get('min', -1e9)
+        max = params.get('max', 1e9)
         return random.uniform(min, max)
 
     def generate_float(self, field_def: Dict[str, Any], **params) -> float:
