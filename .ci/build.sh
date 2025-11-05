@@ -31,8 +31,8 @@ function setup {
 
 function build_and_unit_test {
   setup
-
   set -e
+
   make develop
   make lint
   make test
@@ -40,6 +40,7 @@ function build_and_unit_test {
 
 function run_it {
   setup
+  set -e
 
   docker pull ubuntu/squid:latest
 
