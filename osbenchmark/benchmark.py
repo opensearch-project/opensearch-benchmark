@@ -1077,7 +1077,7 @@ def configure_connection_params(arg_parser, args, cfg):
     cfg.add(config.Scope.applicationOverride, "client", "options", client_options)
 
     # Configure gRPC target hosts
-    grpc_target_hosts = opts.TargetHosts(args.grpc_target_hosts) if args.grpc_target_hosts else None
+    grpc_target_hosts = opts.TargetHosts(args.grpc_target_hosts) if hasattr(args, "grpc_target_hosts") and args.grpc_target_hosts else None
     cfg.add(config.Scope.applicationOverride, "client", "grpc_hosts", grpc_target_hosts)
     if "timeout" not in client_options.default:
         console.info("You did not provide an explicit timeout in the client options. Assuming default of 10 seconds.")
