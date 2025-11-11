@@ -931,21 +931,140 @@ class BulkVectorDataSet(Runner):
     async def __call__(self, opensearch, params):
         size = parse_int_parameter("size", params)
         retries = parse_int_parameter("retries", params, 0) + 1
+        detailed_results = params.get("detailed-results", False)
+
+        if not detailed_results:
+            opensearch.return_raw_response()
+
+        bulk_size = mandatory(params, "bulk-size", self)
+        unit = mandatory(params, "unit", self)
 
         for attempt in range(retries):
             try:
                 request_context_holder.on_client_request_start()
-                await opensearch.bulk(
+                response = await opensearch.bulk(
                     body=params["body"]
                 )
                 request_context_holder.on_client_request_end()
 
-                return size, "docs"
+                stats = self.detailed_stats(params, response) if detailed_results else self.simple_stats(bulk_size, unit, response)
+
+                meta_data = {
+                    "size": size,
+                    "index": params.get("index"),
+                    "weight": bulk_size,
+                    "unit": unit,
+                }
+                meta_data.update(stats)
+
+                if not stats["success"]:
+                    meta_data["error-type"] = "bulk"
+                
+                return meta_data
             except ConnectionTimeout:
                 self.logger.warning("Bulk vector ingestion timed out. Retrying attempt: %d", attempt)
 
         raise TimeoutError("Failed to submit bulk request in specified number "
                            "of retries: {}".format(retries))
+    
+    def detailed_stats(self, params, response):
+        ops = {}
+        shards_histogram = OrderedDict()
+        bulk_error_count = 0
+        bulk_success_count = 0
+        error_details = set()
+        bulk_request_size_bytes = 0
+        total_document_size_bytes = 0
+        with_action_metadata = mandatory(params, "action-metadata-present", self)
+
+        if isinstance(params["body"], str):
+            bulk_lines = params["body"].split("\n")
+        elif isinstance(params["body"], list):
+            bulk_lines = params["body"]
+        else:
+            raise exceptions.DataError("bulk body is neither string nor list")
+
+        for line_number, data in enumerate(bulk_lines):
+            line_size = len(data.encode('utf-8'))
+            if with_action_metadata:
+                if line_number % 2 == 1:
+                    total_document_size_bytes += line_size
+            else:
+                total_document_size_bytes += line_size
+
+            bulk_request_size_bytes += line_size
+
+        for item in response["items"]:
+            # there is only one (top-level) item
+            op, data = next(iter(item.items()))
+            if op not in ops:
+                ops[op] = Counter()
+            ops[op]["item-count"] += 1
+            if "result" in data:
+                ops[op][data["result"]] += 1
+
+            if "_shards" in data:
+                s = data["_shards"]
+                sk = "%d-%d-%d" % (s["total"], s["successful"], s["failed"])
+                if sk not in shards_histogram:
+                    shards_histogram[sk] = {
+                        "item-count": 0,
+                        "shards": s
+                    }
+                shards_histogram[sk]["item-count"] += 1
+            if data["status"] > 299 or ("_shards" in data and data["_shards"]["failed"] > 0):
+                bulk_error_count += 1
+                self.extract_error_details(error_details, data)
+            else:
+                bulk_success_count += 1
+        stats = {
+            "took": response.get("took"),
+            "success": bulk_error_count == 0,
+            "success-count": bulk_success_count,
+            "error-count": bulk_error_count,
+            "ops": ops,
+            "shards_histogram": list(shards_histogram.values()),
+            "bulk-request-size-bytes": bulk_request_size_bytes,
+            "total-document-size-bytes": total_document_size_bytes
+        }
+        if bulk_error_count > 0:
+            stats["error-type"] = "bulk"
+            stats["error-description"] = self.error_description(error_details)
+        if "ingest_took" in response:
+            stats["ingest_took"] = response["ingest_took"]
+
+        return stats
+
+    def simple_stats(self, bulk_size, unit, response):
+        bulk_success_count = bulk_size if unit == "docs" else None
+        bulk_error_count = 0
+        error_details = set()
+        # parse lazily on the fast path
+        props = parse(response, ["errors", "took"])
+
+        if props.get("errors", False):
+            # determine success count regardless of unit because we need to iterate through all items anyway
+            bulk_success_count = 0
+            # Reparse fully in case of errors - this will be slower
+            parsed_response = json.loads(response.getvalue())
+            for item in parsed_response["items"]:
+                data = next(iter(item.values()))
+                if data["status"] > 299 or ('_shards' in data and data["_shards"]["failed"] > 0):
+                    bulk_error_count += 1
+                    self.extract_error_details(error_details, data)
+                else:
+                    bulk_success_count += 1
+        stats = {
+            "took": props.get("took"),
+            "success": bulk_error_count == 0,
+            "success-count": bulk_success_count,
+            "error-count": bulk_error_count
+        }
+
+        if bulk_error_count > 0:
+            stats["error-type"] = "bulk"
+            stats["error-description"] = self.error_description(error_details)
+        return stats
 
     def __repr__(self, *args, **kwargs):
         return self.NAME
