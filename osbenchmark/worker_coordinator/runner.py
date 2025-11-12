@@ -941,6 +941,7 @@ class BulkVectorDataSet(Runner):
         current_params = dict(params)
 
         for attempt in range(retries):
+            print("Retrying failed documents...")
             docs_in_request = self._doc_count(current_body, with_action_metadata)
             current_params["body"] = current_body
             current_params["size"] = docs_in_request
