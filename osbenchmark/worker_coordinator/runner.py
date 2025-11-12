@@ -1073,7 +1073,8 @@ class BulkVectorDataSet(Runner):
         raise exceptions.DataError("bulk body is neither string nor list")
 
     def _build_retry_body(self, body, failed_indices, with_action_metadata):
-        print("Building retry bodies...")
+        print("Building retry body...")
+        self.logger.info("Building retry body...")
         if isinstance(body, str):
             lines = [line for line in body.split("\n") if line]
             retry_lines = []
@@ -1089,6 +1090,7 @@ class BulkVectorDataSet(Runner):
                 else:
                     retry_lines.append(lines[idx])
             print(f"retrying {retry_lines} documents")
+            self.logger.info(f"Retrying {retry_lines} documents...")
             return "\n".join(retry_lines) + ("\n" if retry_lines else "")
 
         retry_body = []
