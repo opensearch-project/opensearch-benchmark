@@ -929,35 +929,45 @@ class BulkVectorDataSet(Runner):
     NAME = "bulk-vector-data-set"
 
     async def __call__(self, opensearch, params):
-        size = parse_int_parameter("size", params)
-        unit = "docs"
+        with_action_metadata = params.get("action-metadata-present", True)
+        unit = params.get("unit", "docs")
         retries = parse_int_parameter("retries", params, 0) + 1
         detailed_results = params.get("detailed-results", False)
 
         if not detailed_results:
             opensearch.return_raw_response()
 
+        current_body = params["body"]
+        current_params = dict(params)
+
         for attempt in range(retries):
+            docs_in_request = self._doc_count(current_body, with_action_metadata)
+            current_params["body"] = current_body
+            current_params["size"] = docs_in_request
             try:
                 request_context_holder.on_client_request_start()
-                response = await opensearch.bulk(
-                    body=params["body"]
-                )
+                response = await opensearch.bulk(body=current_body)
                 request_context_holder.on_client_request_end()
 
-                stats = self.detailed_stats(params, response) if detailed_results else self.simple_stats(size, unit, response)
+                stats = self.detailed_stats(current_params, response) if detailed_results else self.simple_stats(
+                    docs_in_request, unit, response
+                )
 
                 meta_data = {
-                    "size": size,
-                    "index": params.get("index"),
-                    "weight": size,
+                    "size": docs_in_request,
+                    "index": current_params.get("index"),
+                    "weight": docs_in_request,
                     "unit": unit,
                 }
                 meta_data.update(stats)
 
                 if not stats["success"]:
                     meta_data["error-type"] = "bulk"
-                
+                    if detailed_results:
+                        failed_indices = stats.get("failed-indices", [])
+                        if failed_indices:
+                            current_body = self._build_retry_body(current_body, failed_indices, with_action_metadata)
+                            continue
                 return meta_data
             except ConnectionTimeout:
                 self.logger.warning("Bulk vector ingestion timed out. Retrying attempt: %d", attempt)
@@ -966,6 +976,9 @@ class BulkVectorDataSet(Runner):
                            "of retries: {}".format(retries))
     
     def detailed_stats(self, params, response):
+        docs = []
+        failed_docs = []
+        failed_indices = []
         ops = {}
         shards_histogram = OrderedDict()
         bulk_error_count = 0
@@ -975,23 +988,16 @@ class BulkVectorDataSet(Runner):
         total_document_size_bytes = 0
         with_action_metadata = mandatory(params, "action-metadata-present", self)
 
-        if isinstance(params["body"], str):
-            bulk_lines = params["body"].split("\n")
-        elif isinstance(params["body"], list):
-            bulk_lines = params["body"]
-        else:
-            raise exceptions.DataError("bulk body is neither string nor list")
+        bulk_lines, is_string_body = self._normalize_bulk_lines(params["body"])
 
-        for line_number, data in enumerate(bulk_lines):
-            line_size = len(data.encode('utf-8'))
-            if with_action_metadata:
-                if line_number % 2 == 1:
-                    total_document_size_bytes += line_size
-            else:
+        for line_number, entry in enumerate(bulk_lines):
+            line_size = self._entry_size(entry, is_string_body)
+            if not with_action_metadata or line_number % 2 == 1:
                 total_document_size_bytes += line_size
-
+                docs.append(entry)
             bulk_request_size_bytes += line_size
 
+        doc_idx = 0
         for item in response["items"]:
             # there is only one (top-level) item
             op, data = next(iter(item.items()))
@@ -1012,9 +1018,15 @@ class BulkVectorDataSet(Runner):
                 shards_histogram[sk]["item-count"] += 1
             if data["status"] > 299 or ("_shards" in data and data["_shards"]["failed"] > 0):
                 bulk_error_count += 1
+                if doc_idx < len(docs):
+                    failed_docs.append(docs[doc_idx])
+                    failed_indices.append(doc_idx)
                 self.extract_error_details(error_details, data)
             else:
                 bulk_success_count += 1
+            
+            doc_idx += 1
+
         stats = {
             "took": response.get("took"),
             "success": bulk_error_count == 0,
@@ -1023,7 +1035,9 @@ class BulkVectorDataSet(Runner):
             "ops": ops,
             "shards_histogram": list(shards_histogram.values()),
             "bulk-request-size-bytes": bulk_request_size_bytes,
-            "total-document-size-bytes": total_document_size_bytes
+            "total-document-size-bytes": total_document_size_bytes,
+            "failed-documents": failed_docs,
+            "failed-indices": failed_indices
         }
         if bulk_error_count > 0:
             stats["error-type"] = "bulk"
@@ -1032,6 +1046,58 @@ class BulkVectorDataSet(Runner):
             stats["ingest_took"] = response["ingest_took"]
 
         return stats
+
+    @staticmethod
+    def _normalize_bulk_lines(body):
+        if isinstance(body, str):
+            return [line for line in body.split("\n") if line], True
+        if isinstance(body, list):
+            return body, False
+        raise exceptions.DataError("bulk body is neither string nor list")
+
+    @staticmethod
+    def _entry_size(entry, is_string_body):
+        if is_string_body or isinstance(entry, str):
+            return len(entry.encode("utf-8"))
+        if isinstance(entry, (bytes, bytearray)):
+            return len(entry)
+        return len(json.dumps(entry, separators=(",", ":")).encode("utf-8"))
+
+    @staticmethod
+    def _doc_count(body, with_action_metadata):
+        if isinstance(body, str):
+            lines = [line for line in body.split("\n") if line]
+            return len(lines) // 2 if with_action_metadata else len(lines)
+        if isinstance(body, list):
+            return len(body) // 2 if with_action_metadata else len(body)
+        raise exceptions.DataError("bulk body is neither string nor list")
+
+    def _build_retry_body(self, body, failed_indices, with_action_metadata):
+        if isinstance(body, str):
+            lines = [line for line in body.split("\n") if line]
+            retry_lines = []
+            for idx in failed_indices:
+                if with_action_metadata:
+                    base = idx * 2
+                    retry_lines.extend(
+                        [
+                            lines[base],
+                            lines[base + 1] if base + 1 < len(lines) else "",
+                        ]
+                    )
+                else:
+                    retry_lines.append(lines[idx])
+            return "\n".join(retry_lines) + ("\n" if retry_lines else "")
+
+        retry_body = []
+        if with_action_metadata:
+            for idx in failed_indices:
+                base = idx * 2
+                retry_body.extend(body[base : base + 2])
+        else:
+            for idx in failed_indices:
+                retry_body.append(body[idx])
+        return retry_body
 
     def simple_stats(self, size, unit, response):
         bulk_success_count = size if unit == "docs" else None
