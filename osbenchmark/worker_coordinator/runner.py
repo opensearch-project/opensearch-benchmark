@@ -950,7 +950,7 @@ class BulkVectorDataSet(Runner):
                 meta_data = {
                     "size": size,
                     "index": params.get("index"),
-                    "weight": bulk_size,
+                    "weight": size,
                     "unit": unit,
                 }
                 meta_data.update(stats)
