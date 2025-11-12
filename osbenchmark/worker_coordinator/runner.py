@@ -1063,6 +1063,23 @@ class BulkVectorDataSet(Runner):
             stats["error-type"] = "bulk"
             stats["error-description"] = self.error_description(error_details)
         return stats
+    
+    def extract_error_details(self, error_details, data):
+        error_data = data.get("error", {})
+        error_reason = error_data.get("reason") if isinstance(error_data, dict) else str(error_data)
+        if error_data:
+            error_details.add((data["status"], error_reason))
+        else:
+            error_details.add((data["status"], None))
+
+    def error_description(self, error_details):
+        error_description = ""
+        for status, reason in error_details:
+            if reason:
+                error_description += "HTTP status: %s, message: %s" % (str(status), reason)
+            else:
+                error_description += "HTTP status: %s" % str(status)
+        return error_description
 
     def __repr__(self, *args, **kwargs):
         return self.NAME
