@@ -930,14 +930,12 @@ class BulkVectorDataSet(Runner):
 
     async def __call__(self, opensearch, params):
         size = parse_int_parameter("size", params)
+        unit = "docs"
         retries = parse_int_parameter("retries", params, 0) + 1
         detailed_results = params.get("detailed-results", False)
 
         if not detailed_results:
             opensearch.return_raw_response()
-
-        bulk_size = mandatory(params, "bulk-size", self)
-        unit = mandatory(params, "unit", self)
 
         for attempt in range(retries):
             try:
@@ -1035,8 +1033,8 @@ class BulkVectorDataSet(Runner):
 
         return stats
 
-    def simple_stats(self, bulk_size, unit, response):
-        bulk_success_count = bulk_size if unit == "docs" else None
+    def simple_stats(self, size, unit, response):
+        bulk_success_count = size if unit == "docs" else None
         bulk_error_count = 0
         error_details = set()
         # parse lazily on the fast path
