@@ -929,7 +929,7 @@ class BulkVectorDataSet(Runner):
     NAME = "bulk-vector-data-set"
 
     async def __call__(self, opensearch, params):
-        with_action_metadata = True
+        with_action_metadata = params.get("action-metadata-present", True)
         unit = params.get("unit", "docs")
         retries = parse_int_parameter("retries", params, 0) + 1
         detailed_results = params.get("detailed-results", True)

@@ -1504,7 +1504,7 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
             self.current += size
         self.task_progress = (self.current / self.total, '%')
 
-        return {"body": body, "retries": self.retries, "size": size}
+        return {"body": body, "retries": self.retries, "size": size, "with-action-metadata": True}
 
 
 def get_target(workload, params):
