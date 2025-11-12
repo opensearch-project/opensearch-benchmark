@@ -941,7 +941,6 @@ class BulkVectorDataSet(Runner):
         current_params = dict(params)
 
         for attempt in range(retries):
-            print("Retrying failed documents...")
             docs_in_request = self._doc_count(current_body, with_action_metadata)
             current_params["body"] = current_body
             current_params["size"] = docs_in_request
@@ -1074,6 +1073,7 @@ class BulkVectorDataSet(Runner):
         raise exceptions.DataError("bulk body is neither string nor list")
 
     def _build_retry_body(self, body, failed_indices, with_action_metadata):
+        print("Building retry bodies...")
         if isinstance(body, str):
             lines = [line for line in body.split("\n") if line]
             retry_lines = []
@@ -1088,6 +1088,7 @@ class BulkVectorDataSet(Runner):
                     )
                 else:
                     retry_lines.append(lines[idx])
+            print(f"retrying {retry_lines} documents")
             return "\n".join(retry_lines) + ("\n" if retry_lines else "")
 
         retry_body = []
