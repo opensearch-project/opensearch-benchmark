@@ -945,7 +945,7 @@ class BulkVectorDataSet(Runner):
                 )
                 request_context_holder.on_client_request_end()
 
-                stats = self.detailed_stats(params, response) if detailed_results else self.simple_stats(bulk_size, unit, response)
+                stats = self.detailed_stats(params, response) if detailed_results else self.simple_stats(size, unit, response)
 
                 meta_data = {
                     "size": size,
