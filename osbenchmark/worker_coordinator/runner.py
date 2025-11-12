@@ -932,7 +932,7 @@ class BulkVectorDataSet(Runner):
         with_action_metadata = params.get("action-metadata-present", True)
         unit = params.get("unit", "docs")
         retries = parse_int_parameter("retries", params, 0) + 1
-        detailed_results = params.get("detailed-results", False)
+        detailed_results = params.get("detailed-results", True)
 
         if not detailed_results:
             opensearch.return_raw_response()
