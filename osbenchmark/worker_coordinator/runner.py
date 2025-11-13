@@ -1109,7 +1109,7 @@ class BulkVectorDataSet(Runner):
                     )
                 else:
                     retry_lines.append(lines[idx])
-            self.logger.debug(
+            self.logger.info(
                 "Retrying %d string docs, indices=%s",
                 len(failed_indices),
                 failed_indices[: min(10, len(failed_indices))],
@@ -1124,7 +1124,7 @@ class BulkVectorDataSet(Runner):
         else:
             for idx in failed_indices:
                 retry_body.append(body[idx])
-        self.logger.debug(
+        self.logger.info(
             "Retrying %d structured docs, indices=%s",
             len(failed_indices),
             failed_indices[: min(10, len(failed_indices))],
