@@ -189,7 +189,7 @@ class Runner:
     async def __aenter__(self):
         return self
 
-    async def __call__(self, opensearch, params):
+    async def __call__(self, opensearch, params):  # pylint: disable=too-many-nested-blocks
         """
         Runs the actual method that should be benchmarked.
 
@@ -928,7 +928,7 @@ class BulkVectorDataSet(Runner):
 
     NAME = "bulk-vector-data-set"
 
-    async def __call__(self, opensearch, params):
+    async def __call__(self, opensearch, params): # pylint: disable=too-many-nested-blocks
         with_action_metadata = params.get("action-metadata-present", True)
         unit = params.get("unit", "docs")
         retries = parse_int_parameter("retries", params, 0) + 1
@@ -989,7 +989,7 @@ class BulkVectorDataSet(Runner):
 
         raise TimeoutError("Failed to submit bulk request in specified number "
                            "of retries: {}".format(retries))
-    
+
     def detailed_stats(self, params, response):
         docs = []
         failed_docs = []
@@ -1039,7 +1039,7 @@ class BulkVectorDataSet(Runner):
                 self.extract_error_details(error_details, data)
             else:
                 bulk_success_count += 1
-            
+
             doc_idx += 1
 
         stats = {
@@ -1159,7 +1159,7 @@ class BulkVectorDataSet(Runner):
             stats["error-type"] = "bulk"
             stats["error-description"] = self.error_description(error_details)
         return stats
-    
+
     def extract_error_details(self, error_details, data):
         error_data = data.get("error", {})
         error_reason = error_data.get("reason") if isinstance(error_data, dict) else str(error_data)
