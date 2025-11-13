@@ -1093,6 +1093,8 @@ class BulkVectorDataSet(Runner):
             len(failed_indices),
             with_action_metadata,
         )
+        self.logger.info(f"Body is of type: {type(body)}")
+        self.logger.info(f"Body printout: ", body)
         if isinstance(body, str):
             lines = [line for line in body.split("\n") if line]
             retry_lines = []
