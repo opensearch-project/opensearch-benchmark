@@ -34,6 +34,10 @@ import shutil
 
 import thespian.actors
 
+import linecache
+import os
+import tracemalloc
+
 from osbenchmark import PROGRAM_NAME, BANNER, FORUM_LINK, SKULL, check_python_version, doc_link, telemetry
 from osbenchmark import version, actor, config, paths, \
     test_run_orchestrator, publisher, \
@@ -43,9 +47,6 @@ from osbenchmark.synthetic_data_generator import synthetic_data_generator_orches
 from osbenchmark.workload_generator import workload_generator
 from osbenchmark.utils import io, convert, process, console, net, opts, versions
 from osbenchmark import aggregator
-import linecache
-import os
-import tracemalloc
 
 def create_arg_parser():
     def positive_number(v):
@@ -1313,29 +1314,6 @@ def handle_command_suggestions():
         return True
     return False
 
-def display_top(snapshot, key_type='lineno', limit=10):
-    snapshot = snapshot.filter_traces((
-        tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
-        tracemalloc.Filter(False, "<unknown>"),
-    ))
-    top_stats = snapshot.statistics(key_type)
-
-    print("Top %s lines" % limit)
-    for index, stat in enumerate(top_stats[:limit], 1):
-        frame = stat.traceback[0]
-        print("#%s: %s:%s: %.1f KiB"
-              % (index, frame.filename, frame.lineno, stat.size / 1024))
-        line = linecache.getline(frame.filename, frame.lineno).strip()
-        if line:
-            print('    %s' % line)
-
-    other = top_stats[limit:]
-    if other:
-        size = sum(stat.size for stat in other)
-        print("%s other: %.1f KiB" % (len(other), size / 1024))
-    total = sum(stat.size for stat in top_stats)
-    print("Total allocated size: %.1f KiB" % (total / 1024))
-
 
 def main():
     check_python_version()
@@ -1397,8 +1375,6 @@ def main():
     if hasattr(args, "results_file") and args.results_file:
         with open(args.results_file, "a") as fh:
             print("\n", message, file=fh)
-    snapshot = tracemalloc.take_snapshot()
-    display_top(snapshot)
 
     sys.exit(status)
 

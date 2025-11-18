@@ -45,6 +45,10 @@ from enum import Enum
 
 import thespian.actors
 
+import linecache
+import os
+import tracemalloc
+
 from osbenchmark.utils import opts
 from osbenchmark import actor, config, exceptions, metrics, workload, client, paths, PROGRAM_NAME, telemetry
 from osbenchmark.worker_coordinator import runner, scheduler
@@ -668,6 +672,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_WakeupMessage(self, msg, sender):
+        log_memory_usage("WorkerCoordinatorActor wakeup")
         if msg.payload == WorkerCoordinatorActor.RESET_RELATIVE_TIME_MARKER:
             self.coordinator.reset_relative_time()
         elif not self.coordinator.finished():
@@ -954,6 +959,7 @@ class WorkerCoordinator:
         self.complete_current_task_sent = False
 
         self.telemetry = None
+        log_memory_usage("initialized WorkerCoordinator")
 
     def create_os_clients(self):
         all_hosts = self.config.opts("client", "hosts").all_hosts
@@ -1547,6 +1553,28 @@ class ProfileMetricsSamplePostprocessor(SamplePostprocessor):
         self.logger.debug("Postprocessing [%d] raw samples (downsampled to [%d] samples) took [%f] seconds in total.",
                           len(raw_samples), final_sample_count, (end - total_start))
 
+def log_memory_usage(location):
+    snapshot = tracemalloc.take_snapshot()
+    display_top(snapshot, location)
+
+def display_top(snapshot, location, key_type='lineno', limit=10):
+    top_stats = snapshot.statistics(key_type)
+
+    print("Top %s lines at %s" % (limit, location))
+    for index, stat in enumerate(top_stats[:limit], 1):
+        frame = stat.traceback[0]
+        print("#%s: %s:%s: %.1f KiB"
+              % (index, frame.filename, frame.lineno, stat.size / 1024))
+        line = linecache.getline(frame.filename, frame.lineno).strip()
+        if line:
+            print('    %s' % line)
+
+    other = top_stats[limit:]
+    if other:
+        size = sum(stat.size for stat in other)
+        print("%s other: %.1f KiB" % (len(other), size / 1024))
+    total = sum(stat.size for stat in top_stats)
+    print("Total allocated size: %.1f KiB" % (total / 1024))
 
 def calculate_worker_assignments(host_configs, client_count):
     """
@@ -1702,6 +1730,7 @@ class Worker(actor.BenchmarkActor):
 
     @actor.no_retry("worker")  # pylint: disable=no-value-for-parameter
     def receiveMsg_WakeupMessage(self, msg, sender):
+        log_memory_usage("Worker WakeupMessage")
         # it would be better if we could send ourselves a message at a specific time, simulate this with a boolean...
         if self.start_driving:
             self.start_driving = False
