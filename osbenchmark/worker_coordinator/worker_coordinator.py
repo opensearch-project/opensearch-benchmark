@@ -1026,6 +1026,7 @@ class WorkerCoordinator:
                                                          self.workload.meta_data,
                                                          self.test_procedure.meta_data)
 
+        # Should os
         os_clients = self.create_os_clients()
 
         skip_rest_api_check = self.config.opts("builder", "skip.rest.api.check")

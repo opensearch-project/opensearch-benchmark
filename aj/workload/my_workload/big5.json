@@ -1,0 +1,223 @@
+{
+    "mappings": {
+        "_data_stream_timestamp": {
+            "enabled": true
+        },
+        "date_detection": false,
+        "dynamic_templates": [
+            {
+                "match_ip": {
+                    "mapping": {
+                        "type": "ip"
+                    },
+                    "match": "ip",
+                    "match_mapping_type": "string"
+                }
+            },
+            {
+                "match_message": {
+                    "mapping": {
+                        "type": "text"
+                    },
+                    "match": "message",
+                    "match_mapping_type": "string"
+                }
+            },
+            {
+                "strings_as_keyword": {
+                    "mapping": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    },
+                    "match_mapping_type": "string"
+                }
+            }
+        ],
+        "properties": {
+            "@timestamp": {
+                "type": "date"
+            },
+            "agent": {
+                "properties": {
+                    "ephemeral_id": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    },
+                    "id": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    },
+                    "name": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    },
+                    "type": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    },
+                    "version": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    }
+                }
+            },
+            "aws": {
+                "properties": {
+                    "cloudwatch": {
+                        "properties": {
+                            "ingestion_time": {
+                                "ignore_above": 1024,
+                                "type": "keyword"
+                            },
+                            "log_group": {
+                                "ignore_above": 1024,
+                                "type": "keyword"
+                            },
+                            "log_stream": {
+                                "ignore_above": 1024,
+                                "type": "keyword"
+                            }
+                        }
+                    }
+                }
+            },
+            "cloud": {
+                "properties": {
+                    "region": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    }
+                }
+            },
+            "data_stream": {
+                "properties": {
+                    "dataset": {
+                        "type": "keyword"
+                    },
+                    "namespace": {
+                        "type": "keyword"
+                    },
+                    "type": {
+                        "type": "keyword"
+                    }
+                }
+            },
+            "ecs": {
+                "properties": {
+                    "version": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    }
+                }
+            },
+            "event": {
+                "properties": {
+                    "dataset": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    },
+                    "id": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    },
+                    "ingested": {
+                        "type": "date"
+                    }
+                }
+            },
+            "host": {
+                "properties": {
+                    "name": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    }
+                }
+            },
+            "input": {
+                "properties": {
+                    "type": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    }
+                }
+            },
+            "log": {
+                "properties": {
+                    "file": {
+                        "properties": {
+                            "path": {
+                                "ignore_above": 1024,
+                                "type": "keyword"
+                            }
+                        }
+                    }
+                }
+            },
+            "message": {
+                "type": "text"
+            },
+            "meta": {
+                "properties": {
+                    "file": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    }
+                }
+            },
+            "metrics": {
+                "properties": {
+                    "size": {
+                        "type": "long"
+                    },
+                    "tmin": {
+                        "type": "long"
+                    }
+                }
+            },
+            "process": {
+                "properties": {
+                    "name": {
+                        "ignore_above": 1024,
+                        "type": "keyword"
+                    }
+                }
+            },
+            "tags": {
+                "ignore_above": 1024,
+                "type": "keyword"
+            }
+        }
+    },
+    "settings": {
+        "index": {
+            "codec": "best_compression",
+            "merge": {
+                "policy": "log_byte_size"
+            },
+            "number_of_replicas": "{{number_of_replicas | default(1)}}",
+            "number_of_shards": "{{number_of_shards | default(1)}}",
+            "queries": {
+                "cache": {
+                    "enabled": "false"
+                }
+            },
+            "query": {
+                "default_field": [
+                    "message"
+                ]
+            },
+            "replication": {
+                "type": "DOCUMENT"
+            },
+            "requests": {
+                "cache": {
+                    "enable": "false"
+                }
+            },
+            "translog": {
+                "durability": "async",
+                "sync_interval": "30s"
+            }
+        }
+    }
+}
