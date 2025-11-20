@@ -965,24 +965,13 @@ class BulkVectorDataSet(Runner):
                     meta_data["error-type"] = "bulk"
                     if detailed_results:
                         failed_indices = stats.get("failed-indices", [])
-                        failed_docs = stats.get("failed-documents", [])
                         if failed_indices:
-                            self.logger.warning(
-                                "Bulk vector attempt %d failed with %d docs. Retrying indices %s.",
-                                attempt + 1,
+                            self.logger.info(
+                                "%d documents failed during ingestion. Retrying.",
                                 len(failed_indices),
-                                failed_indices[: min(10, len(failed_indices))],
                             )
-                            if failed_docs:
-                                sample_preview = failed_docs[: min(3, len(failed_docs))]
-                                self.logger.debug("Sample failed docs: %s", sample_preview)
                             current_body = self._build_retry_body(current_body, failed_indices, with_action_metadata)
                             continue
-                        else:
-                            self.logger.error(
-                                "Bulk vector attempt %d failed but no failed indices were recorded; cannot retry.",
-                                attempt + 1,
-                            )
                 return meta_data
             except ConnectionTimeout:
                 self.logger.warning("Bulk vector ingestion timed out. Retrying attempt: %d", attempt)
@@ -1107,11 +1096,6 @@ class BulkVectorDataSet(Runner):
                     )
                 else:
                     retry_lines.append(lines[idx])
-            self.logger.info(
-                "Retrying %d string docs, indices=%s",
-                len(failed_indices),
-                failed_indices[: min(10, len(failed_indices))],
-            )
             return "\n".join(retry_lines) + ("\n" if retry_lines else "")
 
         retry_body = []
@@ -1122,11 +1106,6 @@ class BulkVectorDataSet(Runner):
         else:
             for idx in failed_indices:
                 retry_body.append(body[idx])
-        self.logger.info(
-            "Retrying %d structured docs, indices=%s",
-            len(failed_indices),
-            failed_indices[: min(10, len(failed_indices))],
-        )
         return retry_body
 
     def simple_stats(self, size, unit, response):
