@@ -2313,3 +2313,147 @@ class FeedbackActorTests(TestCase):
         # Should not raise
         self.actor._check_cpu_usage() # pylint: disable=protected-access
         assert full_queue.qsize() == 1  # Still full; error dropped
+
+
+class AsyncNoAwaitExecutorTests(TestCase):
+    def setUp(self):
+        params.register_param_source_for_name("worker-coordinator-test-param-source", WorkerCoordinatorTestParamSource)
+
+        self.cfg = config.Config()
+        self.cfg.add(config.Scope.application, "system", "env.name", "unittest")
+        self.cfg.add(config.Scope.application, "system", "available.cores", 8)
+        self.cfg.add(config.Scope.application, "workload", "test.mode.enabled", True)
+
+        all_client_options = {"default": {"base_timeout": 10}}
+        self.cfg.add(config.Scope.application, "client", "options",
+                     WorkerCoordinatorTests.Holder(all_client_options=all_client_options))
+
+        self.task = workload.Task("test-task",
+                                  workload.Operation("test-op", workload.OperationType.Bulk),
+                                  clients=2)
+        self.sampler = mock.Mock()
+        self.profile_sampler = mock.Mock()
+        self.cancel = threading.Event()
+        self.complete = threading.Event()
+        self.schedule_handle = mock.Mock()
+
+        opensearch_mock = mock.Mock()
+        opensearch_mock.new_request_context.return_value = mock.Mock()
+        self.opensearch = {"default": opensearch_mock}
+
+    def test_unhinged_executor_initialization(self):
+        executor = worker_coordinator.AsyncNoAwaitExecutor(
+            client_id=0,
+            task=self.task,
+            schedule=self.schedule_handle,
+            opensearch=self.opensearch,
+            sampler=self.sampler,
+            profile_sampler=self.profile_sampler,
+            cancel=self.cancel,
+            complete=self.complete,
+            on_error="continue"
+        )
+
+        self.assertEqual(0, executor.client_id)
+        self.assertEqual(self.task, executor.task)
+        self.assertEqual(self.schedule_handle, executor.schedule_handle)
+        self.assertEqual(self.opensearch, executor.opensearch)
+        self.assertTrue(executor.is_0)
+
+    def test_unhinged_executor_client_id_not_zero(self):
+        executor = worker_coordinator.AsyncNoAwaitExecutor(
+            client_id=1,
+            task=self.task,
+            schedule=self.schedule_handle,
+            opensearch=self.opensearch,
+            sampler=self.sampler,
+            profile_sampler=self.profile_sampler,
+            cancel=self.cancel,
+            complete=self.complete,
+            on_error="continue"
+        )
+
+        self.assertEqual(1, executor.client_id)
+        self.assertFalse(executor.is_0)
+
+    @mock.patch('osbenchmark.worker_coordinator.worker_coordinator.RequestContextHolder')
+    @mock.patch('asyncio.create_task')
+    @run_async
+    async def test_async_no_await_request_creates_task(self, mock_create_task, mock_context_holder):
+        mock_context_holder.init_request_context.return_value = ({}, mock.Mock())
+
+        executor = worker_coordinator.AsyncNoAwaitExecutor(
+            client_id=0,
+            task=self.task,
+            schedule=self.schedule_handle,
+            opensearch=self.opensearch,
+            sampler=self.sampler,
+            profile_sampler=self.profile_sampler,
+            cancel=self.cancel,
+            complete=self.complete,
+            on_error="continue"
+        )
+
+        executor.runner = mock.AsyncMock()
+
+        await executor._async_no_await_request({}, 1.0, 0.0)  # pylint: disable=protected-access
+
+        mock_create_task.assert_called_once()
+
+    @mock.patch('time.perf_counter')
+    @mock.patch('asyncio.sleep')
+    @mock.patch('osbenchmark.worker_coordinator.worker_coordinator.RequestContextHolder')
+    @mock.patch('asyncio.create_task')
+    @run_async
+    async def test_async_no_await_request_with_throttling(self, mock_create_task, mock_context_holder,
+                                                          mock_sleep, mock_perf_counter):
+        mock_context_holder.init_request_context.return_value = ({}, mock.Mock())
+        mock_perf_counter.return_value = 0.5  # Current time less than expected schedule time
+
+        executor = worker_coordinator.AsyncNoAwaitExecutor(
+            client_id=0,
+            task=self.task,
+            schedule=self.schedule_handle,
+            opensearch=self.opensearch,
+            sampler=self.sampler,
+            profile_sampler=self.profile_sampler,
+            cancel=self.cancel,
+            complete=self.complete,
+            on_error="continue"
+        )
+
+        executor.runner = mock.AsyncMock()
+
+        await executor._async_no_await_request({}, 1.0, 0.0)  # pylint: disable=protected-access  # expected_scheduled_time = 1.0
+
+        mock_sleep.assert_called_once_with(0.5)  # Should sleep for the difference
+        mock_create_task.assert_called_once()
+
+    @mock.patch('time.perf_counter')
+    @mock.patch('asyncio.sleep')
+    @mock.patch('osbenchmark.worker_coordinator.worker_coordinator.RequestContextHolder')
+    @mock.patch('asyncio.create_task')
+    @run_async
+    async def test_async_no_await_request_no_throttling_needed(self, mock_create_task, mock_context_holder,
+                                                               mock_sleep, mock_perf_counter):
+        mock_context_holder.init_request_context.return_value = ({}, mock.Mock())
+        mock_perf_counter.return_value = 1.5  # Current time exceeds expected schedule time
+
+        executor = worker_coordinator.AsyncNoAwaitExecutor(
+            client_id=0,
+            task=self.task,
+            schedule=self.schedule_handle,
+            opensearch=self.opensearch,
+            sampler=self.sampler,
+            profile_sampler=self.profile_sampler,
+            cancel=self.cancel,
+            complete=self.complete,
+            on_error="continue"
+        )
+
+        executor.runner = mock.AsyncMock()
+
+        await executor._async_no_await_request({}, 1.0, 0.0)  # pylint: disable=protected-access  # expected_scheduled_time = 1.0
+
+        mock_sleep.assert_not_called()  # No sleep needed
+        mock_create_task.assert_called_once()
