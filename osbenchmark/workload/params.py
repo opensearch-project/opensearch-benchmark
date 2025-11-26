@@ -1097,6 +1097,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
     PARAMS_NAME_REQUEST_PARAMS = "request-params"
     PARAMS_NAME_SOURCE = "_source"
     PARAMS_NAME_ALLOW_PARTIAL_RESULTS = "allow_partial_search_results"
+    PARAMS_NAME_EF_SEARCH = "hnsw_ef_search"
 
     def __init__(self, workloads, params, query_params, **kwargs):
         super().__init__(workloads, params, Context.QUERY, **kwargs)
@@ -1121,7 +1122,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
 
         self.filter_type = self.query_params.get(self.PARAMS_NAME_FILTER_TYPE)
         self.filter_body = self.query_params.get(self.PARAMS_NAME_FILTER_BODY)
-
+        self.ef_search = params.get(self.PARAMS_NAME_EF_SEARCH)
 
         if self.PARAMS_NAME_FILTER in params:
             self.query_params.update({
@@ -1226,6 +1227,10 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
             "vector": vector,
             "k": self.k,
         }
+        if self.ef_search is not None:
+            query["method_parameters"] = {
+                "ef_search": self.ef_search
+            }
         if efficient_filter:
             query.update({
                 "filter": efficient_filter,
