@@ -1097,8 +1097,22 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
     PARAMS_NAME_REQUEST_PARAMS = "request-params"
     PARAMS_NAME_SOURCE = "_source"
     PARAMS_NAME_ALLOW_PARTIAL_RESULTS = "allow_partial_search_results"
+    PARAMS_NAME_EF_SEARCH = "hnsw_ef_search"
 
     def __init__(self, workloads, params, query_params, **kwargs):
+        """
+        Initialize the vector search partition parameter source, parse vector-query-specific options, validate neighbor dataset configuration, and augment the instance state and provided query parameter map.
+        
+        Parameters:
+            workloads: Workload context used to resolve corpora and dataset defaults.
+            params (dict): Raw operation parameters from the workload; parsed values include `k`, `repetitions`, neighbor dataset settings, filter configuration, and optional `ef_search`.
+            query_params (dict): Mutable map of query request parameters that will be updated with `k`, operation type, id-field name, any filter settings, and `ef_search` when provided.
+        
+        Side effects:
+            - Validates neighbor data set configuration and stores neighbor dataset metadata on the instance.
+            - Updates `query_params` in-place with parsed values.
+            - Extends `self.corpora` with any corpora referenced by the neighbors data set corpus.
+        """
         super().__init__(workloads, params, Context.QUERY, **kwargs)
         self.logger = logging.getLogger(__name__)
         self.k = parse_int_parameter(self.PARAMS_NAME_K, params)
@@ -1121,7 +1135,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
 
         self.filter_type = self.query_params.get(self.PARAMS_NAME_FILTER_TYPE)
         self.filter_body = self.query_params.get(self.PARAMS_NAME_FILTER_BODY)
-
+        self.ef_search = params.get(self.PARAMS_NAME_EF_SEARCH)
 
         if self.PARAMS_NAME_FILTER in params:
             self.query_params.update({
@@ -1215,17 +1229,28 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         return self.query_params
 
     def _build_vector_search_query_body(self, vector, efficient_filter=None, filter_type=None, filter_body=None) -> dict:
-        """Builds a k-NN request that can be used to execute an approximate nearest
-        neighbor search against a k-NN plugin index
-        Args:
-            vector: vector used for query
+        """
+        Builds the request body for a k-NN vector search query.
+        
+        If the instance has `ef_search` configured, it will be included in the method parameters. When an efficient filter is provided the filter is embedded directly; when a non-efficient filter (and not `post_filter`) is provided the returned body will be a filtered k-NN query suitable for the requested filter type. If the target field is nested, the body is wrapped in a `nested` query for the outer field path.
+        
+        Parameters:
+            vector (Sequence[float]): The query vector to search with.
+            efficient_filter (dict | None): A filter expressible in the k-NN plugin's efficient filter format; when present it is added under the `filter` key.
+            filter_type (str | None): The type of non-efficient filter to apply (e.g., `"script"`, `"boolean"`, or `"post_filter"`). If `"post_filter"` or None, no special filtered k-NN wrapper is produced here.
+            filter_body (dict | None): The body of a non-efficient filter; passed to the filtered k-NN query builder when applicable.
+        
         Returns:
-            A dictionary containing the body used for search query
+            dict: A dictionary representing the search request body (either a plain `knn` query, a `nested` query containing a `knn`, or a filtered k-NN query depending on inputs and instance configuration).
         """
         query = {
             "vector": vector,
             "k": self.k,
         }
+        if self.ef_search is not None:
+            query["method_parameters"] = {
+                "ef_search": self.ef_search
+            }
         if efficient_filter:
             query.update({
                 "filter": efficient_filter,
