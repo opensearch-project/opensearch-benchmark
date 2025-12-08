@@ -41,7 +41,8 @@ import psutil
 import opensearchpy.helpers
 import tabulate
 
-from osbenchmark import client, time, exceptions, config, version, paths
+from osbenchmark.database.clients.opensearch import opensearch as client
+from osbenchmark import time, exceptions, config, version, paths
 from osbenchmark.utils import convert, console, io, versions
 from osbenchmark.visualizations.benchmark_report_renderer import render_results_html
 from osbenchmark.cloud_provider import CloudProviderFactory

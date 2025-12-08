@@ -34,7 +34,8 @@ import opensearchpy
 import pytest
 import urllib3.exceptions
 
-from osbenchmark import client, exceptions, doc_link
+from osbenchmark.database.clients.opensearch import opensearch as client
+from osbenchmark import exceptions, doc_link
 from osbenchmark.utils import console
 from tests import run_async
 

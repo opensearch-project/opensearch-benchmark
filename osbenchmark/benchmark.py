@@ -234,6 +234,11 @@ def create_arg_parser():
         default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS,
         help=f"Comma-separated list of client options to use. (default: {opts.ClientOptions.DEFAULT_CLIENT_OPTIONS})")
     create_workload_parser.add_argument(
+        "--database-type",
+        help="Define the database type to benchmark (default: opensearch).",
+        choices=["opensearch", "elasticsearch", "milvus", "vespa"],
+        default="opensearch")
+    create_workload_parser.add_argument(
         "--output-path",
         default=os.path.join(os.getcwd(), "workloads"),
         help="Workload output directory (default: workloads/)")
@@ -598,6 +603,11 @@ def create_arg_parser():
         help=f"Define a comma-separated list of client options to use. The options will be passed to the OpenSearch "
              f"Python client (default: {opts.ClientOptions.DEFAULT_CLIENT_OPTIONS}).",
         default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS)
+    test_run_parser.add_argument(
+        "--database-type",
+        help="Define the database type to benchmark (default: opensearch).",
+        choices=["opensearch", "elasticsearch", "milvus", "vespa"],
+        default="opensearch")
     test_run_parser.add_argument("--on-error",
                              choices=["continue", "abort"],
                              help="Controls how OSB behaves on response errors (default: continue).",
@@ -1075,6 +1085,10 @@ def configure_connection_params(arg_parser, args, cfg):
     cfg.add(config.Scope.applicationOverride, "client", "hosts", target_hosts)
     client_options = opts.ClientOptions(args.client_options, target_hosts=target_hosts)
     cfg.add(config.Scope.applicationOverride, "client", "options", client_options)
+
+    # Configure database type
+    database_type = args.database_type if hasattr(args, "database_type") else "opensearch"
+    cfg.add(config.Scope.applicationOverride, "database", "type", database_type)
 
     # Configure gRPC target hosts
     grpc_target_hosts = opts.TargetHosts(args.grpc_target_hosts) if hasattr(args, "grpc_target_hosts") and args.grpc_target_hosts else None

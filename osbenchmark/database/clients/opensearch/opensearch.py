@@ -401,3 +401,202 @@ class UnifiedClientFactory:
             grpc_stubs = grpc_factory.create_grpc_stubs()
 
         return UnifiedClient(opensearch_client, grpc_stubs)
+
+
+# ============================================================================
+# DatabaseClient Interface Implementation for OpenSearch
+# ============================================================================
+
+from osbenchmark.database.interface import (
+    DatabaseClient,
+    IndicesNamespace,
+    ClusterNamespace,
+    TransportNamespace
+)
+
+
+class OpenSearchIndicesNamespace(IndicesNamespace):
+    """Wrapper for opensearchpy indices namespace"""
+
+    def __init__(self, opensearch_indices):
+        self._indices = opensearch_indices
+
+    async def create(self, index, body=None, **kwargs):
+        return await self._indices.create(index=index, body=body, **kwargs)
+
+    async def delete(self, index, **kwargs):
+        return await self._indices.delete(index=index, **kwargs)
+
+    async def exists(self, index, **kwargs):
+        return await self._indices.exists(index=index, **kwargs)
+
+    async def refresh(self, index=None, **kwargs):
+        return await self._indices.refresh(index=index, **kwargs)
+
+    async def stats(self, index=None, metric=None, **kwargs):
+        return await self._indices.stats(index=index, metric=metric, **kwargs)
+
+    async def forcemerge(self, index=None, **kwargs):
+        return await self._indices.forcemerge(index=index, **kwargs)
+
+    def __getattr__(self, name):
+        """Delegate unknown attributes to the underlying indices namespace"""
+        return getattr(self._indices, name)
+
+
+class OpenSearchClusterNamespace(ClusterNamespace):
+    """Wrapper for opensearchpy cluster namespace"""
+
+    def __init__(self, opensearch_cluster):
+        self._cluster = opensearch_cluster
+
+    async def health(self, **kwargs):
+        return await self._cluster.health(**kwargs)
+
+    async def put_settings(self, body, **kwargs):
+        return await self._cluster.put_settings(body=body, **kwargs)
+
+    def __getattr__(self, name):
+        """Delegate unknown attributes to the underlying cluster namespace"""
+        return getattr(self._cluster, name)
+
+
+class OpenSearchTransportNamespace(TransportNamespace):
+    """Wrapper for opensearchpy transport namespace"""
+
+    def __init__(self, opensearch_transport):
+        self._transport = opensearch_transport
+
+    async def perform_request(self, method, url, params=None, body=None, headers=None):
+        return await self._transport.perform_request(
+            method=method,
+            url=url,
+            params=params,
+            body=body,
+            headers=headers
+        )
+
+    def __getattr__(self, name):
+        """Delegate unknown attributes to the underlying transport namespace"""
+        return getattr(self._transport, name)
+
+
+class OpenSearchDatabaseClient(DatabaseClient):
+    """
+    DatabaseClient implementation for OpenSearch.
+
+    This is a transparent wrapper around the opensearchpy client that implements
+    the DatabaseClient interface. It delegates all operations to the underlying
+    opensearchpy client with minimal overhead.
+    """
+
+    def __init__(self, opensearch_client):
+        """
+        Initialize with an opensearchpy client instance.
+
+        Args:
+            opensearch_client: An instance of opensearchpy.AsyncOpenSearch or UnifiedClient
+        """
+        self._client = opensearch_client
+
+        # Wrap namespaces
+        self._indices_ns = OpenSearchIndicesNamespace(opensearch_client.indices)
+        self._cluster_ns = OpenSearchClusterNamespace(opensearch_client.cluster)
+        self._transport_ns = OpenSearchTransportNamespace(opensearch_client.transport)
+
+    @property
+    def indices(self):
+        return self._indices_ns
+
+    @property
+    def cluster(self):
+        return self._cluster_ns
+
+    @property
+    def transport(self):
+        return self._transport_ns
+
+    async def bulk(self, body, index=None, doc_type=None, params=None, **kwargs):
+        # Note: doc_type is deprecated and removed in opensearchpy 2.x
+        # We accept it for backwards compatibility but don't pass it through
+        return await self._client.bulk(
+            body=body,
+            index=index,
+            params=params,
+            **kwargs
+        )
+
+    async def index(self, index, body, id=None, doc_type=None, **kwargs):
+        # Note: doc_type is deprecated and removed in opensearchpy 2.x
+        # We accept it for backwards compatibility but don't pass it through
+        return await self._client.index(
+            index=index,
+            body=body,
+            id=id,
+            **kwargs
+        )
+
+    async def search(self, index=None, body=None, doc_type=None, **kwargs):
+        # Note: doc_type is deprecated and removed in opensearchpy 2.x
+        # We accept it for backwards compatibility but don't pass it through
+        return await self._client.search(
+            index=index,
+            body=body,
+            **kwargs
+        )
+
+    def return_raw_response(self):
+        """Delegate to underlying client if method exists"""
+        if hasattr(self._client, 'return_raw_response'):
+            return self._client.return_raw_response()
+
+    def close(self):
+        """Delegate to underlying client if method exists"""
+        if hasattr(self._client, 'close'):
+            return self._client.close()
+
+    def __getattr__(self, name):
+        """
+        Delegate any unknown attributes to the underlying OpenSearch client.
+        This ensures full compatibility with operations that aren't in the interface.
+        """
+        return getattr(self._client, name)
+
+
+class OpenSearchClientFactory:
+    """
+    Factory for creating OpenSearch database clients.
+
+    This factory wraps the legacy OsClientFactory and UnifiedClientFactory
+    to create clients that implement the DatabaseClient interface.
+    """
+
+    def __init__(self, hosts, client_options):
+        """
+        Initialize factory with connection parameters.
+
+        Args:
+            hosts: List of host dictionaries with "host" and "port" keys
+            client_options: Dictionary of client-specific options
+        """
+        self.hosts = hosts
+        self.client_options = client_options
+        self.logger = logging.getLogger(__name__)
+
+    def create_async(self):
+        """
+        Create an async OpenSearch client that implements DatabaseClient interface.
+
+        Returns:
+            OpenSearchDatabaseClient wrapping an async opensearchpy client
+        """
+        # Use legacy OsClientFactory to create the actual client
+        os_factory = OsClientFactory(self.hosts, self.client_options)
+        opensearch_client = os_factory.create_async()
+
+        # Wrap it in our DatabaseClient interface
+        return OpenSearchDatabaseClient(opensearch_client)
+
+    def create(self):
+        """Non-async client is deprecated."""
+        raise NotImplementedError("Synchronous clients are deprecated. Use create_async() instead.")
