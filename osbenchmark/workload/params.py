@@ -1100,14 +1100,6 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
     PARAMS_NAME_EF_SEARCH = "hnsw_ef_search"
 
     def __init__(self, workloads, params, query_params, **kwargs):
-        """
-        Initialize the vector-search parameter source, validate neighbor dataset configuration, and populate query-related instance attributes.
-        
-        Parameters:
-            workloads (Workload or list): Workload definition(s) used to resolve corpora and datasets.
-            params (dict): User-provided parameters for vector search (e.g., k, repetitions, neighbors dataset settings, filters, ef_search).
-            query_params (dict): Mutable mapping of query settings that will be updated with resolved fields (k, operation type, id field name, filters).
-        """
         super().__init__(workloads, params, Context.QUERY, **kwargs)
         self.logger = logging.getLogger(__name__)
         self.k = parse_int_parameter(self.PARAMS_NAME_K, params)
@@ -1130,8 +1122,9 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
 
         self.filter_type = self.query_params.get(self.PARAMS_NAME_FILTER_TYPE)
         self.filter_body = self.query_params.get(self.PARAMS_NAME_FILTER_BODY)
-        self.ef_search = params.get(self.PARAMS_NAME_EF_SEARCH)
-
+        
+        self.ef_search = parse_int_parameter(self.PARAMS_NAME_EF_SEARCH, params)
+        
         if self.PARAMS_NAME_FILTER in params:
             self.query_params.update({
                 self.PARAMS_NAME_FILTER:  params.get(self.PARAMS_NAME_FILTER)
@@ -1224,17 +1217,12 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         return self.query_params
 
     def _build_vector_search_query_body(self, vector, efficient_filter=None, filter_type=None, filter_body=None) -> dict:
-        """
-        Constructs the k-NN query body for a vector search, including optional ef_search and filters.
-        
-        Parameters:
-            vector (Sequence[float] | numpy.ndarray): The query vector used for nearest-neighbor scoring.
-            efficient_filter (dict | None): An efficient (pre-search) filter expressed as a query DSL fragment to be applied by the k-NN plugin.
-            filter_type (str | None): If provided and not "post_filter", specifies how to combine a non-efficient filter with the k-NN query (e.g., "script" or "boolean").
-            filter_body (dict | None): The filter definition used when `filter_type` is set and an efficient filter is not supplied.
-        
+        """Builds a k-NN request that can be used to execute an approximate nearest
+        neighbor search against a k-NN plugin index
+        Args:
+            vector: vector used for query
         Returns:
-            dict: The request body for the k-NN portion of a search request. When the target field is nested, the returned body is wrapped in a `nested` query; when `ef_search` is configured it is included under `method_parameters`.
+            A dictionary containing the body used for search query
         """
         query = {
             "vector": vector,
