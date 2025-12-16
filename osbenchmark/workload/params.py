@@ -1122,9 +1122,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
 
         self.filter_type = self.query_params.get(self.PARAMS_NAME_FILTER_TYPE)
         self.filter_body = self.query_params.get(self.PARAMS_NAME_FILTER_BODY)
-        
         self.ef_search = parse_int_parameter(self.PARAMS_NAME_EF_SEARCH, params)
-        
         if self.PARAMS_NAME_FILTER in params:
             self.query_params.update({
                 self.PARAMS_NAME_FILTER:  params.get(self.PARAMS_NAME_FILTER)
