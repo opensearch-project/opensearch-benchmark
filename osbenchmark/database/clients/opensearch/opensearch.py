@@ -600,3 +600,20 @@ class OpenSearchClientFactory:
     def create(self):
         """Non-async client is deprecated."""
         raise NotImplementedError("Synchronous clients are deprecated. Use create_async() instead.")
+
+    def wait_for_rest_layer(self, max_attempts=40):
+        """
+        Wait for OpenSearch's REST API to become available.
+
+        Args:
+            max_attempts: Maximum number of attempts to check availability.
+
+        Returns:
+            True if REST API is available, False otherwise.
+        """
+        # Use legacy OsClientFactory to create a sync client for health check
+        os_factory = OsClientFactory(self.hosts, self.client_options)
+        opensearch_client = os_factory.create()
+
+        # Use the module-level wait_for_rest_layer function
+        return wait_for_rest_layer(opensearch_client, max_attempts)

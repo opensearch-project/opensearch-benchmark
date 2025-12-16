@@ -965,7 +965,11 @@ class WorkerCoordinator:
             cluster_client_options = dict(all_client_options[cluster_name])
             # Use retries to avoid aborts on long living connections for telemetry devices
             cluster_client_options["retry-on-timeout"] = True
-            opensearch[cluster_name] = self.os_client_factory(cluster_hosts, cluster_client_options).create()
+            # Store the factory instance for the default cluster so we can use it for wait_for_rest_layer
+            factory = self.os_client_factory(cluster_hosts, cluster_client_options)
+            if cluster_name == "default":
+                self._default_client_factory = factory
+            opensearch[cluster_name] = factory.create()
         return opensearch
 
     def prepare_telemetry(self, opensearch, enable):
@@ -995,14 +999,14 @@ class WorkerCoordinator:
             devices = []
         self.telemetry = telemetry.Telemetry(enabled_devices, devices=devices)
 
-    def wait_for_rest_api(self, opensearch):
-        os_default = opensearch["default"]
+    def wait_for_rest_api(self, database):
         self.logger.info("Checking if REST API is available.")
-        if client.wait_for_rest_layer(os_default, max_attempts=40):
+        # Use the factory's wait_for_rest_layer method which handles different database types
+        if self._default_client_factory.wait_for_rest_layer():
             self.logger.info("REST API is available.")
         else:
             self.logger.error("REST API layer is not yet available. Stopping benchmark.")
-            raise exceptions.SystemSetupError("OpenSearch REST API layer is not available.")
+            raise exceptions.SystemSetupError("Database REST API layer is not available.")
 
     def retrieve_cluster_info(self, opensearch):
         try:
