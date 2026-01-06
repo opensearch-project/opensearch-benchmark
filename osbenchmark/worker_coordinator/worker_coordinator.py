@@ -50,6 +50,8 @@ from osbenchmark.database.clients.opensearch import opensearch as client
 from osbenchmark import actor, config, exceptions, metrics, workload, paths, PROGRAM_NAME, telemetry
 from osbenchmark.worker_coordinator import runner, scheduler
 from osbenchmark.database.factory import DatabaseClientFactory
+from osbenchmark.database.registry import DatabaseType, get_client_factory
+import osbenchmark.database  # noqa: F401 - ensure database types are registered
 from osbenchmark.workload import WorkloadProcessorRegistry, load_workload, load_workload_plugins, ingestion_manager
 from osbenchmark.utils import convert, console, net
 from osbenchmark.worker_coordinator.errors import parse_error
@@ -645,7 +647,14 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_PrepareBenchmark(self, msg, sender):
         self.start_sender = sender
-        self.coordinator = WorkerCoordinator(self, msg.config)
+        # Get the appropriate client factory based on database type
+        db_type_str = msg.config.opts("database", "type", default_value="opensearch", mandatory=False)
+        try:
+            db_type = DatabaseType(db_type_str.lower())
+            client_factory_class = get_client_factory(db_type)
+        except (ValueError, KeyError):
+            client_factory_class = get_client_factory(DatabaseType.OPENSEARCH)
+        self.coordinator = WorkerCoordinator(self, msg.config, os_client_factory_class=client_factory_class)
         self.coordinator.prepare_benchmark(msg.workload)
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter

@@ -34,6 +34,9 @@ from osbenchmark import actor, config, doc_link, \
     worker_coordinator, exceptions, builder, metrics, \
         publisher, workload, version, PROGRAM_NAME
 from osbenchmark.utils import console, opts, versions
+from osbenchmark.database.registry import DatabaseType, get_client_factory
+# Import database module to ensure all database types are registered
+import osbenchmark.database  # noqa: F401
 
 
 pipelines = collections.OrderedDict()
@@ -185,7 +188,15 @@ class BenchmarkCoordinator:
         # to derive it ourselves. For source builds we always assume "master"
         oss_distribution_version = "2.11.0"
         if not sources and not self.cfg.exists("builder", "distribution.version"):
-            distribution_version = builder.cluster_distribution_version(self.cfg)
+            # Get the appropriate client factory based on database type
+            db_type_str = self.cfg.opts("database", "type", default_value="opensearch", mandatory=False)
+            try:
+                db_type = DatabaseType(db_type_str.lower())
+                client_factory = get_client_factory(db_type)
+            except (ValueError, KeyError):
+                # Fall back to OpenSearch if database type is invalid
+                client_factory = get_client_factory(DatabaseType.OPENSEARCH)
+            distribution_version = builder.cluster_distribution_version(self.cfg, client_factory)
             if distribution_version == 'oss':
                 self.logger.info("Automatically derived serverless collection, setting distribution version to 2.11.0")
                 distribution_version = oss_distribution_version
@@ -194,13 +205,21 @@ class BenchmarkCoordinator:
 
                 if not self.cfg.exists("worker_coordinator", "serverless.operator"):
                     self.cfg.add(config.Scope.benchmark, "worker_coordinator", "serverless.operator", True)
+            elif distribution_version is None:
+                # Non-OpenSearch databases (Vespa, etc.) don't have version info in the same format
+                # Use default version and skip version check
+                self.logger.info("Could not derive distribution version (non-OpenSearch database), using default [%s]",
+                                 oss_distribution_version)
+                distribution_version = oss_distribution_version
             else:
                 self.logger.info("Automatically derived distribution version [%s]", distribution_version)
             self.cfg.add(config.Scope.benchmark, "builder", "distribution.version", distribution_version)
-            min_os_version = versions.Version.from_string(version.minimum_os_version())
-            specified_version = versions.Version.from_string(distribution_version)
-            if specified_version < min_os_version:
-                raise exceptions.SystemSetupError(f"Cluster version must be at least [{min_os_version}] but was [{distribution_version}]")
+            # Only check version for OpenSearch databases
+            if db_type_str == "opensearch":
+                min_os_version = versions.Version.from_string(version.minimum_os_version())
+                specified_version = versions.Version.from_string(distribution_version)
+                if specified_version < min_os_version:
+                    raise exceptions.SystemSetupError(f"Cluster version must be at least [{min_os_version}] but was [{distribution_version}]")
 
         self.current_workload = workload.load_workload(self.cfg)
         self.workload_revision = self.cfg.opts("workload", "repository.revision", mandatory=False)

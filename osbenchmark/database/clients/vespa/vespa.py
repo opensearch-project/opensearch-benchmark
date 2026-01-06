@@ -44,7 +44,8 @@ from osbenchmark.database.interface import (
     DatabaseClient,
     IndicesNamespace,
     ClusterNamespace,
-    TransportNamespace
+    TransportNamespace,
+    NodesNamespace
 )
 
 
@@ -465,23 +466,42 @@ class VespaIndicesNamespace(IndicesNamespace):
         """
         return {"_shards": {"successful": 1, "failed": 0}}
 
-    async def stats(self, index: Optional[str] = None, metric: Optional[str] = None, **kwargs) -> Dict:
+    def stats(self, index: Optional[str] = None, metric: Optional[str] = None, **kwargs) -> Dict:
         """
         Get index statistics.
 
         Vespa provides stats differently - this returns a compatible structure.
+        Note: This is synchronous because telemetry code calls it synchronously.
         """
-        # TODO: Implement actual Vespa stats via /metrics/v2 or similar
+        # Return minimal structure expected by telemetry
         return {
+            "_shards": {"total": 1, "successful": 1, "failed": 0},
             "_all": {
                 "primaries": {
-                    "docs": {"count": 0},
-                    "store": {"size_in_bytes": 0}
+                    "docs": {"count": 0, "deleted": 0},
+                    "store": {"size_in_bytes": 0},
+                    "indexing": {"index_time_in_millis": 0, "throttle_time_in_millis": 0},
+                    "merges": {"total_time_in_millis": 0, "total_throttled_time_in_millis": 0},
+                    "refresh": {"total_time_in_millis": 0},
+                    "flush": {"total_time_in_millis": 0},
+                    "segments": {
+                        "memory_in_bytes": 0,
+                        "stored_fields_memory_in_bytes": 0,
+                        "doc_values_memory_in_bytes": 0,
+                        "terms_memory_in_bytes": 0,
+                        "norms_memory_in_bytes": 0,
+                        "points_memory_in_bytes": 0
+                    },
+                    "translog": {"size_in_bytes": 0}
+                },
+                "total": {
+                    "store": {"size_in_bytes": 0},
+                    "translog": {"size_in_bytes": 0}
                 }
             }
         }
 
-    async def forcemerge(self, index: Optional[str] = None, **kwargs) -> Dict:
+    def forcemerge(self, index: Optional[str] = None, **kwargs) -> Dict:
         """
         Vespa handles segment merging automatically.
         This is a no-op for compatibility.
@@ -588,6 +608,96 @@ class VespaTransportNamespace(TransportNamespace):
                 return await response.text()
 
 
+class VespaNodesNamespace(NodesNamespace):
+    """
+    Nodes namespace for Vespa.
+
+    Vespa doesn't have the same node statistics concept as OpenSearch,
+    so this provides stub implementations that return empty/minimal data
+    to satisfy telemetry requirements.
+    """
+
+    def __init__(self, vespa_client: Vespa, host: str, port: int):
+        self._client = vespa_client
+        self._host = host
+        self._port = port
+        self.logger = logging.getLogger(__name__)
+
+    def stats(self, node_id: Optional[str] = None,
+              metric: Optional[str] = None,
+              **kwargs) -> Dict:
+        """
+        Get node statistics.
+
+        Vespa doesn't expose the same node stats as OpenSearch.
+        Returns minimal stub data to satisfy telemetry code.
+        """
+        # Return minimal structure expected by telemetry
+        return {
+            "nodes": {
+                "vespa-node-1": {
+                    "name": f"{self._host}:{self._port}",
+                    "host": self._host,
+                    "ip": self._host,
+                    "transport_address": f"{self._host}:{self._port}",
+                    "indices": {},
+                    "os": {"cpu": {"percent": 0}},
+                    "process": {"cpu": {"percent": 0}},
+                    "jvm": {
+                        "mem": {
+                            "heap_used_percent": 0,
+                            "pools": {
+                                "old": {"peak_used_in_bytes": 0},
+                                "young": {"peak_used_in_bytes": 0},
+                                "survivor": {"peak_used_in_bytes": 0}
+                            }
+                        },
+                        "gc": {
+                            "collectors": {
+                                "old": {
+                                    "collection_time_in_millis": 0,
+                                    "collection_count": 0
+                                },
+                                "young": {
+                                    "collection_time_in_millis": 0,
+                                    "collection_count": 0
+                                }
+                            }
+                        },
+                        "buffer_pools": {}
+                    },
+                    "thread_pool": {},
+                    "breakers": {},
+                    "network": {},
+                    "indexing_pressure": {}
+                }
+            }
+        }
+
+    def info(self, node_id: Optional[str] = None,
+             metric: Optional[str] = None,
+             **kwargs) -> Dict:
+        """
+        Get node information.
+
+        Returns minimal stub data for Vespa.
+        """
+        return {
+            "nodes": {
+                "vespa-node-1": {
+                    "name": f"{self._host}:{self._port}",
+                    "host": self._host,
+                    "ip": self._host,
+                    "version": "8.0.0",  # Vespa version placeholder
+                    "roles": ["data", "ingest"],
+                    "os": {"name": "Linux"},
+                    "jvm": {"version": "17"},
+                    "plugins": []
+                }
+            }
+        }
+
+
 class VespaDatabaseClient(DatabaseClient):
     """
     Vespa implementation of the DatabaseClient interface.
@@ -621,6 +731,7 @@ class VespaDatabaseClient(DatabaseClient):
         )
         self._cluster = VespaClusterNamespace(vespa_client, host, config_port)
         self._transport = VespaTransportNamespace(vespa_client, self._base_url)
+        self._nodes = VespaNodesNamespace(vespa_client, host, port)
 
         # Track document counts per schema for stats
         self._doc_counts: Dict[str, int] = {}
@@ -639,6 +750,33 @@ class VespaDatabaseClient(DatabaseClient):
     def transport(self) -> TransportNamespace:
         """Access to transport namespace"""
         return self._transport
+
+    @property
+    def nodes(self) -> NodesNamespace:
+        """Access to nodes namespace"""
+        return self._nodes
+
+    def info(self) -> Dict:
+        """
+        Get cluster/database information.
+
+        Returns Vespa-specific info in OpenSearch-compatible format.
+        """
+        return {
+            "name": "vespa-cluster",
+            "cluster_name": "vespa",
+            "cluster_uuid": "vespa-benchmark-cluster",
+            "version": {
+                "number": "8.0.0",
+                "build_hash": "unknown",
+                "build_flavor": "default",
+                "build_type": "docker",
+                "lucene_version": "N/A",
+                "minimum_wire_compatibility_version": "7.0.0",
+                "minimum_index_compatibility_version": "7.0.0"
+            },
+            "tagline": "Vespa - The open big data serving engine"
+        }
 
     async def bulk(self, body: Any,
                    index: Optional[str] = None,

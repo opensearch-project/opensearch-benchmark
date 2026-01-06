@@ -60,13 +60,13 @@ class IndicesNamespace(ABC):
         pass
 
     @abstractmethod
-    async def stats(self, index: Optional[str] = None, metric: Optional[str] = None, **kwargs) -> Dict:
-        """Get index statistics"""
+    def stats(self, index: Optional[str] = None, metric: Optional[str] = None, **kwargs) -> Dict:
+        """Get index statistics (sync - called by telemetry)"""
         pass
 
     @abstractmethod
-    async def forcemerge(self, index: Optional[str] = None, **kwargs) -> Dict:
-        """Force merge index segments"""
+    def forcemerge(self, index: Optional[str] = None, **kwargs) -> Dict:
+        """Force merge index segments (sync - called by telemetry)"""
         pass
 
 
@@ -93,6 +93,24 @@ class TransportNamespace(ABC):
                              body: Optional[Any] = None,
                              headers: Optional[Dict] = None) -> Any:
         """Perform a raw HTTP request"""
+        pass
+
+
+class NodesNamespace(ABC):
+    """Namespace for node-level operations and statistics"""
+
+    @abstractmethod
+    def stats(self, node_id: Optional[str] = None,
+              metric: Optional[str] = None,
+              **kwargs) -> Dict:
+        """Get node statistics"""
+        pass
+
+    @abstractmethod
+    def info(self, node_id: Optional[str] = None,
+             metric: Optional[str] = None,
+             **kwargs) -> Dict:
+        """Get node information"""
         pass
 
 
@@ -124,6 +142,12 @@ class DatabaseClient(ABC):
         """Access to transport namespace"""
         pass
 
+    @property
+    @abstractmethod
+    def nodes(self) -> NodesNamespace:
+        """Access to nodes namespace"""
+        pass
+
     # Core document operations
     @abstractmethod
     async def bulk(self, body: Union[str, List],
@@ -149,6 +173,14 @@ class DatabaseClient(ABC):
                     **kwargs) -> Dict:
         """Execute a search query"""
         pass
+
+    def info(self) -> Dict:
+        """
+        Get cluster/database information.
+
+        Returns version, build info, etc. Similar to OpenSearch's root endpoint.
+        """
+        return {}
 
     # Additional methods used by runners
     def return_raw_response(self):

@@ -275,9 +275,10 @@ def cluster_distribution_version(cfg, client_factory=client.OsClientFactory):
     """
     hosts = cfg.opts("client", "hosts").default
     client_options = cfg.opts("client", "options").default
-    opensearch = client_factory(hosts, client_options).create()
+    factory = client_factory(hosts, client_options)
+    opensearch = factory.create()
     # unconditionally wait for the REST layer - if it's not up by then, we'll intentionally raise the original error
-    client.wait_for_rest_layer(opensearch)
+    factory.wait_for_rest_layer()
     try:
         info = opensearch.info()
         distribution_version = info["version"]["number"]
