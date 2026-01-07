@@ -759,7 +759,9 @@ def load_local_config(coordinator_config):
         "workload", "worker_coordinator", "client",
         # due to distribution version...
         "builder",
-        "telemetry"
+        "telemetry",
+        # database type for multi-database support
+        "database"
     ])
     # set root path (normally done by the main entry point)
     cfg.add(config.Scope.application, "node", "benchmark.root", paths.benchmark_root())
@@ -985,25 +987,32 @@ class WorkerCoordinator:
         enabled_devices = self.config.opts("telemetry", "devices")
         telemetry_params = self.config.opts("telemetry", "params")
         log_root = paths.test_run_root(self.config)
+        database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
 
         os_default = opensearch["default"]
 
         if enable:
-            devices = [
-                telemetry.NodeStats(telemetry_params, opensearch, self.metrics_store),
-                telemetry.ExternalEnvironmentInfo(os_default, self.metrics_store),
-                telemetry.ClusterEnvironmentInfo(os_default, self.metrics_store),
-                telemetry.JvmStatsSummary(os_default, self.metrics_store),
-                telemetry.IndexStats(os_default, self.metrics_store),
-                telemetry.MlBucketProcessingTime(os_default, self.metrics_store),
-                telemetry.SegmentStats(log_root, os_default),
-                telemetry.CcrStats(telemetry_params, opensearch, self.metrics_store),
-                telemetry.RecoveryStats(telemetry_params, opensearch, self.metrics_store),
-                telemetry.TransformStats(telemetry_params, opensearch, self.metrics_store),
-                telemetry.SearchableSnapshotsStats(telemetry_params, opensearch, self.metrics_store),
-                telemetry.SegmentReplicationStats(telemetry_params, opensearch, self.metrics_store),
-                telemetry.ShardStats(telemetry_params, opensearch, self.metrics_store)
-            ]
+            # Only enable OpenSearch-specific telemetry for OpenSearch databases
+            if database_type.lower() == "opensearch":
+                devices = [
+                    telemetry.NodeStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.ExternalEnvironmentInfo(os_default, self.metrics_store),
+                    telemetry.ClusterEnvironmentInfo(os_default, self.metrics_store),
+                    telemetry.JvmStatsSummary(os_default, self.metrics_store),
+                    telemetry.IndexStats(os_default, self.metrics_store),
+                    telemetry.MlBucketProcessingTime(os_default, self.metrics_store),
+                    telemetry.SegmentStats(log_root, os_default),
+                    telemetry.CcrStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.RecoveryStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.TransformStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.SearchableSnapshotsStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.SegmentReplicationStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.ShardStats(telemetry_params, opensearch, self.metrics_store)
+                ]
+            else:
+                # For non-OpenSearch databases, skip OS-specific telemetry devices
+                self.logger.info("Skipping OpenSearch-specific telemetry devices for database type [%s]", database_type)
+                devices = []
         else:
             devices = []
         self.telemetry = telemetry.Telemetry(enabled_devices, devices=devices)
@@ -1690,7 +1699,17 @@ class Worker(actor.BenchmarkActor):
         # we need to wake up more often in test mode
         if self.config.opts("workload", "test.mode.enabled"):
             self.wakeup_interval = 0.5
-        runner.register_default_runners()
+
+        # Register runners based on database type
+        database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
+        if database_type.lower() == "vespa":
+            from osbenchmark.worker_coordinator.runners.vespa import register_vespa_runners
+            register_vespa_runners()
+            self.logger.info("Registered Vespa-specific runners for database type [%s]", database_type)
+        else:
+            runner.register_default_runners()
+            self.logger.info("Registered default (OpenSearch) runners for database type [%s]", database_type)
+
         if self.workload.has_plugins:
             workload.load_workload_plugins(self.config, self.workload.name, runner.register_runner, scheduler.register_scheduler)
         self.drive()
@@ -2181,6 +2200,7 @@ class AsyncIoAdapter:
 
             # Get database type from config (defaults to "opensearch")
             database_type = self.cfg.opts("database", "type", default_value="opensearch", mandatory=False)
+            self.logger.info("DEBUG: Creating database clients with database_type=[%s]", database_type)
 
             for cluster_name, cluster_hosts in all_hosts.items():
                 # Use the new DatabaseClientFactory to create clients
@@ -2190,7 +2210,9 @@ class AsyncIoAdapter:
                     cluster_hosts,
                     all_client_options[cluster_name]
                 )
-                opensearch[cluster_name] = db_factory.create_async()
+                client = db_factory.create_async()
+                self.logger.info("DEBUG: Created client type=[%s] for cluster=[%s]", type(client).__name__, cluster_name)
+                opensearch[cluster_name] = client
             return opensearch
 
         # Properly size the internal connection pool to match the number of expected clients but allow the user

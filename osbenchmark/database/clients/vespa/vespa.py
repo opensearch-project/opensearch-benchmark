@@ -22,14 +22,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import asyncio
 import io
+import json
 import logging
 import time
+import uuid
 import zipfile
-from typing import Dict, List, Optional, Any
+from datetime import datetime
+from typing import Dict, List, Optional, Any, Tuple
 
 import aiohttp
 import certifi
+import requests
 # pyvespa package is imported as 'vespa' internally
 from vespa.package import ApplicationPackage, Schema, Document, Field, HNSW
 from vespa.application import Vespa
@@ -39,6 +44,7 @@ from urllib3.util.ssl_ import is_ipaddress
 from osbenchmark import doc_link, exceptions
 from osbenchmark.cloud_provider.factory import CloudProviderFactory
 from osbenchmark.utils import console, convert
+from osbenchmark.context import RequestContextHolder
 
 from osbenchmark.database.interface import (
     DatabaseClient,
@@ -47,6 +53,63 @@ from osbenchmark.database.interface import (
     TransportNamespace,
     NodesNamespace
 )
+
+
+# ============================================================================
+# Field Name Mapping (OpenSearch → Vespa)
+# ============================================================================
+
+FIELD_NAME_MAPPING = {
+    "@timestamp": "timestamp",
+    "log.file.path": "log_file_path",
+    "process.name": "process_name",
+    "metrics.size": "metrics_size",
+    "metrics.tmin": "metrics_tmin",
+    "cloud.region": "cloud_region",
+    "agent.name": "agent_name",
+    "agent.id": "agent_id",
+    "agent.type": "agent_type",
+    "agent.version": "agent_version",
+    "agent.ephemeral_id": "agent_ephemeral_id",
+    "aws.cloudwatch.log_stream": "aws_cloudwatch_log_stream",
+    "aws.cloudwatch.log_group": "aws_cloudwatch_log_group",
+    "aws.cloudwatch.ingestion_time": "aws_cloudwatch_ingestion_time",
+    "meta.file": "meta_file",
+    "event.id": "event_id",
+    "event.dataset": "event_dataset",
+    "event.ingested": "event_ingested",
+    "data_stream.dataset": "data_stream_dataset",
+    "data_stream.namespace": "data_stream_namespace",
+    "data_stream.type": "data_stream_type",
+    "input.type": "input_type",
+    "ecs.version": "ecs_version",
+}
+
+# Fields allowed for big5 workload
+BIG5_ALLOWED_FIELDS = {
+    "timestamp", "message", "metrics_size", "metrics_tmin",
+    "agent_ephemeral_id", "agent_id", "agent_name", "agent_type", "agent_version",
+    "aws_cloudwatch_ingestion_time", "aws_cloudwatch_log_group", "aws_cloudwatch_log_stream",
+    "cloud_region",
+    "data_stream_dataset", "data_stream_namespace", "data_stream_type",
+    "ecs_version",
+    "event_dataset", "event_id", "event_ingested",
+    "input_type",
+    "log_file_path",
+    "meta_file",
+    "process_name",
+    "tags",
+}
+
+# Interval to milliseconds mapping for date_histogram
+INTERVAL_MS_MAP = {
+    "second": 1000, "1s": 1000,
+    "minute": 60000, "1m": 60000,
+    "hour": 3600000, "1h": 3600000,
+    "day": 86400000, "1d": 86400000,
+    "week": 604800000, "1w": 604800000,
+    "month": 2592000000, "1M": 2592000000,
+}
 
 
 # ============================================================================
@@ -265,6 +328,7 @@ class VespaIndicesNamespace(IndicesNamespace):
         Returns:
             Dict with acknowledgement and deployment status
         """
+        RequestContextHolder.on_request_start()
         self.logger.info(f"Creating Vespa schema for index '{index}'")
 
         if body is None:
@@ -295,6 +359,7 @@ class VespaIndicesNamespace(IndicesNamespace):
         # Deploy the application package via the Deploy API
         if self._config_url:
             deploy_result = await self._deploy_application()
+            RequestContextHolder.on_request_end()
             return {
                 "acknowledged": True,
                 "index": index,
@@ -303,6 +368,7 @@ class VespaIndicesNamespace(IndicesNamespace):
             }
         else:
             self.logger.warning("No config_url provided - schema created but not deployed")
+            RequestContextHolder.on_request_end()
             return {"acknowledged": True, "index": index, "deployed": False}
 
     async def _deploy_application(self) -> Dict:
@@ -448,22 +514,31 @@ class VespaIndicesNamespace(IndicesNamespace):
         """
         self.logger.info(f"Deleting all documents from Vespa schema '{index}'")
 
+        # Simulate request timing for stub operations
+        RequestContextHolder.on_request_start()
+
         # Use Vespa's delete_all_docs or visit API
         # For now, mark as acknowledged - actual implementation depends on Vespa setup
         if index in self._schemas:
             del self._schemas[index]
 
+        RequestContextHolder.on_request_end()
         return {"acknowledged": True}
 
     async def exists(self, index: str, **kwargs) -> bool:
         """Check if a schema exists in the application."""
-        return index in self._schemas
+        RequestContextHolder.on_request_start()
+        result = index in self._schemas
+        RequestContextHolder.on_request_end()
+        return result
 
     async def refresh(self, index: Optional[str] = None, **kwargs) -> Dict:
         """
         Vespa doesn't have explicit refresh - documents are searchable immediately.
         This is a no-op for compatibility.
         """
+        RequestContextHolder.on_request_start()
+        RequestContextHolder.on_request_end()
         return {"_shards": {"successful": 1, "failed": 0}}
 
     def stats(self, index: Optional[str] = None, metric: Optional[str] = None, **kwargs) -> Dict:
@@ -529,10 +604,13 @@ class VespaClusterNamespace(ClusterNamespace):
         Vespa health is determined by checking if the application is up.
         Maps to OpenSearch health response format.
         """
+        self.logger.info("DEBUG: VespaClusterNamespace.health() called with kwargs=%s", kwargs)
+        RequestContextHolder.on_request_start()
         try:
             # pyvespa Vespa client has get_application_status method
             # For async, we use the sync method in an executor or direct call
             status = "green"  # Vespa either works or doesn't - no yellow state
+            RequestContextHolder.on_request_end()
             return {
                 "cluster_name": "vespa",
                 "status": status,
@@ -547,6 +625,7 @@ class VespaClusterNamespace(ClusterNamespace):
             }
         except Exception as e:
             self.logger.error(f"Health check failed: {e}")
+            RequestContextHolder.on_request_end()
             return {"status": "red", "error": str(e)}
 
     async def put_settings(self, body: Dict, **kwargs) -> Dict:
@@ -556,7 +635,9 @@ class VespaClusterNamespace(ClusterNamespace):
         Vespa settings are managed through application package deployment.
         This is a no-op for runtime compatibility.
         """
+        RequestContextHolder.on_request_start()
         self.logger.warning("Vespa does not support runtime cluster settings changes")
+        RequestContextHolder.on_request_end()
         return {"acknowledged": True, "persistent": {}, "transient": {}}
 
 
@@ -606,6 +687,10 @@ class VespaTransportNamespace(TransportNamespace):
                 if response.content_type == 'application/json':
                     return await response.json()
                 return await response.text()
+
+    async def close(self):
+        """Close any open connections. No-op for Vespa as we use per-request sessions."""
+        pass
 
 
 class VespaNodesNamespace(NodesNamespace):
@@ -698,11 +783,12 @@ class VespaNodesNamespace(NodesNamespace):
         }
 
 
-class VespaDatabaseClient(DatabaseClient):
+class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
     """
     Vespa implementation of the DatabaseClient interface.
 
     Provides OpenSearch-compatible API for benchmarking Vespa clusters.
+    Uses aiohttp with timing hooks for accurate benchmark measurement.
     """
 
     def __init__(self, vespa_client: Vespa, hosts: List[Dict], client_options: Dict):
@@ -716,25 +802,68 @@ class VespaDatabaseClient(DatabaseClient):
         host = hosts[0]["host"] if hosts else "localhost"
         port = hosts[0].get("port", 8080) if hosts else 8080
         self._base_url = f"{scheme}://{host}:{port}"
+        self._host = host
+        self._port = port
 
         # Config server URL (for deployment operations)
         config_port = client_options.get("config_port", 19071)
         self._config_url = f"{scheme}://{host}:{config_port}"
 
+        # Application settings
+        self._app_name = client_options.get("app_name", "benchmark")
+        self._namespace = client_options.get("namespace", "benchmark")
+        self._cluster = client_options.get("cluster", None)
+
         # Create application package for schema management
-        self._app_package = ApplicationPackage(name="benchmark")
+        self._app_package = ApplicationPackage(name=self._app_name)
 
         # Initialize namespaces
         self._indices = VespaIndicesNamespace(
             vespa_client, self._app_package,
             config_url=self._config_url
         )
-        self._cluster = VespaClusterNamespace(vespa_client, host, config_port)
+        self._cluster_ns = VespaClusterNamespace(vespa_client, host, config_port)
         self._transport = VespaTransportNamespace(vespa_client, self._base_url)
         self._nodes = VespaNodesNamespace(vespa_client, host, port)
 
         # Track document counts per schema for stats
         self._doc_counts: Dict[str, int] = {}
+
+        # aiohttp session (lazy initialized)
+        self._session: Optional[aiohttp.ClientSession] = None
+        self._session_initialized = False
+
+    async def _ensure_session(self):
+        """Initialize aiohttp session with timing hooks for benchmarking."""
+        if self._session_initialized:
+            return
+
+        self._session_initialized = True
+
+        # Timing hooks for benchmark measurement
+        async def on_request_start(session, trace_config_ctx, params):
+            try:
+                VespaDatabaseClient.on_request_start()
+            except LookupError:
+                pass  # No context set - standalone usage
+
+        async def on_request_end(session, trace_config_ctx, params):
+            try:
+                VespaDatabaseClient.on_request_end()
+            except LookupError:
+                pass
+
+        trace_config = aiohttp.TraceConfig()
+        trace_config.on_request_start.append(on_request_start)
+        trace_config.on_request_end.append(on_request_end)
+        trace_config.on_request_exception.append(on_request_end)
+
+        # High connection limits for parallel bulk feeding
+        connector = aiohttp.TCPConnector(limit=100, limit_per_host=100, force_close=False)
+        self._session = aiohttp.ClientSession(
+            trace_configs=[trace_config],
+            connector=connector
+        )
 
     @property
     def indices(self) -> IndicesNamespace:
@@ -744,7 +873,7 @@ class VespaDatabaseClient(DatabaseClient):
     @property
     def cluster(self) -> ClusterNamespace:
         """Access to cluster namespace"""
-        return self._cluster
+        return self._cluster_ns
 
     @property
     def transport(self) -> TransportNamespace:
@@ -786,128 +915,255 @@ class VespaDatabaseClient(DatabaseClient):
         """
         Bulk index/update/delete documents in Vespa.
 
-        Vespa uses a different bulk format than OpenSearch.
-        This method translates OpenSearch bulk format to Vespa feed operations.
+        Uses parallel HTTP requests with semaphore for rate limiting.
+        Vespa Document API: POST /document/v1/{namespace}/{schema}/docid/{doc_id}
 
         Args:
-            body: Bulk request body (OpenSearch format: action + doc pairs)
+            body: Bulk request body (bytes, string, or list format)
             index: Default index/schema name
             doc_type: Ignored (deprecated in OpenSearch)
             params: Additional parameters
 
         Returns:
-            Dict with bulk operation results
+            Dict with bulk operation results in OpenSearch format
         """
-        import asyncio
+        self.logger.info("DEBUG: VespaDatabaseClient.bulk() called with index=%s", index)
+        await self._ensure_session()
 
-        # Parse OpenSearch bulk format
-        operations = self._parse_bulk_body(body, index)
+        document_type = index or self._app_name
+        endpoint = f"{self._base_url}/document/v1/{self._namespace}/{document_type}/docid"
 
-        # Execute operations via Vespa feed
-        errors = []
-        successful = 0
-        failed = 0
+        # Parse bulk body into list of documents
+        documents = self._parse_bulk_body(body, index)
 
-        # Use Vespa's async feed
-        async def feed_doc(op):
-            nonlocal successful, failed, errors
-            try:
-                schema = op.get("_index", index)
-                doc_id = op.get("_id")
-                doc_body = op.get("doc", {})
+        max_concurrent = kwargs.get("max_concurrent", 50)
+        timeout_val = aiohttp.ClientTimeout(total=kwargs.get("request_timeout", 30))
 
-                # Vespa feed uses schema/doctype/docid format
-                response = await asyncio.get_event_loop().run_in_executor(
-                    None,
-                    lambda: self._client.feed_data_point(
-                        schema=schema,
-                        data_id=doc_id,
-                        fields=doc_body
-                    )
-                )
+        # Build query params for Vespa
+        query_params = {}
+        cluster = self._cluster or document_type
+        if cluster:
+            query_params["cluster"] = cluster
 
-                if response.status_code == 200:
-                    successful += 1
-                    self._doc_counts[schema] = self._doc_counts.get(schema, 0) + 1
-                else:
-                    failed += 1
-                    errors.append({"index": {"_id": doc_id, "error": response.json}})
-            except Exception as e:
-                failed += 1
-                errors.append({"index": {"_id": op.get("_id"), "error": str(e)}})
+        semaphore = asyncio.Semaphore(max_concurrent)
+        items = []
+        errors_count = 0
 
-        # Process operations (could batch for better performance)
-        tasks = [feed_doc(op) for op in operations]
-        await asyncio.gather(*tasks)
+        async def post_document(doc_index: int, doc: Dict) -> Dict:
+            nonlocal errors_count
+            async with semaphore:
+                doc_id = doc.get("_id", f"doc_{doc_index}")
+                doc_endpoint = f"{endpoint}/{doc_id}"
+
+                source = doc.get("_source", doc.get("doc", doc))
+
+                # Transform document for Vespa (flatten nested, convert timestamps)
+                source = self._transform_document_for_vespa(source, document_type)
+
+                vespa_doc = {"fields": source}
+
+                try:
+                    async with self._session.post(
+                        doc_endpoint,
+                        json=vespa_doc,
+                        params=query_params,
+                        timeout=timeout_val
+                    ) as response:
+                        if response.status >= 400:
+                            errors_count += 1
+                            response_text = await response.text()
+                            return {"index": {"_id": doc_id, "status": response.status, "error": response_text}}
+                        return {"index": {"_id": doc_id, "status": 200}}
+                except Exception as e:
+                    errors_count += 1
+                    return {"index": {"_id": doc_id, "status": 500, "error": str(e)}}
+
+        # Process all documents in parallel
+        tasks = [post_document(i, doc) for i, doc in enumerate(documents)]
+        items = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Handle any exceptions that were raised
+        final_items = []
+        for item in items:
+            if isinstance(item, Exception):
+                errors_count += 1
+                final_items.append({"index": {"status": 500, "error": str(item)}})
+            else:
+                final_items.append(item)
 
         return {
-            "took": 0,  # Would need timing
-            "errors": len(errors) > 0,
-            "items": errors if errors else [{"index": {"status": 200}} for _ in range(successful)]
+            "took": 0,
+            "errors": errors_count > 0,
+            "items": final_items
         }
 
     def _parse_bulk_body(self, body: Any, default_index: str) -> List[Dict]:
         """
-        Parse OpenSearch bulk format into list of operations.
+        Parse bulk body into list of documents.
 
-        OpenSearch bulk format:
-        {"index": {"_index": "test", "_id": "1"}}
-        {"field1": "value1"}
+        Handles:
+        - bytes input (OSB passes bytes for standard bulk operations)
+        - string input (newline-delimited JSON format)
+        - list input (alternating [action, doc, action, doc, ...] from vectorsearch)
         """
-        operations = []
+        # Handle list format from BulkVectorsFromDataSetParamSource
+        if isinstance(body, (list, tuple)):
+            body_list = list(body)
+            if len(body_list) >= 2 and isinstance(body_list[0], dict):
+                first_item = body_list[0]
+                if "index" in first_item and isinstance(first_item.get("index"), dict):
+                    # Alternating format: [action0, doc0, action1, doc1, ...]
+                    documents = []
+                    for i in range(0, len(body_list) - 1, 2):
+                        action = body_list[i]
+                        doc_body = body_list[i + 1]
+                        doc_id = action.get("index", {}).get("_id", f"doc_{len(documents)}")
+                        documents.append({"_id": doc_id, "_source": doc_body})
+                    return documents
+            # If it's already a list of documents
+            return body_list
 
-        if isinstance(body, str):
-            lines = body.strip().split('\n')
-        elif isinstance(body, list):
-            lines = body
-        else:
-            return operations
+        # Handle bytes
+        if isinstance(body, bytes):
+            body = body.decode('utf-8')
+
+        # Parse newline-delimited JSON
+        documents = []
+        lines = body.strip().split('\n') if isinstance(body, str) else []
 
         i = 0
         while i < len(lines):
-            action_line = lines[i] if isinstance(lines[i], dict) else self._parse_json(lines[i])
-            if not action_line:
+            if not lines[i].strip():
                 i += 1
                 continue
 
-            # Get action type (index, create, update, delete)
-            action_type = None
-            action_meta = None
-            for key in ["index", "create", "update", "delete"]:
-                if key in action_line:
-                    action_type = key
-                    action_meta = action_line[key]
-                    break
+            try:
+                action = json.loads(lines[i])
 
-            if not action_type:
+                # Get action type and metadata
+                action_type = None
+                action_meta = None
+                for key in ["index", "create", "update", "delete"]:
+                    if key in action:
+                        action_type = key
+                        action_meta = action[key]
+                        break
+
+                if action_type in ["index", "create", "update"] and i + 1 < len(lines):
+                    doc_body = json.loads(lines[i + 1])
+                    doc_id = action_meta.get("_id") if action_meta else None
+                    if not doc_id:
+                        doc_id = str(uuid.uuid4())  # Generate UUID for uniqueness
+                    documents.append({
+                        "_id": doc_id,
+                        "_index": action_meta.get("_index", default_index) if action_meta else default_index,
+                        "_source": doc_body
+                    })
+                    i += 2
+                else:
+                    i += 1
+            except json.JSONDecodeError:
                 i += 1
-                continue
 
-            operation = {
-                "_index": action_meta.get("_index", default_index),
-                "_id": action_meta.get("_id"),
-                "action": action_type
-            }
+        return documents
 
-            # For index/create/update, next line is the document
-            if action_type in ["index", "create", "update"]:
-                i += 1
-                if i < len(lines):
-                    doc = lines[i] if isinstance(lines[i], dict) else self._parse_json(lines[i])
-                    operation["doc"] = doc
+    def _transform_document_for_vespa(self, doc: Dict, document_type: str = None) -> Dict:
+        """
+        Transform OpenSearch document to Vespa format.
 
-            operations.append(operation)
-            i += 1
+        1. Flattens nested object fields (log.file.path → log_file_path)
+        2. Converts @timestamp to epoch milliseconds
+        3. Maps field names according to FIELD_NAME_MAPPING
+        4. Filters fields for big5 workload
+        """
+        vespa_doc = {}
 
-        return operations
+        def flatten(obj: Any, prefix: str = "") -> None:
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    new_key = f"{prefix}_{key}" if prefix else key
 
-    def _parse_json(self, line: str) -> Optional[Dict]:
-        """Safely parse JSON line."""
-        import json
-        try:
-            return json.loads(line)
-        except (json.JSONDecodeError, TypeError):
-            return None
+                    if isinstance(value, dict) and not self._is_leaf_value(value):
+                        flatten(value, new_key)
+                    else:
+                        # Apply field mapping
+                        if new_key in FIELD_NAME_MAPPING:
+                            mapped_key = FIELD_NAME_MAPPING[new_key]
+                        else:
+                            mapped_key = new_key.replace(".", "_").replace("@", "")
+
+                        # Handle special conversions
+                        if mapped_key == "timestamp" and isinstance(value, str):
+                            value = self._date_to_epoch(value)
+                        elif isinstance(value, list):
+                            # Vespa doesn't handle arrays the same way - join strings
+                            if all(isinstance(v, str) for v in value):
+                                value = ",".join(value)
+
+                        vespa_doc[mapped_key] = value
+
+        # Handle @timestamp at top level first
+        if "@timestamp" in doc:
+            vespa_doc["timestamp"] = self._date_to_epoch(doc["@timestamp"])
+            doc = {k: v for k, v in doc.items() if k != "@timestamp"}
+
+        flatten(doc)
+
+        # Filter for big5 workload
+        if document_type == "big5" or self._app_name == "big5":
+            vespa_doc = {k: v for k, v in vespa_doc.items() if k in BIG5_ALLOWED_FIELDS}
+
+        return vespa_doc
+
+    def _is_leaf_value(self, value: Any) -> bool:
+        """
+        Determine if a value is a leaf (not a nested object to flatten).
+
+        Leaf values include:
+        - geo_point: {"lat": ..., "lon": ...}
+        - GeoJSON: {"type": ..., "coordinates": ...}
+        - Simple wrappers: {"value": ...} or {"values": [...]}
+        """
+        if not isinstance(value, dict):
+            return True
+
+        keys = set(value.keys())
+
+        # Geo patterns
+        if {"lat", "lon"}.issubset(keys):
+            return True
+        if {"type", "coordinates"}.issubset(keys):
+            return True
+
+        # Simple wrappers
+        if keys == {"value"} or keys == {"values"}:
+            return True
+
+        return False
+
+    def _date_to_epoch(self, date_value: Any) -> int:
+        """Convert date string to epoch milliseconds."""
+        if isinstance(date_value, (int, float)):
+            return int(date_value)
+
+        if isinstance(date_value, str):
+            try:
+                # Try ISO format
+                if "T" in date_value:
+                    dt = datetime.fromisoformat(date_value.replace("Z", "+00:00"))
+                    return int(dt.timestamp() * 1000)
+                # Try epoch string
+                return int(float(date_value))
+            except (ValueError, TypeError):
+                return 0
+
+        return 0
+
+    def _map_field_name(self, os_field: str) -> str:
+        """Map OpenSearch field name to Vespa field name."""
+        if os_field in FIELD_NAME_MAPPING:
+            return FIELD_NAME_MAPPING[os_field]
+        return os_field.replace(".", "_").replace("@", "")
 
     async def index(self, index: str, body: Dict,
                    id: Optional[str] = None,
@@ -964,7 +1220,7 @@ class VespaDatabaseClient(DatabaseClient):
         """
         Execute a search query in Vespa.
 
-        Translates OpenSearch query DSL to Vespa YQL.
+        Translates OpenSearch query DSL to Vespa YQL and executes via HTTP.
 
         Args:
             index: Schema name to search
@@ -974,163 +1230,417 @@ class VespaDatabaseClient(DatabaseClient):
         Returns:
             Dict with search results in OpenSearch format
         """
-        import asyncio
+        await self._ensure_session()
 
         if body is None:
             body = {}
 
+        document_type = index or self._app_name
+
         # Translate OpenSearch query to Vespa YQL
-        yql = self._translate_query_to_yql(body, index)
+        yql, query_params = self._convert_to_yql(body, document_type)
+
+        # Build search URL
+        search_url = f"{self._base_url}/search/"
+
+        # Build query parameters
+        params = {"yql": yql}
+        params.update(query_params)
+
+        # Add size/limit
+        if "hits" not in params:
+            params["hits"] = body.get("size", 10)
 
         try:
-            response = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: self._client.query(yql=yql)
-            )
+            async with self._session.get(search_url, params=params) as response:
+                vespa_response = await response.json()
 
-            # Transform Vespa response to OpenSearch format
-            hits = []
-            if hasattr(response, 'hits') and response.hits:
-                for hit in response.hits:
-                    hits.append({
-                        "_index": index,
-                        "_id": hit.get("id", ""),
-                        "_score": hit.get("relevance", 0),
-                        "_source": hit.get("fields", {})
-                    })
+                # Convert Vespa response to OpenSearch format
+                return self._convert_vespa_response(vespa_response, index)
 
-            return {
-                "took": response.json.get("timing", {}).get("searchtime", 0) * 1000 if hasattr(response, 'json') else 0,
-                "timed_out": False,
-                "_shards": {"total": 1, "successful": 1, "skipped": 0, "failed": 0},
-                "hits": {
-                    "total": {"value": len(hits), "relation": "eq"},
-                    "max_score": hits[0]["_score"] if hits else 0,
-                    "hits": hits
-                }
-            }
         except Exception as e:
             self.logger.error(f"Search failed: {e}")
             return {
                 "took": 0,
                 "timed_out": True,
                 "error": str(e),
-                "hits": {"total": {"value": 0}, "hits": []}
+                "hits": {"total": {"value": 0, "relation": "eq"}, "hits": []}
             }
 
-    def _translate_query_to_yql(self, body: Dict, index: str) -> str:
+    def _convert_to_yql(self, body: Optional[Dict], document_type: str) -> Tuple[str, Dict]:
         """
-        Translate OpenSearch query DSL to Vespa YQL.
+        Convert OpenSearch query DSL to Vespa YQL.
 
-        This is a simplified translation - full DSL support would need more work.
+        Returns:
+            Tuple of (yql_query, query_params)
+            query_params contains additional parameters like input.query(query_vector)
         """
-        query = body.get("query", {})
-        size = body.get("size", 10)
+        query_params = {}
 
-        # Start with basic select
-        yql = f"select * from {index}"
+        if not body:
+            return f"select * from {document_type} where true", query_params
 
-        # Handle match_all
+        where_clause = self._build_where_clause(body.get("query", {}), document_type, query_params)
+        order_clause = self._build_order_clause(body.get("sort", []))
+        limit_clause = self._build_limit_clause(body)
+
+        yql = f"select * from {document_type} where {where_clause}"
+
+        if order_clause:
+            yql += f" order by {order_clause}"
+        if limit_clause:
+            yql += f" {limit_clause}"
+
+        # Aggregations appended with |
+        grouping_clause = self._build_grouping_clause(body.get("aggs", body.get("aggregations", {})))
+        if grouping_clause:
+            yql += f" | {grouping_clause}"
+
+        return yql, query_params
+
+    def _build_where_clause(self, query: Dict, document_type: str, query_params: Dict) -> str:
+        """Build the WHERE clause from OpenSearch query DSL."""
+        if not query:
+            return "true"
+
+        # match_all
         if "match_all" in query:
-            yql += " where true"
+            return "true"
 
-        # Handle match query
-        elif "match" in query:
-            match = query["match"]
-            field = list(match.keys())[0]
-            value = match[field]
-            if isinstance(value, dict):
-                value = value.get("query", "")
-            yql += f" where {field} contains '{value}'"
+        # KNN / Vector Search
+        if "knn" in query:
+            return self._convert_knn_query(query["knn"], query_params)
 
-        # Handle term query
-        elif "term" in query:
-            term = query["term"]
-            field = list(term.keys())[0]
-            value = term[field]
-            if isinstance(value, dict):
-                value = value.get("value", "")
-            yql += f" where {field} = '{value}'"
+        # term
+        if "term" in query:
+            return self._convert_term_query(query["term"])
 
-        # Handle knn query (vector search)
-        elif "knn" in query:
-            knn = query["knn"]
-            field = list(knn.keys())[0]
-            vector = knn[field].get("vector", [])
-            k = knn[field].get("k", 10)
-            # Vespa ANN syntax
-            yql += f" where {{targetHits:{k}}}nearestNeighbor({field}, q)"
-            # Note: vector would be passed as a query parameter
+        # terms
+        if "terms" in query:
+            return self._convert_terms_query(query["terms"])
 
-        # Handle bool query (simplified)
-        elif "bool" in query:
-            bool_query = query["bool"]
-            conditions = []
+        # match
+        if "match" in query:
+            return self._convert_match_query(query["match"])
 
-            if "must" in bool_query:
-                for clause in bool_query["must"]:
-                    cond = self._translate_clause(clause)
-                    if cond:
-                        conditions.append(cond)
+        # range
+        if "range" in query:
+            return self._convert_range_query(query["range"])
 
-            if "should" in bool_query:
-                should_conds = []
-                for clause in bool_query["should"]:
-                    cond = self._translate_clause(clause)
-                    if cond:
-                        should_conds.append(cond)
-                if should_conds:
-                    conditions.append(f"({' or '.join(should_conds)})")
+        # bool
+        if "bool" in query:
+            return self._convert_bool_query(query["bool"], document_type, query_params)
 
-            if conditions:
-                yql += f" where {' and '.join(conditions)}"
+        # query_string
+        if "query_string" in query:
+            return self._convert_query_string(query["query_string"])
+
+        # prefix
+        if "prefix" in query:
+            return self._convert_prefix_query(query["prefix"])
+
+        # exists
+        if "exists" in query:
+            field = self._map_field_name(query["exists"].get("field", ""))
+            return f"{field} != null"
+
+        return "true"
+
+    def _convert_knn_query(self, knn_config: Dict, query_params: Dict) -> str:
+        """Convert KNN query to Vespa nearestNeighbor."""
+        # Handle nested structure: {"field": {"vector": [...], "k": 10}}
+        if len(knn_config) == 1:
+            field = list(knn_config.keys())[0]
+            config = knn_config[field]
+            if isinstance(config, dict):
+                vector = config.get("vector", [])
+                k = config.get("k", 10)
             else:
-                yql += " where true"
-
+                return "true"
         else:
-            # Default to match all
-            yql += " where true"
+            field = knn_config.get("field", "vector")
+            vector = knn_config.get("vector", [])
+            k = knn_config.get("k", 10)
 
-        yql += f" limit {size}"
-        return yql
+        vector_str = "[" + ",".join(str(v) for v in vector) + "]"
+        query_params["input.query(query_vector)"] = vector_str
+        query_params["ranking"] = "vector-similarity"
 
-    def _translate_clause(self, clause: Dict) -> Optional[str]:
-        """Translate a single query clause to YQL."""
-        if "match" in clause:
-            field = list(clause["match"].keys())[0]
-            value = clause["match"][field]
-            if isinstance(value, dict):
-                value = value.get("query", "")
-            return f"{field} contains '{value}'"
-        elif "term" in clause:
-            field = list(clause["term"].keys())[0]
-            value = clause["term"][field]
-            if isinstance(value, dict):
-                value = value.get("value", "")
-            return f"{field} = '{value}'"
-        elif "range" in clause:
-            field = list(clause["range"].keys())[0]
-            range_def = clause["range"][field]
-            conditions = []
-            if "gte" in range_def:
-                conditions.append(f"{field} >= {range_def['gte']}")
-            if "gt" in range_def:
-                conditions.append(f"{field} > {range_def['gt']}")
-            if "lte" in range_def:
-                conditions.append(f"{field} <= {range_def['lte']}")
-            if "lt" in range_def:
-                conditions.append(f"{field} < {range_def['lt']}")
-            return " and ".join(conditions) if conditions else None
-        return None
+        return f"{{targetHits:{k}}}nearestNeighbor({field}, query_vector)"
+
+    def _convert_term_query(self, term_query: Dict) -> str:
+        """Convert term query to YQL."""
+        for field, value_spec in term_query.items():
+            vespa_field = self._map_field_name(field)
+            if isinstance(value_spec, dict):
+                value = value_spec.get("value", "")
+            else:
+                value = value_spec
+
+            if isinstance(value, str):
+                value = value.replace('"', '\\"')
+                return f'{vespa_field} contains "{value}"'
+            else:
+                return f"{vespa_field} = {value}"
+        return "true"
+
+    def _convert_terms_query(self, terms_query: Dict) -> str:
+        """Convert terms query (multiple values) to YQL."""
+        for field, values in terms_query.items():
+            if field == "boost":
+                continue
+            vespa_field = self._map_field_name(field)
+            if isinstance(values, list):
+                conditions = []
+                for value in values:
+                    if isinstance(value, str):
+                        escaped_value = value.replace('"', '\\"')
+                        conditions.append(f'{vespa_field} contains "{escaped_value}"')
+                    else:
+                        conditions.append(f"{vespa_field} = {value}")
+                if conditions:
+                    return "(" + " or ".join(conditions) + ")"
+        return "true"
+
+    def _convert_match_query(self, match_query: Dict) -> str:
+        """Convert match query to YQL."""
+        for field, value_spec in match_query.items():
+            vespa_field = self._map_field_name(field)
+            if isinstance(value_spec, dict):
+                value = value_spec.get("query", "")
+            else:
+                value = value_spec
+
+            if isinstance(value, str):
+                escaped_value = value.replace('"', '\\"')
+                return f'{vespa_field} contains "{escaped_value}"'
+            else:
+                return f"{vespa_field} = {value}"
+        return "true"
+
+    def _convert_range_query(self, range_query: Dict) -> str:
+        """Convert range query to YQL."""
+        conditions = []
+        for field, range_spec in range_query.items():
+            vespa_field = self._map_field_name(field)
+            is_date_field = field in ("@timestamp", "event.ingested", "timestamp")
+
+            for op, value in range_spec.items():
+                if op in ("format", "time_zone"):
+                    continue
+
+                if is_date_field and isinstance(value, str):
+                    value = self._date_to_epoch(value)
+
+                op_map = {"gte": ">=", "gt": ">", "lte": "<=", "lt": "<"}
+                if op in op_map:
+                    conditions.append(f"{vespa_field} {op_map[op]} {value}")
+
+        return " and ".join(conditions) if conditions else "true"
+
+    def _convert_bool_query(self, bool_query: Dict, document_type: str, query_params: Dict) -> str:
+        """Convert bool query to YQL."""
+        parts = []
+
+        # must = AND
+        if "must" in bool_query:
+            must_clauses = bool_query["must"]
+            if not isinstance(must_clauses, list):
+                must_clauses = [must_clauses]
+            must_parts = [self._build_where_clause(q, document_type, query_params) for q in must_clauses]
+            must_parts = [p for p in must_parts if p and p != "true"]
+            if must_parts:
+                parts.append("(" + " and ".join(must_parts) + ")" if len(must_parts) > 1 else must_parts[0])
+
+        # filter = AND (same as must, no scoring)
+        if "filter" in bool_query:
+            filter_clauses = bool_query["filter"]
+            if not isinstance(filter_clauses, list):
+                filter_clauses = [filter_clauses]
+            filter_parts = [self._build_where_clause(q, document_type, query_params) for q in filter_clauses]
+            filter_parts = [p for p in filter_parts if p and p != "true"]
+            if filter_parts:
+                parts.append("(" + " and ".join(filter_parts) + ")" if len(filter_parts) > 1 else filter_parts[0])
+
+        # should = OR
+        if "should" in bool_query:
+            should_clauses = bool_query["should"]
+            if not isinstance(should_clauses, list):
+                should_clauses = [should_clauses]
+            should_parts = [self._build_where_clause(q, document_type, query_params) for q in should_clauses]
+            should_parts = [p for p in should_parts if p and p != "true"]
+            if should_parts:
+                parts.append("(" + " or ".join(should_parts) + ")" if len(should_parts) > 1 else should_parts[0])
+
+        # must_not = NOT
+        if "must_not" in bool_query:
+            must_not_clauses = bool_query["must_not"]
+            if not isinstance(must_not_clauses, list):
+                must_not_clauses = [must_not_clauses]
+            for clause in must_not_clauses:
+                part = self._build_where_clause(clause, document_type, query_params)
+                if part and part != "true":
+                    parts.append(f"!({part})")
+
+        return " and ".join(parts) if parts else "true"
+
+    def _convert_query_string(self, query_string: Dict) -> str:
+        """Convert query_string to YQL."""
+        query = query_string.get("query", "")
+        default_field = query_string.get("default_field", "message")
+
+        # Handle field:value format
+        if ":" in query:
+            field_part, terms_part = query.split(":", 1)
+            field = self._map_field_name(field_part.strip())
+            terms = terms_part.strip()
+        else:
+            field = self._map_field_name(default_field)
+            terms = query.strip()
+
+        # Handle OR/AND operators
+        if " OR " in terms:
+            term_list = [t.strip() for t in terms.split(" OR ")]
+            conditions = [f'{field} contains "{t}"' for t in term_list if t]
+            return "(" + " or ".join(conditions) + ")"
+        elif " AND " in terms:
+            term_list = [t.strip() for t in terms.split(" AND ")]
+            conditions = [f'{field} contains "{t}"' for t in term_list if t]
+            return "(" + " and ".join(conditions) + ")"
+        else:
+            # Space-separated = OR by default
+            term_list = terms.split()
+            if len(term_list) == 1:
+                return f'{field} contains "{term_list[0]}"'
+            conditions = [f'{field} contains "{t}"' for t in term_list if t]
+            return "(" + " or ".join(conditions) + ")"
+
+    def _convert_prefix_query(self, prefix_query: Dict) -> str:
+        """Convert prefix query to YQL."""
+        for field, value_spec in prefix_query.items():
+            vespa_field = self._map_field_name(field)
+            value = value_spec.get("value", "") if isinstance(value_spec, dict) else value_spec
+            return f'{vespa_field} contains "{value}*"'
+        return "true"
+
+    def _build_order_clause(self, sort_spec: List) -> str:
+        """Build ORDER BY clause from OpenSearch sort specification."""
+        if not sort_spec:
+            return ""
+
+        clauses = []
+        for sort_item in sort_spec:
+            if isinstance(sort_item, str):
+                vespa_field = self._map_field_name(sort_item)
+                clauses.append(f"{vespa_field} asc")
+            elif isinstance(sort_item, dict):
+                for field, direction_spec in sort_item.items():
+                    if field == "_score":
+                        continue  # Handled by ranking
+
+                    vespa_field = self._map_field_name(field)
+                    direction = direction_spec if isinstance(direction_spec, str) else direction_spec.get("order", "asc")
+                    clauses.append(f"{vespa_field} {direction.lower()}")
+
+        return ", ".join(clauses)
+
+    def _build_limit_clause(self, body: Dict) -> str:
+        """Build LIMIT/OFFSET clause."""
+        size = body.get("size", 10)
+        from_val = body.get("from", 0)
+
+        clause = f"limit {size}"
+        if from_val > 0:
+            clause += f" offset {from_val}"
+        return clause
+
+    def _build_grouping_clause(self, aggs: Dict) -> str:
+        """Build Vespa grouping clause from OpenSearch aggregations."""
+        if not aggs:
+            return ""
+
+        # Simplified aggregation support
+        clauses = []
+        for agg_name, agg_spec in aggs.items():
+            if "date_histogram" in agg_spec:
+                clauses.append(self._convert_date_histogram_agg(agg_spec["date_histogram"]))
+            elif "terms" in agg_spec:
+                clauses.append(self._convert_terms_agg(agg_spec["terms"]))
+            elif "histogram" in agg_spec:
+                clauses.append(self._convert_histogram_agg(agg_spec["histogram"]))
+            elif any(m in agg_spec for m in ["sum", "avg", "min", "max", "stats"]):
+                for metric in ["sum", "avg", "min", "max", "stats"]:
+                    if metric in agg_spec:
+                        clauses.append(self._convert_metric_agg(metric, agg_spec[metric]))
+                        break
+
+        return " ".join(clauses)
+
+    def _convert_date_histogram_agg(self, spec: Dict) -> str:
+        """Convert date_histogram aggregation to Vespa grouping."""
+        field = self._map_field_name(spec.get("field", "timestamp"))
+        interval = spec.get("calendar_interval", spec.get("fixed_interval", "hour"))
+        interval_ms = INTERVAL_MS_MAP.get(interval, 3600000)
+        return f"all(group(floor({field} / {interval_ms})) each(output(count())))"
+
+    def _convert_terms_agg(self, spec: Dict) -> str:
+        """Convert terms aggregation to Vespa grouping."""
+        field = self._map_field_name(spec.get("field", ""))
+        size = spec.get("size", 10)
+        return f"all(group({field}) max({size}) each(output(count())))"
+
+    def _convert_histogram_agg(self, spec: Dict) -> str:
+        """Convert histogram aggregation to Vespa grouping."""
+        field = self._map_field_name(spec.get("field", ""))
+        interval = spec.get("interval", 100)
+        return f"all(group(floor({field} / {interval})) each(output(count())))"
+
+    def _convert_metric_agg(self, metric_type: str, spec: Dict) -> str:
+        """Convert metric aggregation to Vespa grouping."""
+        field = self._map_field_name(spec.get("field", ""))
+        if metric_type == "stats":
+            return f"all(output(sum({field})) output(avg({field})) output(min({field})) output(max({field})) output(count()))"
+        return f"all(output({metric_type}({field})))"
+
+    def _convert_vespa_response(self, vespa_response: Dict, index: str) -> Dict:
+        """Convert Vespa search response to OpenSearch format."""
+        hits = vespa_response.get("root", {}).get("children", [])
+        root_fields = vespa_response.get("root", {}).get("fields", {})
+        total_count = root_fields.get("totalCount", len(hits))
+
+        os_hits = []
+        for hit in hits:
+            os_hits.append({
+                "_index": index,
+                "_id": hit.get("id", ""),
+                "_score": hit.get("relevance", 0),
+                "_source": hit.get("fields", {})
+            })
+
+        timing = vespa_response.get("timing", {})
+        took_ms = int(timing.get("searchtime", 0) * 1000) if timing else 0
+
+        return {
+            "took": took_ms,
+            "timed_out": False,
+            "_shards": {"total": 1, "successful": 1, "skipped": 0, "failed": 0},
+            "hits": {
+                "total": {"value": total_count, "relation": "eq"},
+                "max_score": os_hits[0]["_score"] if os_hits else 0,
+                "hits": os_hits
+            }
+        }
 
     def return_raw_response(self):
         """Configure client to return raw responses."""
         pass  # Vespa responses are already raw
 
-    def close(self):
+    async def close(self):
         """Close client connections."""
-        # pyvespa Vespa client doesn't need explicit close
-        pass
+        if self._session and not self._session.closed:
+            await self._session.close()
+        self._session = None
+        self._session_initialized = False
 
 
 class VespaClientFactory:

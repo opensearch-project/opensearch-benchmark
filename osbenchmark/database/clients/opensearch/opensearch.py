@@ -411,7 +411,8 @@ from osbenchmark.database.interface import (
     DatabaseClient,
     IndicesNamespace,
     ClusterNamespace,
-    TransportNamespace
+    TransportNamespace,
+    NodesNamespace
 )
 
 
@@ -481,6 +482,23 @@ class OpenSearchTransportNamespace(TransportNamespace):
         return getattr(self._transport, name)
 
 
+class OpenSearchNodesNamespace(NodesNamespace):
+    """Wrapper for opensearchpy nodes namespace"""
+
+    def __init__(self, opensearch_nodes):
+        self._nodes = opensearch_nodes
+
+    def stats(self, node_id=None, metric=None, **kwargs):
+        return self._nodes.stats(node_id=node_id, metric=metric, **kwargs)
+
+    def info(self, node_id=None, metric=None, **kwargs):
+        return self._nodes.info(node_id=node_id, metric=metric, **kwargs)
+
+    def __getattr__(self, name):
+        """Delegate unknown attributes to the underlying nodes namespace"""
+        return getattr(self._nodes, name)
+
+
 class OpenSearchDatabaseClient(DatabaseClient):
     """
     DatabaseClient implementation for OpenSearch.
@@ -503,6 +521,7 @@ class OpenSearchDatabaseClient(DatabaseClient):
         self._indices_ns = OpenSearchIndicesNamespace(opensearch_client.indices)
         self._cluster_ns = OpenSearchClusterNamespace(opensearch_client.cluster)
         self._transport_ns = OpenSearchTransportNamespace(opensearch_client.transport)
+        self._nodes_ns = OpenSearchNodesNamespace(opensearch_client.nodes)
 
     @property
     def indices(self):
@@ -515,6 +534,10 @@ class OpenSearchDatabaseClient(DatabaseClient):
     @property
     def transport(self):
         return self._transport_ns
+
+    @property
+    def nodes(self):
+        return self._nodes_ns
 
     async def bulk(self, body, index=None, doc_type=None, params=None, **kwargs):
         # Note: doc_type is deprecated and removed in opensearchpy 2.x
