@@ -235,11 +235,9 @@ class VespaBulkIndex(Runner):
             bulk_size = mandatory(params, "bulk-size", self)
             unit = mandatory(params, "unit", self)
 
-            if with_action_metadata:
-                api_kwargs.pop("index", None)
-                response = await client.bulk(params=bulk_params, **api_kwargs)
-            else:
-                response = await client.bulk(params=bulk_params, **api_kwargs)
+            # Unlike OpenSearch, Vespa always needs the index/schema name for the endpoint URL.
+            # Don't pop index even when action metadata is present - Vespa uses it for document type.
+            response = await client.bulk(params=bulk_params, **api_kwargs)
 
             # Parse response
             if isinstance(response, dict):
