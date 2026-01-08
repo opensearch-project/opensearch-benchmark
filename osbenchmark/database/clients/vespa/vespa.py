@@ -831,39 +831,44 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
         # aiohttp session (lazy initialized)
         self._session: Optional[aiohttp.ClientSession] = None
-        self._session_initialized = False
+        self._session_lock = asyncio.Lock()
 
     async def _ensure_session(self):
         """Initialize aiohttp session with timing hooks for benchmarking."""
-        if self._session_initialized:
+        # Fast path: session already exists
+        if self._session is not None:
             return
 
-        self._session_initialized = True
+        # Slow path: acquire lock and create session (double-checked locking)
+        async with self._session_lock:
+            # Double-check after acquiring lock (another coroutine may have created it)
+            if self._session is not None:
+                return
 
-        # Timing hooks for benchmark measurement
-        async def on_request_start(session, trace_config_ctx, params):
-            try:
-                VespaDatabaseClient.on_request_start()
-            except LookupError:
-                pass  # No context set - standalone usage
+            # Timing hooks for benchmark measurement
+            async def on_request_start(session, trace_config_ctx, params):
+                try:
+                    VespaDatabaseClient.on_request_start()
+                except LookupError:
+                    pass  # No context set - standalone usage
 
-        async def on_request_end(session, trace_config_ctx, params):
-            try:
-                VespaDatabaseClient.on_request_end()
-            except LookupError:
-                pass
+            async def on_request_end(session, trace_config_ctx, params):
+                try:
+                    VespaDatabaseClient.on_request_end()
+                except LookupError:
+                    pass
 
-        trace_config = aiohttp.TraceConfig()
-        trace_config.on_request_start.append(on_request_start)
-        trace_config.on_request_end.append(on_request_end)
-        trace_config.on_request_exception.append(on_request_end)
+            trace_config = aiohttp.TraceConfig()
+            trace_config.on_request_start.append(on_request_start)
+            trace_config.on_request_end.append(on_request_end)
+            trace_config.on_request_exception.append(on_request_end)
 
-        # High connection limits for parallel bulk feeding
-        connector = aiohttp.TCPConnector(limit=100, limit_per_host=100, force_close=False)
-        self._session = aiohttp.ClientSession(
-            trace_configs=[trace_config],
-            connector=connector
-        )
+            # High connection limits for parallel bulk feeding
+            connector = aiohttp.TCPConnector(limit=100, limit_per_host=100, force_close=False)
+            self._session = aiohttp.ClientSession(
+                trace_configs=[trace_config],
+                connector=connector
+            )
 
     @property
     def indices(self) -> IndicesNamespace:
@@ -1713,7 +1718,6 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         if self._session and not self._session.closed:
             await self._session.close()
         self._session = None
-        self._session_initialized = False
 
 
 class VespaClientFactory:
