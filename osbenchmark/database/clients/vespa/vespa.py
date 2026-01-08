@@ -932,9 +932,13 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
         document_type = index or self._app_name
         endpoint = f"{self._base_url}/document/v1/{self._namespace}/{document_type}/docid"
+        self.logger.info("DEBUG: Vespa bulk endpoint=%s, base_url=%s, namespace=%s, document_type=%s",
+                        endpoint, self._base_url, self._namespace, document_type)
 
         # Parse bulk body into list of documents
         documents = self._parse_bulk_body(body, index)
+        if documents:
+            self.logger.info("DEBUG: First document (of %d): %s", len(documents), str(documents[0])[:500])
 
         max_concurrent = kwargs.get("max_concurrent", 50)
         timeout_val = aiohttp.ClientTimeout(total=kwargs.get("request_timeout", 30))
@@ -972,10 +976,13 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
                         if response.status >= 400:
                             errors_count += 1
                             response_text = await response.text()
+                            self.logger.warning("Vespa document POST failed: endpoint=%s status=%d error=%s",
+                                              doc_endpoint, response.status, response_text[:500])
                             return {"index": {"_id": doc_id, "status": response.status, "error": response_text}}
                         return {"index": {"_id": doc_id, "status": 200}}
                 except Exception as e:
                     errors_count += 1
+                    self.logger.warning("Vespa document POST exception: endpoint=%s error=%s", doc_endpoint, str(e))
                     return {"index": {"_id": doc_id, "status": 500, "error": str(e)}}
 
         # Process all documents in parallel
@@ -1095,6 +1102,9 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
                         # Handle special conversions
                         if mapped_key == "timestamp" and isinstance(value, str):
                             value = self._date_to_epoch(value)
+                        elif self._is_geo_point(mapped_key, value):
+                            # Convert geo_point to Vespa position format
+                            value = self._convert_geo_point(value)
                         elif isinstance(value, list):
                             # Vespa doesn't handle arrays the same way - join strings
                             if all(isinstance(v, str) for v in value):
@@ -1140,6 +1150,69 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             return True
 
         return False
+
+    # Known geo_point field names (common patterns)
+    GEO_POINT_FIELDS = {
+        "pickup_location", "dropoff_location", "location", "geo_location",
+        "coordinates", "geo", "point", "position", "geo_point"
+    }
+
+    def _is_geo_point(self, field_name: str, value: Any) -> bool:
+        """
+        Determine if a field is a geo_point that needs conversion.
+
+        OpenSearch geo_point formats:
+        - Array: [lon, lat]
+        - Object: {"lat": ..., "lon": ...}
+        - String: "lat,lon"
+        """
+        # Check if field name suggests geo_point
+        field_lower = field_name.lower()
+        is_geo_field = any(geo in field_lower for geo in self.GEO_POINT_FIELDS)
+
+        if not is_geo_field:
+            return False
+
+        # Check if value looks like a geo_point
+        if isinstance(value, list) and len(value) == 2:
+            # [lon, lat] format
+            return all(isinstance(v, (int, float)) for v in value)
+        elif isinstance(value, dict):
+            # {"lat": ..., "lon": ...} format
+            return "lat" in value and ("lon" in value or "lng" in value)
+        elif isinstance(value, str) and "," in value:
+            # "lat,lon" string format
+            parts = value.split(",")
+            if len(parts) == 2:
+                try:
+                    float(parts[0])
+                    float(parts[1])
+                    return True
+                except ValueError:
+                    pass
+
+        return False
+
+    def _convert_geo_point(self, value: Any) -> Dict[str, float]:
+        """
+        Convert OpenSearch geo_point to Vespa position format.
+
+        Vespa position format: {"lat": degrees, "lng": degrees}
+        """
+        if isinstance(value, list) and len(value) == 2:
+            # OpenSearch array format: [lon, lat]
+            return {"lng": float(value[0]), "lat": float(value[1])}
+        elif isinstance(value, dict):
+            lat = value.get("lat")
+            lon = value.get("lon") or value.get("lng")
+            return {"lat": float(lat), "lng": float(lon)}
+        elif isinstance(value, str) and "," in value:
+            # "lat,lon" string format
+            parts = value.split(",")
+            return {"lat": float(parts[0]), "lng": float(parts[1])}
+
+        # Return as-is if we can't parse
+        return value
 
     def _date_to_epoch(self, date_value: Any) -> int:
         """Convert date string to epoch milliseconds."""
