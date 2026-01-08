@@ -1367,7 +1367,7 @@ def main():
     message = message + f" (took {int(round(end - start))} seconds)"
     console.println("")
     console.info(message, overline="-", underline="-")
-    if hasattr(args, "results_file") and args.results_file:
+    if hasattr(args, "results_file") and args.results_file and args.results_format != "csv":
         with open(args.results_file, "a") as fh:
             print("\n", message, file=fh)
 
