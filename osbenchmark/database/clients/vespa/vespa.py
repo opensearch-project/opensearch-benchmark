@@ -814,6 +814,12 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         self._namespace = client_options.get("namespace", "benchmark")
         self._cluster = client_options.get("cluster", None)
 
+        # Concurrency settings for bulk operations
+        # Vespa has no native bulk API, so we send parallel HTTP requests.
+        # Default is conservative (5) to avoid 429 errors. With 8 workers, this = 40 concurrent.
+        # Vespa's default queue limit is 256, so stay well under that.
+        self._max_concurrent = client_options.get("max_concurrent", 5)
+
         # Create application package for schema management
         self._app_package = ApplicationPackage(name=self._app_name)
 
@@ -831,13 +837,22 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
         # aiohttp session (lazy initialized)
         self._session: Optional[aiohttp.ClientSession] = None
-        self._session_lock = asyncio.Lock()
+        self._session_lock: Optional[asyncio.Lock] = None
+
+        # Unique client ID for debugging
+        import os
+        self._client_id = f"pid{os.getpid()}_{id(self)}"
+        self.logger.info("VespaDatabaseClient created: client_id=%s, base_url=%s", self._client_id, self._base_url)
 
     async def _ensure_session(self):
         """Initialize aiohttp session with timing hooks for benchmarking."""
         # Fast path: session already exists
         if self._session is not None:
             return
+
+        # Create lock lazily in async context (must be in same event loop)
+        if self._session_lock is None:
+            self._session_lock = asyncio.Lock()
 
         # Slow path: acquire lock and create session (double-checked locking)
         async with self._session_lock:
@@ -932,7 +947,8 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         Returns:
             Dict with bulk operation results in OpenSearch format
         """
-        self.logger.info("DEBUG: VespaDatabaseClient.bulk() called with index=%s", index)
+        self.logger.info("DEBUG: VespaDatabaseClient.bulk() called: client_id=%s, index=%s, session=%s",
+                        self._client_id, index, "exists" if self._session else "None")
         await self._ensure_session()
 
         document_type = index or self._app_name
@@ -945,7 +961,7 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         if documents:
             self.logger.info("DEBUG: First document (of %d): %s", len(documents), str(documents[0])[:500])
 
-        max_concurrent = kwargs.get("max_concurrent", 50)
+        max_concurrent = kwargs.get("max_concurrent", self._max_concurrent)
         timeout_val = aiohttp.ClientTimeout(total=kwargs.get("request_timeout", 30))
 
         # Build query params for Vespa
