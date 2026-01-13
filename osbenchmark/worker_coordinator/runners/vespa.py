@@ -30,25 +30,54 @@ register_runner = main_runner.register_runner
 
 def register_vespa_runners():
     """Register all Vespa-specific runners."""
-    register_runner(workload.OperationType.Bulk, VespaBulkIndex(), async_runner=True)
-    register_runner(workload.OperationType.ClusterHealth, VespaRetry(VespaClusterHealth()), async_runner=True)
-    register_runner(workload.OperationType.CreateIndex, VespaRetry(VespaCreateIndex()), async_runner=True)
-    register_runner(workload.OperationType.DeleteIndex, VespaRetry(VespaDeleteIndex()), async_runner=True)
-    register_runner(workload.OperationType.Refresh, VespaRetry(VespaRefresh()), async_runner=True)
-    register_runner(workload.OperationType.Search, VespaQuery(), async_runner=True)
-    register_runner(workload.OperationType.ForceMerge, VespaRetry(VespaForceMerge()), async_runner=True)
-    register_runner(workload.OperationType.IndexStats, VespaRetry(VespaIndexStats()), async_runner=True)
-    register_runner(workload.OperationType.NodeStats, VespaNodeStats(), async_runner=True)
+    OT = workload.OperationType
+
+    register_runner(OT.Bulk, VespaBulkIndex(), async_runner=True)
+    register_runner(
+        OT.ClusterHealth, VespaRetry(VespaClusterHealth()),
+        async_runner=True
+    )
+    register_runner(
+        OT.CreateIndex, VespaRetry(VespaCreateIndex()),
+        async_runner=True
+    )
+    register_runner(
+        OT.DeleteIndex, VespaRetry(VespaDeleteIndex()),
+        async_runner=True
+    )
+    register_runner(
+        OT.Refresh, VespaRetry(VespaRefresh()), async_runner=True
+    )
+    register_runner(OT.Search, VespaQuery(), async_runner=True)
+    register_runner(
+        OT.ForceMerge, VespaRetry(VespaForceMerge()), async_runner=True
+    )
+    register_runner(
+        OT.IndexStats, VespaRetry(VespaIndexStats()), async_runner=True
+    )
+    register_runner(OT.NodeStats, VespaNodeStats(), async_runner=True)
 
     # Operations that are no-ops or not applicable to Vespa
-    register_runner(workload.OperationType.PutPipeline, VespaNoOp("put-pipeline"), async_runner=True)
-    register_runner(workload.OperationType.DeletePipeline, VespaNoOp("delete-pipeline"), async_runner=True)
-    register_runner(workload.OperationType.PutSettings, VespaNoOp("put-settings"), async_runner=True)
-    register_runner(workload.OperationType.CreateIndexTemplate, VespaNoOp("create-index-template"), async_runner=True)
-    register_runner(workload.OperationType.DeleteIndexTemplate, VespaNoOp("delete-index-template"), async_runner=True)
+    register_runner(
+        OT.PutPipeline, VespaNoOp("put-pipeline"), async_runner=True
+    )
+    register_runner(
+        OT.DeletePipeline, VespaNoOp("delete-pipeline"), async_runner=True
+    )
+    register_runner(
+        OT.PutSettings, VespaNoOp("put-settings"), async_runner=True
+    )
+    register_runner(
+        OT.CreateIndexTemplate, VespaNoOp("create-index-template"),
+        async_runner=True
+    )
+    register_runner(
+        OT.DeleteIndexTemplate, VespaNoOp("delete-index-template"),
+        async_runner=True
+    )
 
     # Sleep works the same way
-    register_runner(workload.OperationType.Sleep, VespaSleep(), async_runner=True)
+    register_runner(OT.Sleep, VespaSleep(), async_runner=True)
 
 
 class VespaRetry(Runner, Delegator):
@@ -67,7 +96,8 @@ class VespaRetry(Runner, Delegator):
         return self
 
     async def __call__(self, client, params):
-        retry_until_success = params.get("retry-until-success", self.retry_until_success)
+        default_retry = self.retry_until_success
+        retry_until_success = params.get("retry-until-success", default_retry)
         if retry_until_success:
             max_attempts = sys.maxsize
             retry_on_error = True
@@ -89,7 +119,7 @@ class VespaRetry(Runner, Delegator):
                         return return_value
                     else:
                         self.logger.info(
-                            "[%s] returned with error: %s. Retrying in [%.2f] seconds.",
+                            "[%s] error: %s. Retrying in [%.2f]s.",
                             repr(self.delegate), return_value, sleep_time
                         )
                         await asyncio.sleep(sleep_time)
@@ -102,7 +132,10 @@ class VespaRetry(Runner, Delegator):
             except Exception as e:
                 if last_attempt:
                     raise
-                self.logger.warning("Attempt %d failed: %s. Retrying...", attempt + 1, e)
+                self.logger.warning(
+                    "Attempt %d failed: %s. Retrying...",
+                    attempt + 1, e
+                )
                 await asyncio.sleep(sleep_time)
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -130,10 +163,15 @@ class VespaDeleteIndex(Runner):
 
             for index_name in indices:
                 if only_if_exists:
-                    # Check if schema exists - for Vespa, we assume it does
-                    self.logger.info("Vespa: Skipping delete for index [%s] (delete-index is no-op)", index_name)
+                    # Check if schema exists - for Vespa, assume it does
+                    self.logger.info(
+                        "Vespa: Skipping delete for [%s] (no-op)",
+                        index_name
+                    )
                 else:
-                    self.logger.info("Vespa: Delete-index for [%s] (no-op - schema managed externally)", index_name)
+                    self.logger.info(
+                        "Vespa: Delete-index [%s] (no-op)", index_name
+                    )
                 ops += 1
 
             return {
@@ -164,7 +202,9 @@ class VespaCreateIndex(Runner):
             indices = mandatory(params, "indices", self)
 
             for index, _body in indices:
-                self.logger.info("Vespa: Create-index for [%s] (no-op - schema should be pre-deployed)", index)
+                self.logger.info(
+                    "Vespa: Create-index [%s] (no-op)", index
+                )
 
             return {
                 "weight": len(indices),
@@ -217,6 +257,7 @@ class VespaBulkIndex(Runner):
     Uses Vespa's Document API with parallel requests.
     """
 
+    # pylint: disable=too-many-nested-blocks
     async def __call__(self, client, params):
         request_context_holder.on_client_request_start()
 
@@ -224,8 +265,7 @@ class VespaBulkIndex(Runner):
             bulk_params = params.get("bulk-params", {})
             api_kwargs = self._default_kw_params(params)
 
-            # Note: action-metadata-present is required but not used directly by Vespa
-            # because Vespa always needs the index for document type (unlike OpenSearch)
+            # action-metadata-present is required but Vespa always needs index
             mandatory(params, "action-metadata-present", self)
             bulk_size = mandatory(params, "bulk-size", self)
             unit = mandatory(params, "unit", self)
@@ -280,7 +320,7 @@ class VespaRefresh(Runner):
         request_context_holder.on_request_start()
         try:
             index = params.get("index", "_all")
-            self.logger.debug("Vespa: Refresh for [%s] (no-op - Vespa is real-time)", index)
+            self.logger.debug("Vespa: Refresh [%s] (no-op)", index)
 
             return {
                 "weight": 1,
@@ -307,7 +347,7 @@ class VespaForceMerge(Runner):
         request_context_holder.on_request_start()
         try:
             index = params.get("index")
-            self.logger.debug("Vespa: Force-merge for [%s] (no-op - Vespa manages compaction)", index)
+            self.logger.debug("Vespa: Force-merge [%s] (no-op)", index)
 
             return {
                 "weight": 1,
@@ -342,7 +382,9 @@ class VespaQuery(Runner):
                 request_params["request_cache"] = str(cache).lower()
 
             # Use client's search method which handles YQL translation
-            response = await client.search(body=body, index=index, params=request_params)
+            response = await client.search(
+                body=body, index=index, params=request_params
+            )
 
             # Extract result metrics
             if isinstance(response, dict):
@@ -432,7 +474,7 @@ class VespaNoOp(Runner):
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
-            self.logger.debug("Vespa: %s is not applicable (no-op)", self.operation_name)
+            self.logger.debug("Vespa: %s (no-op)", self.operation_name)
             return {
                 "weight": 1,
                 "unit": "ops",

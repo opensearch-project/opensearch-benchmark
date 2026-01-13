@@ -170,7 +170,6 @@ class DatabaseClient(ABC):
         Configure client to return raw responses (for performance).
         Optional method - implementations can provide no-op.
         """
-        pass
 
     def close(self):
         """

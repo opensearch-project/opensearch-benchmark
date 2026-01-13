@@ -36,7 +36,7 @@ from osbenchmark import actor, config, doc_link, \
 from osbenchmark.utils import console, opts, versions
 from osbenchmark.database.registry import DatabaseType, get_client_factory
 # Import database module to ensure all database types are registered
-import osbenchmark.database  # noqa: F401
+import osbenchmark.database  # noqa: F401  # pylint: disable=unused-import
 
 
 pipelines = collections.OrderedDict()

@@ -13,7 +13,6 @@ across all database-specific runner implementations.
 
 import logging
 import types
-from typing import Any, Dict, Optional
 
 from osbenchmark import exceptions, workload
 from osbenchmark.context import RequestContextHolder

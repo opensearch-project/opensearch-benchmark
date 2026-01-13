@@ -13,7 +13,7 @@
 # not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
-#	http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
@@ -33,15 +33,15 @@ import uuid
 import zipfile
 from datetime import datetime
 from typing import Dict, List, Optional, Any, Tuple
+from urllib.parse import urlencode
 
 import aiohttp
 import certifi
+import urllib3
+from urllib3.util.ssl_ import is_ipaddress
 # pyvespa package is imported as 'vespa' internally
 from vespa.package import ApplicationPackage, Schema, Document, Field, HNSW
 from vespa.application import Vespa
-import urllib3
-from urllib.parse import urlencode
-from urllib3.util.ssl_ import is_ipaddress
 
 from osbenchmark import doc_link, exceptions
 from osbenchmark.cloud_provider.factory import CloudProviderFactory
@@ -90,8 +90,10 @@ FIELD_NAME_MAPPING = {
 # Fields allowed for big5 workload
 BIG5_ALLOWED_FIELDS = {
     "timestamp", "message", "metrics_size", "metrics_tmin",
-    "agent_ephemeral_id", "agent_id", "agent_name", "agent_type", "agent_version",
-    "aws_cloudwatch_ingestion_time", "aws_cloudwatch_log_group", "aws_cloudwatch_log_stream",
+    "agent_ephemeral_id", "agent_id", "agent_name",
+    "agent_type", "agent_version",
+    "aws_cloudwatch_ingestion_time", "aws_cloudwatch_log_group",
+    "aws_cloudwatch_log_stream",
     "cloud_region",
     "data_stream_dataset", "data_stream_namespace", "data_stream_type",
     "ecs_version",
@@ -162,7 +164,9 @@ class OpenSearchToVespaMapper:
         return cls.TYPE_MAP.get(os_type)
 
     @classmethod
-    def get_indexing_config(cls, os_type: str, field_config: Dict) -> List[str]:
+    def get_indexing_config(
+        cls, os_type: str, field_config: Dict
+    ) -> List[str]:
         """
         Determine Vespa indexing configuration based on OpenSearch type.
 
@@ -177,7 +181,9 @@ class OpenSearchToVespaMapper:
         elif os_type == "knn_vector":
             # Vector field needs attribute + index for HNSW
             return ["attribute", "index"]
-        elif os_type in ("integer", "long", "float", "double", "boolean", "date", "ip"):
+        elif os_type in (
+            "integer", "long", "float", "double", "boolean", "date", "ip"
+        ):
             # Numeric/filterable types
             return ["attribute", "summary"]
         elif os_type == "geo_point":
@@ -187,26 +193,30 @@ class OpenSearchToVespaMapper:
             return ["attribute", "summary"]
 
     @classmethod
-    def get_index_config(cls, os_type: str, field_config: Dict) -> Optional[str]:
+    def get_index_config(
+        cls, os_type: str, field_config: Dict
+    ) -> Optional[str]:
         """Get Vespa index configuration string."""
         if os_type == "text":
             return "enable-bm25"
         return None
 
     @classmethod
-    def get_hnsw_config(cls, os_type: str, field_config: Dict) -> Optional[HNSW]:
+    def get_hnsw_config(
+        cls, os_type: str, field_config: Dict
+    ) -> Optional[HNSW]:
         """Get HNSW configuration for vector fields."""
         if os_type != "knn_vector":
             return None
 
         # Extract HNSW parameters from OpenSearch config
         method = field_config.get("method", {})
-        engine = method.get("engine", "nmslib")
         params = method.get("parameters", {})
 
         # Map OpenSearch HNSW params to Vespa HNSW
         # OpenSearch: ef_construction, m
-        # Vespa: max_links_per_node (m), neighbors_to_explore_at_insert (ef_construction)
+        # Vespa: max_links_per_node (m),
+        # neighbors_to_explore_at_insert (ef_construction)
         m = params.get("m", 16)
         ef_construction = params.get("ef_construction", 100)
 
@@ -216,7 +226,9 @@ class OpenSearchToVespaMapper:
         )
 
     @classmethod
-    def translate_field(cls, field_name: str, field_config: Dict) -> Optional[Field]:
+    def translate_field(
+        cls, field_name: str, field_config: Dict
+    ) -> Optional[Field]:
         """
         Translate a single OpenSearch field definition to a Vespa Field.
 
@@ -234,7 +246,8 @@ class OpenSearchToVespaMapper:
         vespa_type = cls.get_vespa_type(os_type, field_config)
         if not vespa_type:
             logging.getLogger(__name__).warning(
-                f"Unsupported OpenSearch type '{os_type}' for field '{field_name}', skipping"
+                "Unsupported OpenSearch type '%s' for field '%s', skipping",
+                os_type, field_name
             )
             return None
 
@@ -266,11 +279,16 @@ class OpenSearchToVespaMapper:
 
         for field_name, field_config in properties.items():
             # Handle nested fields (flatten for now)
-            if field_config.get("type") == "object" or "properties" in field_config:
-                # Recursively handle nested properties with dot notation
+            is_nested = (
+                field_config.get("type") == "object" or
+                "properties" in field_config
+            )
+            if is_nested:
+                # Recursively handle nested properties
                 nested_props = field_config.get("properties", {})
                 for nested_name, nested_config in nested_props.items():
-                    full_name = f"{field_name}_{nested_name}"  # Use underscore, Vespa doesn't like dots
+                    # Use underscore, Vespa doesn't like dots
+                    full_name = f"{field_name}_{nested_name}"
                     field = cls.translate_field(full_name, nested_config)
                     if field:
                         fields.append(field)
@@ -279,11 +297,14 @@ class OpenSearchToVespaMapper:
                 if field:
                     fields.append(field)
 
-                # Handle multi-fields (e.g., text with .raw keyword subfield)
+                # Handle multi-fields (e.g., text with .raw keyword)
                 if "fields" in field_config:
-                    for subfield_name, subfield_config in field_config["fields"].items():
+                    sub_items = field_config["fields"].items()
+                    for subfield_name, subfield_config in sub_items:
                         full_name = f"{field_name}_{subfield_name}"
-                        subfield = cls.translate_field(full_name, subfield_config)
+                        subfield = cls.translate_field(
+                            full_name, subfield_config
+                        )
                         if subfield:
                             fields.append(subfield)
 
@@ -302,26 +323,31 @@ class VespaIndicesNamespace(IndicesNamespace):
     - Creating an "index" means deploying a schema to the application
     - Deleting means removing documents (schema changes require redeployment)
 
-    If you need to skip schema deployment (e.g., schema is pre-deployed),
-    use --exclude-tasks to skip the index creation operation.
+    If you need to skip schema deployment (e.g., pre-deployed),
+    use --exclude-tasks to skip index creation.
     """
 
-    def __init__(self, vespa_client: Vespa, app_package: ApplicationPackage,
-                 config_url: str = None):
+    def __init__(
+        self, vespa_client: Vespa, app_package: ApplicationPackage,
+        config_url: str = None
+    ):
         self._client = vespa_client
         self._app_package = app_package
         self._config_url = config_url  # e.g., "http://localhost:19071"
         self._schemas: Dict[str, Schema] = {}  # Track created schemas
         self.logger = logging.getLogger(__name__)
 
-    async def create(self, index: str, body: Optional[Dict] = None, **kwargs) -> Dict:
+    async def create(
+        self, index: str, body: Optional[Dict] = None, **kwargs
+    ) -> Dict:
         """
         Create a Vespa schema from OpenSearch index definition and deploy it.
 
         This method:
         1. Translates OpenSearch mappings to Vespa schema
         2. Builds an application package with the schema
-        3. Deploys it via the Vespa Deploy API (POST to /application/v2/tenant/default/prepareandactivate)
+        3. Deploys via Vespa Deploy API
+           (POST /application/v2/tenant/default/prepareandactivate)
 
         Args:
             index: Index name (becomes schema name in Vespa)
@@ -342,9 +368,14 @@ class VespaIndicesNamespace(IndicesNamespace):
         fields = OpenSearchToVespaMapper.translate_mappings(mappings)
 
         if not fields:
-            self.logger.warning("No fields could be translated for index '%s'", index)
+            self.logger.warning(
+                "No fields could be translated for index '%s'", index
+            )
             # Create minimal schema with a dummy field
-            fields = [Field(name="doc_id", type="string", indexing=["attribute", "summary"])]
+            fields = [Field(
+                name="doc_id", type="string",
+                indexing=["attribute", "summary"]
+            )]
 
         # Create Vespa Document and Schema
         document = Document(fields=fields)
@@ -356,7 +387,9 @@ class VespaIndicesNamespace(IndicesNamespace):
         # Add schema to application package
         self._app_package.schema = schema
 
-        self.logger.info("Created Vespa schema '%s' with %d fields", index, len(fields))
+        self.logger.info(
+            "Created Vespa schema '%s' with %d fields", index, len(fields)
+        )
 
         # Deploy the application package via the Deploy API
         if self._config_url:
@@ -369,7 +402,9 @@ class VespaIndicesNamespace(IndicesNamespace):
                 "deploy_message": deploy_result.get("message", "")
             }
         else:
-            self.logger.warning("No config_url provided - schema created but not deployed")
+            self.logger.warning(
+                "No config_url - schema created but not deployed"
+            )
             RequestContextHolder.on_request_end()
             return {"acknowledged": True, "index": index, "deployed": False}
 
@@ -394,14 +429,19 @@ class VespaIndicesNamespace(IndicesNamespace):
 
                 # Write schema files
                 for schema_name, schema in self._schemas.items():
-                    schema_content = self._generate_schema_sd(schema_name, schema)
-                    zf.writestr(f"schemas/{schema_name}.sd", schema_content)
+                    schema_content = self._generate_schema_sd(
+                        schema_name, schema
+                    )
+                    zf.writestr(
+                        f"schemas/{schema_name}.sd", schema_content
+                    )
 
             zip_buffer.seek(0)
             zip_data = zip_buffer.getvalue()
 
             # Deploy via REST API
-            deploy_url = f"{self._config_url}/application/v2/tenant/default/prepareandactivate"
+            deploy_path = "/application/v2/tenant/default/prepareandactivate"
+            deploy_url = f"{self._config_url}{deploy_path}"
 
             self.logger.info("Deploying application package to %s", deploy_url)
 
@@ -414,11 +454,16 @@ class VespaIndicesNamespace(IndicesNamespace):
                     if response.status == 200:
                         result = await response.json()
                         self.logger.info("Deployment successful: %s", result)
-                        return {"success": True, "message": result.get("message", "Deployed")}
+                        msg = result.get("message", "Deployed")
+                        return {"success": True, "message": msg}
                     else:
                         error_text = await response.text()
-                        self.logger.error("Deployment failed (%s): %s", response.status, error_text)
-                        return {"success": False, "message": f"HTTP {response.status}: {error_text}"}
+                        self.logger.error(
+                            "Deployment failed (%s): %s",
+                            response.status, error_text
+                        )
+                        msg = f"HTTP {response.status}: {error_text}"
+                        return {"success": False, "message": msg}
 
         except Exception as e:
             self.logger.error("Deployment failed with exception: %s", e)
@@ -497,12 +542,16 @@ class VespaIndicesNamespace(IndicesNamespace):
 
         # Add HNSW configuration for vector fields
         if field.ann:
-            parts.append(f"      index {{")
-            parts.append(f"        hnsw {{")
-            parts.append(f"          max-links-per-node: {field.ann.max_links_per_node}")
-            parts.append(f"          neighbors-to-explore-at-insert: {field.ann.neighbors_to_explore_at_insert}")
-            parts.append(f"        }}")
-            parts.append(f"      }}")
+            max_links = field.ann.max_links_per_node
+            neighbors = field.ann.neighbors_to_explore_at_insert
+            parts.append("      index {")
+            parts.append("        hnsw {")
+            parts.append(f"          max-links-per-node: {max_links}")
+            parts.append(
+                f"          neighbors-to-explore-at-insert: {neighbors}"
+            )
+            parts.append("        }")
+            parts.append("      }")
 
         parts.append("    }")
         return "\n    ".join(parts)
@@ -511,16 +560,18 @@ class VespaIndicesNamespace(IndicesNamespace):
         """
         Delete documents from a Vespa schema.
 
-        Note: In Vespa, you can't dynamically delete schemas without redeployment.
+        Note: In Vespa, you can't delete schemas without redeployment.
         This will delete all documents in the schema instead.
         """
-        self.logger.info("Deleting all documents from Vespa schema '%s'", index)
+        self.logger.info(
+            "Deleting all documents from Vespa schema '%s'", index
+        )
 
         # Simulate request timing for stub operations
         RequestContextHolder.on_request_start()
 
         # Use Vespa's delete_all_docs or visit API
-        # For now, mark as acknowledged - actual implementation depends on Vespa setup
+        # Mark as acknowledged - actual impl depends on Vespa setup
         if index in self._schemas:
             del self._schemas[index]
 
@@ -536,19 +587,22 @@ class VespaIndicesNamespace(IndicesNamespace):
 
     async def refresh(self, index: Optional[str] = None, **kwargs) -> Dict:
         """
-        Vespa doesn't have explicit refresh - documents are searchable immediately.
-        This is a no-op for compatibility.
+        Vespa doesn't have explicit refresh - documents are immediately
+        searchable. This is a no-op for compatibility.
         """
         RequestContextHolder.on_request_start()
         RequestContextHolder.on_request_end()
         return {"_shards": {"successful": 1, "failed": 0}}
 
-    def stats(self, index: Optional[str] = None, metric: Optional[str] = None, **kwargs) -> Dict:
+    def stats(
+        self, index: Optional[str] = None,
+        metric: Optional[str] = None, **kwargs
+    ) -> Dict:
         """
         Get index statistics.
 
         Vespa provides stats differently - this returns a compatible structure.
-        Note: This is synchronous because telemetry code calls it synchronously.
+        Note: Synchronous because telemetry code calls it synchronously.
         """
         # Return minimal structure expected by telemetry
         return {
@@ -557,8 +611,14 @@ class VespaIndicesNamespace(IndicesNamespace):
                 "primaries": {
                     "docs": {"count": 0, "deleted": 0},
                     "store": {"size_in_bytes": 0},
-                    "indexing": {"index_time_in_millis": 0, "throttle_time_in_millis": 0},
-                    "merges": {"total_time_in_millis": 0, "total_throttled_time_in_millis": 0},
+                    "indexing": {
+                        "index_time_in_millis": 0,
+                        "throttle_time_in_millis": 0
+                    },
+                    "merges": {
+                        "total_time_in_millis": 0,
+                        "total_throttled_time_in_millis": 0
+                    },
                     "refresh": {"total_time_in_millis": 0},
                     "flush": {"total_time_in_millis": 0},
                     "segments": {
@@ -585,6 +645,7 @@ class VespaIndicesNamespace(IndicesNamespace):
         """
         return {"_shards": {"successful": 1, "failed": 0}}
 
+
 class VespaClusterNamespace(ClusterNamespace):
     """
     Vespa implementation of cluster namespace.
@@ -593,7 +654,10 @@ class VespaClusterNamespace(ClusterNamespace):
     Health checks use Vespa's application status endpoint.
     """
 
-    def __init__(self, vespa_client: Vespa, config_host: str = None, config_port: int = 19071):
+    def __init__(
+        self, vespa_client: Vespa, config_host: str = None,
+        config_port: int = 19071
+    ):
         self._client = vespa_client
         self._config_host = config_host
         self._config_port = config_port
@@ -606,7 +670,9 @@ class VespaClusterNamespace(ClusterNamespace):
         Vespa health is determined by checking if the application is up.
         Maps to OpenSearch health response format.
         """
-        self.logger.info("DEBUG: VespaClusterNamespace.health() called with kwargs=%s", kwargs)
+        self.logger.info(
+            "VespaClusterNamespace.health() called with kwargs=%s", kwargs
+        )
         RequestContextHolder.on_request_start()
         try:
             # pyvespa Vespa client has get_application_status method
@@ -638,7 +704,9 @@ class VespaClusterNamespace(ClusterNamespace):
         This is a no-op for runtime compatibility.
         """
         RequestContextHolder.on_request_start()
-        self.logger.warning("Vespa does not support runtime cluster settings changes")
+        self.logger.warning(
+            "Vespa does not support runtime cluster settings changes"
+        )
         RequestContextHolder.on_request_end()
         return {"acknowledged": True, "persistent": {}, "transient": {}}
 
@@ -655,10 +723,12 @@ class VespaTransportNamespace(TransportNamespace):
         self._base_url = base_url
         self.logger = logging.getLogger(__name__)
 
-    async def perform_request(self, method: str, url: str,
-                             params: Optional[Dict] = None,
-                             body: Optional[Any] = None,
-                             headers: Optional[Dict] = None) -> Any:
+    async def perform_request(
+        self, method: str, url: str,
+        params: Optional[Dict] = None,
+        body: Optional[Any] = None,
+        headers: Optional[Dict] = None
+    ) -> Any:
         """
         Perform a raw HTTP request to Vespa.
 
@@ -688,8 +758,7 @@ class VespaTransportNamespace(TransportNamespace):
                 return await response.text()
 
     async def close(self):
-        """Close any open connections. No-op for Vespa as we use per-request sessions."""
-        pass
+        """Close connections. No-op - uses per-request sessions."""
 
 
 class VespaNodesNamespace(NodesNamespace):
@@ -758,9 +827,10 @@ class VespaNodesNamespace(NodesNamespace):
             }
         }
 
-    def info(self, node_id: Optional[str] = None,
-             metric: Optional[str] = None,
-             **kwargs) -> Dict:
+    def info(
+        self, node_id: Optional[str] = None,
+        metric: Optional[str] = None, **kwargs
+    ) -> Dict:
         """
         Get node information.
 
@@ -790,7 +860,10 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
     Uses aiohttp with timing hooks for accurate benchmark measurement.
     """
 
-    def __init__(self, vespa_client: Vespa, hosts: List[Dict], client_options: Dict):
+    def __init__(
+        self, vespa_client: Vespa, hosts: List[Dict],
+        client_options: Dict
+    ):
         self.logger = logging.getLogger(__name__)
         self._client = vespa_client
         self._hosts = hosts
@@ -815,8 +888,9 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
         # Concurrency settings for bulk operations
         # Vespa has no native bulk API, so we send parallel HTTP requests.
-        # Default is conservative (5) to avoid 429 errors. With 8 workers, this = 40 concurrent.
-        # Vespa's default queue limit is 256, so stay well under that.
+        # Default is conservative (5) to avoid 429 errors.
+        # With 8 workers, this = 40 concurrent.
+        # Vespa's default queue limit is 256, so stay under that.
         self._max_concurrent = client_options.get("max_concurrent", 5)
 
         # Create application package for schema management
@@ -827,7 +901,9 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             vespa_client, self._app_package,
             config_url=self._config_url
         )
-        self._cluster_ns = VespaClusterNamespace(vespa_client, host, config_port)
+        self._cluster_ns = VespaClusterNamespace(
+            vespa_client, host, config_port
+        )
         self._transport = VespaTransportNamespace(vespa_client, self._base_url)
         self._nodes = VespaNodesNamespace(vespa_client, host, port)
 
@@ -840,7 +916,10 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
         # Unique client ID for debugging
         self._client_id = f"pid{os.getpid()}_{id(self)}"
-        self.logger.info("VespaDatabaseClient created: client_id=%s, base_url=%s", self._client_id, self._base_url)
+        self.logger.info(
+            "VespaDatabaseClient created: client_id=%s, base_url=%s",
+            self._client_id, self._base_url
+        )
 
     async def _ensure_session(self):
         """Initialize aiohttp session with timing hooks for benchmarking."""
@@ -848,13 +927,13 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         if self._session is not None:
             return
 
-        # Create lock lazily in async context (must be in same event loop)
+        # Create lock lazily in async context (same event loop)
         if self._session_lock is None:
             self._session_lock = asyncio.Lock()
 
         # Slow path: acquire lock and create session (double-checked locking)
         async with self._session_lock:
-            # Double-check after acquiring lock (another coroutine may have created it)
+            # Double-check after acquiring lock (coroutine may have created)
             if self._session is not None:
                 return
 
@@ -877,7 +956,9 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             trace_config.on_request_exception.append(on_request_end)
 
             # High connection limits for parallel bulk feeding
-            connector = aiohttp.TCPConnector(limit=100, limit_per_host=100, force_close=False)
+            connector = aiohttp.TCPConnector(
+                limit=100, limit_per_host=100, force_close=False
+            )
             self._session = aiohttp.ClientSession(
                 trace_configs=[trace_config],
                 connector=connector
@@ -925,16 +1006,18 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             "tagline": "Vespa - The open big data serving engine"
         }
 
-    async def bulk(self, body: Any,
-                   index: Optional[str] = None,
-                   doc_type: Optional[str] = None,
-                   params: Optional[Dict] = None,
-                   **kwargs) -> Dict:
+    async def bulk(
+        self, body: Any,
+        index: Optional[str] = None,
+        doc_type: Optional[str] = None,
+        params: Optional[Dict] = None,
+        **kwargs
+    ) -> Dict:
         """
         Bulk index/update/delete documents in Vespa.
 
         Uses parallel HTTP requests with semaphore for rate limiting.
-        Vespa Document API: POST /document/v1/{namespace}/{schema}/docid/{doc_id}
+        Vespa Document API: POST /document/v1/{namespace}/{schema}/docid/ID
 
         Args:
             body: Bulk request body (bytes, string, or list format)
@@ -945,22 +1028,32 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         Returns:
             Dict with bulk operation results in OpenSearch format
         """
-        self.logger.info("DEBUG: VespaDatabaseClient.bulk() called: client_id=%s, index=%s, session=%s",
-                        self._client_id, index, "exists" if self._session else "None")
+        session_status = "exists" if self._session else "None"
+        self.logger.info(
+            "VespaDatabaseClient.bulk(): client_id=%s, index=%s, session=%s",
+            self._client_id, index, session_status
+        )
         await self._ensure_session()
 
         document_type = index or self._app_name
-        endpoint = f"{self._base_url}/document/v1/{self._namespace}/{document_type}/docid"
-        self.logger.info("DEBUG: Vespa bulk endpoint=%s, base_url=%s, namespace=%s, document_type=%s",
-                        endpoint, self._base_url, self._namespace, document_type)
+        doc_path = f"/document/v1/{self._namespace}/{document_type}/docid"
+        endpoint = f"{self._base_url}{doc_path}"
+        self.logger.info(
+            "Vespa bulk endpoint=%s, namespace=%s, document_type=%s",
+            endpoint, self._namespace, document_type
+        )
 
         # Parse bulk body into list of documents
         documents = self._parse_bulk_body(body, index)
         if documents:
-            self.logger.info("DEBUG: First document (of %d): %s", len(documents), str(documents[0])[:500])
+            first_doc = str(documents[0])[:500]
+            self.logger.info(
+                "First document (of %d): %s", len(documents), first_doc
+            )
 
         max_concurrent = kwargs.get("max_concurrent", self._max_concurrent)
-        timeout_val = aiohttp.ClientTimeout(total=kwargs.get("request_timeout", 30))
+        req_timeout = kwargs.get("request_timeout", 30)
+        timeout_val = aiohttp.ClientTimeout(total=req_timeout)
 
         # Build query params for Vespa
         query_params = {}
@@ -980,13 +1073,16 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
                 source = doc.get("_source", doc.get("doc", doc))
 
-                # Transform document for Vespa (flatten nested, convert timestamps)
-                source = self._transform_document_for_vespa(source, document_type)
+                # Transform document for Vespa (flatten, convert)
+                source = self._transform_document_for_vespa(
+                    source, document_type
+                )
 
                 vespa_doc = {"fields": source}
 
                 try:
-                    async with self._session.post(
+                    # pylint: disable=not-async-context-manager
+                    async with self._session.post(  # type: ignore[union-attr]
                         doc_endpoint,
                         json=vespa_doc,
                         params=query_params,
@@ -995,14 +1091,30 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
                         if response.status >= 400:
                             errors_count += 1
                             response_text = await response.text()
-                            self.logger.warning("Vespa document POST failed: endpoint=%s status=%d error=%s",
-                                              doc_endpoint, response.status, response_text[:500])
-                            return {"index": {"_id": doc_id, "status": response.status, "error": response_text}}
+                            self.logger.warning(
+                                "Vespa POST failed: %s status=%d err=%s",
+                                doc_endpoint, response.status,
+                                response_text[:500]
+                            )
+                            return {
+                                "index": {
+                                    "_id": doc_id,
+                                    "status": response.status,
+                                    "error": response_text
+                                }
+                            }
                         return {"index": {"_id": doc_id, "status": 200}}
                 except Exception as e:
                     errors_count += 1
-                    self.logger.warning("Vespa document POST exception: endpoint=%s error=%s", doc_endpoint, str(e))
-                    return {"index": {"_id": doc_id, "status": 500, "error": str(e)}}
+                    self.logger.warning(
+                        "Vespa POST exception: %s error=%s",
+                        doc_endpoint, str(e)
+                    )
+                    return {
+                        "index": {
+                            "_id": doc_id, "status": 500, "error": str(e)
+                        }
+                    }
 
         # Process all documents in parallel
         tasks = [post_document(i, doc) for i, doc in enumerate(documents)]
@@ -1013,7 +1125,9 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         for item in items:
             if isinstance(item, Exception):
                 errors_count += 1
-                final_items.append({"index": {"status": 500, "error": str(item)}})
+                final_items.append({
+                    "index": {"status": 500, "error": str(item)}
+                })
             else:
                 final_items.append(item)
 
@@ -1030,21 +1144,30 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         Handles:
         - bytes input (OSB passes bytes for standard bulk operations)
         - string input (newline-delimited JSON format)
-        - list input (alternating [action, doc, action, doc, ...] from vectorsearch)
+        - list input (alternating [action, doc, ...] from vectorsearch)
         """
         # Handle list format from BulkVectorsFromDataSetParamSource
         if isinstance(body, (list, tuple)):
             body_list = list(body)
             if len(body_list) >= 2 and isinstance(body_list[0], dict):
                 first_item = body_list[0]
-                if "index" in first_item and isinstance(first_item.get("index"), dict):
+                is_action = (
+                    "index" in first_item and
+                    isinstance(first_item.get("index"), dict)
+                )
+                if is_action:
                     # Alternating format: [action0, doc0, action1, doc1, ...]
                     documents = []
                     for i in range(0, len(body_list) - 1, 2):
                         action = body_list[i]
                         doc_body = body_list[i + 1]
-                        doc_id = action.get("index", {}).get("_id", f"doc_{len(documents)}")
-                        documents.append({"_id": doc_id, "_source": doc_body})
+                        action_idx = action.get("index", {})
+                        doc_id = action_idx.get(
+                            "_id", f"doc_{len(documents)}"
+                        )
+                        documents.append({
+                            "_id": doc_id, "_source": doc_body
+                        })
                     return documents
             # If it's already a list of documents
             return body_list
@@ -1075,14 +1198,18 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
                         action_meta = action[key]
                         break
 
-                if action_type in ["index", "create", "update"] and i + 1 < len(lines):
+                is_write = action_type in ["index", "create", "update"]
+                if is_write and i + 1 < len(lines):
                     doc_body = json.loads(lines[i + 1])
                     doc_id = action_meta.get("_id") if action_meta else None
                     if not doc_id:
-                        doc_id = str(uuid.uuid4())  # Generate UUID for uniqueness
+                        doc_id = str(uuid.uuid4())  # Generate UUID
+                    idx = default_index
+                    if action_meta:
+                        idx = action_meta.get("_index", default_index)
                     documents.append({
                         "_id": doc_id,
-                        "_index": action_meta.get("_index", default_index) if action_meta else default_index,
+                        "_index": idx,
                         "_source": doc_body
                     })
                     i += 2
@@ -1093,7 +1220,9 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
         return documents
 
-    def _transform_document_for_vespa(self, doc: Dict, document_type: str = None) -> Dict:
+    def _transform_document_for_vespa(
+        self, doc: Dict, document_type: str = None
+    ) -> Dict:
         """
         Transform OpenSearch document to Vespa format.
 
@@ -1104,28 +1233,35 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         """
         vespa_doc = {}
 
-        def flatten(obj: Any, prefix: str = "") -> None:
+        def flatten(obj: Any, prefix: str = "") -> None:  # noqa: E501
             if isinstance(obj, dict):
                 for key, value in obj.items():
                     new_key = f"{prefix}_{key}" if prefix else key
 
-                    if isinstance(value, dict) and not self._is_leaf_value(value):
+                    is_nested = (
+                        isinstance(value, dict) and
+                        not self._is_leaf_value(value)
+                    )
+                    if is_nested:
                         flatten(value, new_key)
                     else:
                         # Apply field mapping
-                        if new_key in FIELD_NAME_MAPPING:
-                            mapped_key = FIELD_NAME_MAPPING[new_key]
-                        else:
-                            mapped_key = new_key.replace(".", "_").replace("@", "")
+                        mapped_key = FIELD_NAME_MAPPING.get(
+                            new_key, new_key.replace(".", "_").replace("@", "")
+                        )
 
                         # Handle special conversions
-                        if mapped_key == "timestamp" and isinstance(value, str):
+                        is_timestamp = (
+                            mapped_key == "timestamp" and
+                            isinstance(value, str)
+                        )
+                        if is_timestamp:
                             value = self._date_to_epoch(value)
                         elif self._is_geo_point(mapped_key, value):
                             # Convert geo_point to Vespa position format
                             value = self._convert_geo_point(value)
                         elif isinstance(value, list):
-                            # Vespa doesn't handle arrays the same way - join strings
+                            # Vespa arrays differ - join strings
                             if all(isinstance(v, str) for v in value):
                                 value = ",".join(value)
 
@@ -1140,7 +1276,10 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
         # Filter for big5 workload
         if document_type == "big5" or self._app_name == "big5":
-            vespa_doc = {k: v for k, v in vespa_doc.items() if k in BIG5_ALLOWED_FIELDS}
+            vespa_doc = {
+                k: v for k, v in vespa_doc.items()
+                if k in BIG5_ALLOWED_FIELDS
+            }
 
         return vespa_doc
 
@@ -1165,15 +1304,16 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             return True
 
         # Simple wrappers
-        if keys == {"value"} or keys == {"values"}:
+        if keys in ({"value"}, {"values"}):
             return True
 
         return False
 
     # Known geo_point field names (common patterns)
     GEO_POINT_FIELDS = {
-        "pickup_location", "dropoff_location", "location", "geo_location",
-        "coordinates", "geo", "point", "position", "geo_point"
+        "pickup_location", "dropoff_location", "location",
+        "geo_location", "coordinates", "geo", "point",
+        "position", "geo_point"
     }
 
     def _is_geo_point(self, field_name: str, value: Any) -> bool:
@@ -1220,7 +1360,9 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         """
         if isinstance(value, list) and len(value) == 2:
             # OpenSearch array format: [lon, lat]
-            return {"lng": float(value[0]), "lat": float(value[1])}
+            return {
+                "lng": float(value[0]), "lat": float(value[1])
+            }
         elif isinstance(value, dict):
             lat = value.get("lat")
             lon = value.get("lon") or value.get("lng")
@@ -1242,7 +1384,8 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             try:
                 # Try ISO format
                 if "T" in date_value:
-                    dt = datetime.fromisoformat(date_value.replace("Z", "+00:00"))
+                    iso_val = date_value.replace("Z", "+00:00")
+                    dt = datetime.fromisoformat(iso_val)
                     return int(dt.timestamp() * 1000)
                 # Try epoch string
                 return int(float(date_value))
@@ -1257,10 +1400,12 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             return FIELD_NAME_MAPPING[os_field]
         return os_field.replace(".", "_").replace("@", "")
 
-    async def index(self, index: str, body: Dict,
-                   id: Optional[str] = None,
-                   doc_type: Optional[str] = None,
-                   **kwargs) -> Dict:
+    async def index(
+        self, index: str, body: Dict,
+        id: Optional[str] = None,
+        doc_type: Optional[str] = None,
+        **kwargs
+    ) -> Dict:
         """
         Index a single document in Vespa.
 
@@ -1287,11 +1432,12 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
             self._doc_counts[index] = self._doc_counts.get(index, 0) + 1
 
+            result = "created" if response.status_code == 200 else "error"
             return {
                 "_index": index,
                 "_id": doc_id,
                 "_version": 1,
-                "result": "created" if response.status_code == 200 else "error",
+                "result": result,
                 "_shards": {"total": 1, "successful": 1, "failed": 0}
             }
         except Exception as e:
@@ -1303,10 +1449,12 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
                 "error": str(e)
             }
 
-    async def search(self, index: Optional[str] = None,
-                    body: Optional[Dict] = None,
-                    doc_type: Optional[str] = None,
-                    **kwargs) -> Dict:
+    async def search(
+        self, index: Optional[str] = None,
+        body: Optional[Dict] = None,
+        doc_type: Optional[str] = None,
+        **kwargs
+    ) -> Dict:
         """
         Execute a search query in Vespa.
 
@@ -1342,7 +1490,10 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             params["hits"] = body.get("size", 10)
 
         try:
-            async with self._session.get(search_url, params=params) as response:
+            # pylint: disable=not-async-context-manager
+            async with self._session.get(  # type: ignore[union-attr]
+                search_url, params=params
+            ) as response:
                 vespa_response = await response.json()
 
                 # Convert Vespa response to OpenSearch format
@@ -1354,23 +1505,30 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
                 "took": 0,
                 "timed_out": True,
                 "error": str(e),
-                "hits": {"total": {"value": 0, "relation": "eq"}, "hits": []}
+                "hits": {
+                    "total": {"value": 0, "relation": "eq"},
+                    "hits": []
+                }
             }
 
-    def _convert_to_yql(self, body: Optional[Dict], document_type: str) -> Tuple[str, Dict]:
+    def _convert_to_yql(
+        self, body: Optional[Dict], document_type: str
+    ) -> Tuple[str, Dict]:
         """
         Convert OpenSearch query DSL to Vespa YQL.
 
         Returns:
             Tuple of (yql_query, query_params)
-            query_params contains additional parameters like input.query(query_vector)
+            query_params contains additional params like input.query(vector)
         """
         query_params = {}
 
         if not body:
             return f"select * from {document_type} where true", query_params
 
-        where_clause = self._build_where_clause(body.get("query", {}), document_type, query_params)
+        where_clause = self._build_where_clause(
+            body.get("query", {}), document_type, query_params
+        )
         order_clause = self._build_order_clause(body.get("sort", []))
         limit_clause = self._build_limit_clause(body)
 
@@ -1382,13 +1540,17 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             yql += f" {limit_clause}"
 
         # Aggregations appended with |
-        grouping_clause = self._build_grouping_clause(body.get("aggs", body.get("aggregations", {})))
+        aggs = body.get("aggs", body.get("aggregations", {}))
+        grouping_clause = self._build_grouping_clause(aggs)
         if grouping_clause:
             yql += f" | {grouping_clause}"
 
         return yql, query_params
 
-    def _build_where_clause(self, query: Dict, document_type: str, query_params: Dict) -> str:
+    # pylint: disable=too-many-return-statements
+    def _build_where_clause(
+        self, query: Dict, document_type: str, query_params: Dict
+    ) -> str:
         """Build the WHERE clause from OpenSearch query DSL."""
         if not query:
             return "true"
@@ -1419,7 +1581,9 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
         # bool
         if "bool" in query:
-            return self._convert_bool_query(query["bool"], document_type, query_params)
+            return self._convert_bool_query(
+                query["bool"], document_type, query_params
+            )
 
         # query_string
         if "query_string" in query:
@@ -1485,7 +1649,8 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
                 for value in values:
                     if isinstance(value, str):
                         escaped_value = value.replace('"', '\\"')
-                        conditions.append(f'{vespa_field} contains "{escaped_value}"')
+                        cond = f'{vespa_field} contains "{escaped_value}"'
+                        conditions.append(cond)
                     else:
                         conditions.append(f"{vespa_field} = {value}")
                 if conditions:
@@ -1513,7 +1678,8 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         conditions = []
         for field, range_spec in range_query.items():
             vespa_field = self._map_field_name(field)
-            is_date_field = field in ("@timestamp", "event.ingested", "timestamp")
+            date_fields = ("@timestamp", "event.ingested", "timestamp")
+            is_date_field = field in date_fields
 
             for op, value in range_spec.items():
                 if op in ("format", "time_zone"):
@@ -1528,7 +1694,9 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
         return " and ".join(conditions) if conditions else "true"
 
-    def _convert_bool_query(self, bool_query: Dict, document_type: str, query_params: Dict) -> str:
+    def _convert_bool_query(
+        self, bool_query: Dict, document_type: str, query_params: Dict
+    ) -> str:
         """Convert bool query to YQL."""
         parts = []
 
@@ -1537,30 +1705,48 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             must_clauses = bool_query["must"]
             if not isinstance(must_clauses, list):
                 must_clauses = [must_clauses]
-            must_parts = [self._build_where_clause(q, document_type, query_params) for q in must_clauses]
+            must_parts = [
+                self._build_where_clause(q, document_type, query_params)
+                for q in must_clauses
+            ]
             must_parts = [p for p in must_parts if p and p != "true"]
             if must_parts:
-                parts.append("(" + " and ".join(must_parts) + ")" if len(must_parts) > 1 else must_parts[0])
+                if len(must_parts) > 1:
+                    parts.append("(" + " and ".join(must_parts) + ")")
+                else:
+                    parts.append(must_parts[0])
 
         # filter = AND (same as must, no scoring)
         if "filter" in bool_query:
             filter_clauses = bool_query["filter"]
             if not isinstance(filter_clauses, list):
                 filter_clauses = [filter_clauses]
-            filter_parts = [self._build_where_clause(q, document_type, query_params) for q in filter_clauses]
+            filter_parts = [
+                self._build_where_clause(q, document_type, query_params)
+                for q in filter_clauses
+            ]
             filter_parts = [p for p in filter_parts if p and p != "true"]
             if filter_parts:
-                parts.append("(" + " and ".join(filter_parts) + ")" if len(filter_parts) > 1 else filter_parts[0])
+                if len(filter_parts) > 1:
+                    parts.append("(" + " and ".join(filter_parts) + ")")
+                else:
+                    parts.append(filter_parts[0])
 
         # should = OR
         if "should" in bool_query:
             should_clauses = bool_query["should"]
             if not isinstance(should_clauses, list):
                 should_clauses = [should_clauses]
-            should_parts = [self._build_where_clause(q, document_type, query_params) for q in should_clauses]
+            should_parts = [
+                self._build_where_clause(q, document_type, query_params)
+                for q in should_clauses
+            ]
             should_parts = [p for p in should_parts if p and p != "true"]
             if should_parts:
-                parts.append("(" + " or ".join(should_parts) + ")" if len(should_parts) > 1 else should_parts[0])
+                if len(should_parts) > 1:
+                    parts.append("(" + " or ".join(should_parts) + ")")
+                else:
+                    parts.append(should_parts[0])
 
         # must_not = NOT
         if "must_not" in bool_query:
@@ -1568,7 +1754,9 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             if not isinstance(must_not_clauses, list):
                 must_not_clauses = [must_not_clauses]
             for clause in must_not_clauses:
-                part = self._build_where_clause(clause, document_type, query_params)
+                part = self._build_where_clause(
+                    clause, document_type, query_params
+                )
                 if part and part != "true":
                     parts.append(f"!({part})")
 
@@ -1609,7 +1797,10 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         """Convert prefix query to YQL."""
         for field, value_spec in prefix_query.items():
             vespa_field = self._map_field_name(field)
-            value = value_spec.get("value", "") if isinstance(value_spec, dict) else value_spec
+            if isinstance(value_spec, dict):
+                value = value_spec.get("value", "")
+            else:
+                value = value_spec
             return f'{vespa_field} contains "{value}*"'
         return "true"
 
@@ -1629,7 +1820,10 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
                         continue  # Handled by ranking
 
                     vespa_field = self._map_field_name(field)
-                    direction = direction_spec if isinstance(direction_spec, str) else direction_spec.get("order", "asc")
+                    if isinstance(direction_spec, str):
+                        direction = direction_spec
+                    else:
+                        direction = direction_spec.get("order", "asc")
                     clauses.append(f"{vespa_field} {direction.lower()}")
 
         return ", ".join(clauses)
@@ -1651,17 +1845,23 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
         # Simplified aggregation support
         clauses = []
-        for agg_name, agg_spec in aggs.items():
+        for _agg_name, agg_spec in aggs.items():
             if "date_histogram" in agg_spec:
-                clauses.append(self._convert_date_histogram_agg(agg_spec["date_histogram"]))
+                dh_spec = agg_spec["date_histogram"]
+                clauses.append(self._convert_date_histogram_agg(dh_spec))
             elif "terms" in agg_spec:
                 clauses.append(self._convert_terms_agg(agg_spec["terms"]))
             elif "histogram" in agg_spec:
-                clauses.append(self._convert_histogram_agg(agg_spec["histogram"]))
-            elif any(m in agg_spec for m in ["sum", "avg", "min", "max", "stats"]):
+                h_spec = agg_spec["histogram"]
+                clauses.append(self._convert_histogram_agg(h_spec))
+            elif any(m in agg_spec for m in
+                     ["sum", "avg", "min", "max", "stats"]):
                 for metric in ["sum", "avg", "min", "max", "stats"]:
                     if metric in agg_spec:
-                        clauses.append(self._convert_metric_agg(metric, agg_spec[metric]))
+                        m_spec = agg_spec[metric]
+                        clauses.append(
+                            self._convert_metric_agg(metric, m_spec)
+                        )
                         break
 
         return " ".join(clauses)
@@ -1669,9 +1869,11 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
     def _convert_date_histogram_agg(self, spec: Dict) -> str:
         """Convert date_histogram aggregation to Vespa grouping."""
         field = self._map_field_name(spec.get("field", "timestamp"))
-        interval = spec.get("calendar_interval", spec.get("fixed_interval", "hour"))
+        cal_int = spec.get("calendar_interval")
+        interval = cal_int or spec.get("fixed_interval", "hour")
         interval_ms = INTERVAL_MS_MAP.get(interval, 3600000)
-        return f"all(group(floor({field} / {interval_ms})) each(output(count())))"
+        grp = f"all(group(floor({field} / {interval_ms})) "
+        return grp + "each(output(count())))"
 
     def _convert_terms_agg(self, spec: Dict) -> str:
         """Convert terms aggregation to Vespa grouping."""
@@ -1689,10 +1891,17 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         """Convert metric aggregation to Vespa grouping."""
         field = self._map_field_name(spec.get("field", ""))
         if metric_type == "stats":
-            return f"all(output(sum({field})) output(avg({field})) output(min({field})) output(max({field})) output(count()))"
+            outputs = [
+                f"output(sum({field}))", f"output(avg({field}))",
+                f"output(min({field}))", f"output(max({field}))",
+                "output(count())"
+            ]
+            return "all(" + " ".join(outputs) + ")"
         return f"all(output({metric_type}({field})))"
 
-    def _convert_vespa_response(self, vespa_response: Dict, index: str) -> Dict:
+    def _convert_vespa_response(
+        self, vespa_response: Dict, index: str
+    ) -> Dict:
         """Convert Vespa search response to OpenSearch format."""
         hits = vespa_response.get("root", {}).get("children", [])
         root_fields = vespa_response.get("root", {}).get("fields", {})
@@ -1713,7 +1922,9 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         return {
             "took": took_ms,
             "timed_out": False,
-            "_shards": {"total": 1, "successful": 1, "skipped": 0, "failed": 0},
+            "_shards": {
+                "total": 1, "successful": 1, "skipped": 0, "failed": 0
+            },
             "hits": {
                 "total": {"value": total_count, "relation": "eq"},
                 "max_score": os_hits[0]["_score"] if os_hits else 0,
@@ -1722,10 +1933,9 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         }
 
     def return_raw_response(self):
-        """Configure client to return raw responses."""
-        pass  # Vespa responses are already raw
+        """Configure to return raw responses. Vespa is already raw."""
 
-    async def close(self):
+    async def close(self):  # pylint: disable=invalid-overridden-method
         """Close client connections."""
         if self._session and not self._session.closed:
             await self._session.close()
@@ -1737,49 +1947,66 @@ class VespaClientFactory:
         self.hosts = hosts
         self.client_options = client_options
         self.ssl_context = None
-        self.provider = CloudProviderFactory.get_provider_from_client_options(self.client_options)
+        self.provider = CloudProviderFactory.get_provider_from_client_options(
+            self.client_options
+        )
         self.logger = logging.getLogger(__name__)
 
         masked_client_options = dict(client_options)
         if "basic_auth_password" in masked_client_options:
             masked_client_options["basic_auth_password"] = "*****"
         if "http_auth" in masked_client_options:
-            masked_client_options["http_auth"] = (masked_client_options["http_auth"][0], "*****")
+            auth = masked_client_options["http_auth"]
+            masked_client_options["http_auth"] = (auth[0], "*****")
         if self.provider:
-            self.provider.parse_log_in_params(client_options=self.client_options)
-            self.provider.mask_client_options(masked_client_options, self.client_options)
-            self.logger.info("Masking client options with cloud provider: [%s]", self.provider)
+            self.provider.parse_log_in_params(
+                client_options=self.client_options
+            )
+            self.provider.mask_client_options(
+                masked_client_options, self.client_options
+            )
+            self.logger.info(
+                "Masking client options with cloud provider: [%s]",
+                self.provider
+            )
 
-        self.logger.info("Creating Vespa client connected to %s with options [%s]", hosts, masked_client_options)
-        # we're using an SSL context now and it is not allowed to have use_ssl present in client options anymore
+        self.logger.info(
+            "Creating Vespa client connected to %s with options [%s]",
+            hosts, masked_client_options
+        )
+        # SSL context now used - use_ssl not allowed in client options
         if self.client_options.pop("use_ssl", False):
             self.logger.info("SSL support: on")
             self.client_options["scheme"] = "https"
 
-            self.ssl_context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH,
-                                                          cafile=self.client_options.pop("ca_certs", certifi.where()))
+            ca_certs = self.client_options.pop("ca_certs", certifi.where())
+            self.ssl_context = ssl.create_default_context(
+                ssl.Purpose.SERVER_AUTH, cafile=ca_certs
+            )
 
             if not self.client_options.pop("verify_certs", True):
                 self.logger.info("SSL certificate verification: off")
-                # order matters to avoid ValueError: check_hostname needs a SSL context with either CERT_OPTIONAL or CERT_REQUIRED
+                # order matters for ValueError: check_hostname needs
+                # SSL context with CERT_OPTIONAL or CERT_REQUIRED
                 self.ssl_context.check_hostname = False
                 self.ssl_context.verify_mode = ssl.CERT_NONE
 
-                self.logger.warning("User has enabled SSL but disabled certificate verification. This is dangerous but may be ok for a "
-                                    "benchmark. Disabling urllib warnings now to avoid a logging storm. "
-                                    "See https://urllib3.readthedocs.io/en/latest/advanced-usage.html#ssl-warnings for details.")
-                # disable:  "InsecureRequestWarning: Unverified HTTPS request is being made. Adding certificate verification is strongly \
-                # advised. See: https://urllib3.readthedocs.io/en/latest/advanced-usage.html#ssl-warnings"
+                self.logger.warning(
+                    "SSL enabled but cert verification disabled. "
+                    "Dangerous but may be ok for benchmark. "
+                    "Disabling urllib warnings to avoid logging storm."
+                )
+                # disable InsecureRequestWarning
                 urllib3.disable_warnings()
             else:
-                # The peer's hostname can be matched if only a hostname is provided.
-                # In other words, hostname checking is disabled if an IP address is
-                # found in the host lists.
-                self.ssl_context.check_hostname = self._has_only_hostnames(hosts)
-                self.ssl_context.verify_mode=ssl.CERT_REQUIRED
+                # Hostname checking disabled if IP in host lists
+                self.ssl_context.check_hostname = self._has_only_hostnames(
+                    hosts
+                )
+                self.ssl_context.verify_mode = ssl.CERT_REQUIRED
                 self.logger.info("SSL certificate verification: on")
 
-            # When using SSL_context, all SSL related kwargs in client options get ignored
+            # With SSL_context, SSL kwargs in client options are ignored
             client_cert = self.client_options.pop("client_cert", False)
             client_key = self.client_options.pop("client_key", False)
 
@@ -1787,39 +2014,52 @@ class VespaClientFactory:
                 self.logger.info("SSL client authentication: off")
             elif bool(client_cert) != bool(client_key):
                 self.logger.error(
-                    "Supplied client-options contain only one of client_cert/client_key. "
+                    "client-options has only one of client_cert/client_key"
                 )
-                defined_client_ssl_option = "client_key" if client_key else "client_cert"
-                missing_client_ssl_option = "client_cert" if client_key else "client_key"
+                if client_key:
+                    defined_opt = "client_key"
+                    missing_opt = "client_cert"
+                else:
+                    defined_opt = "client_cert"
+                    missing_opt = "client_key"
+                doc_path = "command_line_reference.html#client-options"
+                doc_url = doc_link(doc_path)
                 console.println(
-                    "'{}' is missing from client-options but '{}' has been specified.\n"
-                    "If your OpenSearch setup requires client certificate verification both need to be supplied.\n"
-                    "Read the documentation at {}\n".format(
-                        missing_client_ssl_option,
-                        defined_client_ssl_option,
-                        console.format.link(doc_link("command_line_reference.html#client-options")))
+                    f"'{missing_opt}' missing from client-options but "
+                    f"'{defined_opt}' specified.\n"
+                    "Both needed for client certificate verification.\n"
+                    f"Read docs at {console.format.link(doc_url)}\n"
                 )
                 raise exceptions.SystemSetupError(
-                    "Cannot specify '{}' without also specifying '{}' in client-options.".format(
-                        defined_client_ssl_option,
-                        missing_client_ssl_option))
+                    f"Cannot specify '{defined_opt}' without "
+                    f"'{missing_opt}' in client-options."
+                )
             elif client_cert and client_key:
                 self.logger.info("SSL client authentication: on")
-                self.ssl_context.load_cert_chain(certfile=client_cert,
-                                                 keyfile=client_key)
+                self.ssl_context.load_cert_chain(
+                    certfile=client_cert, keyfile=client_key
+                )
         else:
             self.logger.info("SSL support: off")
             self.client_options["scheme"] = "http"
 
-        if self._is_set(self.client_options, "basic_auth_user") and self._is_set(self.client_options, "basic_auth_password"):
+        has_user = self._is_set(self.client_options, "basic_auth_user")
+        has_pass = self._is_set(self.client_options, "basic_auth_password")
+        if has_user and has_pass:
             self.logger.info("HTTP basic authentication: on")
-            self.client_options["http_auth"] = (self.client_options.pop("basic_auth_user"), self.client_options.pop("basic_auth_password"))
+            user = self.client_options.pop("basic_auth_user")
+            password = self.client_options.pop("basic_auth_password")
+            self.client_options["http_auth"] = (user, password)
         else:
             self.logger.info("HTTP basic authentication: off")
 
         if self._is_set(self.client_options, "compressed"):
-            console.warn("You set the deprecated client option 'compressed'. Please use 'http_compress' instead.", logger=self.logger)
-            self.client_options["http_compress"] = self.client_options.pop("compressed")
+            console.warn(
+                "Deprecated 'compressed' option. Use 'http_compress'.",
+                logger=self.logger
+            )
+            compressed = self.client_options.pop("compressed")
+            self.client_options["http_compress"] = compressed
 
         if self._is_set(self.client_options, "http_compress"):
             self.logger.info("HTTP compression: on")
@@ -1827,7 +2067,10 @@ class VespaClientFactory:
             self.logger.info("HTTP compression: off")
 
         if self._is_set(self.client_options, "enable_cleanup_closed"):
-            self.client_options["enable_cleanup_closed"] = convert.to_bool(self.client_options.pop("enable_cleanup_closed"))
+            cleanup = self.client_options.pop("enable_cleanup_closed")
+            self.client_options["enable_cleanup_closed"] = convert.to_bool(
+                cleanup
+            )
 
     @staticmethod
     def _has_only_hostnames(hosts):
@@ -1840,9 +2083,11 @@ class VespaClientFactory:
                 has_hostname = True
 
         if has_ip and has_hostname:
-            console.warn("Although certificate verification is enabled, "
-                "peer hostnames will not be matched since the host list is a mix "
-                "of names and IP addresses", logger=logger)
+            console.warn(
+                "Certificate verification enabled, but peer hostnames "
+                "won't match - host list mixes names and IP addresses",
+                logger=logger
+            )
             return False
 
         return has_hostname
@@ -1872,7 +2117,9 @@ class VespaClientFactory:
         # https://vespa-engine.github.io/pyvespa/api/vespa/application.html#vespa.application.Vespa
         vespa_client = Vespa(url=url)
 
-        return VespaDatabaseClient(vespa_client, self.hosts, self.client_options)
+        return VespaDatabaseClient(
+            vespa_client, self.hosts, self.client_options
+        )
 
     def create(self):
         """
@@ -1888,7 +2135,7 @@ class VespaClientFactory:
         Waits for 'max_wait' in seconds until Vespa's REST API is available.
 
         Args:
-            max_wait: max wait (seconds) to wait until Vespa application is ready
+            max_wait: seconds to wait until Vespa application is ready
 
         Returns:
             True if Vespa is ready, False otherwise

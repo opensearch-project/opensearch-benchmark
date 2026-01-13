@@ -407,6 +407,7 @@ class UnifiedClientFactory:
 # DatabaseClient Interface Implementation for OpenSearch
 # ============================================================================
 
+# pylint: disable=wrong-import-position
 from osbenchmark.database.interface import (
     DatabaseClient,
     IndicesNamespace,
@@ -434,10 +435,10 @@ class OpenSearchIndicesNamespace(IndicesNamespace):
     async def refresh(self, index=None, **kwargs):
         return await self._indices.refresh(index=index, **kwargs)
 
-    async def stats(self, index=None, metric=None, **kwargs):
+    async def stats(self, index=None, metric=None, **kwargs):  # pylint: disable=invalid-overridden-method
         return await self._indices.stats(index=index, metric=metric, **kwargs)
 
-    async def forcemerge(self, index=None, **kwargs):
+    async def forcemerge(self, index=None, **kwargs):  # pylint: disable=invalid-overridden-method
         return await self._indices.forcemerge(index=index, **kwargs)
 
     def __getattr__(self, name):

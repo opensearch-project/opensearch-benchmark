@@ -51,7 +51,7 @@ from osbenchmark import actor, config, exceptions, metrics, workload, paths, PRO
 from osbenchmark.worker_coordinator import runner, scheduler
 from osbenchmark.database.factory import DatabaseClientFactory
 from osbenchmark.database.registry import DatabaseType, get_client_factory
-import osbenchmark.database  # noqa: F401 - ensure database types are registered
+import osbenchmark.database  # noqa: F401  # pylint: disable=unused-import
 from osbenchmark.workload import WorkloadProcessorRegistry, load_workload, load_workload_plugins, ingestion_manager
 from osbenchmark.utils import convert, console, net
 from osbenchmark.worker_coordinator.errors import parse_error
@@ -1703,6 +1703,7 @@ class Worker(actor.BenchmarkActor):
         # Register runners based on database type
         database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
         if database_type.lower() == "vespa":
+            # pylint: disable=import-outside-toplevel
             from osbenchmark.worker_coordinator.runners.vespa import register_vespa_runners
             register_vespa_runners()
             self.logger.info("Registered Vespa-specific runners for database type [%s]", database_type)
