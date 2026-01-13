@@ -26,6 +26,8 @@ import asyncio
 import io
 import json
 import logging
+import os
+import ssl
 import time
 import uuid
 import zipfile
@@ -34,11 +36,11 @@ from typing import Dict, List, Optional, Any, Tuple
 
 import aiohttp
 import certifi
-import requests
 # pyvespa package is imported as 'vespa' internally
 from vespa.package import ApplicationPackage, Schema, Document, Field, HNSW
 from vespa.application import Vespa
 import urllib3
+from urllib.parse import urlencode
 from urllib3.util.ssl_ import is_ipaddress
 
 from osbenchmark import doc_link, exceptions
@@ -329,7 +331,7 @@ class VespaIndicesNamespace(IndicesNamespace):
             Dict with acknowledgement and deployment status
         """
         RequestContextHolder.on_request_start()
-        self.logger.info(f"Creating Vespa schema for index '{index}'")
+        self.logger.info("Creating Vespa schema for index '%s'", index)
 
         if body is None:
             body = {}
@@ -340,7 +342,7 @@ class VespaIndicesNamespace(IndicesNamespace):
         fields = OpenSearchToVespaMapper.translate_mappings(mappings)
 
         if not fields:
-            self.logger.warning(f"No fields could be translated for index '{index}'")
+            self.logger.warning("No fields could be translated for index '%s'", index)
             # Create minimal schema with a dummy field
             fields = [Field(name="doc_id", type="string", indexing=["attribute", "summary"])]
 
@@ -354,7 +356,7 @@ class VespaIndicesNamespace(IndicesNamespace):
         # Add schema to application package
         self._app_package.schema = schema
 
-        self.logger.info(f"Created Vespa schema '{index}' with {len(fields)} fields")
+        self.logger.info("Created Vespa schema '%s' with %d fields", index, len(fields))
 
         # Deploy the application package via the Deploy API
         if self._config_url:
@@ -401,7 +403,7 @@ class VespaIndicesNamespace(IndicesNamespace):
             # Deploy via REST API
             deploy_url = f"{self._config_url}/application/v2/tenant/default/prepareandactivate"
 
-            self.logger.info(f"Deploying application package to {deploy_url}")
+            self.logger.info("Deploying application package to %s", deploy_url)
 
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -411,15 +413,15 @@ class VespaIndicesNamespace(IndicesNamespace):
                 ) as response:
                     if response.status == 200:
                         result = await response.json()
-                        self.logger.info(f"Deployment successful: {result}")
+                        self.logger.info("Deployment successful: %s", result)
                         return {"success": True, "message": result.get("message", "Deployed")}
                     else:
                         error_text = await response.text()
-                        self.logger.error(f"Deployment failed ({response.status}): {error_text}")
+                        self.logger.error("Deployment failed (%s): %s", response.status, error_text)
                         return {"success": False, "message": f"HTTP {response.status}: {error_text}"}
 
         except Exception as e:
-            self.logger.error(f"Deployment failed with exception: {e}")
+            self.logger.error("Deployment failed with exception: %s", e)
             return {"success": False, "message": str(e)}
 
     def _generate_services_xml(self) -> str:
@@ -433,7 +435,7 @@ class VespaIndicesNamespace(IndicesNamespace):
             f'<document type="{name}" mode="index"/>' for name in schema_names
         )
 
-        return f'''<?xml version="1.0" encoding="UTF-8"?>
+        return f"""<?xml version="1.0" encoding="UTF-8"?>
 <services version="1.0">
   <container id="default" version="1.0">
     <search/>
@@ -452,7 +454,7 @@ class VespaIndicesNamespace(IndicesNamespace):
     </nodes>
   </content>
 </services>
-'''
+"""
 
     def _generate_schema_sd(self, name: str, schema: Schema) -> str:
         """
@@ -473,12 +475,12 @@ class VespaIndicesNamespace(IndicesNamespace):
 
         fields_str = "\n    ".join(field_defs)
 
-        return f'''schema {name} {{
+        return f"""schema {name} {{
   document {name} {{
     {fields_str}
   }}
 }}
-'''
+"""
 
     def _generate_field_definition(self, field: Field) -> str:
         """Generate a single field definition for the schema."""
@@ -512,7 +514,7 @@ class VespaIndicesNamespace(IndicesNamespace):
         Note: In Vespa, you can't dynamically delete schemas without redeployment.
         This will delete all documents in the schema instead.
         """
-        self.logger.info(f"Deleting all documents from Vespa schema '{index}'")
+        self.logger.info("Deleting all documents from Vespa schema '%s'", index)
 
         # Simulate request timing for stub operations
         RequestContextHolder.on_request_start()
@@ -624,7 +626,7 @@ class VespaClusterNamespace(ClusterNamespace):
                 "unassigned_shards": 0,
             }
         except Exception as e:
-            self.logger.error(f"Health check failed: {e}")
+            self.logger.error("Health check failed: %s", e)
             RequestContextHolder.on_request_end()
             return {"status": "red", "error": str(e)}
 
@@ -670,11 +672,8 @@ class VespaTransportNamespace(TransportNamespace):
         Returns:
             Response data
         """
-        import aiohttp
-
         full_url = f"{self._base_url}{url}"
         if params:
-            from urllib.parse import urlencode
             full_url = f"{full_url}?{urlencode(params)}"
 
         async with aiohttp.ClientSession() as session:
@@ -840,7 +839,6 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         self._session_lock: Optional[asyncio.Lock] = None
 
         # Unique client ID for debugging
-        import os
         self._client_id = f"pid{os.getpid()}_{id(self)}"
         self.logger.info("VespaDatabaseClient created: client_id=%s, base_url=%s", self._client_id, self._base_url)
 
@@ -1275,8 +1273,6 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         Returns:
             Dict with index result
         """
-        import asyncio
-
         doc_id = id or str(time.time_ns())
 
         try:
@@ -1299,7 +1295,7 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
                 "_shards": {"total": 1, "successful": 1, "failed": 0}
             }
         except Exception as e:
-            self.logger.error(f"Failed to index document: {e}")
+            self.logger.error("Failed to index document: %s", e)
             return {
                 "_index": index,
                 "_id": doc_id,
@@ -1353,7 +1349,7 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
                 return self._convert_vespa_response(vespa_response, index)
 
         except Exception as e:
-            self.logger.error(f"Search failed: {e}")
+            self.logger.error("Search failed: %s", e)
             return {
                 "took": 0,
                 "timed_out": True,
@@ -1753,12 +1749,10 @@ class VespaClientFactory:
             self.provider.parse_log_in_params(client_options=self.client_options)
             self.provider.mask_client_options(masked_client_options, self.client_options)
             self.logger.info("Masking client options with cloud provider: [%s]", self.provider)
-        
+
         self.logger.info("Creating Vespa client connected to %s with options [%s]", hosts, masked_client_options)
         # we're using an SSL context now and it is not allowed to have use_ssl present in client options anymore
         if self.client_options.pop("use_ssl", False):
-            # pylint: disable=import-outside-toplevel
-            import ssl
             self.logger.info("SSL support: on")
             self.client_options["scheme"] = "https"
 
@@ -1816,7 +1810,7 @@ class VespaClientFactory:
         else:
             self.logger.info("SSL support: off")
             self.client_options["scheme"] = "http"
-        
+
         if self._is_set(self.client_options, "basic_auth_user") and self._is_set(self.client_options, "basic_auth_password"):
             self.logger.info("HTTP basic authentication: on")
             self.client_options["http_auth"] = (self.client_options.pop("basic_auth_user"), self.client_options.pop("basic_auth_password"))
@@ -1852,7 +1846,7 @@ class VespaClientFactory:
             return False
 
         return has_hostname
-    
+
     def _is_set(self, client_opts, k):
         try:
             return client_opts[k]
@@ -1872,7 +1866,7 @@ class VespaClientFactory:
         port = self.hosts[0].get("port", 8080) if self.hosts else 8080
         url = f"{scheme}://{host}:{port}"
 
-        self.logger.info(f"Creating Vespa client connected to {url}")
+        self.logger.info("Creating Vespa client connected to %s", url)
 
         # Create pyvespa Vespa client
         # https://vespa-engine.github.io/pyvespa/api/vespa/application.html#vespa.application.Vespa
@@ -1911,5 +1905,5 @@ class VespaClientFactory:
             vespa.wait_for_application_up(max_wait)
             return True
         except Exception as e:
-            self.logger.error(f"Vespa not ready after {max_wait}s: {e}")
+            self.logger.error("Vespa not ready after %ss: %s", max_wait, e)
             return False

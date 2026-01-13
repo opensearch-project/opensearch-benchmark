@@ -69,7 +69,7 @@ class OsClientFactoryTests(TestCase):
         # make a copy, so we can verify later that the factory did not modify it
         original_client_options = deepcopy(client_options)
 
-        logger = logging.getLogger("osbenchmark.client")
+        logger = logging.getLogger("osbenchmark.database.clients.opensearch.opensearch")
         with mock.patch.object(logger, "info") as mocked_info_logger:
             f = client.OsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
@@ -107,7 +107,7 @@ class OsClientFactoryTests(TestCase):
         # make a copy, so we can verify later that the factory did not modify it
         original_client_options = deepcopy(client_options)
 
-        logger = logging.getLogger("osbenchmark.client")
+        logger = logging.getLogger("osbenchmark.database.clients.opensearch.opensearch")
         with mock.patch.object(logger, "info") as mocked_info_logger:
             f = client.OsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
@@ -147,7 +147,7 @@ class OsClientFactoryTests(TestCase):
         # make a copy so we can verify later that the factory did not modify it
         original_client_options = deepcopy(client_options)
 
-        logger = logging.getLogger("osbenchmark.client")
+        logger = logging.getLogger("osbenchmark.database.clients.opensearch.opensearch")
         with mock.patch.object(logger, "info") as mocked_info_logger:
             f = client.OsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
@@ -222,7 +222,7 @@ class OsClientFactoryTests(TestCase):
         # make a copy so we can verify later that the factory did not modify it
         original_client_options = dict(client_options)
 
-        logger = logging.getLogger("osbenchmark.client")
+        logger = logging.getLogger("osbenchmark.database.clients.opensearch.opensearch")
         with mock.patch.object(logger, "info") as mocked_info_logger:
             f = client.OsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
@@ -269,7 +269,7 @@ class OsClientFactoryTests(TestCase):
             role_based_client_options
         ]
 
-        logger = logging.getLogger("osbenchmark.client")
+        logger = logging.getLogger("osbenchmark.database.clients.opensearch.opensearch")
 
         for client_options in client_options_list:
             # make a copy so we can verify later that the factory did not modify it
@@ -316,7 +316,7 @@ class OsClientFactoryTests(TestCase):
         # make a copy so we can verify later that the factory did not modify it
         original_client_options = deepcopy(client_options)
 
-        logger = logging.getLogger("osbenchmark.client")
+        logger = logging.getLogger("osbenchmark.database.clients.opensearch.opensearch")
         with mock.patch.object(logger, "info") as mocked_info_logger:
             f = client.OsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([
@@ -401,7 +401,7 @@ class OsClientFactoryTests(TestCase):
         mock_session.return_value = mock_session_instance
 
         original_client_options = dict(client_options)
-        logger = logging.getLogger("osbenchmark.client")
+        logger = logging.getLogger("osbenchmark.database.clients.opensearch.opensearch")
         with mock.patch.object(logger, "info") as mocked_info_logger:
             f = client.OsClientFactory(hosts, client_options)
         mocked_info_logger.assert_has_calls([

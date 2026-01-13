@@ -55,6 +55,7 @@ Usage:
 
 # Register database implementations on module import
 from osbenchmark.database.registry import register_database, DatabaseType
+from osbenchmark.database.factory import DatabaseClientFactory
 from osbenchmark.database.clients.opensearch.opensearch import OpenSearchClientFactory
 from osbenchmark.database.clients.vespa.vespa import VespaClientFactory
 

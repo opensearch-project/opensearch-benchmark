@@ -12,9 +12,7 @@ They handle timing context and API calls directly without translation layers.
 """
 
 import asyncio
-import logging
-import time
-from typing import Any, Dict, List, Optional
+import sys
 
 from osbenchmark import workload
 # Import from the main runner module to use the same registry
@@ -69,8 +67,6 @@ class VespaRetry(Runner, Delegator):
         return self
 
     async def __call__(self, client, params):
-        import sys
-
         retry_until_success = params.get("retry-until-success", self.retry_until_success)
         if retry_until_success:
             max_attempts = sys.maxsize
@@ -167,7 +163,7 @@ class VespaCreateIndex(Runner):
         try:
             indices = mandatory(params, "indices", self)
 
-            for index, body in indices:
+            for index, _body in indices:
                 self.logger.info("Vespa: Create-index for [%s] (no-op - schema should be pre-deployed)", index)
 
             return {
@@ -194,9 +190,6 @@ class VespaClusterHealth(Runner):
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
-            request_params = params.get("request-params", {})
-            expected_status = request_params.get("wait_for_status", "green")
-
             # Vespa is either up or down - check via application status
             # The client's wait_for_rest_layer already verified Vespa is up
             cluster_status = "green"
@@ -231,12 +224,12 @@ class VespaBulkIndex(Runner):
             bulk_params = params.get("bulk-params", {})
             api_kwargs = self._default_kw_params(params)
 
-            with_action_metadata = mandatory(params, "action-metadata-present", self)
+            # Note: action-metadata-present is required but not used directly by Vespa
+            # because Vespa always needs the index for document type (unlike OpenSearch)
+            mandatory(params, "action-metadata-present", self)
             bulk_size = mandatory(params, "bulk-size", self)
             unit = mandatory(params, "unit", self)
 
-            # Unlike OpenSearch, Vespa always needs the index/schema name for the endpoint URL.
-            # Don't pop index even when action metadata is present - Vespa uses it for document type.
             response = await client.bulk(params=bulk_params, **api_kwargs)
 
             # Parse response
@@ -248,7 +241,7 @@ class VespaBulkIndex(Runner):
                 error_count = 0
                 if errors:
                     for item in items:
-                        for action, result in item.items():
+                        for _action, result in item.items():
                             if result.get("status", 200) >= 400:
                                 error_count += 1
 
@@ -340,7 +333,7 @@ class VespaQuery(Runner):
         request_context_holder.on_client_request_start()
 
         try:
-            request_params, headers = self._transport_request_params(params)
+            request_params, _ = self._transport_request_params(params)
             index = params.get("index", "_all")
             cache = params.get("cache")
             body = mandatory(params, "body", self)
@@ -390,8 +383,6 @@ class VespaIndexStats(Runner):
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
-            index = params.get("index", "_all")
-
             # Vespa doesn't have index stats in the same way
             # Return minimal structure
             return {

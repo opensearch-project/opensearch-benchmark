@@ -22,4 +22,33 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Milvus client implementation (placeholder for future development)."""
+"""
+Backward compatibility shim for osbenchmark.client module.
+
+This module re-exports classes from their new locations to maintain
+backward compatibility with existing code and tests.
+
+The actual implementations have been moved to:
+- osbenchmark.context: RequestContextHolder, RequestContextManager
+- osbenchmark.database.clients.opensearch.opensearch: OsClientFactory, OpenSearchClientFactory
+"""
+
+# Re-export RequestContextHolder and RequestContextManager for backward compatibility
+from osbenchmark.context import RequestContextHolder, RequestContextManager
+
+# Re-export classes from OpenSearch client for backward compatibility
+from osbenchmark.database.clients.opensearch.opensearch import (
+    OsClientFactory,
+    MessageProducerFactory,
+)
+
+# Alias for the new name
+OpenSearchClientFactory = OsClientFactory
+
+__all__ = [
+    "RequestContextHolder",
+    "RequestContextManager",
+    "OsClientFactory",
+    "OpenSearchClientFactory",
+    "MessageProducerFactory",
+]

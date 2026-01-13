@@ -42,32 +42,26 @@ class IndicesNamespace(ABC):
     @abstractmethod
     async def create(self, index: str, body: Optional[Dict] = None, **kwargs) -> Dict:
         """Create an index"""
-        pass
 
     @abstractmethod
     async def delete(self, index: str, **kwargs) -> Dict:
         """Delete an index"""
-        pass
 
     @abstractmethod
     async def exists(self, index: str, **kwargs) -> bool:
         """Check if index exists"""
-        pass
 
     @abstractmethod
     async def refresh(self, index: Optional[str] = None, **kwargs) -> Dict:
         """Refresh one or more indices"""
-        pass
 
     @abstractmethod
     def stats(self, index: Optional[str] = None, metric: Optional[str] = None, **kwargs) -> Dict:
         """Get index statistics (sync - called by telemetry)"""
-        pass
 
     @abstractmethod
     def forcemerge(self, index: Optional[str] = None, **kwargs) -> Dict:
         """Force merge index segments (sync - called by telemetry)"""
-        pass
 
 
 class ClusterNamespace(ABC):
@@ -76,12 +70,10 @@ class ClusterNamespace(ABC):
     @abstractmethod
     async def health(self, **kwargs) -> Dict:
         """Get cluster health status"""
-        pass
 
     @abstractmethod
     async def put_settings(self, body: Dict, **kwargs) -> Dict:
         """Update cluster settings"""
-        pass
 
 
 class TransportNamespace(ABC):
@@ -93,7 +85,6 @@ class TransportNamespace(ABC):
                              body: Optional[Any] = None,
                              headers: Optional[Dict] = None) -> Any:
         """Perform a raw HTTP request"""
-        pass
 
 
 class NodesNamespace(ABC):
@@ -104,14 +95,12 @@ class NodesNamespace(ABC):
               metric: Optional[str] = None,
               **kwargs) -> Dict:
         """Get node statistics"""
-        pass
 
     @abstractmethod
     def info(self, node_id: Optional[str] = None,
              metric: Optional[str] = None,
              **kwargs) -> Dict:
         """Get node information"""
-        pass
 
 
 class DatabaseClient(ABC):
@@ -128,25 +117,21 @@ class DatabaseClient(ABC):
     @abstractmethod
     def indices(self) -> IndicesNamespace:
         """Access to indices namespace"""
-        pass
 
     @property
     @abstractmethod
     def cluster(self) -> ClusterNamespace:
         """Access to cluster namespace"""
-        pass
 
     @property
     @abstractmethod
     def transport(self) -> TransportNamespace:
         """Access to transport namespace"""
-        pass
 
     @property
     @abstractmethod
     def nodes(self) -> NodesNamespace:
         """Access to nodes namespace"""
-        pass
 
     # Core document operations
     @abstractmethod
@@ -156,7 +141,6 @@ class DatabaseClient(ABC):
                    params: Optional[Dict] = None,
                    **kwargs) -> Dict:
         """Bulk index/update/delete documents"""
-        pass
 
     @abstractmethod
     async def index(self, index: str, body: Dict,
@@ -164,7 +148,6 @@ class DatabaseClient(ABC):
                    doc_type: Optional[str] = None,
                    **kwargs) -> Dict:
         """Index a single document"""
-        pass
 
     @abstractmethod
     async def search(self, index: Optional[str] = None,
@@ -172,7 +155,6 @@ class DatabaseClient(ABC):
                     doc_type: Optional[str] = None,
                     **kwargs) -> Dict:
         """Execute a search query"""
-        pass
 
     def info(self) -> Dict:
         """
@@ -195,4 +177,3 @@ class DatabaseClient(ABC):
         Close client connections.
         Optional method - implementations can provide no-op.
         """
-        pass
