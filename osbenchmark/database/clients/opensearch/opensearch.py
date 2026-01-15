@@ -622,8 +622,17 @@ class OpenSearchClientFactory:
         return OpenSearchDatabaseClient(opensearch_client)
 
     def create(self):
-        """Non-async client is deprecated."""
-        raise NotImplementedError("Synchronous clients are deprecated. Use create_async() instead.")
+        """
+        Create a synchronous OpenSearch client.
+
+        Used for telemetry and pre-benchmark operations.
+
+        Returns:
+            OpenSearchDatabaseClient wrapping a sync opensearchpy client
+        """
+        os_factory = OsClientFactory(self.hosts, self.client_options)
+        opensearch_client = os_factory.create()
+        return OpenSearchDatabaseClient(opensearch_client)
 
     def wait_for_rest_layer(self, max_attempts=40):
         """
