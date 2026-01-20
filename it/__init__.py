@@ -33,7 +33,8 @@ import datetime
 
 import pytest
 
-from osbenchmark import client, config, version, paths
+from osbenchmark.database.clients.opensearch import opensearch as client
+from osbenchmark import config, version, paths
 from osbenchmark.utils import process
 
 CONFIG_NAMES = ["in-memory-it", "os-it"]
