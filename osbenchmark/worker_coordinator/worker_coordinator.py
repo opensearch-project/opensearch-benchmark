@@ -604,6 +604,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         self.cluster_details = None
         self.feedback_actor = None
         self.worker_shared_states = {}
+        self.update_queue = queue.Queue()
 
     def receiveMsg_PoisonMessage(self, poisonmsg, sender):
         self.logger.error("Main worker_coordinator received a fatal indication from load generator (%s). Shutting down.", poisonmsg.details)
@@ -667,6 +668,9 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_UpdateSamples(self, msg, sender):
+
+        # Another potential bottleneck for messaging
+        self.update_queue.put(msg)
         self.coordinator.update_samples(msg.samples)
         self.coordinator.update_profile_samples(msg.profile_samples)
 
@@ -1338,6 +1342,7 @@ class WorkerCoordinator:
         self.raw_profile_samples = []
         if len(profile_samples) > 0:
             if self.profile_metrics_post_processor is None:
+                # can this be made asynchronous?
                 self.profile_metrics_post_processor = ProfileMetricsSamplePostprocessor(self.metrics_store,
                                                                                     self.workload.meta_data,
                                                                                     self.test_procedure.meta_data)
@@ -1845,6 +1850,7 @@ class Worker(actor.BenchmarkActor):
         return current
 
     def send_samples(self):
+        # This is where the samples are sent to the coordinator to be processed.
         if self.sampler:
             samples = self.sampler.samples
             if len(samples) > 0:
