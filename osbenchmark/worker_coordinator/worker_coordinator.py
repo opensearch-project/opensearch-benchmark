@@ -604,7 +604,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         self.cluster_details = None
         self.feedback_actor = None
         self.worker_shared_states = {}
-        self.update_queue = queue.Queue()
+        self.update_queue = multiprocessing.Queue()
 
     def receiveMsg_PoisonMessage(self, poisonmsg, sender):
         self.logger.error("Main worker_coordinator received a fatal indication from load generator (%s). Shutting down.", poisonmsg.details)
