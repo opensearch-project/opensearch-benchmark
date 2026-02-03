@@ -34,6 +34,10 @@ import shutil
 
 import thespian.actors
 
+import linecache
+import os
+import tracemalloc
+
 from osbenchmark import PROGRAM_NAME, BANNER, FORUM_LINK, SKULL, check_python_version, doc_link, telemetry
 from osbenchmark import version, actor, config, paths, \
     test_run_orchestrator, publisher, \
@@ -1317,6 +1321,7 @@ def main():
     log.configure_logging()
     logger = logging.getLogger(__name__)
     start = time.time()
+    tracemalloc.start()
 
     # Early init of console output so we start to show everything consistently.
     console.init(quiet=False)
