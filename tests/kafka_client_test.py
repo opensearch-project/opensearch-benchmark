@@ -25,7 +25,7 @@
 from unittest import TestCase, mock
 
 from osbenchmark.kafka_client import KafkaMessageProducer
-from osbenchmark.client import MessageProducerFactory
+from osbenchmark.database.clients.opensearch.opensearch import MessageProducerFactory
 from tests import run_async
 
 
