@@ -10,7 +10,7 @@ import logging
 import os
 
 from osbenchmark import PROGRAM_NAME, exceptions
-from osbenchmark.client import OsClientFactory
+from osbenchmark.database.clients.opensearch.opensearch import OsClientFactory
 from osbenchmark.workload_generator.config import CustomWorkload
 from osbenchmark.workload_generator.helpers import QueryProcessor, CustomWorkloadWriter, process_indices, validate_index_documents_map, validate_sample_frequency_mapping
 from osbenchmark.workload_generator.extractors import IndexExtractor, SequentialCorpusExtractor
