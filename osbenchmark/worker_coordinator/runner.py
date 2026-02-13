@@ -1579,6 +1579,47 @@ class Query(Runner):
             result["recall_time_ms"] = recall_processing_time
             return result
 
+        async def _fire_and_forget_query(opensearch, params):
+            """
+            Fire-and-forget search execution - just send the request without waiting for response.
+            Returns immediately with minimal metadata.
+            """
+            doc_type = params.get("type")
+
+            # Modify request_params to disable timeouts for fire-and-forget mode
+            ff_request_params = request_params.copy()
+            ff_request_params.pop("timeout", None)
+            ff_request_params.pop("request_timeout", None)
+
+            # Fire the request without awaiting response - use asyncio.create_task to fire and forget
+            try:
+                # Create task but don't await it - true fire and forget
+                async def fire_request():
+                    try:
+                        await self._raw_search(opensearch, doc_type, index, body, ff_request_params, headers=headers)
+                    except Exception:
+                        # Silently consume all exceptions including timeouts, connection errors, etc.
+                        pass
+
+                # Fire the request in the background
+                asyncio.create_task(fire_request())
+            except Exception:
+                # Silently ignore errors in fire-and-forget mode
+                pass
+
+            # Return minimal success metadata immediately
+            return {
+                "weight": 1,
+                "unit": "ops",
+                "success": True,
+                "fire_and_forget": True
+            }
+
+        # Check if fire-and-forget mode is enabled
+        fire_and_forget = params.get("fire_and_forget", False)
+        if fire_and_forget:
+            return await _fire_and_forget_query(opensearch, params)
+
         search_method = params.get("operation-type")
         if search_method == "paginated-search":
             return await _search_after_query(opensearch, params)
