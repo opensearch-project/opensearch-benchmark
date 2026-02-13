@@ -31,7 +31,8 @@ from unittest import TestCase
 
 import opensearchpy
 import pytest
-from osbenchmark import client, exceptions
+from osbenchmark.database.clients.opensearch import opensearch as client
+from osbenchmark import exceptions
 from osbenchmark.worker_coordinator import runner
 from tests import run_async, as_future
 
