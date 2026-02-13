@@ -1966,7 +1966,7 @@ class AsyncExecutorHelperMethodsTests(TestCase):
         context_mock = mock.Mock()
         message_producer_mock.new_request_context.return_value = context_mock
 
-        with mock.patch('osbenchmark.client.MessageProducerFactory.create',
+        with mock.patch('osbenchmark.database.clients.opensearch.opensearch.MessageProducerFactory.create',
                         new=mock.AsyncMock(return_value=message_producer_mock)) as factory_mock:
             result = await self.executor._prepare_context_manager(params)
             factory_mock.assert_called_once_with(params)
