@@ -27,4 +27,3 @@ def register_milvus_runners():
     Register all milvus-specific runners.
     Implementation will be added in a future PR.
     """
-    pass

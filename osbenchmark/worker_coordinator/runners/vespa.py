@@ -27,4 +27,3 @@ def register_vespa_runners():
     Register all Vespa-specific runners.
     Implementation will be added in a future PR.
     """
-    pass

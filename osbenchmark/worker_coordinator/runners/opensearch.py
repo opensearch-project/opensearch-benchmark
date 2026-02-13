@@ -64,7 +64,6 @@ from osbenchmark.worker_coordinator.runners.base import (
     time_func,
     request_context_holder,
     mandatory,
-    escape,
     remove_prefix,
 )
 
@@ -76,7 +75,7 @@ from osbenchmark.worker_coordinator.runners import runner_for
 
 
 def register_default_runners():
-    from osbenchmark.worker_coordinator.runners import register_runner
+    from osbenchmark.worker_coordinator.runners import register_runner  # pylint: disable=import-outside-toplevel
     register_runner(workload.OperationType.Bulk, BulkIndex(), async_runner=True)
     register_runner(workload.OperationType.ForceMerge, ForceMerge(), async_runner=True)
     register_runner(workload.OperationType.IndexStats, Retry(IndicesStats()), async_runner=True)

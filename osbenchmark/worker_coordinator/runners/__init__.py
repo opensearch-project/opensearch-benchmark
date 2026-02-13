@@ -117,6 +117,7 @@ def remove_runner(operation_type):
     del __RUNNERS[operation_type]
 
 
-# Re-export OpenSearch runners and register_default_runners for convenience
-from osbenchmark.worker_coordinator.runners.opensearch import *  # noqa: F401,F403,E402
-from osbenchmark.worker_coordinator.runners.opensearch import register_default_runners  # noqa: E402
+# Re-export OpenSearch runners and register_default_runners for convenience.
+# These must come after the registry functions above since opensearch.py imports runner_for at module level.
+from osbenchmark.worker_coordinator.runners.opensearch import *  # noqa: F401,F403,E402  # pylint: disable=wrong-import-position
+from osbenchmark.worker_coordinator.runners.opensearch import register_default_runners  # noqa: E402  # pylint: disable=wrong-import-position

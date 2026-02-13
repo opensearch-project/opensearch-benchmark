@@ -254,7 +254,7 @@ def mandatory(params, key, op):
         raise exceptions.DataError(
             f"Parameter source for operation '{str(op)}' did not provide the mandatory parameter '{key}'. "
             f"Add it to your parameter source and try again.")
-    
+
 def escape(v):
     """
     Escapes values so they can be used as query parameters
