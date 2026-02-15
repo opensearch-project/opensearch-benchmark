@@ -72,7 +72,7 @@ Add backport labels to PRs and commits so that changes can be added to `main` br
     2. Install it with `pip install`.
     3. Run `opensearch-benchmark --version` to ensure that it is the correct version
     4. Run `opensearch-benchmark --help`
-    5. Run `opensearch-benchmark list workloads`
+    5. Run `opensearch-benchmark list workloads` (or `osb list workloads`)
     6. Run a basic workload on Linux and MacOS:  `opensearch-benchmark run --workload pmc --test-mode`
     7. If you are fastidious, you can check the installed source files at `` `python3 -m site --user-site`/osbenchmark `` to verify that a recent change is indeed present.
 
