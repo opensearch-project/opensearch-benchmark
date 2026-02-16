@@ -48,7 +48,7 @@ import thespian.actors
 from osbenchmark.utils import opts
 from osbenchmark.database.clients.opensearch import opensearch as client
 from osbenchmark import actor, config, exceptions, metrics, workload, paths, PROGRAM_NAME, telemetry
-from osbenchmark.worker_coordinator import runner, scheduler
+from osbenchmark.worker_coordinator import runners as runner, scheduler
 from osbenchmark.database.factory import DatabaseClientFactory
 from osbenchmark.database.registry import DatabaseType, get_client_factory
 import osbenchmark.database  # noqa: F401  # pylint: disable=unused-import
