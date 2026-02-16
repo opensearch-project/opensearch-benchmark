@@ -24,7 +24,7 @@
 
 import pytest
 
-from osbenchmark.worker_coordinator import runner
+from osbenchmark.worker_coordinator import runners as runner
 
 bulk_index = runner.BulkIndex()
 
