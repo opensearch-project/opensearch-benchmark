@@ -939,6 +939,8 @@ class BulkVectorDataSet(Runner):
 
         current_body = params["body"]
         current_params = dict(params)
+        retry_wait_period = params.get("retry-wait-period", 0.5)
+        retry_max_wait_period = params.get("retry-max-wait-period", 60)
 
         for attempt in range(retries):
             docs_in_request = self._doc_count(current_body, with_action_metadata)
@@ -966,15 +968,20 @@ class BulkVectorDataSet(Runner):
                     if detailed_results:
                         failed_indices = stats.get("failed-indices", [])
                         if failed_indices:
+                            backoff = min(retry_wait_period * (2 ** attempt), retry_max_wait_period)
                             self.logger.info(
-                                "%d documents failed during ingestion. Retrying.",
-                                len(failed_indices),
+                                "%d documents failed during ingestion. Retrying in [%.2f] seconds.",
+                                len(failed_indices), backoff,
                             )
                             current_body = self._build_retry_body(current_body, failed_indices, with_action_metadata)
+                            await asyncio.sleep(backoff)
                             continue
                 return meta_data
             except ConnectionTimeout:
-                self.logger.warning("Bulk vector ingestion timed out. Retrying attempt: %d", attempt)
+                backoff = min(retry_wait_period * (2 ** attempt), retry_max_wait_period)
+                self.logger.warning("Bulk vector ingestion timed out. Retrying attempt %d in [%.2f] seconds.",
+                                    attempt, backoff)
+                await asyncio.sleep(backoff)
 
         raise TimeoutError("Failed to submit bulk request in specified number "
                            "of retries: {}".format(retries))
