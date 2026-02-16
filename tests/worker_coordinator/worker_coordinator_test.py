@@ -36,7 +36,7 @@ import opensearchpy
 import pytest
 
 from osbenchmark import metrics, workload, exceptions, config
-from osbenchmark.worker_coordinator import worker_coordinator, runner, scheduler
+from osbenchmark.worker_coordinator import worker_coordinator, runners as runner, scheduler
 from osbenchmark.workload import params
 from tests import run_async, as_future
 
