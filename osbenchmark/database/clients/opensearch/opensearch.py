@@ -438,7 +438,7 @@ class OpenSearchIndicesNamespace(IndicesNamespace):
     async def stats(self, index=None, metric=None, **kwargs):  # pylint: disable=invalid-overridden-method
         return await self._indices.stats(index=index, metric=metric, **kwargs)
 
-    async def forcemerge(self, index=None, **kwargs):  # pylint: disable=invalid-overridden-method
+    async def forcemerge(self, index=None, **kwargs):
         return await self._indices.forcemerge(index=index, **kwargs)
 
     def __getattr__(self, name):

@@ -60,8 +60,8 @@ class IndicesNamespace(ABC):
         """Get index statistics (sync - called by telemetry)"""
 
     @abstractmethod
-    def forcemerge(self, index: Optional[str] = None, **kwargs) -> Dict:
-        """Force merge index segments (sync - called by telemetry)"""
+    async def forcemerge(self, index: Optional[str] = None, **kwargs) -> Dict:
+        """Force merge index segments"""
 
 
 class ClusterNamespace(ABC):
