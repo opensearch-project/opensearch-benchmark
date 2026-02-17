@@ -967,7 +967,7 @@ class BulkVectorDataSet(Runner):
                     meta_data["error-type"] = "bulk"
                     if detailed_results:
                         failed_indices = stats.get("failed-indices", [])
-                        if failed_indices:
+                        if failed_indices and attempt < retries - 1:
                             backoff = min(retry_wait_period * (2 ** attempt), retry_max_wait_period)
                             self.logger.info(
                                 "%d documents failed during ingestion. Retrying in [%.2f] seconds.",
