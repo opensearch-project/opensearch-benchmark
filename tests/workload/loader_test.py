@@ -2439,6 +2439,147 @@ class WorkloadSpecificationReaderTests(TestCase):
                          "120 seconds as well as 3 warmup iterations and 5 iterations but mixing time periods and iterations is not allowed.", ctx.exception.args[0])
 
     @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
+    def test_parse_valid_ramp_down_period(self, mocked_params_checker):
+        workload_specification = {
+            "description": "description for unit test",
+            "indices": [{"name": "test-index", "body": "index.json", "types": ["docs"]}],
+            "corpora": [{
+                "name": "test",
+                "documents": [{
+                    "source-file": "documents-main.json.bz2",
+                    "document-count": 10,
+                    "compressed-bytes": 100,
+                    "uncompressed-bytes": 10000
+                }]
+            }],
+            "operations": [{"name": "index-append", "operation-type": "bulk", "bulk-size": 5000}],
+            "test_procedures": [{
+                "name": "default-challenge",
+                "schedule": [{
+                    "clients": 8,
+                    "operation": "index-append",
+                    "warmup-time-period": 60,
+                    "time-period": 300,
+                    "ramp-up-time-period": 60,
+                    "ramp-down-time-period": 60
+                }]
+            }]
+        }
+        reader = loader.WorkloadSpecificationReader(source=io.DictStringFileSourceFactory({
+            "/mappings/index.json": ['{"mappings": {"docs": "empty-for-test"}}'],
+        }))
+        resulting_workload = reader("unittest", workload_specification, "/mappings")
+        task = resulting_workload.test_procedures[0].schedule[0]
+        self.assertEqual(60, task.warmup_time_period)
+        self.assertEqual(300, task.time_period)
+        self.assertEqual(60, task.ramp_up_time_period)
+        self.assertEqual(60, task.ramp_down_time_period)
+
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
+    def test_parse_iteration_and_ramp_down_period_error(self, mocked_params_checker):
+        workload_specification = {
+            "description": "description for unit test",
+            "indices": [{"name": "test-index", "body": "index.json", "types": ["docs"]}],
+            "corpora": [{
+                "name": "test",
+                "documents": [{
+                    "source-file": "documents-main.json.bz2",
+                    "document-count": 10,
+                    "compressed-bytes": 100,
+                    "uncompressed-bytes": 10000
+                }]
+            }],
+            "operations": [{"name": "index-append", "operation-type": "bulk", "bulk-size": 5000}],
+            "test_procedures": [{
+                "name": "default-challenge",
+                "schedule": [{
+                    "clients": 8,
+                    "operation": "index-append",
+                    "time-period": 300,
+                    "ramp-down-time-period": 60,
+                    "warmup-iterations": 3,
+                    "iterations": 5
+                }]
+            }]
+        }
+        reader = loader.WorkloadSpecificationReader(source=io.DictStringFileSourceFactory({
+            "/mappings/index.json": ['{"mappings": {"docs": "empty-for-test"}}'],
+        }))
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        # The warmup-iterations + time-period check triggers before the ramp-down-specific check
+        self.assertEqual("Workload 'unittest' is invalid. Operation 'index-append' in test_procedure 'default-challenge' defines '3' warmup iterations and "
+                         "a time period of '300' seconds. Please do not mix time periods and iterations.", ctx.exception.args[0])
+
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
+    def test_parse_ramp_down_without_time_period_error(self, mocked_params_checker):
+        workload_specification = {
+            "description": "description for unit test",
+            "indices": [{"name": "test-index", "body": "index.json", "types": ["docs"]}],
+            "corpora": [{
+                "name": "test",
+                "documents": [{
+                    "source-file": "documents-main.json.bz2",
+                    "document-count": 10,
+                    "compressed-bytes": 100,
+                    "uncompressed-bytes": 10000
+                }]
+            }],
+            "operations": [{"name": "index-append", "operation-type": "bulk", "bulk-size": 5000}],
+            "test_procedures": [{
+                "name": "default-challenge",
+                "schedule": [{
+                    "clients": 8,
+                    "operation": "index-append",
+                    "warmup-time-period": 30,
+                    "ramp-down-time-period": 60
+                }]
+            }]
+        }
+        reader = loader.WorkloadSpecificationReader(source=io.DictStringFileSourceFactory({
+            "/mappings/index.json": ['{"mappings": {"docs": "empty-for-test"}}'],
+        }))
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("Workload 'unittest' is invalid. Operation 'index-append' in test_procedure 'default-challenge' defines a ramp-down time period of "
+                         "60 seconds but no time-period.", ctx.exception.args[0])
+
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
+    def test_parse_ramp_down_exceeds_time_period_error(self, mocked_params_checker):
+        workload_specification = {
+            "description": "description for unit test",
+            "indices": [{"name": "test-index", "body": "index.json", "types": ["docs"]}],
+            "corpora": [{
+                "name": "test",
+                "documents": [{
+                    "source-file": "documents-main.json.bz2",
+                    "document-count": 10,
+                    "compressed-bytes": 100,
+                    "uncompressed-bytes": 10000
+                }]
+            }],
+            "operations": [{"name": "index-append", "operation-type": "bulk", "bulk-size": 5000}],
+            "test_procedures": [{
+                "name": "default-challenge",
+                "schedule": [{
+                    "clients": 8,
+                    "operation": "index-append",
+                    "warmup-time-period": 30,
+                    "time-period": 60,
+                    "ramp-down-time-period": 120
+                }]
+            }]
+        }
+        reader = loader.WorkloadSpecificationReader(source=io.DictStringFileSourceFactory({
+            "/mappings/index.json": ['{"mappings": {"docs": "empty-for-test"}}'],
+        }))
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        self.assertEqual("Workload 'unittest' is invalid. The time-period of operation 'index-append' in test_procedure 'default-challenge' is "
+                         "60 seconds but must be greater than or equal to the ramp-down-time-period of 120 seconds.", ctx.exception.args[0])
+
+
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_test_procedure_and_test_procedures_are_defined(self, mocked_params_checker):
         workload_specification = {
             "description": "description for unit test",
