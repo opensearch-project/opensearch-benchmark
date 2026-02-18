@@ -34,10 +34,20 @@ Quick Start
 
 Want to get started with OpenSearch Benchmark quickly? See [OpenSearch Benchmark's Quick Start guide in the documentation](https://opensearch.org/docs/latest/benchmark/index/).
 
+**Shorthand Command:** You can use `osb` as a shorthand for `opensearch-benchmark`:
+
+```bash
+# Full command
+opensearch-benchmark execute-test --workload=geonames
+
+# Shorthand equivalent
+osb execute-test --workload=geonames
+```
+
 Getting help
 ------------
 
-* Quick help: ``opensearch-benchmark --help``
+* Quick help: ``opensearch-benchmark --help`` or ``osb --help``
 * Want to contribute? Look at [OpenSearch Benchmark's Developer Guide](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/DEVELOPER_GUIDE.md>) for more information
 * For any questions or answers, visit our [community forum](<https://discuss.opendistrocommunity.dev/>) and Slack community channel [#performance-benchmarking](https://opensearch.slack.com/archives/C082PLA3VPW).
 * File improvements or bug reports in our [Github repo](<https://github.com/opensearch-project/OpenSearch-Benchmark/issues>).
