@@ -2813,11 +2813,17 @@ def schedule_for(task_allocation, parameter_source):
 
     if requires_time_period_schedule(task, runner_for_op, params_for_op):
         warmup_time_period = task.warmup_time_period if task.warmup_time_period else 0
+        ramp_down_time_period = task.ramp_down_time_period if task.ramp_down_time_period else 0
         if client_index == 0:
             logger.info("Creating time-period based schedule with [%s] distribution for [%s] with a warmup period of [%s] "
                         "seconds and a time period of [%s] seconds.", task.schedule, task.name,
                         str(warmup_time_period), str(task.time_period))
-        loop_control = TimePeriodBased(warmup_time_period, task.time_period)
+        loop_control = TimePeriodBased(warmup_time_period, task.time_period, ramp_down_time_period,
+                                       client_index, task.clients)
+        # Log individual client duration if ramp-down is enabled
+        if ramp_down_time_period > 0 and client_index == 0:
+            logger.info("Ramp-down enabled: clients will stop in reverse order over [%s] seconds",
+                        str(ramp_down_time_period))
     else:
         warmup_iterations = task.warmup_iterations if task.warmup_iterations else 0
         if task.iterations:
@@ -2927,13 +2933,32 @@ class ScheduleHandle:
 
 
 class TimePeriodBased:
-    def __init__(self, warmup_time_period, time_period):
+    def __init__(self, warmup_time_period, time_period, ramp_down_time_period=None,
+                 client_index=None, total_clients=None):
         self._warmup_time_period = warmup_time_period
         self._time_period = time_period
+        self._ramp_down_time_period = ramp_down_time_period or 0
+        self._client_index = client_index
+        self._total_clients = total_clients
+        self.logger = logging.getLogger(__name__)
+
         if warmup_time_period is not None and time_period is not None:
-            self._duration = self._warmup_time_period + self._time_period
+            self._base_duration = self._warmup_time_period + self._time_period
+
+            # Calculate how early this client should stop during ramp-down
+            # Clients stop in REVERSE order: Client 0 stops first, Client (N-1) stops last
+            if self._ramp_down_time_period > 0 and client_index is not None and total_clients is not None:
+                reverse_index = (total_clients - 1) - client_index
+                client_early_stop = self._ramp_down_time_period * (reverse_index / total_clients)
+                self._duration = self._base_duration - client_early_stop
+                self.logger.info("Client [%d/%d] will run for %.2f seconds (base: %.2f, early stop: %.2f due to ramp-down)",
+                                 client_index, total_clients, self._duration, self._base_duration, client_early_stop)
+            else:
+                self._duration = self._base_duration
         else:
             self._duration = None
+            self._base_duration = None
+
         self._start = None
         self._now = None
 
