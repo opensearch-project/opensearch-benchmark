@@ -436,6 +436,9 @@ class VespaTransportNamespace(TransportNamespace):
         async with self._client._session.request(method, full_url, params=params, json=body, headers=headers) as resp:
             return await resp.json()
 
+    async def close(self):
+        await self._client.close()
+
 
 class VespaNodesNamespace(NodesNamespace):
     """Stub node stats/info for telemetry compatibility."""
