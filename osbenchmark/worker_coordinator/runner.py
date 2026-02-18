@@ -189,7 +189,7 @@ class Runner:
     async def __aenter__(self):
         return self
 
-    async def __call__(self, opensearch, params):
+    async def __call__(self, opensearch, params):  # pylint: disable=too-many-nested-blocks
         """
         Runs the actual method that should be benchmarked.
 
@@ -928,24 +928,240 @@ class BulkVectorDataSet(Runner):
 
     NAME = "bulk-vector-data-set"
 
-    async def __call__(self, opensearch, params):
-        size = parse_int_parameter("size", params)
+    async def __call__(self, opensearch, params): # pylint: disable=too-many-nested-blocks
+        with_action_metadata = params.get("action-metadata-present", True)
+        unit = params.get("unit", "docs")
         retries = parse_int_parameter("retries", params, 0) + 1
+        detailed_results = params.get("detailed-results", True)
+
+        if not detailed_results:
+            opensearch.return_raw_response()
+
+        current_body = params["body"]
+        current_params = dict(params)
+        retry_wait_period = params.get("retry-wait-period", 0.5)
+        retry_max_wait_period = params.get("retry-max-wait-period", 60)
 
         for attempt in range(retries):
+            docs_in_request = self._doc_count(current_body, with_action_metadata)
+            current_params["body"] = current_body
+            current_params["size"] = docs_in_request
             try:
                 request_context_holder.on_client_request_start()
-                await opensearch.bulk(
-                    body=params["body"]
-                )
+                response = await opensearch.bulk(body=current_body)
                 request_context_holder.on_client_request_end()
 
-                return size, "docs"
+                stats = self.detailed_stats(current_params, response) if detailed_results else self.simple_stats(
+                    docs_in_request, unit, response
+                )
+
+                meta_data = {
+                    "size": docs_in_request,
+                    "index": current_params.get("index"),
+                    "weight": docs_in_request,
+                    "unit": unit,
+                }
+                meta_data.update(stats)
+
+                if not stats["success"]:
+                    meta_data["error-type"] = "bulk"
+                    if detailed_results:
+                        failed_indices = stats.get("failed-indices", [])
+                        if failed_indices and attempt < retries - 1:
+                            backoff = min(retry_wait_period * (2 ** attempt), retry_max_wait_period)
+                            self.logger.info(
+                                "%d documents failed during ingestion. Retrying in [%.2f] seconds.",
+                                len(failed_indices), backoff,
+                            )
+                            current_body = self._build_retry_body(current_body, failed_indices, with_action_metadata)
+                            await asyncio.sleep(backoff)
+                            continue
+                return meta_data
             except ConnectionTimeout:
-                self.logger.warning("Bulk vector ingestion timed out. Retrying attempt: %d", attempt)
+                backoff = min(retry_wait_period * (2 ** attempt), retry_max_wait_period)
+                self.logger.warning("Bulk vector ingestion timed out. Retrying attempt %d in [%.2f] seconds.",
+                                    attempt, backoff)
+                await asyncio.sleep(backoff)
 
         raise TimeoutError("Failed to submit bulk request in specified number "
                            "of retries: {}".format(retries))
+
+    def detailed_stats(self, params, response):
+        docs = []
+        failed_docs = []
+        failed_indices = []
+        ops = {}
+        shards_histogram = OrderedDict()
+        bulk_error_count = 0
+        bulk_success_count = 0
+        error_details = set()
+        bulk_request_size_bytes = 0
+        total_document_size_bytes = 0
+        with_action_metadata = mandatory(params, "action-metadata-present", self)
+
+        bulk_lines, is_string_body = self._normalize_bulk_lines(params["body"])
+
+        for line_number, entry in enumerate(bulk_lines):
+            line_size = self._entry_size(entry, is_string_body)
+            if not with_action_metadata or line_number % 2 == 1:
+                total_document_size_bytes += line_size
+                docs.append(entry)
+            bulk_request_size_bytes += line_size
+
+        doc_idx = 0
+        for item in response["items"]:
+            # there is only one (top-level) item
+            op, data = next(iter(item.items()))
+            if op not in ops:
+                ops[op] = Counter()
+            ops[op]["item-count"] += 1
+            if "result" in data:
+                ops[op][data["result"]] += 1
+
+            if "_shards" in data:
+                s = data["_shards"]
+                sk = "%d-%d-%d" % (s["total"], s["successful"], s["failed"])
+                if sk not in shards_histogram:
+                    shards_histogram[sk] = {
+                        "item-count": 0,
+                        "shards": s
+                    }
+                shards_histogram[sk]["item-count"] += 1
+            if data["status"] > 299 or ("_shards" in data and data["_shards"]["failed"] > 0):
+                bulk_error_count += 1
+                if doc_idx < len(docs):
+                    failed_docs.append(docs[doc_idx])
+                    failed_indices.append(doc_idx)
+                self.extract_error_details(error_details, data)
+            else:
+                bulk_success_count += 1
+
+            doc_idx += 1
+
+        stats = {
+            "took": response.get("took"),
+            "success": bulk_error_count == 0,
+            "success-count": bulk_success_count,
+            "error-count": bulk_error_count,
+            "ops": ops,
+            "shards_histogram": list(shards_histogram.values()),
+            "bulk-request-size-bytes": bulk_request_size_bytes,
+            "total-document-size-bytes": total_document_size_bytes,
+            "failed-documents": failed_docs,
+            "failed-indices": failed_indices
+        }
+        if bulk_error_count > 0:
+            stats["error-type"] = "bulk"
+            stats["error-description"] = self.error_description(error_details)
+        if "ingest_took" in response:
+            stats["ingest_took"] = response["ingest_took"]
+
+        return stats
+
+    @staticmethod
+    def _normalize_bulk_lines(body):
+        if isinstance(body, str):
+            return [line for line in body.split("\n") if line], True
+        if isinstance(body, list):
+            return body, False
+        raise exceptions.DataError("bulk body is neither string nor list")
+
+    @staticmethod
+    def _entry_size(entry, is_string_body):
+        if is_string_body or isinstance(entry, str):
+            return len(entry.encode("utf-8"))
+        if isinstance(entry, (bytes, bytearray)):
+            return len(entry)
+        return len(json.dumps(entry, separators=(",", ":")).encode("utf-8"))
+
+    @staticmethod
+    def _doc_count(body, with_action_metadata):
+        if isinstance(body, str):
+            lines = [line for line in body.split("\n") if line]
+            return len(lines) // 2 if with_action_metadata else len(lines)
+        if isinstance(body, list):
+            return len(body) // 2 if with_action_metadata else len(body)
+        raise exceptions.DataError("bulk body is neither string nor list")
+
+    def _build_retry_body(self, body, failed_indices, with_action_metadata):
+        self.logger.info(
+            "Building retry body for %d docs (with_action_metadata=%s).",
+            len(failed_indices),
+            with_action_metadata,
+        )
+        if isinstance(body, str):
+            lines = [line for line in body.split("\n") if line]
+            retry_lines = []
+            for idx in failed_indices:
+                if with_action_metadata:
+                    base = idx * 2
+                    retry_lines.extend(
+                        [
+                            lines[base],
+                            lines[base + 1] if base + 1 < len(lines) else "",
+                        ]
+                    )
+                else:
+                    retry_lines.append(lines[idx])
+            return "\n".join(retry_lines) + ("\n" if retry_lines else "")
+
+        retry_body = []
+        if with_action_metadata:
+            for idx in failed_indices:
+                base = idx * 2
+                retry_body.extend(body[base : base + 2])
+        else:
+            for idx in failed_indices:
+                retry_body.append(body[idx])
+        return retry_body
+
+    def simple_stats(self, size, unit, response):
+        bulk_success_count = size if unit == "docs" else None
+        bulk_error_count = 0
+        error_details = set()
+        # parse lazily on the fast path
+        props = parse(response, ["errors", "took"])
+
+        if props.get("errors", False):
+            # determine success count regardless of unit because we need to iterate through all items anyway
+            bulk_success_count = 0
+            # Reparse fully in case of errors - this will be slower
+            parsed_response = json.loads(response.getvalue())
+            for item in parsed_response["items"]:
+                data = next(iter(item.values()))
+                if data["status"] > 299 or ('_shards' in data and data["_shards"]["failed"] > 0):
+                    bulk_error_count += 1
+                    self.extract_error_details(error_details, data)
+                else:
+                    bulk_success_count += 1
+        stats = {
+            "took": props.get("took"),
+            "success": bulk_error_count == 0,
+            "success-count": bulk_success_count,
+            "error-count": bulk_error_count
+        }
+
+        if bulk_error_count > 0:
+            stats["error-type"] = "bulk"
+            stats["error-description"] = self.error_description(error_details)
+        return stats
+
+    def extract_error_details(self, error_details, data):
+        error_data = data.get("error", {})
+        error_reason = error_data.get("reason") if isinstance(error_data, dict) else str(error_data)
+        if error_data:
+            error_details.add((data["status"], error_reason))
+        else:
+            error_details.add((data["status"], None))
+
+    def error_description(self, error_details):
+        error_description = ""
+        for status, reason in error_details:
+            if reason:
+                error_description += "HTTP status: %s, message: %s" % (str(status), reason)
+            else:
+                error_description += "HTTP status: %s" % str(status)
+        return error_description
 
     def __repr__(self, *args, **kwargs):
         return self.NAME
