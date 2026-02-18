@@ -3,3 +3,10 @@
 # The OpenSearch Contributors require contributions made to
 # this file be licensed under the Apache-2.0 license or a
 # compatible open source license.
+
+from osbenchmark.database.clients.vespa.vespa import VespaClientFactory, VespaDatabaseClient
+
+__all__ = [
+    'VespaClientFactory',
+    'VespaDatabaseClient',
+]
