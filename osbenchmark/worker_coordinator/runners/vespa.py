@@ -99,7 +99,9 @@ class VespaBulkIndex(Runner):
 
     async def _feed_via_pyvespa(self, vespa_client, documents, schema, params):
         """Feed documents via pyvespa VespaAsync (HTTP/2, built-in retry)."""
-        max_workers = params.get("max_concurrent", 32)
+        client_opts = getattr(vespa_client, "client_options", {})
+        max_workers = params.get("max_concurrent",
+                                 int(client_opts.get("max_concurrent", 32)))
         namespace = getattr(vespa_client, "_namespace", "benchmark")
 
         result = await vespa_client.feed_batch(
@@ -112,7 +114,9 @@ class VespaBulkIndex(Runner):
 
     async def _feed_via_aiohttp(self, vespa_client, documents, index, params):
         """Feed documents via aiohttp (fallback path)."""
-        max_concurrent = params.get("max_concurrent", 50)
+        client_opts = getattr(vespa_client, "client_options", {})
+        max_concurrent = params.get("max_concurrent",
+                                    int(client_opts.get("max_concurrent", 50)))
         semaphore = asyncio.Semaphore(max_concurrent)
         timeout_val = params.get("request-timeout", 30)
         errors_count = 0
