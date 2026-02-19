@@ -167,12 +167,18 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         if self._session:
             await self._session.close()
         if self._pyvespa_async is not None:
-            await self._pyvespa_async._close_httpx_client()
+            try:
+                if hasattr(self._pyvespa_async, '_close_httpx_client'):
+                    await self._pyvespa_async._close_httpx_client()
+                elif hasattr(self._pyvespa_async, '__aexit__'):
+                    await self._pyvespa_async.__aexit__(None, None, None)
+            except Exception as e:
+                self.logger.warning("Error closing pyvespa session: %s", e)
             self._pyvespa_async = None
 
     # --- pyvespa session management ---
 
-    def _ensure_pyvespa_session(self, max_workers=64):
+    async def _ensure_pyvespa_session(self, max_workers=64):
         """Lazy-init pyvespa's VespaAsync with HTTP/2 multiplexing.
 
         Creates the session once; subsequent calls are no-ops.
@@ -185,7 +191,12 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
         self._pyvespa_app = PyvespaApp(url=self.endpoint)
         self._pyvespa_async = self._pyvespa_app.asyncio(connections=1, timeout=180)
-        self._pyvespa_async._open_httpx_client()
+
+        if hasattr(self._pyvespa_async, '_open_httpx_client'):
+            self._pyvespa_async._open_httpx_client()
+        elif hasattr(self._pyvespa_async, '__aenter__'):
+            await self._pyvespa_async.__aenter__()
+
         self._pyvespa_semaphore = asyncio.Semaphore(max_workers)
         self.logger.info(
             "pyvespa async session initialized (endpoint=%s, max_workers=%d)",
@@ -200,7 +211,7 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         Each document should have '_id' and 'fields' keys.
         Returns {"errors": int, "responses": list}.
         """
-        self._ensure_pyvespa_session(max_workers)
+        await self._ensure_pyvespa_session(max_workers)
         namespace = namespace or self._namespace
 
         feed_kwargs = {}
