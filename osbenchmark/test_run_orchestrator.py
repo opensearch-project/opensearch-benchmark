@@ -187,11 +187,12 @@ class BenchmarkCoordinator:
         database_type = self.cfg.opts("database", "type", default_value="opensearch", mandatory=False)
         if database_type.lower() != "opensearch":
             # Non-OpenSearch databases don't have distribution versions.
-            # Set a default so workload templates can render without errors.
+            # Use latest workload branch (3.x) so we get the newest workload definitions.
+            non_os_version = "3.0.0"
             if not self.cfg.exists("builder", "distribution.version"):
                 self.logger.info("Non-OpenSearch database type [%s], using default distribution version [%s] for template rendering.",
-                                 database_type, oss_distribution_version)
-                self.cfg.add(config.Scope.benchmark, "builder", "distribution.version", oss_distribution_version)
+                                 database_type, non_os_version)
+                self.cfg.add(config.Scope.benchmark, "builder", "distribution.version", non_os_version)
         elif not sources and not self.cfg.exists("builder", "distribution.version"):
             distribution_version = builder.cluster_distribution_version(self.cfg)
             if distribution_version == 'oss':
