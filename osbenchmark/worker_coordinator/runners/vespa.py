@@ -99,7 +99,7 @@ class VespaBulkIndex(Runner):
 
     async def _feed_via_pyvespa(self, vespa_client, documents, schema, params):
         """Feed documents via pyvespa VespaAsync (HTTP/2, built-in retry)."""
-        max_workers = params.get("max_concurrent", 64)
+        max_workers = params.get("max_concurrent", 32)
         namespace = getattr(vespa_client, "_namespace", "benchmark")
 
         result = await vespa_client.feed_batch(
