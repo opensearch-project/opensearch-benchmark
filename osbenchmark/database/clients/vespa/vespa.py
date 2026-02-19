@@ -198,6 +198,10 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             await self._pyvespa_async.__aenter__()
 
         self._pyvespa_semaphore = asyncio.Semaphore(max_workers)
+
+        # Suppress pyvespa's per-request INFO logging
+        logging.getLogger("httpr").setLevel(logging.WARNING)
+
         self.logger.info(
             "pyvespa async session initialized (endpoint=%s, max_workers=%d)",
             self.endpoint, max_workers,
