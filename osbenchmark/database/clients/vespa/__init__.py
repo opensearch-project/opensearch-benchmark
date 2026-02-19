@@ -4,9 +4,10 @@
 # this file be licensed under the Apache-2.0 license or a
 # compatible open source license.
 
-from osbenchmark.database.clients.vespa.vespa import VespaClientFactory, VespaDatabaseClient
+from osbenchmark.database.clients.vespa.vespa import VespaClientFactory, VespaDatabaseClient, PYVESPA_AVAILABLE
 
 __all__ = [
     'VespaClientFactory',
     'VespaDatabaseClient',
+    'PYVESPA_AVAILABLE',
 ]

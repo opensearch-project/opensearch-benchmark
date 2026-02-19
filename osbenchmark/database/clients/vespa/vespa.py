@@ -30,12 +30,20 @@ document transformation, and response conversion happens in helpers.py
 and the runner layer.
 """
 
+import asyncio
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import requests
 
 from osbenchmark import exceptions
+
+try:
+    from vespa.application import Vespa as PyvespaApp
+    PYVESPA_AVAILABLE = True
+except ImportError:
+    PyvespaApp = None
+    PYVESPA_AVAILABLE = False
 from osbenchmark.context import RequestContextHolder
 from osbenchmark.database.interface import (
     DatabaseClient,
@@ -101,6 +109,10 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         self._cluster = client_options.get("cluster", None)
         self._request_context = {}
 
+        self._pyvespa_app = None
+        self._pyvespa_async = None
+        self._pyvespa_semaphore = None
+
         self._indices_ns = VespaIndicesNamespace(self)
         self._cluster_ns = VespaClusterNamespace(self)
         self._transport_ns = VespaTransportNamespace(self)
@@ -147,14 +159,84 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self._session:
-            await self._session.close()
+        await self.close()
         return False
 
     async def close(self):
-        """Close aiohttp session."""
+        """Close aiohttp and pyvespa sessions."""
         if self._session:
             await self._session.close()
+        if self._pyvespa_async is not None:
+            await self._pyvespa_async._close_httpx_client()
+            self._pyvespa_async = None
+
+    # --- pyvespa session management ---
+
+    def _ensure_pyvespa_session(self, max_workers=64):
+        """Lazy-init pyvespa's VespaAsync with HTTP/2 multiplexing.
+
+        Creates the session once; subsequent calls are no-ops.
+        """
+        if self._pyvespa_async is not None:
+            return
+
+        if not PYVESPA_AVAILABLE:
+            raise RuntimeError("pyvespa is not installed")
+
+        self._pyvespa_app = PyvespaApp(url=self.endpoint)
+        self._pyvespa_async = self._pyvespa_app.asyncio(connections=1, timeout=180)
+        self._pyvespa_async._open_httpx_client()
+        self._pyvespa_semaphore = asyncio.Semaphore(max_workers)
+        self.logger.info(
+            "pyvespa async session initialized (endpoint=%s, max_workers=%d)",
+            self.endpoint, max_workers,
+        )
+
+    async def feed_batch(self, documents: List[Dict], schema: str,
+                         namespace: Optional[str] = None,
+                         max_workers: int = 64, **kwargs) -> Dict:
+        """Feed a batch of documents via pyvespa's VespaAsync (HTTP/2).
+
+        Each document should have '_id' and 'fields' keys.
+        Returns {"errors": int, "responses": list}.
+        """
+        self._ensure_pyvespa_session(max_workers)
+        namespace = namespace or self._namespace
+
+        feed_kwargs = {}
+        cluster = self._cluster or schema
+        if cluster:
+            feed_kwargs["destinationCluster"] = cluster
+
+        errors = 0
+        responses = []
+
+        async def _feed_one(doc):
+            nonlocal errors
+            doc_id = str(doc.get("_id", ""))
+            fields = doc.get("fields", {})
+            try:
+                resp = await self._pyvespa_async.feed_data_point(
+                    schema=schema,
+                    data_id=doc_id,
+                    fields=fields,
+                    namespace=namespace,
+                    semaphore=self._pyvespa_semaphore,
+                    **feed_kwargs,
+                )
+                status = getattr(resp, "status_code", 200)
+                if status >= 400:
+                    errors += 1
+                responses.append({"_id": doc_id, "status": status})
+            except Exception as e:
+                self.logger.warning("pyvespa feed error for doc %s: %s", doc_id, e)
+                errors += 1
+                responses.append({"_id": doc_id, "error": str(e)})
+
+        tasks = [_feed_one(doc) for doc in documents]
+        await asyncio.gather(*tasks, return_exceptions=False)
+
+        return {"errors": errors, "responses": responses}
 
     # --- Namespace properties ---
 

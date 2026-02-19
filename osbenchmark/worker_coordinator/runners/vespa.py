@@ -36,6 +36,7 @@ import logging
 
 from osbenchmark import workload
 from osbenchmark.worker_coordinator.runners.base import Runner, request_context_holder
+from osbenchmark.database.clients.vespa import PYVESPA_AVAILABLE
 from osbenchmark.database.clients.vespa.helpers import (
     convert_to_yql,
     convert_vespa_response,
@@ -47,9 +48,8 @@ from osbenchmark.database.clients.vespa.helpers import (
 class VespaBulkIndex(Runner):
     """Bulk indexes documents into Vespa using its document feed API.
 
-    Fat runner: parses bulk body, transforms documents, manages
-    concurrency with asyncio.Semaphore, calls thin client.index()
-    for each document.
+    Uses pyvespa's VespaAsync (HTTP/2 multiplexing, built-in retry) when
+    available, falling back to per-document aiohttp POST requests.
     """
 
     async def __call__(self, vespa_client, params):
@@ -64,41 +64,28 @@ class VespaBulkIndex(Runner):
         try:
             documents = parse_bulk_body(body)
 
-            max_concurrent = params.get("max_concurrent", 50)
-            semaphore = asyncio.Semaphore(max_concurrent)
-            timeout_val = params.get("request-timeout", 30)
+            # Transform documents (shared by both paths)
+            prepared = []
+            for i, doc in enumerate(documents):
+                doc_id = doc.get("_id", f"doc_{i}")
+                source = doc.get("_source", doc)
 
-            errors_count = 0
+                if "index" in source:
+                    source = {k: v for k, v in source.items() if k != "index"}
 
-            async def index_doc(doc_index, doc):
-                async with semaphore:
-                    doc_id = doc.get("_id", f"doc_{doc_index}")
-                    source = doc.get("_source", doc)
+                if "@timestamp" in source or any(isinstance(v, dict) for v in source.values()):
+                    source = transform_document_for_vespa(source, app_name)
 
-                    if "index" in source:
-                        source = {k: v for k, v in source.items() if k != "index"}
+                prepared.append({"_id": doc_id, "fields": source})
 
-                    if "@timestamp" in source or any(isinstance(v, dict) for v in source.values()):
-                        source = transform_document_for_vespa(source, app_name)
-
-                    try:
-                        await vespa_client.index(
-                            index=index, body=source, id=doc_id,
-                            request_timeout=timeout_val
-                        )
-                        return {"_id": doc_id, "status": 200}
-                    except Exception as e:
-                        self.logger.warning("Error feeding document %s: %s", doc_id, e)
-                        return {"_id": doc_id, "error": str(e)}
-
-            tasks = [index_doc(i, doc) for i, doc in enumerate(documents)]
-            raw_results = await asyncio.gather(*tasks, return_exceptions=True)
-
-            for i, result in enumerate(raw_results):
-                if isinstance(result, Exception):
-                    errors_count += 1
-                elif isinstance(result, dict) and "error" in result:
-                    errors_count += 1
+            if PYVESPA_AVAILABLE:
+                errors_count = await self._feed_via_pyvespa(
+                    vespa_client, prepared, index or app_name, params
+                )
+            else:
+                errors_count = await self._feed_via_aiohttp(
+                    vespa_client, prepared, index, params
+                )
 
             return {
                 "weight": bulk_size if bulk_size else len(documents),
@@ -109,6 +96,50 @@ class VespaBulkIndex(Runner):
         finally:
             request_context_holder.on_request_end()
             request_context_holder.on_client_request_end()
+
+    async def _feed_via_pyvespa(self, vespa_client, documents, schema, params):
+        """Feed documents via pyvespa VespaAsync (HTTP/2, built-in retry)."""
+        max_workers = params.get("max_concurrent", 64)
+        namespace = getattr(vespa_client, "_namespace", "benchmark")
+
+        result = await vespa_client.feed_batch(
+            documents=documents,
+            schema=schema,
+            namespace=namespace,
+            max_workers=max_workers,
+        )
+        return result["errors"]
+
+    async def _feed_via_aiohttp(self, vespa_client, documents, index, params):
+        """Feed documents via aiohttp (fallback path)."""
+        max_concurrent = params.get("max_concurrent", 50)
+        semaphore = asyncio.Semaphore(max_concurrent)
+        timeout_val = params.get("request-timeout", 30)
+        errors_count = 0
+
+        async def index_doc(doc):
+            async with semaphore:
+                doc_id = doc["_id"]
+                try:
+                    await vespa_client.index(
+                        index=index, body=doc["fields"], id=doc_id,
+                        request_timeout=timeout_val
+                    )
+                    return {"_id": doc_id, "status": 200}
+                except Exception as e:
+                    self.logger.warning("Error feeding document %s: %s", doc_id, e)
+                    return {"_id": doc_id, "error": str(e)}
+
+        tasks = [index_doc(doc) for doc in documents]
+        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        for result in raw_results:
+            if isinstance(result, Exception):
+                errors_count += 1
+            elif isinstance(result, dict) and "error" in result:
+                errors_count += 1
+
+        return errors_count
 
     def __repr__(self):
         return "vespa-bulk-index"
