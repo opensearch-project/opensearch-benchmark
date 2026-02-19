@@ -189,6 +189,9 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         if not PYVESPA_AVAILABLE:
             raise RuntimeError("pyvespa is not installed")
 
+        # Suppress pyvespa's per-request and CA bundle INFO logging
+        logging.getLogger("httpr").setLevel(logging.WARNING)
+
         self._pyvespa_app = PyvespaApp(url=self.endpoint)
         self._pyvespa_async = self._pyvespa_app.asyncio(connections=1, timeout=180)
 
@@ -199,9 +202,6 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
         self._pyvespa_semaphore = asyncio.Semaphore(max_workers)
 
-        # Suppress pyvespa's per-request INFO logging
-        logging.getLogger("httpr").setLevel(logging.WARNING)
-
         self.logger.info(
             "pyvespa async session initialized (endpoint=%s, max_workers=%d)",
             self.endpoint, max_workers,
@@ -209,10 +209,11 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
     async def feed_batch(self, documents: List[Dict], schema: str,
                          namespace: Optional[str] = None,
-                         max_workers: int = 64, **kwargs) -> Dict:
+                         max_workers: int = 32, **kwargs) -> Dict:
         """Feed a batch of documents via pyvespa's VespaAsync (HTTP/2).
 
         Each document should have '_id' and 'fields' keys.
+        Retries connection-level errors up to 3 times with backoff.
         Returns {"errors": int, "responses": list}.
         """
         await self._ensure_pyvespa_session(max_workers)
@@ -225,28 +226,35 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
         errors = 0
         responses = []
+        max_retries = 3
 
         async def _feed_one(doc):
             nonlocal errors
             doc_id = str(doc.get("_id", ""))
             fields = doc.get("fields", {})
-            try:
-                resp = await self._pyvespa_async.feed_data_point(
-                    schema=schema,
-                    data_id=doc_id,
-                    fields=fields,
-                    namespace=namespace,
-                    semaphore=self._pyvespa_semaphore,
-                    **feed_kwargs,
-                )
-                status = getattr(resp, "status_code", 200)
-                if status >= 400:
+            for attempt in range(max_retries + 1):
+                try:
+                    resp = await self._pyvespa_async.feed_data_point(
+                        schema=schema,
+                        data_id=doc_id,
+                        fields=fields,
+                        namespace=namespace,
+                        semaphore=self._pyvespa_semaphore,
+                        **feed_kwargs,
+                    )
+                    status = getattr(resp, "status_code", 200)
+                    if status >= 400:
+                        errors += 1
+                    responses.append({"_id": doc_id, "status": status})
+                    return
+                except Exception as e:
+                    if attempt < max_retries:
+                        await asyncio.sleep(0.5 * (2 ** attempt))
+                        continue
+                    self.logger.warning("pyvespa feed error for doc %s (after %d retries): %s",
+                                        doc_id, max_retries, e)
                     errors += 1
-                responses.append({"_id": doc_id, "status": status})
-            except Exception as e:
-                self.logger.warning("pyvespa feed error for doc %s: %s", doc_id, e)
-                errors += 1
-                responses.append({"_id": doc_id, "error": str(e)})
+                    responses.append({"_id": doc_id, "error": str(e)})
 
         tasks = [_feed_one(doc) for doc in documents]
         await asyncio.gather(*tasks, return_exceptions=False)
