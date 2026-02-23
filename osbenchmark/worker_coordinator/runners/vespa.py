@@ -505,3 +505,4 @@ def register_vespa_runners():
     register_runner(workload.OperationType.ClusterHealth, VespaClusterHealth(), async_runner=True)
     register_runner(workload.OperationType.Refresh, VespaRefresh(), async_runner=True)
     register_runner(workload.OperationType.ForceMerge, VespaForceMerge(), async_runner=True)
+    register_runner("warmup-knn-indices", VespaWarmupIndicesRunner(), async_runner=True)
