@@ -276,6 +276,9 @@ def convert_to_yql(body: Optional[Dict], document_type: str) -> Tuple[str, Dict]
 
     Returns (yql_query, query_params) where query_params contains additional
     parameters like input.query(query_vector) for KNN search.
+
+    Handles search_after by converting to range filter in WHERE clause
+    (keyset pagination equivalent).
     """
     query_params = {}
 
@@ -283,8 +286,19 @@ def convert_to_yql(body: Optional[Dict], document_type: str) -> Tuple[str, Dict]
         return f"select * from {document_type} where true", query_params
 
     where_clause = build_where_clause(body.get("query", {}), document_type, query_params)
-    order_clause = build_order_clause(body.get("sort", []))
+    sort_spec = body.get("sort", [])
+    order_clause = build_order_clause(sort_spec)
     limit_clause = build_limit_clause(body)
+
+    # Convert search_after to range filter (keyset pagination)
+    search_after = body.get("search_after")
+    if search_after and sort_spec:
+        sa_conditions = _build_search_after_filter(search_after, sort_spec)
+        if sa_conditions:
+            if where_clause == "true":
+                where_clause = sa_conditions
+            else:
+                where_clause = f"{where_clause} and {sa_conditions}"
 
     yql = f"select * from {document_type} where {where_clause}"
 
@@ -298,7 +312,49 @@ def convert_to_yql(body: Optional[Dict], document_type: str) -> Tuple[str, Dict]
     if grouping_clause:
         yql += f" | {grouping_clause}"
 
+    # Pass request timeout to Vespa query timeout
+    request_timeout = body.get("request-timeout")
+    if request_timeout:
+        query_params["timeout"] = f"{request_timeout}s"
+
     return yql, query_params
+
+
+def _build_search_after_filter(search_after: List, sort_spec: List) -> str:
+    """Convert search_after values + sort spec to a range filter.
+
+    For desc sort with search_after value V: timestamp < V (next page is lower)
+    For asc sort with search_after value V: timestamp > V (next page is higher)
+    """
+    conditions = []
+    for i, sa_value in enumerate(search_after):
+        if i >= len(sort_spec):
+            break
+        sort_item = sort_spec[i]
+        if not isinstance(sort_item, dict):
+            continue
+        for field, direction_spec in sort_item.items():
+            if field == "_score":
+                continue
+            vespa_field = map_field_name(field)
+            is_date = field in ("@timestamp", "timestamp", "event.ingested")
+
+            if isinstance(direction_spec, str):
+                direction = direction_spec.lower()
+            elif isinstance(direction_spec, dict):
+                direction = direction_spec.get("order", "asc").lower()
+            else:
+                direction = "asc"
+
+            if is_date:
+                sa_value = date_to_epoch(sa_value)
+
+            if direction == "desc":
+                conditions.append(f"{vespa_field} < {sa_value}")
+            else:
+                conditions.append(f"{vespa_field} > {sa_value}")
+
+    return " and ".join(conditions) if conditions else ""
 
 
 def build_where_clause(query: Dict, document_type: str, query_params: Dict) -> str:
@@ -311,6 +367,7 @@ def build_where_clause(query: Dict, document_type: str, query_params: Dict) -> s
         return "true"
 
     if "match_all" in query:
+        query_params["ranking"] = "unranked"
         return "true"
 
     if "knn" in query:
@@ -348,10 +405,28 @@ def build_where_clause(query: Dict, document_type: str, query_params: Dict) -> s
 
 
 def convert_knn_query(knn_config: Dict, query_params: Dict) -> str:
-    """Convert KNN/vector search query to Vespa YQL nearestNeighbor."""
-    field = knn_config.get("field", "vector")
-    vector = knn_config.get("vector", [])
-    k = knn_config.get("k", 10)
+    """Convert KNN/vector search query to Vespa YQL nearestNeighbor.
+
+    OpenSearch format: {"knn": {"field_name": {"vector": [...], "k": 100}}}
+    The field name is used as a key, with vector/k nested inside.
+    """
+    # OpenSearch nests vector/k under the field name as key
+    field = None
+    vector = []
+    k = 10
+
+    for key, value in knn_config.items():
+        if isinstance(value, dict):
+            field = map_field_name(key)
+            vector = value.get("vector", [])
+            k = value.get("k", 10)
+            break
+
+    # Fallback for flat format {"field": "x", "vector": [...], "k": 10}
+    if field is None:
+        field = map_field_name(knn_config.get("field", "vector"))
+        vector = knn_config.get("vector", [])
+        k = knn_config.get("k", 10)
 
     vector_str = "[" + ",".join(str(v) for v in vector) + "]"
     query_params["input.query(query_vector)"] = vector_str
@@ -626,43 +701,88 @@ def build_limit_clause(body: Dict) -> str:
 # =============================================================================
 
 def build_grouping_clause(aggs: Dict) -> str:
-    """Build Vespa grouping clause from OpenSearch aggregations."""
+    """Build Vespa grouping clause from OpenSearch aggregations.
+
+    Aggregation converters return two formats:
+    - Metric aggs: "output(...)" — needs all() wrapper at top level
+    - Bucket aggs: "group(...) each(...)" — needs all() wrapper at top level
+    """
     if not aggs:
         return ""
 
-    grouping_parts = []
+    parts = []
     for agg_name, agg_spec in aggs.items():
-        grouping = convert_aggregation(agg_name, agg_spec)
-        if grouping:
-            grouping_parts.append(grouping)
+        result = convert_aggregation(agg_name, agg_spec)
+        if result:
+            parts.append(result)
 
-    if len(grouping_parts) == 1:
-        return grouping_parts[0]
-    elif len(grouping_parts) > 1:
-        return "all(" + " ".join(grouping_parts) + ")"
+    if not parts:
+        return ""
 
-    return ""
+    # Separate metrics (output(...)) from buckets (group(...))
+    metric_parts = [p for p in parts if p.startswith("output(")]
+    bucket_parts = [p for p in parts if not p.startswith("output(")]
+
+    wrapped = []
+    if metric_parts:
+        wrapped.append("all(" + " ".join(metric_parts) + ")")
+    for bp in bucket_parts:
+        wrapped.append(f"all({bp})")
+
+    if len(wrapped) == 1:
+        return wrapped[0]
+    return " ".join(wrapped)
 
 
 def convert_aggregation(agg_name: str, agg_spec: Dict) -> str:
-    """Convert a single aggregation to Vespa grouping syntax."""
+    """Convert a single aggregation to Vespa grouping syntax.
+
+    Handles nested sub-aggregations by recursing into agg_spec["aggs"].
+    Bucket converters receive nested_content to embed in their each() clause.
+    Metric converters return output(...) format.
+    """
+    # Extract nested sub-aggregations
+    nested_aggs = agg_spec.get("aggs", agg_spec.get("aggregations", {}))
+    nested_content = ""
+
+    if nested_aggs:
+        nested_parts = []
+        for sub_name, sub_spec in nested_aggs.items():
+            sub_result = convert_aggregation(sub_name, sub_spec)
+            if sub_result:
+                nested_parts.append(sub_result)
+
+        if nested_parts:
+            content_pieces = []
+            for part in nested_parts:
+                if part.startswith("output("):
+                    content_pieces.append(part)
+                else:
+                    # Nested bucket agg needs all() wrapper
+                    content_pieces.append(f"all({part})")
+            nested_content = " ".join(content_pieces)
+
+    # Route to specific converter
     if "date_histogram" in agg_spec:
-        return convert_date_histogram_agg(agg_spec["date_histogram"])
+        return convert_date_histogram_agg(agg_spec["date_histogram"], nested_content)
 
     if "terms" in agg_spec:
-        return convert_terms_agg(agg_spec["terms"])
+        return convert_terms_agg(agg_spec["terms"], nested_content)
+
+    if "multi_terms" in agg_spec:
+        return convert_multi_terms_agg(agg_spec["multi_terms"], nested_content)
 
     if "cardinality" in agg_spec:
         return convert_cardinality_agg(agg_spec["cardinality"])
 
     if "range" in agg_spec:
-        return convert_range_agg(agg_spec["range"])
+        return convert_range_agg(agg_spec["range"], nested_content)
 
     if "histogram" in agg_spec:
-        return convert_histogram_agg(agg_spec["histogram"])
+        return convert_histogram_agg(agg_spec["histogram"], nested_content)
 
     if "auto_date_histogram" in agg_spec:
-        return convert_auto_date_histogram_agg(agg_spec["auto_date_histogram"])
+        return convert_auto_date_histogram_agg(agg_spec["auto_date_histogram"], nested_content)
 
     if "composite" in agg_spec:
         return convert_composite_agg(agg_spec["composite"])
@@ -672,15 +792,15 @@ def convert_aggregation(agg_name: str, agg_spec: Dict) -> str:
             return convert_metric_agg(metric_type, agg_spec[metric_type])
 
     if "significant_terms" in agg_spec:
-        return convert_terms_agg(agg_spec["significant_terms"])
+        return convert_terms_agg(agg_spec["significant_terms"], nested_content)
 
     return ""
 
 
-def convert_date_histogram_agg(spec: Dict) -> str:
+def convert_date_histogram_agg(spec: Dict, nested_content: str = "") -> str:
     """Convert date_histogram aggregation to Vespa grouping.
 
-    all(group(floor(timestamp / 3600000)) each(output(count())))
+    group(floor(timestamp / 3600000)) each(output(count()))
     """
     field = map_field_name(spec.get("field", "timestamp"))
     interval = spec.get("calendar_interval", spec.get("fixed_interval", spec.get("interval", "hour")))
@@ -695,102 +815,195 @@ def convert_date_histogram_agg(spec: Dict) -> str:
     }
 
     interval_ms = interval_ms_map.get(interval, 3600000)
-    return f"all(group(floor({field} / {interval_ms})) each(output(count())))"
+
+    each_content = "output(count())"
+    if nested_content:
+        each_content += f" {nested_content}"
+
+    return f"group(floor({field} / {interval_ms})) each({each_content})"
 
 
-def convert_terms_agg(spec: Dict) -> str:
+def convert_terms_agg(spec: Dict, nested_content: str = "") -> str:
     """Convert terms aggregation to Vespa grouping.
 
-    all(group(field_name) max(10) each(output(count())))
+    group(field_name) max(10) order(-count()) each(output(count()))
+    OpenSearch default order is by doc count descending — order(-count()) matches.
     """
     field = map_field_name(spec.get("field", ""))
     size = spec.get("size", 10)
-    return f"all(group({field}) max({size}) each(output(count())))"
+
+    each_content = "output(count())"
+    if nested_content:
+        each_content += f" {nested_content}"
+
+    return f"group({field}) max({size}) order(-count()) each({each_content})"
 
 
 def convert_cardinality_agg(spec: Dict) -> str:
     """Convert cardinality aggregation to Vespa grouping.
 
-    Approximate with group and count distinct values.
+    OpenSearch uses HyperLogLog (approximate). Vespa equivalent: group by field
+    and count groups, bounded by max() to prevent full enumeration.
+    precision_threshold maps to max groups (default 3000, capped at 10000).
     """
     field = map_field_name(spec.get("field", ""))
-    return f"all(group({field}) each(output(count())))"
+    precision = spec.get("precision_threshold", 3000)
+    max_groups = min(precision, 10000)
+    return f"group({field}) max({max_groups}) each(output(count()))"
 
 
-def convert_range_agg(spec: Dict) -> str:
-    """Convert range aggregation to Vespa grouping."""
+def convert_range_agg(spec: Dict, nested_content: str = "") -> str:
+    """Convert range aggregation to Vespa grouping with predefined buckets.
+
+    OpenSearch range agg defines explicit bucket boundaries. Vespa equivalent
+    uses predefined() with bucket(from, to) where [from, to) semantics match.
+
+    {"ranges": [{"to": -10}, {"from": -10, "to": 10}, {"from": 2000}]}
+    → group(predefined(field, bucket(-inf, -10), bucket(-10, 10), bucket(2000, inf)))
+      each(output(count()))
+    """
     field = map_field_name(spec.get("field", ""))
     ranges = spec.get("ranges", [])
 
-    if ranges:
-        buckets = len(ranges)
-        return f"all(group({field}) max({buckets * 2}) each(output(count())))"
+    each_content = "output(count())"
+    if nested_content:
+        each_content += f" {nested_content}"
 
-    return f"all(group({field}) each(output(count())))"
+    if not ranges:
+        return f"group({field}) each({each_content})"
+
+    bucket_strs = []
+    for r in ranges:
+        low = r.get("from", None)
+        high = r.get("to", None)
+        low_str = str(low) if low is not None else "-inf"
+        high_str = str(high) if high is not None else "inf"
+        bucket_strs.append(f"bucket({low_str}, {high_str})")
+
+    predefined_expr = f"predefined({field}, {', '.join(bucket_strs)})"
+    return f"group({predefined_expr}) each({each_content})"
 
 
-def convert_histogram_agg(spec: Dict) -> str:
+def convert_histogram_agg(spec: Dict, nested_content: str = "") -> str:
     """Convert histogram aggregation to Vespa grouping.
 
-    all(group(floor(field / interval)) each(output(count())))
+    group(floor(field / interval)) each(output(count()))
     """
     field = map_field_name(spec.get("field", ""))
     interval = spec.get("interval", 100)
-    return f"all(group(floor({field} / {interval})) each(output(count())))"
+
+    each_content = "output(count())"
+    if nested_content:
+        each_content += f" {nested_content}"
+
+    return f"group(floor({field} / {interval})) each({each_content})"
 
 
-def convert_auto_date_histogram_agg(spec: Dict) -> str:
+def convert_auto_date_histogram_agg(spec: Dict, nested_content: str = "") -> str:
     """Convert auto_date_histogram to Vespa grouping (defaults to hourly)."""
     field = map_field_name(spec.get("field", "timestamp"))
     buckets = spec.get("buckets", 10)
-    return f"all(group(floor({field} / 3600000)) max({buckets}) each(output(count())))"
+
+    each_content = "output(count())"
+    if nested_content:
+        each_content += f" {nested_content}"
+
+    return f"group(floor({field} / 3600000)) max({buckets}) each({each_content})"
 
 
 def convert_composite_agg(spec: Dict) -> str:
-    """Convert composite aggregation to Vespa nested grouping."""
+    """Convert composite aggregation to Vespa nested grouping.
+
+    For date_histogram sources, applies floor(field / interval_ms) to create
+    time buckets instead of grouping by raw millisecond timestamp.
+    """
     sources = spec.get("sources", [])
     size = spec.get("size", 10)
 
     if not sources:
         return ""
 
-    fields = []
+    interval_ms_map = {
+        "second": 1000, "1s": 1000,
+        "minute": 60000, "1m": 60000,
+        "hour": 3600000, "1h": 3600000,
+        "day": 86400000, "1d": 86400000,
+        "week": 604800000, "1w": 604800000,
+        "month": 2592000000, "1M": 2592000000,
+    }
+
+    group_exprs = []
     for source in sources:
         for _, source_spec in source.items():
             if "terms" in source_spec:
                 field = map_field_name(source_spec["terms"].get("field", ""))
-                fields.append(field)
+                group_exprs.append(field)
             elif "date_histogram" in source_spec:
-                field = map_field_name(source_spec["date_histogram"].get("field", ""))
-                fields.append(field)
+                dh = source_spec["date_histogram"]
+                field = map_field_name(dh.get("field", ""))
+                interval = dh.get("calendar_interval", dh.get("fixed_interval", dh.get("interval", "day")))
+                interval_ms = interval_ms_map.get(interval, 86400000)
+                group_exprs.append(f"floor({field} / {interval_ms})")
 
-    if len(fields) == 1:
-        return f"all(group({fields[0]}) max({size}) each(output(count())))"
-    elif len(fields) == 2:
-        return (f"all(group({fields[0]}) max({size}) "
-                f"each(group({fields[1]}) max({size}) each(output(count()))))")
-    elif len(fields) >= 3:
-        return (f"all(group({fields[0]}) max({size}) "
-                f"each(group({fields[1]}) max({size}) "
-                f"each(group({fields[2]}) max({size}) each(output(count())))))")
+    if len(group_exprs) == 1:
+        return f"group({group_exprs[0]}) max({size}) each(output(count()))"
+    elif len(group_exprs) == 2:
+        return (f"group({group_exprs[0]}) max({size}) "
+                f"each(group({group_exprs[1]}) max({size}) each(output(count())))")
+    elif len(group_exprs) >= 3:
+        return (f"group({group_exprs[0]}) max({size}) "
+                f"each(group({group_exprs[1]}) max({size}) "
+                f"each(group({group_exprs[2]}) max({size}) each(output(count()))))")
 
     return ""
 
 
-def convert_metric_agg(metric_type: str, spec: Dict) -> str:
-    """Convert metric aggregation (sum, avg, min, max) to Vespa grouping.
+def convert_multi_terms_agg(spec: Dict, nested_content: str = "") -> str:
+    """Convert multi_terms aggregation to Vespa nested grouping.
 
-    all(output(sum(field)))
+    OpenSearch multi_terms groups by multiple fields simultaneously.
+    Vespa equivalent: nested group() calls, one per field.
+
+    {"terms": [{"field": "process.name"}, {"field": "cloud.region"}]}
+    → group(process_name) max(10) each(group(cloud_region) max(10) each(output(count())))
+    """
+    terms_list = spec.get("terms", [])
+    size = spec.get("size", 10)
+
+    fields = [map_field_name(t.get("field", "")) for t in terms_list]
+
+    if not fields:
+        return ""
+
+    # Build from innermost to outermost
+    inner_content = "output(count())"
+    if nested_content:
+        inner_content += f" {nested_content}"
+
+    # Start with innermost field
+    result = f"group({fields[-1]}) max({size}) each({inner_content})"
+
+    # Wrap with outer fields (right to left, skipping last which is already used)
+    for field in reversed(fields[:-1]):
+        result = f"group({field}) max({size}) each({result})"
+
+    return result
+
+
+def convert_metric_agg(metric_type: str, spec: Dict) -> str:
+    """Convert metric aggregation (sum, avg, min, max) to Vespa output clause.
+
+    Returns output(...) format — caller wraps in all() if standalone.
     """
     field = map_field_name(spec.get("field", ""))
 
     if metric_type == "stats":
-        return (f"all(output(sum({field})) output(avg({field})) "
-                f"output(min({field})) output(max({field})) output(count()))")
+        return (f"output(sum({field})) output(avg({field})) "
+                f"output(min({field})) output(max({field})) output(count())")
     elif metric_type == "value_count":
-        return "all(output(count()))"
+        return "output(count())"
     else:
-        return f"all(output({metric_type}({field})))"
+        return f"output({metric_type}({field}))"
 
 
 # =============================================================================

@@ -238,6 +238,11 @@ class VespaQuery(Runner):
             search_params = {"yql": yql_query}
             search_params.update(query_params)
 
+            # Forward workload request-timeout to Vespa query timeout
+            request_timeout = params.get("request-timeout")
+            if request_timeout and "timeout" not in search_params:
+                search_params["timeout"] = f"{request_timeout}s"
+
             raw_response = await vespa_client.search(index=index, body=search_params)
             response = convert_vespa_response(raw_response)
 
