@@ -140,6 +140,7 @@ def register_default_runners():
     register_runner(workload.OperationType.DeleteMlConnector, Retry(DeleteMlConnector()), async_runner=True)
     register_runner(workload.OperationType.RegisterRemoteMlModel, Retry(RegisterRemoteMlModel()), async_runner=True)
 
+
 class BulkIndex(Runner):
     """
     Bulk indexes the given documents.
