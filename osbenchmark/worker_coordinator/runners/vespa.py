@@ -69,14 +69,15 @@ class VespaBulkIndex(Runner):
             for i, doc in enumerate(documents):
                 doc_id = doc.get("_id", f"doc_{i}")
                 source = doc.get("_source", doc)
+                action = doc.get("_action", "index")
 
                 if "index" in source:
                     source = {k: v for k, v in source.items() if k != "index"}
 
                 if "@timestamp" in source or any(isinstance(v, dict) for v in source.values()):
-                    source = transform_document_for_vespa(source, app_name)
+                    source = transform_document_for_vespa(source)
 
-                prepared.append({"_id": doc_id, "fields": source})
+                prepared.append({"_id": doc_id, "fields": source, "_action": action})
 
             if PYVESPA_AVAILABLE:
                 errors_count = await self._feed_via_pyvespa(
@@ -116,25 +117,32 @@ class VespaBulkIndex(Runner):
         """Feed documents via aiohttp (fallback path)."""
         client_opts = getattr(vespa_client, "client_options", {})
         max_concurrent = params.get("max_concurrent",
-                                    int(client_opts.get("max_concurrent", 50)))
+                                    int(client_opts.get("max_concurrent", 32)))
         semaphore = asyncio.Semaphore(max_concurrent)
         timeout_val = params.get("request-timeout", 30)
         errors_count = 0
 
-        async def index_doc(doc):
+        async def feed_doc(doc):
             async with semaphore:
                 doc_id = doc["_id"]
+                action = doc.get("_action", "index")
                 try:
-                    await vespa_client.index(
-                        index=index, body=doc["fields"], id=doc_id,
-                        request_timeout=timeout_val
-                    )
+                    if action == "update":
+                        await vespa_client.update(
+                            index=index, body=doc["fields"], id=doc_id,
+                            request_timeout=timeout_val
+                        )
+                    else:
+                        await vespa_client.index(
+                            index=index, body=doc["fields"], id=doc_id,
+                            request_timeout=timeout_val
+                        )
                     return {"_id": doc_id, "status": 200}
                 except Exception as e:
                     self.logger.warning("Error feeding document %s: %s", doc_id, e)
                     return {"_id": doc_id, "error": str(e)}
 
-        tasks = [index_doc(doc) for doc in documents]
+        tasks = [feed_doc(doc) for doc in documents]
         raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for result in raw_results:
@@ -335,17 +343,22 @@ class VespaCreateIndex(Runner):
     """
 
     async def __call__(self, vespa_client, params):
-        index = params.get("index")
-        body = params.get("body")
+        indices = params.get("indices", [])
+        if not indices:
+            index = params.get("index")
+            body = params.get("body")
+            if index:
+                indices = [(index, body)]
 
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
-            response = await vespa_client.indices.create(index=index, body=body)
+            for index, body in indices:
+                await vespa_client.indices.create(index=index, body=body)
             return {
-                "weight": 1,
+                "weight": len(indices),
                 "unit": "ops",
-                "acknowledged": response.get("acknowledged", True),
+                "success": True,
             }
         finally:
             request_context_holder.on_request_end()
@@ -359,16 +372,26 @@ class VespaDeleteIndex(Runner):
     """Deletes a Vespa schema/document type."""
 
     async def __call__(self, vespa_client, params):
-        index = params.get("index")
+        indices = params.get("indices", [])
+        if not indices:
+            index = params.get("index")
+            if index:
+                indices = [index]
+
+        only_if_exists = params.get("only-if-exists", False)
+        ops = 0
 
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
-            response = await vespa_client.indices.delete(index=index)
+            for index_name in indices:
+                if not only_if_exists or await vespa_client.indices.exists(index=index_name):
+                    await vespa_client.indices.delete(index=index_name)
+                    ops += 1
             return {
-                "weight": 1,
+                "weight": ops,
                 "unit": "ops",
-                "acknowledged": response.get("acknowledged", True),
+                "success": True,
             }
         finally:
             request_context_holder.on_request_end()
@@ -387,7 +410,7 @@ class VespaIndicesStats(Runner):
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
-            response = vespa_client.indices.stats(index=index)
+            response = await vespa_client.indices.stats(index=index)
             return {
                 "weight": 1,
                 "unit": "ops",
@@ -409,11 +432,13 @@ class VespaClusterHealth(Runner):
         request_context_holder.on_request_start()
         try:
             response = await vespa_client.cluster.health()
+            cluster_status = response.get("status", "unknown")
             return {
                 "weight": 1,
                 "unit": "ops",
-                "status": response.get("status", "unknown"),
-                "timed_out": response.get("timed_out", False),
+                "success": cluster_status in ("green", "yellow"),
+                "cluster-status": cluster_status,
+                "relocating-shards": response.get("relocating_shards", 0),
             }
         finally:
             request_context_holder.on_request_end()
@@ -465,6 +490,24 @@ class VespaForceMerge(Runner):
         return "vespa-force-merge"
 
 
+class VespaNoOp(Runner):
+    """No-op runner for OpenSearch-specific operations that have no Vespa equivalent.
+
+    Used for pipelines, reindex, and other OS-only operations so workloads
+    can run without --exclude-tasks.
+    """
+
+    def __init__(self, name):
+        super().__init__()
+        self._name = name
+
+    async def __call__(self, vespa_client, params):
+        self.logger.info("Skipping unsupported operation [%s] for Vespa", self._name)
+
+    def __repr__(self):
+        return self._name
+
+
 class VespaWarmupIndicesRunner(Runner):
     """Warmup indices for KNN vector search.
 
@@ -476,7 +519,6 @@ class VespaWarmupIndicesRunner(Runner):
         request_context_holder.on_request_start()
         try:
             await vespa_client.cluster.health()
-            return {"success": True}
         finally:
             request_context_holder.on_request_end()
             request_context_holder.on_client_request_end()
@@ -506,3 +548,11 @@ def register_vespa_runners():
     register_runner(workload.OperationType.Refresh, VespaRefresh(), async_runner=True)
     register_runner(workload.OperationType.ForceMerge, VespaForceMerge(), async_runner=True)
     register_runner("warmup-knn-indices", VespaWarmupIndicesRunner(), async_runner=True)
+
+    # No-op stubs for OpenSearch-specific operations
+    for op_type in [
+        workload.OperationType.PutPipeline,
+        workload.OperationType.DeletePipeline,
+        workload.OperationType.CreateSearchPipeline,
+    ]:
+        register_runner(op_type, VespaNoOp(str(op_type)), async_runner=True)
