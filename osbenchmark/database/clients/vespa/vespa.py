@@ -166,6 +166,8 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         """Close aiohttp and pyvespa sessions."""
         if self._session:
             await self._session.close()
+            self._session = None
+            self._session_initialized = False
         if self._pyvespa_async is not None:
             try:
                 if hasattr(self._pyvespa_async, '_close_httpx_client'):
@@ -196,7 +198,9 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         self._pyvespa_async = self._pyvespa_app.asyncio(connections=1, timeout=180)
 
         if hasattr(self._pyvespa_async, '_open_httpx_client'):
-            self._pyvespa_async._open_httpx_client()
+            result = self._pyvespa_async._open_httpx_client()
+            if asyncio.iscoroutine(result):
+                await result
         elif hasattr(self._pyvespa_async, '__aenter__'):
             await self._pyvespa_async.__aenter__()
 
@@ -367,14 +371,56 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
                 endpoint, json=vespa_doc,
                 params=query_params, timeout=timeout_val
             ) as response:
-                await response.text()
+                resp_text = await response.text()
                 if response.status >= 400:
-                    self.logger.warning("Failed to index document %s: status=%d", doc_id, response.status)
+                    raise exceptions.BenchmarkError(
+                        f"Failed to index document {doc_id}: status={response.status}, body={resp_text}")
                 return {"_id": doc_id, "result": "created", "_version": 1}
         else:
-            requests.post(endpoint, json=vespa_doc,
-                          params=query_params, timeout=timeout_val)
+            resp = requests.post(endpoint, json=vespa_doc,
+                                 params=query_params, timeout=timeout_val)
+            if resp.status_code >= 400:
+                raise exceptions.BenchmarkError(
+                    f"Failed to index document {doc_id}: status={resp.status_code}, body={resp.text}")
             return {"_id": doc_id, "result": "created", "_version": 1}
+
+    async def update(self, index, body, id, doc_type=None, **kwargs):
+        """Partial update a document via PUT to /document/v1/.
+
+        Wraps field values with {"assign": value} for Vespa partial update semantics.
+        """
+        await self._ensure_session()
+
+        document_type = index or self._app_name
+        endpoint = f"{self.endpoint}/document/v1/{self._namespace}/{document_type}/docid/{id}"
+        timeout_val = kwargs.get("request_timeout", 30)
+
+        query_params = {}
+        cluster = self._cluster or document_type
+        if cluster:
+            query_params["destinationCluster"] = cluster
+
+        # Wrap fields with assign for partial update
+        update_fields = {field: {"assign": value} for field, value in body.items()}
+        vespa_doc = {"fields": update_fields}
+
+        if self._session:
+            async with self._session.put(
+                endpoint, json=vespa_doc,
+                params=query_params, timeout=timeout_val
+            ) as response:
+                resp_text = await response.text()
+                if response.status >= 400:
+                    raise exceptions.BenchmarkError(
+                        f"Failed to update document {id}: status={response.status}, body={resp_text}")
+                return {"_id": id, "result": "updated", "_version": 1}
+        else:
+            resp = requests.put(endpoint, json=vespa_doc,
+                                params=query_params, timeout=timeout_val)
+            if resp.status_code >= 400:
+                raise exceptions.BenchmarkError(
+                    f"Failed to update document {id}: status={resp.status_code}, body={resp.text}")
+            return {"_id": id, "result": "updated", "_version": 1}
 
     async def search(self, index=None, body=None, doc_type=None, **kwargs):
         """Send pre-built YQL query to Vespa /search/ endpoint.
@@ -476,13 +522,14 @@ class VespaIndicesNamespace(IndicesNamespace):
             await resp.text()
         return {"acknowledged": True, "_shards": {"total": 1, "successful": 1, "failed": 0}}
 
-    def stats(self, index=None, metric=None, **kwargs):
-        """Sync — GET /metrics/v2/values, convert via helpers."""
+    async def stats(self, index=None, metric=None, **kwargs):
+        """Async — GET /metrics/v2/values, convert via helpers."""
+        await self._client._ensure_session()
         endpoint = f"{self._client.endpoint}/metrics/v2/values"
         try:
-            response = requests.get(endpoint, timeout=10)
-            metrics = response.json()
-            return convert_metrics_to_stats(metrics, index)
+            async with self._client._session.get(endpoint, timeout=10) as response:
+                metrics = await response.json()
+                return convert_metrics_to_stats(metrics, index)
         except Exception:
             return {"_all": {"primaries": {}, "total": {}}}
 

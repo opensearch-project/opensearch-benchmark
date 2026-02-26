@@ -62,21 +62,6 @@ FIELD_NAME_MAPPING = {
     "ecs.version": "ecs_version",
 }
 
-BIG5_ALLOWED_FIELDS = {
-    "timestamp", "message", "metrics_size", "metrics_tmin",
-    "agent_ephemeral_id", "agent_id", "agent_name", "agent_type", "agent_version",
-    "aws_cloudwatch_ingestion_time", "aws_cloudwatch_log_group", "aws_cloudwatch_log_stream",
-    "cloud_region",
-    "data_stream_dataset", "data_stream_namespace", "data_stream_type",
-    "ecs_version",
-    "event_dataset", "event_id", "event_ingested",
-    "input_type",
-    "log_file_path",
-    "meta_file",
-    "process_name",
-    "tags",
-}
-
 
 # =============================================================================
 # Field/Document Translation
@@ -166,11 +151,11 @@ def date_to_epoch(date_value) -> int:
     return 0
 
 
-def transform_document_for_vespa(doc: Dict, app_name: str = "") -> Dict:
+def transform_document_for_vespa(doc: Dict) -> Dict:
     """Transform an OpenSearch document to Vespa format.
 
-    Flattens nested fields, converts timestamps, maps field names,
-    and filters fields for big5 workload compatibility.
+    Flattens nested fields, converts timestamps, and maps field names.
+    Unknown fields should be handled by Vespa's ignore-undefined-fields schema setting.
     """
     vespa_doc = {}
 
@@ -206,9 +191,6 @@ def transform_document_for_vespa(doc: Dict, app_name: str = "") -> Dict:
 
     flatten(doc)
 
-    if app_name == "big5":
-        vespa_doc = {k: v for k, v in vespa_doc.items() if k in BIG5_ALLOWED_FIELDS}
-
     return vespa_doc
 
 
@@ -227,13 +209,22 @@ def parse_bulk_body(body) -> List[Dict]:
         body_list = list(body)
         if len(body_list) >= 2 and isinstance(body_list[0], dict):
             first_item = body_list[0]
-            if "index" in first_item and isinstance(first_item.get("index"), dict):
+            action_type = "index"
+            for act in ("index", "update", "create"):
+                if act in first_item and isinstance(first_item.get(act), dict):
+                    action_type = act
+                    break
+            if action_type:
                 documents = []
                 for i in range(0, len(body_list) - 1, 2):
                     action = body_list[i]
                     doc_body = body_list[i + 1]
-                    doc_id = action.get("index", {}).get("_id", f"doc_{len(documents)}")
-                    documents.append({"_id": doc_id, "_source": doc_body})
+                    act_meta = action.get(action_type, action.get("index", {}))
+                    doc_id = act_meta.get("_id", f"doc_{len(documents)}")
+                    # For updates, the doc body is inside {"doc": {...}}
+                    if action_type == "update" and "doc" in doc_body:
+                        doc_body = doc_body["doc"]
+                    documents.append({"_id": doc_id, "_source": doc_body, "_action": action_type})
                 return documents
         return body_list
 
@@ -253,10 +244,20 @@ def parse_bulk_body(body) -> List[Dict]:
             action = json.loads(lines[i])
             if i + 1 < len(lines):
                 doc_body = json.loads(lines[i + 1])
-                doc_id = action.get("index", {}).get("_id")
+                # Detect action type
+                action_type = "index"
+                doc_id = None
+                for act in ("index", "update", "create"):
+                    if act in action:
+                        action_type = act
+                        doc_id = action[act].get("_id")
+                        break
                 if not doc_id:
                     doc_id = str(uuid.uuid4())
-                documents.append({"_id": doc_id, "_source": doc_body})
+                # For updates, the doc body is inside {"doc": {...}}
+                if action_type == "update" and "doc" in doc_body:
+                    doc_body = doc_body["doc"]
+                documents.append({"_id": doc_id, "_source": doc_body, "_action": action_type})
                 i += 2
             else:
                 i += 1
@@ -360,8 +361,8 @@ def _build_search_after_filter(search_after: List, sort_spec: List) -> str:
 def build_where_clause(query: Dict, document_type: str, query_params: Dict) -> str:
     """Build WHERE clause from OpenSearch query DSL.
 
-    Handles: match_all, match, term, range, bool, query_string, knn,
-    prefix, wildcard, exists.
+    Handles: match_all, match, match_phrase, term, range, bool, query_string,
+    knn, prefix, wildcard, exists.
     """
     if not query:
         return "true"
@@ -385,6 +386,9 @@ def build_where_clause(query: Dict, document_type: str, query_params: Dict) -> s
     if "match" in query:
         return convert_match_query(query["match"])
 
+    if "match_phrase" in query:
+        return convert_match_phrase_query(query["match_phrase"])
+
     if "bool" in query:
         return convert_bool_query(query["bool"], document_type, query_params)
 
@@ -401,6 +405,7 @@ def build_where_clause(query: Dict, document_type: str, query_params: Dict) -> s
         field = map_field_name(query["exists"].get("field", ""))
         return f"{field} != null"
 
+    logger.warning("Unsupported query type(s): %s — falling back to match_all", list(query.keys()))
     return "true"
 
 
@@ -525,6 +530,26 @@ def convert_match_query(match_query: Dict) -> str:
             return f'{vespa_field} contains "{escaped_value}"'
         else:
             return f"{vespa_field} = {value}"
+
+    return "true"
+
+
+def convert_match_phrase_query(match_phrase_query: Dict) -> str:
+    """Convert match_phrase query to Vespa YQL.
+
+    {"match_phrase": {"body": "newspaper coverage"}}
+    → body contains phrase("newspaper", "coverage")
+    """
+    for field, value_spec in match_phrase_query.items():
+        vespa_field = map_field_name(field)
+        if isinstance(value_spec, dict):
+            value = value_spec.get("query", "")
+        else:
+            value = value_spec
+
+        terms = str(value).split()
+        quoted_terms = ', '.join(f'"{t}"' for t in terms)
+        return f'{vespa_field} contains phrase({quoted_terms})'
 
     return "true"
 
