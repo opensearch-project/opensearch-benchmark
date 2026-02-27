@@ -224,9 +224,8 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         namespace = namespace or self._namespace
 
         feed_kwargs = {}
-        cluster = self._cluster or schema
-        if cluster:
-            feed_kwargs["destinationCluster"] = cluster
+        if self._cluster:
+            feed_kwargs["destinationCluster"] = self._cluster
 
         errors = 0
         responses = []
@@ -249,7 +248,21 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
                     status = getattr(resp, "status_code", 200)
                     if status >= 400:
                         errors += 1
+                        resp_json = getattr(resp, "json", None)
+                        if errors <= 3:
+                            self.logger.warning(
+                                "Vespa feed error for doc %s: status=%d, response=%s",
+                                doc_id, status, resp_json)
                     responses.append({"_id": doc_id, "status": status})
+                    return
+                except (UnicodeEncodeError, UnicodeDecodeError) as e:
+                    # Data encoding issues (e.g. lone surrogates) — don't retry
+                    if errors <= 3:
+                        self.logger.warning(
+                            "Vespa feed encoding error for doc %s (skipping): %s",
+                            doc_id, e)
+                    errors += 1
+                    responses.append({"_id": doc_id, "error": str(e)})
                     return
                 except Exception as e:
                     if attempt < max_retries:
@@ -298,9 +311,8 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         timeout_val = kwargs.get("request_timeout", 30)
 
         query_params = {}
-        cluster = self._cluster or document_type
-        if cluster:
-            query_params["destinationCluster"] = cluster
+        if self._cluster:
+            query_params["destinationCluster"] = self._cluster
 
         if not isinstance(body, (list, tuple)):
             body = [body]
@@ -360,9 +372,8 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         timeout_val = kwargs.get("request_timeout", 30)
 
         query_params = {}
-        cluster = self._cluster or document_type
-        if cluster:
-            query_params["destinationCluster"] = cluster
+        if self._cluster:
+            query_params["destinationCluster"] = self._cluster
 
         vespa_doc = {"fields": body}
 
@@ -396,9 +407,8 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         timeout_val = kwargs.get("request_timeout", 30)
 
         query_params = {}
-        cluster = self._cluster or document_type
-        if cluster:
-            query_params["destinationCluster"] = cluster
+        if self._cluster:
+            query_params["destinationCluster"] = self._cluster
 
         # Wrap fields with assign for partial update
         update_fields = {field: {"assign": value} for field, value in body.items()}

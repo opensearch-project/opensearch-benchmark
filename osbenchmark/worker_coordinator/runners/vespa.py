@@ -88,6 +88,12 @@ class VespaBulkIndex(Runner):
                     vespa_client, prepared, index, params
                 )
 
+            if errors_count > 0:
+                self.logger.warning(
+                    "VespaBulkIndex batch: %d errors out of %d docs (schema=%s)",
+                    errors_count, len(prepared), index or app_name,
+                )
+
             return {
                 "weight": bulk_size if bulk_size else len(documents),
                 "unit": unit,
