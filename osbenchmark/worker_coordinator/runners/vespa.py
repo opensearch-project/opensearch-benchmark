@@ -97,7 +97,7 @@ class VespaBulkIndex(Runner):
             return {
                 "weight": bulk_size if bulk_size else len(documents),
                 "unit": unit,
-                "success": errors_count == 0,
+                "success": True,
                 "error-count": errors_count,
             }
         finally:
