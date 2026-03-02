@@ -509,6 +509,17 @@ class VespaNoOp(Runner):
 
     async def __call__(self, vespa_client, params):
         self.logger.info("Skipping unsupported operation [%s] for Vespa", self._name)
+        request_context_holder.on_client_request_start()
+        request_context_holder.on_request_start()
+        try:
+            return {
+                "weight": 1,
+                "unit": "ops",
+                "success": True,
+            }
+        finally:
+            request_context_holder.on_request_end()
+            request_context_holder.on_client_request_end()
 
     def __repr__(self):
         return self._name
@@ -560,5 +571,6 @@ def register_vespa_runners():
         workload.OperationType.PutPipeline,
         workload.OperationType.DeletePipeline,
         workload.OperationType.CreateSearchPipeline,
+        workload.OperationType.PutSettings,
     ]:
         register_runner(op_type, VespaNoOp(str(op_type)), async_runner=True)
