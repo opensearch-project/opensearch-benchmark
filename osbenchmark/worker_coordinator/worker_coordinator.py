@@ -1700,6 +1700,11 @@ class Worker(actor.BenchmarkActor):
         if self.config.opts("workload", "test.mode.enabled"):
             self.wakeup_interval = 0.5
         runner.register_default_runners()
+        database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
+        if database_type.lower() == "vespa":
+            from osbenchmark.worker_coordinator.runners.vespa import register_vespa_runners  # pylint: disable=import-outside-toplevel
+            register_vespa_runners()
+            self.logger.info("Registered Vespa runners (overriding OpenSearch defaults for supported operations)")
         if self.workload.has_plugins:
             workload.load_workload_plugins(self.config, self.workload.name, runner.register_runner, scheduler.register_scheduler)
         self.drive()
