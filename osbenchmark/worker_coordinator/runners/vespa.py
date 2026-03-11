@@ -32,7 +32,6 @@ timing via RequestContextHolder.
 """
 
 import asyncio
-import logging
 
 from osbenchmark import workload
 from osbenchmark.worker_coordinator.runners.base import Runner, request_context_holder
@@ -552,7 +551,7 @@ def register_vespa_runners():
     Overrides the default OpenSearch runners for the operation types
     that Vespa supports.
     """
-    from osbenchmark.worker_coordinator.runners import register_runner
+    from osbenchmark.worker_coordinator.runners import register_runner  # pylint: disable=import-outside-toplevel
 
     register_runner(workload.OperationType.Bulk, VespaBulkIndex(), async_runner=True)
     register_runner(workload.OperationType.Search, VespaQuery(), async_runner=True)

@@ -4,7 +4,6 @@
 # this file be licensed under the Apache-2.0 license or a
 # compatible open source license.
 
-import json
 import unittest
 from datetime import datetime, timezone, timedelta
 from unittest import TestCase
@@ -21,15 +20,6 @@ from osbenchmark.database.clients.vespa.helpers import (
     _build_search_after_filter,
     build_where_clause,
     convert_knn_query,
-    convert_term_query,
-    convert_terms_query,
-    convert_range_query,
-    convert_match_query,
-    convert_match_phrase_query,
-    convert_bool_query,
-    convert_query_string,
-    convert_prefix_query,
-    convert_wildcard_query,
     build_order_clause,
     build_limit_clause,
     build_grouping_clause,
@@ -353,28 +343,28 @@ class WrapFieldsWithAssignTests(TestCase):
 
 class ConvertToYqlTests(TestCase):
     def test_empty_body_none(self):
-        yql, params = convert_to_yql(None, "mytype")
+        yql, _ = convert_to_yql(None, "mytype")
         self.assertEqual(yql, "select * from mytype where true")
 
     def test_empty_body_empty_dict(self):
         # Empty dict is falsy in Python, so it takes the early-return path same as None.
-        yql, params = convert_to_yql({}, "mytype")
+        yql, _ = convert_to_yql({}, "mytype")
         self.assertEqual("select * from mytype where true", yql)
 
     def test_match_all_sets_ranking_unranked(self):
         # match_all has no scoring — tell Vespa to skip ranking for performance.
         body = {"query": {"match_all": {}}}
-        yql, params = convert_to_yql(body, "mytype")
+        _, params = convert_to_yql(body, "mytype")
         self.assertEqual(params["ranking"], "unranked")
 
     def test_with_sort(self):
         body = {"query": {"match_all": {}}, "sort": [{"timestamp": "desc"}]}
-        yql, params = convert_to_yql(body, "mytype")
+        yql, _ = convert_to_yql(body, "mytype")
         self.assertIn("order by timestamp desc", yql)
 
     def test_with_size_and_from(self):
         body = {"query": {"match_all": {}}, "size": 10, "from": 20}
-        yql, params = convert_to_yql(body, "mytype")
+        yql, _ = convert_to_yql(body, "mytype")
         self.assertIn("limit 10 offset 20", yql)
 
     def test_with_search_after_replaces_true(self):
@@ -385,7 +375,7 @@ class ConvertToYqlTests(TestCase):
             "sort": [{"timestamp": "desc"}],
             "search_after": [1000]
         }
-        yql, params = convert_to_yql(body, "mytype")
+        yql, _ = convert_to_yql(body, "mytype")
         self.assertIn("timestamp < 1000", yql)
         self.assertNotIn("where true", yql)
 
@@ -395,7 +385,7 @@ class ConvertToYqlTests(TestCase):
             "sort": [{"timestamp": "desc"}],
             "search_after": [1000]
         }
-        yql, params = convert_to_yql(body, "mytype")
+        yql, _ = convert_to_yql(body, "mytype")
         self.assertIn("status = 200", yql)
         self.assertIn("and timestamp < 1000", yql)
 
@@ -404,7 +394,7 @@ class ConvertToYqlTests(TestCase):
             "query": {"match_all": {}},
             "aggs": {"my_sum": {"sum": {"field": "x"}}}
         }
-        yql, params = convert_to_yql(body, "mytype")
+        yql, _ = convert_to_yql(body, "mytype")
         self.assertIn("| all(output(sum(x)))", yql)
 
     def test_aggs_key_takes_precedence_over_aggregations(self):
@@ -415,13 +405,13 @@ class ConvertToYqlTests(TestCase):
             "aggs": {"my_sum": {"sum": {"field": "x"}}},
             "aggregations": {"my_avg": {"avg": {"field": "y"}}},
         }
-        yql, params = convert_to_yql(body, "mytype")
+        yql, _ = convert_to_yql(body, "mytype")
         self.assertIn("sum(x)", yql)
         self.assertNotIn("avg(y)", yql)
 
     def test_with_request_timeout(self):
         body = {"query": {"match_all": {}}, "request-timeout": 30}
-        yql, params = convert_to_yql(body, "mytype")
+        _, params = convert_to_yql(body, "mytype")
         self.assertEqual(params["timeout"], "30s")
 
     def test_aggs_key_alias(self):
@@ -433,7 +423,7 @@ class ConvertToYqlTests(TestCase):
         self.assertIn("all(output(sum(x)))", yql2)
 
 
-class BuildWhereClauseTests(TestCase):
+class BuildWhereClauseTests(TestCase):  # pylint: disable=too-many-public-methods
     def _build(self, query, params=None):
         if params is None:
             params = {}
