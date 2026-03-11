@@ -24,7 +24,7 @@
 
 from unittest import TestCase
 
-from opensearch.protobufs.schemas import document_pb2
+from opensearch.protobufs.schemas import common_pb2
 from osbenchmark.worker_coordinator.proto_helpers.ProtoBulkHelper import ProtoBulkHelper
 
 class ProtoBulkHelperTests(TestCase):
@@ -36,11 +36,11 @@ class ProtoBulkHelperTests(TestCase):
 
         result = ProtoBulkHelper.build_proto_request(params)
 
-        self.assertIsInstance(result, document_pb2.BulkRequest)
+        self.assertIsInstance(result, common_pb2.BulkRequest)
         self.assertEqual(result.index, "test-index")
-        self.assertEqual(len(result.request_body), 1)
-        self.assertEqual(result.request_body[0].object, b'{"field1": "value1", "field2": "value2"}')
-        self.assertTrue(result.request_body[0].operation_container.HasField("index"))
+        self.assertEqual(len(result.bulk_request_body), 1)
+        self.assertEqual(result.bulk_request_body[0].object, b'{"field1": "value1", "field2": "value2"}')
+        self.assertTrue(result.bulk_request_body[0].operation_container.HasField("index"))
 
     def test_build_proto_request_multiple_documents(self):
         params = {
@@ -53,18 +53,18 @@ class ProtoBulkHelperTests(TestCase):
 
         result = ProtoBulkHelper.build_proto_request(params)
 
-        self.assertIsInstance(result, document_pb2.BulkRequest)
+        self.assertIsInstance(result, common_pb2.BulkRequest)
         self.assertEqual(result.index, "test-index")
-        self.assertEqual(len(result.request_body), 2)
-        self.assertEqual(result.request_body[0].object, b'{"field1": "value1"}')
-        self.assertEqual(result.request_body[1].object, b'{"field1": "value2"}')
+        self.assertEqual(len(result.bulk_request_body), 2)
+        self.assertEqual(result.bulk_request_body[0].object, b'{"field1": "value1"}')
+        self.assertEqual(result.bulk_request_body[1].object, b'{"field1": "value2"}')
 
     def test_build_stats_success_response(self):
-        mock_bulk_response = document_pb2.BulkResponse()
+        mock_bulk_response = common_pb2.BulkResponse()
         mock_bulk_response.took = 100
 
         for _ in range(3):
-            item = document_pb2.Item()
+            item = common_pb2.Item()
             item.index.status = 201
             mock_bulk_response.items.append(item)
 
@@ -89,7 +89,7 @@ class ProtoBulkHelperTests(TestCase):
         self.assertEqual(result, expected)
 
     def test_build_stats_bulk_error_response_status(self):
-        mock_bulk_response = document_pb2.BulkResponse()
+        mock_bulk_response = common_pb2.BulkResponse()
         mock_bulk_response.errors = True
 
         params = {
@@ -114,7 +114,7 @@ class ProtoBulkHelperTests(TestCase):
         self.assertEqual(result, expected)
 
     def test_build_stats_detailed_results_raises_exception(self):
-        mock_bulk_response = document_pb2.BulkResponse()
+        mock_bulk_response = common_pb2.BulkResponse()
 
         params = {"detailed-results": True}
 

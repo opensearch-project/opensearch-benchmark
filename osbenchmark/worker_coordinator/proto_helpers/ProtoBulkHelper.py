@@ -1,4 +1,4 @@
-from opensearch.protobufs.schemas import document_pb2
+from opensearch.protobufs.schemas import common_pb2
 
 def _parse_docs_from_body(body):
     index_op_lines = body.decode('utf-8').split('\n')
@@ -17,16 +17,16 @@ class ProtoBulkHelper:
         index = params.get("index")
         body = params.get("body")
         doc_list = _parse_docs_from_body(body)
-        request = document_pb2.BulkRequest()
+        request = common_pb2.BulkRequest()
         request.index = index
         # All bulk requests here are index ops
-        op_container = document_pb2.OperationContainer()
-        op_container.index.CopyFrom(document_pb2.IndexOperation())
+        op_container = common_pb2.OperationContainer()
+        op_container.index.CopyFrom(common_pb2.IndexOperation())
         for doc in doc_list:
-            request_body = document_pb2.BulkRequestBody()
+            request_body = common_pb2.BulkRequestBody()
             request_body.object = doc.encode('utf-8')
             request_body.operation_container.CopyFrom(op_container)
-            request.request_body.append(request_body)
+            request.bulk_request_body.append(request_body)
         return request
 
     # Parse stats from protobuf response.
@@ -36,7 +36,7 @@ class ProtoBulkHelper:
     # ``unit``: in the case of bulk always 'ops'
     # ``detailed-results``: gRPC/Protobuf does not support detailed results at this time.
     @staticmethod
-    def build_stats(response : document_pb2.BulkResponse, params):
+    def build_stats(response : common_pb2.BulkResponse, params):
         if params.get("detailed-results"):
             raise Exception("Detailed results not supported for gRPC bulk requests")
 
