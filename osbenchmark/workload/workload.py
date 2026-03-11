@@ -809,6 +809,7 @@ class IndexCodec(Enum):
     ZSTDNODICT = "zstd_no_dict"
     QATDEFLATE = "qat_deflate"
     QATLZ4 = "qat_lz4"
+    QATZSTD = "qat_zstd"
 
     @classmethod
     def is_codec_valid(cls, codec):
