@@ -102,7 +102,7 @@ def is_leaf_value(value: Any) -> bool:
         return True
     if {"type", "coordinates"}.issubset(keys):
         return True
-    if keys == {"value"} or keys == {"values"}:
+    if keys in ({"value"}, {"values"}):
         return True
 
     if all(not isinstance(v, dict) for v in value.values()):
@@ -176,14 +176,10 @@ def transform_document_for_vespa(doc: Dict) -> Dict:
                 if isinstance(value, dict) and not is_leaf_value(value):
                     flatten(value, new_key)
                 else:
-                    if new_key in FIELD_NAME_MAPPING:
-                        mapped_key = FIELD_NAME_MAPPING[new_key]
-                    else:
+                    mapped_key = FIELD_NAME_MAPPING.get(new_key)
+                    if mapped_key is None:
                         original_path = new_key.replace("_", ".")
-                        if original_path in FIELD_NAME_MAPPING:
-                            mapped_key = FIELD_NAME_MAPPING[original_path]
-                        else:
-                            mapped_key = new_key.replace(".", "_")
+                        mapped_key = FIELD_NAME_MAPPING.get(original_path, new_key.replace(".", "_"))
 
                     if mapped_key == "timestamp" and isinstance(value, str):
                         value = date_to_epoch(value)
@@ -368,7 +364,7 @@ def _build_search_after_filter(search_after: List, sort_spec: List) -> str:
     return " and ".join(conditions) if conditions else ""
 
 
-def build_where_clause(query: Dict, document_type: str, query_params: Dict) -> str:
+def build_where_clause(query: Dict, document_type: str, query_params: Dict) -> str:  # pylint: disable=too-many-return-statements
     """Build WHERE clause from OpenSearch query DSL.
 
     Handles: match_all, match, match_phrase, term, range, bool, query_string,
@@ -775,7 +771,7 @@ def build_grouping_clause(aggs: Dict) -> str:
     return " ".join(wrapped)
 
 
-def convert_aggregation(agg_name: str, agg_spec: Dict) -> str:
+def convert_aggregation(agg_name: str, agg_spec: Dict) -> str:  # pylint: disable=too-many-return-statements
     """Convert a single aggregation to Vespa grouping syntax.
 
     Handles nested sub-aggregations by recursing into agg_spec["aggs"].
@@ -1086,7 +1082,7 @@ def wait_for_vespa(vespa_client, max_attempts=40):
     :param max_attempts: Maximum number of health check attempts
     :return: True if Vespa is ready, False otherwise
     """
-    import requests
+    import requests  # pylint: disable=import-outside-toplevel
 
     for attempt in range(max_attempts):
         try:

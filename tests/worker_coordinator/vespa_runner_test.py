@@ -21,6 +21,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# pylint: disable=protected-access
 
 import unittest.mock as mock
 from unittest import TestCase
@@ -715,7 +716,7 @@ class VespaBulkVectorDataSetRunnerTests(TestCase):
         params = {"body": body, "size": 100, "index": "vectors"}
 
         runner = VespaBulkVectorDataSet()
-        result = await runner(vespa_client, params)
+        await runner(vespa_client, params)
 
         vespa_client.bulk.assert_called_once()
         call_kwargs = vespa_client.bulk.call_args[1]
@@ -1147,7 +1148,7 @@ class VespaIndicesStatsRunnerTests(TestCase):
         params = {"index": "myindex"}
 
         runner = VespaIndicesStats()
-        result = await runner(vespa_client, params)
+        await runner(vespa_client, params)
 
         vespa_client.indices.stats.assert_called_once_with(index="myindex")
         mock_ctx.on_client_request_start.assert_called_once()
@@ -1287,7 +1288,7 @@ class VespaRefreshRunnerTests(TestCase):
         params = {"index": "myindex"}
 
         runner = VespaRefresh()
-        result = await runner(vespa_client, params)
+        await runner(vespa_client, params)
 
         vespa_client.indices.refresh.assert_called_once_with(index="myindex")
         mock_ctx.on_client_request_start.assert_called_once()
@@ -1330,7 +1331,7 @@ class VespaForceMergeRunnerTests(TestCase):
         params = {"index": "myindex"}
 
         runner = VespaForceMerge()
-        result = await runner(vespa_client, params)
+        await runner(vespa_client, params)
 
         vespa_client.indices.forcemerge.assert_called_once_with(index="myindex")
         mock_ctx.on_client_request_start.assert_called_once()
@@ -1436,7 +1437,7 @@ class RegisterVespaRunnersTests(TestCase):
     @mock.patch("osbenchmark.worker_coordinator.runners.register_runner")
     def test_registers_all_named_operations(self, mock_register):
         # Verifies that all OS OperationType enums that Vespa supports get a runner registered
-        from osbenchmark import workload
+        from osbenchmark import workload  # pylint: disable=import-outside-toplevel
 
         register_vespa_runners()
 
@@ -1464,7 +1465,7 @@ class RegisterVespaRunnersTests(TestCase):
     @mock.patch("osbenchmark.worker_coordinator.runners.register_runner")
     def test_registers_noop_operations(self, mock_register):
         # OS-only operations (pipelines, settings) get VespaNoOp stubs so workloads don't error
-        from osbenchmark import workload
+        from osbenchmark import workload  # pylint: disable=import-outside-toplevel
 
         register_vespa_runners()
 
@@ -1505,7 +1506,7 @@ class RegisterVespaRunnersTests(TestCase):
         # Guards against accidental runner/operation-type mismatches (e.g., PaginatedSearch -> VespaQuery)
         register_vespa_runners()
 
-        from osbenchmark import workload
+        from osbenchmark import workload  # pylint: disable=import-outside-toplevel
 
         type_map = {}
         for call in mock_register.call_args_list:

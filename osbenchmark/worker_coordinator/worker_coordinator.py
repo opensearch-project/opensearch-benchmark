@@ -1702,7 +1702,7 @@ class Worker(actor.BenchmarkActor):
         runner.register_default_runners()
         database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
         if database_type.lower() == "vespa":
-            from osbenchmark.worker_coordinator.runners.vespa import register_vespa_runners
+            from osbenchmark.worker_coordinator.runners.vespa import register_vespa_runners  # pylint: disable=import-outside-toplevel
             register_vespa_runners()
             self.logger.info("Registered Vespa runners (overriding OpenSearch defaults for supported operations)")
         if self.workload.has_plugins:

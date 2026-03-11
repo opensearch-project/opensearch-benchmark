@@ -11,6 +11,7 @@ Tests VespaClientFactory, VespaDatabaseClient, and all namespace classes
 (VespaIndicesNamespace, VespaClusterNamespace, VespaTransportNamespace,
 VespaNodesNamespace).
 """
+# pylint: disable=protected-access
 
 import asyncio
 from unittest import TestCase, mock
@@ -556,7 +557,7 @@ class VespaSearchTests(TestCase):
         resp = _mock_response(json_data={"root": {"children": []}})
         client._session.get.return_value = resp
 
-        result = await client.search(body={"yql": "select * from t where true"})
+        await client.search(body={"yql": "select * from t where true"})
         call_args = client._session.get.call_args
         params = call_args[1]["params"]
         self.assertIn("yql", params)
@@ -1055,7 +1056,7 @@ class VespaTransportNamespaceTests(TestCase):
         resp = _mock_response(json_data={"result": "ok"})
         client._session.request.return_value = resp
 
-        result = await client.transport.perform_request("GET", "/test/path")
+        await client.transport.perform_request("GET", "/test/path")
         client._session.request.assert_called_once()
         call_args = client._session.request.call_args
         self.assertEqual("GET", call_args[0][0])

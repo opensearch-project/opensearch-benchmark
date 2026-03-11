@@ -29,21 +29,15 @@ Thin client: connection/session management only. All query translation,
 document transformation, and response conversion happens in helpers.py
 and the runner layer.
 """
+# pylint: disable=not-async-context-manager,protected-access
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 import requests
 
 from osbenchmark import exceptions
-
-try:
-    from vespa.application import Vespa as PyvespaApp
-    PYVESPA_AVAILABLE = True
-except ImportError:
-    PyvespaApp = None
-    PYVESPA_AVAILABLE = False
 from osbenchmark.context import RequestContextHolder
 from osbenchmark.database.interface import (
     DatabaseClient,
@@ -56,6 +50,13 @@ from osbenchmark.database.clients.vespa.helpers import (
     convert_metrics_to_stats,
     wait_for_vespa,
 )
+
+try:
+    from vespa.application import Vespa as PyvespaApp
+    PYVESPA_AVAILABLE = True
+except ImportError:
+    PyvespaApp = None
+    PYVESPA_AVAILABLE = False
 
 
 class VespaClientFactory:
@@ -126,7 +127,7 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             return
 
         try:
-            import aiohttp
+            import aiohttp  # pylint: disable=import-outside-toplevel
 
             async def on_request_start(session, trace_config_ctx, params):
                 try:
@@ -163,7 +164,7 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         await self.close()
         return False
 
-    async def close(self):
+    async def close(self):  # pylint: disable=invalid-overridden-method
         """Close aiohttp and pyvespa sessions."""
         if self._session:
             await self._session.close()
@@ -172,7 +173,7 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         if self._pyvespa_async is not None:
             try:
                 if hasattr(self._pyvespa_async, '_close_httpx_client'):
-                    await self._pyvespa_async._close_httpx_client()
+                    await self._pyvespa_async._close_httpx_client()  # pylint: disable=protected-access
                 elif hasattr(self._pyvespa_async, '__aexit__'):
                     await self._pyvespa_async.__aexit__(None, None, None)
             except Exception as e:
@@ -199,11 +200,11 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         self._pyvespa_async = self._pyvespa_app.asyncio(connections=1, timeout=180)
 
         if hasattr(self._pyvespa_async, '_open_httpx_client'):
-            result = self._pyvespa_async._open_httpx_client()
+            result = self._pyvespa_async._open_httpx_client()  # pylint: disable=protected-access
             if asyncio.iscoroutine(result):
                 await result
         elif hasattr(self._pyvespa_async, '__aenter__'):
-            await self._pyvespa_async.__aenter__()
+            await self._pyvespa_async.__aenter__()  # pylint: disable=unnecessary-dunder-call
 
         self._pyvespa_semaphore = asyncio.Semaphore(max_workers)
 
@@ -525,7 +526,7 @@ class VespaIndicesNamespace(IndicesNamespace):
         # No-op — Vespa handles visibility internally
         return {"acknowledged": True, "_shards": {"total": 1, "successful": 1, "failed": 0}}
 
-    async def stats(self, index=None, metric=None, **kwargs):
+    async def stats(self, index=None, metric=None, **kwargs):  # pylint: disable=invalid-overridden-method
         """Async — GET /metrics/v2/values, convert via helpers."""
         await self._client._ensure_session()
         endpoint = f"{self._client.endpoint}/metrics/v2/values"
@@ -536,7 +537,7 @@ class VespaIndicesNamespace(IndicesNamespace):
         except Exception:
             return {"_all": {"primaries": {}, "total": {}}}
 
-    async def forcemerge(self, index=None, **kwargs):
+    async def forcemerge(self, index=None, **kwargs):  # pylint: disable=invalid-overridden-method
         """No-op, returns task format if polling mode."""
         wait_for_completion = kwargs.get("wait_for_completion", True)
         if wait_for_completion == "false" or wait_for_completion is False:
@@ -585,7 +586,7 @@ class VespaTransportNamespace(TransportNamespace):
     def __init__(self, client: VespaDatabaseClient):
         self._client = client
 
-    async def perform_request(self, method, url, params=None, body=None, headers=None):
+    async def perform_request(self, method, url, params=None, body=None, headers=None):  # pylint: disable=too-many-positional-arguments
         await self._client._ensure_session()
         full_url = f"{self._client.endpoint}{url}"
         async with self._client._session.request(method, full_url, params=params, json=body, headers=headers) as resp:
