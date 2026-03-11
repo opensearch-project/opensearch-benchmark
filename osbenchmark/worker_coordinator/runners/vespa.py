@@ -44,6 +44,10 @@ from osbenchmark.database.clients.vespa.helpers import (
     transform_document_for_vespa,
 )
 
+DEFAULT_MAX_CONCURRENT = 32
+DEFAULT_SCROLL_PAGES = 10
+DEFAULT_RESULTS_PER_PAGE = 1000
+
 
 class VespaBulkIndex(Runner):
     """Bulk indexes documents into Vespa using its document feed API.
@@ -71,9 +75,6 @@ class VespaBulkIndex(Runner):
                 source = doc.get("_source", doc)
                 action = doc.get("_action", "index")
 
-                if "index" in source:
-                    source = {k: v for k, v in source.items() if k != "index"}
-
                 if "@timestamp" in source or any(isinstance(v, (dict, list)) for v in source.values()):
                     source = transform_document_for_vespa(source)
 
@@ -97,7 +98,7 @@ class VespaBulkIndex(Runner):
             return {
                 "weight": bulk_size if bulk_size else len(documents),
                 "unit": unit,
-                "success": True,
+                "success": errors_count == 0,
                 "error-count": errors_count,
             }
         finally:
@@ -108,7 +109,7 @@ class VespaBulkIndex(Runner):
         """Feed documents via pyvespa VespaAsync (HTTP/2, built-in retry)."""
         client_opts = getattr(vespa_client, "client_options", {})
         max_workers = params.get("max_concurrent",
-                                 int(client_opts.get("max_concurrent", 32)))
+                                 int(client_opts.get("max_concurrent", DEFAULT_MAX_CONCURRENT)))
         namespace = getattr(vespa_client, "_namespace", "benchmark")
 
         result = await vespa_client.feed_batch(
@@ -123,7 +124,7 @@ class VespaBulkIndex(Runner):
         """Feed documents via aiohttp (fallback path)."""
         client_opts = getattr(vespa_client, "client_options", {})
         max_concurrent = params.get("max_concurrent",
-                                    int(client_opts.get("max_concurrent", 32)))
+                                    int(client_opts.get("max_concurrent", DEFAULT_MAX_CONCURRENT)))
         semaphore = asyncio.Semaphore(max_concurrent)
         timeout_val = params.get("request-timeout", 30)
         errors_count = 0
@@ -286,8 +287,8 @@ class VespaScrollQuery(Runner):
     """
 
     async def __call__(self, vespa_client, params):
-        pages = params.get("pages", 10)
-        results_per_page = params.get("results-per-page", 1000)
+        pages = params.get("pages", DEFAULT_SCROLL_PAGES)
+        results_per_page = params.get("results-per-page", DEFAULT_RESULTS_PER_PAGE)
         index = params.get("index")
         body = params.get("body", {})
         app_name = getattr(vespa_client, "_app_name", index or "default")
@@ -482,7 +483,7 @@ class VespaForceMerge(Runner):
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
-            response = vespa_client.indices.forcemerge(index=params.get("index"))
+            response = await vespa_client.indices.forcemerge(index=params.get("index"))
             return {
                 "weight": 1,
                 "unit": "ops",
@@ -536,6 +537,7 @@ class VespaWarmupIndicesRunner(Runner):
         request_context_holder.on_request_start()
         try:
             await vespa_client.cluster.health()
+            return {"weight": 1, "unit": "ops", "success": True}
         finally:
             request_context_holder.on_request_end()
             request_context_holder.on_client_request_end()
