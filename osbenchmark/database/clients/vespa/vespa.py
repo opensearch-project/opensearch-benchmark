@@ -124,7 +124,6 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         """Lazy-init aiohttp.ClientSession with trace hooks for timing."""
         if self._session_initialized:
             return
-        self._session_initialized = True
 
         try:
             import aiohttp
@@ -151,7 +150,9 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
                 trace_configs=[trace_config],
                 connector=connector,
             )
+            self._session_initialized = True
         except ImportError:
+            self._session_initialized = True
             self.logger.warning("aiohttp not available, using synchronous requests")
 
     async def __aenter__(self):
@@ -447,7 +448,7 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             params = dict(body)
             params.setdefault("timeout", timeout_str)
         else:
-            params = body if isinstance(body, dict) else {}
+            params = dict(body) if isinstance(body, dict) else {}
             params["timeout"] = timeout_str
 
         if "request_params" in kwargs:
@@ -509,27 +510,19 @@ class VespaIndicesNamespace(IndicesNamespace):
         self._client = client
 
     async def create(self, index, body=None, **kwargs):
-        await self._client._ensure_session()
-        async with self._client._session.get(f"{self._client.endpoint}/ApplicationStatus") as resp:
-            await resp.text()
+        # No-op — Vespa schemas are deployed via application packages
         return {"acknowledged": True, "shards_acknowledged": True, "index": index}
 
     async def delete(self, index, **kwargs):
-        await self._client._ensure_session()
-        async with self._client._session.get(f"{self._client.endpoint}/ApplicationStatus") as resp:
-            await resp.text()
+        # No-op — Vespa schemas are deployed via application packages
         return {"acknowledged": True}
 
     async def exists(self, index, **kwargs):
-        await self._client._ensure_session()
-        async with self._client._session.get(f"{self._client.endpoint}/ApplicationStatus") as resp:
-            await resp.text()
+        # No-op — Vespa schemas always exist once deployed
         return True
 
     async def refresh(self, index=None, **kwargs):
-        await self._client._ensure_session()
-        async with self._client._session.get(f"{self._client.endpoint}/ApplicationStatus") as resp:
-            await resp.text()
+        # No-op — Vespa handles visibility internally
         return {"acknowledged": True, "_shards": {"total": 1, "successful": 1, "failed": 0}}
 
     async def stats(self, index=None, metric=None, **kwargs):
@@ -543,8 +536,8 @@ class VespaIndicesNamespace(IndicesNamespace):
         except Exception:
             return {"_all": {"primaries": {}, "total": {}}}
 
-    def forcemerge(self, index=None, **kwargs):
-        """Sync no-op, returns task format if polling mode."""
+    async def forcemerge(self, index=None, **kwargs):
+        """No-op, returns task format if polling mode."""
         wait_for_completion = kwargs.get("wait_for_completion", True)
         if wait_for_completion == "false" or wait_for_completion is False:
             return {"task": "vespa-node:1"}

@@ -62,6 +62,15 @@ FIELD_NAME_MAPPING = {
     "ecs.version": "ecs_version",
 }
 
+INTERVAL_MS_MAP = {
+    "second": 1000, "1s": 1000,
+    "minute": 60000, "1m": 60000,
+    "hour": 3600000, "1h": 3600000,
+    "day": 86400000, "1d": 86400000,
+    "week": 604800000, "1w": 604800000,
+    "month": 2592000000, "1M": 2592000000,
+}
+
 
 # =============================================================================
 # Field/Document Translation
@@ -111,7 +120,7 @@ def date_to_epoch(date_value) -> int:
     Handles ISO 8601 strings, simple date strings, and numeric values.
     """
     if isinstance(date_value, (int, float)):
-        if date_value < 1e12:
+        if abs(date_value) < 1e12:
             return int(date_value * 1000)
         return int(date_value)
 
@@ -502,14 +511,17 @@ def convert_range_query(range_query: Dict) -> str:
             if is_date_field:
                 value = date_to_epoch(value)
 
+            # Quote string values for valid YQL
+            v = f'"{value}"' if isinstance(value, str) else value
+
             if op == "gte":
-                conditions.append(f"{vespa_field} >= {value}")
+                conditions.append(f"{vespa_field} >= {v}")
             elif op == "gt":
-                conditions.append(f"{vespa_field} > {value}")
+                conditions.append(f"{vespa_field} > {v}")
             elif op == "lte":
-                conditions.append(f"{vespa_field} <= {value}")
+                conditions.append(f"{vespa_field} <= {v}")
             elif op == "lt":
-                conditions.append(f"{vespa_field} < {value}")
+                conditions.append(f"{vespa_field} < {v}")
 
     return " and ".join(conditions) if conditions else "true"
 
@@ -630,6 +642,8 @@ def convert_query_string(query_string: Dict) -> str:
         field = map_field_name(default_field)
         terms = query.strip()
 
+    terms = terms.replace('"', '\\"')
+
     if " OR " in terms:
         term_list = [t.strip() for t in terms.split(" OR ")]
         conditions = [f'{field} contains "{t}"' for t in term_list if t]
@@ -654,7 +668,7 @@ def convert_prefix_query(prefix_query: Dict) -> str:
             value = value_spec.get("value", "")
         else:
             value = value_spec
-        return f'{vespa_field} contains "{value}*"'
+        return f'{vespa_field} contains ({{prefix:true}})"{value}"'
     return "true"
 
 
@@ -666,7 +680,8 @@ def convert_wildcard_query(wildcard_query: Dict) -> str:
             value = value_spec.get("value", "")
         else:
             value = value_spec
-        return f'{vespa_field} contains "{value}"'
+        regex = value.replace("*", ".*").replace("?", ".")
+        return f'{vespa_field} matches "{regex}"'
     return "true"
 
 
@@ -831,16 +846,7 @@ def convert_date_histogram_agg(spec: Dict, nested_content: str = "") -> str:
     field = map_field_name(spec.get("field", "timestamp"))
     interval = spec.get("calendar_interval", spec.get("fixed_interval", spec.get("interval", "hour")))
 
-    interval_ms_map = {
-        "second": 1000, "1s": 1000,
-        "minute": 60000, "1m": 60000,
-        "hour": 3600000, "1h": 3600000,
-        "day": 86400000, "1d": 86400000,
-        "week": 604800000, "1w": 604800000,
-        "month": 2592000000, "1M": 2592000000,
-    }
-
-    interval_ms = interval_ms_map.get(interval, 3600000)
+    interval_ms = INTERVAL_MS_MAP.get(interval, 3600000)
 
     each_content = "output(count())"
     if nested_content:
@@ -949,15 +955,6 @@ def convert_composite_agg(spec: Dict) -> str:
     if not sources:
         return ""
 
-    interval_ms_map = {
-        "second": 1000, "1s": 1000,
-        "minute": 60000, "1m": 60000,
-        "hour": 3600000, "1h": 3600000,
-        "day": 86400000, "1d": 86400000,
-        "week": 604800000, "1w": 604800000,
-        "month": 2592000000, "1M": 2592000000,
-    }
-
     group_exprs = []
     for source in sources:
         for _, source_spec in source.items():
@@ -968,20 +965,18 @@ def convert_composite_agg(spec: Dict) -> str:
                 dh = source_spec["date_histogram"]
                 field = map_field_name(dh.get("field", ""))
                 interval = dh.get("calendar_interval", dh.get("fixed_interval", dh.get("interval", "day")))
-                interval_ms = interval_ms_map.get(interval, 86400000)
+                interval_ms = INTERVAL_MS_MAP.get(interval, 86400000)
                 group_exprs.append(f"floor({field} / {interval_ms})")
 
-    if len(group_exprs) == 1:
-        return f"group({group_exprs[0]}) max({size}) each(output(count()))"
-    elif len(group_exprs) == 2:
-        return (f"group({group_exprs[0]}) max({size}) "
-                f"each(group({group_exprs[1]}) max({size}) each(output(count())))")
-    elif len(group_exprs) >= 3:
-        return (f"group({group_exprs[0]}) max({size}) "
-                f"each(group({group_exprs[1]}) max({size}) "
-                f"each(group({group_exprs[2]}) max({size}) each(output(count()))))")
+    if not group_exprs:
+        return ""
 
-    return ""
+    # Build from innermost to outermost
+    result = f"group({group_exprs[-1]}) max({size}) each(output(count()))"
+    for expr in reversed(group_exprs[:-1]):
+        result = f"group({expr}) max({size}) each({result})"
+
+    return result
 
 
 def convert_multi_terms_agg(spec: Dict, nested_content: str = "") -> str:
@@ -1043,7 +1038,8 @@ def convert_vespa_response(vespa_response: Dict) -> Dict[str, Any]:
     total_count = root_fields.get("totalCount", len(hits))
 
     return {
-        "took": vespa_response.get("timing", {}).get("searchtime", 0),
+        # Vespa returns seconds, OpenSearch expects milliseconds
+        "took": int(vespa_response.get("timing", {}).get("searchtime", 0) * 1000),
         "timed_out": False,
         "hits": {
             "total": {
