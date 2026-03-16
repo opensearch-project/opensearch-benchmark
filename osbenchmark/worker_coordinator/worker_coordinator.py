@@ -604,7 +604,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         self.cluster_details = None
         self.feedback_actor = None
         self.worker_shared_states = {}
-        self.update_queue = multiprocessing.Queue()
+        #self.update_queue = multiprocessing.Queue()
 
     def receiveMsg_PoisonMessage(self, poisonmsg, sender):
         self.logger.error("Main worker_coordinator received a fatal indication from load generator (%s). Shutting down.", poisonmsg.details)
@@ -670,7 +670,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
     def receiveMsg_UpdateSamples(self, msg, sender):
 
         # Another potential bottleneck for messaging
-        self.update_queue.put(msg)
+        #self.update_queue.put(msg)
         self.coordinator.update_samples(msg.samples)
         self.coordinator.update_profile_samples(msg.profile_samples)
 
