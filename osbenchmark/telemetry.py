@@ -831,6 +831,7 @@ class NodeStatsRecorder:
                 collected_node_stats.update(self.jvm_buffer_pool_stats(node_name, node_stats))
             if self.include_mem_stats:
                 collected_node_stats.update(self.jvm_mem_stats(node_name, node_stats))
+                collected_node_stats.update(self.os_mem_stats(node_name, node_stats))
             if self.include_gc_stats:
                 collected_node_stats.update(self.jvm_gc_stats(node_name, node_stats))
             if self.include_network:
@@ -890,6 +891,9 @@ class NodeStatsRecorder:
 
     def jvm_mem_stats(self, node_name, node_stats):
         return self.flatten_stats_fields(prefix="jvm_mem", stats=node_stats["jvm"]["mem"])
+
+    def os_mem_stats(self, node_name, node_stats):
+        return self.flatten_stats_fields(prefix="os_mem", stats=node_stats["os"]["mem"])
 
     def jvm_gc_stats(self, node_name, node_stats):
         return self.flatten_stats_fields(prefix="jvm_gc", stats=node_stats["jvm"]["gc"])

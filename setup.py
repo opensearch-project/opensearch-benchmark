@@ -117,6 +117,8 @@ install_requires = [
     # License: MIT
     # This version is required for Python 3.8 and 3.9 to work
     "mimesis==11.1.0",
+    # License: BSD-3-Clause
+    "pandas>=1.5.0",
     # Licence: BSD-3-Clause
     "dask",
     # Licence: BSD-3-Clause

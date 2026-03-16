@@ -1862,7 +1862,7 @@ class CreateIndexParamSourceTests(TestCase):
 
         self.assertEqual(str(context.exception),
                          "Please set the value properly for the create-index operation. Invalid index.codec value " +
-                         "'invalid_codec'. Choose from available codecs: ['default', 'best_compression', 'zstd', 'zstd_no_dict', 'qat_deflate', 'qat_lz4']")
+                         "'invalid_codec'. Choose from available codecs: ['default', 'best_compression', 'zstd', 'zstd_no_dict', 'qat_deflate', 'qat_lz4', 'qat_zstd']")
 
 class CreateDataStreamParamSourceTests(TestCase):
     def test_create_data_stream(self):

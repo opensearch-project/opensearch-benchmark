@@ -1,0 +1,2 @@
+aws_region                          = "eu-west-1"
+aws_subnet_zone                     = "eu-west-1a"
