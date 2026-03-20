@@ -32,9 +32,15 @@ timing via RequestContextHolder.
 """
 
 import asyncio
+import logging
+import multiprocessing
+import time
 
 from osbenchmark import workload
+from osbenchmark.utils import convert
 from osbenchmark.worker_coordinator.runners.base import Runner, request_context_holder
+
+logger = logging.getLogger(__name__)
 from osbenchmark.database.clients.vespa import PYVESPA_AVAILABLE
 from osbenchmark.database.clients.vespa.helpers import (
     convert_to_yql,
@@ -167,7 +173,43 @@ class VespaVectorSearch(Runner):
     """Executes vector similarity search against Vespa using YQL.
 
     Converts KNN query to nearestNeighbor YQL via helpers.
+    Supports recall@k calculation using the same ground truth neighbor
+    dataset as the OpenSearch vector search runner.
     """
+
+    @staticmethod
+    def _extract_doc_id(vespa_id):
+        """Extract numeric doc ID from Vespa document ID.
+
+        Vespa IDs look like 'id:namespace:doctype::123' — we need just '123'
+        to compare against ground truth neighbor indices.
+        """
+        if "::" in vespa_id:
+            return vespa_id.rsplit("::", 1)[-1]
+        return vespa_id
+
+    @staticmethod
+    def _calculate_topk_recall(predictions, neighbors, top_k):
+        """Calculate recall@k by comparing predictions against ground truth neighbors."""
+        if neighbors is None:
+            return 0.0
+        min_results = min(top_k, len(neighbors))
+        truth_set = neighbors[:min_results]
+        # Filter out -1 sentinel values
+        truth_set = [n for n in truth_set if str(n) != "-1"]
+        if not truth_set:
+            return 1.0
+        correct = sum(1.0 for p in predictions[:min_results] if p in truth_set)
+        return correct / len(truth_set)
+
+    @staticmethod
+    def _should_calculate_recall(params):
+        num_clients = params.get("num_clients", 0)
+        cpu_count = params.get("num_cores", multiprocessing.cpu_count())
+        if num_clients > 0 and cpu_count < num_clients:
+            logger.warning("search_clients (%s) > CPUs (%s). Skipping recall.", num_clients, cpu_count)
+            return False
+        return params.get("calculate-recall", True)
 
     async def __call__(self, vespa_client, params):
         index = params.get("index")
@@ -194,11 +236,28 @@ class VespaVectorSearch(Runner):
                 "hits": hits,
                 "hits_relation": hits_relation,
                 "timed_out": timed_out,
+                "success": True,
             }
 
             if params.get("detailed-results", False):
                 result["hits_total"] = hits
                 result["took"] = response.get("took", 0)
+
+            # Recall calculation
+            should_recall = self._should_calculate_recall(params)
+            if should_recall and "k" in params:
+                result.update({"recall@k": 0, "recall@1": 0})
+
+            if should_recall and "neighbors" in params and "k" in params:
+                recall_start = time.perf_counter()
+                response_hits = response.get("hits", {}).get("hits", [])
+                candidates = [self._extract_doc_id(h.get("_id", "")) for h in response_hits]
+                neighbors = params["neighbors"]
+                k = params.get("k", 1)
+
+                result["recall@k"] = self._calculate_topk_recall(candidates, neighbors, k)
+                result["recall@1"] = self._calculate_topk_recall(candidates, neighbors, 1)
+                result["recall_time_ms"] = convert.seconds_to_ms(time.perf_counter() - recall_start)
 
             return result
         finally:

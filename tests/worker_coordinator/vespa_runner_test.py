@@ -700,6 +700,88 @@ class VespaVectorSearchRunnerTests(TestCase):
 
         mock_convert_yql.assert_called_once_with({}, "vecapp")
 
+    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
+    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
+    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @run_async
+    async def test_vector_search_calculates_recall(self, mock_ctx, mock_convert_yql, mock_convert_resp):
+        vespa_client = _make_vespa_client()
+        mock_convert_yql.return_value = ("select * from testapp where true", {})
+        # Simulate Vespa returning docs with IDs in Vespa format
+        mock_convert_resp.return_value = _opensearch_style_response(
+            total_value=3,
+            hits_list=[
+                {"_id": "id:ns:type::0", "_score": 1.0, "_source": {}},
+                {"_id": "id:ns:type::1", "_score": 0.9, "_source": {}},
+                {"_id": "id:ns:type::5", "_score": 0.8, "_source": {}},
+            ]
+        )
+
+        params = {
+            "body": {}, "index": "myindex",
+            "k": 3,
+            "neighbors": ["0", "1", "2"],  # ground truth
+        }
+
+        runner = VespaVectorSearch()
+        result = await runner(vespa_client, params)
+
+        # 2 out of 3 neighbors found (0 and 1, but not 2)
+        self.assertAlmostEqual(result["recall@k"], 2.0 / 3.0, places=5)
+        self.assertAlmostEqual(result["recall@1"], 1.0, places=5)
+        self.assertIn("recall_time_ms", result)
+
+    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
+    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
+    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @run_async
+    async def test_vector_search_skips_recall_without_neighbors(self, mock_ctx, mock_convert_yql, mock_convert_resp):
+        vespa_client = _make_vespa_client()
+        mock_convert_yql.return_value = ("select * from testapp where true", {})
+        mock_convert_resp.return_value = _opensearch_style_response(total_value=1)
+
+        params = {"body": {}, "index": "myindex", "k": 100}
+
+        runner = VespaVectorSearch()
+        result = await runner(vespa_client, params)
+
+        # recall@k initialized to 0 but not computed without neighbors
+        self.assertEqual(result["recall@k"], 0)
+        self.assertNotIn("recall_time_ms", result)
+
+    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
+    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
+    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @run_async
+    async def test_vector_search_perfect_recall(self, mock_ctx, mock_convert_yql, mock_convert_resp):
+        vespa_client = _make_vespa_client()
+        mock_convert_yql.return_value = ("select * from testapp where true", {})
+        mock_convert_resp.return_value = _opensearch_style_response(
+            total_value=3,
+            hits_list=[
+                {"_id": "id:ns:type::0", "_score": 1.0, "_source": {}},
+                {"_id": "id:ns:type::1", "_score": 0.9, "_source": {}},
+                {"_id": "id:ns:type::2", "_score": 0.8, "_source": {}},
+            ]
+        )
+
+        params = {
+            "body": {}, "index": "myindex",
+            "k": 3,
+            "neighbors": ["0", "1", "2"],
+        }
+
+        runner = VespaVectorSearch()
+        result = await runner(vespa_client, params)
+
+        self.assertAlmostEqual(result["recall@k"], 1.0, places=5)
+        self.assertAlmostEqual(result["recall@1"], 1.0, places=5)
+
+    def test_extract_doc_id(self):
+        self.assertEqual(VespaVectorSearch._extract_doc_id("id:ns:type::123"), "123")
+        self.assertEqual(VespaVectorSearch._extract_doc_id("id:target_index:target_index::0"), "0")
+        self.assertEqual(VespaVectorSearch._extract_doc_id("42"), "42")
+
     def test_repr(self):
         runner = VespaVectorSearch()
         self.assertEqual(repr(runner), "vespa-vector-search")
