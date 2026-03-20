@@ -794,15 +794,24 @@ class VespaBulkVectorDataSetRunnerTests(TestCase):
     async def test_bulk_vector_calls_bulk(self, mock_ctx):
         vespa_client = _make_vespa_client()
 
-        body = [{"_id": "1", "vector": [1.0, 2.0]}]
-        params = {"body": body, "size": 100, "index": "vectors"}
+        # Vectorsearch workload produces alternating action/doc pairs
+        body = [
+            {"index": {"_index": "vectors", "_id": 0}},
+            {"embedding": [1.0, 2.0]},
+            {"index": {"_index": "vectors", "_id": 1}},
+            {"embedding": [3.0, 4.0]},
+        ]
+        params = {"body": body, "size": 2, "index": "vectors"}
 
         runner = VespaBulkVectorDataSet()
         await runner(vespa_client, params)
 
         vespa_client.bulk.assert_called_once()
         call_kwargs = vespa_client.bulk.call_args[1]
-        self.assertEqual(call_kwargs["body"], body)
+        self.assertEqual(len(call_kwargs["body"]), 2)
+        self.assertEqual(call_kwargs["body"][0]["_id"], "0")
+        self.assertEqual(call_kwargs["body"][0]["fields"], {"embedding": [1.0, 2.0]})
+        self.assertEqual(call_kwargs["body"][1]["_id"], "1")
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_request_end.assert_called_once()
 
@@ -811,7 +820,11 @@ class VespaBulkVectorDataSetRunnerTests(TestCase):
     async def test_bulk_vector_returns_size_and_docs(self, mock_ctx):
         vespa_client = _make_vespa_client()
 
-        params = {"body": [{"_id": "1"}], "size": 50, "index": "vectors"}
+        body = [
+            {"index": {"_index": "vectors", "_id": 0}},
+            {"embedding": [1.0]},
+        ]
+        params = {"body": body, "size": 50, "index": "vectors"}
 
         runner = VespaBulkVectorDataSet()
         result = await runner(vespa_client, params)
@@ -820,23 +833,20 @@ class VespaBulkVectorDataSetRunnerTests(TestCase):
 
     @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
     @run_async
-    async def test_bulk_vector_passes_params_without_body(self, mock_ctx):
-        # All params except "body" are forwarded as kwargs to vespa_client.bulk
+    async def test_bulk_vector_passes_index(self, mock_ctx):
         vespa_client = _make_vespa_client()
 
-        params = {"body": [{"_id": "1"}], "size": 10, "index": "vectors", "extra": "value"}
+        body = [
+            {"index": {"_index": "vectors", "_id": 0}},
+            {"embedding": [1.0]},
+        ]
+        params = {"body": body, "size": 1, "index": "vectors"}
 
         runner = VespaBulkVectorDataSet()
         await runner(vespa_client, params)
 
         call_kwargs = vespa_client.bulk.call_args[1]
-        # body is passed as kwarg, but the other params should be forwarded without body
-        self.assertIn("size", call_kwargs)
-        self.assertIn("index", call_kwargs)
-        self.assertIn("extra", call_kwargs)
-        # body key from params dict should not be duplicated in kwargs
-        # (body is passed explicitly)
-        self.assertIn("body", call_kwargs)
+        self.assertEqual(call_kwargs["index"], "vectors")
 
     def test_repr(self):
         runner = VespaBulkVectorDataSet()

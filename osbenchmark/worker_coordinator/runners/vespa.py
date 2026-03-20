@@ -271,19 +271,37 @@ class VespaVectorSearch(Runner):
 class VespaBulkVectorDataSet(Runner):
     """Bulk inserts vector datasets into Vespa.
 
-    Handles large-scale vector ingestion for benchmarking.
+    The vectorsearch workload produces a body of alternating action/doc dicts:
+    [{"index": {"_index": "idx", "_id": 0}}, {"embedding": [...]}, ...]
+    This runner pairs them up and feeds via the Vespa client.
     """
 
     async def __call__(self, vespa_client, params):
         size = params.get("size", 0)
         body = params["body"]
-
-        params_without_body = {k: v for k, v in params.items() if k != "body"}
+        index = params.get("index")
 
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
-            await vespa_client.bulk(body=body, **params_without_body)
+            # Parse alternating action/doc pairs into Vespa-ready documents
+            prepared = []
+            if isinstance(body, list):
+                i = 0
+                while i < len(body) - 1:
+                    action_meta = body[i]
+                    doc_body = body[i + 1]
+                    if action_meta is None or doc_body is None:
+                        i += 2
+                        continue
+                    # Extract doc ID from action metadata
+                    action_type = list(action_meta.keys())[0]
+                    meta = action_meta[action_type]
+                    doc_id = meta.get("_id", f"doc_{i // 2}")
+                    prepared.append({"_id": str(doc_id), "fields": doc_body})
+                    i += 2
+
+            await vespa_client.bulk(body=prepared, index=index)
             return size, "docs"
         finally:
             request_context_holder.on_request_end()
