@@ -1405,14 +1405,14 @@ class VespaWarmupIndicesRunnerTests(TestCase):
 
     @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
     @run_async
-    async def test_calls_cluster_health(self, mock_ctx):
-        # Warmup is a no-op in Vespa; uses a health check to maintain timing context
+    async def test_issues_warmup_queries(self, mock_ctx):
         vespa_client = _make_vespa_client()
 
         runner = VespaWarmupIndicesRunner()
-        await runner(vespa_client, {})
+        result = await runner(vespa_client, {"index": "target_index"})
 
-        vespa_client.cluster.health.assert_called_once()
+        self.assertEqual(vespa_client.search.call_count, VespaWarmupIndicesRunner.WARMUP_QUERIES)
+        self.assertTrue(result["success"])
 
     @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
     @run_async
@@ -1420,7 +1420,7 @@ class VespaWarmupIndicesRunnerTests(TestCase):
         vespa_client = _make_vespa_client()
 
         runner = VespaWarmupIndicesRunner()
-        await runner(vespa_client, {})
+        await runner(vespa_client, {"index": "target_index"})
 
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_request_start.assert_called_once()

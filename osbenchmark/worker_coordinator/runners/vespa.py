@@ -526,16 +526,27 @@ class VespaNoOp(Runner):
 
 
 class VespaWarmupIndicesRunner(Runner):
-    """Warmup indices for KNN vector search.
+    """Warmup indices by issuing lightweight queries.
 
-    No-op in Vespa — makes a lightweight health check to maintain timing context.
+    Vespa keeps HNSW graphs in memory by default, so there's no equivalent
+    to OpenSearch's /_plugins/_knn/warmup/ API. Instead, we issue a few
+    queries to warm OS page cache, attribute caches, and internal paths.
     """
 
+    WARMUP_QUERIES = 5
+
     async def __call__(self, vespa_client, params):
+        index = params.get("index", "target_index")
+        app_name = getattr(vespa_client, "_app_name", index or "default")
+
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
-            await vespa_client.cluster.health()
+            for _ in range(self.WARMUP_QUERIES):
+                await vespa_client.search(
+                    index=index,
+                    body={"yql": f"select * from {app_name} where true", "hits": 1}
+                )
             return {"weight": 1, "unit": "ops", "success": True}
         finally:
             request_context_holder.on_request_end()
