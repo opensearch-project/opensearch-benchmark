@@ -298,7 +298,11 @@ class VespaBulkVectorDataSet(Runner):
                     action_type = list(action_meta.keys())[0]
                     meta = action_meta[action_type]
                     doc_id = meta.get("_id", f"doc_{i // 2}")
-                    prepared.append({"_id": str(doc_id), "fields": doc_body})
+                    # Convert numpy arrays to plain lists for JSON serialization
+                    fields = {}
+                    for k, v in doc_body.items():
+                        fields[k] = v.tolist() if hasattr(v, 'tolist') else v
+                    prepared.append({"_id": str(doc_id), "fields": fields})
                     i += 2
 
             await vespa_client.bulk(body=prepared, index=index)
