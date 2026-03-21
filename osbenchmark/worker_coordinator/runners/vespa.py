@@ -214,12 +214,12 @@ class VespaVectorSearch(Runner):
     async def __call__(self, vespa_client, params):
         index = params.get("index")
         body = params.get("body", {})
-        app_name = getattr(vespa_client, "_app_name", index or "default")
+        doc_type = index or getattr(vespa_client, "_app_name", "default")
 
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
-            yql_query, query_params = convert_to_yql(body, app_name)
+            yql_query, query_params = convert_to_yql(body, doc_type)
             search_params = {"yql": yql_query}
             search_params.update(query_params)
 
@@ -331,12 +331,12 @@ class VespaQuery(Runner):
     async def __call__(self, vespa_client, params):
         index = params.get("index")
         body = params.get("body", {})
-        app_name = getattr(vespa_client, "_app_name", index or "default")
+        doc_type = index or getattr(vespa_client, "_app_name", "default")
 
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
-            yql_query, query_params = convert_to_yql(body, app_name)
+            yql_query, query_params = convert_to_yql(body, doc_type)
             search_params = {"yql": yql_query}
             search_params.update(query_params)
 
@@ -378,7 +378,7 @@ class VespaScrollQuery(Runner):
         results_per_page = params.get("results-per-page", DEFAULT_RESULTS_PER_PAGE)
         index = params.get("index")
         body = params.get("body", {})
-        app_name = getattr(vespa_client, "_app_name", index or "default")
+        doc_type = index or getattr(vespa_client, "_app_name", "default")
 
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
@@ -394,7 +394,7 @@ class VespaScrollQuery(Runner):
                 page_body["size"] = results_per_page
                 page_body["from"] = offset
 
-                yql_query, query_params = convert_to_yql(page_body, app_name)
+                yql_query, query_params = convert_to_yql(page_body, doc_type)
                 search_params = {"yql": yql_query}
                 search_params.update(query_params)
 
@@ -625,7 +625,7 @@ class VespaWarmupIndicesRunner(Runner):
 
     async def __call__(self, vespa_client, params):
         index = params.get("index", "target_index")
-        app_name = getattr(vespa_client, "_app_name", index or "default")
+        doc_type = index or getattr(vespa_client, "_app_name", "default")
 
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
@@ -633,7 +633,7 @@ class VespaWarmupIndicesRunner(Runner):
             for _ in range(self.WARMUP_QUERIES):
                 await vespa_client.search(
                     index=index,
-                    body={"yql": f"select * from {app_name} where true", "hits": 1}
+                    body={"yql": f"select * from {doc_type} where true", "hits": 1}
                 )
             return {"weight": 1, "unit": "ops", "success": True}
         finally:

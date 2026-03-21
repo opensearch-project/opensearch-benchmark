@@ -476,7 +476,7 @@ class VespaQueryRunnerTests(TestCase):
         runner = VespaQuery()
         await runner(vespa_client, params)
 
-        mock_convert_yql.assert_called_once_with({"query": {"match_all": {}}}, "testapp")
+        mock_convert_yql.assert_called_once_with({"query": {"match_all": {}}}, "myindex")
         vespa_client.search.assert_called_once()
         call_kwargs = vespa_client.search.call_args[1]
         self.assertIn("yql", call_kwargs["body"])
@@ -556,7 +556,7 @@ class VespaQueryRunnerTests(TestCase):
         runner = VespaQuery()
         result = await runner(vespa_client, params)
 
-        mock_convert_yql.assert_called_once_with({}, "testapp")
+        mock_convert_yql.assert_called_once_with({}, "myindex")
         self.assertEqual(result["hits"], 0)
 
     @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
