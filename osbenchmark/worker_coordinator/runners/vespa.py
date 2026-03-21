@@ -223,6 +223,11 @@ class VespaVectorSearch(Runner):
             search_params = {"yql": yql_query}
             search_params.update(query_params)
 
+            # Set hits to match k so Vespa returns enough results for recall
+            k = params.get("k")
+            if k:
+                search_params["hits"] = k
+
             raw_response = await vespa_client.search(index=index, body=search_params)
             response = convert_vespa_response(raw_response)
 
