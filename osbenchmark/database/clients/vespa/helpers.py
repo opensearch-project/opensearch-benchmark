@@ -292,7 +292,11 @@ def convert_to_yql(body: Optional[Dict], document_type: str) -> Tuple[str, Dict]
     if not body:
         return f"select * from {document_type} where true", query_params
 
-    where_clause = build_where_clause(body.get("query", {}), document_type, query_params)
+    # KNN can appear at top level or inside "query"
+    query = body.get("query", {})
+    if not query and "knn" in body:
+        query = {"knn": body["knn"]}
+    where_clause = build_where_clause(query, document_type, query_params)
     sort_spec = body.get("sort", [])
     order_clause = build_order_clause(sort_spec)
     limit_clause = build_limit_clause(body)
