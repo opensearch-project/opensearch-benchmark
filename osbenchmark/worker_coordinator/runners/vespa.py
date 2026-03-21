@@ -279,13 +279,13 @@ class VespaBulkVectorDataSet(Runner):
     async def __call__(self, vespa_client, params):
         size = params.get("size", 0)
         body = params["body"]
-        index = params.get("index")
 
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
             # Parse alternating action/doc pairs into Vespa-ready documents
             prepared = []
+            index = None
             if isinstance(body, list):
                 i = 0
                 while i < len(body) - 1:
@@ -294,10 +294,12 @@ class VespaBulkVectorDataSet(Runner):
                     if action_meta is None or doc_body is None:
                         i += 2
                         continue
-                    # Extract doc ID from action metadata
+                    # Extract doc ID and index name from action metadata
                     action_type = list(action_meta.keys())[0]
                     meta = action_meta[action_type]
                     doc_id = meta.get("_id", f"doc_{i // 2}")
+                    if index is None:
+                        index = meta.get("_index")
                     # Convert numpy arrays to plain lists for JSON serialization
                     fields = {}
                     for k, v in doc_body.items():
