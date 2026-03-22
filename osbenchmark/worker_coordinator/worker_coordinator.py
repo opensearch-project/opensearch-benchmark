@@ -57,6 +57,8 @@ from osbenchmark.utils import convert, console, net
 from osbenchmark.worker_coordinator.errors import parse_error
 
 MEMORY_SNAPSHOT_SUMMARY = {}
+global_pending_messages = 0
+lock = threading.Lock()
 ##################################
 #
 # Messages sent between worker_coordinators
@@ -673,12 +675,16 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
 
         # Another potential bottleneck for messaging
         #self.update_queue.put(msg)
+        with lock:
+            global global_pending_messages
+            global_pending_messages -= 1
         self.coordinator.update_samples(msg.samples)
         self.coordinator.update_profile_samples(msg.profile_samples)
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_WakeupMessage(self, msg, sender):
-        log_memory_usage("WorkerCoordinatorActor wakeup")
+        #log_memory_usage("WorkerCoordinatorActor wakeup")
+        _report_message_difference()
         if msg.payload == WorkerCoordinatorActor.RESET_RELATIVE_TIME_MARKER:
             self.coordinator.reset_relative_time()
         elif not self.coordinator.finished():
@@ -973,7 +979,7 @@ class WorkerCoordinator:
         self.complete_current_task_sent = False
 
         self.telemetry = None
-        log_memory_usage("initialized WorkerCoordinator")
+        #log_memory_usage("initialized WorkerCoordinator")
 
     def create_os_clients(self):
         all_hosts = self.config.opts("client", "hosts").all_hosts
@@ -1644,6 +1650,13 @@ def _update_memory_summary(entries):
 
     _write_memory_summary()
 
+def _report_message_difference():
+    global global_pending_messages
+    with lock:
+        if global_pending_messages > 0:
+            logger = logging.getLogger(__name__)
+            logger.warning("There are currently [%d] pending messages that have not yet been processed. This can lead to increased memory usage. If this is consistently high, consider increasing the message processing frequency or reducing the message batch size.", global_pending_messages)
+
 
 def _write_memory_summary():
     if not MEMORY_SNAPSHOT_SUMMARY:
@@ -1829,7 +1842,7 @@ class Worker(actor.BenchmarkActor):
 
     @actor.no_retry("worker")  # pylint: disable=no-value-for-parameter
     def receiveMsg_WakeupMessage(self, msg, sender):
-        log_memory_usage("Worker WakeupMessage")
+        #log_memory_usage("Worker WakeupMessage")
         # it would be better if we could send ourselves a message at a specific time, simulate this with a boolean...
         if self.start_driving:
             self.start_driving = False
@@ -1948,6 +1961,9 @@ class Worker(actor.BenchmarkActor):
         if self.sampler:
             samples = self.sampler.samples
             if len(samples) > 0:
+                with lock:
+                    global global_pending_messages
+                    global_pending_messages += 1
                 self.send(self.master, UpdateSamples(self.worker_id, samples, self.profile_sampler.samples))
             return samples
         return None
