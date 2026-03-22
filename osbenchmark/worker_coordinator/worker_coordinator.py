@@ -1657,7 +1657,7 @@ def _report_message_difference():
         log_dir = paths.logs()
         os.makedirs(log_dir, exist_ok=True)
         log_path = os.path.join(log_dir, "memory_snapshot_summary.log")
-        with open(log_path, "w", encoding="utf-8") as log_file:
+        with open(log_path, "a", encoding="utf-8") as log_file:
             with lock:
                 log_file.write("Number of pending messages: {}\n".format(global_pending_messages))
     except Exception:
