@@ -677,9 +677,10 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
 
         # Another potential bottleneck for messaging
         #self.update_queue.put(msg)
-        """with lock:
+        with lock:
             global global_pending_messages
-            global_pending_messages -= 1"""
+            global_pending_messages -= 1
+        _report_message_difference()
         self.coordinator.update_samples(msg.samples)
         self.coordinator.update_profile_samples(msg.profile_samples)
 
@@ -1977,10 +1978,10 @@ class Worker(actor.BenchmarkActor):
         if self.sampler:
             samples = self.sampler.samples
             if len(samples) > 0:
-                with lock:
+                """with lock:
                     global global_pending_messages
                     global_pending_messages += 1
-                _report_message_difference()
+                _report_message_difference()"""
                 self.send(self.master, UpdateSamples(self.worker_id, samples, self.profile_sampler.samples))
             return samples
         return None
