@@ -680,7 +680,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         with lock:
             global global_pending_messages
             global_pending_messages -= 1
-        _report_message_difference()
+        _report_message_difference("Samples are collecting")
         self.coordinator.update_samples(msg.samples)
         self.coordinator.update_profile_samples(msg.profile_samples)
 
@@ -1653,7 +1653,7 @@ def _update_memory_summary(entries):
 
     _write_memory_summary()
 
-def _report_message_difference():
+def _report_message_difference(context):
     global global_pending_messages
     logger = logging.getLogger(__name__)
     try:
@@ -1662,7 +1662,7 @@ def _report_message_difference():
         log_path = os.path.join(log_dir, "memory_snapshot_summary.log")
         with open(log_path, "a", encoding="utf-8") as log_file:
             with lock:
-                log_file.write("Number of pending messages: {}\n".format(global_pending_messages))
+                log_file.write("Context: {}. Number of pending messages: {}\n".format(context, global_pending_messages))
     except Exception:
         logger.exception("Failed to report message difference.")
 
@@ -1861,7 +1861,7 @@ class Worker(actor.BenchmarkActor):
             with lock:
                 global global_pending_messages
                 global_pending_messages += 1
-            _report_message_difference()
+            _report_message_difference("Samples are sending")
             if self.cancel.is_set():
                 self.logger.info("Worker[%s] has detected that benchmark has been cancelled. Notifying master...",
                                  str(self.worker_id))
@@ -1941,7 +1941,7 @@ class Worker(actor.BenchmarkActor):
             with lock:
                 global global_pending_messages
                 global_pending_messages += 1
-            _report_message_difference()
+            _report_message_difference("Samples are sending")
             self.cancel.clear()
             self.complete.clear()
             self.executor_future = None
