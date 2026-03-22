@@ -1970,7 +1970,7 @@ class Worker(actor.BenchmarkActor):
             samples = self.sampler.samples
             if len(samples) > 0:
                 with lock:
-                    self.master.global_pending_messages[0] += 1
+                    self.master.get_global_pending_messages()[0] += 1
                 _report_message_difference("Samples are sending", self.master.get_global_pending_messages())
                 self.send(self.master, UpdateSamples(self.worker_id, samples, self.profile_sampler.samples))
             return samples
