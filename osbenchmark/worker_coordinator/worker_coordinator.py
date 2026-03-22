@@ -695,6 +695,9 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
             self.coordinator.update_progress_message()
             self.wakeupAfter(datetime.timedelta(seconds=WorkerCoordinatorActor.WAKEUP_INTERVAL_SECONDS))
 
+    def get_global_pending_messages(self):
+        return self.global_pending_messages
+
     def create_client(self, host):
         return self.createActor(Worker, targetActorRequirements=self._requirements(host))
 
@@ -1968,7 +1971,7 @@ class Worker(actor.BenchmarkActor):
             if len(samples) > 0:
                 with lock:
                     self.master.global_pending_messages[0] += 1
-                _report_message_difference("Samples are sending", self.master.global_pending_messages)
+                _report_message_difference("Samples are sending", self.master.get_global_pending_messages())
                 self.send(self.master, UpdateSamples(self.worker_id, samples, self.profile_sampler.samples))
             return samples
         return None
