@@ -675,9 +675,9 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
 
         # Another potential bottleneck for messaging
         #self.update_queue.put(msg)
-        with lock:
+        """with lock:
             global global_pending_messages
-            global_pending_messages -= 1
+            global_pending_messages -= 1"""
         self.coordinator.update_samples(msg.samples)
         self.coordinator.update_profile_samples(msg.profile_samples)
 
