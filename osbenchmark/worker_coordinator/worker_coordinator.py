@@ -1652,10 +1652,16 @@ def _update_memory_summary(entries):
 
 def _report_message_difference():
     global global_pending_messages
-    with lock:
-        if global_pending_messages > 0:
-            logger = logging.getLogger(__name__)
-            logger.warning("There are currently [%d] pending messages that have not yet been processed. This can lead to increased memory usage. If this is consistently high, consider increasing the message processing frequency or reducing the message batch size.", global_pending_messages)
+    logger = logging.getLogger(__name__)
+    try:
+        log_dir = paths.logs()
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, "memory_snapshot_summary.log")
+        with open(log_path, "w", encoding="utf-8") as log_file:
+            with lock:
+                log_file.write("Number of pending messages: {}\n".format(global_pending_messages))
+    except Exception:
+        logger.exception("Failed to report message difference.")
 
 
 def _write_memory_summary():
