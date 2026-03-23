@@ -229,8 +229,14 @@ class VespaVectorSearch(Runner):
                 search_params["hits"] = k
                 # Add HNSW exploration parameter (equivalent to OpenSearch ef_search)
                 # Reads from params, body, or defaults to 2*k for reasonable recall
-                # Default: targetHits + exploreAdditional = 256 (matching OpenSearch default ef_search)
-                ef_search = params.get("hnsw_ef_search") or body.get("hnsw_ef_search") or max(k, 256)
+                # Vespa equivalent of OpenSearch ef_search: targetHits + exploreAdditionalHits
+                # Configurable via --client-options="hnsw_ef_search:512"
+                # Defaults to max(k, 256) to match OpenSearch default ef_search
+                ef_search = (
+                    getattr(vespa_client, "client_options", {}).get("hnsw_ef_search")
+                    or params.get("hnsw_ef_search")
+                    or max(k, 256)
+                )
                 if ef_search > k and "nearestNeighbor" in search_params.get("yql", ""):
                     explore_extra = ef_search - k
                     search_params["yql"] = search_params["yql"].replace(
