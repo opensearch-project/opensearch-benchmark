@@ -1844,6 +1844,7 @@ class Worker(actor.BenchmarkActor):
         self.current_task_index = 0
         self.cancel.clear()
         self.feedback_actor = msg.feedback_actor
+        print("Starting Worker")
         self.global_state_actor = msg.global_state_actor
         self.shared_states = msg.shared_states
         self.error_queue = msg.error_queue
@@ -1999,7 +2000,7 @@ class Worker(actor.BenchmarkActor):
             if len(samples) > 0:
                 _report_message_difference("Samples are sending")
                 print(self.global_state_actor, "From Worker")
-                self.send(self.global_state_actor,UpdateGlobalPendingMessages(1))
+                self.send(self.global_state_actor, UpdateGlobalPendingMessages(1))
                 self.send(self.master, UpdateSamples(self.worker_id, samples, self.profile_sampler.samples))
             return samples
         return None
