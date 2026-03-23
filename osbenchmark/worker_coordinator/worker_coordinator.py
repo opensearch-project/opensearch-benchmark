@@ -157,6 +157,17 @@ class StartWorker:
         self.shared_states = shared_states
 
 
+class UpdateGlobalPendingMessages:
+    """
+    Message sent to the GlobalStateActor to update the count of pending messages for UpdateSamples.
+    """
+    def __init__(self, delta):
+        """
+        :param delta: The amount to change the global pending message count by (can be positive or negative).
+        """
+        self.delta = delta
+
+
 class Drive:
     """
     Tells a load generator to drive (either after a join point or initially).
@@ -608,7 +619,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         self.feedback_actor = None
         self.worker_shared_states = {}
         #self.update_queue = multiprocessing.Queue()
-        self.global_pending_messages = [0]
+        self.global_state_actor = None
 
     def receiveMsg_PoisonMessage(self, poisonmsg, sender):
         self.logger.error("Main worker_coordinator received a fatal indication from load generator (%s). Shutting down.", poisonmsg.details)
@@ -675,9 +686,8 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
 
         # Another potential bottleneck for messaging
         #self.update_queue.put(msg)
-        with lock:
-            self.global_pending_messages[0] -= 1
-        _report_message_difference("Samples are collecting", self.global_pending_messages)
+        _report_message_difference("Samples are collecting")
+        self.send(self.global_state_actor, UpdateGlobalPendingMessages(-1))
         self.coordinator.update_samples(msg.samples)
         self.coordinator.update_profile_samples(msg.profile_samples)
 
@@ -695,8 +705,6 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
             self.coordinator.update_progress_message()
             self.wakeupAfter(datetime.timedelta(seconds=WorkerCoordinatorActor.WAKEUP_INTERVAL_SECONDS))
 
-    def get_global_pending_messages(self):
-        return self.global_pending_messages
 
     def create_client(self, host):
         return self.createActor(Worker, targetActorRequirements=self._requirements(host))
@@ -1110,6 +1118,7 @@ class WorkerCoordinator:
         if redline_enabled:
             max_clients = self.config.opts("workload", "redline.max_clients", mandatory=False, default_value=None)
             self.target.feedback_actor = self.target.createActor(FeedbackActor)
+            self.target.global_state_actor = self.target.createActor(GlobalStateActor)
             self.error_queue = self.manager.Queue(maxsize=1000)
             self.logger.info("Redline test mode enabled. Clients will be managed dynamically per task")
             if max_clients is None:
@@ -1366,6 +1375,20 @@ class WorkerCoordinator:
                                                                                     self.workload.meta_data,
                                                                                     self.test_procedure.meta_data)
             self.profile_metrics_post_processor(profile_samples)
+
+class GlobalStateActor(actor.BenchmarkActor):
+    def __init__(self):
+        super().__init__()
+        self.logger = logging.getLogger(__name__)
+        self.global_pending_messages = [0]
+        self.lock = threading.Lock()
+
+    def receiveMsg_UpdateGlobalPendingMessages(self, msg, sender):
+        with self.lock:
+            self.global_pending_messages[0] += msg.delta
+            context = "sample sent" if msg.delta > 0 else "sample completed"
+            _report_message_difference(context + " (total pending messages: {})".format(self.global_pending_messages[0]))
+
 
 class SamplePostprocessor():
     """
@@ -1653,15 +1676,15 @@ def _update_memory_summary(entries):
 
     _write_memory_summary()
 
-def _report_message_difference(context, global_pending_messages):
+def _report_message_difference(context):
     logger = logging.getLogger(__name__)
     try:
         log_dir = paths.logs()
         os.makedirs(log_dir, exist_ok=True)
-        log_path = os.path.join(log_dir, "memory_snapshot_summary.log")
+        log_path = os.path.join(log_dir, "update_samples_messages_diff.log")
         with open(log_path, "a", encoding="utf-8") as log_file:
             with lock:
-                log_file.write("Context: {}. Number of pending messages: {}\n".format(context, global_pending_messages[0]))
+                log_file.write("{} \n".format(context))
     except Exception:
         logger.exception("Failed to report message difference.")
 
@@ -1800,6 +1823,7 @@ class Worker(actor.BenchmarkActor):
         self.sample_queue_size = None
         self.shared_states = None
         self.feedback_actor = None
+        self.global_state_actor = None
         self.error_queue = None
         self.queue_lock = None
 
@@ -1817,6 +1841,7 @@ class Worker(actor.BenchmarkActor):
         self.current_task_index = 0
         self.cancel.clear()
         self.feedback_actor = msg.feedback_actor
+        self.global_state_actor = msg.global_state_actor
         self.shared_states = msg.shared_states
         self.error_queue = msg.error_queue
         self.queue_lock = msg.queue_lock
@@ -1969,9 +1994,8 @@ class Worker(actor.BenchmarkActor):
         if self.sampler:
             samples = self.sampler.samples
             if len(samples) > 0:
-                with lock:
-                    self.master.get_global_pending_messages()[0] += 1
-                _report_message_difference("Samples are sending", self.master.get_global_pending_messages())
+                _report_message_difference("Samples are sending")
+                self.global_state_actor.send(UpdateGlobalPendingMessages(1))
                 self.send(self.master, UpdateSamples(self.worker_id, samples, self.profile_sampler.samples))
             return samples
         return None
