@@ -689,8 +689,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         #self.update_queue.put(msg)
         _report_message_difference("Samples are collecting")
         print("Update samples")
-        if self.global_state_actor:
-            self.send(self.global_state_actor, UpdateGlobalPendingMessages(-1))
+        self.send(self.global_state_actor, UpdateGlobalPendingMessages(-1))
         self.coordinator.update_samples(msg.samples)
         self.coordinator.update_profile_samples(msg.profile_samples)
 
@@ -1118,11 +1117,11 @@ class WorkerCoordinator:
         # target throughput + clients will then be equal to the qps passed in through --redline-test or --load-test
         redline_enabled = self.config.opts("workload", "redline.test", mandatory=False, default_value=False)
         load_test_clients = self.config.opts("workload", "load.test.clients", mandatory=False)
+        print("createing global state actor")
+        self.target.global_state_actor = self.target.createActor(GlobalStateActor)
         if redline_enabled:
             max_clients = self.config.opts("workload", "redline.max_clients", mandatory=False, default_value=None)
             self.target.feedback_actor = self.target.createActor(FeedbackActor)
-            print("createing global state actor")
-            self.target.global_state_actor = self.target.createActor(GlobalStateActor)
             self.error_queue = self.manager.Queue(maxsize=1000)
             self.logger.info("Redline test mode enabled. Clients will be managed dynamically per task")
             if max_clients is None:
@@ -2001,8 +2000,7 @@ class Worker(actor.BenchmarkActor):
             if len(samples) > 0:
                 _report_message_difference("Samples are sending")
                 print(self.global_state_actor, "From Worker")
-                if self.global_state_actor:
-                    self.send(self.global_state_actor, UpdateGlobalPendingMessages(1))
+                self.send(self.global_state_actor, UpdateGlobalPendingMessages(1))
                 self.send(self.master, UpdateSamples(self.worker_id, samples, self.profile_sampler.samples))
             return samples
         return None
