@@ -140,7 +140,7 @@ class StartWorker:
     Starts a worker.
     """
 
-    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None, error_queue=None, queue_lock=None, shared_states=None):
+    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None, error_queue=None, queue_lock=None, shared_states=None, global_state_actor=None):
         """
         :param worker_id: Unique (numeric) id of the worker.
         :param config: OSB internal configuration object.
@@ -155,6 +155,7 @@ class StartWorker:
         self.error_queue = error_queue
         self.queue_lock = queue_lock
         self.shared_states = shared_states
+        self.global_state_actor = global_state_actor
 
 
 class UpdateGlobalPendingMessages:
@@ -710,7 +711,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         return self.createActor(Worker, targetActorRequirements=self._requirements(host))
 
     def start_worker(self, worker_coordinator, worker_id, cfg, workload, allocations, error_queue=None, queue_lock=None, shared_states=None):
-        self.send(worker_coordinator, StartWorker(worker_id, cfg, workload, allocations, self.feedback_actor, error_queue, queue_lock, shared_states))
+        self.send(worker_coordinator, StartWorker(worker_id, cfg, workload, allocations, self.feedback_actor, error_queue, queue_lock, shared_states, self.global_state_actor))
 
     def start_feedbackActor(self, shared_states):
         self.send(
