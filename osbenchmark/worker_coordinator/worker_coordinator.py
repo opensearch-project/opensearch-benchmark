@@ -688,6 +688,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         # Another potential bottleneck for messaging
         #self.update_queue.put(msg)
         _report_message_difference("Samples are collecting")
+        print("Update samples")
         self.send(self.global_state_actor, UpdateGlobalPendingMessages(-1))
         self.coordinator.update_samples(msg.samples)
         self.coordinator.update_profile_samples(msg.profile_samples)
@@ -1119,6 +1120,7 @@ class WorkerCoordinator:
         if redline_enabled:
             max_clients = self.config.opts("workload", "redline.max_clients", mandatory=False, default_value=None)
             self.target.feedback_actor = self.target.createActor(FeedbackActor)
+            print("createing global state actor")
             self.target.global_state_actor = self.target.createActor(GlobalStateActor)
             self.error_queue = self.manager.Queue(maxsize=1000)
             self.logger.info("Redline test mode enabled. Clients will be managed dynamically per task")
@@ -1996,7 +1998,8 @@ class Worker(actor.BenchmarkActor):
             samples = self.sampler.samples
             if len(samples) > 0:
                 _report_message_difference("Samples are sending")
-                self.global_state_actor.send(UpdateGlobalPendingMessages(1))
+                print(self.global_state_actor, "From Worker")
+                self.send(self.global_state_actor,UpdateGlobalPendingMessages(1))
                 self.send(self.master, UpdateSamples(self.worker_id, samples, self.profile_sampler.samples))
             return samples
         return None
