@@ -311,7 +311,10 @@ def convert_to_yql(body: Optional[Dict], document_type: str) -> Tuple[str, Dict]
             else:
                 where_clause = f"{where_clause} and {sa_conditions}"
 
-    yql = f"select * from {document_type} where {where_clause}"
+    # Match OpenSearch's stored_fields: _none_ — only return doc IDs, not full source/vectors
+    stored_fields = body.get("stored_fields", "")
+    select_fields = "documentid" if stored_fields == "_none_" else "*"
+    yql = f"select {select_fields} from {document_type} where {where_clause}"
 
     if order_clause:
         yql += f" order by {order_clause}"
