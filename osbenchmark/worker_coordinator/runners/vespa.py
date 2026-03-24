@@ -216,34 +216,33 @@ class VespaVectorSearch(Runner):
         body = params.get("body", {})
         doc_type = index or getattr(vespa_client, "_app_name", "default")
 
+        # Build query params before timing starts (translation is OSB overhead, not engine latency)
+        yql_query, query_params = convert_to_yql(body, doc_type)
+        search_params = {"yql": yql_query}
+        search_params.update(query_params)
+
+        # Set hits to match k so Vespa returns enough results for recall
+        k = params.get("k")
+        if k:
+            search_params["hits"] = k
+            # Add HNSW exploration parameter (equivalent to OpenSearch ef_search)
+            # Configurable via --client-options="hnsw_ef_search:512"
+            # Defaults to max(k, 256) to match OpenSearch default ef_search
+            ef_search = (
+                getattr(vespa_client, "client_options", {}).get("hnsw_ef_search")
+                or params.get("hnsw_ef_search")
+                or max(k, 256)
+            )
+            if ef_search > k and "nearestNeighbor" in search_params.get("yql", ""):
+                explore_extra = ef_search - k
+                search_params["yql"] = search_params["yql"].replace(
+                    f"{{targetHits:{k}}}",
+                    f"{{targetHits:{k},approximate:true,hnsw.exploreAdditionalHits:{explore_extra}}}"
+                )
+
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
-            yql_query, query_params = convert_to_yql(body, doc_type)
-            search_params = {"yql": yql_query}
-            search_params.update(query_params)
-
-            # Set hits to match k so Vespa returns enough results for recall
-            k = params.get("k")
-            if k:
-                search_params["hits"] = k
-                # Add HNSW exploration parameter (equivalent to OpenSearch ef_search)
-                # Reads from params, body, or defaults to 2*k for reasonable recall
-                # Vespa equivalent of OpenSearch ef_search: targetHits + exploreAdditionalHits
-                # Configurable via --client-options="hnsw_ef_search:512"
-                # Defaults to max(k, 256) to match OpenSearch default ef_search
-                ef_search = (
-                    getattr(vespa_client, "client_options", {}).get("hnsw_ef_search")
-                    or params.get("hnsw_ef_search")
-                    or max(k, 256)
-                )
-                if ef_search > k and "nearestNeighbor" in search_params.get("yql", ""):
-                    explore_extra = ef_search - k
-                    search_params["yql"] = search_params["yql"].replace(
-                        f"{{targetHits:{k}}}",
-                        f"{{targetHits:{k},approximate:true,hnsw.exploreAdditionalHits:{explore_extra}}}"
-                    )
-
             raw_response = await vespa_client.search(index=index, body=search_params)
             response = convert_vespa_response(raw_response)
 
@@ -301,33 +300,33 @@ class VespaBulkVectorDataSet(Runner):
         size = params.get("size", 0)
         body = params["body"]
 
+        # Parse alternating action/doc pairs before timing starts (parsing is OSB overhead)
+        prepared = []
+        index = None
+        if isinstance(body, list):
+            i = 0
+            while i < len(body) - 1:
+                action_meta = body[i]
+                doc_body = body[i + 1]
+                if action_meta is None or doc_body is None:
+                    i += 2
+                    continue
+                # Extract doc ID and index name from action metadata
+                action_type = list(action_meta.keys())[0]
+                meta = action_meta[action_type]
+                doc_id = meta.get("_id", f"doc_{i // 2}")
+                if index is None:
+                    index = meta.get("_index")
+                # Convert numpy arrays to plain lists for JSON serialization
+                fields = {}
+                for k, v in doc_body.items():
+                    fields[k] = v.tolist() if hasattr(v, 'tolist') else v
+                prepared.append({"_id": str(doc_id), "fields": fields})
+                i += 2
+
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
-            # Parse alternating action/doc pairs into Vespa-ready documents
-            prepared = []
-            index = None
-            if isinstance(body, list):
-                i = 0
-                while i < len(body) - 1:
-                    action_meta = body[i]
-                    doc_body = body[i + 1]
-                    if action_meta is None or doc_body is None:
-                        i += 2
-                        continue
-                    # Extract doc ID and index name from action metadata
-                    action_type = list(action_meta.keys())[0]
-                    meta = action_meta[action_type]
-                    doc_id = meta.get("_id", f"doc_{i // 2}")
-                    if index is None:
-                        index = meta.get("_index")
-                    # Convert numpy arrays to plain lists for JSON serialization
-                    fields = {}
-                    for k, v in doc_body.items():
-                        fields[k] = v.tolist() if hasattr(v, 'tolist') else v
-                    prepared.append({"_id": str(doc_id), "fields": fields})
-                    i += 2
-
             await vespa_client.bulk(body=prepared, index=index)
             return size, "docs"
         finally:
@@ -349,18 +348,19 @@ class VespaQuery(Runner):
         body = params.get("body", {})
         doc_type = index or getattr(vespa_client, "_app_name", "default")
 
+        # Build query params before timing starts (translation is OSB overhead, not engine latency)
+        yql_query, query_params = convert_to_yql(body, doc_type)
+        search_params = {"yql": yql_query}
+        search_params.update(query_params)
+
+        # Forward workload request-timeout to Vespa query timeout
+        request_timeout = params.get("request-timeout")
+        if request_timeout and "timeout" not in search_params:
+            search_params["timeout"] = f"{request_timeout}s"
+
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
-            yql_query, query_params = convert_to_yql(body, doc_type)
-            search_params = {"yql": yql_query}
-            search_params.update(query_params)
-
-            # Forward workload request-timeout to Vespa query timeout
-            request_timeout = params.get("request-timeout")
-            if request_timeout and "timeout" not in search_params:
-                search_params["timeout"] = f"{request_timeout}s"
-
             raw_response = await vespa_client.search(index=index, body=search_params)
             response = convert_vespa_response(raw_response)
 
