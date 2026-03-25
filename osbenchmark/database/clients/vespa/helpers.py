@@ -193,6 +193,9 @@ def transform_document_for_vespa(doc: Dict) -> Dict:
     if "@timestamp" in doc:
         vespa_doc["timestamp"] = date_to_epoch(doc["@timestamp"])
         doc = {k: v for k, v in doc.items() if k != "@timestamp"}
+    elif "timestamp" in doc and isinstance(doc["timestamp"], str):
+        vespa_doc["timestamp"] = date_to_epoch(doc["timestamp"])
+        doc = {k: v for k, v in doc.items() if k != "timestamp"}
 
     flatten(doc)
 

@@ -80,7 +80,7 @@ class VespaBulkIndex(Runner):
                 source = doc.get("_source", doc)
                 action = doc.get("_action", "index")
 
-                if "@timestamp" in source or any(isinstance(v, (dict, list)) for v in source.values()):
+                if "@timestamp" in source or "timestamp" in source or any(isinstance(v, (dict, list)) for v in source.values()):
                     source = transform_document_for_vespa(source)
 
                 prepared.append({"_id": doc_id, "fields": source, "_action": action})
