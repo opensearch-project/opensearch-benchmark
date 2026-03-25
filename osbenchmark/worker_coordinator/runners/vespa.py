@@ -36,11 +36,6 @@ import logging
 import multiprocessing
 import time
 
-from osbenchmark import workload
-from osbenchmark.utils import convert
-from osbenchmark.worker_coordinator.runners.base import Runner, request_context_holder
-
-logger = logging.getLogger(__name__)
 from osbenchmark.database.clients.vespa import PYVESPA_AVAILABLE
 from osbenchmark.database.clients.vespa.helpers import (
     convert_to_yql,
@@ -48,6 +43,11 @@ from osbenchmark.database.clients.vespa.helpers import (
     parse_bulk_body,
     transform_document_for_vespa,
 )
+from osbenchmark import workload
+from osbenchmark.utils import convert
+from osbenchmark.worker_coordinator.runners.base import Runner, request_context_holder
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_CONCURRENT = 32
 DEFAULT_SCROLL_PAGES = 10
