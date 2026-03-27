@@ -240,49 +240,52 @@ class VespaVectorSearch(Runner):
                     f"{{targetHits:{k},approximate:true,hnsw.exploreAdditionalHits:{explore_extra}}}"
                 )
 
+        # INSIDE timing: only the search RPC
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
             raw_response = await vespa_client.search(index=index, body=search_params)
-            response = convert_vespa_response(raw_response)
-
-            hits = response.get("hits", {}).get("total", {}).get("value", 0)
-            hits_relation = response.get("hits", {}).get("total", {}).get("relation", "eq")
-            timed_out = response.get("timed_out", False)
-
-            result = {
-                "weight": 1,
-                "unit": "ops",
-                "hits": hits,
-                "hits_relation": hits_relation,
-                "timed_out": timed_out,
-                "success": True,
-            }
-
-            if params.get("detailed-results", False):
-                result["hits_total"] = hits
-                result["took"] = response.get("took", 0)
-
-            # Recall calculation
-            should_recall = self._should_calculate_recall(params)
-            if should_recall and "k" in params:
-                result.update({"recall@k": 0, "recall@1": 0})
-
-            if should_recall and "neighbors" in params and "k" in params:
-                recall_start = time.perf_counter()
-                response_hits = response.get("hits", {}).get("hits", [])
-                candidates = [self._extract_doc_id(h.get("_id", "")) for h in response_hits]
-                neighbors = params["neighbors"]
-                k = params.get("k", 1)
-
-                result["recall@k"] = self._calculate_topk_recall(candidates, neighbors, k)
-                result["recall@1"] = self._calculate_topk_recall(candidates, neighbors, 1)
-                result["recall_time_ms"] = convert.seconds_to_ms(time.perf_counter() - recall_start)
-
-            return result
         finally:
             request_context_holder.on_request_end()
             request_context_holder.on_client_request_end()
+
+        # OUTSIDE timing: response conversion and recall calculation
+        response = convert_vespa_response(raw_response)
+
+        hits = response.get("hits", {}).get("total", {}).get("value", 0)
+        hits_relation = response.get("hits", {}).get("total", {}).get("relation", "eq")
+        timed_out = response.get("timed_out", False)
+
+        result = {
+            "weight": 1,
+            "unit": "ops",
+            "hits": hits,
+            "hits_relation": hits_relation,
+            "timed_out": timed_out,
+            "success": True,
+        }
+
+        if params.get("detailed-results", False):
+            result["hits_total"] = hits
+            result["took"] = response.get("took", 0)
+
+        # Recall calculation
+        should_recall = self._should_calculate_recall(params)
+        if should_recall and "k" in params:
+            result.update({"recall@k": 0, "recall@1": 0})
+
+        if should_recall and "neighbors" in params and "k" in params:
+            recall_start = time.perf_counter()
+            response_hits = response.get("hits", {}).get("hits", [])
+            candidates = [self._extract_doc_id(h.get("_id", "")) for h in response_hits]
+            neighbors = params["neighbors"]
+            k = params.get("k", 1)
+
+            result["recall@k"] = self._calculate_topk_recall(candidates, neighbors, k)
+            result["recall@1"] = self._calculate_topk_recall(candidates, neighbors, 1)
+            result["recall_time_ms"] = convert.seconds_to_ms(time.perf_counter() - recall_start)
+
+        return result
 
     def __repr__(self):
         return "vespa-vector-search"
@@ -358,26 +361,29 @@ class VespaQuery(Runner):
         if request_timeout and "timeout" not in search_params:
             search_params["timeout"] = f"{request_timeout}s"
 
+        # INSIDE timing: only the search RPC
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
             raw_response = await vespa_client.search(index=index, body=search_params)
-            response = convert_vespa_response(raw_response)
-
-            hits = response.get("hits", {}).get("total", {}).get("value", 0)
-            hits_relation = response.get("hits", {}).get("total", {}).get("relation", "eq")
-            timed_out = response.get("timed_out", False)
-
-            return {
-                "weight": 1,
-                "unit": "ops",
-                "hits": hits,
-                "hits_relation": hits_relation,
-                "timed_out": timed_out,
-            }
         finally:
             request_context_holder.on_request_end()
             request_context_holder.on_client_request_end()
+
+        # OUTSIDE timing: response conversion
+        response = convert_vespa_response(raw_response)
+
+        hits = response.get("hits", {}).get("total", {}).get("value", 0)
+        hits_relation = response.get("hits", {}).get("total", {}).get("relation", "eq")
+        timed_out = response.get("timed_out", False)
+
+        return {
+            "weight": 1,
+            "unit": "ops",
+            "hits": hits,
+            "hits_relation": hits_relation,
+            "timed_out": timed_out,
+        }
 
     def __repr__(self):
         return "vespa-query"
