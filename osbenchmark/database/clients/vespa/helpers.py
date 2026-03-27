@@ -149,7 +149,9 @@ def date_to_epoch(date_value) -> int:
     except ValueError:
         pass
 
-    for fmt in ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%d", "%Y/%m/%d"]:
+    for fmt in ["%Y-%m-%dT%H:%M:%S", "%Y-%m-%d", "%Y/%m/%d",
+                "%d/%m/%Y", "%m/%d/%Y", "%Y-%m-%d %H:%M:%S",
+                "%d/%m/%Y %H:%M:%S", "%m/%d/%Y %H:%M:%S"]:
         try:
             dt = datetime.strptime(date_value, fmt)
             return int(dt.timestamp() * 1000)
@@ -317,7 +319,15 @@ def convert_to_yql(body: Optional[Dict], document_type: str) -> Tuple[str, Dict]
     # Match OpenSearch's stored_fields: _none_ — only return doc IDs, not full source/vectors
     stored_fields = body.get("stored_fields", "")
     select_fields = "documentid" if stored_fields == "_none_" else "*"
-    yql = f"select {select_fields} from {document_type} where {where_clause}"
+    # Hyphenated index names (e.g., "logs-181998") aren't valid Vespa YQL
+    # identifiers, so use "sources *" for those. For non-hyphenated names,
+    # use the specific document type to avoid querying all schemas (which
+    # breaks schema-scoped queries like sorted timestamp lookups).
+    if "-" in document_type:
+        source = "sources *"
+    else:
+        source = document_type
+    yql = f"select {select_fields} from {source} where {where_clause}"
 
     if order_clause:
         yql += f" order by {order_clause}"
@@ -516,6 +526,16 @@ def convert_range_query(range_query: Dict) -> str:
 
             if is_date_field:
                 value = date_to_epoch(value)
+            elif isinstance(value, str):
+                # Try to parse as date — non-numeric strings might be dates
+                # (e.g., nyc_taxis "pickup_datetime" field).  Skip values that
+                # are plain numbers (possibly with a leading minus or decimal).
+                stripped = value.lstrip("-")
+                is_plain_number = stripped.replace(".", "", 1).isdigit() if stripped else False
+                if not is_plain_number:
+                    converted = date_to_epoch(value)
+                    if converted != 0:
+                        value = converted
 
             # Quote string values for valid YQL
             v = f'"{value}"' if isinstance(value, str) else value
@@ -766,19 +786,25 @@ def build_grouping_clause(aggs: Dict) -> str:
     if not parts:
         return ""
 
-    # Separate metrics (output(...)) from buckets (group(...))
+    # Vespa only accepts a single grouping expression after the | pipe.
+    # Separate metrics (output(...)) from buckets (group(...) each(...)).
     metric_parts = [p for p in parts if p.startswith("output(")]
     bucket_parts = [p for p in parts if not p.startswith("output(")]
 
-    wrapped = []
-    if metric_parts:
-        wrapped.append("all(" + " ".join(metric_parts) + ")")
-    for bp in bucket_parts:
-        wrapped.append(f"all({bp})")
+    if metric_parts and bucket_parts:
+        # Vespa doesn't allow output() as siblings of group() inside all().
+        # Inject standalone metrics into each bucket's each() clause.
+        metrics_str = " ".join(metric_parts)
+        injected = []
+        for bp in bucket_parts:
+            # Insert metrics before the final ')' which closes the each() clause
+            last_paren = bp.rfind(")")
+            bp = bp[:last_paren] + " " + metrics_str + ")"
+            injected.append(bp)
+        return "all(" + " ".join(injected) + ")"
 
-    if len(wrapped) == 1:
-        return wrapped[0]
-    return " ".join(wrapped)
+    # Only metrics or only buckets — safe to combine directly
+    return "all(" + " ".join(parts) + ")"
 
 
 def convert_aggregation(agg_name: str, agg_spec: Dict) -> str:  # pylint: disable=too-many-return-statements
@@ -801,9 +827,17 @@ def convert_aggregation(agg_name: str, agg_spec: Dict) -> str:  # pylint: disabl
 
         if nested_parts:
             content_pieces = []
+            seen_outputs = set()
             for part in nested_parts:
                 if part.startswith("output("):
-                    content_pieces.append(part)
+                    # Each part may contain multiple space-separated output() expressions.
+                    # Deduplicate them — Vespa rejects duplicate output labels at
+                    # the same level (e.g., two output(count()) from sibling stats aggs).
+                    for expr in part.split(" "):
+                        expr = expr.strip()
+                        if expr and expr not in seen_outputs:
+                            seen_outputs.add(expr)
+                            content_pieces.append(expr)
                 else:
                     # Nested bucket agg needs all() wrapper
                     content_pieces.append(f"all({part})")
@@ -847,7 +881,8 @@ def convert_aggregation(agg_name: str, agg_spec: Dict) -> str:  # pylint: disabl
 def convert_date_histogram_agg(spec: Dict, nested_content: str = "") -> str:
     """Convert date_histogram aggregation to Vespa grouping.
 
-    group(floor(timestamp / 3600000)) each(output(count()))
+    group(timestamp / 3600000) each(output(count()))
+    Long division truncates automatically (equivalent to floor for positive values).
     """
     field = map_field_name(spec.get("field", "timestamp"))
     interval = spec.get("calendar_interval", spec.get("fixed_interval", spec.get("interval", "hour")))
@@ -858,7 +893,7 @@ def convert_date_histogram_agg(spec: Dict, nested_content: str = "") -> str:
     if nested_content:
         each_content += f" {nested_content}"
 
-    return f"group(floor({field} / {interval_ms})) each({each_content})"
+    return f"group({field} / {interval_ms}) each({each_content})"
 
 
 def convert_terms_agg(spec: Dict, nested_content: str = "") -> str:
@@ -925,7 +960,8 @@ def convert_range_agg(spec: Dict, nested_content: str = "") -> str:
 def convert_histogram_agg(spec: Dict, nested_content: str = "") -> str:
     """Convert histogram aggregation to Vespa grouping.
 
-    group(floor(field / interval)) each(output(count()))
+    group(field / interval) each(output(count()))
+    Long division truncates automatically (equivalent to floor for positive values).
     """
     field = map_field_name(spec.get("field", ""))
     interval = spec.get("interval", 100)
@@ -934,7 +970,7 @@ def convert_histogram_agg(spec: Dict, nested_content: str = "") -> str:
     if nested_content:
         each_content += f" {nested_content}"
 
-    return f"group(floor({field} / {interval})) each({each_content})"
+    return f"group({field} / {interval}) each({each_content})"
 
 
 def convert_auto_date_histogram_agg(spec: Dict, nested_content: str = "") -> str:
@@ -946,7 +982,7 @@ def convert_auto_date_histogram_agg(spec: Dict, nested_content: str = "") -> str
     if nested_content:
         each_content += f" {nested_content}"
 
-    return f"group(floor({field} / 3600000)) max({buckets}) each({each_content})"
+    return f"group({field} / 3600000) max({buckets}) each({each_content})"
 
 
 def convert_composite_agg(spec: Dict) -> str:
@@ -972,7 +1008,7 @@ def convert_composite_agg(spec: Dict) -> str:
                 field = map_field_name(dh.get("field", ""))
                 interval = dh.get("calendar_interval", dh.get("fixed_interval", dh.get("interval", "day")))
                 interval_ms = INTERVAL_MS_MAP.get(interval, 86400000)
-                group_exprs.append(f"floor({field} / {interval_ms})")
+                group_exprs.append(f"{field} / {interval_ms}")
 
     if not group_exprs:
         return ""
@@ -1025,8 +1061,10 @@ def convert_metric_agg(metric_type: str, spec: Dict) -> str:
     field = map_field_name(spec.get("field", ""))
 
     if metric_type == "stats":
+        # Don't include output(count()) here — the parent bucket agg already adds it.
+        # Vespa rejects duplicate output labels at the same level.
         return (f"output(sum({field})) output(avg({field})) "
-                f"output(min({field})) output(max({field})) output(count())")
+                f"output(min({field})) output(max({field}))")
     elif metric_type == "value_count":
         return "output(count())"
     else:

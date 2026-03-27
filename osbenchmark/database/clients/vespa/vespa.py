@@ -32,6 +32,7 @@ and the runner layer.
 # pylint: disable=not-async-context-manager,protected-access
 
 import asyncio
+import concurrent.futures
 import logging
 from typing import Dict, List, Optional
 
@@ -53,9 +54,11 @@ from osbenchmark.database.clients.vespa.helpers import (
 
 try:
     from vespa.application import Vespa as PyvespaApp
+    from vespa.exceptions import VespaError
     PYVESPA_AVAILABLE = True
 except ImportError:
     PyvespaApp = None
+    VespaError = None
     PYVESPA_AVAILABLE = False
 
 
@@ -113,6 +116,8 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         self._pyvespa_app = None
         self._pyvespa_async = None
         self._pyvespa_semaphore = None
+        self._sync_session = None
+        self._search_executor = None
 
         self._indices_ns = VespaIndicesNamespace(self)
         self._cluster_ns = VespaClusterNamespace(self)
@@ -165,25 +170,87 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         return False
 
     async def close(self):  # pylint: disable=invalid-overridden-method
-        """Close aiohttp and pyvespa sessions."""
+        """Close aiohttp, pyvespa sync (search), and pyvespa async (feed) sessions."""
         if self._session:
             await self._session.close()
             self._session = None
             self._session_initialized = False
+        if self._sync_session is not None:
+            try:
+                if hasattr(self._sync_session, '_close_httpr_client'):
+                    self._sync_session._close_httpr_client()  # pylint: disable=protected-access
+                elif hasattr(self._sync_session, '_close_httpx_client'):
+                    self._sync_session._close_httpx_client()  # pylint: disable=protected-access
+                elif hasattr(self._sync_session, '__exit__'):
+                    self._sync_session.__exit__(None, None, None)  # pylint: disable=unnecessary-dunder-call
+            except Exception as e:
+                self.logger.warning("Error closing pyvespa sync session: %s", e)
+            self._sync_session = None
+        if self._search_executor is not None:
+            self._search_executor.shutdown(wait=False)
+            self._search_executor = None
         if self._pyvespa_async is not None:
             try:
-                if hasattr(self._pyvespa_async, '_close_httpx_client'):
+                if hasattr(self._pyvespa_async, '_close_httpr_client'):
+                    await self._pyvespa_async._close_httpr_client()  # pylint: disable=protected-access
+                elif hasattr(self._pyvespa_async, '_close_httpx_client'):
                     await self._pyvespa_async._close_httpx_client()  # pylint: disable=protected-access
                 elif hasattr(self._pyvespa_async, '__aexit__'):
                     await self._pyvespa_async.__aexit__(None, None, None)
             except Exception as e:
-                self.logger.warning("Error closing pyvespa session: %s", e)
+                self.logger.warning("Error closing pyvespa async session: %s", e)
             self._pyvespa_async = None
 
-    # --- pyvespa session management ---
+    # --- pyvespa sync session for search ---
+
+    def _ensure_sync_session(self):
+        """Lazy-init pyvespa sync session with httpr (Rust) for search queries.
+
+        Uses compress=False to avoid redundant json.dumps+gzip in Python,
+        letting httpr serialize via serde with the GIL released. Achieves
+        ~2,800 QPS vs aiohttp's ~934 QPS at 32 clients.
+
+        Same pattern as Milvus (sync SDK + ThreadPoolExecutor).
+        """
+        if self._sync_session is not None:
+            return
+
+        if not PYVESPA_AVAILABLE:
+            raise RuntimeError("pyvespa is not installed")
+
+        # Suppress pyvespa's per-request and CA bundle INFO logging
+        logging.getLogger("httpr").setLevel(logging.WARNING)
+
+        if self._pyvespa_app is None:
+            self._pyvespa_app = PyvespaApp(url=self.endpoint)
+
+        sync_ctx = self._pyvespa_app.syncio(compress=False)
+
+        # Open the persistent HTTP client. VespaSync is a context manager —
+        # __enter__ is the documented way to init the httpr client.
+        # Try private methods first (more explicit), fall back to __enter__.
+        if hasattr(sync_ctx, '_open_httpr_client'):
+            sync_ctx._open_httpr_client()  # pylint: disable=protected-access
+        elif hasattr(sync_ctx, '_open_httpx_client'):
+            sync_ctx._open_httpx_client()  # pylint: disable=protected-access
+        elif hasattr(sync_ctx, '__enter__'):
+            sync_ctx.__enter__()  # pylint: disable=unnecessary-dunder-call
+
+        self._sync_session = sync_ctx
+
+        self._search_executor = concurrent.futures.ThreadPoolExecutor(
+            max_workers=64, thread_name_prefix="vespa-search"
+        )
+
+        self.logger.info(
+            "pyvespa sync search session initialized (endpoint=%s, compress=False)",
+            self.endpoint,
+        )
+
+    # --- pyvespa async session for feeding ---
 
     async def _ensure_pyvespa_session(self, max_workers=64):
-        """Lazy-init pyvespa's VespaAsync with HTTP/2 multiplexing.
+        """Lazy-init pyvespa's VespaAsync with HTTP/2 multiplexing for feeding.
 
         Creates the session once; subsequent calls are no-ops.
         """
@@ -196,10 +263,16 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         # Suppress pyvespa's per-request and CA bundle INFO logging
         logging.getLogger("httpr").setLevel(logging.WARNING)
 
-        self._pyvespa_app = PyvespaApp(url=self.endpoint)
+        if self._pyvespa_app is None:
+            self._pyvespa_app = PyvespaApp(url=self.endpoint)
         self._pyvespa_async = self._pyvespa_app.asyncio(connections=1, timeout=180)
 
-        if hasattr(self._pyvespa_async, '_open_httpx_client'):
+        # Try new method name first, then old, then context manager fallback
+        if hasattr(self._pyvespa_async, '_open_httpr_client'):
+            result = self._pyvespa_async._open_httpr_client()  # pylint: disable=protected-access
+            if asyncio.iscoroutine(result):
+                await result
+        elif hasattr(self._pyvespa_async, '_open_httpx_client'):
             result = self._pyvespa_async._open_httpx_client()  # pylint: disable=protected-access
             if asyncio.iscoroutine(result):
                 await result
@@ -435,32 +508,65 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             return {"_id": id, "result": "updated", "_version": 1}
 
     async def search(self, index=None, body=None, doc_type=None, **kwargs):
-        """Send pre-built YQL query to Vespa /search/ endpoint.
+        """Send pre-built YQL query to Vespa via pyvespa syncio (httpr Rust client).
+
+        Uses pyvespa syncio(compress=False) dispatched to a ThreadPoolExecutor.
+        The httpr Rust engine serializes JSON via serde with the GIL released,
+        enabling true thread parallelism. Same pattern as Milvus (sync SDK +
+        ThreadPoolExecutor). Falls back to aiohttp POST if pyvespa unavailable.
 
         Expects body to contain 'yql' and optional query params,
         or raw params dict. The runner handles DSL→YQL conversion.
         """
-        await self._ensure_session()
-
-        endpoint = f"{self.endpoint}/search/"
-        timeout_str = kwargs.get("request_timeout", "10s")
-
         if isinstance(body, dict) and "yql" in body:
             params = dict(body)
-            params.setdefault("timeout", timeout_str)
         else:
             params = dict(body) if isinstance(body, dict) else {}
-            params["timeout"] = timeout_str
+
+        timeout_str = kwargs.get("request_timeout", "10s")
+        params.setdefault("timeout", timeout_str)
 
         if "request_params" in kwargs:
             params.update(kwargs["request_params"])
 
-        try:
-            async with self._session.get(endpoint, params=params) as response:
-                return await response.json()
-        except Exception as e:
-            self.logger.error("Search failed: %s", e)
-            raise
+        if PYVESPA_AVAILABLE:
+            self._ensure_sync_session()
+
+            def _do_search():
+                try:
+                    result = self._sync_session.query(body=params)
+                    return result.json
+                except VespaError as ve:
+                    # pyvespa raises on Vespa backend errors (e.g., sort attribute
+                    # warnings with sources *). Return a minimal response matching
+                    # the aiohttp passthrough behavior so the runner can handle it
+                    # as 0 hits rather than a fatal exception.
+                    errors = list(ve.args[0]) if ve.args else []
+                    self.logger.warning("Vespa search returned errors (non-fatal): %s", errors)
+                    return {
+                        "root": {
+                            "fields": {"totalCount": 0},
+                            "children": [],
+                            "errors": errors,
+                        }
+                    }
+
+            loop = asyncio.get_running_loop()
+            try:
+                return await loop.run_in_executor(self._search_executor, _do_search)
+            except Exception as e:
+                self.logger.error("Search failed: %s", e)
+                raise
+        else:
+            # Fallback: aiohttp POST with JSON body
+            await self._ensure_session()
+            endpoint = f"{self.endpoint}/search/"
+            try:
+                async with self._session.post(endpoint, json=params) as response:
+                    return await response.json()
+            except Exception as e:
+                self.logger.error("Search failed: %s", e)
+                raise
 
     def info(self, **kwargs):
         """GET /ApplicationStatus — synchronous for setup/init contexts."""

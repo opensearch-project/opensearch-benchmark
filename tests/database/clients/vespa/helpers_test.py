@@ -422,6 +422,22 @@ class ConvertToYqlTests(TestCase):
         self.assertIn("all(output(sum(x)))", yql1)
         self.assertIn("all(output(sum(x)))", yql2)
 
+    def test_non_hyphenated_type_uses_specific_source(self):
+        # Non-hyphenated document types should use the specific type name, not "sources *",
+        # so schema-scoped queries (e.g., sorted timestamp) work correctly.
+        body = {"query": {"match_all": {}}}
+        yql, _ = convert_to_yql(body, "big5")
+        self.assertIn("from big5 where", yql)
+        self.assertNotIn("sources *", yql)
+
+    def test_hyphenated_type_uses_sources_star(self):
+        # Hyphenated index names (e.g., "logs-181998") aren't valid Vespa YQL identifiers,
+        # so they must use "sources *" to avoid parse errors.
+        body = {"query": {"match_all": {}}}
+        yql, _ = convert_to_yql(body, "logs-181998")
+        self.assertIn("from sources * where", yql)
+        self.assertNotIn("from logs-181998", yql)
+
 
 class BuildWhereClauseTests(TestCase):  # pylint: disable=too-many-public-methods
     def _build(self, query, params=None):
@@ -490,6 +506,21 @@ class BuildWhereClauseTests(TestCase):  # pylint: disable=too-many-public-method
         # so they must be silently ignored rather than emitted as range operators.
         result = self._build({"range": {"ts": {"gte": 1, "format": "epoch_millis", "time_zone": "UTC"}}})
         self.assertEqual(result, "ts >= 1")
+
+    def test_range_query_auto_detects_date_string_on_unknown_field(self):
+        # Fields not in the hardcoded date list (e.g., nyc_taxis pickup_datetime)
+        # should still convert date-like strings to epoch ms automatically.
+        result = self._build({"range": {"pickup_datetime": {"gte": "2023-01-01", "lt": "2023-01-03"}}})
+        self.assertNotIn("2023-01-01", result)
+        self.assertNotIn("2023-01-03", result)
+        self.assertIn("pickup_datetime >=", result)
+        self.assertIn("pickup_datetime <", result)
+
+    def test_range_query_auto_detect_leaves_numeric_strings_alone(self):
+        # Pure numeric strings like "100" should NOT be treated as dates.
+        result = self._build({"range": {"age": {"gte": "18", "lt": "65"}}})
+        self.assertIn('age >= "18"', result)
+        self.assertIn('age < "65"', result)
 
     def test_match_query_string_value(self):
         result = self._build({"match": {"body": "test text"}})
@@ -756,15 +787,21 @@ class BuildGroupingClauseTests(TestCase):
         self.assertIn("all(group(status)", result)
 
     def test_mixed_metrics_and_buckets(self):
-        # Metrics and buckets are wrapped in separate all() clauses: metrics are combined
-        # into one all(...), while each bucket agg gets its own all(...).
+        # Vespa doesn't allow output() as siblings of group() inside all().
+        # Standalone metrics are injected into the bucket's each() clause.
         aggs = {
             "my_sum": {"sum": {"field": "x"}},
             "by_status": {"terms": {"field": "status"}}
         }
         result = build_grouping_clause(aggs)
-        self.assertIn("all(output(sum(x)))", result)
-        self.assertIn("all(group(status)", result)
+        self.assertIn("output(sum(x))", result)
+        self.assertIn("group(status)", result)
+        # Metrics must be inside each(), not alongside group()
+        self.assertTrue(result.startswith("all("))
+        self.assertEqual(result.count("all("), 1)
+        # output(sum(x)) should appear inside each(...)
+        each_start = result.index("each(")
+        self.assertIn("output(sum(x))", result[each_start:])
 
     def test_multiple_bucket_aggs(self):
         aggs = {
@@ -772,14 +809,17 @@ class BuildGroupingClauseTests(TestCase):
             "by_region": {"terms": {"field": "region"}}
         }
         result = build_grouping_clause(aggs)
-        self.assertIn("all(group(status)", result)
-        self.assertIn("all(group(region)", result)
+        self.assertIn("group(status)", result)
+        self.assertIn("group(region)", result)
+        # Single all() wrapping both
+        self.assertTrue(result.startswith("all("))
+        self.assertEqual(result.count("all("), 1)
 
 
 class ConvertAggregationTests(TestCase):
     def test_routes_to_date_histogram(self):
         result = convert_aggregation("my_dh", {"date_histogram": {"field": "timestamp", "fixed_interval": "1h"}})
-        self.assertIn("group(floor(timestamp /", result)
+        self.assertIn("group(timestamp /", result)
 
     def test_routes_to_terms(self):
         result = convert_aggregation("my_terms", {"terms": {"field": "status"}})
@@ -814,25 +854,25 @@ class ConvertAggregationTests(TestCase):
 class ConvertDateHistogramAggTests(TestCase):
     def test_fixed_interval_1h(self):
         result = convert_date_histogram_agg({"field": "timestamp", "fixed_interval": "1h"})
-        self.assertIn("floor(timestamp / 3600000)", result)
+        self.assertIn("(timestamp / 3600000)", result)
 
     def test_fixed_interval_1s(self):
         result = convert_date_histogram_agg({"field": "timestamp", "fixed_interval": "1s"})
-        self.assertIn("floor(timestamp / 1000)", result)
+        self.assertIn("(timestamp / 1000)", result)
 
     def test_calendar_interval_day(self):
         result = convert_date_histogram_agg({"field": "timestamp", "calendar_interval": "day"})
-        self.assertIn("floor(timestamp / 86400000)", result)
+        self.assertIn("(timestamp / 86400000)", result)
 
     def test_calendar_interval_month(self):
-        # "month" uses a fixed 30-day approximation (2592000000ms) since Vespa floor()
+        # "month" uses a fixed 30-day approximation (2592000000ms) since Vespa ()
         # can't handle variable-length calendar months.
         result = convert_date_histogram_agg({"field": "timestamp", "calendar_interval": "month"})
-        self.assertIn("floor(timestamp / 2592000000)", result)
+        self.assertIn("(timestamp / 2592000000)", result)
 
     def test_default_interval_hour(self):
         result = convert_date_histogram_agg({"field": "timestamp"})
-        self.assertIn("floor(timestamp / 3600000)", result)
+        self.assertIn("(timestamp / 3600000)", result)
 
     def test_with_nested_content(self):
         result = convert_date_histogram_agg({"field": "timestamp"}, "output(sum(x))")
@@ -840,7 +880,7 @@ class ConvertDateHistogramAggTests(TestCase):
 
     def test_field_name_mapped(self):
         result = convert_date_histogram_agg({"field": "@timestamp", "fixed_interval": "1h"})
-        self.assertIn("floor(timestamp / 3600000)", result)
+        self.assertIn("(timestamp / 3600000)", result)
 
 
 class ConvertTermsAggTests(TestCase):
@@ -909,7 +949,7 @@ class ConvertRangeAggTests(TestCase):
 class ConvertHistogramAggTests(TestCase):
     def test_basic_histogram(self):
         result = convert_histogram_agg({"field": "price", "interval": 100})
-        self.assertIn("floor(price / 100)", result)
+        self.assertIn("(price / 100)", result)
 
     def test_with_nested_content(self):
         result = convert_histogram_agg({"field": "price", "interval": 100}, "output(sum(x))")
@@ -917,14 +957,14 @@ class ConvertHistogramAggTests(TestCase):
 
     def test_default_interval(self):
         result = convert_histogram_agg({"field": "price"})
-        self.assertIn("floor(price / 100)", result)
+        self.assertIn("(price / 100)", result)
 
 
 class ConvertAutoDateHistogramAggTests(TestCase):
     def test_default_buckets(self):
         result = convert_auto_date_histogram_agg({"field": "timestamp", "buckets": 10})
         self.assertIn("max(10)", result)
-        self.assertIn("floor(timestamp / 3600000)", result)
+        self.assertIn("(timestamp / 3600000)", result)
 
     def test_custom_buckets(self):
         result = convert_auto_date_histogram_agg({"field": "timestamp", "buckets": 50})
@@ -932,7 +972,7 @@ class ConvertAutoDateHistogramAggTests(TestCase):
 
     def test_field_name_mapped(self):
         result = convert_auto_date_histogram_agg({"field": "@timestamp"})
-        self.assertIn("floor(timestamp / 3600000)", result)
+        self.assertIn("(timestamp / 3600000)", result)
 
 
 class ConvertCompositeAggTests(TestCase):
@@ -955,13 +995,13 @@ class ConvertCompositeAggTests(TestCase):
         self.assertIn("group(region) max(10)", result)
 
     def test_date_histogram_source(self):
-        # Composite date_histogram sources use floor(field/interval_ms) to bucket timestamps,
+        # Composite date_histogram sources use (field/interval_ms) to bucket timestamps,
         # rather than grouping by raw millisecond values.
         result = convert_composite_agg({
             "sources": [{"ts": {"date_histogram": {"field": "timestamp", "calendar_interval": "day"}}}],
             "size": 10
         })
-        self.assertIn("floor(timestamp / 86400000)", result)
+        self.assertIn("(timestamp / 86400000)", result)
 
     def test_three_sources(self):
         result = convert_composite_agg({
@@ -1036,12 +1076,14 @@ class ConvertMetricAggTests(TestCase):
         self.assertEqual(convert_metric_agg("max", {"field": "x"}), "output(max(x))")
 
     def test_stats(self):
+        # stats does NOT include output(count()) — the parent bucket agg adds it.
+        # Including it here would cause "duplicate output label" errors in Vespa.
         result = convert_metric_agg("stats", {"field": "f"})
         self.assertIn("output(sum(f))", result)
         self.assertIn("output(avg(f))", result)
         self.assertIn("output(min(f))", result)
         self.assertIn("output(max(f))", result)
-        self.assertIn("output(count())", result)
+        self.assertNotIn("output(count())", result)
 
     def test_value_count(self):
         # value_count maps to count() — the field is intentionally ignored since Vespa's
