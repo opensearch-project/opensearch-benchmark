@@ -57,12 +57,13 @@ Usage:
 from osbenchmark.database.registry import register_database, DatabaseType
 from osbenchmark.database.factory import DatabaseClientFactory
 from osbenchmark.database.clients.opensearch.opensearch import OpenSearchClientFactory
+from osbenchmark.database.clients.vespa.vespa import VespaClientFactory
 
 # Register OpenSearch as the default database type
 register_database(DatabaseType.OPENSEARCH, OpenSearchClientFactory)
 
-# Note: Other database types (Vespa, Milvus, etc.) will be registered
-# when their implementations are added in future PRs.
+# Register Vespa database type
+register_database(DatabaseType.VESPA, VespaClientFactory)
 
 # Public API exports
 __all__ = [
