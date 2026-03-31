@@ -140,7 +140,7 @@ class StartWorker:
     Starts a worker.
     """
 
-    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None, error_queue=None, queue_lock=None, shared_states=None, global_state_actor=None):
+    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None, error_queue=None, queue_lock=None, shared_states=None, global_state_actor=None, sample_post_processor_actor=None):
         """
         :param worker_id: Unique (numeric) id of the worker.
         :param config: OSB internal configuration object.
@@ -156,6 +156,7 @@ class StartWorker:
         self.queue_lock = queue_lock
         self.shared_states = shared_states
         self.global_state_actor = global_state_actor
+        self.sample_post_processor_actor = sample_post_processor_actor
 
 
 class UpdateGlobalPendingMessages:
@@ -227,6 +228,15 @@ class TaskFinished:
         self.metrics = metrics
         self.next_task_scheduled_in = next_task_scheduled_in
 
+class ProcessSamples:
+    """
+    Used to send samples from worker coordinator to sample post processor actor.
+    """
+
+    def __init__(self, samples=None, profile_samples=None):
+        self.samples = samples
+        self.profile_samples = profile_samples
+
 def load_redline_config():
     config = configparser.ConfigParser()
     benchmark_home = os.environ.get('BENCHMARK_HOME') or os.environ['HOME']
@@ -297,6 +307,19 @@ class StartFeedbackActor:
         self.shared_states = shared_states
         self.error_queue = error_queue
         self.queue_lock = queue_lock
+
+class StartSamplePostProcessorActor:
+    def __init__(self, config, workload, test_procedure, downsample_factor):
+        self.config = config
+        self.workload = workload
+        self.test_procedure = test_procedure
+        self.downsample_factor = downsample_factor
+
+class StartTelemetry:
+    pass
+
+class StopTelemetry:
+    pass
 
 # pylint: disable=too-many-public-methods
 class FeedbackActor(actor.BenchmarkActor):
@@ -621,6 +644,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         self.worker_shared_states = {}
         #self.update_queue = multiprocessing.Queue()
         self.global_state_actor = None
+        self.sample_post_processor_actor = None
 
     def receiveMsg_PoisonMessage(self, poisonmsg, sender):
         self.logger.error("Main worker_coordinator received a fatal indication from load generator (%s). Shutting down.", poisonmsg.details)
@@ -712,7 +736,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         return self.createActor(Worker, targetActorRequirements=self._requirements(host))
 
     def start_worker(self, worker_coordinator, worker_id, cfg, workload, allocations, error_queue=None, queue_lock=None, shared_states=None):
-        self.send(worker_coordinator, StartWorker(worker_id, cfg, workload, allocations, self.feedback_actor, error_queue, queue_lock, shared_states, self.global_state_actor))
+        self.send(worker_coordinator, StartWorker(worker_id, cfg, workload, allocations, self.feedback_actor, error_queue, queue_lock, shared_states, self.global_state_actor, self.sample_post_processor_actor))
 
     def start_feedbackActor(self, shared_states):
         self.send(
@@ -938,14 +962,6 @@ def num_cores(cfg):
     return int(cfg.opts("system", "available.cores", mandatory=False,
                          default_value=multiprocessing.cpu_count()))
 
-class SampleUpdaterUnit(actor.BenchmarkActor):
-    def __init__(self):
-        super().__init__()
-        self.logger = logging.getLogger(__name__)
-
-    @actor.no_retry("sample updater")  # pylint: disable=no-value-for-parameter
-    def receiveMsg_UpdateSamples(self, msg, sender):
-        self.send(self.parent, msg)
 
 class WorkerCoordinator:
     def __init__(self, target, config, os_client_factory_class=client.OsClientFactory):
@@ -1055,15 +1071,17 @@ class WorkerCoordinator:
         downsample_factor = int(self.config.opts(
             "reporting", "metrics.request.downsample.factor",
             mandatory=False, default_value=1))
-        self.metrics_store = metrics.metrics_store(cfg=self.config,
+        """self.metrics_store = metrics.metrics_store(cfg=self.config,
                                                    workload=self.workload.name,
                                                    test_procedure=self.test_procedure.name,
-                                                   read_only=False)
+                                                   read_only=False)"""
+        self.target.sample_post_processor_actor = self.target.createActor(SamplePostProcessorActor)
+        self.target.send(self.target.sample_post_processor_actor, StartSamplePostProcessorActor(self.config, self.workload.name, self.test_procedure.name, downsample_factor))
 
-        self.sample_post_processor = DefaultSamplePostprocessor(self.metrics_store,
+        """self.sample_post_processor = DefaultSamplePostprocessor(self.metrics_store,
                                                          downsample_factor,
                                                          self.workload.meta_data,
-                                                         self.test_procedure.meta_data)
+                                                         self.test_procedure.meta_data)"""
 
         os_clients = self.create_os_clients()
 
@@ -1090,7 +1108,7 @@ class WorkerCoordinator:
 
         # Avoid issuing any requests to the target cluster when static responses are enabled. The results
         # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
-        self.prepare_telemetry(os_clients, enable=not uses_static_responses)
+        #self.prepare_telemetry(os_clients, enable=not uses_static_responses)
 
         for host in self.config.opts("worker_coordinator", "worker_ips"):
             host_config = {
@@ -1111,7 +1129,8 @@ class WorkerCoordinator:
         # ensure relative time starts when the benchmark starts.
         self.reset_relative_time()
         self.logger.info("Attaching cluster-level telemetry devices.")
-        self.telemetry.on_benchmark_start()
+        #self.telemetry.on_benchmark_start()
+        self.target.send(self.target.sample_post_processor_actor, StartTelemetry())
         self.logger.info("Cluster-level telemetry devices are now attached.")
         # if redline testing or load testing is enabled, modify the client + throughput number for the task(s)
         # target throughput + clients will then be equal to the qps passed in through --redline-test or --load-test
@@ -1181,11 +1200,12 @@ class WorkerCoordinator:
             test_run_id = None
             # we must have a metrics store connected for CPU based feedback
             cpu_max = self.config.opts("workload", "redline.max_cpu_usage", default_value=None, mandatory=False)
-            if cpu_max and isinstance(self.metrics_store, metrics.InMemoryMetricsStore):
+            metrics_store_type = metrics.metrics_store_class(self.config)
+            if cpu_max and metrics_store_type is metrics.InMemoryMetricsStore:
                 raise exceptions.SystemSetupError("CPU-based feedback requires a metrics store. You are using an in-memory metrics store")
             elif cpu_max and "node-stats" not in self.config.opts("telemetry", "devices"):
                 raise exceptions.SystemSetupError("Node stats telemetry not enabled — this is required for CPU-based redline feedback.")
-            elif cpu_max and isinstance(self.metrics_store, metrics.OsMetricsStore):
+            elif cpu_max and metrics_store_type is metrics.OsMetricsStore:
                 # pass over the index and test run ID so the feedbackActor can query the datastore
                 metrics_index = self.metrics_store.index
                 test_run_id = self.metrics_store.test_run_id
@@ -1238,7 +1258,8 @@ class WorkerCoordinator:
             self.logger.debug("Postprocessing samples...")
             self.post_process_samples()
             if self.finished():
-                self.telemetry.on_benchmark_stop()
+                self.target.send(self.target.sample_post_processor_actor, StopTelemetry())
+                #self.telemetry.on_benchmark_stop()
                 self.logger.info("All steps completed.")
                 # Some metrics store implementations return None because no external representation is required.
                 # pylint: disable=assignment-from-none
@@ -1327,14 +1348,15 @@ class WorkerCoordinator:
 
     def update_samples(self, samples):
         if len(samples) > 0:
-            self.raw_samples += samples
+            #self.raw_samples += samples
             # We need to check all samples, they will be from different clients
             for s in samples:
                 self.most_recent_sample_per_client[s.client_id] = s
 
     def update_profile_samples(self, profile_samples):
         if len(profile_samples) > 0:
-            self.raw_profile_samples += profile_samples
+            #self.raw_profile_samples += profile_samples
+            pass
 
     def update_progress_message(self, task_finished=False):
         if not self.quiet and self.current_step >= 0:
@@ -1382,7 +1404,6 @@ class WorkerCoordinator:
 class GlobalStateActor(actor.BenchmarkActor):
     def __init__(self):
         super().__init__()
-        self.logger = logging.getLogger(__name__)
         self.global_pending_messages = [0]
         self.lock = threading.Lock()
 
@@ -1391,6 +1412,81 @@ class GlobalStateActor(actor.BenchmarkActor):
             self.global_pending_messages[0] += msg.delta
             context = "sample sent" if msg.delta > 0 else "sample completed"
             _report_message_difference(context + " (total pending messages: {})".format(self.global_pending_messages[0]))
+
+
+class SamplePostProcessorActor(actor.BenchmarkActor):
+    def __init__(self):
+        super().__init__()
+        
+    def receiveMsg_StartSamplePostProcessorActor(self, msg, sender):
+        self.config = msg.config
+        self.metrics_store = metrics.metrics_store(cfg=self.config,
+                                                   workload=msg.workload.name,
+                                                   test_procedure=msg.test_procedure.name,
+                                                   read_only=False)
+        self.sample_post_processor = DefaultSamplePostprocessor(self.metrics_store,
+                                                         msg.downsample_factor,
+                                                         msg.workload.meta_data,
+                                                         msg.test_procedure.meta_data)
+        self.profile_metrics_post_processor = ProfileMetricsSamplePostprocessor(self.metrics_store,
+                                                                            msg.workload.meta_data,
+                                                                            msg.test_procedure.meta_data)
+        os_clients = self.create_os_clients()
+        uses_static_responses = self.config.opts("client", "options").uses_static_responses
+
+        # Avoid issuing any requests to the target cluster when static responses are enabled. The results
+        # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
+        self.prepare_telemetry(os_clients, enable=not uses_static_responses)
+
+    def receiveMsg_ProcessSamples(self, msg, sender):
+        if msg.samples:
+            self.sample_post_processor(msg.samples)
+        if msg.profile_samples:
+            self.profile_metrics_post_processor(msg.profile_samples)
+
+    def receiveMsg_StartTelemetry(self, msg, sender):
+        self.telemetry.on_benchmark_start()
+
+    def receiveMsg_StopTelemetry(self, msg, sender):
+        self.telemetry.on_benchmark_stop()
+
+    def create_os_clients(self):
+        all_hosts = self.config.opts("client", "hosts").all_hosts
+        opensearch = {}
+        for cluster_name, cluster_hosts in all_hosts.items():
+            all_client_options = self.config.opts("client", "options").all_client_options
+            cluster_client_options = dict(all_client_options[cluster_name])
+            # Use retries to avoid aborts on long living connections for telemetry devices
+            cluster_client_options["retry-on-timeout"] = True
+            opensearch[cluster_name] = self.os_client_factory(cluster_hosts, cluster_client_options).create()
+        return opensearch
+
+    def prepare_telemetry(self, opensearch, enable):
+        enabled_devices = self.config.opts("telemetry", "devices")
+        telemetry_params = self.config.opts("telemetry", "params")
+        log_root = paths.test_run_root(self.config)
+
+        os_default = opensearch["default"]
+
+        if enable:
+            devices = [
+                telemetry.NodeStats(telemetry_params, opensearch, self.metrics_store),
+                telemetry.ExternalEnvironmentInfo(os_default, self.metrics_store),
+                telemetry.ClusterEnvironmentInfo(os_default, self.metrics_store),
+                telemetry.JvmStatsSummary(os_default, self.metrics_store),
+                telemetry.IndexStats(os_default, self.metrics_store),
+                telemetry.MlBucketProcessingTime(os_default, self.metrics_store),
+                telemetry.SegmentStats(log_root, os_default),
+                telemetry.CcrStats(telemetry_params, opensearch, self.metrics_store),
+                telemetry.RecoveryStats(telemetry_params, opensearch, self.metrics_store),
+                telemetry.TransformStats(telemetry_params, opensearch, self.metrics_store),
+                telemetry.SearchableSnapshotsStats(telemetry_params, opensearch, self.metrics_store),
+                telemetry.SegmentReplicationStats(telemetry_params, opensearch, self.metrics_store),
+                telemetry.ShardStats(telemetry_params, opensearch, self.metrics_store)
+            ]
+        else:
+            devices = []
+        self.telemetry = telemetry.Telemetry(enabled_devices, devices=devices)
 
 
 class SamplePostprocessor():
@@ -1849,6 +1945,7 @@ class Worker(actor.BenchmarkActor):
         self.shared_states = msg.shared_states
         self.error_queue = msg.error_queue
         self.queue_lock = msg.queue_lock
+        self.sample_post_processor_actor = msg.sample_post_processor_actor
         # we need to wake up more often in test mode
         if self.config.opts("workload", "test.mode.enabled"):
             self.wakeup_interval = 0.5
@@ -2002,6 +2099,7 @@ class Worker(actor.BenchmarkActor):
                 print(self.global_state_actor, "From Worker")
                 self.send(self.global_state_actor, UpdateGlobalPendingMessages(1))
                 self.send(self.master, UpdateSamples(self.worker_id, samples, self.profile_sampler.samples))
+                self.send(self.sample_post_processor_actor, ProcessSamples(self.worker_id, samples, self.profile_sampler.samples))
             return samples
         return None
 
