@@ -2,7 +2,7 @@ name: Docker Push Release
 on:
   push:
     branches:
-      - main
+      - 1.x
 
 permissions:
   id-token: write
