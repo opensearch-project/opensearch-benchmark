@@ -757,7 +757,6 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
             self.coordinator.update_progress_message()
             self.wakeupAfter(datetime.timedelta(seconds=WorkerCoordinatorActor.WAKEUP_INTERVAL_SECONDS))
 
-
     def create_client(self, host):
         return self.createActor(Worker, targetActorRequirements=self._requirements(host))
 
@@ -1427,7 +1426,6 @@ class WorkerCoordinator:
         self.raw_profile_samples = []
         if len(profile_samples) > 0:
             if self.profile_metrics_post_processor is None:
-                # can this be made asynchronous?
                 self.profile_metrics_post_processor = ProfileMetricsSamplePostprocessor(self.metrics_store,
                                                                                     self.workload.meta_data,
                                                                                     self.test_procedure.meta_data)
@@ -1976,6 +1974,7 @@ class Worker(actor.BenchmarkActor):
         self.global_state_actor = None
         self.error_queue = None
         self.queue_lock = None
+        self.sample_post_processor_actor = None
 
     @actor.no_retry("worker")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StartWorker(self, msg, sender):
