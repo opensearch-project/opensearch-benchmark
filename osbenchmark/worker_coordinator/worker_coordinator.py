@@ -337,9 +337,12 @@ class StartFeedbackActor:
 
 class StartSamplePostProcessorActor:
     def __init__(self, config, workload, test_procedure, downsample_factor, worker_coordinator_actor=None):
-        self.config = config
-        self.workload = workload
-        self.test_procedure = test_procedure
+        #self.config = config
+        #self.workload = workload
+        #self.test_procedure = test_procedure
+        self.config = None
+        self.workload = None
+        self.test_procedure = None
         self.downsample_factor = downsample_factor
         self.worker_coordinator_actor = worker_coordinator_actor
 
@@ -1463,6 +1466,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         super().__init__()
         
     def receiveMsg_StartSamplePostProcessorActor(self, msg, sender):
+        """
         self.config = msg.config
         self.metrics_store = metrics.metrics_store(cfg=self.config,
                                                    workload=msg.workload.name,
@@ -1482,6 +1486,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
         self.prepare_telemetry(os_clients, enable=not uses_static_responses)
         self.worker_coordinator_actor = msg.worker_coordinator_actor
+        """
         print("Sample post processor actor is ready. Initialized successfully")
 
     def receiveMsg_ProcessSamples(self, msg, sender):
