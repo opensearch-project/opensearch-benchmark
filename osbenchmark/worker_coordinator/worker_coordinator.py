@@ -1111,6 +1111,7 @@ class WorkerCoordinator:
                                                    read_only=False)"""
         self.target.sample_post_processor_actor = self.target.createActor(SamplePostProcessorActor)
         self.target.send(self.target.sample_post_processor_actor, StartSamplePostProcessorActor(self.config, self.workload, self.test_procedure, downsample_factor, self.target))
+        print("started sample post processor actor")
 
         """self.sample_post_processor = DefaultSamplePostprocessor(self.metrics_store,
                                                          downsample_factor,
@@ -1303,7 +1304,7 @@ class WorkerCoordinator:
                 # Some metrics store implementations return None because no external representation is required.
                 # pylint: disable=assignment-from-none
                 # m = self.metrics_store.to_externalizable(clear=True)
-                self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(clear=True, reason=ReasonForExternalizableRequest.BENCHMARK_COMPLETED))
+                self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True, reason=ReasonForExternalizableRequest.BENCHMARK_COMPLETED))
                 self.logger.debug("Closing metrics store...")
                 self.close_metric_store()
                 # immediately clear as we don't need it anymore and it can consume a significant amount of memory
@@ -1331,7 +1332,7 @@ class WorkerCoordinator:
         # Some metrics store implementations return None because no external representation is required.
         # pylint: disable=assignment-from-none
         # m = self.metrics_store.to_externalizable(clear=True)
-        self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(clear=True, reason=ReasonForExternalizableRequest.TASK_FINISHED, waiting_period=waiting_period))
+        self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True, reason=ReasonForExternalizableRequest.TASK_FINISHED, waiting_period=waiting_period))
         # self.target.on_task_finished(metric_results, waiting_period)
         # Using a perf_counter here is fine also in the distributed case as we subtract it from `master_received_msg_at` making it
         # a relative instead of an absolute value.
@@ -1502,12 +1503,11 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         # pylint: disable=assignment-from-none
         metric_results = self.metrics_store.to_externalizable(clear=msg.clear)
         if msg.reason == ReasonForExternalizableRequest.TASK_FINISHED:
-            #self.send(self.worker_coordinator_actor, TaskFinished(metric_results, msg.waiting_period))
+            self.send(self.worker_coordinator_actor, TaskFinished(metric_results, msg.waiting_period))
             pass
         elif msg.reason == ReasonForExternalizableRequest.BENCHMARK_COMPLETED:
-            #self.logger.debug("Sending benchmark results...")
-            #self.send(self.worker_coordinator_actor, BenchmarkComplete(metric_results))
-            pass
+            self.logger.debug("Sending benchmark results...")
+            self.send(self.worker_coordinator_actor, BenchmarkComplete(metric_results))
             
     def receiveMsg_ResetRelativeTimeRequest(self, msg, sender):
         self.metrics_store.reset_relative_time()
