@@ -345,6 +345,7 @@ class StartSamplePostProcessorActor:
         self.test_procedure = None
         self.downsample_factor = downsample_factor
         self.worker_coordinator_actor = worker_coordinator_actor
+        self.worker_coordinator_actor = None
 
 class StartTelemetry:
     pass
