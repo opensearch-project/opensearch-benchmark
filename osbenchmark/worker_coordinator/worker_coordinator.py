@@ -45,6 +45,10 @@ from enum import Enum
 
 import thespian.actors
 
+import linecache
+import os
+import tracemalloc
+
 from osbenchmark.utils import opts
 from osbenchmark.database.clients.opensearch import opensearch as client
 from osbenchmark import actor, config, exceptions, metrics, workload, paths, PROGRAM_NAME, telemetry
@@ -55,6 +59,9 @@ import osbenchmark.database  # noqa: F401  # pylint: disable=unused-import
 from osbenchmark.workload import WorkloadProcessorRegistry, load_workload, load_workload_plugins, ingestion_manager
 from osbenchmark.utils import convert, console, net
 from osbenchmark.worker_coordinator.errors import parse_error
+
+MEMORY_SNAPSHOT_SUMMARY = {}
+lock = threading.Lock()
 ##################################
 #
 # Messages sent between worker_coordinators
@@ -137,7 +144,7 @@ class StartWorker:
     Starts a worker.
     """
 
-    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None, error_queue=None, queue_lock=None, shared_states=None):
+    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None, error_queue=None, queue_lock=None, shared_states=None, global_state_actor=None, sample_post_processor_actor=None):
         """
         :param worker_id: Unique (numeric) id of the worker.
         :param config: OSB internal configuration object.
@@ -152,6 +159,19 @@ class StartWorker:
         self.error_queue = error_queue
         self.queue_lock = queue_lock
         self.shared_states = shared_states
+        self.global_state_actor = global_state_actor
+        self.sample_post_processor_actor = sample_post_processor_actor
+
+
+class UpdateGlobalPendingMessages:
+    """
+    Message sent to the GlobalStateActor to update the count of pending messages for UpdateSamples.
+    """
+    def __init__(self, delta):
+        """
+        :param delta: The amount to change the global pending message count by (can be positive or negative).
+        """
+        self.delta = delta
 
 
 class Drive:
@@ -211,6 +231,42 @@ class TaskFinished:
     def __init__(self, metrics, next_task_scheduled_in):
         self.metrics = metrics
         self.next_task_scheduled_in = next_task_scheduled_in
+
+class ProcessSamples:
+    """
+    Used to send samples from worker coordinator to sample post processor actor.
+    """
+
+    def __init__(self, samples=None, profile_samples=None):
+        self.samples = samples
+        self.profile_samples = profile_samples
+
+class CloseMetricsStore:
+    """
+    Used to signal the sample post processor actor to close the metrics store.
+    """
+    pass
+
+class GetExternalizableMetricsStore:
+    """
+    Used to request an externalizable version of the metrics store from the sample post processor actor.
+    """
+    
+    def __init__(self, clear=True, reason=None, waiting_period=None):
+        self.clear = clear
+        self.reason = reason
+        self.waiting_period = waiting_period
+
+class ReasonForExternalizableRequest(Enum):
+    """Reasons for requesting an externalizable version of the metrics store."""
+    BENCHMARK_COMPLETED = "Benchmark completed"
+    TASK_FINISHED = "Task finished"
+
+class ResetRelativeTimeRequest:
+    """
+    Used to signal the sample post processor actor to reset the relative time marker for all incoming samples.
+    """
+    pass
 
 def load_redline_config():
     config = configparser.ConfigParser()
@@ -282,6 +338,22 @@ class StartFeedbackActor:
         self.shared_states = shared_states
         self.error_queue = error_queue
         self.queue_lock = queue_lock
+
+class StartSamplePostProcessorActor:
+    def __init__(self, config, workload, test_procedure, downsample_factor):
+        self.config = config
+        self.workload = workload
+        self.test_procedure = test_procedure
+        #self.config = None
+        #self.workload = None
+        #self.test_procedure = None
+        self.downsample_factor = downsample_factor
+
+class StartTelemetry:
+    pass
+
+class StopTelemetry:
+    pass
 
 # pylint: disable=too-many-public-methods
 class FeedbackActor(actor.BenchmarkActor):
@@ -604,6 +676,9 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         self.cluster_details = None
         self.feedback_actor = None
         self.worker_shared_states = {}
+        #self.update_queue = multiprocessing.Queue()
+        self.global_state_actor = None
+        self.sample_post_processor_actor = None
 
     def receiveMsg_PoisonMessage(self, poisonmsg, sender):
         self.logger.error("Main worker_coordinator received a fatal indication from load generator (%s). Shutting down.", poisonmsg.details)
@@ -674,11 +749,19 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_UpdateSamples(self, msg, sender):
+
+        # Another potential bottleneck for messaging
+        #self.update_queue.put(msg)
+        _report_message_difference("Samples are collecting")
+        print("Update samples")
+        self.send(self.global_state_actor, UpdateGlobalPendingMessages(-1))
         self.coordinator.update_samples(msg.samples)
         self.coordinator.update_profile_samples(msg.profile_samples)
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_WakeupMessage(self, msg, sender):
+        #log_memory_usage("WorkerCoordinatorActor wakeup")
+        #_report_message_difference()
         if msg.payload == WorkerCoordinatorActor.RESET_RELATIVE_TIME_MARKER:
             self.coordinator.reset_relative_time()
         elif not self.coordinator.finished():
@@ -689,11 +772,18 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
             self.coordinator.update_progress_message()
             self.wakeupAfter(datetime.timedelta(seconds=WorkerCoordinatorActor.WAKEUP_INTERVAL_SECONDS))
 
+    @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
+    def receiveMsg_BenchmarkComplete(self, msg, sender):
+        self.on_benchmark_complete(msg.metrics)
+
+    def receiveMsg_TaskFinished(self, msg, sender):
+        self.on_task_finished(msg.metrics, msg.next_task_scheduled_in)
+
     def create_client(self, host):
         return self.createActor(Worker, targetActorRequirements=self._requirements(host))
 
     def start_worker(self, worker_coordinator, worker_id, cfg, workload, allocations, error_queue=None, queue_lock=None, shared_states=None):
-        self.send(worker_coordinator, StartWorker(worker_id, cfg, workload, allocations, self.feedback_actor, error_queue, queue_lock, shared_states))
+        self.send(worker_coordinator, StartWorker(worker_id, cfg, workload, allocations, self.feedback_actor, error_queue, queue_lock, shared_states, self.global_state_actor, self.sample_post_processor_actor))
 
     def start_feedbackActor(self, shared_states):
         self.send(
@@ -967,6 +1057,7 @@ class WorkerCoordinator:
         self.complete_current_task_sent = False
 
         self.telemetry = None
+        #log_memory_usage("initialized WorkerCoordinator")
 
     def create_os_clients(self):
         all_hosts = self.config.opts("client", "hosts").all_hosts
@@ -1040,15 +1131,18 @@ class WorkerCoordinator:
         downsample_factor = int(self.config.opts(
             "reporting", "metrics.request.downsample.factor",
             mandatory=False, default_value=1))
-        self.metrics_store = metrics.metrics_store(cfg=self.config,
+        """self.metrics_store = metrics.metrics_store(cfg=self.config,
                                                    workload=self.workload.name,
                                                    test_procedure=self.test_procedure.name,
-                                                   read_only=False)
+                                                   read_only=False)"""
+        self.target.sample_post_processor_actor = self.target.createActor(SamplePostProcessorActor)
+        self.target.send(self.target.sample_post_processor_actor, StartSamplePostProcessorActor(self.config, self.workload, self.test_procedure, downsample_factor))
+        print("started sample post processor actor")
 
-        self.sample_post_processor = DefaultSamplePostprocessor(self.metrics_store,
+        """self.sample_post_processor = DefaultSamplePostprocessor(self.metrics_store,
                                                          downsample_factor,
                                                          self.workload.meta_data,
-                                                         self.test_procedure.meta_data)
+                                                         self.test_procedure.meta_data)"""
 
         os_clients = self.create_os_clients()
 
@@ -1075,7 +1169,7 @@ class WorkerCoordinator:
 
         # Avoid issuing any requests to the target cluster when static responses are enabled. The results
         # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
-        self.prepare_telemetry(os_clients, enable=not uses_static_responses)
+        #self.prepare_telemetry(os_clients, enable=not uses_static_responses)
 
         for host in self.config.opts("worker_coordinator", "worker_ips"):
             host_config = {
@@ -1096,12 +1190,15 @@ class WorkerCoordinator:
         # ensure relative time starts when the benchmark starts.
         self.reset_relative_time()
         self.logger.info("Attaching cluster-level telemetry devices.")
-        self.telemetry.on_benchmark_start()
+        #self.telemetry.on_benchmark_start()
+        self.target.send(self.target.sample_post_processor_actor, StartTelemetry())
         self.logger.info("Cluster-level telemetry devices are now attached.")
         # if redline testing or load testing is enabled, modify the client + throughput number for the task(s)
         # target throughput + clients will then be equal to the qps passed in through --redline-test or --load-test
         redline_enabled = self.config.opts("workload", "redline.test", mandatory=False, default_value=False)
         load_test_clients = self.config.opts("workload", "load.test.clients", mandatory=False)
+        print("createing global state actor")
+        self.target.global_state_actor = self.target.createActor(GlobalStateActor)
         if redline_enabled:
             max_clients = self.config.opts("workload", "redline.max_clients", mandatory=False, default_value=None)
             self.target.feedback_actor = self.target.createActor(FeedbackActor)
@@ -1164,14 +1261,16 @@ class WorkerCoordinator:
             test_run_id = None
             # we must have a metrics store connected for CPU based feedback
             cpu_max = self.config.opts("workload", "redline.max_cpu_usage", default_value=None, mandatory=False)
-            if cpu_max and isinstance(self.metrics_store, metrics.InMemoryMetricsStore):
+            metrics_store_type = metrics.metrics_store_class(self.config)
+            if cpu_max and metrics_store_type is metrics.InMemoryMetricsStore:
                 raise exceptions.SystemSetupError("CPU-based feedback requires a metrics store. You are using an in-memory metrics store")
             elif cpu_max and "node-stats" not in self.config.opts("telemetry", "devices"):
                 raise exceptions.SystemSetupError("Node stats telemetry not enabled — this is required for CPU-based redline feedback.")
-            elif cpu_max and isinstance(self.metrics_store, metrics.OsMetricsStore):
+            elif cpu_max and metrics_store_type is metrics.OsMetricsStore:
                 # pass over the index and test run ID so the feedbackActor can query the datastore
-                metrics_index = self.metrics_store.index
-                test_run_id = self.metrics_store.test_run_id
+                test_run_timestamp = time.to_iso8601(self.config.opts("system", "time.start"))
+                metrics_index = self.index_name(test_run_timestamp)
+                test_run_id = self.config.opts("system", "test_run.id")
 
             scale_step = self.config.opts("workload", "redline.scale_step", default_value=0)
             scale_down_pct = self.config.opts("workload", "redline.scale_down_pct", default_value=0)
@@ -1194,6 +1293,10 @@ class WorkerCoordinator:
             self.target.start_feedbackActor(self.shared_client_dict)
 
         self.update_progress_message()
+
+    def index_name(self, test_run_timestamp):
+        ts = time.from_is8601(test_run_timestamp)
+        return "benchmark-metrics-%04d-%02d" % (ts.year, ts.month)
 
     def joinpoint_reached(self, worker_id, worker_local_timestamp, task_allocations):
         self.currently_completed += 1
@@ -1221,17 +1324,19 @@ class WorkerCoordinator:
             self.logger.debug("Postprocessing samples...")
             self.post_process_samples()
             if self.finished():
-                self.telemetry.on_benchmark_stop()
+                self.target.send(self.target.sample_post_processor_actor, StopTelemetry())
+                #self.telemetry.on_benchmark_stop()
                 self.logger.info("All steps completed.")
                 # Some metrics store implementations return None because no external representation is required.
                 # pylint: disable=assignment-from-none
-                m = self.metrics_store.to_externalizable(clear=True)
+                # m = self.metrics_store.to_externalizable(clear=True)
+                self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True, reason=ReasonForExternalizableRequest.BENCHMARK_COMPLETED))
                 self.logger.debug("Closing metrics store...")
-                self.metrics_store.close()
+                self.close_metric_store()
                 # immediately clear as we don't need it anymore and it can consume a significant amount of memory
                 self.metrics_store = None
-                self.logger.debug("Sending benchmark results...")
-                self.target.on_benchmark_complete(m)
+                #self.logger.debug("Sending benchmark results...")
+                #self.target.on_benchmark_complete(metric_results)
             else:
                 self.move_to_next_task(workers_curr_step)
                 # re-enable the feedback actor for the next task if we're in redline testing
@@ -1252,8 +1357,9 @@ class WorkerCoordinator:
             waiting_period = 1.0
         # Some metrics store implementations return None because no external representation is required.
         # pylint: disable=assignment-from-none
-        m = self.metrics_store.to_externalizable(clear=True)
-        self.target.on_task_finished(m, waiting_period)
+        # m = self.metrics_store.to_externalizable(clear=True)
+        self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True, reason=ReasonForExternalizableRequest.TASK_FINISHED, waiting_period=waiting_period))
+        # self.target.on_task_finished(metric_results, waiting_period)
         # Using a perf_counter here is fine also in the distributed case as we subtract it from `master_received_msg_at` making it
         # a relative instead of an absolute value.
         start_next_task = time.perf_counter() + waiting_period
@@ -1298,26 +1404,30 @@ class WorkerCoordinator:
 
     def reset_relative_time(self):
         self.logger.debug("Resetting relative time of request metrics store.")
-        self.metrics_store.reset_relative_time()
+        #self.metrics_store.reset_relative_time()
+        self.target.send(self.target.sample_post_processor_actor, ResetRelativeTimeRequest())
 
     def finished(self):
         return self.current_step == self.number_of_steps
 
     def close(self):
         self.progress_publisher.finish()
-        if self.metrics_store and self.metrics_store.opened:
-            self.metrics_store.close()
+        self.close_metric_store()
+
+    def close_metric_store(self):
+        self.target.send(self.target.sample_post_processor_actor, CloseMetricsStore())
 
     def update_samples(self, samples):
         if len(samples) > 0:
-            self.raw_samples += samples
+            #self.raw_samples += samples
             # We need to check all samples, they will be from different clients
             for s in samples:
                 self.most_recent_sample_per_client[s.client_id] = s
 
     def update_profile_samples(self, profile_samples):
         if len(profile_samples) > 0:
-            self.raw_profile_samples += profile_samples
+            #self.raw_profile_samples += profile_samples
+            pass
 
     def update_progress_message(self, task_finished=False):
         if not self.quiet and self.current_step >= 0:
@@ -1360,6 +1470,117 @@ class WorkerCoordinator:
                                                                                     self.workload.meta_data,
                                                                                     self.test_procedure.meta_data)
             self.profile_metrics_post_processor(profile_samples)
+
+class GlobalStateActor(actor.BenchmarkActor):
+    def __init__(self):
+        super().__init__()
+        self.global_pending_messages = [0]
+        self.lock = threading.Lock()
+
+    def receiveMsg_UpdateGlobalPendingMessages(self, msg, sender):
+        with self.lock:
+            self.global_pending_messages[0] += msg.delta
+            context = "sample sent" if msg.delta > 0 else "sample completed"
+            _report_message_difference(context + " (total pending messages: {})".format(self.global_pending_messages[0]))
+
+
+class SamplePostProcessorActor(actor.BenchmarkActor):
+    def __init__(self):
+        super().__init__()
+        
+    def receiveMsg_StartSamplePostProcessorActor(self, msg, sender):
+        self.config = msg.config
+        self.metrics_store = metrics.metrics_store(cfg=self.config,
+                                                   workload=msg.workload.name,
+                                                   test_procedure=msg.test_procedure.name,
+                                                   read_only=False)
+        self.sample_post_processor = DefaultSamplePostprocessor(self.metrics_store,
+                                                         msg.downsample_factor,
+                                                         msg.workload.meta_data,
+                                                         msg.test_procedure.meta_data)
+        self.profile_metrics_post_processor = ProfileMetricsSamplePostprocessor(self.metrics_store,
+                                                                            msg.workload.meta_data,
+                                                                            msg.test_procedure.meta_data)
+        os_clients = self.create_os_clients()
+        uses_static_responses = self.config.opts("client", "options").uses_static_responses
+
+        # Avoid issuing any requests to the target cluster when static responses are enabled. The results
+        # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
+        self.prepare_telemetry(os_clients, enable=not uses_static_responses)
+        self.worker_coordinator_actor = sender
+        print("Sample post processor actor is ready. Initialized successfully")
+
+    def receiveMsg_ProcessSamples(self, msg, sender):
+        if msg.samples:
+            self.sample_post_processor(msg.samples)
+        if msg.profile_samples:
+            self.profile_metrics_post_processor(msg.profile_samples)
+
+    def receiveMsg_StartTelemetry(self, msg, sender):
+        self.telemetry.on_benchmark_start()
+
+    def receiveMsg_StopTelemetry(self, msg, sender):
+        self.telemetry.on_benchmark_stop()
+
+    def receiveMsg_CloseMetricsStore(self, msg, sender):
+        self.close()
+
+    def receiveMsg_GetExternalizableMetricsStore(self, msg, sender):
+        # Some metrics store implementations return None because no external representation is required.
+        # pylint: disable=assignment-from-none
+        metric_results = self.metrics_store.to_externalizable(clear=msg.clear)
+        if msg.reason == ReasonForExternalizableRequest.TASK_FINISHED:
+            self.send(self.worker_coordinator_actor, TaskFinished(metric_results, msg.waiting_period))
+            pass
+        elif msg.reason == ReasonForExternalizableRequest.BENCHMARK_COMPLETED:
+            self.logger.debug("Sending benchmark results...")
+            self.send(self.worker_coordinator_actor, BenchmarkComplete(metric_results))
+            
+    def receiveMsg_ResetRelativeTimeRequest(self, msg, sender):
+        self.metrics_store.reset_relative_time()
+
+    def close(self):
+        if self.metrics_store and self.metrics_store.opened:
+            self.metrics_store.close()
+
+    def create_os_clients(self):
+        all_hosts = self.config.opts("client", "hosts").all_hosts
+        opensearch = {}
+        for cluster_name, cluster_hosts in all_hosts.items():
+            all_client_options = self.config.opts("client", "options").all_client_options
+            cluster_client_options = dict(all_client_options[cluster_name])
+            # Use retries to avoid aborts on long living connections for telemetry devices
+            cluster_client_options["retry-on-timeout"] = True
+            opensearch[cluster_name] = client.OsClientFactory(cluster_hosts, cluster_client_options).create()
+        return opensearch
+
+    def prepare_telemetry(self, opensearch, enable):
+        enabled_devices = self.config.opts("telemetry", "devices")
+        telemetry_params = self.config.opts("telemetry", "params")
+        log_root = paths.test_run_root(self.config)
+
+        os_default = opensearch["default"]
+
+        if enable:
+            devices = [
+                telemetry.NodeStats(telemetry_params, opensearch, self.metrics_store),
+                telemetry.ExternalEnvironmentInfo(os_default, self.metrics_store),
+                telemetry.ClusterEnvironmentInfo(os_default, self.metrics_store),
+                telemetry.JvmStatsSummary(os_default, self.metrics_store),
+                telemetry.IndexStats(os_default, self.metrics_store),
+                telemetry.MlBucketProcessingTime(os_default, self.metrics_store),
+                telemetry.SegmentStats(log_root, os_default),
+                telemetry.CcrStats(telemetry_params, opensearch, self.metrics_store),
+                telemetry.RecoveryStats(telemetry_params, opensearch, self.metrics_store),
+                telemetry.TransformStats(telemetry_params, opensearch, self.metrics_store),
+                telemetry.SearchableSnapshotsStats(telemetry_params, opensearch, self.metrics_store),
+                telemetry.SegmentReplicationStats(telemetry_params, opensearch, self.metrics_store),
+                telemetry.ShardStats(telemetry_params, opensearch, self.metrics_store)
+            ]
+        else:
+            devices = []
+        self.telemetry = telemetry.Telemetry(enabled_devices, devices=devices)
+
 
 class SamplePostprocessor():
     """
@@ -1571,6 +1792,124 @@ class ProfileMetricsSamplePostprocessor(SamplePostprocessor):
         self.logger.debug("Postprocessing [%d] raw samples (downsampled to [%d] samples) took [%f] seconds in total.",
                           len(raw_samples), final_sample_count, (end - total_start))
 
+def log_memory_usage(location):
+    snapshot = tracemalloc.take_snapshot()
+    display_top(snapshot, location)
+
+
+def display_top(snapshot, location, key_type='lineno', limit=10):
+    logger = logging.getLogger(__name__)
+    snapshot = snapshot.filter_traces((
+        tracemalloc.Filter(False, "<frozen importlib._bootstrap>"),
+        tracemalloc.Filter(False, "<frozen importlib._bootstrap_external>"),
+        tracemalloc.Filter(False, "<unknown>"),
+    ))
+    top_stats = snapshot.statistics(key_type)
+    divider = "=" * 80
+    header = f"Top {limit} lines at {location}"
+
+    logger.info(divider)
+    logger.info(header)
+    summary_entries = []
+
+    for index, stat in enumerate(top_stats[:limit], 1):
+        frame = stat.traceback[0]
+        frame_name = getattr(frame, "name", "<unknown>")
+        entry = f"#{index}: {frame.filename}:{frame.lineno}: {stat.size / 1024:.1f} KiB ({stat.count} blocks)"
+        logger.info(entry)
+        code_line = linecache.getline(frame.filename, frame.lineno).strip()
+        if code_line:
+            logger.info("    %s", code_line)
+        summary_entries.append(
+            {
+                "filename": frame.filename,
+                "lineno": frame.lineno,
+                "function": frame_name,
+                "size": stat.size,
+                "context": location,
+                "code_line": code_line,
+            }
+        )
+
+    other = top_stats[limit:]
+    if other:
+        size = sum(stat.size for stat in other)
+        logger.info("%s other: %.1f KiB", len(other), size / 1024)
+    total = sum(stat.size for stat in top_stats)
+    logger.info("Total allocated size: %.1f KiB", total / 1024)
+    logger.info(divider)
+    _update_memory_summary(summary_entries)
+
+
+def _update_memory_summary(entries):
+    if not entries:
+        return
+
+    for entry in entries:
+        key = (entry["filename"], entry["lineno"], entry["function"])
+        summary = MEMORY_SNAPSHOT_SUMMARY.get(key)
+        if summary is None:
+            summary = {
+                "count": 0,
+                "total": 0.0,
+                "min": entry["size"],
+                "max": entry["size"],
+                "code_line": entry["code_line"],
+                "contexts": set(),
+            }
+        summary["count"] += 1
+        summary["total"] += entry["size"]
+        summary["min"] = min(summary["min"], entry["size"])
+        summary["max"] = max(summary["max"], entry["size"])
+        if entry["code_line"]:
+            summary["code_line"] = entry["code_line"]
+        summary["contexts"].add(entry["context"])
+        MEMORY_SNAPSHOT_SUMMARY[key] = summary
+
+    _write_memory_summary()
+
+def _report_message_difference(context):
+    logger = logging.getLogger(__name__)
+    try:
+        log_dir = paths.logs()
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, "update_samples_messages_diff.log")
+        with open(log_path, "a", encoding="utf-8") as log_file:
+            with lock:
+                log_file.write("{} \n".format(context))
+    except Exception:
+        logger.exception("Failed to report message difference.")
+
+
+def _write_memory_summary():
+    if not MEMORY_SNAPSHOT_SUMMARY:
+        return
+
+    logger = logging.getLogger(__name__)
+    try:
+        log_dir = paths.logs()
+        os.makedirs(log_dir, exist_ok=True)
+        log_path = os.path.join(log_dir, "memory_snapshot_summary.log")
+        with open(log_path, "w", encoding="utf-8") as log_file:
+            log_file.write("location|function|count|avg_mib|max_mib|min_mib|contexts|code\n")
+            items = sorted(
+                MEMORY_SNAPSHOT_SUMMARY.items(),
+                key=lambda item: (item[1]["total"] / item[1]["count"]),
+                reverse=True
+            )
+            for (filename, lineno, function), stats in items:
+                avg_mib = (stats["total"] / stats["count"]) / (1024 * 1024)
+                max_mib = stats["max"] / (1024 * 1024)
+                min_mib = stats["min"] / (1024 * 1024)
+                location = f"{filename}:{lineno}"
+                contexts = ",".join(sorted(stats["contexts"]))
+                code_line = stats.get("code_line", "")
+                log_file.write(
+                    f"{location}|{function}|{stats['count']}|{avg_mib:.4f}|{max_mib:.4f}|{min_mib:.4f}|{contexts}|{code_line}\n"
+                )
+    except Exception:
+        logger.exception("Failed to persist memory snapshot summary to disk.")
+
 
 def calculate_worker_assignments(host_configs, client_count):
     """
@@ -1676,8 +2015,10 @@ class Worker(actor.BenchmarkActor):
         self.sample_queue_size = None
         self.shared_states = None
         self.feedback_actor = None
+        self.global_state_actor = None
         self.error_queue = None
         self.queue_lock = None
+        self.sample_post_processor_actor = None
 
     @actor.no_retry("worker")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StartWorker(self, msg, sender):
@@ -1693,9 +2034,12 @@ class Worker(actor.BenchmarkActor):
         self.current_task_index = 0
         self.cancel.clear()
         self.feedback_actor = msg.feedback_actor
+        print("Starting Worker")
+        self.global_state_actor = msg.global_state_actor
         self.shared_states = msg.shared_states
         self.error_queue = msg.error_queue
         self.queue_lock = msg.queue_lock
+        self.sample_post_processor_actor = msg.sample_post_processor_actor
         # we need to wake up more often in test mode
         if self.config.opts("workload", "test.mode.enabled"):
             self.wakeup_interval = 0.5
@@ -1726,6 +2070,7 @@ class Worker(actor.BenchmarkActor):
 
     @actor.no_retry("worker")  # pylint: disable=no-value-for-parameter
     def receiveMsg_WakeupMessage(self, msg, sender):
+        #log_memory_usage("Worker WakeupMessage")
         # it would be better if we could send ourselves a message at a specific time, simulate this with a boolean...
         if self.start_driving:
             self.start_driving = False
@@ -1840,10 +2185,15 @@ class Worker(actor.BenchmarkActor):
         return current
 
     def send_samples(self):
+        # This is where the samples are sent to the coordinator to be processed.
         if self.sampler:
             samples = self.sampler.samples
             if len(samples) > 0:
+                _report_message_difference("Samples are sending")
+                print(self.global_state_actor, "From Worker")
+                self.send(self.global_state_actor, UpdateGlobalPendingMessages(1))
                 self.send(self.master, UpdateSamples(self.worker_id, samples, self.profile_sampler.samples))
+                self.send(self.sample_post_processor_actor, ProcessSamples(self.worker_id, samples, self.profile_sampler.samples))
             return samples
         return None
 
