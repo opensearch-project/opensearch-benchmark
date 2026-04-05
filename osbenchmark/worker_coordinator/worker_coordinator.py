@@ -1523,7 +1523,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
             cluster_client_options = dict(all_client_options[cluster_name])
             # Use retries to avoid aborts on long living connections for telemetry devices
             cluster_client_options["retry-on-timeout"] = True
-            opensearch[cluster_name] = self.os_client_factory(cluster_hosts, cluster_client_options).create()
+            opensearch[cluster_name] = client.OsClientFactory(cluster_hosts, cluster_client_options).create()
         return opensearch
 
     def prepare_telemetry(self, opensearch, enable):
