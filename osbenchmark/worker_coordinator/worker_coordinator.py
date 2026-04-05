@@ -1110,7 +1110,7 @@ class WorkerCoordinator:
                                                    test_procedure=self.test_procedure.name,
                                                    read_only=False)"""
         self.target.sample_post_processor_actor = self.target.createActor(SamplePostProcessorActor)
-        self.target.send(self.target.sample_post_processor_actor, StartSamplePostProcessorActor(self.config, self.workload.name, self.test_procedure.name, downsample_factor, self.target))
+        self.target.send(self.target.sample_post_processor_actor, StartSamplePostProcessorActor(self.config, self.workload, self.test_procedure.name, downsample_factor, self.target))
 
         """self.sample_post_processor = DefaultSamplePostprocessor(self.metrics_store,
                                                          downsample_factor,
