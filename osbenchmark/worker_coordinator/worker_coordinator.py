@@ -336,7 +336,7 @@ class StartFeedbackActor:
         self.queue_lock = queue_lock
 
 class StartSamplePostProcessorActor:
-    def __init__(self, config, workload, test_procedure, downsample_factor, worker_coordinator_actor=None):
+    def __init__(self, config, workload, test_procedure, downsample_factor):
         self.config = config
         self.workload = workload
         self.test_procedure = test_procedure
@@ -344,8 +344,6 @@ class StartSamplePostProcessorActor:
         #self.workload = None
         #self.test_procedure = None
         self.downsample_factor = downsample_factor
-        self.worker_coordinator_actor = worker_coordinator_actor
-        self.worker_coordinator_actor = None
 
 class StartTelemetry:
     pass
@@ -1114,7 +1112,7 @@ class WorkerCoordinator:
                                                    test_procedure=self.test_procedure.name,
                                                    read_only=False)"""
         self.target.sample_post_processor_actor = self.target.createActor(SamplePostProcessorActor)
-        self.target.send(self.target.sample_post_processor_actor, StartSamplePostProcessorActor(self.config, self.workload, self.test_procedure, downsample_factor, self.target))
+        self.target.send(self.target.sample_post_processor_actor, StartSamplePostProcessorActor(self.config, self.workload, self.test_procedure, downsample_factor))
         print("started sample post processor actor")
 
         """self.sample_post_processor = DefaultSamplePostprocessor(self.metrics_store,
@@ -1485,7 +1483,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         # Avoid issuing any requests to the target cluster when static responses are enabled. The results
         # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
         self.prepare_telemetry(os_clients, enable=not uses_static_responses)
-        #self.worker_coordinator_actor = msg.worker_coordinator_actor
+        self.worker_coordinator_actor = sender
         print("Sample post processor actor is ready. Initialized successfully")
 
     def receiveMsg_ProcessSamples(self, msg, sender):
