@@ -336,12 +336,12 @@ class StartFeedbackActor:
         self.queue_lock = queue_lock
 
 class StartSamplePostProcessorActor:
-    def __init__(self, config, workload, test_procedure, downsample_factor, worker_coordinator_actor):
+    def __init__(self, config, workload, test_procedure, downsample_factor, worker_coordinator_actor=None):
         self.config = config
         self.workload = workload
         self.test_procedure = test_procedure
         self.downsample_factor = downsample_factor
-        self.worker_coordinator_actor = worker_coordinator_actor
+        #self.worker_coordinator_actor = worker_coordinator_actor
 
 class StartTelemetry:
     pass
@@ -1502,10 +1502,11 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         # pylint: disable=assignment-from-none
         metric_results = self.metrics_store.to_externalizable(clear=msg.clear)
         if msg.reason == ReasonForExternalizableRequest.TASK_FINISHED:
-            self.send(self.worker_coordinator_actor, TaskFinished(metric_results, msg.waiting_period))
+            #self.send(self.worker_coordinator_actor, TaskFinished(metric_results, msg.waiting_period))
+            pass
         elif msg.reason == ReasonForExternalizableRequest.BENCHMARK_COMPLETED:
             self.logger.debug("Sending benchmark results...")
-            self.send(self.worker_coordinator_actor, BenchmarkComplete(metric_results))
+            #self.send(self.worker_coordinator_actor, BenchmarkComplete(metric_results))
             
     def receiveMsg_ResetRelativeTimeRequest(self, msg, sender):
         self.metrics_store.reset_relative_time()
