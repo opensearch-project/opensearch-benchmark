@@ -254,8 +254,15 @@ class GetExternalizableMetricsStore:
     Used to request an externalizable version of the metrics store from the sample post processor actor.
     """
     
-    def __init__(self, clear=True):
+    def __init__(self, clear=True, reason=None, waiting_period=None):
         self.clear = clear
+        self.reason = reason
+        self.waiting_period = waiting_period
+
+class ReasonForExternalizableRequest(Enum):
+    """Reasons for requesting an externalizable version of the metrics store."""
+    BENCHMARK_COMPLETED = "Benchmark completed"
+    TASK_FINISHED = "Task finished"
 
 class ResetRelativeTimeRequest:
     """
@@ -335,11 +342,12 @@ class StartFeedbackActor:
         self.queue_lock = queue_lock
 
 class StartSamplePostProcessorActor:
-    def __init__(self, config, workload, test_procedure, downsample_factor):
+    def __init__(self, config, workload, test_procedure, downsample_factor, worker_coordinator_actor):
         self.config = config
         self.workload = workload
         self.test_procedure = test_procedure
         self.downsample_factor = downsample_factor
+        self.worker_coordinator_actor = worker_coordinator_actor
 
 class StartTelemetry:
     pass
@@ -757,6 +765,13 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
             self.coordinator.update_progress_message()
             self.wakeupAfter(datetime.timedelta(seconds=WorkerCoordinatorActor.WAKEUP_INTERVAL_SECONDS))
 
+    @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
+    def receiveMsg_BenchmarkComplete(self, msg, sender):
+        self.on_benchmark_complete(msg.metrics)
+
+    def receiveMsg_TaskFinished(self, msg, sender):
+        self.on_task_finished(msg.metrics, msg.next_task_scheduled_in)
+
     def create_client(self, host):
         return self.createActor(Worker, targetActorRequirements=self._requirements(host))
 
@@ -1101,7 +1116,7 @@ class WorkerCoordinator:
                                                    test_procedure=self.test_procedure.name,
                                                    read_only=False)"""
         self.target.sample_post_processor_actor = self.target.createActor(SamplePostProcessorActor)
-        self.target.send(self.target.sample_post_processor_actor, StartSamplePostProcessorActor(self.config, self.workload.name, self.test_procedure.name, downsample_factor))
+        self.target.send(self.target.sample_post_processor_actor, StartSamplePostProcessorActor(self.config, self.workload.name, self.test_procedure.name, downsample_factor, self.target))
 
         """self.sample_post_processor = DefaultSamplePostprocessor(self.metrics_store,
                                                          downsample_factor,
@@ -1232,9 +1247,10 @@ class WorkerCoordinator:
                 raise exceptions.SystemSetupError("Node stats telemetry not enabled — this is required for CPU-based redline feedback.")
             elif cpu_max and metrics_store_type is metrics.OsMetricsStore:
                 # pass over the index and test run ID so the feedbackActor can query the datastore
-                metrics_store_info = self.target.ask(self.target.sample_post_processor_actor, RedlineMetricStoreInfoRequest(), timeout=3)
-                metrics_index = metrics_store_info["index"]
-                test_run_id = metrics_store_info["test_run_id"]
+                #metrics_store_info = self.target.ask(self.target.sample_post_processor_actor, RedlineMetricStoreInfoRequest(), timeout=3)
+                test_run_timestamp = time.to_iso8601(self.config.opts("system", "time.start"))
+                metrics_index = self.index_name(test_run_timestamp)
+                test_run_id = self.config.opts("system", "test_run.id")
 
             scale_step = self.config.opts("workload", "redline.scale_step", default_value=0)
             scale_down_pct = self.config.opts("workload", "redline.scale_down_pct", default_value=0)
@@ -1257,6 +1273,10 @@ class WorkerCoordinator:
             self.target.start_feedbackActor(self.shared_client_dict)
 
         self.update_progress_message()
+
+    def index_name(self, test_run_timestamp):
+        ts = time.from_is8601(test_run_timestamp)
+        return "benchmark-metrics-%04d-%02d" % (ts.year, ts.month)
 
     def joinpoint_reached(self, worker_id, worker_local_timestamp, task_allocations):
         self.currently_completed += 1
@@ -1290,13 +1310,13 @@ class WorkerCoordinator:
                 # Some metrics store implementations return None because no external representation is required.
                 # pylint: disable=assignment-from-none
                 # m = self.metrics_store.to_externalizable(clear=True)
-                metric_results = self.target.ask(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True), timeout=30)
+                self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True, reason=ReasonForExternalizableRequest.BENCHMARK_COMPLETED), timeout=30)
                 self.logger.debug("Closing metrics store...")
                 self.close_metric_store()
                 # immediately clear as we don't need it anymore and it can consume a significant amount of memory
                 self.metrics_store = None
-                self.logger.debug("Sending benchmark results...")
-                self.target.on_benchmark_complete(metric_results)
+                #self.logger.debug("Sending benchmark results...")
+                #self.target.on_benchmark_complete(metric_results)
             else:
                 self.move_to_next_task(workers_curr_step)
                 # re-enable the feedback actor for the next task if we're in redline testing
@@ -1318,8 +1338,8 @@ class WorkerCoordinator:
         # Some metrics store implementations return None because no external representation is required.
         # pylint: disable=assignment-from-none
         # m = self.metrics_store.to_externalizable(clear=True)
-        metric_results = self.target.ask(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True), timeout=30)
-        self.target.on_task_finished(metric_results, waiting_period)
+        self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True, reason=ReasonForExternalizableRequest.TASK_FINISHED, waiting_period=waiting_period), timeout=30)
+        # self.target.on_task_finished(metric_results, waiting_period)
         # Using a perf_counter here is fine also in the distributed case as we subtract it from `master_received_msg_at` making it
         # a relative instead of an absolute value.
         start_next_task = time.perf_counter() + waiting_period
@@ -1365,7 +1385,7 @@ class WorkerCoordinator:
     def reset_relative_time(self):
         self.logger.debug("Resetting relative time of request metrics store.")
         #self.metrics_store.reset_relative_time()
-        self.target.ask(self.target.sample_post_processor_actor, ResetRelativeTimeRequest(), timeout=3)
+        self.target.send(self.target.sample_post_processor_actor, ResetRelativeTimeRequest(), timeout=3)
 
     def finished(self):
         return self.current_step == self.number_of_steps
@@ -1375,7 +1395,7 @@ class WorkerCoordinator:
         self.close_metric_store()
 
     def close_metric_store(self):
-        self.target.ask(self.target.sample_post_processor_actor, CloseMetricsStore(), timeout=3)
+        self.target.send(self.target.sample_post_processor_actor, CloseMetricsStore(), timeout=3)
 
     def update_samples(self, samples):
         if len(samples) > 0:
@@ -1467,6 +1487,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         # Avoid issuing any requests to the target cluster when static responses are enabled. The results
         # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
         self.prepare_telemetry(os_clients, enable=not uses_static_responses)
+        self.worker_coordinator_actor = msg.worker_coordinator_actor
 
     def receiveMsg_ProcessSamples(self, msg, sender):
         if msg.samples:
@@ -1489,9 +1510,13 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
     def receiveMsg_GetExternalizableMetricsStore(self, msg, sender):
         # Some metrics store implementations return None because no external representation is required.
         # pylint: disable=assignment-from-none
-        m = self.metrics_store.to_externalizable(clear=msg.clear)
-        return m
-
+        metric_results = self.metrics_store.to_externalizable(clear=msg.clear)
+        if msg.reason == ReasonForExternalizableRequest.TASK_FINISHED:
+            self.send(self.worker_coordinator_actor, TaskFinished(metric_results, msg.waiting_period))
+        elif msg.reason == ReasonForExternalizableRequest.BENCHMARK_COMPLETED:
+            self.logger.debug("Sending benchmark results...")
+            self.send(self.worker_coordinator_actor, BenchmarkComplete(metric_results))
+            
     def receiveMsg_ResetRelativeTimeRequest(self, msg, sender):
         self.metrics_store.reset_relative_time()
 
