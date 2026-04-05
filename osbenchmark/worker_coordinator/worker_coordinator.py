@@ -237,12 +237,6 @@ class ProcessSamples:
         self.samples = samples
         self.profile_samples = profile_samples
 
-class RedlineMetricStoreInfoRequest:
-    """
-    Used to send metrics store information between sample post processor actor and coordinator for redline testing.
-    """
-    pass
-
 class CloseMetricsStore:
     """
     Used to signal the sample post processor actor to close the metrics store.
@@ -1247,7 +1241,6 @@ class WorkerCoordinator:
                 raise exceptions.SystemSetupError("Node stats telemetry not enabled — this is required for CPU-based redline feedback.")
             elif cpu_max and metrics_store_type is metrics.OsMetricsStore:
                 # pass over the index and test run ID so the feedbackActor can query the datastore
-                #metrics_store_info = self.target.ask(self.target.sample_post_processor_actor, RedlineMetricStoreInfoRequest(), timeout=3)
                 test_run_timestamp = time.to_iso8601(self.config.opts("system", "time.start"))
                 metrics_index = self.index_name(test_run_timestamp)
                 test_run_id = self.config.opts("system", "test_run.id")
@@ -1310,7 +1303,7 @@ class WorkerCoordinator:
                 # Some metrics store implementations return None because no external representation is required.
                 # pylint: disable=assignment-from-none
                 # m = self.metrics_store.to_externalizable(clear=True)
-                self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True, reason=ReasonForExternalizableRequest.BENCHMARK_COMPLETED), timeout=30)
+                self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True, reason=ReasonForExternalizableRequest.BENCHMARK_COMPLETED))
                 self.logger.debug("Closing metrics store...")
                 self.close_metric_store()
                 # immediately clear as we don't need it anymore and it can consume a significant amount of memory
@@ -1338,7 +1331,7 @@ class WorkerCoordinator:
         # Some metrics store implementations return None because no external representation is required.
         # pylint: disable=assignment-from-none
         # m = self.metrics_store.to_externalizable(clear=True)
-        self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True, reason=ReasonForExternalizableRequest.TASK_FINISHED, waiting_period=waiting_period), timeout=30)
+        self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True, reason=ReasonForExternalizableRequest.TASK_FINISHED, waiting_period=waiting_period))
         # self.target.on_task_finished(metric_results, waiting_period)
         # Using a perf_counter here is fine also in the distributed case as we subtract it from `master_received_msg_at` making it
         # a relative instead of an absolute value.
@@ -1385,7 +1378,7 @@ class WorkerCoordinator:
     def reset_relative_time(self):
         self.logger.debug("Resetting relative time of request metrics store.")
         #self.metrics_store.reset_relative_time()
-        self.target.send(self.target.sample_post_processor_actor, ResetRelativeTimeRequest(), timeout=3)
+        self.target.send(self.target.sample_post_processor_actor, ResetRelativeTimeRequest())
 
     def finished(self):
         return self.current_step == self.number_of_steps
@@ -1395,7 +1388,7 @@ class WorkerCoordinator:
         self.close_metric_store()
 
     def close_metric_store(self):
-        self.target.send(self.target.sample_post_processor_actor, CloseMetricsStore(), timeout=3)
+        self.target.send(self.target.sample_post_processor_actor, CloseMetricsStore())
 
     def update_samples(self, samples):
         if len(samples) > 0:
@@ -1500,9 +1493,6 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
 
     def receiveMsg_StopTelemetry(self, msg, sender):
         self.telemetry.on_benchmark_stop()
-
-    def receiveMsg_RedlineMetricStoreInfoRequest(self, msg, sender):
-        return {"index": self.metrics_store.index, "test_run_id": self.metrics_store.test_run_id}
 
     def receiveMsg_CloseMetricsStore(self, msg, sender):
         self.close()
