@@ -2161,6 +2161,7 @@ class Worker(actor.BenchmarkActor):
         return current
 
     def send_samples(self):
+        print("Sending samples to coordinator")
         # This is where the samples are sent to the coordinator to be processed.
         if self.sampler:
             samples = self.sampler.samples
