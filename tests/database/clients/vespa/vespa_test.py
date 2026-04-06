@@ -837,31 +837,22 @@ class VespaSearchTests(TestCase):
     @run_async
     async def test_search_vespa_error_returns_empty_response(self):
         """VespaError (e.g., sort attribute warnings) returns empty response instead of raising."""
-        original_ve = vespa_mod.VespaError
+        client = _make_client()
+        mock_sync = mock.MagicMock()
+        errors = [{"code": 8, "message": "sort spec: Attribute vector 'timestamp' is not valid"}]
+        mock_sync.query.side_effect = vespa_mod.VespaError(errors)
+        client._sync_session = mock_sync
+        client._search_executor = mock.MagicMock()
 
-        class MockVespaError(Exception):
-            pass
+        async def fake_executor(executor, fn):
+            return fn()
+        with mock.patch("asyncio.get_running_loop") as mock_loop:
+            mock_loop.return_value.run_in_executor = fake_executor
+            result = await client.search(body={"yql": "select * from t where true"})
 
-        vespa_mod.VespaError = MockVespaError
-        try:
-            client = _make_client()
-            mock_sync = mock.MagicMock()
-            errors = [{"code": 8, "message": "sort spec: Attribute vector 'timestamp' is not valid"}]
-            mock_sync.query.side_effect = MockVespaError(errors)
-            client._sync_session = mock_sync
-            client._search_executor = mock.MagicMock()
-
-            async def fake_executor(executor, fn):
-                return fn()
-            with mock.patch("asyncio.get_running_loop") as mock_loop:
-                mock_loop.return_value.run_in_executor = fake_executor
-                result = await client.search(body={"yql": "select * from t where true"})
-
-            self.assertEqual(0, result["root"]["fields"]["totalCount"])
-            self.assertEqual([], result["root"]["children"])
-            self.assertEqual(errors, result["root"]["errors"])
-        finally:
-            vespa_mod.VespaError = original_ve
+        self.assertEqual(0, result["root"]["fields"]["totalCount"])
+        self.assertEqual([], result["root"]["children"])
+        self.assertEqual(errors, result["root"]["errors"])
 
     @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", False)
     @run_async

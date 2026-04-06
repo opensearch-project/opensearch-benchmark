@@ -58,7 +58,10 @@ try:
     PYVESPA_AVAILABLE = True
 except ImportError:
     PyvespaApp = None
-    VespaError = None
+
+    class VespaError(Exception):
+        """Stub for when pyvespa is not installed."""
+
     PYVESPA_AVAILABLE = False
 
 
