@@ -13,7 +13,6 @@ MilvusNodesNamespace).
 """
 # pylint: disable=protected-access
 
-import asyncio
 from unittest import TestCase, mock
 
 from osbenchmark import exceptions
@@ -201,7 +200,6 @@ class MilvusBulkTests(TestCase):
         client = _make_client()
 
         call_count = 0
-        original_insert = None
 
         def flaky_insert(**kwargs):
             nonlocal call_count

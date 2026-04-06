@@ -12,12 +12,10 @@ import numpy as np
 
 from osbenchmark.database.clients.milvus.helpers import (
     get_metric_type,
-    build_collection_schema,
     build_search_params,
     convert_milvus_search_response,
     parse_vector_body,
     calculate_topk_recall,
-    METRIC_TYPE_MAP,
 )
 
 
@@ -67,21 +65,14 @@ class BuildCollectionSchemaTests(TestCase):
     @patch("osbenchmark.database.clients.milvus.helpers.DataType", create=True)
     @patch.dict("sys.modules", {"pymilvus": MagicMock()})
     def test_defaults(self, _mock_dt):
-        # Patch pymilvus.DataType inside the function's lazy import
-        mock_datatype = MagicMock()
-        with patch("osbenchmark.database.clients.milvus.helpers.build_collection_schema") as _:
-            pass  # we'll call the real function instead
-
-        # Re-import so the lazy import of pymilvus.DataType resolves
-        import sys
-        mock_pymilvus = MagicMock()
-        sys.modules["pymilvus"] = mock_pymilvus
+        import sys  # pylint: disable=import-outside-toplevel
+        sys.modules["pymilvus"] = MagicMock()
 
         try:
-            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs
+            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
 
             client = self._make_mock_client()
-            schema, index_params, collection_name = bcs(client, {})
+            _, index_params, collection_name = bcs(client, {})
 
             self.assertEqual(collection_name, "target_index")
             client.create_schema.assert_called_once()
@@ -99,10 +90,10 @@ class BuildCollectionSchemaTests(TestCase):
 
     @patch.dict("sys.modules", {"pymilvus": MagicMock()})
     def test_custom_params(self):
-        import sys
+        import sys  # pylint: disable=import-outside-toplevel
         sys.modules["pymilvus"] = MagicMock()
         try:
-            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs
+            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
 
             client = self._make_mock_client()
             params = {
@@ -113,7 +104,7 @@ class BuildCollectionSchemaTests(TestCase):
                 "hnsw_m": 32,
                 "hnsw_ef_construction": 400,
             }
-            schema, index_params, collection_name = bcs(client, params)
+            _, index_params, collection_name = bcs(client, params)
 
             self.assertEqual(collection_name, "my_collection")
             call_kwargs = index_params.add_index.call_args[1]
@@ -126,10 +117,10 @@ class BuildCollectionSchemaTests(TestCase):
 
     @patch.dict("sys.modules", {"pymilvus": MagicMock()})
     def test_client_options_override_metric(self):
-        import sys
+        import sys  # pylint: disable=import-outside-toplevel
         sys.modules["pymilvus"] = MagicMock()
         try:
-            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs
+            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
 
             client = self._make_mock_client()
             params = {"target_index_space_type": "l2"}
@@ -143,10 +134,10 @@ class BuildCollectionSchemaTests(TestCase):
 
     @patch.dict("sys.modules", {"pymilvus": MagicMock()})
     def test_client_options_override_index_type(self):
-        import sys
+        import sys  # pylint: disable=import-outside-toplevel
         sys.modules["pymilvus"] = MagicMock()
         try:
-            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs
+            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
 
             client = self._make_mock_client()
             client_options = {"index_type": "IVF_FLAT"}
@@ -159,10 +150,10 @@ class BuildCollectionSchemaTests(TestCase):
 
     @patch.dict("sys.modules", {"pymilvus": MagicMock()})
     def test_schema_has_doc_id_and_vector_fields(self):
-        import sys
+        import sys  # pylint: disable=import-outside-toplevel
         sys.modules["pymilvus"] = MagicMock()
         try:
-            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs
+            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
 
             client = self._make_mock_client()
             schema_mock = client.create_schema.return_value
@@ -181,10 +172,10 @@ class BuildCollectionSchemaTests(TestCase):
 
     @patch.dict("sys.modules", {"pymilvus": MagicMock()})
     def test_hnsw_params_from_client_options(self):
-        import sys
+        import sys  # pylint: disable=import-outside-toplevel
         sys.modules["pymilvus"] = MagicMock()
         try:
-            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs
+            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
 
             client = self._make_mock_client()
             client_options = {"hnsw_m": 64, "hnsw_ef_construction": 500}
@@ -335,7 +326,7 @@ class ParseVectorBodyTests(TestCase):
             {"index": {"_index": "idx", "_id": 1}},
             {"embedding": [2.0]},
         ]
-        docs, index = parse_vector_body(body)
+        docs, _ = parse_vector_body(body)
         self.assertEqual(len(docs), 2)
         self.assertEqual(docs[0]["doc_id"], 0)
         self.assertEqual(docs[1]["doc_id"], 1)
