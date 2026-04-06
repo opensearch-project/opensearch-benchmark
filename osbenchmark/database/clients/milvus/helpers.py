@@ -63,7 +63,7 @@ def build_collection_schema(client, params, client_options=None):
     Returns:
         tuple: (schema, index_params, collection_name)
     """
-    from pymilvus import DataType  # pylint: disable=import-outside-toplevel
+    from pymilvus import DataType  # pylint: disable=import-outside-toplevel,import-error
 
     client_options = client_options or {}
     dimension = int(params.get("target_index_dimension", 768))

@@ -171,7 +171,7 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
                 os.environ.setdefault("GRPC_ENABLE_FORK_SUPPORT", "0")
                 os.environ.setdefault("GRPC_VERBOSITY", "ERROR")
                 try:
-                    from pymilvus import MilvusClient as _PyMilvusClient  # pylint: disable=import-outside-toplevel
+                    from pymilvus import MilvusClient as _PyMilvusClient  # pylint: disable=import-outside-toplevel,import-error
                     PyMilvusClient = _PyMilvusClient
                     PYMILVUS_AVAILABLE = True
                 except ImportError:
@@ -187,7 +187,7 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
                 # gRPC channels. Setting _instance = None forces a fresh singleton
                 # on next access. We do NOT call _reset_instance()/close_all()
                 # because calling close() on dead channels can hang.
-                from pymilvus.client.connection_manager import ConnectionManager  # pylint: disable=import-outside-toplevel
+                from pymilvus.client.connection_manager import ConnectionManager  # pylint: disable=import-outside-toplevel,import-error
                 ConnectionManager._instance = None
 
                 self._client = PyMilvusClient(uri=self.uri, timeout=self._timeout_admin, dedicated=True)
@@ -549,8 +549,8 @@ class MilvusIndicesNamespace(IndicesNamespace):
 
     def _send_flush_rpc(self, collection_name, timeout):
         """Send Flush RPC directly, bypassing pymilvus's _wait_for_flushed()."""
-        from pymilvus.client.prepare import Prepare  # pylint: disable=import-outside-toplevel
-        from pymilvus.client.utils import check_status  # pylint: disable=import-outside-toplevel
+        from pymilvus.client.prepare import Prepare  # pylint: disable=import-outside-toplevel,import-error
+        from pymilvus.client.utils import check_status  # pylint: disable=import-outside-toplevel,import-error
 
         handler = self._client._client._get_connection()
         request = Prepare.flush_param([collection_name])
