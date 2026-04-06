@@ -548,7 +548,7 @@ class MilvusQueryTests(TestCase):
         }
 
         runner = MilvusQuery()
-        result = await runner(milvus_client, params)
+        await runner(milvus_client, params)
 
         call_kwargs = milvus_client.search.call_args[1]
         self.assertEqual(call_kwargs["body"]["limit"], 50)
