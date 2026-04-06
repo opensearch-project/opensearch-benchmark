@@ -17,6 +17,7 @@ import asyncio
 from unittest import TestCase, mock
 
 from osbenchmark import exceptions
+import osbenchmark.database.clients.vespa.vespa as vespa_mod
 from osbenchmark.database.clients.vespa.vespa import (
     VespaClientFactory,
     VespaDatabaseClient,
@@ -836,8 +837,6 @@ class VespaSearchTests(TestCase):
     @run_async
     async def test_search_vespa_error_returns_empty_response(self):
         """VespaError (e.g., sort attribute warnings) returns empty response instead of raising."""
-        # Create a VespaError-like exception that matches the real class
-        import osbenchmark.database.clients.vespa.vespa as vespa_mod
         original_ve = vespa_mod.VespaError
 
         class MockVespaError(Exception):

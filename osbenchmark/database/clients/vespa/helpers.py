@@ -807,6 +807,26 @@ def build_grouping_clause(aggs: Dict) -> str:
     return "all(" + " ".join(parts) + ")"
 
 
+def _dedup_nested_outputs(nested_parts: List[str]) -> str:
+    """Deduplicate output() expressions from nested aggregation parts.
+
+    Vespa rejects duplicate output labels at the same level (e.g., two
+    output(count()) from sibling stats aggs). Bucket aggs get wrapped in all().
+    """
+    content_pieces = []
+    seen_outputs = set()
+    for part in nested_parts:
+        if part.startswith("output("):
+            for expr in part.split(" "):
+                expr = expr.strip()
+                if expr and expr not in seen_outputs:
+                    seen_outputs.add(expr)
+                    content_pieces.append(expr)
+        else:
+            content_pieces.append(f"all({part})")
+    return " ".join(content_pieces)
+
+
 def convert_aggregation(agg_name: str, agg_spec: Dict) -> str:  # pylint: disable=too-many-return-statements
     """Convert a single aggregation to Vespa grouping syntax.
 
@@ -826,22 +846,7 @@ def convert_aggregation(agg_name: str, agg_spec: Dict) -> str:  # pylint: disabl
                 nested_parts.append(sub_result)
 
         if nested_parts:
-            content_pieces = []
-            seen_outputs = set()
-            for part in nested_parts:
-                if part.startswith("output("):
-                    # Each part may contain multiple space-separated output() expressions.
-                    # Deduplicate them — Vespa rejects duplicate output labels at
-                    # the same level (e.g., two output(count()) from sibling stats aggs).
-                    for expr in part.split(" "):
-                        expr = expr.strip()
-                        if expr and expr not in seen_outputs:
-                            seen_outputs.add(expr)
-                            content_pieces.append(expr)
-                else:
-                    # Nested bucket agg needs all() wrapper
-                    content_pieces.append(f"all({part})")
-            nested_content = " ".join(content_pieces)
+            nested_content = _dedup_nested_outputs(nested_parts)
 
     # Route to specific converter
     if "date_histogram" in agg_spec:
