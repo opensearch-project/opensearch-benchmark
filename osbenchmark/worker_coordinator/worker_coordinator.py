@@ -2196,7 +2196,7 @@ class Worker(actor.BenchmarkActor):
                 print(self.global_state_actor, "From Worker")
                 self.send(self.global_state_actor, UpdateGlobalPendingMessages(1))
                 self.send(self.master, UpdateSamples(self.worker_id, samples, self.profile_sampler.samples))
-                self.send(self.sample_post_processor_actor, ProcessSamples(self.worker_id, samples, self.profile_sampler.samples))
+                self.send(self.sample_post_processor_actor, ProcessSamples(samples, self.profile_sampler.samples))
             return samples
         return None
 
