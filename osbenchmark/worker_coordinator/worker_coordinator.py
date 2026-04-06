@@ -1702,6 +1702,16 @@ class Worker(actor.BenchmarkActor):
         runner.register_default_runners()
         if self.workload.has_plugins:
             workload.load_workload_plugins(self.config, self.workload.name, runner.register_runner, scheduler.register_scheduler)
+        # Database-specific runners are registered AFTER workload plugins so they take precedence.
+        # This is intentional: workload plugins may register OpenSearch-specific runners (e.g.,
+        # warmup-knn-indices that hits /_plugins/_knn/warmup/) that would fail on non-OpenSearch
+        # databases. By registering database runners last, we ensure the correct implementation
+        # is used for each operation type regardless of what the workload plugin registered.
+        database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
+        if database_type.lower() == "vespa":
+            from osbenchmark.worker_coordinator.runners.vespa import register_vespa_runners  # pylint: disable=import-outside-toplevel
+            register_vespa_runners()
+            self.logger.info("Registered Vespa runners (overriding OpenSearch and workload defaults for supported operations)")
         self.drive()
 
     @actor.no_retry("worker")  # pylint: disable=no-value-for-parameter
