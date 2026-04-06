@@ -2192,7 +2192,7 @@ class Worker(actor.BenchmarkActor):
         if self.sampler:
             samples = self.sampler.samples
             if len(samples) > 0:
-                _report_message_difference("Samples are sending")
+                #_report_message_difference("Samples are sending")
                 print(self.global_state_actor, "From Worker")
                 self.send(self.global_state_actor, UpdateGlobalPendingMessages(1))
                 self.send(self.master, UpdateSamples(self.worker_id, samples, self.profile_sampler.samples))
