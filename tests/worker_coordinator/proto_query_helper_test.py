@@ -25,7 +25,7 @@
 from unittest import TestCase
 
 import numpy as np
-from opensearch.protobufs.schemas import search_pb2
+from opensearch.protobufs.schemas import common_pb2
 
 from osbenchmark.worker_coordinator.proto_helpers.ProtoQueryHelper import ProtoQueryHelper
 
@@ -46,13 +46,13 @@ class ProtoQueryHelperTests(TestCase):
 
         request = ProtoQueryHelper.build_proto_request(params)
 
-        self.assertIsInstance(request, search_pb2.SearchRequest)
+        self.assertIsInstance(request, common_pb2.SearchRequest)
         self.assertEqual(request.index, ["test-index"])
-        self.assertEqual(request.request_body.size, 10)
-        self.assertEqual(request.request_body.timeout, "5000ms")
+        self.assertEqual(request.search_request_body.size, 10)
+        self.assertEqual(request.search_request_body.timeout, "5000ms")
         self.assertTrue(request.request_cache)
-        self.assertTrue(request.x_source.bool)
-        self.assertTrue(request.request_body.query.HasField("match_all"))
+        self.assertTrue(request.x_source.fetch)
+        self.assertTrue(request.search_request_body.query.HasField("match_all"))
 
     def test_build_proto_request_term_query(self):
         params = {
@@ -70,10 +70,10 @@ class ProtoQueryHelperTests(TestCase):
 
         result = ProtoQueryHelper.build_proto_request(params)
 
-        self.assertIsInstance(result, search_pb2.SearchRequest)
-        self.assertTrue(result.request_body.query.HasField("term"))
-        self.assertEqual(result.request_body.query.term.field, "log.file.path")
-        self.assertEqual(result.request_body.query.term.value.string, "/var/log/messages/birdknight")
+        self.assertIsInstance(result, common_pb2.SearchRequest)
+        self.assertTrue(result.search_request_body.query.HasField("term"))
+        self.assertEqual(result.search_request_body.query.term.field, "log.file.path")
+        self.assertEqual(result.search_request_body.query.term.value.string, "/var/log/messages/birdknight")
 
     def test_build_proto_request_term_query_multi_field_fails(self):
         params = {
@@ -122,24 +122,24 @@ class ProtoKNNQueryHelperTests(TestCase):
 
         request = ProtoQueryHelper.build_vector_search_proto_request(params)
 
-        self.assertIsInstance(request, search_pb2.SearchRequest)
-        self.assertTrue(request.request_body.query.HasField('knn'))
-        self.assertEqual(request.request_body.query.knn.field, 'target_field')
-        self.assertAlmostEqual(request.request_body.query.knn.vector[0], 1.49081022e-01, places=5)
-        self.assertEqual(request.request_body.query.knn.k, 100)
+        self.assertIsInstance(request, common_pb2.SearchRequest)
+        self.assertTrue(request.search_request_body.query.HasField('knn'))
+        self.assertEqual(request.search_request_body.query.knn.field, 'target_field')
+        self.assertAlmostEqual(request.search_request_body.query.knn.vector[0], 1.49081022e-01, places=5)
+        self.assertEqual(request.search_request_body.query.knn.k, 100)
 
-        self.assertEqual(request.request_body.size, 100)
+        self.assertEqual(request.search_request_body.size, 100)
         self.assertEqual(request.docvalue_fields, ['_id'])
 
-        self.assertEqual(request.stored_fields, ["_none_"])
+        self.assertEqual(request.search_request_body.stored_fields, ["_none_"])
 
-        self.assertFalse(request.x_source.bool)
+        self.assertFalse(request.x_source.fetch)
         self.assertFalse(request.allow_partial_search_results)
 
         self.assertEqual(request.index, ['target_index'])
         self.assertEqual(request.request_cache, False)
-        self.assertEqual(request.timeout, '')
-        self.assertEqual(request.request_body.profile, False)
+        self.assertEqual(request.search_request_body.timeout, '')
+        self.assertEqual(request.search_request_body.profile, False)
 
     def test_build_vector_search_proto_defaults_with_optional_fields_empty(self):
         params = {
@@ -160,22 +160,22 @@ class ProtoKNNQueryHelperTests(TestCase):
 
         request = ProtoQueryHelper.build_vector_search_proto_request(params)
 
-        self.assertIsInstance(request, search_pb2.SearchRequest)
-        self.assertTrue(request.request_body.query.HasField('knn'))
-        self.assertEqual(request.request_body.query.knn.field, 'knn_field')
-        self.assertAlmostEqual(request.request_body.query.knn.vector[0], 1.49081022e-01, places=5)
-        self.assertEqual(request.request_body.query.knn.k, 100)
+        self.assertIsInstance(request, common_pb2.SearchRequest)
+        self.assertTrue(request.search_request_body.query.HasField('knn'))
+        self.assertEqual(request.search_request_body.query.knn.field, 'knn_field')
+        self.assertAlmostEqual(request.search_request_body.query.knn.vector[0], 1.49081022e-01, places=5)
+        self.assertEqual(request.search_request_body.query.knn.k, 100)
         self.assertEqual(request.index, ['index_required'])
 
         # expected defaults when these fields are not set
-        self.assertEqual(request.request_body.size, 0)
+        self.assertEqual(request.search_request_body.size, 0)
         self.assertEqual(request.docvalue_fields, [])
-        self.assertEqual(request.stored_fields, ["_none_"])
-        self.assertFalse(request.x_source.bool)
+        self.assertEqual(request.search_request_body.stored_fields, ["_none_"])
+        self.assertFalse(request.x_source.fetch)
         self.assertFalse(request.allow_partial_search_results)
         self.assertEqual(request.request_cache, False)
-        self.assertEqual(request.timeout, '')
-        self.assertEqual(request.request_body.profile, False)
+        self.assertEqual(request.search_request_body.timeout, '')
+        self.assertEqual(request.search_request_body.profile, False)
 
     def test_build_vector_search_proto_stored_fields_non_list_parsing(self):
         params = {
@@ -198,12 +198,12 @@ class ProtoKNNQueryHelperTests(TestCase):
 
         request = ProtoQueryHelper.build_vector_search_proto_request(params)
 
-        self.assertEqual(request.stored_fields, ["_none_"])
+        self.assertEqual(request.search_request_body.stored_fields, ["_none_"])
 
         params['body']['stored_fields'] = ['field1', 'field2']
         request = ProtoQueryHelper.build_vector_search_proto_request(params)
 
-        self.assertEqual(request.stored_fields, ['field1', 'field2'])
+        self.assertEqual(request.search_request_body.stored_fields, ['field1', 'field2'])
 
         params['body']['stored_fields'] = 'field1'
 
@@ -236,18 +236,18 @@ class ProtoKNNQueryHelperTests(TestCase):
 
         request = ProtoQueryHelper.build_vector_search_proto_request(params)
 
-        self.assertIsInstance(request, search_pb2.SearchRequest)
-        self.assertTrue(request.request_body.query.HasField('knn'))
-        self.assertEqual(request.request_body.query.knn.field, 'target_field')
-        self.assertAlmostEqual(request.request_body.query.knn.vector[0], 1.49081022e-01, places=5)
-        self.assertEqual(request.request_body.query.knn.k, 100)
+        self.assertIsInstance(request, common_pb2.SearchRequest)
+        self.assertTrue(request.search_request_body.query.HasField('knn'))
+        self.assertEqual(request.search_request_body.query.knn.field, 'target_field')
+        self.assertAlmostEqual(request.search_request_body.query.knn.vector[0], 1.49081022e-01, places=5)
+        self.assertEqual(request.search_request_body.query.knn.k, 100)
         self.assertEqual(request.index, ['target_index'])
 
         # bools are provided in several forms: True/False/None/"True"/"False"/"true"/"false"
-        self.assertTrue(request.x_source.bool)
+        self.assertTrue(request.x_source.fetch)
         self.assertFalse(request.allow_partial_search_results)
         self.assertEqual(request.request_cache, False)
-        self.assertEqual(request.request_body.profile, False)
+        self.assertEqual(request.search_request_body.profile, False)
 
     def test_build_vector_search_proto_ignore_params(self):
         params = {
