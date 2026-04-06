@@ -2186,6 +2186,8 @@ class Worker(actor.BenchmarkActor):
 
     def send_samples(self):
         print("Sending samples to coordinator")
+        print("Global state actor: ", self.global_state_actor)
+        print("Sample post processor actor: ", self.sample_post_processor_actor)
         # This is where the samples are sent to the coordinator to be processed.
         if self.sampler:
             samples = self.sampler.samples
