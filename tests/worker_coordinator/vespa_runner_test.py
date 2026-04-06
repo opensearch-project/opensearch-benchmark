@@ -1503,7 +1503,7 @@ class VespaWarmupIndicesRunnerTests(TestCase):
         runner = VespaWarmupIndicesRunner()
         result = await runner(vespa_client, {"index": "target_index"})
 
-        self.assertEqual(vespa_client.search.call_count, VespaWarmupIndicesRunner.WARMUP_QUERIES)
+        self.assertEqual(vespa_client.search.call_count, VespaWarmupIndicesRunner.DEFAULT_WARMUP_QUERIES)
         self.assertTrue(result["success"])
 
     @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")

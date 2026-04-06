@@ -58,12 +58,19 @@ from osbenchmark.database.registry import register_database, DatabaseType
 from osbenchmark.database.factory import DatabaseClientFactory
 from osbenchmark.database.clients.opensearch.opensearch import OpenSearchClientFactory
 from osbenchmark.database.clients.vespa.vespa import VespaClientFactory
+from osbenchmark.database.clients.milvus.milvus import MilvusClientFactory
 
 # Register OpenSearch as the default database type
 register_database(DatabaseType.OPENSEARCH, OpenSearchClientFactory)
 
 # Register Vespa database type
 register_database(DatabaseType.VESPA, VespaClientFactory)
+
+# Register Milvus database type
+# Note: pymilvus initializes gRPC at import time. This MUST happen at module
+# level (before Thespian forks actors) so all child processes inherit the same
+# gRPC state. Importing after some forks but before others causes deadlock.
+register_database(DatabaseType.MILVUS, MilvusClientFactory)
 
 # Public API exports
 __all__ = [

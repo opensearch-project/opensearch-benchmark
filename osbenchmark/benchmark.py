@@ -600,7 +600,7 @@ def create_arg_parser():
         default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS)
     test_run_parser.add_argument(
         "--database-type",
-        help="Define the target database type (default: opensearch). Supported types: opensearch, vespa.",
+        help="Define the target database type (default: opensearch). Supported types: opensearch, vespa, milvus.",
         default="opensearch")
     test_run_parser.add_argument("--on-error",
                              choices=["continue", "abort"],
