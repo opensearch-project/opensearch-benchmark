@@ -1712,6 +1712,10 @@ class Worker(actor.BenchmarkActor):
             from osbenchmark.worker_coordinator.runners.vespa import register_vespa_runners  # pylint: disable=import-outside-toplevel
             register_vespa_runners()
             self.logger.info("Registered Vespa runners (overriding OpenSearch and workload defaults for supported operations)")
+        elif database_type.lower() == "milvus":
+            from osbenchmark.worker_coordinator.runners.milvus import register_milvus_runners  # pylint: disable=import-outside-toplevel
+            register_milvus_runners()
+            self.logger.info("Registered Milvus runners (overriding OpenSearch and workload defaults for supported operations)")
         self.drive()
 
     @actor.no_retry("worker")  # pylint: disable=no-value-for-parameter

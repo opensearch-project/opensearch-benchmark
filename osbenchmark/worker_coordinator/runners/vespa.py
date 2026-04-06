@@ -80,7 +80,8 @@ class VespaBulkIndex(Runner):
                 source = doc.get("_source", doc)
                 action = doc.get("_action", "index")
 
-                if "@timestamp" in source or "timestamp" in source or any(isinstance(v, (dict, list)) for v in source.values()):
+                has_nested = any(isinstance(v, (dict, list)) for v in source.values())
+                if "@timestamp" in source or "timestamp" in source or has_nested:
                     source = transform_document_for_vespa(source)
 
                 prepared.append({"_id": doc_id, "fields": source, "_action": action})
@@ -643,16 +644,17 @@ class VespaWarmupIndicesRunner(Runner):
     queries to warm OS page cache, attribute caches, and internal paths.
     """
 
-    WARMUP_QUERIES = 5
+    DEFAULT_WARMUP_QUERIES = 100
 
     async def __call__(self, vespa_client, params):
         index = params.get("index", "target_index")
         doc_type = index or getattr(vespa_client, "_app_name", "default")
+        warmup_queries = self.DEFAULT_WARMUP_QUERIES
 
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
-            for _ in range(self.WARMUP_QUERIES):
+            for _ in range(warmup_queries):
                 await vespa_client.search(
                     index=index,
                     body={"yql": f"select * from {doc_type} where true", "hits": 1}
