@@ -1,4 +1,3 @@
-from opensearch.protobufs.schemas import search_pb2
 from opensearch.protobufs.schemas import common_pb2
 
 # In some cases (KNN) we set stored fields explicitly to "_none_" to disable
@@ -86,7 +85,7 @@ class ProtoQueryHelper:
         body = params.get("body")
         size = body.get("size") if "size" in body else None
         fetch_source = is_true(body.get("_source"))
-        source_config = common_pb2.SourceConfigParam(bool=fetch_source)
+        source_config = common_pb2.SourceConfigParam(fetch=fetch_source)
         index = [params.get("index")]
         timeout = None if params.get("request-timeout") is None else str(params.get("request-timeout")) + "ms"
 
@@ -97,8 +96,8 @@ class ProtoQueryHelper:
         else:
             cache = None
 
-        return search_pb2.SearchRequest(
-            request_body=search_pb2.SearchRequestBody(
+        return common_pb2.SearchRequest(
+            search_request_body=common_pb2.SearchRequestBody(
                 query=ProtoQueryHelper.query_body_to_proto(body),
                 timeout=timeout,
                 size = size
@@ -137,7 +136,7 @@ class ProtoQueryHelper:
         fetch_source = is_true(request_params.get("_source"))
         profile_query = is_true(params.get("profile_query"))
         partial_results = is_true(request_params.get("allow_partial_search_results"))
-        source_config = common_pb2.SourceConfigParam(bool=fetch_source)
+        source_config = common_pb2.SourceConfigParam(fetch=fetch_source)
         timeout = params.get("request-timeout")
 
         stored_fields = body.get("stored_fields")
@@ -166,26 +165,26 @@ class ProtoQueryHelper:
             )
 
         knn_query_proto = knn_query_to_proto(body.get("query"))
-        return search_pb2.SearchRequest(
-            request_body=search_pb2.SearchRequestBody(
+        return common_pb2.SearchRequest(
+            search_request_body=common_pb2.SearchRequestBody(
                 query=common_pb2.QueryContainer(knn=knn_query_proto),
                 timeout=timeout,
                 profile=profile_query,
-                size = size
+                size = size,
+                stored_fields=stored_fields
             ),
             index=index,
             x_source=source_config,
             request_cache=cache,
             allow_partial_search_results=partial_results,
-            docvalue_fields=doc_value_fields,
-            stored_fields=stored_fields
+            docvalue_fields=doc_value_fields
         )
 
     # Parse stats from protobuf response.
     # ``detailed-results``: return detailed results, hits, took, hits_relation
     @staticmethod
     def build_stats(response, params):
-        if not isinstance(response, search_pb2.SearchResponse):
+        if not isinstance(response, common_pb2.SearchResponse):
             raise Exception("Unknown response proto: " + response)
 
         if params.get("detailed-results"):
