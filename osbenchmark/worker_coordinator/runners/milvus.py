@@ -128,11 +128,21 @@ class MilvusVectorSearch(Runner):
     Timing: build params BEFORE, search() INSIDE, convert + recall AFTER.
     """
 
+    # Class-level timing accumulators (TIMING INSTRUMENTATION — REMOVE BEFORE MERGE)
+    _timing_total_calls = 0
+    _timing_build_us = 0.0
+    _timing_search_us = 0.0
+    _timing_response_conv_us = 0.0
+    _timing_total_us = 0.0
+
     @staticmethod
     def _extract_doc_id(milvus_id):
         return str(milvus_id)
 
     async def __call__(self, milvus_client, params):
+        import time as _time  # pylint: disable=import-outside-toplevel
+        t_call_start = _time.perf_counter()
+
         body = params.get("body", {})
         index = params.get("index")
         k = params.get("k", 100)
@@ -141,6 +151,7 @@ class MilvusVectorSearch(Runner):
         vector_field = params.get("target_field_name", "embedding")
 
         # BEFORE timing: extract vector, build params
+        t_build_start = _time.perf_counter()
         query = body.get("query", {})
         knn = query.get("knn", body.get("knn", {}))
         vector = None
@@ -170,10 +181,12 @@ class MilvusVectorSearch(Runner):
             "output_fields": ["doc_id"],
             "search_params": search_config["search_params"],
         }
+        t_build_end = _time.perf_counter()
 
         # INSIDE timing: gRPC search only
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
+        t_search_start = _time.perf_counter()
         try:
             raw_result = await milvus_client.search(index=collection_name, body=search_body)
         except Exception as e:
@@ -183,8 +196,10 @@ class MilvusVectorSearch(Runner):
         finally:
             request_context_holder.on_request_end()
             request_context_holder.on_client_request_end()
+        t_search_end = _time.perf_counter()
 
         # AFTER timing: convert response, calculate recall
+        t_resp_start = _time.perf_counter()
         response = convert_milvus_search_response(raw_result, collection_name)
         hits = response.get("hits", {}).get("total", {}).get("value", 0)
         result = {
@@ -206,6 +221,26 @@ class MilvusVectorSearch(Runner):
             neighbors = params["neighbors"]
             result["recall@k"] = calculate_topk_recall(candidates, neighbors, k)
             result["recall@1"] = calculate_topk_recall(candidates, neighbors, 1)
+        t_resp_end = _time.perf_counter()
+
+        # TIMING INSTRUMENTATION (REMOVE BEFORE MERGE)
+        t_call_end = _time.perf_counter()
+        MilvusVectorSearch._timing_total_calls += 1
+        MilvusVectorSearch._timing_build_us += (t_build_end - t_build_start) * 1e6
+        MilvusVectorSearch._timing_search_us += (t_search_end - t_search_start) * 1e6
+        MilvusVectorSearch._timing_response_conv_us += (t_resp_end - t_resp_start) * 1e6
+        MilvusVectorSearch._timing_total_us += (t_call_end - t_call_start) * 1e6
+        if MilvusVectorSearch._timing_total_calls % 1000 == 0:
+            n = MilvusVectorSearch._timing_total_calls
+            self.logger.warning(
+                "[MILVUS TIMING n=%d] build=%.2fus search=%.2fus response=%.2fus total=%.2fus overhead=%.2fus",
+                n,
+                MilvusVectorSearch._timing_build_us / n,
+                MilvusVectorSearch._timing_search_us / n,
+                MilvusVectorSearch._timing_response_conv_us / n,
+                MilvusVectorSearch._timing_total_us / n,
+                (MilvusVectorSearch._timing_total_us - MilvusVectorSearch._timing_search_us) / n,
+            )
 
         return result
 
