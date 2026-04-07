@@ -44,7 +44,8 @@ class DatabaseClientFactory:
     """
 
     @staticmethod
-    def create_client_factory(database_type: str, hosts: List[Dict], client_options: Dict) -> Any:
+    def create_client_factory(database_type: str, hosts: List[Dict],
+                              client_options: Dict, grpc_hosts: Any = None) -> Any:
         """
         Create the appropriate database client factory.
 
@@ -52,6 +53,8 @@ class DatabaseClientFactory:
             database_type: String identifier for database type (e.g., "opensearch")
             hosts: List of host dictionaries with "host" and "port" keys
             client_options: Dictionary of client-specific options
+            grpc_hosts: Optional TargetHosts for gRPC. Currently only used by the
+                OpenSearch client factory to enable the gRPC SearchService stub.
 
         Returns:
             A database-specific client factory instance
@@ -85,6 +88,9 @@ class DatabaseClientFactory:
                 f"This database type may not be fully implemented yet."
             )
 
+        # OpenSearch factory accepts grpc_hosts; other factories don't need it.
+        if db_enum == DatabaseType.OPENSEARCH:
+            return factory_class(hosts, client_options, grpc_hosts=grpc_hosts)
         return factory_class(hosts, client_options)
 
     @staticmethod

@@ -243,30 +243,41 @@ class OpenSearchClientFactory:
     to create clients that implement the DatabaseClient interface.
     """
 
-    def __init__(self, hosts, client_options):
+    def __init__(self, hosts, client_options, grpc_hosts=None):
         """
         Initialize factory with connection parameters.
 
         Args:
             hosts: List of host dictionaries with "host" and "port" keys
             client_options: Dictionary of client-specific options
+            grpc_hosts: Optional TargetHosts for gRPC. When provided, the
+                returned client wraps both REST and gRPC stubs via UnifiedClient,
+                making `search_service()` available for proto-vector-search runners.
         """
         self.hosts = hosts
         self.client_options = client_options
+        self.grpc_hosts = grpc_hosts
         self.logger = logging.getLogger(__name__)
 
     def create_async(self):
         """
         Create an async OpenSearch client that implements DatabaseClient interface.
 
-        Returns:
-            OpenSearchDatabaseClient wrapping an async opensearchpy client
-        """
-        # Use legacy OsClientFactory to create the actual client
-        os_factory = OsClientFactory(self.hosts, self.client_options)
-        opensearch_client = os_factory.create_async()
+        When grpc_hosts is set, the underlying client is a UnifiedClient that
+        exposes both REST methods (via __getattr__ delegation) and gRPC stubs
+        (via search_service()/document_service()). Otherwise, only REST is wired.
 
-        # Wrap it in our DatabaseClient interface
+        Returns:
+            OpenSearchDatabaseClient wrapping the underlying client
+        """
+        os_factory = OsClientFactory(self.hosts, self.client_options)
+
+        if self.grpc_hosts:
+            unified_factory = UnifiedClientFactory(os_factory, self.grpc_hosts)
+            opensearch_client = unified_factory.create_async()
+        else:
+            opensearch_client = os_factory.create_async()
+
         return OpenSearchDatabaseClient(opensearch_client)
 
     def create(self):

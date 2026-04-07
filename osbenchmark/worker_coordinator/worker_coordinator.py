@@ -2221,7 +2221,8 @@ class AsyncIoAdapter:
                     db_factory = DatabaseClientFactory.create_client_factory(
                         database_type,
                         cluster_hosts,
-                        all_client_options[cluster_name]
+                        all_client_options[cluster_name],
+                        grpc_hosts=grpc_hosts,
                     )
                     db_client = db_factory.create_async()
                     self.logger.info("Created client type=[%s] for cluster=[%s]", type(db_client).__name__, cluster_name)
