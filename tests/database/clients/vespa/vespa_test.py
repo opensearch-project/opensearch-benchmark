@@ -377,7 +377,22 @@ class VespaPyvespaSyncSessionTests(TestCase):
 
         self.assertIsNotNone(client._sync_session)
         self.assertIsNotNone(client._search_executor)
+        self.assertEqual(64, client._search_executor._max_workers)
         mock_app.syncio.assert_called_once_with(compress=False)
+
+    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    def test_ensure_sync_session_respects_max_workers_option(self, mock_pyvespa_cls):
+        mock_sync_ctx = mock.MagicMock()
+        mock_sync_ctx._open_httpr_client = mock.MagicMock()
+        mock_app = mock.MagicMock()
+        mock_app.syncio.return_value = mock_sync_ctx
+        mock_pyvespa_cls.return_value = mock_app
+
+        client = VespaDatabaseClient(endpoint="http://h:8080", max_workers=128)
+        client._ensure_sync_session()
+
+        self.assertEqual(128, client._search_executor._max_workers)
 
     @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
     @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")

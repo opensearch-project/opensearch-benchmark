@@ -241,13 +241,14 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
         self._sync_session = sync_ctx
 
+        max_workers = int(self.client_options.get("max_workers", 64))
         self._search_executor = concurrent.futures.ThreadPoolExecutor(
-            max_workers=64, thread_name_prefix="vespa-search"
+            max_workers=max_workers, thread_name_prefix="vespa-search"
         )
 
         self.logger.info(
-            "pyvespa sync search session initialized (endpoint=%s, compress=False)",
-            self.endpoint,
+            "pyvespa sync search session initialized (endpoint=%s, compress=False, max_workers=%d)",
+            self.endpoint, max_workers,
         )
 
     # --- pyvespa async session for feeding ---
