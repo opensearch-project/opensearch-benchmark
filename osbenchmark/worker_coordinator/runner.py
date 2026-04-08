@@ -1589,6 +1589,43 @@ class Query(Runner):
             result["recall_time_ms"] = recall_processing_time
             return result
 
+        async def _fire_and_forget_query(opensearch, params):
+            """
+            Fire-and-forget search execution.
+
+            The caller (AsyncNoAwaitExecutor) has already wrapped this call in an
+            asyncio.Task so the dispatch loop returns immediately. We do the HTTP
+            call inline here (NOT as another nested task) so the executor's drain
+            at end-of-run waits for the actual HTTP request to finish — otherwise
+            the aiohttp session is torn down before the request completes and we
+            get "Session is closed" errors for every request.
+            """
+            doc_type = params.get("type")
+
+            # Modify request_params to disable timeouts for fire-and-forget mode
+            ff_request_params = request_params.copy()
+            ff_request_params.pop("timeout", None)
+            ff_request_params.pop("request_timeout", None)
+
+            try:
+                await self._raw_search(opensearch, doc_type, index, body, ff_request_params, headers=headers)
+            except Exception:
+                # Silently consume all exceptions in fire-and-forget mode
+                pass
+
+            return {
+                "weight": 1,
+                "unit": "ops",
+                "success": True,
+                "fire_and_forget": True
+            }
+
+        # Check if fire-and-forget mode is enabled
+        fire_and_forget = params.get("fire_and_forget", False)
+        if fire_and_forget:
+            return await _fire_and_forget_query(opensearch, params)
+
+
         search_method = params.get("operation-type")
         if search_method == "paginated-search":
             return await _search_after_query(opensearch, params)
