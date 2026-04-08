@@ -2943,7 +2943,7 @@ class TimePeriodBased:
         self.logger = logging.getLogger(__name__)
 
         if warmup_time_period is not None and time_period is not None:
-            self._base_duration = self._warmup_time_period + self._time_period
+            self._base_duration = self._warmup_time_period + self._time_period + self._ramp_down_time_period
 
             # Calculate how early this client should stop during ramp-down
             # Clients stop in REVERSE order: Client 0 stops first, Client (N-1) stops last
