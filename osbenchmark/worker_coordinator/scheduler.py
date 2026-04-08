@@ -86,18 +86,21 @@ task's parameter source into this property.
 """
 
 
-def scheduler_for(task: osbenchmark.workload.Task):
+def scheduler_for(task: osbenchmark.workload.Task, schedule_override: str = None):
     """
     Creates a scheduler instance
 
     :param task: The current task for which a scheduler is needed.
+    :param schedule_override: Optional scheduler name to use instead of task.schedule.
+        Used by fire-and-forget mode to force deterministic scheduling without
+        mutating the shared task object.
     :return: An initialized scheduler instance.
     """
     logger = logging.getLogger(__name__)
     if run_unthrottled(task):
         return Unthrottled()
 
-    schedule = task.schedule or DeterministicScheduler.name
+    schedule = schedule_override or task.schedule or DeterministicScheduler.name
     try:
         scheduler_class = __SCHEDULERS[schedule]
     except KeyError:

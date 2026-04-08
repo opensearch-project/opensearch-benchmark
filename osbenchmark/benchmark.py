@@ -709,6 +709,12 @@ def create_arg_parser():
         help="How many seconds between CPU checks there should be during CPU-based redline testing. (Default: 30)",
         default=None
     )
+    test_execution_parser.add_argument(
+        "--no-await",
+        help="Enable unhinged mode for maximum throughput without response handling or metrics collection (search queries only).",
+        action="store_true",
+        default=False
+    )
 
     ###############################################################################
     #
@@ -1024,6 +1030,7 @@ def configure_test(arg_parser, args, cfg):
     cfg.add(config.Scope.applicationOverride, "workload", "randomization.repeat_frequency", args.randomization_repeat_frequency)
     cfg.add(config.Scope.applicationOverride, "workload", "randomization.n", args.randomization_n)
     cfg.add(config.Scope.applicationOverride, "workload", "randomization.alpha", args.randomization_alpha)
+    cfg.add(config.Scope.applicationOverride, "worker_coordinator", "no_await", args.no_await)
     configure_workload_params(arg_parser, args, cfg)
     configure_connection_params(arg_parser, args, cfg)
     configure_telemetry_params(args, cfg)
