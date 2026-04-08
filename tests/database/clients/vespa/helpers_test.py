@@ -17,6 +17,9 @@ from osbenchmark.database.clients.vespa.helpers import (
     wrap_fields_with_assign,
     parse_bulk_body,
     convert_to_yql,
+    _yql_cache,
+    _has_knn_query,
+    _extract_knn_vector,
     _build_search_after_filter,
     build_where_clause,
     convert_knn_query,
@@ -437,6 +440,93 @@ class ConvertToYqlTests(TestCase):
         yql, _ = convert_to_yql(body, "logs-181998")
         self.assertIn("from sources * where", yql)
         self.assertNotIn("from logs-181998", yql)
+
+
+class ConvertToYqlCacheTests(TestCase):
+    """Tests for the identity-based YQL translation cache."""
+
+    def setUp(self):
+        # Each test gets a clean cache so order-dependence isn't a footgun.
+        _yql_cache.clear()
+
+    def tearDown(self):
+        _yql_cache.clear()
+
+    def test_cache_hit_returns_same_yql_for_static_body(self):
+        body = {"query": {"term": {"status": 200}}}
+        yql1, params1 = convert_to_yql(body, "mytype")
+        # Cache populated — second call should hit and return identical output
+        yql2, params2 = convert_to_yql(body, "mytype")
+        self.assertEqual(yql1, yql2)
+        self.assertEqual(params1, params2)
+        # Only one cache entry created (one body)
+        self.assertEqual(1, len(_yql_cache))
+
+    def test_cache_hit_returns_distinct_params_dict(self):
+        # Callers may mutate the returned params dict (the runner does this for
+        # vector search to inject hits/hnsw params), so cache must return a copy.
+        body = {"query": {"match_all": {}}, "request-timeout": 10}
+        _, params1 = convert_to_yql(body, "mytype")
+        params1["mutated"] = True
+        _, params2 = convert_to_yql(body, "mytype")
+        self.assertNotIn("mutated", params2)
+
+    def test_cache_miss_for_different_body_objects(self):
+        # Same content, different identity → two cache entries (id-based key).
+        body1 = {"query": {"term": {"status": 200}}}
+        body2 = {"query": {"term": {"status": 200}}}
+        convert_to_yql(body1, "mytype")
+        convert_to_yql(body2, "mytype")
+        self.assertEqual(2, len(_yql_cache))
+
+    def test_empty_body_bypasses_cache(self):
+        convert_to_yql(None, "mytype")
+        convert_to_yql({}, "mytype")
+        self.assertEqual(0, len(_yql_cache))
+
+    def test_knn_cache_hit_reextracts_vector(self):
+        # Vector-search bodies have a stable outer dict but the vector inside
+        # changes per call. The cache hit path must re-extract and re-format
+        # the current vector rather than returning the original one.
+        body = {"query": {"knn": {"embedding": {"vector": [1.0, 2.0, 3.0], "k": 5}}}}
+        yql1, params1 = convert_to_yql(body, "mytype")
+        self.assertIn("nearestNeighbor(embedding, query_vector)", yql1)
+        self.assertEqual("[1.0,2.0,3.0]", params1["input.query(query_vector)"])
+
+        # Param source mutates the inner knn dict in place — same body identity,
+        # different vector contents.
+        body["query"]["knn"]["embedding"]["vector"] = [9.0, 8.0, 7.0]
+        yql2, params2 = convert_to_yql(body, "mytype")
+        self.assertEqual(yql1, yql2)
+        self.assertEqual("[9.0,8.0,7.0]", params2["input.query(query_vector)"])
+
+    def test_knn_cache_hit_preserves_ranking_param(self):
+        # The 'ranking' param set by convert_knn_query must survive cache hits.
+        body = {"query": {"knn": {"embedding": {"vector": [1.0, 2.0], "k": 5}}}}
+        convert_to_yql(body, "mytype")  # populates cache
+        _, params = convert_to_yql(body, "mytype")
+        self.assertEqual("vector-similarity", params["ranking"])
+
+    def test_has_knn_query_top_level(self):
+        self.assertTrue(_has_knn_query({"knn": {"embedding": {"vector": [1.0]}}}))
+
+    def test_has_knn_query_nested(self):
+        self.assertTrue(_has_knn_query({"query": {"knn": {"embedding": {"vector": [1.0]}}}}))
+
+    def test_has_knn_query_negative(self):
+        self.assertFalse(_has_knn_query({"query": {"term": {"status": 200}}}))
+        self.assertFalse(_has_knn_query({}))
+
+    def test_extract_knn_vector_nested_format(self):
+        body = {"query": {"knn": {"embedding": {"vector": [1.0, 2.0, 3.0], "k": 5}}}}
+        self.assertEqual([1.0, 2.0, 3.0], _extract_knn_vector(body))
+
+    def test_extract_knn_vector_top_level(self):
+        body = {"knn": {"embedding": {"vector": [4.0, 5.0], "k": 3}}}
+        self.assertEqual([4.0, 5.0], _extract_knn_vector(body))
+
+    def test_extract_knn_vector_returns_none_when_missing(self):
+        self.assertIsNone(_extract_knn_vector({"query": {"term": {"x": 1}}}))
 
 
 class BuildWhereClauseTests(TestCase):  # pylint: disable=too-many-public-methods

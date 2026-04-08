@@ -283,6 +283,41 @@ def parse_bulk_body(body) -> List[Dict]:
 # Query Translation — DSL → YQL
 # =============================================================================
 
+# Identity-based YQL translation cache. Keyed by id(body) so we don't pay for
+# content hashing of nested dicts on every request. This is safe because OSB's
+# parameter sources hold a strong reference to each body dict throughout a run
+# (see SearchParamSource.params() returning self.query_params), so id() reuse
+# via GC isn't possible while a cache entry is live. Each OSB worker process
+# gets its own cache. Vector-search bodies have a stable outer dict but the
+# query vector changes per call — for those we cache the YQL skeleton and the
+# stable params, then re-extract and re-format the vector on each cache hit.
+_yql_cache: Dict[int, Tuple[str, Dict, bool]] = {}
+
+
+def _has_knn_query(body: Dict) -> bool:
+    """Return True if body contains a knn query (top-level or nested)."""
+    if "knn" in body:
+        return True
+    query = body.get("query")
+    return isinstance(query, dict) and "knn" in query
+
+
+def _extract_knn_vector(body: Dict) -> Optional[List]:
+    """Extract the query vector from a knn body. Returns None if not found.
+
+    Supports both formats:
+      - Standard nested: {"knn": {"field_name": {"vector": [...], "k": ...}}}
+      - Flat:           {"knn": {"field": "name", "vector": [...], "k": ...}}
+    """
+    knn_config = body.get("knn") or body.get("query", {}).get("knn")
+    if not isinstance(knn_config, dict):
+        return None
+    for value in knn_config.values():
+        if isinstance(value, dict) and "vector" in value:
+            return value.get("vector")
+    return knn_config.get("vector")
+
+
 def convert_to_yql(body: Optional[Dict], document_type: str) -> Tuple[str, Dict]:
     """Convert OpenSearch query DSL to Vespa YQL.
 
@@ -291,11 +326,30 @@ def convert_to_yql(body: Optional[Dict], document_type: str) -> Tuple[str, Dict]
 
     Handles search_after by converting to range filter in WHERE clause
     (keyset pagination equivalent).
-    """
-    query_params = {}
 
+    Translation results are cached by id(body) to avoid paying ~400us of
+    Python work per request when parameter sources reuse body dicts (which
+    they do for every benchmark workload). For KNN bodies the YQL skeleton
+    is cached but the vector is re-extracted per call.
+    """
     if not body:
-        return f"select * from {document_type} where true", query_params
+        return f"select * from {document_type} where true", {}
+
+    cache_key = id(body)
+    cached = _yql_cache.get(cache_key)
+    if cached is not None:
+        cached_yql, cached_base_params, has_knn = cached
+        if not has_knn:
+            return cached_yql, dict(cached_base_params)
+        # KNN: rebuild the vector input each call. The YQL skeleton and the
+        # rest of query_params (ranking, etc.) are reused from cache.
+        params = dict(cached_base_params)
+        vector = _extract_knn_vector(body)
+        if vector is not None:
+            params["input.query(query_vector)"] = "[" + ",".join(str(v) for v in vector) + "]"
+        return cached_yql, params
+
+    query_params = {}
 
     # KNN can appear at top level or inside "query"
     query = body.get("query", {})
@@ -344,6 +398,7 @@ def convert_to_yql(body: Optional[Dict], document_type: str) -> Tuple[str, Dict]
     if request_timeout:
         query_params["timeout"] = f"{request_timeout}s"
 
+    _yql_cache[cache_key] = (yql, dict(query_params), _has_knn_query(body))
     return yql, query_params
 
 
