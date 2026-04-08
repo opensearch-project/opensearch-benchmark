@@ -486,19 +486,21 @@ class ConvertToYqlCacheTests(TestCase):
 
     def test_knn_cache_hit_reextracts_vector(self):
         # Vector-search bodies have a stable outer dict but the vector inside
-        # changes per call. The cache hit path must re-extract and re-format
-        # the current vector rather than returning the original one.
+        # changes per call. The cache hit path must re-extract the current
+        # vector rather than returning the original one. The vector is passed
+        # through as a list (not a pre-formatted string) so httpr can serialize
+        # it natively.
         body = {"query": {"knn": {"embedding": {"vector": [1.0, 2.0, 3.0], "k": 5}}}}
         yql1, params1 = convert_to_yql(body, "mytype")
         self.assertIn("nearestNeighbor(embedding, query_vector)", yql1)
-        self.assertEqual("[1.0,2.0,3.0]", params1["input.query(query_vector)"])
+        self.assertEqual([1.0, 2.0, 3.0], params1["input.query(query_vector)"])
 
         # Param source mutates the inner knn dict in place — same body identity,
         # different vector contents.
         body["query"]["knn"]["embedding"]["vector"] = [9.0, 8.0, 7.0]
         yql2, params2 = convert_to_yql(body, "mytype")
         self.assertEqual(yql1, yql2)
-        self.assertEqual("[9.0,8.0,7.0]", params2["input.query(query_vector)"])
+        self.assertEqual([9.0, 8.0, 7.0], params2["input.query(query_vector)"])
 
     def test_knn_cache_hit_preserves_ranking_param(self):
         # The 'ranking' param set by convert_knn_query must survive cache hits.
@@ -758,9 +760,25 @@ class ConvertKnnQueryTests(TestCase):
         self.assertEqual(result, "{targetHits:10}nearestNeighbor(vec, query_vector)")
 
     def test_vector_stored_in_query_params(self):
+        # Stored as a Python list — pyvespa POSTs the body as JSON via httpr,
+        # which serializes the list natively in microseconds. Pre-formatting
+        # to a string in Python costs 140-380us per call for a 768-dim vector.
         params = {}
         convert_knn_query({"target_field": {"vector": [1.0, 2.0], "k": 100}}, params)
-        self.assertEqual(params["input.query(query_vector)"], "[1.0,2.0]")
+        self.assertEqual(params["input.query(query_vector)"], [1.0, 2.0])
+
+    def test_vector_numpy_array_converted_to_list(self):
+        # numpy arrays must be converted to Python lists since the JSON
+        # serializer doesn't know how to handle numpy scalars.
+        try:
+            import numpy as np
+        except ImportError:
+            self.skipTest("numpy not available")
+        params = {}
+        convert_knn_query({"target_field": {"vector": np.array([1.0, 2.0, 3.0], dtype=np.float32), "k": 100}}, params)
+        result = params["input.query(query_vector)"]
+        self.assertIsInstance(result, list)
+        self.assertEqual(3, len(result))
 
     def test_ranking_set(self):
         params = {}

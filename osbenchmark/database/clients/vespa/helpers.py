@@ -342,11 +342,15 @@ def convert_to_yql(body: Optional[Dict], document_type: str) -> Tuple[str, Dict]
         if not has_knn:
             return cached_yql, dict(cached_base_params)
         # KNN: rebuild the vector input each call. The YQL skeleton and the
-        # rest of query_params (ranking, etc.) are reused from cache.
+        # rest of query_params (ranking, etc.) are reused from cache. The
+        # vector is passed through as a list — httpr's Rust serde handles
+        # JSON serialization in microseconds.
         params = dict(cached_base_params)
         vector = _extract_knn_vector(body)
         if vector is not None:
-            params["input.query(query_vector)"] = "[" + ",".join(str(v) for v in vector) + "]"
+            if hasattr(vector, "tolist"):
+                vector = vector.tolist()
+            params["input.query(query_vector)"] = vector
         return cached_yql, params
 
     query_params = {}
@@ -514,8 +518,13 @@ def convert_knn_query(knn_config: Dict, query_params: Dict) -> str:
         vector = knn_config.get("vector", [])
         k = knn_config.get("k", 10)
 
-    vector_str = "[" + ",".join(str(v) for v in vector) + "]"
-    query_params["input.query(query_vector)"] = vector_str
+    # Pass the vector as a Python list rather than pre-formatting it to a
+    # string. pyvespa POSTs the body as JSON via httpr (Rust serde), which
+    # serializes the list in microseconds — much faster than 768 calls to
+    # str(np.float32) in Python (~140-380us depending on dtype).
+    if hasattr(vector, "tolist"):
+        vector = vector.tolist()
+    query_params["input.query(query_vector)"] = vector
     query_params["ranking"] = "vector-similarity"
 
     return f"{{targetHits:{k}}}nearestNeighbor({field}, query_vector)"
