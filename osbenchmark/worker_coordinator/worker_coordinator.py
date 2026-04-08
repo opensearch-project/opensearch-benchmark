@@ -2711,6 +2711,18 @@ class AsyncNoAwaitExecutor:
             self.logger.exception("Could not execute unhinged schedule")
             raise exceptions.BenchmarkError(f"Cannot run task [{self.task}]: {e}") from None
         finally:
+            # Drain any in-flight fire-and-forget tasks before exiting. The dispatch
+            # loop completes very quickly (it just creates background tasks), so without
+            # this drain the event loop would be torn down and pending HTTP requests
+            # would be destroyed mid-flight. This also keeps metric samples flowing
+            # while the requests complete.
+            if self._inflight_tasks:
+                self.logger.info(
+                    "Client [%s] draining [%d] in-flight fire-and-forget tasks before exit...",
+                    self.client_id, len(self._inflight_tasks)
+                )
+                await asyncio.gather(*self._inflight_tasks, return_exceptions=True)
+
             if self.task_completes_parent:
                 self.logger.info(
                     "Task [%s] completes parent. Client id [%s] is finished executing it and signals completion.",
