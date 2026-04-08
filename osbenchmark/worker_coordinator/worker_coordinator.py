@@ -2657,9 +2657,8 @@ class AsyncNoAwaitExecutor:
                     finally:
                         # Clean up the context
                         RequestContextHolder.restore_context(token)
-
                 except Exception:
-                    # Log errors for debugging
+                    # Silently swallow errors in fire-and-forget mode
                     pass
 
             # Create task but don't await - true fire and forget

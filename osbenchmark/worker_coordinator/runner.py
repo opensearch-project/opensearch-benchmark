@@ -1610,7 +1610,7 @@ class Query(Runner):
             try:
                 await self._raw_search(opensearch, doc_type, index, body, ff_request_params, headers=headers)
             except Exception:
-                # Silently consume all exceptions in fire-and-forget mode
+                # Silently swallow errors in fire-and-forget mode
                 pass
 
             return {
