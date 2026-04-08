@@ -25,15 +25,19 @@
 """
 Milvus database client implementation for OpenSearch Benchmark.
 
-Wraps pymilvus's synchronous MilvusClient, dispatching all calls through
-a dedicated ThreadPoolExecutor for non-blocking operation within OSB's
-async runner framework.
+Uses pymilvus's AsyncMilvusClient (native grpc.aio) for all operations.
+The gRPC aio stack runs the I/O loop in C with the GIL released during
+select/epoll waits, so a single Python thread can efficiently juggle many
+concurrent coroutines without the thread-level GIL contention that caps
+the sync + ThreadPoolExecutor pattern. At 32 concurrent clients this
+beats sync+threadpool by ~13% (2015 vs 1777 QPS) and scales further past
+the 8-client saturation point. See
+`Notes/Open Source/Multi DB Project/Comparative Benchmarking/GIL and
+Multi-Client Scaling.md` for the measurements.
 """
 # pylint: disable=protected-access
 
 import asyncio
-import concurrent.futures
-import functools
 import logging
 import os
 import threading
@@ -55,7 +59,7 @@ from osbenchmark.database.interface import (
 # the forked children inherit corrupted gRPC state and hang. By deferring the
 # import to _ensure_client() (which only runs inside worker processes after
 # all forks are complete), we avoid this entirely.
-PyMilvusClient = None
+PyAsyncMilvusClient = None
 PYMILVUS_AVAILABLE = None  # None = not yet checked, True/False after first check
 
 
@@ -110,15 +114,14 @@ class MilvusClientFactory:
 class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
     """Async Milvus client implementing the DatabaseClient interface.
 
-    Threading model:
-    - A dedicated ThreadPoolExecutor isolates Milvus gRPC calls from the
-      event loop and other async work.
-    - run_in_executor() overhead is ~20-80us per call (<1% of gRPC latency).
+    Uses pymilvus AsyncMilvusClient (native grpc.aio). All methods are
+    directly awaitable — no ThreadPoolExecutor, no run_in_executor.
 
     Retry policy:
     - bulk()/insert(): retries transient gRPC errors (3 attempts, exponential backoff)
     - search(): NO retry — retry inflates reported latency
-    - Admin ops (flush, compact, load): no retry, one-shot
+    - Admin ops (flush, compact, load): one-shot except where documented
+      (flush has rate-limit retry because Milvus throttles it to 0.1/s)
     """
 
     def __init__(self, host="localhost", port=19530, **client_options):
@@ -130,16 +133,13 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
 
         self._client = None
         self._client_initialized = False
+        # threading.Lock rather than asyncio.Lock: _ensure_client() may be
+        # called from both sync (create_schema, prepare_index_params) and
+        # async paths. A threading lock is safe in both contexts.
         self._init_lock = threading.Lock()
         self._collection_name = client_options.get(
             "collection_name",
             client_options.get("app_name", "target_index"),
-        )
-
-        max_workers = int(client_options.get("max_workers", 64))
-        self._executor = concurrent.futures.ThreadPoolExecutor(
-            max_workers=max_workers,
-            thread_name_prefix="milvus",
         )
 
         self._timeout_insert = int(client_options.get("timeout_insert", 60))
@@ -152,11 +152,15 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
         self._nodes_ns = MilvusNodesNamespace(self)
 
     def _ensure_client(self):
-        """Lazy-init pymilvus MilvusClient with double-checked locking.
+        """Lazy-init pymilvus AsyncMilvusClient with double-checked locking.
 
         pymilvus is imported HERE (not at module level) to avoid initializing
         gRPC in the main process before Thespian forks. This method only runs
         inside worker processes after all forks are complete.
+
+        AsyncMilvusClient.__init__() is synchronous (stores config, defers
+        actual gRPC channel setup to the first awaited call), so no await
+        is needed here.
         """
         if self._client_initialized:
             return
@@ -164,54 +168,55 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
             if self._client_initialized:
                 return
 
-            global PyMilvusClient, PYMILVUS_AVAILABLE  # pylint: disable=global-statement
+            global PyAsyncMilvusClient, PYMILVUS_AVAILABLE  # pylint: disable=global-statement
             if PYMILVUS_AVAILABLE is None:
                 # Set gRPC env vars right before first import — guaranteed to
                 # take effect since grpc hasn't been imported yet in this process.
                 os.environ.setdefault("GRPC_ENABLE_FORK_SUPPORT", "0")
                 os.environ.setdefault("GRPC_VERBOSITY", "ERROR")
                 try:
-                    from pymilvus import MilvusClient as _PyMilvusClient  # pylint: disable=import-outside-toplevel,import-error
-                    PyMilvusClient = _PyMilvusClient
+                    from pymilvus import AsyncMilvusClient as _PyAsync  # pylint: disable=import-outside-toplevel,import-error
+                    PyAsyncMilvusClient = _PyAsync
                     PYMILVUS_AVAILABLE = True
                 except ImportError:
                     PYMILVUS_AVAILABLE = False
 
             if not PYMILVUS_AVAILABLE:
                 raise exceptions.SystemSetupError(
-                    "pymilvus not installed. Run: pip install 'pymilvus>=2.5.0'"
+                    "pymilvus not installed or AsyncMilvusClient unavailable. "
+                    "Run: pip install 'pymilvus>=2.5.0'"
                 )
             try:
                 # Nuke any inherited ConnectionManager singleton from a parent
                 # process (Thespian fork). The inherited singleton may hold dead
                 # gRPC channels. Setting _instance = None forces a fresh singleton
-                # on next access. We do NOT call _reset_instance()/close_all()
-                # because calling close() on dead channels can hang.
-                from pymilvus.client.connection_manager import ConnectionManager  # pylint: disable=import-outside-toplevel,import-error
-                ConnectionManager._instance = None
+                # on next access. AsyncMilvusClient uses grpc.aio (not the sync
+                # ConnectionManager) so this may be a no-op for async, but we
+                # keep it defensively since pymilvus code paths are intertwined.
+                try:
+                    from pymilvus.client.connection_manager import ConnectionManager  # pylint: disable=import-outside-toplevel,import-error
+                    ConnectionManager._instance = None
+                except ImportError:
+                    pass
 
-                self._client = PyMilvusClient(uri=self.uri, timeout=self._timeout_admin, dedicated=True)
+                self._client = PyAsyncMilvusClient(uri=self.uri, timeout=self._timeout_admin)
                 self._client_initialized = True
-                self.logger.info("pymilvus connected to %s", self.uri)
+                self.logger.info("pymilvus AsyncMilvusClient connected to %s", self.uri)
             except Exception as e:
                 self.logger.error("Failed to connect to Milvus at %s: %s", self.uri, e)
                 raise exceptions.SystemSetupError(
                     f"Cannot connect to Milvus at {self.uri}: {e}"
                 )
 
-    async def _run(self, fn, *args, **kwargs):
-        """Run a synchronous pymilvus call in the dedicated thread pool."""
-        loop = asyncio.get_running_loop()
-        return await loop.run_in_executor(
-            self._executor,
-            functools.partial(fn, *args, **kwargs),
-        )
+    async def _with_retry(self, coro_fn, *args, max_retries=3, **kwargs):
+        """Call an awaitable function with retry on transient gRPC errors.
 
-    async def _run_with_retry(self, fn, *args, max_retries=3, **kwargs):
-        """Run with retry for transient gRPC failures. Used for ingestion only."""
+        Used for ingestion (bulk/insert). Search deliberately does NOT use this —
+        retrying search inflates reported latency.
+        """
         for attempt in range(max_retries + 1):
             try:
-                return await self._run(fn, *args, **kwargs)
+                return await coro_fn(*args, **kwargs)
             except Exception as e:
                 err_str = str(e).lower()
                 is_transient = any(t in err_str for t in (
@@ -239,26 +244,30 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
         return False
 
     async def close(self):  # pylint: disable=invalid-overridden-method
-        """Close pymilvus client and thread pool."""
+        """Close AsyncMilvusClient."""
         with self._init_lock:
-            if self._client:
+            if self._client is not None:
                 try:
-                    await asyncio.wait_for(self._run(self._client.close), timeout=10)
+                    await asyncio.wait_for(self._client.close(), timeout=10)
                 except (asyncio.TimeoutError, Exception) as e:
                     self.logger.warning("Error closing pymilvus client: %s", e)
                 self._client = None
                 self._client_initialized = False
-        self._executor.shutdown(wait=False)
 
-    # --- Public pymilvus wrappers (runners never touch _client directly) ---
+    # --- Schema helpers (sync — pure Python, no network calls) ---
 
     def create_schema(self):
-        """Expose pymilvus create_schema()."""
+        """Expose pymilvus create_schema() — pure helper, no gRPC.
+
+        In pymilvus, this is a classmethod that returns a new CollectionSchema
+        object. Safe to call without awaiting. AsyncMilvusClient inherits it
+        from MilvusClient.
+        """
         self._ensure_client()
         return self._client.create_schema()
 
     def prepare_index_params(self):
-        """Expose pymilvus prepare_index_params()."""
+        """Expose pymilvus prepare_index_params() — pure helper, no gRPC."""
         self._ensure_client()
         return self._client.prepare_index_params()
 
@@ -267,8 +276,7 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
         self._ensure_client()
         timeout = timeout or self._timeout_admin
         try:
-            await self._run(
-                self._client.load_collection,
+            await self._client.load_collection(
                 collection_name=collection_name,
                 timeout=timeout,
             )
@@ -308,7 +316,7 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
             body = [body]
 
         try:
-            result = await self._run_with_retry(
+            result = await self._with_retry(
                 self._client.insert,
                 collection_name=collection_name,
                 data=body,
@@ -349,7 +357,7 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
         search_kwargs["collection_name"] = collection_name
         search_kwargs.setdefault("timeout", self._timeout_search)
 
-        return await self._run(self._client.search, **search_kwargs)
+        return await self._client.search(**search_kwargs)
 
     async def index(self, index, body, id=None, doc_type=None, **kwargs):
         """Index a single document."""
@@ -357,8 +365,7 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
         collection_name = index or self._collection_name
         if id is not None:
             body["doc_id"] = int(id)
-        await self._run(
-            self._client.insert,
+        await self._client.insert(
             collection_name=collection_name,
             data=[body],
             timeout=self._timeout_insert,
@@ -378,8 +385,7 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
                           json={}, timeout=10, headers={"Content-Type": "application/json"})
             version = "unknown"
             if resp.status_code == 200:
-                # Milvus REST API works — extract version from a separate call if needed
-                version = "2.x"  # REST API doesn't expose version; get it from health port
+                version = "2.x"
                 health_url = f"http://{self.host}:9091/api/v1/health"
                 try:
                     health_resp = req.get(health_url, timeout=5)
@@ -441,24 +447,14 @@ class MilvusIndicesNamespace(IndicesNamespace):
         index_params = body.get("index_params") if body else None
 
         if schema and index_params:
-            if await self._client._run(
-                self._client._client.has_collection,
-                collection_name=collection_name,
-            ):
-                await self._client._run(
-                    self._client._client.drop_collection,
-                    collection_name=collection_name,
-                )
+            if await self._client._client.has_collection(collection_name=collection_name):
+                await self._client._client.drop_collection(collection_name=collection_name)
                 for _ in range(20):
-                    if not await self._client._run(
-                        self._client._client.has_collection,
-                        collection_name=collection_name,
-                    ):
+                    if not await self._client._client.has_collection(collection_name=collection_name):
                         break
                     await asyncio.sleep(0.5)
 
-            await self._client._run(
-                self._client._client.create_collection,
+            await self._client._client.create_collection(
                 collection_name=collection_name,
                 schema=schema,
                 index_params=index_params,
@@ -467,27 +463,25 @@ class MilvusIndicesNamespace(IndicesNamespace):
 
     async def delete(self, index, **kwargs):
         self._client._ensure_client()
-        await self._client._run(
-            self._client._client.drop_collection,
+        await self._client._client.drop_collection(
             collection_name=index or self._client._collection_name,
         )
         return {"acknowledged": True}
 
     async def exists(self, index, **kwargs):
         self._client._ensure_client()
-        return await self._client._run(
-            self._client._client.has_collection,
-            collection_name=index,
-        )
+        return await self._client._client.has_collection(collection_name=index)
 
     async def refresh(self, index=None, **kwargs):
         """Map to Milvus flush() — seals growing segments, persists to storage.
 
-        Bypasses pymilvus's flush() to avoid its internal _wait_for_flushed()
-        polling loop. That loop can trigger a reconnect cascade that permanently
-        kills the gRPC channel (reconnect timeout → close channel → "Cannot
-        invoke RPC on closed channel!"). Instead we send the Flush RPC directly
-        and poll get_flush_state ourselves with reconnect resilience.
+        With AsyncMilvusClient we call flush() directly and let pymilvus handle
+        the state polling. The sync-client workaround (sending the Flush RPC
+        via the raw stub and polling get_flush_state ourselves) was needed to
+        avoid a reconnect cascade in the sync ConnectionManager, which doesn't
+        apply to grpc.aio.
+
+        Milvus throttles flush to 0.1/s, so we retry on rate-limit errors.
         """
         self._client._ensure_client()
         if not index:
@@ -495,12 +489,10 @@ class MilvusIndicesNamespace(IndicesNamespace):
 
         timeout = self._client._timeout_admin
 
-        # Step 1: Send the Flush RPC directly via the gRPC stub.
-        # Retry on rate limiting — Milvus throttles flush to 0.1/s.
         for attempt in range(5):
             try:
-                segment_ids, flush_ts = await self._client._run(
-                    self._send_flush_rpc, index, timeout
+                await self._client._client.flush(
+                    collection_name=index, timeout=timeout,
                 )
                 break
             except Exception as e:
@@ -510,63 +502,12 @@ class MilvusIndicesNamespace(IndicesNamespace):
                     continue
                 raise
 
-        if not segment_ids:
-            return {"acknowledged": True, "_shards": {"total": 1, "successful": 1, "failed": 0}}
-
-        # Step 2: Poll get_flush_state ourselves
-        start = time.time()
-        while True:
-            try:
-                handler = self._client._client._get_connection()
-                flushed = await self._client._run(
-                    handler.get_flush_state,
-                    segment_ids, index, flush_ts, timeout=timeout,
-                )
-                if flushed:
-                    break
-            except Exception as e:
-                elapsed = time.time() - start
-                if elapsed > timeout:
-                    raise
-                err_str = str(e).lower()
-                if "closed channel" in err_str or "cannot invoke" in err_str:
-                    self._client.logger.warning(
-                        "Flush poll hit closed channel (%.0fs), reconnecting...", elapsed
-                    )
-                    self._client._client_initialized = False
-                    self._client._client = None
-                    self._client._ensure_client()
-                else:
-                    raise
-
-            if time.time() - start > timeout:
-                raise exceptions.SystemSetupError(
-                    f"Flush timed out after {timeout}s for collection {index}"
-                )
-            await asyncio.sleep(0.5)
-
         return {"acknowledged": True, "_shards": {"total": 1, "successful": 1, "failed": 0}}
-
-    def _send_flush_rpc(self, collection_name, timeout):
-        """Send Flush RPC directly, bypassing pymilvus's _wait_for_flushed()."""
-        from pymilvus.client.prepare import Prepare  # pylint: disable=import-outside-toplevel,import-error
-        from pymilvus.client.utils import check_status  # pylint: disable=import-outside-toplevel,import-error
-
-        handler = self._client._client._get_connection()
-        request = Prepare.flush_param([collection_name])
-        response = handler._stub.Flush(request, timeout=timeout)
-        check_status(response.status)
-
-        seg_id_array = response.coll_segIDs.get(collection_name)
-        segment_ids = list(seg_id_array.data) if seg_id_array else []
-        flush_ts = response.coll_flush_ts.get(collection_name, 0)
-        return segment_ids, flush_ts
 
     async def stats(self, index=None, metric=None, **kwargs):  # pylint: disable=invalid-overridden-method
         self._client._ensure_client()
         if index:
-            result = await self._client._run(
-                self._client._client.get_collection_stats,
+            result = await self._client._client.get_collection_stats(
                 collection_name=index,
             )
             row_count = result.get("row_count", 0)
@@ -588,8 +529,7 @@ class MilvusIndicesNamespace(IndicesNamespace):
         if not index:
             return {"_shards": {"total": 1, "successful": 1, "failed": 0}}
 
-        job_id = await self._client._run(
-            self._client._client.compact,
+        job_id = await self._client._client.compact(
             collection_name=index,
             timeout=self._client._timeout_admin,
         )
@@ -598,10 +538,7 @@ class MilvusIndicesNamespace(IndicesNamespace):
         if wait and wait != "false":
             for i in range(120):
                 try:
-                    state = await self._client._run(
-                        self._client._client.get_compaction_state,
-                        job_id,
-                    )
+                    state = await self._client._client.get_compaction_state(job_id)
                     if state == "Completed":
                         break
                     if i > 0 and i % 15 == 0:
@@ -623,7 +560,7 @@ class MilvusClusterNamespace(ClusterNamespace):
     async def health(self, **kwargs):
         self._client._ensure_client()
         try:
-            await self._client._run(self._client._client.list_collections)
+            await self._client._client.list_collections()
             return {
                 "cluster_name": "milvus",
                 "status": "green",
