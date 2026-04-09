@@ -22,14 +22,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-OpenSearch-specific runner implementations for OpenSearch Benchmark.
-
-This module contains all OpenSearch-specific runner classes (BulkIndex, Query,
-ClusterHealth, etc.) and the register_default_runners function that registers
-them with the runner registry.
-"""
-
 import asyncio
 import contextvars
 import json
@@ -38,6 +30,7 @@ import random
 import re
 import sys
 import time
+import types
 from collections import Counter, OrderedDict
 from copy import deepcopy
 from enum import Enum
@@ -54,28 +47,16 @@ from opensearchpy import NotFoundError
 
 from osbenchmark import exceptions, workload
 from osbenchmark.utils import convert
+from osbenchmark.client import RequestContextHolder
+# Mapping from operation type to specific runner
 from osbenchmark.utils.parse import parse_int_parameter, parse_string_parameter, parse_float_parameter
 from osbenchmark.worker_coordinator.proto_helpers.ProtoBulkHelper import ProtoBulkHelper
 from osbenchmark.worker_coordinator.proto_helpers.ProtoQueryHelper import ProtoQueryHelper
 
-from osbenchmark.worker_coordinator.runners.base import (
-    Runner,
-    Delegator,
-    time_func,
-    request_context_holder,
-    mandatory,
-    remove_prefix,
-)
-
-# Import registry function used by Composite runner and register_default_runners.
-# This is a lazy import at function level for register_default_runners (to avoid
-# circular imports), but runner_for is safe to import at module level since it's
-# defined in __init__.py before opensearch.py is loaded.
-from osbenchmark.worker_coordinator.runners import runner_for
+__RUNNERS = {}
 
 
 def register_default_runners():
-    from osbenchmark.worker_coordinator.runners import register_runner  # pylint: disable=import-outside-toplevel
     register_runner(workload.OperationType.Bulk, BulkIndex(), async_runner=True)
     register_runner(workload.OperationType.ForceMerge, ForceMerge(), async_runner=True)
     register_runner(workload.OperationType.IndexStats, Retry(IndicesStats()), async_runner=True)
@@ -139,6 +120,353 @@ def register_default_runners():
     register_runner(workload.OperationType.CreateMlConnector, Retry(CreateMlConnector()), async_runner=True)
     register_runner(workload.OperationType.DeleteMlConnector, Retry(DeleteMlConnector()), async_runner=True)
     register_runner(workload.OperationType.RegisterRemoteMlModel, Retry(RegisterRemoteMlModel()), async_runner=True)
+
+def runner_for(operation_type):
+    try:
+        return __RUNNERS[operation_type]
+    except KeyError:
+        raise exceptions.BenchmarkError("No runner available for operation type [%s]" % operation_type)
+
+
+def enable_assertions(enabled):
+    """
+    Changes whether assertions are enabled. The status changes for all tasks that are executed after this call.
+
+    :param enabled: ``True`` to enable assertions, ``False`` to disable them.
+    """
+    AssertingRunner.assertions_enabled = enabled
+
+
+def register_runner(operation_type, runner, **kwargs):
+    logger = logging.getLogger(__name__)
+    async_runner = kwargs.get("async_runner", False)
+    if isinstance(operation_type, workload.OperationType):
+        operation_type = operation_type.to_hyphenated_string()
+
+    if not async_runner:
+        raise exceptions.BenchmarkAssertionError(
+            "Runner [{}] must be implemented as async runner and registered with async_runner=True.".format(str(runner)))
+
+    if getattr(runner, "multi_cluster", False):
+        if "__aenter__" in dir(runner) and "__aexit__" in dir(runner):
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Registering runner object [%s] for [%s].", str(runner), str(operation_type))
+            cluster_aware_runner = _multi_cluster_runner(runner, str(runner), context_manager_enabled=True)
+        else:
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("Registering context-manager capable runner object [%s] for [%s].", str(runner), str(operation_type))
+            cluster_aware_runner = _multi_cluster_runner(runner, str(runner))
+    # we'd rather use callable() but this will erroneously also classify a class as callable...
+    elif isinstance(runner, types.FunctionType):
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Registering runner function [%s] for [%s].", str(runner), str(operation_type))
+        cluster_aware_runner = _single_cluster_runner(runner, runner.__name__)
+    elif "__aenter__" in dir(runner) and "__aexit__" in dir(runner):
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Registering context-manager capable runner object [%s] for [%s].", str(runner), str(operation_type))
+        cluster_aware_runner = _single_cluster_runner(runner, str(runner), context_manager_enabled=True)
+    else:
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Registering runner object [%s] for [%s].", str(runner), str(operation_type))
+        cluster_aware_runner = _single_cluster_runner(runner, str(runner))
+
+    __RUNNERS[operation_type] = _with_completion(_with_assertions(cluster_aware_runner))
+
+# Only intended for unit-testing!
+def remove_runner(operation_type):
+    del __RUNNERS[operation_type]
+
+
+class Runner:
+    """
+    Base class for all operations against OpenSearch.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.logger = logging.getLogger(__name__)
+
+    async def __aenter__(self):
+        return self
+
+    async def __call__(self, opensearch, params):  # pylint: disable=too-many-nested-blocks
+        """
+        Runs the actual method that should be benchmarked.
+
+        :param args: All arguments that are needed to call this method.
+        :return: A pair of (int, String). The first component indicates the "weight" of this call. it is typically 1 but for bulk operations
+                 it should be the actual bulk size. The second component is the "unit" of weight which should be "ops" (short for
+                 "operations") by default. If applicable, the unit should always be in plural form. It is used in metrics records
+                 for throughput and results. A value will then be shown as e.g. "111 ops/s".
+        """
+        raise NotImplementedError("abstract operation")
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return False
+
+    def _default_kw_params(self, params):
+        # map of API kwargs to OSB config parameters
+        kw_dict = {
+            "body": "body",
+            "headers": "headers",
+            "index": "index",
+            "opaque_id": "opaque-id",
+            "params": "request-params",
+            "request_timeout": "request-timeout",
+        }
+        full_result =  {k: params.get(v) for (k, v) in kw_dict.items()}
+        # filter Nones
+        return dict(filter(lambda kv: kv[1] is not None, full_result.items()))
+
+    def _transport_request_params(self, params):
+        request_params = params.get("request-params", {})
+        request_timeout = params.get("request-timeout")
+        if request_timeout is not None:
+            request_params["request_timeout"] = request_timeout
+        headers = params.get("headers") or {}
+        opaque_id = params.get("opaque-id")
+        if opaque_id is not None:
+            headers.update({"x-opaque-id": opaque_id})
+        return request_params, headers
+
+request_context_holder = RequestContextHolder()
+
+def time_func(func):
+    async def advised(*args, **kwargs):
+        request_context_holder.on_client_request_start()
+        try:
+            response = await func(*args, **kwargs)
+            return response
+        finally:
+            request_context_holder.on_client_request_end()
+    return advised
+
+
+class Delegator:
+    """
+    Mixin to unify delegate handling
+    """
+    def __init__(self, delegate, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.delegate = delegate
+
+
+def unwrap(runner):
+    """
+    Unwraps all delegators until the actual runner.
+
+    :param runner: An arbitrarily nested chain of delegators around a runner.
+    :return: The innermost runner.
+    """
+    delegate = getattr(runner, "delegate", None)
+    if delegate:
+        return unwrap(delegate)
+    else:
+        return runner
+
+
+def _single_cluster_runner(runnable, name, context_manager_enabled=False):
+    # only pass the default ES client
+    return MultiClientRunner(runnable, name, lambda opensearch: opensearch["default"], context_manager_enabled)
+
+
+def _multi_cluster_runner(runnable, name, context_manager_enabled=False):
+    # pass all ES clients
+    return MultiClientRunner(runnable, name, lambda opensearch: opensearch, context_manager_enabled)
+
+
+def _with_assertions(delegate):
+    return AssertingRunner(delegate)
+
+
+def _with_completion(delegate):
+    unwrapped_runner = unwrap(delegate)
+    if hasattr(unwrapped_runner, "completed") and hasattr(unwrapped_runner, "task_progress"):
+        return WithCompletion(delegate, unwrapped_runner)
+    else:
+        return NoCompletion(delegate)
+
+
+class NoCompletion(Runner, Delegator):
+    def __init__(self, delegate):
+        super().__init__(delegate=delegate)
+
+    @property
+    def completed(self):
+        return None
+
+    @property
+    def task_progress(self):
+        return None
+
+    async def __call__(self, *args):
+        return await self.delegate(*args)
+
+    def __repr__(self, *args, **kwargs):
+        return repr(self.delegate)
+
+    async def __aenter__(self):
+        await self.delegate.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return await self.delegate.__aexit__(exc_type, exc_val, exc_tb)
+
+
+class WithCompletion(Runner, Delegator):
+    def __init__(self, delegate, progressable):
+        super().__init__(delegate=delegate)
+        self.progressable = progressable
+
+    @property
+    def completed(self):
+        return self.progressable.completed
+
+    @property
+    def task_progress(self):
+        return self.progressable.task_progress
+
+    async def __call__(self, *args):
+        return await self.delegate(*args)
+
+    def __repr__(self, *args, **kwargs):
+        return repr(self.delegate)
+
+    async def __aenter__(self):
+        await self.delegate.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return await self.delegate.__aexit__(exc_type, exc_val, exc_tb)
+
+
+class MultiClientRunner(Runner, Delegator):
+    def __init__(self, runnable, name, client_extractor, context_manager_enabled=False):
+        super().__init__(delegate=runnable)
+        self.name = name
+        self.client_extractor = client_extractor
+        self.context_manager_enabled = context_manager_enabled
+
+    async def __call__(self, *args):
+        return await self.delegate(self.client_extractor(args[0]), *args[1:])
+
+    def __repr__(self, *args, **kwargs):
+        if self.context_manager_enabled:
+            return "user-defined context-manager enabled runner for [%s]" % self.name
+        else:
+            return "user-defined runner for [%s]" % self.name
+
+    async def __aenter__(self):
+        if self.context_manager_enabled:
+            await self.delegate.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.context_manager_enabled:
+            return await self.delegate.__aexit__(exc_type, exc_val, exc_tb)
+        else:
+            return False
+
+
+class AssertingRunner(Runner, Delegator):
+    assertions_enabled = False
+
+    def __init__(self, delegate):
+        super().__init__(delegate=delegate)
+        self.predicates = {
+            ">": self.greater_than,
+            ">=": self.greater_than_or_equal,
+            "<": self.smaller_than,
+            "<=": self.smaller_than_or_equal,
+            "==": self.equal,
+        }
+
+    def greater_than(self, expected, actual):
+        return actual > expected
+
+    def greater_than_or_equal(self, expected, actual):
+        return actual >= expected
+
+    def smaller_than(self, expected, actual):
+        return actual < expected
+
+    def smaller_than_or_equal(self, expected, actual):
+        return actual <= expected
+
+    def equal(self, expected, actual):
+        return actual == expected
+
+    def check_assertion(self, op_name, assertion, properties):
+        path = assertion["property"]
+        predicate_name = assertion["condition"]
+        expected_value = assertion["value"]
+        actual_value = properties
+        for k in path.split("."):
+            actual_value = actual_value[k]
+        predicate = self.predicates[predicate_name]
+        success = predicate(expected_value, actual_value)
+        if not success:
+            if op_name:
+                msg = f"Expected [{path}] in [{op_name}] to be {predicate_name} [{expected_value}] but was [{actual_value}]."
+            else:
+                msg = f"Expected [{path}] to be {predicate_name} [{expected_value}] but was [{actual_value}]."
+
+            raise exceptions.BenchmarkTaskAssertionError(msg)
+
+    async def __call__(self, *args):
+        params = args[1]
+        return_value = await self.delegate(*args)
+        if AssertingRunner.assertions_enabled and "assertions" in params:
+            op_name = params.get("name")
+            if isinstance(return_value, dict):
+                for assertion in params["assertions"]:
+                    self.check_assertion(op_name, assertion, return_value)
+            else:
+                self.logger.debug("Skipping assertion check in [%s] as [%s] does not return a dict.",
+                                  op_name, repr(self.delegate))
+        return return_value
+
+    def __repr__(self, *args, **kwargs):
+        return repr(self.delegate)
+
+    async def __aenter__(self):
+        await self.delegate.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return await self.delegate.__aexit__(exc_type, exc_val, exc_tb)
+
+
+def mandatory(params, key, op):
+    try:
+        return params[key]
+    except KeyError:
+        raise exceptions.DataError(
+            f"Parameter source for operation '{str(op)}' did not provide the mandatory parameter '{key}'. "
+            f"Add it to your parameter source and try again.")
+
+
+# TODO: remove and use https://docs.python.org/3/library/stdtypes.html#str.removeprefix
+#  once Python 3.9 becomes the minimum version
+def remove_prefix(string, prefix):
+    if string.startswith(prefix):
+        return string[len(prefix):]
+    return string
+
+
+def escape(v):
+    """
+    Escapes values so they can be used as query parameters
+
+    :param v: The raw value. May be None.
+    :return: The escaped value.
+    """
+    if v is None:
+        return None
+    elif isinstance(v, bool):
+        return str(v).lower()
+    else:
+        return str(v)
 
 
 class BulkIndex(Runner):
@@ -600,24 +928,240 @@ class BulkVectorDataSet(Runner):
 
     NAME = "bulk-vector-data-set"
 
-    async def __call__(self, opensearch, params):
-        size = parse_int_parameter("size", params)
+    async def __call__(self, opensearch, params): # pylint: disable=too-many-nested-blocks
+        with_action_metadata = params.get("action-metadata-present", True)
+        unit = params.get("unit", "docs")
         retries = parse_int_parameter("retries", params, 0) + 1
+        detailed_results = params.get("detailed-results", True)
+
+        if not detailed_results:
+            opensearch.return_raw_response()
+
+        current_body = params["body"]
+        current_params = dict(params)
+        retry_wait_period = params.get("retry-wait-period", 0.5)
+        retry_max_wait_period = params.get("retry-max-wait-period", 60)
 
         for attempt in range(retries):
+            docs_in_request = self._doc_count(current_body, with_action_metadata)
+            current_params["body"] = current_body
+            current_params["size"] = docs_in_request
             try:
                 request_context_holder.on_client_request_start()
-                await opensearch.bulk(
-                    body=params["body"]
-                )
+                response = await opensearch.bulk(body=current_body)
                 request_context_holder.on_client_request_end()
 
-                return size, "docs"
+                stats = self.detailed_stats(current_params, response) if detailed_results else self.simple_stats(
+                    docs_in_request, unit, response
+                )
+
+                meta_data = {
+                    "size": docs_in_request,
+                    "index": current_params.get("index"),
+                    "weight": docs_in_request,
+                    "unit": unit,
+                }
+                meta_data.update(stats)
+
+                if not stats["success"]:
+                    meta_data["error-type"] = "bulk"
+                    if detailed_results:
+                        failed_indices = stats.get("failed-indices", [])
+                        if failed_indices and attempt < retries - 1:
+                            backoff = min(retry_wait_period * (2 ** attempt), retry_max_wait_period)
+                            self.logger.info(
+                                "%d documents failed during ingestion. Retrying in [%.2f] seconds.",
+                                len(failed_indices), backoff,
+                            )
+                            current_body = self._build_retry_body(current_body, failed_indices, with_action_metadata)
+                            await asyncio.sleep(backoff)
+                            continue
+                return meta_data
             except ConnectionTimeout:
-                self.logger.warning("Bulk vector ingestion timed out. Retrying attempt: %d", attempt)
+                backoff = min(retry_wait_period * (2 ** attempt), retry_max_wait_period)
+                self.logger.warning("Bulk vector ingestion timed out. Retrying attempt %d in [%.2f] seconds.",
+                                    attempt, backoff)
+                await asyncio.sleep(backoff)
 
         raise TimeoutError("Failed to submit bulk request in specified number "
                            "of retries: {}".format(retries))
+
+    def detailed_stats(self, params, response):
+        docs = []
+        failed_docs = []
+        failed_indices = []
+        ops = {}
+        shards_histogram = OrderedDict()
+        bulk_error_count = 0
+        bulk_success_count = 0
+        error_details = set()
+        bulk_request_size_bytes = 0
+        total_document_size_bytes = 0
+        with_action_metadata = mandatory(params, "action-metadata-present", self)
+
+        bulk_lines, is_string_body = self._normalize_bulk_lines(params["body"])
+
+        for line_number, entry in enumerate(bulk_lines):
+            line_size = self._entry_size(entry, is_string_body)
+            if not with_action_metadata or line_number % 2 == 1:
+                total_document_size_bytes += line_size
+                docs.append(entry)
+            bulk_request_size_bytes += line_size
+
+        doc_idx = 0
+        for item in response["items"]:
+            # there is only one (top-level) item
+            op, data = next(iter(item.items()))
+            if op not in ops:
+                ops[op] = Counter()
+            ops[op]["item-count"] += 1
+            if "result" in data:
+                ops[op][data["result"]] += 1
+
+            if "_shards" in data:
+                s = data["_shards"]
+                sk = "%d-%d-%d" % (s["total"], s["successful"], s["failed"])
+                if sk not in shards_histogram:
+                    shards_histogram[sk] = {
+                        "item-count": 0,
+                        "shards": s
+                    }
+                shards_histogram[sk]["item-count"] += 1
+            if data["status"] > 299 or ("_shards" in data and data["_shards"]["failed"] > 0):
+                bulk_error_count += 1
+                if doc_idx < len(docs):
+                    failed_docs.append(docs[doc_idx])
+                    failed_indices.append(doc_idx)
+                self.extract_error_details(error_details, data)
+            else:
+                bulk_success_count += 1
+
+            doc_idx += 1
+
+        stats = {
+            "took": response.get("took"),
+            "success": bulk_error_count == 0,
+            "success-count": bulk_success_count,
+            "error-count": bulk_error_count,
+            "ops": ops,
+            "shards_histogram": list(shards_histogram.values()),
+            "bulk-request-size-bytes": bulk_request_size_bytes,
+            "total-document-size-bytes": total_document_size_bytes,
+            "failed-documents": failed_docs,
+            "failed-indices": failed_indices
+        }
+        if bulk_error_count > 0:
+            stats["error-type"] = "bulk"
+            stats["error-description"] = self.error_description(error_details)
+        if "ingest_took" in response:
+            stats["ingest_took"] = response["ingest_took"]
+
+        return stats
+
+    @staticmethod
+    def _normalize_bulk_lines(body):
+        if isinstance(body, str):
+            return [line for line in body.split("\n") if line], True
+        if isinstance(body, list):
+            return body, False
+        raise exceptions.DataError("bulk body is neither string nor list")
+
+    @staticmethod
+    def _entry_size(entry, is_string_body):
+        if is_string_body or isinstance(entry, str):
+            return len(entry.encode("utf-8"))
+        if isinstance(entry, (bytes, bytearray)):
+            return len(entry)
+        return len(json.dumps(entry, separators=(",", ":")).encode("utf-8"))
+
+    @staticmethod
+    def _doc_count(body, with_action_metadata):
+        if isinstance(body, str):
+            lines = [line for line in body.split("\n") if line]
+            return len(lines) // 2 if with_action_metadata else len(lines)
+        if isinstance(body, list):
+            return len(body) // 2 if with_action_metadata else len(body)
+        raise exceptions.DataError("bulk body is neither string nor list")
+
+    def _build_retry_body(self, body, failed_indices, with_action_metadata):
+        self.logger.info(
+            "Building retry body for %d docs (with_action_metadata=%s).",
+            len(failed_indices),
+            with_action_metadata,
+        )
+        if isinstance(body, str):
+            lines = [line for line in body.split("\n") if line]
+            retry_lines = []
+            for idx in failed_indices:
+                if with_action_metadata:
+                    base = idx * 2
+                    retry_lines.extend(
+                        [
+                            lines[base],
+                            lines[base + 1] if base + 1 < len(lines) else "",
+                        ]
+                    )
+                else:
+                    retry_lines.append(lines[idx])
+            return "\n".join(retry_lines) + ("\n" if retry_lines else "")
+
+        retry_body = []
+        if with_action_metadata:
+            for idx in failed_indices:
+                base = idx * 2
+                retry_body.extend(body[base : base + 2])
+        else:
+            for idx in failed_indices:
+                retry_body.append(body[idx])
+        return retry_body
+
+    def simple_stats(self, size, unit, response):
+        bulk_success_count = size if unit == "docs" else None
+        bulk_error_count = 0
+        error_details = set()
+        # parse lazily on the fast path
+        props = parse(response, ["errors", "took"])
+
+        if props.get("errors", False):
+            # determine success count regardless of unit because we need to iterate through all items anyway
+            bulk_success_count = 0
+            # Reparse fully in case of errors - this will be slower
+            parsed_response = json.loads(response.getvalue())
+            for item in parsed_response["items"]:
+                data = next(iter(item.values()))
+                if data["status"] > 299 or ('_shards' in data and data["_shards"]["failed"] > 0):
+                    bulk_error_count += 1
+                    self.extract_error_details(error_details, data)
+                else:
+                    bulk_success_count += 1
+        stats = {
+            "took": props.get("took"),
+            "success": bulk_error_count == 0,
+            "success-count": bulk_success_count,
+            "error-count": bulk_error_count
+        }
+
+        if bulk_error_count > 0:
+            stats["error-type"] = "bulk"
+            stats["error-description"] = self.error_description(error_details)
+        return stats
+
+    def extract_error_details(self, error_details, data):
+        error_data = data.get("error", {})
+        error_reason = error_data.get("reason") if isinstance(error_data, dict) else str(error_data)
+        if error_data:
+            error_details.add((data["status"], error_reason))
+        else:
+            error_details.add((data["status"], None))
+
+    def error_description(self, error_details):
+        error_description = ""
+        for status, reason in error_details:
+            if reason:
+                error_description += "HTTP status: %s, message: %s" % (str(status), reason)
+            else:
+                error_description += "HTTP status: %s" % str(status)
+        return error_description
 
     def __repr__(self, *args, **kwargs):
         return self.NAME
@@ -2717,13 +3261,13 @@ class ProduceStreamMessage(Runner):
 
 class ProtoBulkIndex(Runner):
     async def __call__(self, opensearch, params):
-        request_context_holder.on_client_request_start()
+        RequestContextHolder.on_client_request_start()
         proto_req = ProtoBulkHelper.build_proto_request(params)
         stub = opensearch.document_service()
-        request_context_holder.on_request_start()
+        RequestContextHolder.on_request_start()
         bulk_resp = await stub.Bulk(proto_req)
-        request_context_holder.on_request_end()
-        request_context_holder.on_client_request_end()
+        RequestContextHolder.on_request_end()
+        RequestContextHolder.on_client_request_end()
         return ProtoBulkHelper.build_stats(bulk_resp, params)
 
     def __repr__(self, *args, **kwargs):
@@ -2731,13 +3275,13 @@ class ProtoBulkIndex(Runner):
 
 class ProtoQuery(Runner):
     async def __call__(self, opensearch, params):
-        request_context_holder.on_client_request_start()
+        RequestContextHolder.on_client_request_start()
         proto_req = ProtoQueryHelper.build_proto_request(params)
         stub = opensearch.search_service()
-        request_context_holder.on_request_start()
+        RequestContextHolder.on_request_start()
         search_resp = await stub.Search(proto_req)
-        request_context_holder.on_request_end()
-        request_context_holder.on_client_request_end()
+        RequestContextHolder.on_request_end()
+        RequestContextHolder.on_client_request_end()
         return ProtoQueryHelper.build_stats(search_resp, params)
 
     def __repr__(self, *args, **kwargs):
@@ -2745,13 +3289,13 @@ class ProtoQuery(Runner):
 
 class ProtoKNNQuery(Runner):
     async def __call__(self, opensearch, params):
-        request_context_holder.on_client_request_start()
+        RequestContextHolder.on_client_request_start()
         proto_req = ProtoQueryHelper.build_vector_search_proto_request(params)
         stub = opensearch.search_service()
-        request_context_holder.on_request_start()
+        RequestContextHolder.on_request_start()
         search_resp = await stub.Search(proto_req)
-        request_context_holder.on_request_end()
-        request_context_holder.on_client_request_end()
+        RequestContextHolder.on_request_end()
+        RequestContextHolder.on_client_request_end()
         return ProtoQueryHelper.build_stats(search_resp, params)
 
     def __repr__(self, *args, **kwargs):

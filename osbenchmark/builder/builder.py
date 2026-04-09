@@ -34,8 +34,7 @@ from collections import defaultdict
 import thespian.actors
 from opensearchpy.exceptions import NotFoundError
 
-from osbenchmark.database.clients.opensearch import opensearch as client
-from osbenchmark import (PROGRAM_NAME, actor, config, exceptions,
+from osbenchmark import (PROGRAM_NAME, actor, client, config, exceptions,
                          metrics, paths)
 from osbenchmark.builder import (launcher, provisioner,
                                  supplier)
