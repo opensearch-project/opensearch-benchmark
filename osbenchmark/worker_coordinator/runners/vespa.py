@@ -237,9 +237,30 @@ class VespaVectorSearch(Runner):
         k = params.get("k")
         if k:
             search_params["hits"] = k
-            # Add HNSW exploration parameter (equivalent to OpenSearch ef_search)
-            # Configurable via --client-options="hnsw_ef_search:512"
-            # Defaults to max(k, 256) to match OpenSearch default ef_search
+            # Map the workload's hnsw_ef_search param onto Vespa's HNSW knobs.
+            #
+            # IMPORTANT: Vespa has NO parameter literally called ef_search. The
+            # only search-time HNSW knobs exposed via YQL are:
+            #   - targetHits (desired result count per content node)
+            #   - hnsw.exploreAdditionalHits (default 0)
+            #   - hnsw.exploration-slack (newer, Vespa 8.x+)
+            #   - approximate (bool; set false to force exact brute-force)
+            # See https://docs.vespa.ai/en/reference/query-language-reference.html#nearestneighbor
+            #
+            # We map hnsw_ef_search=N to targetHits=k + exploreAdditionalHits=(N-k)
+            # because the sum is the closest face-value analogue available.
+            # This is NOT equivalent to Faiss's ef_search: Vespa's parameter
+            # is documented as "extra nodes in the HNSW graph that should be
+            # explored before selecting the best hits" (a count of graph
+            # vertices visited), whereas Faiss's ef_search is the size of the
+            # dynamic candidate list W in the beam search. Empirically, at the
+            # same numeric value, Vespa recall is substantially lower than
+            # Faiss/Milvus on the same data — see the "Vectorsearch Benchmark
+            # (r7g 2026-04).md" HNSW config footnote for the full analysis.
+            #
+            # We still honor the workload-provided value because it's the
+            # best mapping available and keeps the engines comparable at a
+            # face-value level, but DO NOT interpret this as "same ef_search".
             ef_search = (
                 getattr(vespa_client, "client_options", {}).get("hnsw_ef_search")
                 or params.get("hnsw_ef_search")
