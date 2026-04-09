@@ -1019,13 +1019,38 @@ class WorkerCoordinator:
         self.telemetry = telemetry.Telemetry(enabled_devices, devices=devices)
 
     def wait_for_rest_api(self, opensearch):
-        os_default = opensearch["default"]
         self.logger.info("Checking if REST API is available.")
-        if client.wait_for_rest_layer(os_default, max_attempts=40):
-            self.logger.info("REST API is available.")
+        database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
+        if database_type.lower() == "opensearch":
+            # OpenSearch path: identical to 2.1. The module-level
+            # client.wait_for_rest_layer expects an opensearchpy client with
+            # .transport.hosts — which is exactly what create_os_clients
+            # returns for the OS code path.
+            os_default = opensearch["default"]
+            if client.wait_for_rest_layer(os_default, max_attempts=40):
+                self.logger.info("REST API is available.")
+            else:
+                self.logger.error("REST API layer is not yet available. Stopping benchmark.")
+                raise exceptions.SystemSetupError("OpenSearch REST API layer is not available.")
         else:
-            self.logger.error("REST API layer is not yet available. Stopping benchmark.")
-            raise exceptions.SystemSetupError("OpenSearch REST API layer is not available.")
+            # Non-OpenSearch path: the client returned by create_os_clients is
+            # a DatabaseClient adapter (e.g. VespaDatabaseClient) whose .transport
+            # is a TransportNamespace that doesn't implement .hosts. Each database
+            # adapter factory provides its own wait_for_rest_layer() that performs
+            # a protocol-appropriate reachability check. Construct a throwaway
+            # factory to run it — cheap, one-time, matches the shape of
+            # create_os_clients for the default cluster.
+            all_hosts = self.config.opts("client", "hosts").all_hosts
+            all_client_options = self.config.opts("client", "options").all_client_options
+            default_hosts = all_hosts["default"]
+            default_options = dict(all_client_options["default"])
+            default_options["retry-on-timeout"] = True
+            factory = self.os_client_factory(default_hosts, default_options)
+            if factory.wait_for_rest_layer():
+                self.logger.info("REST API is available.")
+            else:
+                self.logger.error("REST API layer is not yet available. Stopping benchmark.")
+                raise exceptions.SystemSetupError("%s REST API layer is not available." % database_type)
 
     def retrieve_cluster_info(self, opensearch):
         try:
