@@ -46,9 +46,8 @@ from enum import Enum
 import thespian.actors
 
 from osbenchmark.utils import opts
-from osbenchmark.database.clients.opensearch import opensearch as client
-from osbenchmark import actor, config, exceptions, metrics, workload, paths, PROGRAM_NAME, telemetry
-from osbenchmark.worker_coordinator import runners as runner, scheduler
+from osbenchmark import actor, config, exceptions, metrics, workload, client, paths, PROGRAM_NAME, telemetry
+from osbenchmark.worker_coordinator import runner, scheduler
 from osbenchmark.database.factory import DatabaseClientFactory
 from osbenchmark.database.registry import DatabaseType, get_client_factory
 import osbenchmark.database  # noqa: F401  # pylint: disable=unused-import
@@ -647,14 +646,20 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_PrepareBenchmark(self, msg, sender):
         self.start_sender = sender
-        # Get the appropriate client factory based on database type
         db_type_str = msg.config.opts("database", "type", default_value="opensearch", mandatory=False)
-        try:
-            db_type = DatabaseType(db_type_str.lower())
-            client_factory_class = get_client_factory(db_type)
-        except (ValueError, KeyError):
-            client_factory_class = get_client_factory(DatabaseType.OPENSEARCH)
-        self.coordinator = WorkerCoordinator(self, msg.config, os_client_factory_class=client_factory_class)
+        if db_type_str.lower() == "opensearch":
+            # OpenSearch path: identical to 2.1 — let WorkerCoordinator use the default
+            # client.OsClientFactory so that nothing about OS client construction changes.
+            self.coordinator = WorkerCoordinator(self, msg.config)
+        else:
+            # Non-OpenSearch path: route through the database abstraction registry to pick
+            # the appropriate factory class for Vespa, Milvus, etc.
+            try:
+                db_type = DatabaseType(db_type_str.lower())
+                client_factory_class = get_client_factory(db_type)
+            except (ValueError, KeyError):
+                client_factory_class = get_client_factory(DatabaseType.OPENSEARCH)
+            self.coordinator = WorkerCoordinator(self, msg.config, os_client_factory_class=client_factory_class)
         self.coordinator.prepare_benchmark(msg.workload)
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
@@ -976,11 +981,7 @@ class WorkerCoordinator:
             cluster_client_options = dict(all_client_options[cluster_name])
             # Use retries to avoid aborts on long living connections for telemetry devices
             cluster_client_options["retry-on-timeout"] = True
-            # Store the factory instance for the default cluster so we can use it for wait_for_rest_layer
-            factory = self.os_client_factory(cluster_hosts, cluster_client_options)
-            if cluster_name == "default":
-                self._default_client_factory = factory
-            opensearch[cluster_name] = factory.create()
+            opensearch[cluster_name] = self.os_client_factory(cluster_hosts, cluster_client_options).create()
         return opensearch
 
     def prepare_telemetry(self, opensearch, enable):
@@ -1017,14 +1018,14 @@ class WorkerCoordinator:
             devices = []
         self.telemetry = telemetry.Telemetry(enabled_devices, devices=devices)
 
-    def wait_for_rest_api(self, database):
+    def wait_for_rest_api(self, opensearch):
+        os_default = opensearch["default"]
         self.logger.info("Checking if REST API is available.")
-        # Use the factory's wait_for_rest_layer method which handles different database types
-        if self._default_client_factory.wait_for_rest_layer():
+        if client.wait_for_rest_layer(os_default, max_attempts=40):
             self.logger.info("REST API is available.")
         else:
             self.logger.error("REST API layer is not yet available. Stopping benchmark.")
-            raise exceptions.SystemSetupError("Database REST API layer is not available.")
+            raise exceptions.SystemSetupError("OpenSearch REST API layer is not available.")
 
     def retrieve_cluster_info(self, opensearch):
         try:
@@ -2188,21 +2189,29 @@ class AsyncIoAdapter:
                 # Default: localhost:9400 (matching current environment variable defaults)
                 grpc_hosts = opts.TargetHosts("localhost:9400")
 
-            # Get database type from config (defaults to "opensearch")
             database_type = self.cfg.opts("database", "type", default_value="opensearch", mandatory=False)
-            self.logger.info("Creating database clients with database_type=[%s]", database_type)
 
-            for cluster_name, cluster_hosts in all_hosts.items():
-                # Use the new DatabaseClientFactory to create clients
-                # This supports multiple database backends (OpenSearch, Vespa, Milvus, etc.)
-                db_factory = DatabaseClientFactory.create_client_factory(
-                    database_type,
-                    cluster_hosts,
-                    all_client_options[cluster_name]
-                )
-                db_client = db_factory.create_async()
-                self.logger.info("Created client type=[%s] for cluster=[%s]", type(db_client).__name__, cluster_name)
-                opensearch[cluster_name] = db_client
+            if database_type.lower() == "opensearch":
+                # OpenSearch path: identical to 2.1. Direct construction of
+                # client.OsClientFactory + client.UnifiedClientFactory so that
+                # nothing about how the OS client is built changes.
+                for cluster_name, cluster_hosts in all_hosts.items():
+                    rest_client_factory = client.OsClientFactory(cluster_hosts, all_client_options[cluster_name])
+                    unified_client_factory = client.UnifiedClientFactory(rest_client_factory, grpc_hosts)
+                    opensearch[cluster_name] = unified_client_factory.create_async()
+            else:
+                # Non-OpenSearch path: route through the database abstraction layer
+                # to pick the right factory class for Vespa, Milvus, etc.
+                self.logger.info("Creating database clients with database_type=[%s]", database_type)
+                for cluster_name, cluster_hosts in all_hosts.items():
+                    db_factory = DatabaseClientFactory.create_client_factory(
+                        database_type,
+                        cluster_hosts,
+                        all_client_options[cluster_name]
+                    )
+                    db_client = db_factory.create_async()
+                    self.logger.info("Created client type=[%s] for cluster=[%s]", type(db_client).__name__, cluster_name)
+                    opensearch[cluster_name] = db_client
             return opensearch
 
         # Properly size the internal connection pool to match the number of expected clients but allow the user
