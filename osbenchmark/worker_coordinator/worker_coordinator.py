@@ -45,10 +45,6 @@ from enum import Enum
 
 import thespian.actors
 
-import linecache
-import os
-import tracemalloc
-
 from osbenchmark.utils import opts
 from osbenchmark.database.clients.opensearch import opensearch as client
 from osbenchmark import actor, config, exceptions, metrics, workload, paths, PROGRAM_NAME, telemetry
