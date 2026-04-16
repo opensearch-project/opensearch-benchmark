@@ -1440,10 +1440,12 @@ class VespaInfoTests(TestCase):
         self.assertEqual("vespa", result["name"])
 
     @mock.patch("osbenchmark.database.clients.vespa.vespa.requests")
-    def test_info_error_returns_unknown(self, mock_requests):
-        # info() is called during setup; must not crash if Vespa is still starting
+    def test_info_error_returns_default_version(self, mock_requests):
+        # info() is called during setup; must not crash if Vespa is still starting.
+        # Must return valid semver — OSB's metrics store parses version.number via
+        # versions.components() which rejects non-semver strings like "unknown".
         mock_requests.get.side_effect = RuntimeError("connection refused")
 
         client = VespaDatabaseClient(endpoint="http://h:8080")
         result = client.info()
-        self.assertEqual("unknown", result["version"]["number"])
+        self.assertEqual("8.0.0", result["version"]["number"])

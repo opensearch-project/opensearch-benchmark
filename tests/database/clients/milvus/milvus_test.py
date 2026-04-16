@@ -328,11 +328,13 @@ class MilvusInfoTests(TestCase):
         result = client.info()
 
         self.assertEqual("milvus", result["name"])
-        self.assertEqual("unknown", result["version"]["number"])
+        # Must be valid semver — OSB's metrics store parses version.number via
+        # versions.components() which rejects non-semver strings like "unknown".
+        self.assertEqual("2.0.0", result["version"]["number"])
 
     @mock.patch("requests.get")
     def test_info_health_port_fallback(self, mock_get):
-        """When REST succeeds but health check fails, version falls back to '2.x'."""
+        """When REST succeeds but health check fails, version falls back to default semver."""
         rest_resp = mock.MagicMock()
         rest_resp.status_code = 200
 
@@ -341,7 +343,7 @@ class MilvusInfoTests(TestCase):
         client = MilvusDatabaseClient(host="myhost")
         result = client.info()
 
-        self.assertEqual("2.x", result["version"]["number"])
+        self.assertEqual("2.0.0", result["version"]["number"])
 
 
 # =============================================================================

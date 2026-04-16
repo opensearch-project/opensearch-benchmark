@@ -573,12 +573,20 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
                 raise
 
     def info(self, **kwargs):
-        """GET /ApplicationStatus — synchronous for setup/init contexts."""
+        """GET /ApplicationStatus — synchronous for setup/init contexts.
+
+        version.number MUST be valid semver (major.minor.patch) — OSB's metrics
+        store pipeline validates it via versions.components(). Vespa's normal
+        response is e.g. "8.669.29" which passes; the fallback below uses
+        "8.0.0" so downstream validation doesn't break when the endpoint is
+        temporarily unreachable.
+        """
+        DEFAULT_VERSION = "8.0.0"
         endpoint = f"{self.endpoint}/ApplicationStatus"
         try:
             response = requests.get(endpoint, timeout=10)
             app_status = response.json()
-            version = app_status.get("application", {}).get("vespa", {}).get("version", "unknown")
+            version = app_status.get("application", {}).get("vespa", {}).get("version") or DEFAULT_VERSION
             return {
                 "name": "vespa",
                 "cluster_name": self._app_name,
@@ -602,7 +610,7 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             return {
                 "name": "vespa",
                 "cluster_name": self._app_name,
-                "version": {"number": "unknown", "distribution": "vespa", "build_hash": "unknown"},
+                "version": {"number": DEFAULT_VERSION, "distribution": "vespa", "build_hash": "unknown"},
             }
 
     def return_raw_response(self):

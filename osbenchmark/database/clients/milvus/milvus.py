@@ -378,19 +378,34 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
         This is called by the coordinator process during retrieve_cluster_info()
         BEFORE workers are forked. Using pymilvus here would initialize gRPC in
         the coordinator, poisoning all forked workers. HTTP avoids this.
+
+        The version.number field MUST be a valid semver-looking string (major.minor.patch)
+        because OSB's metrics store pipeline parses it via versions.components() which
+        enforces the pattern ^(\\d+)\\.(\\d+)\\.(\\d+)(?:-(.+))?$. Returning "unknown" or
+        "2.x" breaks the datastore push.
         """
         import requests as req  # pylint: disable=import-outside-toplevel
+        # Default fallback: Milvus 2.0.0. Used when version detection fails but
+        # we still need OSB's version parser to accept the string. Matches
+        # "non-OS databases use 3.0.0" convention in test_run_orchestrator.py
+        # but scoped to Milvus's own major version for clarity.
+        DEFAULT_VERSION = "2.0.0"
         try:
             resp = req.get(f"{self.uri}/v2/vectordb/collections/list",
                           json={}, timeout=10, headers={"Content-Type": "application/json"})
-            version = "unknown"
+            version = DEFAULT_VERSION
             if resp.status_code == 200:
-                version = "2.x"
                 health_url = f"http://{self.host}:9091/api/v1/health"
                 try:
                     health_resp = req.get(health_url, timeout=5)
                     if health_resp.status_code == 200:
-                        version = health_resp.json().get("version", "2.x")
+                        reported = health_resp.json().get("version")
+                        # Only use the health-reported version if it looks like semver.
+                        # Some Milvus builds report e.g. "v2.6.13" — strip a leading v.
+                        if reported:
+                            candidate = reported.lstrip("v")
+                            if candidate and candidate[0].isdigit() and "." in candidate:
+                                version = candidate
                 except Exception:
                     pass
             return {
@@ -415,7 +430,7 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
             return {
                 "name": "milvus",
                 "cluster_name": self._collection_name,
-                "version": {"number": "unknown", "distribution": "milvus", "build_hash": "unknown"},
+                "version": {"number": DEFAULT_VERSION, "distribution": "milvus", "build_hash": "unknown"},
             }
 
     def return_raw_response(self):

@@ -335,6 +335,20 @@ def convert_to_yql(body: Optional[Dict], document_type: str) -> Tuple[str, Dict]
     if not body:
         return f"select * from {document_type} where true", {}
 
+    # Pre-translated YQL pass-through. When a workload's parameter source
+    # generates Vespa-native bodies directly (e.g. the vespa-search-only test
+    # procedure in the vectorsearch workload), the body already contains a
+    # "yql" key plus Vespa-specific params like "ranking", "hits", and
+    # "input.query(query_vector)". Skip translation entirely — this removes
+    # the DSL→YQL conversion step from the benchmark's critical path so the
+    # measured throughput reflects engine performance, not client translation
+    # overhead. Compatible with the existing DSL path: workloads that send
+    # OpenSearch-style KNN queries still go through convert_to_yql as before.
+    if "yql" in body:
+        yql = body["yql"]
+        query_params = {k: v for k, v in body.items() if k != "yql"}
+        return yql, query_params
+
     cache_key = id(body)
     cached = _yql_cache.get(cache_key)
     if cached is not None:
