@@ -226,10 +226,44 @@ trap 'restore_workload' EXIT INT TERM
 # ============================================================================
 run_osb() {
     # $1: label  $2: test procedure  $3: target host:port  $4: params file  $5: database type ("" for OS)
-    # $6+: extra args
+    # $6+: extra args (may include --user-tag=...)
+    #
+    # If SWEEP_TAGS env var is set (e.g. "run_type:nightly,sweep_id:abc123"), those tags are
+    # merged with any per-run tags inferred from the label (engine + config) and appended
+    # as --user-tag to the opensearch-benchmark command. Labels map to config tags as:
+    #   os-run-a-*   → engine:opensearch,config:rest-baseline
+    #   os-run-b-*   → engine:opensearch,config:rest-mos
+    #   os-run-c-*   → engine:opensearch,config:grpc-no-mos
+    #   os-run-d-*   → engine:opensearch,config:grpc-mos
+    #   milvus-*     → engine:milvus,config:default
+    #   vespa-*      → engine:vespa,config:default
     local label=$1 test_proc=$2 target=$3 params=$4 db_type=$5
     shift 5
     local extra_args=("$@")
+
+    # Derive per-run tags from the label
+    local label_tags=""
+    case "$label" in
+        os-run-a-*)  label_tags="engine:opensearch,config:rest-baseline" ;;
+        os-run-b-*)  label_tags="engine:opensearch,config:rest-mos" ;;
+        os-run-c-*)  label_tags="engine:opensearch,config:grpc-no-mos" ;;
+        os-run-d-*)  label_tags="engine:opensearch,config:grpc-mos" ;;
+        milvus-*)    label_tags="engine:milvus,config:default" ;;
+        vespa-*)     label_tags="engine:vespa,config:default" ;;
+    esac
+
+    # Combine SWEEP_TAGS (from caller/cron) with label-derived tags
+    local combined_tags="$label_tags"
+    if [[ -n "${SWEEP_TAGS:-}" ]]; then
+        if [[ -n "$combined_tags" ]]; then
+            combined_tags="${combined_tags},${SWEEP_TAGS}"
+        else
+            combined_tags="$SWEEP_TAGS"
+        fi
+    fi
+    if [[ -n "$combined_tags" ]]; then
+        extra_args+=(--user-tag="$combined_tags")
+    fi
     local run_id="${label}-$(date -u +%Y%m%d-%H%M%S)"
     local logfile="$LOG_DIR/${label}.log"
 
