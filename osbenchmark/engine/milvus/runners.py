@@ -38,7 +38,7 @@ this, uncaught exceptions terminate the task.
 import logging
 import time
 
-from osbenchmark.database.clients.milvus.helpers import (
+from osbenchmark.engine.milvus.helpers import (
     build_collection_schema,
     build_search_params,
     calculate_topk_recall,

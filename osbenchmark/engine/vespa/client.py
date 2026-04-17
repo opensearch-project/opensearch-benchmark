@@ -40,14 +40,7 @@ import requests
 
 from osbenchmark import exceptions
 from osbenchmark.context import RequestContextHolder
-from osbenchmark.database.interface import (
-    DatabaseClient,
-    IndicesNamespace,
-    ClusterNamespace,
-    TransportNamespace,
-    NodesNamespace,
-)
-from osbenchmark.database.clients.vespa.helpers import (
+from osbenchmark.engine.vespa.helpers import (
     convert_metrics_to_stats,
     wait_for_vespa,
 )
@@ -99,7 +92,7 @@ class VespaClientFactory:
         return wait_for_vespa(client, max_attempts)
 
 
-class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
+class VespaDatabaseClient(RequestContextHolder):
     """Async Vespa client implementing the DatabaseClient interface.
 
     Thin HTTP wrapper — all translation logic lives in helpers.py.
@@ -121,11 +114,6 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
         self._pyvespa_semaphore = None
         self._sync_session = None
         self._search_executor = None
-
-        self._indices_ns = VespaIndicesNamespace(self)
-        self._cluster_ns = VespaClusterNamespace(self)
-        self._transport_ns = VespaTransportNamespace(self)
-        self._nodes_ns = VespaNodesNamespace(self)
 
     # --- Session management ---
 
@@ -357,24 +345,6 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
 
         return {"errors": errors, "responses": responses}
 
-    # --- Namespace properties ---
-
-    @property
-    def indices(self) -> "VespaIndicesNamespace":
-        return self._indices_ns
-
-    @property
-    def cluster(self) -> "VespaClusterNamespace":
-        return self._cluster_ns
-
-    @property
-    def transport(self) -> "VespaTransportNamespace":
-        return self._transport_ns
-
-    @property
-    def nodes(self) -> "VespaNodesNamespace":
-        return self._nodes_ns
-
     # --- Core document operations ---
 
     async def bulk(self, body, index=None, doc_type=None, params=None, **kwargs):
@@ -573,12 +543,20 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
                 raise
 
     def info(self, **kwargs):
-        """GET /ApplicationStatus — synchronous for setup/init contexts."""
+        """GET /ApplicationStatus — synchronous for setup/init contexts.
+
+        version.number MUST be valid semver (major.minor.patch) — OSB's metrics
+        store pipeline validates it via versions.components(). Vespa's normal
+        response is e.g. "8.669.29" which passes; the fallback below uses
+        "8.0.0" so downstream validation doesn't break when the endpoint is
+        temporarily unreachable.
+        """
+        DEFAULT_VERSION = "8.0.0"
         endpoint = f"{self.endpoint}/ApplicationStatus"
         try:
             response = requests.get(endpoint, timeout=10)
             app_status = response.json()
-            version = app_status.get("application", {}).get("vespa", {}).get("version", "unknown")
+            version = app_status.get("application", {}).get("vespa", {}).get("version") or DEFAULT_VERSION
             return {
                 "name": "vespa",
                 "cluster_name": self._app_name,
@@ -602,160 +580,10 @@ class VespaDatabaseClient(DatabaseClient, RequestContextHolder):
             return {
                 "name": "vespa",
                 "cluster_name": self._app_name,
-                "version": {"number": "unknown", "distribution": "vespa", "build_hash": "unknown"},
+                "version": {"number": DEFAULT_VERSION, "distribution": "vespa", "build_hash": "unknown"},
             }
 
     def return_raw_response(self):
         """Mark that raw responses should be returned."""
         self._request_context["raw_response"] = True
 
-
-# =============================================================================
-# Namespace implementations
-# =============================================================================
-
-class VespaIndicesNamespace(IndicesNamespace):
-    """Index operations — mostly lightweight HTTP calls or no-ops."""
-
-    def __init__(self, client: VespaDatabaseClient):
-        self._client = client
-
-    async def create(self, index, body=None, **kwargs):
-        # No-op — Vespa schemas are deployed via application packages
-        return {"acknowledged": True, "shards_acknowledged": True, "index": index}
-
-    async def delete(self, index, **kwargs):
-        # No-op — Vespa schemas are deployed via application packages
-        return {"acknowledged": True}
-
-    async def exists(self, index, **kwargs):
-        # No-op — Vespa schemas always exist once deployed
-        return True
-
-    async def refresh(self, index=None, **kwargs):
-        # No-op — Vespa handles visibility internally
-        return {"acknowledged": True, "_shards": {"total": 1, "successful": 1, "failed": 0}}
-
-    async def stats(self, index=None, metric=None, **kwargs):  # pylint: disable=invalid-overridden-method
-        """Async — GET /metrics/v2/values, convert via helpers."""
-        await self._client._ensure_session()
-        endpoint = f"{self._client.endpoint}/metrics/v2/values"
-        try:
-            async with self._client._session.get(endpoint, timeout=10) as response:
-                metrics = await response.json()
-                return convert_metrics_to_stats(metrics, index)
-        except Exception:
-            return {"_all": {"primaries": {}, "total": {}}}
-
-    async def forcemerge(self, index=None, **kwargs):  # pylint: disable=invalid-overridden-method
-        """No-op, returns task format if polling mode."""
-        wait_for_completion = kwargs.get("wait_for_completion", True)
-        if wait_for_completion == "false" or wait_for_completion is False:
-            return {"task": "vespa-node:1"}
-        return {"_shards": {"total": 1, "successful": 1, "failed": 0}}
-
-
-class VespaClusterNamespace(ClusterNamespace):
-    """Cluster operations — health mapping."""
-
-    def __init__(self, client: VespaDatabaseClient):
-        self._client = client
-
-    async def health(self, **kwargs):
-        await self._client._ensure_session()
-        endpoint = f"{self._client.endpoint}/state/v1/health"
-        try:
-            async with self._client._session.get(endpoint) as response:
-                health = await response.json()
-                status = health.get("status", {}).get("code", "red")
-        except Exception as e:
-            self._client.logger.error("Health check failed: %s", e)
-            return {"cluster_name": "vespa", "status": "red", "timed_out": False}
-
-        status_map = {"up": "green", "down": "red", "initializing": "yellow"}
-        return {
-            "cluster_name": "vespa",
-            "status": status_map.get(status, "yellow"),
-            "timed_out": False,
-            "number_of_nodes": 1,
-            "number_of_data_nodes": 1,
-            "active_primary_shards": 1,
-            "active_shards": 1,
-            "relocating_shards": 0,
-            "initializing_shards": 0,
-            "unassigned_shards": 0,
-        }
-
-    async def put_settings(self, body, **kwargs):
-        return {"acknowledged": True}
-
-
-class VespaTransportNamespace(TransportNamespace):
-    """Generic HTTP via session."""
-
-    def __init__(self, client: VespaDatabaseClient):
-        self._client = client
-
-    async def perform_request(self, method, url, params=None, body=None, headers=None):  # pylint: disable=too-many-positional-arguments
-        await self._client._ensure_session()
-        full_url = f"{self._client.endpoint}{url}"
-        async with self._client._session.request(method, full_url, params=params, json=body, headers=headers) as resp:
-            return await resp.json()
-
-    async def close(self):
-        await self._client.close()
-
-
-class VespaNodesNamespace(NodesNamespace):
-    """Stub node stats/info for telemetry compatibility."""
-
-    def __init__(self, client: VespaDatabaseClient):
-        self._client = client
-
-    def stats(self, node_id=None, metric=None, **kwargs):
-        return {
-            "nodes": {
-                "vespa-node-1": {
-                    "name": "vespa-node-1",
-                    "host": self._client.endpoint,
-                    "os": {"cpu": {"percent": 0}},
-                    "jvm": {
-                        "mem": {
-                            "heap_used_percent": 0,
-                            "pools": {
-                                "young": {"peak_used_in_bytes": 0},
-                                "old": {"peak_used_in_bytes": 0},
-                                "survivor": {"peak_used_in_bytes": 0},
-                            },
-                        },
-                        "gc": {
-                            "collectors": {
-                                "young": {"collection_time_in_millis": 0, "collection_count": 0},
-                                "old": {"collection_time_in_millis": 0, "collection_count": 0},
-                            }
-                        },
-                    },
-                }
-            }
-        }
-
-    def info(self, node_id=None, metric=None, **kwargs):
-        return {
-            "nodes": {
-                "vespa-node-1": {
-                    "name": "vespa-node-1",
-                    "host": self._client.endpoint,
-                    "version": "8.0.0",
-                    "os": {"name": "Linux"},
-                    "jvm": {
-                        "version": "17.0.0",
-                        "gc": {
-                            "collectors": {
-                                "young": "G1 Young Generation",
-                                "old": "G1 Old Generation",
-                            }
-                        },
-                    },
-                }
-            }
-        }

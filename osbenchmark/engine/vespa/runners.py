@@ -36,14 +36,13 @@ import logging
 import multiprocessing
 import time
 
-from osbenchmark.database.clients.vespa import PYVESPA_AVAILABLE
-from osbenchmark.database.clients.vespa.helpers import (
-    convert_to_yql,
+from osbenchmark.engine.vespa.client import PYVESPA_AVAILABLE
+from osbenchmark.engine.vespa.helpers import (
     convert_vespa_response,
     parse_bulk_body,
     transform_document_for_vespa,
 )
-from osbenchmark import workload
+from osbenchmark import exceptions, workload
 from osbenchmark.utils import convert
 from osbenchmark.worker_coordinator.runner import Runner, request_context_holder
 
@@ -225,13 +224,21 @@ class VespaVectorSearch(Runner):
 
         index = params.get("index")
         body = params.get("body", {})
-        doc_type = index or getattr(vespa_client, "_app_name", "default")
+        doc_type = index or getattr(vespa_client, "_app_name", "default")  # pylint: disable=unused-variable
 
-        # Build query params before timing starts (translation is OSB overhead, not engine latency)
+        # Body must contain pre-translated YQL — the Vespa runner no longer
+        # performs DSL→YQL translation (removed during the engine refactor).
+        # Workloads should use a Vespa-specific param source such as
+        # vespa-vector-search-param-source (see vectorsearch/test_procedures/
+        # default.json → "vespa-search-only" procedure).
         t_translation_start = time.perf_counter()
-        yql_query, query_params = convert_to_yql(body, doc_type)
-        search_params = {"yql": yql_query}
-        search_params.update(query_params)
+        if "yql" not in body:
+            raise exceptions.BenchmarkError(
+                "Vespa runner received a body without a 'yql' key. Use a Vespa-native "
+                "test procedure (e.g. 'vespa-search-only' in the vectorsearch workload) "
+                "or a workload with a Vespa-specific param source."
+            )
+        search_params = dict(body)
 
         # Set hits to match k so Vespa returns enough results for recall
         k = params.get("k")
@@ -406,12 +413,15 @@ class VespaQuery(Runner):
     async def __call__(self, vespa_client, params):
         index = params.get("index")
         body = params.get("body", {})
-        doc_type = index or getattr(vespa_client, "_app_name", "default")
+        doc_type = index or getattr(vespa_client, "_app_name", "default")  # pylint: disable=unused-variable
 
-        # Build query params before timing starts (translation is OSB overhead, not engine latency)
-        yql_query, query_params = convert_to_yql(body, doc_type)
-        search_params = {"yql": yql_query}
-        search_params.update(query_params)
+        # Body must contain pre-translated YQL. See VespaVectorSearch.__call__ above.
+        if "yql" not in body:
+            raise exceptions.BenchmarkError(
+                "Vespa runner received a body without a 'yql' key. Use a Vespa-native "
+                "test procedure or a workload with a Vespa-specific param source."
+            )
+        search_params = dict(body)
 
         # Forward workload request-timeout to Vespa query timeout
         request_timeout = params.get("request-timeout")
@@ -473,9 +483,13 @@ class VespaScrollQuery(Runner):
                 page_body["size"] = results_per_page
                 page_body["from"] = offset
 
-                yql_query, query_params = convert_to_yql(page_body, doc_type)
-                search_params = {"yql": yql_query}
-                search_params.update(query_params)
+                # Body must contain pre-translated YQL. See VespaVectorSearch.__call__ above.
+                if "yql" not in page_body:
+                    raise exceptions.BenchmarkError(
+                        "Vespa scroll-search runner received a body without a 'yql' key. "
+                        "Use a Vespa-native test procedure or param source."
+                    )
+                search_params = dict(page_body)
 
                 raw_response = await vespa_client.search(index=index, body=search_params)
                 response = convert_vespa_response(raw_response)

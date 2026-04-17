@@ -45,13 +45,6 @@ import time
 
 from osbenchmark import exceptions
 from osbenchmark.context import RequestContextHolder
-from osbenchmark.database.interface import (
-    DatabaseClient,
-    IndicesNamespace,
-    ClusterNamespace,
-    TransportNamespace,
-    NodesNamespace,
-)
 
 # pymilvus is imported lazily inside _ensure_client(), NOT at module level.
 # Importing pymilvus triggers gRPC C-core initialization (threads, channels).
@@ -111,7 +104,7 @@ class MilvusClientFactory:
             time.sleep(3)
 
 
-class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
+class MilvusDatabaseClient(RequestContextHolder):
     """Async Milvus client implementing the DatabaseClient interface.
 
     Uses pymilvus AsyncMilvusClient (native grpc.aio). All methods are
@@ -145,11 +138,6 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
         self._timeout_insert = int(client_options.get("timeout_insert", 60))
         self._timeout_search = int(client_options.get("timeout_search", 30))
         self._timeout_admin = int(client_options.get("timeout_admin", 300))
-
-        self._indices_ns = MilvusIndicesNamespace(self)
-        self._cluster_ns = MilvusClusterNamespace(self)
-        self._transport_ns = MilvusTransportNamespace(self)
-        self._nodes_ns = MilvusNodesNamespace(self)
 
     def _ensure_client(self):
         """Lazy-init pymilvus AsyncMilvusClient with double-checked locking.
@@ -287,24 +275,6 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
             else:
                 raise
 
-    # --- Namespace properties ---
-
-    @property
-    def indices(self):
-        return self._indices_ns
-
-    @property
-    def cluster(self):
-        return self._cluster_ns
-
-    @property
-    def transport(self):
-        return self._transport_ns
-
-    @property
-    def nodes(self):
-        return self._nodes_ns
-
     # --- Core document operations ---
 
     async def bulk(self, body, index=None, doc_type=None, params=None, **kwargs):
@@ -378,19 +348,28 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
         This is called by the coordinator process during retrieve_cluster_info()
         BEFORE workers are forked. Using pymilvus here would initialize gRPC in
         the coordinator, poisoning all forked workers. HTTP avoids this.
+
+        version.number MUST be valid semver (major.minor.patch) — OSB's metrics
+        store pipeline parses it via versions.components() which enforces the
+        pattern ^(\\d+)\\.(\\d+)\\.(\\d+)(?:-(.+))?$. Returning "unknown" or "2.x"
+        breaks the datastore push.
         """
         import requests as req  # pylint: disable=import-outside-toplevel
+        DEFAULT_VERSION = "2.0.0"
         try:
             resp = req.get(f"{self.uri}/v2/vectordb/collections/list",
                           json={}, timeout=10, headers={"Content-Type": "application/json"})
-            version = "unknown"
+            version = DEFAULT_VERSION
             if resp.status_code == 200:
-                version = "2.x"
                 health_url = f"http://{self.host}:9091/api/v1/health"
                 try:
                     health_resp = req.get(health_url, timeout=5)
                     if health_resp.status_code == 200:
-                        version = health_resp.json().get("version", "2.x")
+                        reported = health_resp.json().get("version")
+                        if reported:
+                            candidate = reported.lstrip("v")
+                            if candidate and candidate[0].isdigit() and "." in candidate:
+                                version = candidate
                 except Exception:
                     pass
             return {
@@ -415,239 +394,9 @@ class MilvusDatabaseClient(DatabaseClient, RequestContextHolder):
             return {
                 "name": "milvus",
                 "cluster_name": self._collection_name,
-                "version": {"number": "unknown", "distribution": "milvus", "build_hash": "unknown"},
+                "version": {"number": DEFAULT_VERSION, "distribution": "milvus", "build_hash": "unknown"},
             }
 
     def return_raw_response(self):
         pass
 
-
-# =============================================================================
-# Namespace implementations
-# =============================================================================
-
-class MilvusIndicesNamespace(IndicesNamespace):
-    """Index operations mapped to Milvus collection operations."""
-
-    def __init__(self, client):
-        self._client = client
-
-    async def create(self, index, body=None, **kwargs):
-        """Create collection + index.
-
-        Body contains {"schema": CollectionSchema, "index_params": IndexParams}.
-        Handles drop/create race: Milvus drop_collection is async internally.
-
-        Note: create_collection(schema, index_params) auto-calls load_collection()
-        internally in pymilvus. The subsequent warmup runner will be a no-op.
-        """
-        self._client._ensure_client()
-        collection_name = index or self._client._collection_name
-        schema = body.get("schema") if body else None
-        index_params = body.get("index_params") if body else None
-
-        if schema and index_params:
-            if await self._client._client.has_collection(collection_name=collection_name):
-                await self._client._client.drop_collection(collection_name=collection_name)
-                for _ in range(20):
-                    if not await self._client._client.has_collection(collection_name=collection_name):
-                        break
-                    await asyncio.sleep(0.5)
-
-            await self._client._client.create_collection(
-                collection_name=collection_name,
-                schema=schema,
-                index_params=index_params,
-            )
-        return {"acknowledged": True, "shards_acknowledged": True, "index": collection_name}
-
-    async def delete(self, index, **kwargs):
-        self._client._ensure_client()
-        await self._client._client.drop_collection(
-            collection_name=index or self._client._collection_name,
-        )
-        return {"acknowledged": True}
-
-    async def exists(self, index, **kwargs):
-        self._client._ensure_client()
-        return await self._client._client.has_collection(collection_name=index)
-
-    async def refresh(self, index=None, **kwargs):
-        """Map to Milvus flush() — seals growing segments, persists to storage.
-
-        With AsyncMilvusClient we call flush() directly and let pymilvus handle
-        the state polling. The sync-client workaround (sending the Flush RPC
-        via the raw stub and polling get_flush_state ourselves) was needed to
-        avoid a reconnect cascade in the sync ConnectionManager, which doesn't
-        apply to grpc.aio.
-
-        Milvus throttles flush to 0.1/s, so we retry on rate-limit errors.
-        """
-        self._client._ensure_client()
-        if not index:
-            return {"acknowledged": True, "_shards": {"total": 1, "successful": 1, "failed": 0}}
-
-        timeout = self._client._timeout_admin
-
-        for attempt in range(5):
-            try:
-                await self._client._client.flush(
-                    collection_name=index, timeout=timeout,
-                )
-                break
-            except Exception as e:
-                if "rate limit" in str(e).lower() and attempt < 4:
-                    self._client.logger.warning("Flush rate-limited, retrying in 10s...")
-                    await asyncio.sleep(10)
-                    continue
-                raise
-
-        return {"acknowledged": True, "_shards": {"total": 1, "successful": 1, "failed": 0}}
-
-    async def stats(self, index=None, metric=None, **kwargs):  # pylint: disable=invalid-overridden-method
-        self._client._ensure_client()
-        if index:
-            result = await self._client._client.get_collection_stats(
-                collection_name=index,
-            )
-            row_count = result.get("row_count", 0)
-            return {
-                "_all": {
-                    "primaries": {"docs": {"count": row_count}},
-                    "total": {"docs": {"count": row_count}},
-                }
-            }
-        return {"_all": {"primaries": {}, "total": {}}}
-
-    async def forcemerge(self, index=None, **kwargs):  # pylint: disable=invalid-overridden-method
-        """Map to Milvus compact(). Polls get_compaction_state() for completion.
-
-        get_compaction_state() returns a string: "Completed", "Executing",
-        or "UndefiedState" (note: Milvus typo in enum name).
-        """
-        self._client._ensure_client()
-        if not index:
-            return {"_shards": {"total": 1, "successful": 1, "failed": 0}}
-
-        job_id = await self._client._client.compact(
-            collection_name=index,
-            timeout=self._client._timeout_admin,
-        )
-
-        wait = kwargs.get("wait_for_completion", True)
-        if wait and wait != "false":
-            for i in range(120):
-                try:
-                    state = await self._client._client.get_compaction_state(job_id)
-                    if state == "Completed":
-                        break
-                    if i > 0 and i % 15 == 0:
-                        self._client.logger.info(
-                            "Compaction in progress (%ds, state=%s)...", i, state
-                        )
-                except Exception:
-                    break
-                await asyncio.sleep(1)
-
-        return {"_shards": {"total": 1, "successful": 1, "failed": 0}}
-
-
-class MilvusClusterNamespace(ClusterNamespace):
-
-    def __init__(self, client):
-        self._client = client
-
-    async def health(self, **kwargs):
-        self._client._ensure_client()
-        try:
-            await self._client._client.list_collections()
-            return {
-                "cluster_name": "milvus",
-                "status": "green",
-                "timed_out": False,
-                "number_of_nodes": 1,
-                "number_of_data_nodes": 1,
-                "active_primary_shards": 1,
-                "active_shards": 1,
-                "relocating_shards": 0,
-                "initializing_shards": 0,
-                "unassigned_shards": 0,
-            }
-        except Exception:
-            return {"cluster_name": "milvus", "status": "red", "timed_out": False}
-
-    async def put_settings(self, body, **kwargs):
-        return {"acknowledged": True}
-
-
-class MilvusTransportNamespace(TransportNamespace):
-    """Stub — Milvus uses gRPC, not HTTP."""
-
-    def __init__(self, client):
-        self._client = client
-
-    async def perform_request(self, method, url, params=None, body=None, headers=None):  # pylint: disable=too-many-positional-arguments
-        return {}
-
-    async def close(self):
-        # Intentionally a no-op. OSB calls transport.close() between every
-        # operation step (in AsyncIoAdapter.run's finally block). Closing the
-        # pymilvus client tears down the gRPC channel, and the gRPC C-core
-        # retains stale state that poisons the NEXT step's fresh client.
-        # Let process exit handle cleanup instead.
-        pass
-
-
-class MilvusNodesNamespace(NodesNamespace):
-    """Stub node stats/info for telemetry compatibility."""
-
-    def __init__(self, client):
-        self._client = client
-
-    def stats(self, node_id=None, metric=None, **kwargs):
-        return {
-            "nodes": {
-                "milvus-node-1": {
-                    "name": "milvus-node-1",
-                    "host": self._client.uri,
-                    "os": {"cpu": {"percent": 0}},
-                    "jvm": {
-                        "mem": {
-                            "heap_used_percent": 0,
-                            "pools": {
-                                "young": {"peak_used_in_bytes": 0},
-                                "old": {"peak_used_in_bytes": 0},
-                                "survivor": {"peak_used_in_bytes": 0},
-                            },
-                        },
-                        "gc": {
-                            "collectors": {
-                                "young": {"collection_time_in_millis": 0, "collection_count": 0},
-                                "old": {"collection_time_in_millis": 0, "collection_count": 0},
-                            }
-                        },
-                    },
-                }
-            }
-        }
-
-    def info(self, node_id=None, metric=None, **kwargs):
-        return {
-            "nodes": {
-                "milvus-node-1": {
-                    "name": "milvus-node-1",
-                    "host": self._client.uri,
-                    "version": "unknown",
-                    "os": {"name": "Linux"},
-                    "jvm": {
-                        "version": "N/A",
-                        "gc": {
-                            "collectors": {
-                                "young": "N/A",
-                                "old": "N/A",
-                            }
-                        },
-                    },
-                }
-            }
-        }

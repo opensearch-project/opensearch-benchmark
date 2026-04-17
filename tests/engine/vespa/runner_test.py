@@ -26,7 +26,8 @@
 import unittest.mock as mock
 from unittest import TestCase
 
-from osbenchmark.worker_coordinator.runners.vespa import (
+from osbenchmark import exceptions
+from osbenchmark.engine.vespa.runners import (
     VespaBulkIndex,
     VespaVectorSearch,
     VespaBulkVectorDataSet,
@@ -86,10 +87,10 @@ def _opensearch_style_response(total_value=1, took=5, timed_out=False, hits_list
 
 class VespaBulkIndexRunnerTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.transform_document_for_vespa")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.parse_bulk_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.transform_document_for_vespa")
+    @mock.patch("osbenchmark.engine.vespa.runners.parse_bulk_body")
+    @mock.patch("osbenchmark.engine.vespa.runners.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_index_success_pyvespa_path(self, mock_ctx, mock_parse, mock_transform):
         # PYVESPA_AVAILABLE=True triggers the feed_batch path (HTTP/2 multiplexing)
@@ -115,10 +116,10 @@ class VespaBulkIndexRunnerTests(TestCase):
         mock_ctx.on_request_end.assert_called_once()
         mock_ctx.on_client_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.transform_document_for_vespa")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.parse_bulk_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.PYVESPA_AVAILABLE", False)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.transform_document_for_vespa")
+    @mock.patch("osbenchmark.engine.vespa.runners.parse_bulk_body")
+    @mock.patch("osbenchmark.engine.vespa.runners.PYVESPA_AVAILABLE", False)
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_index_success_aiohttp_fallback(self, mock_ctx, mock_parse, mock_transform):
         # PYVESPA_AVAILABLE=False triggers per-document aiohttp POST fallback
@@ -140,10 +141,10 @@ class VespaBulkIndexRunnerTests(TestCase):
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_client_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.transform_document_for_vespa")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.parse_bulk_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.transform_document_for_vespa")
+    @mock.patch("osbenchmark.engine.vespa.runners.parse_bulk_body")
+    @mock.patch("osbenchmark.engine.vespa.runners.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_index_returns_weight_and_unit(self, mock_ctx, mock_parse, mock_transform):
         vespa_client = _make_vespa_client()
@@ -163,10 +164,10 @@ class VespaBulkIndexRunnerTests(TestCase):
         self.assertEqual(result["weight"], 100)
         self.assertEqual(result["unit"], "docs")
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.transform_document_for_vespa")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.parse_bulk_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.transform_document_for_vespa")
+    @mock.patch("osbenchmark.engine.vespa.runners.parse_bulk_body")
+    @mock.patch("osbenchmark.engine.vespa.runners.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_index_weight_uses_bulk_size_param(self, mock_ctx, mock_parse, mock_transform):
         vespa_client = _make_vespa_client()
@@ -184,10 +185,10 @@ class VespaBulkIndexRunnerTests(TestCase):
         # bulk-size param overrides len(documents)
         self.assertEqual(result["weight"], 500)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.transform_document_for_vespa")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.parse_bulk_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.transform_document_for_vespa")
+    @mock.patch("osbenchmark.engine.vespa.runners.parse_bulk_body")
+    @mock.patch("osbenchmark.engine.vespa.runners.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_index_weight_defaults_to_doc_count(self, mock_ctx, mock_parse, mock_transform):
         vespa_client = _make_vespa_client()
@@ -206,10 +207,10 @@ class VespaBulkIndexRunnerTests(TestCase):
 
         self.assertEqual(result["weight"], 2)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.transform_document_for_vespa")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.parse_bulk_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.transform_document_for_vespa")
+    @mock.patch("osbenchmark.engine.vespa.runners.parse_bulk_body")
+    @mock.patch("osbenchmark.engine.vespa.runners.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_index_reports_failure_on_errors(self, mock_ctx, mock_parse, mock_transform):
         vespa_client = _make_vespa_client()
@@ -227,10 +228,10 @@ class VespaBulkIndexRunnerTests(TestCase):
         self.assertFalse(result["success"])
         self.assertEqual(result["error-count"], 3)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.transform_document_for_vespa")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.parse_bulk_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.transform_document_for_vespa")
+    @mock.patch("osbenchmark.engine.vespa.runners.parse_bulk_body")
+    @mock.patch("osbenchmark.engine.vespa.runners.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_index_reports_error_count(self, mock_ctx, mock_parse, mock_transform):
         vespa_client = _make_vespa_client()
@@ -247,10 +248,10 @@ class VespaBulkIndexRunnerTests(TestCase):
 
         self.assertEqual(result["error-count"], 5)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.transform_document_for_vespa", side_effect=lambda d: d)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.parse_bulk_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.transform_document_for_vespa", side_effect=lambda d: d)
+    @mock.patch("osbenchmark.engine.vespa.runners.parse_bulk_body")
+    @mock.patch("osbenchmark.engine.vespa.runners.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_index_transforms_documents_with_nested(self, mock_ctx, mock_parse, mock_transform):
         # Vespa can't handle @-prefixed fields natively; transform flattens them
@@ -269,10 +270,10 @@ class VespaBulkIndexRunnerTests(TestCase):
 
         mock_transform.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.transform_document_for_vespa")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.parse_bulk_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.transform_document_for_vespa")
+    @mock.patch("osbenchmark.engine.vespa.runners.parse_bulk_body")
+    @mock.patch("osbenchmark.engine.vespa.runners.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_index_transforms_documents_with_nested_dict(self, mock_ctx, mock_parse, mock_transform):
         vespa_client = _make_vespa_client()
@@ -290,11 +291,11 @@ class VespaBulkIndexRunnerTests(TestCase):
 
         mock_transform.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.transform_document_for_vespa",
+    @mock.patch("osbenchmark.engine.vespa.runners.transform_document_for_vespa",
                 return_value={"flat_field": "transformed_value"})
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.parse_bulk_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.parse_bulk_body")
+    @mock.patch("osbenchmark.engine.vespa.runners.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_index_feeds_transformed_output(self, mock_ctx, mock_parse, mock_transform):
         # Verify the transform output actually reaches feed_batch, not the original source.
@@ -314,10 +315,10 @@ class VespaBulkIndexRunnerTests(TestCase):
         fed_docs = vespa_client.feed_batch.call_args[1]["documents"]
         self.assertEqual(fed_docs[0]["fields"], {"flat_field": "transformed_value"})
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.transform_document_for_vespa")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.parse_bulk_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.transform_document_for_vespa")
+    @mock.patch("osbenchmark.engine.vespa.runners.parse_bulk_body")
+    @mock.patch("osbenchmark.engine.vespa.runners.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_index_skips_transform_for_flat(self, mock_ctx, mock_parse, mock_transform):
         # Optimization: flat docs with no @-fields or nested dicts skip the transform entirely
@@ -336,10 +337,10 @@ class VespaBulkIndexRunnerTests(TestCase):
 
         mock_transform.assert_not_called()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.transform_document_for_vespa")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.parse_bulk_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.PYVESPA_AVAILABLE", False)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.transform_document_for_vespa")
+    @mock.patch("osbenchmark.engine.vespa.runners.parse_bulk_body")
+    @mock.patch("osbenchmark.engine.vespa.runners.PYVESPA_AVAILABLE", False)
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_index_handles_update_action(self, mock_ctx, mock_parse, mock_transform):
         # aiohttp fallback dispatches to vespa_client.update vs .index based on _action
@@ -358,10 +359,10 @@ class VespaBulkIndexRunnerTests(TestCase):
         vespa_client.index.assert_not_called()
         self.assertEqual(result["error-count"], 0)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.transform_document_for_vespa")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.parse_bulk_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.transform_document_for_vespa")
+    @mock.patch("osbenchmark.engine.vespa.runners.parse_bulk_body")
+    @mock.patch("osbenchmark.engine.vespa.runners.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_index_max_concurrent_from_params(self, mock_ctx, mock_parse, mock_transform):
         # params-level max_concurrent takes priority over client_options
@@ -380,10 +381,10 @@ class VespaBulkIndexRunnerTests(TestCase):
         call_kwargs = vespa_client.feed_batch.call_args[1]
         self.assertEqual(call_kwargs["max_workers"], 16)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.transform_document_for_vespa")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.parse_bulk_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.transform_document_for_vespa")
+    @mock.patch("osbenchmark.engine.vespa.runners.parse_bulk_body")
+    @mock.patch("osbenchmark.engine.vespa.runners.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_index_max_concurrent_from_client_options(self, mock_ctx, mock_parse, mock_transform):
         # Falls back to client_options["max_concurrent"] when not in params (string value, cast to int)
@@ -403,10 +404,10 @@ class VespaBulkIndexRunnerTests(TestCase):
         call_kwargs = vespa_client.feed_batch.call_args[1]
         self.assertEqual(call_kwargs["max_workers"], 64)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.transform_document_for_vespa")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.parse_bulk_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.PYVESPA_AVAILABLE", False)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.transform_document_for_vespa")
+    @mock.patch("osbenchmark.engine.vespa.runners.parse_bulk_body")
+    @mock.patch("osbenchmark.engine.vespa.runners.PYVESPA_AVAILABLE", False)
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_index_aiohttp_counts_exceptions(self, mock_ctx, mock_parse, mock_transform):
         # aiohttp path catches per-doc exceptions and tallies them as errors (not raised)
@@ -428,10 +429,10 @@ class VespaBulkIndexRunnerTests(TestCase):
 
         self.assertEqual(result["error-count"], 1)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.transform_document_for_vespa")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.parse_bulk_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.transform_document_for_vespa")
+    @mock.patch("osbenchmark.engine.vespa.runners.parse_bulk_body")
+    @mock.patch("osbenchmark.engine.vespa.runners.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_index_pyvespa_exception_propagates(self, mock_ctx, mock_parse, mock_transform):
         # Unlike aiohttp path, pyvespa path lets exceptions propagate (batch-level failure).
@@ -460,322 +461,12 @@ class VespaBulkIndexRunnerTests(TestCase):
 
 class VespaQueryRunnerTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_query_converts_body_to_yql(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        # Patches target vespa module (not helpers) because that's where the imports land
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-        mock_convert_resp.return_value = _opensearch_style_response()
-        vespa_client.search.return_value = _vespa_search_response()
-
-        params = {"body": {"query": {"match_all": {}}}, "index": "myindex"}
-
-        runner = VespaQuery()
-        await runner(vespa_client, params)
-
-        mock_convert_yql.assert_called_once_with({"query": {"match_all": {}}}, "myindex")
-        vespa_client.search.assert_called_once()
-        call_kwargs = vespa_client.search.call_args[1]
-        self.assertIn("yql", call_kwargs["body"])
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_query_returns_hits_and_unit(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-        mock_convert_resp.return_value = _opensearch_style_response(total_value=42)
-
-        params = {"body": {}, "index": "myindex"}
-
-        runner = VespaQuery()
-        result = await runner(vespa_client, params)
-
-        self.assertEqual(result["weight"], 1)
-        self.assertEqual(result["unit"], "ops")
-        self.assertEqual(result["hits"], 42)
-        self.assertEqual(result["hits_relation"], "eq")
-        mock_ctx.on_client_request_start.assert_called_once()
-        mock_ctx.on_request_start.assert_called_once()
-        mock_ctx.on_request_end.assert_called_once()
-        mock_ctx.on_client_request_end.assert_called_once()
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_query_with_request_timeout(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-        mock_convert_resp.return_value = _opensearch_style_response()
-
-        params = {"body": {}, "index": "myindex", "request-timeout": 30}
-
-        runner = VespaQuery()
-        await runner(vespa_client, params)
-
-        call_kwargs = vespa_client.search.call_args[1]
-        self.assertEqual(call_kwargs["body"]["timeout"], "30s")
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_query_timeout_not_overridden_if_already_set(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        # If convert_to_yql already produced a timeout, request-timeout param must not clobber it
-        vespa_client = _make_vespa_client()
-        # convert_to_yql already sets timeout in query_params
-        mock_convert_yql.return_value = ("select * from testapp where true", {"timeout": "5s"})
-        mock_convert_resp.return_value = _opensearch_style_response()
-
-        params = {"body": {}, "index": "myindex", "request-timeout": 30}
-
-        runner = VespaQuery()
-        await runner(vespa_client, params)
-
-        call_kwargs = vespa_client.search.call_args[1]
-        # The existing timeout from convert_to_yql should not be overridden
-        self.assertEqual(call_kwargs["body"]["timeout"], "5s")
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_query_empty_body(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        # Missing "body" key in params defaults to {} rather than raising
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-        mock_convert_resp.return_value = _opensearch_style_response(total_value=0, hits_list=[])
-
-        params = {"index": "myindex"}
-
-        runner = VespaQuery()
-        result = await runner(vespa_client, params)
-
-        mock_convert_yql.assert_called_once_with({}, "myindex")
-        self.assertEqual(result["hits"], 0)
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_query_timed_out_from_response(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-        mock_convert_resp.return_value = _opensearch_style_response(timed_out=True)
-
-        params = {"body": {}, "index": "myindex"}
-
-        runner = VespaQuery()
-        result = await runner(vespa_client, params)
-
-        self.assertTrue(result["timed_out"])
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_query_uses_app_name_as_document_type(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        # When no "index" param, _app_name is used as the Vespa document type for YQL
-        vespa_client = _make_vespa_client(app_name="myspecialapp")
-        mock_convert_yql.return_value = ("select * from myspecialapp where true", {})
-        mock_convert_resp.return_value = _opensearch_style_response()
-
-        # No index param — uses _app_name
-        params = {"body": {}}
-
-        runner = VespaQuery()
-        await runner(vespa_client, params)
-
-        mock_convert_yql.assert_called_once_with({}, "myspecialapp")
-
     def test_repr(self):
         runner = VespaQuery()
         self.assertEqual(repr(runner), "vespa-query")
 
 
 class VespaVectorSearchRunnerTests(TestCase):
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_vector_search_sends_yql_with_nearest_neighbor(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = (
-            "select * from testapp where {targetHits:100}nearestNeighbor(embedding, query_vector)",
-            {"input.query(query_vector)": "[1.0,2.0,3.0]", "ranking": "vector-similarity"},
-        )
-        mock_convert_resp.return_value = _opensearch_style_response(total_value=10)
-
-        params = {
-            "body": {"knn": {"embedding": {"vector": [1.0, 2.0, 3.0], "k": 100}}},
-            "index": "myindex",
-        }
-
-        runner = VespaVectorSearch()
-        result = await runner(vespa_client, params)
-
-        self.assertEqual(result["hits"], 10)
-        self.assertEqual(result["weight"], 1)
-        self.assertEqual(result["unit"], "ops")
-
-        call_kwargs = vespa_client.search.call_args[1]
-        self.assertIn("nearestNeighbor", call_kwargs["body"]["yql"])
-        mock_ctx.on_client_request_start.assert_called_once()
-        mock_ctx.on_request_end.assert_called_once()
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_vector_search_returns_hits(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-        mock_convert_resp.return_value = _opensearch_style_response(total_value=5)
-
-        params = {"body": {}, "index": "myindex"}
-
-        runner = VespaVectorSearch()
-        result = await runner(vespa_client, params)
-
-        self.assertEqual(result["hits"], 5)
-        self.assertEqual(result["weight"], 1)
-        self.assertEqual(result["unit"], "ops")
-        self.assertFalse(result["timed_out"])
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_vector_search_detailed_results(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        # "detailed-results" flag adds extra keys (hits_total, took) for recall/latency analysis
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-        mock_convert_resp.return_value = _opensearch_style_response(total_value=10, took=42)
-
-        params = {"body": {}, "index": "myindex", "detailed-results": True}
-
-        runner = VespaVectorSearch()
-        result = await runner(vespa_client, params)
-
-        self.assertEqual(result["hits_total"], 10)
-        self.assertEqual(result["took"], 42)
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_vector_search_no_detailed_results_by_default(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        # Without the flag, extra keys must be absent to avoid polluting metrics
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-        mock_convert_resp.return_value = _opensearch_style_response(total_value=10, took=42)
-
-        params = {"body": {}, "index": "myindex"}
-
-        runner = VespaVectorSearch()
-        result = await runner(vespa_client, params)
-
-        self.assertNotIn("hits_total", result)
-        self.assertNotIn("took", result)
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_vector_search_uses_app_name(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        vespa_client = _make_vespa_client(app_name="vecapp")
-        mock_convert_yql.return_value = ("select * from vecapp where true", {})
-        mock_convert_resp.return_value = _opensearch_style_response()
-
-        params = {"body": {}}
-
-        runner = VespaVectorSearch()
-        await runner(vespa_client, params)
-
-        mock_convert_yql.assert_called_once_with({}, "vecapp")
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_vector_search_calculates_recall(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-        # Simulate Vespa returning docs with IDs in Vespa format
-        mock_convert_resp.return_value = _opensearch_style_response(
-            total_value=3,
-            hits_list=[
-                {"_id": "id:ns:type::0", "_score": 1.0, "_source": {}},
-                {"_id": "id:ns:type::1", "_score": 0.9, "_source": {}},
-                {"_id": "id:ns:type::5", "_score": 0.8, "_source": {}},
-            ]
-        )
-
-        params = {
-            "body": {}, "index": "myindex",
-            "k": 3,
-            "neighbors": ["0", "1", "2"],  # ground truth
-        }
-
-        runner = VespaVectorSearch()
-        result = await runner(vespa_client, params)
-
-        # 2 out of 3 neighbors found (0 and 1, but not 2)
-        self.assertAlmostEqual(result["recall@k"], 2.0 / 3.0, places=5)
-        self.assertAlmostEqual(result["recall@1"], 1.0, places=5)
-        self.assertIn("recall_time_ms", result)
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_vector_search_skips_recall_without_neighbors(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-        mock_convert_resp.return_value = _opensearch_style_response(total_value=1)
-
-        params = {"body": {}, "index": "myindex", "k": 100}
-
-        runner = VespaVectorSearch()
-        result = await runner(vespa_client, params)
-
-        # recall@k initialized to 0 but not computed without neighbors
-        self.assertEqual(result["recall@k"], 0)
-        self.assertNotIn("recall_time_ms", result)
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_vector_search_perfect_recall(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-        mock_convert_resp.return_value = _opensearch_style_response(
-            total_value=3,
-            hits_list=[
-                {"_id": "id:ns:type::0", "_score": 1.0, "_source": {}},
-                {"_id": "id:ns:type::1", "_score": 0.9, "_source": {}},
-                {"_id": "id:ns:type::2", "_score": 0.8, "_source": {}},
-            ]
-        )
-
-        params = {
-            "body": {}, "index": "myindex",
-            "k": 3,
-            "neighbors": ["0", "1", "2"],
-        }
-
-        runner = VespaVectorSearch()
-        result = await runner(vespa_client, params)
-
-        self.assertAlmostEqual(result["recall@k"], 1.0, places=5)
-        self.assertAlmostEqual(result["recall@1"], 1.0, places=5)
 
     def test_extract_doc_id(self):
         self.assertEqual(VespaVectorSearch._extract_doc_id("id:ns:type::123"), "123")
@@ -789,7 +480,7 @@ class VespaVectorSearchRunnerTests(TestCase):
 
 class VespaBulkVectorDataSetRunnerTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_vector_calls_bulk(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -815,7 +506,7 @@ class VespaBulkVectorDataSetRunnerTests(TestCase):
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_vector_returns_size_and_docs(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -831,7 +522,7 @@ class VespaBulkVectorDataSetRunnerTests(TestCase):
 
         self.assertEqual(result, (50, "docs"))
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_bulk_vector_passes_index(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -870,205 +561,6 @@ class VespaScrollQueryRunnerTests(TestCase):
             },
         }
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_scroll_paginates_n_pages(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-        mock_convert_resp.return_value = self._make_page_response(total_value=100, hits_count=10)
-
-        params = {"body": {"query": {"match_all": {}}}, "pages": 3, "results-per-page": 10, "index": "myindex"}
-
-        runner = VespaScrollQuery()
-        result = await runner(vespa_client, params)
-
-        self.assertEqual(result["pages"], 3)
-        self.assertEqual(vespa_client.search.call_count, 3)
-        mock_ctx.on_client_request_start.assert_called_once()
-        mock_ctx.on_request_end.assert_called_once()
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_scroll_stops_early_on_short_page(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        # Pagination breaks when a page returns fewer hits than results_per_page (data exhausted)
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-
-        # First page returns 10 hits (full page), second returns only 3 (short page — stop)
-        mock_convert_resp.side_effect = [
-            self._make_page_response(total_value=13, hits_count=10),
-            self._make_page_response(total_value=13, hits_count=3),
-        ]
-
-        params = {"body": {}, "pages": 5, "results-per-page": 10, "index": "myindex"}
-
-        runner = VespaScrollQuery()
-        result = await runner(vespa_client, params)
-
-        # Should stop after 2 pages (3 < 10)
-        self.assertEqual(result["pages"], 2)
-        self.assertEqual(vespa_client.search.call_count, 2)
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_scroll_returns_pages_and_hits(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-        mock_convert_resp.return_value = self._make_page_response(total_value=500, took=10, hits_count=100)
-
-        params = {"body": {}, "pages": 3, "results-per-page": 100, "index": "myindex"}
-
-        runner = VespaScrollQuery()
-        result = await runner(vespa_client, params)
-
-        self.assertEqual(result["weight"], 3)
-        self.assertEqual(result["pages"], 3)
-        self.assertEqual(result["hits"], 500)
-        self.assertEqual(result["unit"], "pages")
-        self.assertEqual(result["hits_relation"], "eq")
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_scroll_first_page_sets_total_hits(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        # total_hits is captured from page 0 only; later pages may report stale counts
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-
-        # Page 0 returns total=500, page 1 returns total=499 (shouldn't matter)
-        mock_convert_resp.side_effect = [
-            self._make_page_response(total_value=500, hits_count=10),
-            self._make_page_response(total_value=499, hits_count=10),
-        ]
-
-        params = {"body": {}, "pages": 2, "results-per-page": 10, "index": "myindex"}
-
-        runner = VespaScrollQuery()
-        result = await runner(vespa_client, params)
-
-        # total_hits is set from page 0 only
-        self.assertEqual(result["hits"], 500)
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_scroll_accumulates_took(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-
-        mock_convert_resp.side_effect = [
-            self._make_page_response(took=10, hits_count=100),
-            self._make_page_response(took=15, hits_count=100),
-            self._make_page_response(took=20, hits_count=100),
-        ]
-
-        params = {"body": {}, "pages": 3, "results-per-page": 100, "index": "myindex"}
-
-        runner = VespaScrollQuery()
-        result = await runner(vespa_client, params)
-
-        self.assertEqual(result["took"], 45)
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_scroll_body_not_mutated(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        # Runner uses body.copy() per page so the caller's dict isn't polluted with size/from
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-        mock_convert_resp.return_value = self._make_page_response(hits_count=5)
-
-        original_body = {"query": {"match_all": {}}}
-        body_copy = dict(original_body)
-        params = {"body": original_body, "pages": 2, "results-per-page": 10, "index": "myindex"}
-
-        runner = VespaScrollQuery()
-        await runner(vespa_client, params)
-
-        # body.copy() inside the runner prevents mutation of the caller's dict
-        self.assertEqual(original_body, body_copy)
-        self.assertNotIn("size", original_body)
-        self.assertNotIn("from", original_body)
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_scroll_exact_page_boundary_fetches_extra(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        # When total docs align exactly with page size, an extra empty page is fetched before break
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-
-        # 30 total hits, page_size=10. Pages 1-3 return 10 hits each (full).
-        # Page 4 returns 0 hits, triggering the break.
-        mock_convert_resp.side_effect = [
-            self._make_page_response(total_value=30, hits_count=10),
-            self._make_page_response(total_value=30, hits_count=10),
-            self._make_page_response(total_value=30, hits_count=10),
-            self._make_page_response(total_value=30, hits_count=0),
-        ]
-
-        params = {"body": {}, "pages": 5, "results-per-page": 10, "index": "myindex"}
-
-        runner = VespaScrollQuery()
-        result = await runner(vespa_client, params)
-
-        # 4 search calls: 3 full pages + 1 empty page that triggers break
-        self.assertEqual(vespa_client.search.call_count, 4)
-        self.assertEqual(result["pages"], 4)
-        self.assertEqual(result["hits"], 30)
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_scroll_timed_out_or_logic(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        # timed_out is accumulated with OR across all pages — one timeout taints the whole scroll
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-
-        # Page 0 not timed out, page 1 timed out
-        mock_convert_resp.side_effect = [
-            self._make_page_response(timed_out=False, hits_count=10),
-            self._make_page_response(timed_out=True, hits_count=10),
-        ]
-
-        params = {"body": {}, "pages": 2, "results-per-page": 10, "index": "myindex"}
-
-        runner = VespaScrollQuery()
-        result = await runner(vespa_client, params)
-
-        # Overall timed_out is OR of all pages
-        self.assertTrue(result["timed_out"])
-
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_vespa_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.convert_to_yql")
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
-    @run_async
-    async def test_scroll_default_params(self, mock_ctx, mock_convert_yql, mock_convert_resp):
-        # Defaults: pages=10, results-per-page=1000. Empty first page triggers early exit.
-        vespa_client = _make_vespa_client()
-        mock_convert_yql.return_value = ("select * from testapp where true", {})
-        # Return short pages to stop early, so we don't actually do 10 pages
-        mock_convert_resp.return_value = self._make_page_response(hits_count=0)
-
-        params = {"body": {}, "index": "myindex"}
-
-        runner = VespaScrollQuery()
-        result = await runner(vespa_client, params)
-
-        # Default pages=10, but stops early because results < results_per_page (0 < 1000)
-        self.assertEqual(result["pages"], 1)
-
     def test_repr(self):
         runner = VespaScrollQuery()
         self.assertEqual(repr(runner), "vespa-scroll-query")
@@ -1076,7 +568,7 @@ class VespaScrollQueryRunnerTests(TestCase):
 
 class VespaCreateIndexRunnerTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_create_from_indices_list(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1094,7 +586,7 @@ class VespaCreateIndexRunnerTests(TestCase):
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_create_from_single_index_param(self, mock_ctx):
         # Alternate param shape: single "index"+"body" instead of "indices" list
@@ -1109,7 +601,7 @@ class VespaCreateIndexRunnerTests(TestCase):
         self.assertEqual(result["weight"], 1)
         self.assertTrue(result["success"])
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_create_returns_weight_and_unit(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1131,7 +623,7 @@ class VespaCreateIndexRunnerTests(TestCase):
 
 class VespaDeleteIndexRunnerTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_delete_from_indices_list(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1147,7 +639,7 @@ class VespaDeleteIndexRunnerTests(TestCase):
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_delete_from_single_index_param(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1161,7 +653,7 @@ class VespaDeleteIndexRunnerTests(TestCase):
         self.assertEqual(result["weight"], 1)
         self.assertTrue(result["success"])
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_delete_only_if_exists_true_and_exists(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1176,7 +668,7 @@ class VespaDeleteIndexRunnerTests(TestCase):
         vespa_client.indices.delete.assert_called_once_with(index="index1")
         self.assertEqual(result["weight"], 1)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_delete_only_if_exists_true_and_not_exists(self, mock_ctx):
         # Skips delete entirely; weight=0 signals no actual work was done
@@ -1192,7 +684,7 @@ class VespaDeleteIndexRunnerTests(TestCase):
         vespa_client.indices.delete.assert_not_called()
         self.assertEqual(result["weight"], 0)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_delete_only_if_exists_false(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1207,7 +699,7 @@ class VespaDeleteIndexRunnerTests(TestCase):
         vespa_client.indices.delete.assert_called_once_with(index="index1")
         self.assertEqual(result["weight"], 1)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_delete_returns_weight(self, mock_ctx):
         # Weight reflects only actually-deleted indices, not total requested
@@ -1230,7 +722,7 @@ class VespaDeleteIndexRunnerTests(TestCase):
 
 class VespaIndicesStatsRunnerTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_stats_calls_indices_stats(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1246,7 +738,7 @@ class VespaIndicesStatsRunnerTests(TestCase):
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_stats_returns_response(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1269,7 +761,7 @@ class VespaIndicesStatsRunnerTests(TestCase):
 
 class VespaClusterHealthRunnerTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_returns_green_success(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1286,7 +778,7 @@ class VespaClusterHealthRunnerTests(TestCase):
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_returns_yellow_success(self, mock_ctx):
         # Design decision: yellow is treated as success (matches OpenSearch behavior)
@@ -1302,7 +794,7 @@ class VespaClusterHealthRunnerTests(TestCase):
         self.assertTrue(result["success"])
         self.assertEqual(result["cluster-status"], "yellow")
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_returns_red_failure(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1317,7 +809,7 @@ class VespaClusterHealthRunnerTests(TestCase):
         self.assertFalse(result["success"])
         self.assertEqual(result["cluster-status"], "red")
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_includes_cluster_status(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1331,7 +823,7 @@ class VespaClusterHealthRunnerTests(TestCase):
 
         self.assertIn("cluster-status", result)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_includes_relocating_shards(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1345,7 +837,7 @@ class VespaClusterHealthRunnerTests(TestCase):
 
         self.assertEqual(result["relocating-shards"], 5)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_unknown_status_not_success(self, mock_ctx):
         # Only "green" and "yellow" are treated as success; anything else (including "unknown") fails
@@ -1368,7 +860,7 @@ class VespaClusterHealthRunnerTests(TestCase):
 
 class VespaRefreshRunnerTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_refresh_calls_indices_refresh(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1386,7 +878,7 @@ class VespaRefreshRunnerTests(TestCase):
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_refresh_returns_shards(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1412,7 +904,7 @@ class VespaRefreshRunnerTests(TestCase):
 
 class VespaForceMergeRunnerTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_force_merge_calls_forcemerge(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1429,7 +921,7 @@ class VespaForceMergeRunnerTests(TestCase):
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_force_merge_returns_shards(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1452,7 +944,7 @@ class VespaForceMergeRunnerTests(TestCase):
 
 class VespaNoOpRunnerTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_logs_skip_message(self, mock_ctx):
         # VespaNoOp stubs out OS-only operations so workloads run without --exclude-tasks
@@ -1463,7 +955,7 @@ class VespaNoOpRunnerTests(TestCase):
             args = mock_logger.info.call_args[0]
             self.assertIn("put-pipeline", args[1])
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_returns_success(self, mock_ctx):
         runner = VespaNoOp("delete-pipeline")
@@ -1473,7 +965,7 @@ class VespaNoOpRunnerTests(TestCase):
         self.assertEqual(result["unit"], "ops")
         self.assertTrue(result["success"])
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_sets_up_timing_context(self, mock_ctx):
         runner = VespaNoOp("create-search-pipeline")
@@ -1495,7 +987,7 @@ class VespaNoOpRunnerTests(TestCase):
 
 class VespaWarmupIndicesRunnerTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_issues_warmup_queries(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1506,7 +998,7 @@ class VespaWarmupIndicesRunnerTests(TestCase):
         self.assertEqual(vespa_client.search.call_count, VespaWarmupIndicesRunner.DEFAULT_WARMUP_QUERIES)
         self.assertTrue(result["success"])
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.vespa.request_context_holder")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
     @run_async
     async def test_sets_up_timing_context(self, mock_ctx):
         vespa_client = _make_vespa_client()
@@ -1625,3 +1117,124 @@ class RegisterVespaRunnersTests(TestCase):
         self.assertEqual(type_map[workload.OperationType.DeletePipeline], VespaNoOp)
         self.assertEqual(type_map[workload.OperationType.CreateSearchPipeline], VespaNoOp)
         self.assertEqual(type_map[workload.OperationType.PutSettings], VespaNoOp)
+
+
+class VespaRunnerYqlContractTests(TestCase):
+    """Enforce the pre-translated YQL contract introduced by the engine refactor.
+
+    The Vespa search runners no longer translate OpenSearch DSL → YQL at runtime.
+    Workloads must provide a body with a "yql" key (produced by a Vespa-specific
+    param source, e.g. the vectorsearch workload's "vespa-search-only" procedure).
+    Any body without "yql" must raise BenchmarkError — silently falling through
+    would produce empty result sets and silently invalid benchmarks.
+    """
+
+    # --- VespaVectorSearch ----------------------------------------------------
+
+    @run_async
+    async def test_vector_search_raises_without_yql(self):
+        vespa_client = _make_vespa_client()
+        params = {"body": {"query": {"knn": {"vec": {"vector": [1.0], "k": 10}}}}, "k": 10}
+
+        runner = VespaVectorSearch()
+        with self.assertRaises(exceptions.BenchmarkError) as ctx:
+            await runner(vespa_client, params)
+        self.assertIn("yql", str(ctx.exception))
+        vespa_client.search.assert_not_called()
+
+    @run_async
+    async def test_vector_search_raises_with_empty_body(self):
+        vespa_client = _make_vespa_client()
+        runner = VespaVectorSearch()
+        with self.assertRaises(exceptions.BenchmarkError):
+            await runner(vespa_client, {"body": {}})
+        vespa_client.search.assert_not_called()
+
+    @mock.patch("osbenchmark.engine.vespa.runners.convert_vespa_response")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
+    @run_async
+    async def test_vector_search_accepts_pretranslated_yql(self, _mock_ctx, mock_convert):
+        vespa_client = _make_vespa_client()
+        vespa_client.search.return_value = _vespa_search_response()
+        mock_convert.return_value = _opensearch_style_response()
+
+        yql = "select * from sources * where {targetHits:10}nearestNeighbor(emb, q)"
+        params = {"body": {"yql": yql}, "k": 10, "calculate-recall": False}
+
+        runner = VespaVectorSearch()
+        result = await runner(vespa_client, params)
+
+        vespa_client.search.assert_called_once()
+        sent_body = vespa_client.search.call_args.kwargs["body"]
+        self.assertIn("yql", sent_body)
+        # hits should be set to k for recall support
+        self.assertEqual(sent_body["hits"], 10)
+        self.assertTrue(result["success"])
+
+    # --- VespaQuery -----------------------------------------------------------
+
+    @run_async
+    async def test_query_raises_without_yql(self):
+        vespa_client = _make_vespa_client()
+        params = {"body": {"query": {"match_all": {}}}}
+
+        runner = VespaQuery()
+        with self.assertRaises(exceptions.BenchmarkError) as ctx:
+            await runner(vespa_client, params)
+        self.assertIn("yql", str(ctx.exception))
+        vespa_client.search.assert_not_called()
+
+    @mock.patch("osbenchmark.engine.vespa.runners.convert_vespa_response")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
+    @run_async
+    async def test_query_accepts_pretranslated_yql(self, _mock_ctx, mock_convert):
+        vespa_client = _make_vespa_client()
+        vespa_client.search.return_value = _vespa_search_response()
+        mock_convert.return_value = _opensearch_style_response()
+
+        yql = "select * from sources * where true"
+        params = {"body": {"yql": yql}}
+
+        runner = VespaQuery()
+        result = await runner(vespa_client, params)
+
+        vespa_client.search.assert_called_once()
+        sent_body = vespa_client.search.call_args.kwargs["body"]
+        self.assertEqual(sent_body["yql"], yql)
+        self.assertEqual(result["hits"], 1)
+
+    # --- VespaScrollQuery -----------------------------------------------------
+
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
+    @run_async
+    async def test_scroll_query_raises_without_yql(self, _mock_ctx):
+        vespa_client = _make_vespa_client()
+        params = {"body": {"query": {"match_all": {}}}, "pages": 1, "results-per-page": 10}
+
+        runner = VespaScrollQuery()
+        with self.assertRaises(exceptions.BenchmarkError) as ctx:
+            await runner(vespa_client, params)
+        self.assertIn("yql", str(ctx.exception))
+        vespa_client.search.assert_not_called()
+
+    @mock.patch("osbenchmark.engine.vespa.runners.convert_vespa_response")
+    @mock.patch("osbenchmark.engine.vespa.runners.request_context_holder")
+    @run_async
+    async def test_scroll_query_accepts_pretranslated_yql(self, _mock_ctx, mock_convert):
+        vespa_client = _make_vespa_client()
+        vespa_client.search.return_value = _vespa_search_response()
+        mock_convert.return_value = {
+            "took": 5,
+            "timed_out": False,
+            "hits": {"total": {"value": 1, "relation": "eq"}, "max_score": 1.0, "hits": []},
+        }
+
+        yql = "select * from sources * where true"
+        params = {"body": {"yql": yql}, "pages": 1, "results-per-page": 10}
+
+        runner = VespaScrollQuery()
+        await runner(vespa_client, params)
+
+        vespa_client.search.assert_called_once()
+        sent_body = vespa_client.search.call_args.kwargs["body"]
+        self.assertEqual(sent_body["yql"], yql)
