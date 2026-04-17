@@ -442,6 +442,23 @@ class MilvusDatabaseClient(RequestContextHolder):
         )
         return {"_id": str(id), "result": "created", "_version": 1}
 
+    def _detect_version_from_health(self, req):
+        """Try to get semver version from Milvus health endpoint."""
+        default = "2.0.0"
+        try:
+            health_resp = req.get(f"http://{self.host}:9091/api/v1/health", timeout=5)
+            if health_resp.status_code != 200:
+                return default
+            reported = health_resp.json().get("version")
+            if not reported:
+                return default
+            candidate = reported.lstrip("v")
+            if candidate and candidate[0].isdigit() and "." in candidate:
+                return candidate
+        except Exception:
+            pass
+        return default
+
     def info(self, **kwargs):
         """Get Milvus server version — synchronous, uses HTTP to avoid loading pymilvus.
 
@@ -459,19 +476,7 @@ class MilvusDatabaseClient(RequestContextHolder):
         try:
             resp = req.get(f"{self.uri}/v2/vectordb/collections/list",
                           json={}, timeout=10, headers={"Content-Type": "application/json"})
-            version = DEFAULT_VERSION
-            if resp.status_code == 200:
-                health_url = f"http://{self.host}:9091/api/v1/health"
-                try:
-                    health_resp = req.get(health_url, timeout=5)
-                    if health_resp.status_code == 200:
-                        reported = health_resp.json().get("version")
-                        if reported:
-                            candidate = reported.lstrip("v")
-                            if candidate and candidate[0].isdigit() and "." in candidate:
-                                version = candidate
-                except Exception:
-                    pass
+            version = self._detect_version_from_health(req) if resp.status_code == 200 else DEFAULT_VERSION
             return {
                 "name": "milvus",
                 "cluster_name": self._collection_name,
@@ -499,4 +504,3 @@ class MilvusDatabaseClient(RequestContextHolder):
 
     def return_raw_response(self):
         pass
-

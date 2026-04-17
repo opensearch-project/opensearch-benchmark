@@ -467,8 +467,6 @@ class VespaScrollQuery(Runner):
         results_per_page = params.get("results-per-page", DEFAULT_RESULTS_PER_PAGE)
         index = params.get("index")
         body = params.get("body", {})
-        doc_type = index or getattr(vespa_client, "_app_name", "default")
-
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:

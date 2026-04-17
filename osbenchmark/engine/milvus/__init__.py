@@ -80,7 +80,7 @@ def wait_for_client(milvus_client, max_attempts=40):
 
     host = getattr(milvus_client, "host", None) or getattr(milvus_client, "_host", "localhost")
     port = getattr(milvus_client, "port", 19530)
-    for attempt in range(max_attempts):
+    for _ in range(max_attempts):
         try:
             # POST to REST API (Milvus 2.4+ exposes REST on same port as gRPC)
             resp = req.post(f"http://{host}:{port}/v2/vectordb/collections/list",
