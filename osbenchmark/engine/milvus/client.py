@@ -139,6 +139,106 @@ class MilvusDatabaseClient(RequestContextHolder):
         self._timeout_search = int(client_options.get("timeout_search", 30))
         self._timeout_admin = int(client_options.get("timeout_admin", 300))
 
+        # Namespace proxies — runners call client.indices.create(), etc.
+        self.indices = self
+        self.cluster = self
+        self.transport = self
+        self.nodes = self
+
+    # --- Namespace methods (called by runners via self.indices.X, etc.) ---
+
+    async def create(self, index=None, body=None, **kwargs):
+        """Create collection + index from schema/index_params in body."""
+        self._ensure_client()
+        collection_name = index or self._collection_name
+        schema = body.get("schema") if body else None
+        index_params = body.get("index_params") if body else None
+
+        if schema and index_params:
+            if await self._client.has_collection(collection_name=collection_name):
+                await self._client.drop_collection(collection_name=collection_name)
+                for _ in range(20):
+                    if not await self._client.has_collection(collection_name=collection_name):
+                        break
+                    await asyncio.sleep(0.5)
+            await self._client.create_collection(
+                collection_name=collection_name, schema=schema, index_params=index_params,
+            )
+        return {"acknowledged": True, "shards_acknowledged": True, "index": collection_name}
+
+    async def delete(self, index=None, **kwargs):
+        self._ensure_client()
+        await self._client.drop_collection(collection_name=index or self._collection_name)
+        return {"acknowledged": True}
+
+    async def exists(self, index=None, **kwargs):
+        self._ensure_client()
+        return await self._client.has_collection(collection_name=index)
+
+    async def refresh(self, index=None, **kwargs):
+        """Map to Milvus flush(). Retries on rate-limit (Milvus throttles to 0.1/s)."""
+        self._ensure_client()
+        if not index:
+            return {"acknowledged": True, "_shards": {"total": 1, "successful": 1, "failed": 0}}
+        for attempt in range(5):
+            try:
+                await self._client.flush(collection_name=index, timeout=self._timeout_admin)
+                break
+            except Exception as e:
+                if "rate limit" in str(e).lower() and attempt < 4:
+                    self.logger.warning("Flush rate-limited, retrying in 10s...")
+                    await asyncio.sleep(10)
+                    continue
+                raise
+        return {"acknowledged": True, "_shards": {"total": 1, "successful": 1, "failed": 0}}
+
+    async def stats(self, index=None, metric=None, **kwargs):
+        self._ensure_client()
+        if index:
+            result = await self._client.get_collection_stats(collection_name=index)
+            row_count = result.get("row_count", 0)
+            return {"_all": {"primaries": {"docs": {"count": row_count}}, "total": {"docs": {"count": row_count}}}}
+        return {"_all": {"primaries": {}, "total": {}}}
+
+    async def forcemerge(self, index=None, **kwargs):
+        """Map to Milvus compact(). Polls get_compaction_state() for completion."""
+        self._ensure_client()
+        if not index:
+            return {"_shards": {"total": 1, "successful": 1, "failed": 0}}
+        job_id = await self._client.compact(collection_name=index, timeout=self._timeout_admin)
+        wait = kwargs.get("wait_for_completion", True)
+        if wait and wait != "false":
+            for i in range(120):
+                try:
+                    state = await self._client.get_compaction_state(job_id)
+                    if state == "Completed":
+                        break
+                    if i > 0 and i % 15 == 0:
+                        self.logger.info("Compaction in progress (%ds, state=%s)...", i, state)
+                except Exception:
+                    break
+                await asyncio.sleep(1)
+        return {"_shards": {"total": 1, "successful": 1, "failed": 0}}
+
+    async def health(self, **kwargs):
+        self._ensure_client()
+        try:
+            await self._client.list_collections()
+            return {
+                "cluster_name": "milvus", "status": "green", "timed_out": False,
+                "number_of_nodes": 1, "number_of_data_nodes": 1,
+                "active_primary_shards": 1, "active_shards": 1,
+                "relocating_shards": 0, "initializing_shards": 0, "unassigned_shards": 0,
+            }
+        except Exception:
+            return {"cluster_name": "milvus", "status": "red", "timed_out": False}
+
+    async def put_settings(self, body=None, **kwargs):
+        return {"acknowledged": True}
+
+    async def perform_request(self, method, url, params=None, body=None, headers=None):
+        return {}
+
     def _ensure_client(self):
         """Lazy-init pymilvus AsyncMilvusClient with double-checked locking.
 
