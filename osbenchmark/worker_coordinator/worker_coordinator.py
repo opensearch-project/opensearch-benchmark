@@ -45,12 +45,9 @@ from enum import Enum
 
 import thespian.actors
 
-from osbenchmark.utils import opts
 from osbenchmark import actor, config, exceptions, metrics, workload, client, paths, PROGRAM_NAME, telemetry
 from osbenchmark.worker_coordinator import runner, scheduler
-from osbenchmark.database.factory import DatabaseClientFactory
-from osbenchmark.database.registry import DatabaseType, get_client_factory
-import osbenchmark.database  # noqa: F401  # pylint: disable=unused-import
+from osbenchmark.engine import get_engine
 from osbenchmark.workload import WorkloadProcessorRegistry, load_workload, load_workload_plugins, ingestion_manager
 from osbenchmark.utils import convert, console, net
 from osbenchmark.worker_coordinator.errors import parse_error
@@ -646,20 +643,13 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_PrepareBenchmark(self, msg, sender):
         self.start_sender = sender
-        db_type_str = msg.config.opts("database", "type", default_value="opensearch", mandatory=False)
-        if db_type_str.lower() == "opensearch":
-            # OpenSearch path: identical to 2.1 — let WorkerCoordinator use the default
-            # client.OsClientFactory so that nothing about OS client construction changes.
-            self.coordinator = WorkerCoordinator(self, msg.config)
-        else:
-            # Non-OpenSearch path: route through the database abstraction registry to pick
-            # the appropriate factory class for Vespa, Milvus, etc.
-            try:
-                db_type = DatabaseType(db_type_str.lower())
-                client_factory_class = get_client_factory(db_type)
-            except (ValueError, KeyError):
-                client_factory_class = get_client_factory(DatabaseType.OPENSEARCH)
-            self.coordinator = WorkerCoordinator(self, msg.config, os_client_factory_class=client_factory_class)
+        # CLI flag --database-type and config key [database] type are preserved
+        # for backwards compatibility. Internally they map to an engine name.
+        db_type_str = msg.config.opts("database", "type", default_value="opensearch", mandatory=False).lower()
+        engine = get_engine(db_type_str)
+        # The engine's create_client_factory is used by WorkerCoordinator.create_os_clients
+        # as the factory class (invoked with hosts, client_options to get a factory instance).
+        self.coordinator = WorkerCoordinator(self, msg.config, os_client_factory_class=engine.create_client_factory)
         self.coordinator.prepare_benchmark(msg.workload)
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
@@ -1019,38 +1009,14 @@ class WorkerCoordinator:
         self.telemetry = telemetry.Telemetry(enabled_devices, devices=devices)
 
     def wait_for_rest_api(self, opensearch):
-        self.logger.info("Checking if REST API is available.")
-        database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
-        if database_type.lower() == "opensearch":
-            # OpenSearch path: identical to 2.1. The module-level
-            # client.wait_for_rest_layer expects an opensearchpy client with
-            # .transport.hosts — which is exactly what create_os_clients
-            # returns for the OS code path.
-            os_default = opensearch["default"]
-            if client.wait_for_rest_layer(os_default, max_attempts=40):
-                self.logger.info("REST API is available.")
-            else:
-                self.logger.error("REST API layer is not yet available. Stopping benchmark.")
-                raise exceptions.SystemSetupError("OpenSearch REST API layer is not available.")
+        db_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False).lower()
+        engine = get_engine(db_type)
+        self.logger.info("Checking if [%s] is available.", db_type)
+        if engine.wait_for_client(opensearch["default"], max_attempts=40):
+            self.logger.info("[%s] is available.", db_type)
         else:
-            # Non-OpenSearch path: the client returned by create_os_clients is
-            # a DatabaseClient adapter (e.g. VespaDatabaseClient) whose .transport
-            # is a TransportNamespace that doesn't implement .hosts. Each database
-            # adapter factory provides its own wait_for_rest_layer() that performs
-            # a protocol-appropriate reachability check. Construct a throwaway
-            # factory to run it — cheap, one-time, matches the shape of
-            # create_os_clients for the default cluster.
-            all_hosts = self.config.opts("client", "hosts").all_hosts
-            all_client_options = self.config.opts("client", "options").all_client_options
-            default_hosts = all_hosts["default"]
-            default_options = dict(all_client_options["default"])
-            default_options["retry-on-timeout"] = True
-            factory = self.os_client_factory(default_hosts, default_options)
-            if factory.wait_for_rest_layer():
-                self.logger.info("REST API is available.")
-            else:
-                self.logger.error("REST API layer is not yet available. Stopping benchmark.")
-                raise exceptions.SystemSetupError("%s REST API layer is not available." % database_type)
+            self.logger.error("[%s] is not yet available. Stopping benchmark.", db_type)
+            raise exceptions.SystemSetupError(f"{db_type} is not available.")
 
     def retrieve_cluster_info(self, opensearch):
         try:
@@ -1728,20 +1694,15 @@ class Worker(actor.BenchmarkActor):
         runner.register_default_runners()
         if self.workload.has_plugins:
             workload.load_workload_plugins(self.config, self.workload.name, runner.register_runner, scheduler.register_scheduler)
-        # Database-specific runners are registered AFTER workload plugins so they take precedence.
-        # This is intentional: workload plugins may register OpenSearch-specific runners (e.g.,
-        # warmup-knn-indices that hits /_plugins/_knn/warmup/) that would fail on non-OpenSearch
-        # databases. By registering database runners last, we ensure the correct implementation
-        # is used for each operation type regardless of what the workload plugin registered.
-        database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
-        if database_type.lower() == "vespa":
-            from osbenchmark.worker_coordinator.runners.vespa import register_vespa_runners  # pylint: disable=import-outside-toplevel
-            register_vespa_runners()
-            self.logger.info("Registered Vespa runners (overriding OpenSearch and workload defaults for supported operations)")
-        elif database_type.lower() == "milvus":
-            from osbenchmark.worker_coordinator.runners.milvus import register_milvus_runners  # pylint: disable=import-outside-toplevel
-            register_milvus_runners()
-            self.logger.info("Registered Milvus runners (overriding OpenSearch and workload defaults for supported operations)")
+        # Engine-specific runners are registered AFTER workload plugins so they take precedence.
+        # Workload plugins may register OpenSearch-specific runners (e.g. warmup-knn-indices hitting
+        # /_plugins/_knn/warmup/) that fail on non-OS engines — the engine's register_runners()
+        # overrides those so each operation type uses the engine-appropriate implementation.
+        db_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False).lower()
+        if db_type != "opensearch":
+            engine = get_engine(db_type)
+            engine.register_runners()
+            self.logger.info("Registered [%s] runners (overriding OS and workload defaults for supported ops)", db_type)
         self.drive()
 
     @actor.no_retry("worker")  # pylint: disable=no-value-for-parameter
@@ -2217,41 +2178,11 @@ class AsyncIoAdapter:
     async def run(self):
         def os_clients(all_hosts, all_client_options):
             opensearch = {}
-            grpc_hosts = self.cfg.opts("client", "grpc_hosts", mandatory=False)
-
-            # If gRPC hosts are configured and not empty, use them. Otherwise, use defaults for gRPC operations.
-            if grpc_hosts and grpc_hosts.all_hosts:
-                # Use the provided gRPC hosts
-                pass
-            else:
-                # Provide default gRPC hosts when using gRPC operations
-                # Default: localhost:9400 (matching current environment variable defaults)
-                grpc_hosts = opts.TargetHosts("localhost:9400")
-
-            database_type = self.cfg.opts("database", "type", default_value="opensearch", mandatory=False)
-
-            if database_type.lower() == "opensearch":
-                # OpenSearch path: identical to 2.1. Direct construction of
-                # client.OsClientFactory + client.UnifiedClientFactory so that
-                # nothing about how the OS client is built changes.
-                for cluster_name, cluster_hosts in all_hosts.items():
-                    rest_client_factory = client.OsClientFactory(cluster_hosts, all_client_options[cluster_name])
-                    unified_client_factory = client.UnifiedClientFactory(rest_client_factory, grpc_hosts)
-                    opensearch[cluster_name] = unified_client_factory.create_async()
-            else:
-                # Non-OpenSearch path: route through the database abstraction layer
-                # to pick the right factory class for Vespa, Milvus, etc.
-                self.logger.info("Creating database clients with database_type=[%s]", database_type)
-                for cluster_name, cluster_hosts in all_hosts.items():
-                    db_factory = DatabaseClientFactory.create_client_factory(
-                        database_type,
-                        cluster_hosts,
-                        all_client_options[cluster_name],
-                        grpc_hosts=grpc_hosts,
-                    )
-                    db_client = db_factory.create_async()
-                    self.logger.info("Created client type=[%s] for cluster=[%s]", type(db_client).__name__, cluster_name)
-                    opensearch[cluster_name] = db_client
+            db_type = self.cfg.opts("database", "type", default_value="opensearch", mandatory=False).lower()
+            engine = get_engine(db_type)
+            for cluster_name, cluster_hosts in all_hosts.items():
+                opensearch[cluster_name] = engine.create_async_client(
+                    cluster_hosts, all_client_options[cluster_name], cfg=self.cfg)
             return opensearch
 
         # Properly size the internal connection pool to match the number of expected clients but allow the user
