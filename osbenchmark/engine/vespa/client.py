@@ -666,4 +666,3 @@ class VespaDatabaseClient(RequestContextHolder):
     def return_raw_response(self):
         """Mark that raw responses should be returned."""
         self._request_context["raw_response"] = True
-

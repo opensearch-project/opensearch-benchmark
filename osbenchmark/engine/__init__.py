@@ -76,17 +76,17 @@ def _ensure_builtin_engines():
     worker children, not the pre-fork coordinator).
     """
     if "opensearch" not in _ENGINE_REGISTRY:
-        from osbenchmark.engine import opensearch as opensearch_engine
+        from osbenchmark.engine import opensearch as opensearch_engine  # pylint: disable=import-outside-toplevel
         register_engine("opensearch", opensearch_engine)
     if "vespa" not in _ENGINE_REGISTRY:
         try:
-            from osbenchmark.engine import vespa as vespa_engine
+            from osbenchmark.engine import vespa as vespa_engine  # pylint: disable=import-outside-toplevel
             register_engine("vespa", vespa_engine)
         except ImportError as e:
             logger.debug("Vespa engine not available: %s", e)
     if "milvus" not in _ENGINE_REGISTRY:
         try:
-            from osbenchmark.engine import milvus as milvus_engine
+            from osbenchmark.engine import milvus as milvus_engine  # pylint: disable=import-outside-toplevel
             register_engine("milvus", milvus_engine)
         except ImportError as e:
             logger.debug("Milvus engine not available: %s", e)
