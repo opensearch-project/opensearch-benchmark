@@ -5,7 +5,7 @@
 # compatible open source license.
 
 """
-Unit tests for osbenchmark.database.clients.milvus.milvus
+Unit tests for osbenchmark.engine.milvus.client
 
 Tests MilvusClientFactory, MilvusDatabaseClient, and all namespace classes
 (MilvusIndicesNamespace, MilvusClusterNamespace, MilvusTransportNamespace,
@@ -20,13 +20,9 @@ and no _run helper — operations are directly awaited.
 from unittest import TestCase, mock
 
 from osbenchmark import exceptions
-from osbenchmark.database.clients.milvus.milvus import (
+from osbenchmark.engine.milvus.client import (
     MilvusClientFactory,
     MilvusDatabaseClient,
-    MilvusIndicesNamespace,
-    MilvusClusterNamespace,
-    MilvusTransportNamespace,
-    MilvusNodesNamespace,
 )
 from tests import run_async
 
@@ -134,13 +130,6 @@ class MilvusDatabaseClientInitTests(TestCase):
     def test_collection_name_falls_back_to_app_name(self):
         client = MilvusDatabaseClient(app_name="app_coll")
         self.assertEqual("app_coll", client._collection_name)
-
-    def test_init_creates_namespace_objects(self):
-        client = MilvusDatabaseClient()
-        self.assertIsInstance(client._indices_ns, MilvusIndicesNamespace)
-        self.assertIsInstance(client._cluster_ns, MilvusClusterNamespace)
-        self.assertIsInstance(client._transport_ns, MilvusTransportNamespace)
-        self.assertIsInstance(client._nodes_ns, MilvusNodesNamespace)
 
     def test_init_has_no_executor(self):
         """AsyncMilvusClient refactor eliminated the ThreadPoolExecutor layer."""
@@ -322,19 +311,19 @@ class MilvusInfoTests(TestCase):
 
     @mock.patch("requests.get")
     def test_info_fallback_on_error(self, mock_get):
+        # OSB metrics store rejects non-semver version strings, so the info() fallback
+        # returns a semver-valid default ("2.0.0") rather than "unknown".
         mock_get.side_effect = ConnectionError("refused")
 
         client = MilvusDatabaseClient(host="myhost")
         result = client.info()
 
         self.assertEqual("milvus", result["name"])
-        # Must be valid semver — OSB's metrics store parses version.number via
-        # versions.components() which rejects non-semver strings like "unknown".
         self.assertEqual("2.0.0", result["version"]["number"])
 
     @mock.patch("requests.get")
     def test_info_health_port_fallback(self, mock_get):
-        """When REST succeeds but health check fails, version falls back to default semver."""
+        """When REST succeeds but health check fails, version falls back to DEFAULT_VERSION."""
         rest_resp = mock.MagicMock()
         rest_resp.status_code = 200
 
@@ -343,230 +332,8 @@ class MilvusInfoTests(TestCase):
         client = MilvusDatabaseClient(host="myhost")
         result = client.info()
 
+        # Semver-valid default (see info() docstring: "unknown" and "2.x" break the metrics push).
         self.assertEqual("2.0.0", result["version"]["number"])
-
-
-# =============================================================================
-# Indices Namespace Tests
-# =============================================================================
-
-class MilvusIndicesNamespaceTests(TestCase):
-
-    @run_async
-    async def test_create_with_schema_and_index_params(self):
-        client = _make_client()
-        schema = mock.MagicMock()
-        index_params = mock.MagicMock()
-        client._client.has_collection.return_value = False
-
-        result = await client.indices.create(
-            index="my_coll",
-            body={"schema": schema, "index_params": index_params},
-        )
-        self.assertTrue(result["acknowledged"])
-        self.assertEqual("my_coll", result["index"])
-        client._client.create_collection.assert_awaited_once_with(
-            collection_name="my_coll", schema=schema, index_params=index_params,
-        )
-
-    @run_async
-    async def test_create_drops_existing_and_waits(self):
-        """When collection already exists, drop it and wait for disappearance."""
-        client = _make_client()
-        schema = mock.MagicMock()
-        index_params = mock.MagicMock()
-        # Simulate: exists -> drop -> still exists once -> then gone
-        client._client.has_collection.side_effect = [True, True, False]
-
-        with mock.patch("asyncio.sleep", new_callable=mock.AsyncMock):
-            result = await client.indices.create(
-                index="my_coll",
-                body={"schema": schema, "index_params": index_params},
-            )
-
-        self.assertTrue(result["acknowledged"])
-        client._client.drop_collection.assert_awaited_once_with(collection_name="my_coll")
-        client._client.create_collection.assert_awaited_once()
-
-    @run_async
-    async def test_create_without_schema_skips_create(self):
-        """If no schema/index_params, just return acknowledged without creating."""
-        client = _make_client()
-
-        result = await client.indices.create(index="my_coll", body={})
-        self.assertTrue(result["acknowledged"])
-        client._client.create_collection.assert_not_called()
-
-    @run_async
-    async def test_delete(self):
-        client = _make_client()
-
-        result = await client.indices.delete(index="my_coll")
-        self.assertTrue(result["acknowledged"])
-        client._client.drop_collection.assert_awaited_once_with(collection_name="my_coll")
-
-    @run_async
-    async def test_exists_true(self):
-        client = _make_client()
-        client._client.has_collection.return_value = True
-
-        result = await client.indices.exists(index="my_coll")
-        self.assertTrue(result)
-
-    @run_async
-    async def test_exists_false(self):
-        client = _make_client()
-        client._client.has_collection.return_value = False
-
-        result = await client.indices.exists(index="my_coll")
-        self.assertFalse(result)
-
-    @run_async
-    async def test_refresh_no_index_returns_acknowledged(self):
-        """refresh(None) is a no-op shortcut."""
-        client = _make_client()
-
-        result = await client.indices.refresh(index=None)
-        self.assertTrue(result["acknowledged"])
-
-    @run_async
-    async def test_refresh_calls_flush_directly(self):
-        """With AsyncMilvusClient we call flush() directly — no raw-stub workaround."""
-        client = _make_client()
-        client._client.flush.return_value = None
-
-        result = await client.indices.refresh(index="my_coll")
-        self.assertTrue(result["acknowledged"])
-        client._client.flush.assert_awaited_once_with(
-            collection_name="my_coll", timeout=client._timeout_admin,
-        )
-
-    @run_async
-    async def test_refresh_retries_on_rate_limit(self):
-        """Milvus throttles flush to 0.1/s — retry on rate-limit errors."""
-        client = _make_client()
-
-        call_count = 0
-
-        async def flaky_flush(**kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count < 3:
-                raise RuntimeError("rate limit exceeded")
-            return None
-
-        client._client.flush.side_effect = flaky_flush
-
-        with mock.patch("asyncio.sleep", new_callable=mock.AsyncMock):
-            result = await client.indices.refresh(index="my_coll")
-
-        self.assertTrue(result["acknowledged"])
-        self.assertEqual(3, call_count)
-
-    @run_async
-    async def test_refresh_propagates_non_rate_limit_errors(self):
-        client = _make_client()
-        client._client.flush.side_effect = RuntimeError("collection not found")
-
-        with self.assertRaises(RuntimeError):
-            await client.indices.refresh(index="my_coll")
-
-    @run_async
-    async def test_forcemerge_calls_compact(self):
-        """forcemerge maps to Milvus compact()."""
-        client = _make_client()
-        client._client.compact.return_value = 12345
-        client._client.get_compaction_state.return_value = "Completed"
-
-        with mock.patch("asyncio.sleep", new_callable=mock.AsyncMock):
-            result = await client.indices.forcemerge(index="my_coll")
-
-        self.assertEqual(1, result["_shards"]["successful"])
-        client._client.compact.assert_awaited_once_with(
-            collection_name="my_coll", timeout=client._timeout_admin,
-        )
-
-    @run_async
-    async def test_forcemerge_string_completed_check(self):
-        """get_compaction_state returns the string 'Completed', not a bool."""
-        client = _make_client()
-        client._client.compact.return_value = 42
-        # First call: "Executing", second: "Completed"
-        client._client.get_compaction_state.side_effect = ["Executing", "Completed"]
-
-        with mock.patch("asyncio.sleep", new_callable=mock.AsyncMock):
-            result = await client.indices.forcemerge(index="my_coll")
-
-        self.assertEqual(1, result["_shards"]["successful"])
-        self.assertEqual(2, client._client.get_compaction_state.call_count)
-
-    @run_async
-    async def test_stats_returns_row_count(self):
-        client = _make_client()
-        client._client.get_collection_stats.return_value = {"row_count": 1000}
-
-        result = await client.indices.stats(index="my_coll")
-        self.assertEqual(1000, result["_all"]["primaries"]["docs"]["count"])
-        self.assertEqual(1000, result["_all"]["total"]["docs"]["count"])
-
-    @run_async
-    async def test_stats_no_index_returns_empty(self):
-        client = _make_client()
-
-        result = await client.indices.stats(index=None)
-        self.assertEqual({}, result["_all"]["primaries"])
-
-
-# =============================================================================
-# Cluster Health Tests
-# =============================================================================
-
-class MilvusClusterHealthTests(TestCase):
-
-    @run_async
-    async def test_health_green_on_success(self):
-        client = _make_client()
-        client._client.list_collections.return_value = ["coll1"]
-
-        result = await client.cluster.health()
-        self.assertEqual("green", result["status"])
-        self.assertFalse(result["timed_out"])
-
-    @run_async
-    async def test_health_red_on_failure(self):
-        client = _make_client()
-        client._client.list_collections.side_effect = RuntimeError("connection refused")
-
-        result = await client.cluster.health()
-        self.assertEqual("red", result["status"])
-
-    @run_async
-    async def test_put_settings_acknowledged(self):
-        client = _make_client()
-        result = await client.cluster.put_settings(body={})
-        self.assertTrue(result["acknowledged"])
-
-
-# =============================================================================
-# Transport Close Tests
-# =============================================================================
-
-class MilvusTransportCloseTests(TestCase):
-
-    @run_async
-    async def test_close_is_noop(self):
-        """Transport.close() is intentionally a no-op to avoid killing gRPC channels."""
-        client = _make_client()
-        # Should not raise and should not close the pymilvus client
-        await client.transport.close()
-        # _client should still be set (not torn down)
-        self.assertIsNotNone(client._client)
-
-    @run_async
-    async def test_perform_request_returns_empty_dict(self):
-        client = _make_client()
-        result = await client.transport.perform_request("GET", "/")
-        self.assertEqual({}, result)
 
 
 # =============================================================================

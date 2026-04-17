@@ -26,7 +26,7 @@
 import unittest.mock as mock
 from unittest import TestCase
 
-from osbenchmark.worker_coordinator.runners.milvus import (
+from osbenchmark.engine.milvus.runners import (
     MilvusBulkVectorDataSet,
     MilvusBulkIndex,
     MilvusVectorSearch,
@@ -78,8 +78,8 @@ def _converted_response(total_value=1, hits_list=None):
 # ---------------------------------------------------------------------------
 class MilvusBulkVectorDataSetTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.parse_vector_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.parse_vector_body")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_success_with_parse_vector_body(self, mock_ctx, mock_parse):
         milvus_client = _make_milvus_client()
@@ -110,8 +110,8 @@ class MilvusBulkVectorDataSetTests(TestCase):
         mock_ctx.on_request_end.assert_called_once()
         mock_ctx.on_client_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.parse_vector_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.parse_vector_body")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_empty_body_returns_early(self, mock_ctx, mock_parse):
         milvus_client = _make_milvus_client()
@@ -126,8 +126,8 @@ class MilvusBulkVectorDataSetTests(TestCase):
         self.assertEqual(result["weight"], 0)
         milvus_client.bulk.assert_not_called()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.parse_vector_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.parse_vector_body")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_errors_in_bulk_response(self, mock_ctx, mock_parse):
         milvus_client = _make_milvus_client()
@@ -146,8 +146,8 @@ class MilvusBulkVectorDataSetTests(TestCase):
         self.assertFalse(result["success"])
         self.assertEqual(result["error-count"], 1)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.parse_vector_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.parse_vector_body")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_exception_returns_failure(self, mock_ctx, mock_parse):
         milvus_client = _make_milvus_client()
@@ -168,8 +168,8 @@ class MilvusBulkVectorDataSetTests(TestCase):
         mock_ctx.on_request_end.assert_called_once()
         mock_ctx.on_client_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.parse_vector_body")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.parse_vector_body")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_result_dict_format(self, mock_ctx, mock_parse):
         milvus_client = _make_milvus_client()
@@ -200,7 +200,7 @@ class MilvusBulkVectorDataSetTests(TestCase):
 # ---------------------------------------------------------------------------
 class MilvusBulkIndexTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_bulk_index_success(self, mock_ctx):
         milvus_client = _make_milvus_client()
@@ -220,7 +220,7 @@ class MilvusBulkIndexTests(TestCase):
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_bulk_index_errors_flag(self, mock_ctx):
         milvus_client = _make_milvus_client()
@@ -233,7 +233,7 @@ class MilvusBulkIndexTests(TestCase):
 
         self.assertFalse(result["success"])
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_bulk_index_exception(self, mock_ctx):
         milvus_client = _make_milvus_client()
@@ -259,9 +259,9 @@ class MilvusBulkIndexTests(TestCase):
 # ---------------------------------------------------------------------------
 class MilvusVectorSearchTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.convert_milvus_search_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_search_params")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.convert_milvus_search_response")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_search_params")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_nested_knn_extraction(self, mock_ctx, mock_build, mock_convert):
         """KNN nested under body.query.knn with field_name -> {vector, k}."""
@@ -291,9 +291,9 @@ class MilvusVectorSearchTests(TestCase):
         # k=5 from knn config should override the params k=100
         self.assertEqual(call_kwargs["body"]["limit"], 5)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.convert_milvus_search_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_search_params")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.convert_milvus_search_response")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_search_params")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_flat_knn_extraction(self, mock_ctx, mock_build, mock_convert):
         """KNN at body.knn with flat vector/field keys."""
@@ -315,8 +315,8 @@ class MilvusVectorSearchTests(TestCase):
         self.assertEqual(call_kwargs["body"]["anns_field"], "my_vec")
         self.assertEqual(call_kwargs["body"]["data"], [[1.0, 2.0]])
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_search_params")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_search_params")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_no_vector_returns_failure(self, mock_ctx, mock_build):
         """Missing vector in body returns failure immediately without searching."""
@@ -331,9 +331,9 @@ class MilvusVectorSearchTests(TestCase):
         self.assertEqual(result["hits"], 0)
         milvus_client.search.assert_not_called()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.convert_milvus_search_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_search_params")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.convert_milvus_search_response")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_search_params")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_numpy_tolist_conversion(self, mock_ctx, mock_build, mock_convert):
         """Numpy arrays are converted via .tolist() before sending to Milvus."""
@@ -358,10 +358,10 @@ class MilvusVectorSearchTests(TestCase):
         call_kwargs = milvus_client.search.call_args[1]
         self.assertEqual(call_kwargs["body"]["data"], [[1.0, 2.0, 3.0]])
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.calculate_topk_recall")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.convert_milvus_search_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_search_params")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.calculate_topk_recall")
+    @mock.patch("osbenchmark.engine.milvus.runners.convert_milvus_search_response")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_search_params")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_recall_calculation(self, mock_ctx, mock_build, mock_convert, mock_recall):
         """Recall is calculated when neighbors and k are provided."""
@@ -392,9 +392,9 @@ class MilvusVectorSearchTests(TestCase):
         self.assertAlmostEqual(result["recall@1"], 1.0, places=5)
         self.assertEqual(mock_recall.call_count, 2)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.convert_milvus_search_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_search_params")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.convert_milvus_search_response")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_search_params")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_recall_not_calculated_without_neighbors(self, mock_ctx, mock_build, mock_convert):
         """Recall keys absent when neighbors param is missing."""
@@ -414,8 +414,8 @@ class MilvusVectorSearchTests(TestCase):
         self.assertNotIn("recall@k", result)
         self.assertNotIn("recall@1", result)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_search_params")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_search_params")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_exception_returns_failure(self, mock_ctx, mock_build):
         """Search exceptions are caught and return success=False."""
@@ -436,9 +436,9 @@ class MilvusVectorSearchTests(TestCase):
         self.assertIn("grpc timeout", result["error-description"])
         mock_ctx.on_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.convert_milvus_search_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_search_params")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.convert_milvus_search_response")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_search_params")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_detailed_results(self, mock_ctx, mock_build, mock_convert):
         """detailed-results flag adds hits_total and took to result."""
@@ -458,9 +458,9 @@ class MilvusVectorSearchTests(TestCase):
         self.assertEqual(result["hits_total"], 42)
         self.assertIn("took", result)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.convert_milvus_search_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_search_params")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.convert_milvus_search_response")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_search_params")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_no_detailed_results_by_default(self, mock_ctx, mock_build, mock_convert):
         """Without detailed-results, extra keys are absent."""
@@ -493,9 +493,9 @@ class MilvusVectorSearchTests(TestCase):
 # ---------------------------------------------------------------------------
 class MilvusQueryTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.convert_milvus_search_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_search_params")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.convert_milvus_search_response")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_search_params")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_knn_extraction(self, mock_ctx, mock_build, mock_convert):
         milvus_client = _make_milvus_client()
@@ -517,7 +517,7 @@ class MilvusQueryTests(TestCase):
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_no_vector_returns_success_with_zero_hits(self, mock_ctx):
         """MilvusQuery returns success=True with 0 hits when no vector is found."""
@@ -532,9 +532,9 @@ class MilvusQueryTests(TestCase):
         self.assertEqual(result["hits"], 0)
         milvus_client.search.assert_not_called()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.convert_milvus_search_response")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_search_params")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.convert_milvus_search_response")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_search_params")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_k_from_body_size(self, mock_ctx, mock_build, mock_convert):
         """k falls back to body.size when not in params."""
@@ -553,8 +553,8 @@ class MilvusQueryTests(TestCase):
         call_kwargs = milvus_client.search.call_args[1]
         self.assertEqual(call_kwargs["body"]["limit"], 50)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_search_params")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_search_params")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_exception_returns_failure(self, mock_ctx, mock_build):
         milvus_client = _make_milvus_client()
@@ -583,8 +583,8 @@ class MilvusQueryTests(TestCase):
 # ---------------------------------------------------------------------------
 class MilvusCreateIndexTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_collection_schema")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_collection_schema")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_create_from_indices_list(self, mock_ctx, mock_schema):
         milvus_client = _make_milvus_client()
@@ -603,8 +603,8 @@ class MilvusCreateIndexTests(TestCase):
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_collection_schema")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_collection_schema")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_create_from_single_index(self, mock_ctx, mock_schema):
         milvus_client = _make_milvus_client()
@@ -621,8 +621,8 @@ class MilvusCreateIndexTests(TestCase):
         self.assertEqual(result["weight"], 1)
         self.assertTrue(result["success"])
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_collection_schema")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_collection_schema")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_schema_built_before_timing(self, mock_ctx, mock_schema):
         """build_collection_schema is called before on_request_start."""
@@ -642,8 +642,8 @@ class MilvusCreateIndexTests(TestCase):
         self.assertEqual(call_order.index("schema"), 0)
         self.assertGreater(call_order.index("timing_start"), call_order.index("schema"))
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_collection_schema")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_collection_schema")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_create_exception_returns_failure(self, mock_ctx, mock_schema):
         milvus_client = _make_milvus_client()
@@ -669,7 +669,7 @@ class MilvusCreateIndexTests(TestCase):
 # ---------------------------------------------------------------------------
 class MilvusDeleteIndexTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_delete_from_list(self, mock_ctx):
         milvus_client = _make_milvus_client()
@@ -685,7 +685,7 @@ class MilvusDeleteIndexTests(TestCase):
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_delete_single(self, mock_ctx):
         milvus_client = _make_milvus_client()
@@ -699,7 +699,7 @@ class MilvusDeleteIndexTests(TestCase):
         self.assertEqual(result["weight"], 1)
         self.assertTrue(result["success"])
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_only_if_exists_true_and_exists(self, mock_ctx):
         milvus_client = _make_milvus_client()
@@ -714,7 +714,7 @@ class MilvusDeleteIndexTests(TestCase):
         milvus_client.indices.delete.assert_called_once_with(index="index1")
         self.assertEqual(result["weight"], 1)
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_only_if_exists_true_and_not_exists(self, mock_ctx):
         milvus_client = _make_milvus_client()
@@ -740,8 +740,8 @@ class MilvusDeleteIndexTests(TestCase):
 # ---------------------------------------------------------------------------
 class MilvusWarmupRunnerTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_search_params")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_search_params")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_calls_load_collection(self, mock_ctx, mock_build):
         milvus_client = _make_milvus_client()
@@ -755,8 +755,8 @@ class MilvusWarmupRunnerTests(TestCase):
         milvus_client.load_collection.assert_called_once_with(collection_name="target_index")
         self.assertTrue(result["success"])
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_search_params")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_search_params")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_issues_warmup_queries(self, mock_ctx, mock_build):
         milvus_client = _make_milvus_client()
@@ -772,8 +772,8 @@ class MilvusWarmupRunnerTests(TestCase):
             MilvusWarmupRunner.DEFAULT_WARMUP_QUERIES,
         )
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_search_params")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_search_params")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_exception_returns_failure(self, mock_ctx, mock_build):
         milvus_client = _make_milvus_client()
@@ -789,8 +789,8 @@ class MilvusWarmupRunnerTests(TestCase):
         self.assertIn("collection not found", result["error-description"])
         mock_ctx.on_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.build_search_params")
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.build_search_params")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_timing_context_set_up(self, mock_ctx, mock_build):
         milvus_client = _make_milvus_client()
@@ -816,7 +816,7 @@ class MilvusWarmupRunnerTests(TestCase):
 # ---------------------------------------------------------------------------
 class MilvusRefreshTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_calls_refresh(self, mock_ctx):
         milvus_client = _make_milvus_client()
@@ -833,7 +833,7 @@ class MilvusRefreshTests(TestCase):
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_exception_returns_failure(self, mock_ctx):
         milvus_client = _make_milvus_client()
@@ -858,7 +858,7 @@ class MilvusRefreshTests(TestCase):
 # ---------------------------------------------------------------------------
 class MilvusForceMergeTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_calls_forcemerge(self, mock_ctx):
         milvus_client = _make_milvus_client()
@@ -874,7 +874,7 @@ class MilvusForceMergeTests(TestCase):
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_exception_returns_failure(self, mock_ctx):
         milvus_client = _make_milvus_client()
@@ -899,7 +899,7 @@ class MilvusForceMergeTests(TestCase):
 # ---------------------------------------------------------------------------
 class MilvusClusterHealthTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_green_success(self, mock_ctx):
         milvus_client = _make_milvus_client()
@@ -914,7 +914,7 @@ class MilvusClusterHealthTests(TestCase):
         mock_ctx.on_client_request_start.assert_called_once()
         mock_ctx.on_request_end.assert_called_once()
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_red_failure(self, mock_ctx):
         milvus_client = _make_milvus_client()
@@ -926,7 +926,7 @@ class MilvusClusterHealthTests(TestCase):
         self.assertFalse(result["success"])
         self.assertEqual(result["cluster-status"], "red")
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_exception_returns_red(self, mock_ctx):
         milvus_client = _make_milvus_client()
@@ -949,7 +949,7 @@ class MilvusClusterHealthTests(TestCase):
 # ---------------------------------------------------------------------------
 class MilvusNoOpTests(TestCase):
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_returns_success(self, mock_ctx):
         runner = MilvusNoOp("put-pipeline")
@@ -959,7 +959,7 @@ class MilvusNoOpTests(TestCase):
         self.assertEqual(result["unit"], "ops")
         self.assertTrue(result["success"])
 
-    @mock.patch("osbenchmark.worker_coordinator.runners.milvus.request_context_holder")
+    @mock.patch("osbenchmark.engine.milvus.runners.request_context_holder")
     @run_async
     async def test_timing_context_set_up(self, mock_ctx):
         runner = MilvusNoOp("put-pipeline")

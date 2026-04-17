@@ -5,11 +5,11 @@
 # compatible open source license.
 
 """
-Unit tests for osbenchmark.database.clients.vespa.vespa
+Unit tests for osbenchmark.engine.vespa.client
 
-Tests VespaClientFactory, VespaDatabaseClient, and all namespace classes
-(VespaIndicesNamespace, VespaClusterNamespace, VespaTransportNamespace,
-VespaNodesNamespace).
+Tests VespaClientFactory and VespaDatabaseClient. Namespace wrapper classes
+(VespaIndicesNamespace etc.) were removed during the engine refactor — their
+tests have been deleted along with the classes.
 """
 # pylint: disable=protected-access
 
@@ -17,14 +17,10 @@ import asyncio
 from unittest import TestCase, mock
 
 from osbenchmark import exceptions
-import osbenchmark.database.clients.vespa.vespa as vespa_mod
-from osbenchmark.database.clients.vespa.vespa import (
+import osbenchmark.engine.vespa.client as vespa_mod
+from osbenchmark.engine.vespa.client import (
     VespaClientFactory,
     VespaDatabaseClient,
-    VespaIndicesNamespace,
-    VespaClusterNamespace,
-    VespaTransportNamespace,
-    VespaNodesNamespace,
 )
 from tests import run_async
 
@@ -145,7 +141,7 @@ class VespaClientFactoryTests(TestCase):
         self.assertEqual("ns1", client._namespace)
         self.assertEqual("content", client._cluster)
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.wait_for_vespa")
+    @mock.patch("osbenchmark.engine.vespa.client.wait_for_vespa")
     def test_wait_for_rest_layer_success(self, mock_wait):
         mock_wait.return_value = True
         factory = VespaClientFactory(
@@ -156,7 +152,7 @@ class VespaClientFactoryTests(TestCase):
         self.assertTrue(result)
         mock_wait.assert_called_once()
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.wait_for_vespa")
+    @mock.patch("osbenchmark.engine.vespa.client.wait_for_vespa")
     def test_wait_for_rest_layer_timeout(self, mock_wait):
         mock_wait.return_value = False
         factory = VespaClientFactory(
@@ -203,13 +199,6 @@ class VespaDatabaseClientInitTests(TestCase):
         self.assertIsNone(client._sync_session)
         self.assertIsNone(client._search_executor)
 
-    def test_init_creates_namespace_objects(self):
-        client = VespaDatabaseClient(endpoint="http://h:8080")
-        self.assertIsInstance(client.indices, VespaIndicesNamespace)
-        self.assertIsInstance(client.cluster, VespaClusterNamespace)
-        self.assertIsInstance(client.transport, VespaTransportNamespace)
-        self.assertIsInstance(client.nodes, VespaNodesNamespace)
-
 
 # =============================================================================
 # VespaDatabaseClient Session Tests
@@ -217,7 +206,7 @@ class VespaDatabaseClientInitTests(TestCase):
 
 class VespaDatabaseClientSessionTests(TestCase):
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.aiohttp", create=True)
+    @mock.patch("osbenchmark.engine.vespa.client.aiohttp", create=True)
     @run_async
     async def test_aenter_initializes_session(self, mock_aiohttp):
         mock_aiohttp.TraceConfig.return_value = mock.MagicMock()
@@ -363,8 +352,8 @@ class VespaDatabaseClientSessionTests(TestCase):
 class VespaPyvespaSyncSessionTests(TestCase):
     """Tests for _ensure_sync_session() — pyvespa syncio for search."""
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     def test_ensure_sync_session_creates_session(self, mock_pyvespa_cls):
         mock_sync_ctx = mock.MagicMock()
         mock_sync_ctx._open_httpr_client = mock.MagicMock()
@@ -380,8 +369,8 @@ class VespaPyvespaSyncSessionTests(TestCase):
         self.assertEqual(64, client._search_executor._max_workers)
         mock_app.syncio.assert_called_once_with(compress=False)
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     def test_ensure_sync_session_respects_max_workers_option(self, mock_pyvespa_cls):
         mock_sync_ctx = mock.MagicMock()
         mock_sync_ctx._open_httpr_client = mock.MagicMock()
@@ -394,8 +383,8 @@ class VespaPyvespaSyncSessionTests(TestCase):
 
         self.assertEqual(128, client._search_executor._max_workers)
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     def test_ensure_sync_session_idempotent(self, mock_pyvespa_cls):
         mock_sync_ctx = mock.MagicMock()
         mock_sync_ctx._open_httpr_client = mock.MagicMock()
@@ -410,14 +399,14 @@ class VespaPyvespaSyncSessionTests(TestCase):
         self.assertIs(first_session, client._sync_session)
         mock_pyvespa_cls.assert_called_once()
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", False)
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", False)
     def test_ensure_sync_session_not_available_raises(self):
         client = VespaDatabaseClient(endpoint="http://h:8080")
         with self.assertRaises(RuntimeError):
             client._ensure_sync_session()
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     def test_ensure_sync_session_uses_open_httpr(self, mock_pyvespa_cls):
         # Preferred init: newer pyvespa with _open_httpr_client
         mock_sync_ctx = mock.MagicMock()
@@ -430,8 +419,8 @@ class VespaPyvespaSyncSessionTests(TestCase):
         client._ensure_sync_session()
         mock_sync_ctx._open_httpr_client.assert_called_once()
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     def test_ensure_sync_session_uses_open_httpx_fallback(self, mock_pyvespa_cls):
         # Fallback for older pyvespa with _open_httpx_client
         mock_sync_ctx = mock.MagicMock()
@@ -445,8 +434,8 @@ class VespaPyvespaSyncSessionTests(TestCase):
         client._ensure_sync_session()
         mock_sync_ctx._open_httpx_client.assert_called_once()
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     def test_ensure_sync_session_uses_enter_fallback(self, mock_pyvespa_cls):
         # Fallback when no private methods — uses context manager __enter__
         mock_sync_ctx = mock.MagicMock()
@@ -461,8 +450,8 @@ class VespaPyvespaSyncSessionTests(TestCase):
         client._ensure_sync_session()
         mock_sync_ctx.__enter__.assert_called_once()
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     def test_ensure_sync_session_reuses_pyvespa_app(self, mock_pyvespa_cls):
         # If _pyvespa_app already exists (e.g. from feed_batch), reuse it
         mock_sync_ctx = mock.MagicMock()
@@ -482,8 +471,8 @@ class VespaPyvespaSyncSessionTests(TestCase):
 class VespaPyvespaAsyncSessionTests(TestCase):
     """Tests for _ensure_pyvespa_session() — pyvespa async for feeding."""
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     @run_async
     async def test_ensure_pyvespa_session_creates_app(self, mock_pyvespa_cls):
         mock_async_ctx = mock.MagicMock()
@@ -499,8 +488,8 @@ class VespaPyvespaAsyncSessionTests(TestCase):
         self.assertIsNotNone(client._pyvespa_async)
         self.assertIsNotNone(client._pyvespa_semaphore)
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     @run_async
     async def test_ensure_pyvespa_session_idempotent(self, mock_pyvespa_cls):
         mock_async_ctx = mock.MagicMock()
@@ -517,15 +506,15 @@ class VespaPyvespaAsyncSessionTests(TestCase):
         # PyvespaApp constructor called only once
         mock_pyvespa_cls.assert_called_once()
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", False)
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", False)
     @run_async
     async def test_ensure_pyvespa_not_available_raises(self):
         client = VespaDatabaseClient(endpoint="http://h:8080")
         with self.assertRaises(RuntimeError):
             await client._ensure_pyvespa_session()
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     @run_async
     async def test_ensure_pyvespa_uses_open_httpr(self, mock_pyvespa_cls):
         # Preferred init path: newer pyvespa with _open_httpr_client
@@ -539,8 +528,8 @@ class VespaPyvespaAsyncSessionTests(TestCase):
         await client._ensure_pyvespa_session()
         mock_async_ctx._open_httpr_client.assert_called_once()
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     @run_async
     async def test_ensure_pyvespa_uses_open_httpx_fallback(self, mock_pyvespa_cls):
         # Fallback for pyvespa that has _open_httpx_client but not _open_httpr_client
@@ -555,8 +544,8 @@ class VespaPyvespaAsyncSessionTests(TestCase):
         await client._ensure_pyvespa_session()
         mock_async_ctx._open_httpx_client.assert_called_once()
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     @run_async
     async def test_ensure_pyvespa_uses_aenter_fallback(self, mock_pyvespa_cls):
         # Fallback for oldest pyvespa that lacks both _open_httpr_client and _open_httpx_client
@@ -571,8 +560,8 @@ class VespaPyvespaAsyncSessionTests(TestCase):
         await client._ensure_pyvespa_session()
         mock_async_ctx.__aenter__.assert_awaited_once()
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     @run_async
     async def test_semaphore_created_with_max_workers(self, mock_pyvespa_cls):
         mock_async_ctx = mock.MagicMock()
@@ -646,7 +635,7 @@ class VespaIndexTests(TestCase):
         call_args = client._session.post.call_args
         self.assertEqual({"destinationCluster": "content"}, call_args[1]["params"])
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.requests")
+    @mock.patch("osbenchmark.engine.vespa.client.requests")
     @run_async
     async def test_index_sync_fallback(self, mock_requests):
         # When aiohttp is unavailable, session is None and we fall back to sync requests
@@ -721,7 +710,7 @@ class VespaUpdateTests(TestCase):
         call_args = client._session.put.call_args
         self.assertEqual({"destinationCluster": "content"}, call_args[1]["params"])
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.requests")
+    @mock.patch("osbenchmark.engine.vespa.client.requests")
     @run_async
     async def test_update_sync_fallback(self, mock_requests):
         # When aiohttp is unavailable, session is None and we fall back to sync requests
@@ -746,7 +735,7 @@ class VespaUpdateTests(TestCase):
 class VespaSearchTests(TestCase):
     """Tests for search() — pyvespa syncio primary path + aiohttp fallback."""
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
     @run_async
     async def test_search_sends_yql_via_pyvespa(self):
         client = _make_client()
@@ -769,7 +758,7 @@ class VespaSearchTests(TestCase):
         self.assertIn("yql", body)
         self.assertEqual("select * from t where true", body["yql"])
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
     @run_async
     async def test_search_default_timeout(self):
         client = _make_client()
@@ -789,7 +778,7 @@ class VespaSearchTests(TestCase):
         body = mock_sync.query.call_args[1]["body"]
         self.assertEqual("10s", body["timeout"])
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
     @run_async
     async def test_search_with_request_params_kwarg(self):
         client = _make_client()
@@ -812,7 +801,7 @@ class VespaSearchTests(TestCase):
         body = mock_sync.query.call_args[1]["body"]
         self.assertEqual("bm25", body["ranking"])
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
     @run_async
     async def test_search_returns_json_response(self):
         client = _make_client()
@@ -832,7 +821,7 @@ class VespaSearchTests(TestCase):
 
         self.assertEqual(expected, result)
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
     @run_async
     async def test_search_error_raises(self):
         client = _make_client()
@@ -848,7 +837,7 @@ class VespaSearchTests(TestCase):
             with self.assertRaises(RuntimeError):
                 await client.search(body={"yql": "select * from t where true"})
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
     @run_async
     async def test_search_vespa_error_returns_empty_response(self):
         """VespaError (e.g., sort attribute warnings) returns empty response instead of raising."""
@@ -869,7 +858,7 @@ class VespaSearchTests(TestCase):
         self.assertEqual([], result["root"]["children"])
         self.assertEqual(errors, result["root"]["errors"])
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", False)
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", False)
     @run_async
     async def test_search_aiohttp_fallback_sends_post(self):
         """When pyvespa unavailable, falls back to aiohttp POST with JSON body."""
@@ -884,7 +873,7 @@ class VespaSearchTests(TestCase):
         json_body = call_args[1]["json"]
         self.assertEqual("select * from t where true", json_body["yql"])
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", False)
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", False)
     @run_async
     async def test_search_aiohttp_fallback_returns_json(self):
         client = _make_client()
@@ -895,7 +884,7 @@ class VespaSearchTests(TestCase):
         result = await client.search(body={"yql": "select * from t where true"})
         self.assertEqual(expected, result)
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", False)
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", False)
     @run_async
     async def test_search_aiohttp_fallback_error_raises(self):
         client = _make_client()
@@ -992,7 +981,7 @@ class VespaBulkTests(TestCase):
         call_args = client._session.post.call_args
         self.assertEqual({"destinationCluster": "content"}, call_args[1]["params"])
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.requests")
+    @mock.patch("osbenchmark.engine.vespa.client.requests")
     @run_async
     async def test_bulk_sync_fallback(self, mock_requests):
         # When aiohttp is unavailable, session is None and we fall back to sync requests
@@ -1015,8 +1004,8 @@ class VespaBulkTests(TestCase):
 
 class VespaFeedBatchTests(TestCase):
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     @run_async
     async def test_feed_batch_calls_feed_data_point(self, mock_pyvespa_cls):
         mock_resp = mock.MagicMock()
@@ -1041,8 +1030,8 @@ class VespaFeedBatchTests(TestCase):
         self.assertEqual(2, len(result["responses"]))
         self.assertEqual(2, mock_async_ctx.feed_data_point.call_count)
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     @run_async
     async def test_feed_batch_retries_on_connection_error(self, mock_pyvespa_cls):
         # pyvespa's built-in retry handles 429/503 but NOT connection-level errors,
@@ -1067,8 +1056,8 @@ class VespaFeedBatchTests(TestCase):
         self.assertEqual(0, result["errors"])
         self.assertEqual(3, mock_async_ctx.feed_data_point.call_count)
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     @run_async
     async def test_feed_batch_no_retry_on_encoding_error(self, mock_pyvespa_cls):
         # Encoding errors are data issues (e.g. lone surrogates), not transient -- skip immediately
@@ -1090,8 +1079,8 @@ class VespaFeedBatchTests(TestCase):
         # Only called once — no retry
         self.assertEqual(1, mock_async_ctx.feed_data_point.call_count)
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     @run_async
     async def test_feed_batch_returns_error_count(self, mock_pyvespa_cls):
         mock_async_ctx = mock.MagicMock()
@@ -1112,8 +1101,8 @@ class VespaFeedBatchTests(TestCase):
         )
         self.assertEqual(2, result["errors"])
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     @run_async
     async def test_feed_batch_status_400_counts_as_error(self, mock_pyvespa_cls):
         # A successful HTTP response with status >= 400 is still an error (e.g. bad schema)
@@ -1135,8 +1124,8 @@ class VespaFeedBatchTests(TestCase):
         )
         self.assertEqual(1, result["errors"])
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     @run_async
     async def test_feed_batch_with_cluster_destination(self, mock_pyvespa_cls):
         mock_resp = mock.MagicMock()
@@ -1153,8 +1142,8 @@ class VespaFeedBatchTests(TestCase):
         call_kwargs = mock_async_ctx.feed_data_point.call_args[1]
         self.assertEqual("content", call_kwargs["destinationCluster"])
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PYVESPA_AVAILABLE", True)
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.PyvespaApp")
+    @mock.patch("osbenchmark.engine.vespa.client.PYVESPA_AVAILABLE", True)
+    @mock.patch("osbenchmark.engine.vespa.client.PyvespaApp")
     @run_async
     async def test_feed_batch_with_custom_namespace(self, mock_pyvespa_cls):
         mock_resp = mock.MagicMock()
@@ -1175,246 +1164,12 @@ class VespaFeedBatchTests(TestCase):
 
 
 # =============================================================================
-# Indices Namespace Tests
-# =============================================================================
-
-class VespaIndicesNamespaceTests(TestCase):
-
-    @run_async
-    async def test_create_returns_acknowledged(self):
-        client = _make_client()
-        resp = _mock_response(status=200)
-        client._session.get.return_value = resp
-
-        result = await client.indices.create(index="myindex")
-        self.assertTrue(result["acknowledged"])
-        self.assertTrue(result["shards_acknowledged"])
-        self.assertEqual("myindex", result["index"])
-
-    @run_async
-    async def test_delete_returns_acknowledged(self):
-        client = _make_client()
-        resp = _mock_response(status=200)
-        client._session.get.return_value = resp
-
-        result = await client.indices.delete(index="myindex")
-        self.assertTrue(result["acknowledged"])
-
-    @run_async
-    async def test_exists_returns_true(self):
-        client = _make_client()
-        resp = _mock_response(status=200)
-        client._session.get.return_value = resp
-
-        result = await client.indices.exists(index="myindex")
-        self.assertTrue(result)
-
-    @run_async
-    async def test_refresh_returns_shards(self):
-        client = _make_client()
-        resp = _mock_response(status=200)
-        client._session.get.return_value = resp
-
-        result = await client.indices.refresh(index="myindex")
-        self.assertTrue(result["acknowledged"])
-        self.assertEqual(1, result["_shards"]["total"])
-        self.assertEqual(1, result["_shards"]["successful"])
-        self.assertEqual(0, result["_shards"]["failed"])
-
-    @run_async
-    async def test_stats_calls_metrics_endpoint(self):
-        # Vespa uses /metrics/v2/values instead of OpenSearch's _stats API
-        client = _make_client()
-        metrics_data = {"nodes": []}
-        resp = _mock_response(json_data=metrics_data)
-        client._session.get.return_value = resp
-
-        result = await client.indices.stats(index="myindex")
-        url = client._session.get.call_args[0][0]
-        self.assertIn("/metrics/v2/values", url)
-        self.assertIn("_all", result)
-
-    @run_async
-    async def test_stats_exception_returns_default(self):
-        # Metrics fetch failure returns empty stub so telemetry doesn't crash
-        client = _make_client()
-        client._session.get.side_effect = RuntimeError("fail")
-
-        result = await client.indices.stats()
-        self.assertEqual({}, result["_all"]["primaries"])
-        self.assertEqual({}, result["_all"]["total"])
-
-    @run_async
-    async def test_forcemerge_wait_for_completion_true(self):
-        client = _make_client()
-        result = await client.indices.forcemerge()
-        self.assertIn("_shards", result)
-        self.assertEqual(1, result["_shards"]["total"])
-
-    @run_async
-    async def test_forcemerge_wait_for_completion_false(self):
-        client = _make_client()
-        result = await client.indices.forcemerge(wait_for_completion=False)
-        self.assertEqual("vespa-node:1", result["task"])
-
-    @run_async
-    async def test_forcemerge_wait_for_completion_string_false(self):
-        # OSB may pass "false" as a string from params; must handle both str and bool
-        client = _make_client()
-        result = await client.indices.forcemerge(wait_for_completion="false")
-        self.assertEqual("vespa-node:1", result["task"])
-
-
-# =============================================================================
-# Cluster Namespace Tests
-# =============================================================================
-
-class VespaClusterNamespaceTests(TestCase):
-
-    @run_async
-    async def test_health_maps_up_to_green(self):
-        client = _make_client()
-        resp = _mock_response(json_data={"status": {"code": "up"}})
-        client._session.get.return_value = resp
-
-        result = await client.cluster.health()
-        self.assertEqual("green", result["status"])
-
-    @run_async
-    async def test_health_maps_down_to_red(self):
-        client = _make_client()
-        resp = _mock_response(json_data={"status": {"code": "down"}})
-        client._session.get.return_value = resp
-
-        result = await client.cluster.health()
-        self.assertEqual("red", result["status"])
-
-    @run_async
-    async def test_health_maps_initializing_to_yellow(self):
-        client = _make_client()
-        resp = _mock_response(json_data={"status": {"code": "initializing"}})
-        client._session.get.return_value = resp
-
-        result = await client.cluster.health()
-        self.assertEqual("yellow", result["status"])
-
-    @run_async
-    async def test_health_unknown_status_defaults_yellow(self):
-        # Unrecognized Vespa status codes (e.g. "maintenance") map to yellow rather than red
-        client = _make_client()
-        resp = _mock_response(json_data={"status": {"code": "maintenance"}})
-        client._session.get.return_value = resp
-
-        result = await client.cluster.health()
-        self.assertEqual("yellow", result["status"])
-
-    @run_async
-    async def test_health_exception_returns_red(self):
-        # Connection failure is treated as cluster down, not propagated as an exception
-        client = _make_client()
-        client._session.get.side_effect = RuntimeError("connection refused")
-
-        result = await client.cluster.health()
-        self.assertEqual("red", result["status"])
-
-    @run_async
-    async def test_health_includes_all_keys(self):
-        # Ensures the response has all keys that OSB telemetry/scheduler expect from OpenSearch
-        client = _make_client()
-        resp = _mock_response(json_data={"status": {"code": "up"}})
-        client._session.get.return_value = resp
-
-        result = await client.cluster.health()
-        self.assertIn("cluster_name", result)
-        self.assertIn("status", result)
-        self.assertIn("timed_out", result)
-        self.assertIn("number_of_nodes", result)
-        self.assertIn("number_of_data_nodes", result)
-        self.assertIn("active_primary_shards", result)
-        self.assertIn("relocating_shards", result)
-        self.assertFalse(result["timed_out"])
-        self.assertEqual(0, result["relocating_shards"])
-
-    @run_async
-    async def test_put_settings_noop(self):
-        client = _make_client()
-        result = await client.cluster.put_settings(body={})
-        self.assertTrue(result["acknowledged"])
-
-
-# =============================================================================
-# Transport Namespace Tests
-# =============================================================================
-
-class VespaTransportNamespaceTests(TestCase):
-
-    @run_async
-    async def test_perform_request_calls_session(self):
-        client = _make_client()
-        resp = _mock_response(json_data={"result": "ok"})
-        client._session.request.return_value = resp
-
-        await client.transport.perform_request("GET", "/test/path")
-        client._session.request.assert_called_once()
-        call_args = client._session.request.call_args
-        self.assertEqual("GET", call_args[0][0])
-        self.assertIn("/test/path", call_args[0][1])
-
-    @run_async
-    async def test_perform_request_returns_json(self):
-        client = _make_client()
-        expected = {"status": "ok"}
-        resp = _mock_response(json_data=expected)
-        client._session.request.return_value = resp
-
-        result = await client.transport.perform_request("GET", "/path")
-        self.assertEqual(expected, result)
-
-    @run_async
-    async def test_close_delegates_to_client(self):
-        client = _make_client()
-        await client.transport.close()
-        self.assertIsNone(client._session)
-
-
-# =============================================================================
-# Nodes Namespace Tests
-# =============================================================================
-
-class VespaNodesNamespaceTests(TestCase):
-
-    def test_stats_returns_stub_structure(self):
-        client = VespaDatabaseClient(endpoint="http://h:8080")
-        result = client.nodes.stats()
-        self.assertIn("nodes", result)
-        node = result["nodes"]["vespa-node-1"]
-        self.assertIn("os", node)
-        self.assertIn("jvm", node)
-        self.assertIn("mem", node["jvm"])
-        self.assertIn("gc", node["jvm"])
-
-    def test_stats_includes_endpoint(self):
-        client = VespaDatabaseClient(endpoint="http://myhost:8080")
-        result = client.nodes.stats()
-        node = result["nodes"]["vespa-node-1"]
-        self.assertEqual("http://myhost:8080", node["host"])
-
-    def test_info_returns_stub_structure(self):
-        client = VespaDatabaseClient(endpoint="http://h:8080")
-        result = client.nodes.info()
-        node = result["nodes"]["vespa-node-1"]
-        self.assertEqual("8.0.0", node["version"])
-        self.assertIn("os", node)
-        self.assertIn("jvm", node)
-
-
-# =============================================================================
 # Info Tests
 # =============================================================================
 
 class VespaInfoTests(TestCase):
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.requests")
+    @mock.patch("osbenchmark.engine.vespa.client.requests")
     def test_info_returns_version(self, mock_requests):
         mock_resp = mock.MagicMock()
         mock_resp.json.return_value = {
@@ -1426,7 +1181,7 @@ class VespaInfoTests(TestCase):
         result = client.info()
         self.assertEqual("8.300.1", result["version"]["number"])
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.requests")
+    @mock.patch("osbenchmark.engine.vespa.client.requests")
     def test_info_returns_distribution_vespa(self, mock_requests):
         mock_resp = mock.MagicMock()
         mock_resp.json.return_value = {
@@ -1439,11 +1194,11 @@ class VespaInfoTests(TestCase):
         self.assertEqual("vespa", result["version"]["distribution"])
         self.assertEqual("vespa", result["name"])
 
-    @mock.patch("osbenchmark.database.clients.vespa.vespa.requests")
+    @mock.patch("osbenchmark.engine.vespa.client.requests")
     def test_info_error_returns_default_version(self, mock_requests):
         # info() is called during setup; must not crash if Vespa is still starting.
-        # Must return valid semver — OSB's metrics store parses version.number via
-        # versions.components() which rejects non-semver strings like "unknown".
+        # Returns a semver-valid default ("8.0.0") rather than "unknown" because the
+        # OSB metrics store rejects non-semver version strings.
         mock_requests.get.side_effect = RuntimeError("connection refused")
 
         client = VespaDatabaseClient(endpoint="http://h:8080")

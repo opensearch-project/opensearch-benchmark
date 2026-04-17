@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-from osbenchmark.database.clients.milvus.helpers import (
+from osbenchmark.engine.milvus.helpers import (
     get_metric_type,
     build_search_params,
     convert_milvus_search_response,
@@ -62,14 +62,14 @@ class BuildCollectionSchemaTests(TestCase):
         client.prepare_index_params.return_value = MagicMock()
         return client
 
-    @patch("osbenchmark.database.clients.milvus.helpers.DataType", create=True)
+    @patch("osbenchmark.engine.milvus.helpers.DataType", create=True)
     @patch.dict("sys.modules", {"pymilvus": MagicMock()})
     def test_defaults(self, _mock_dt):
         import sys  # pylint: disable=import-outside-toplevel
         sys.modules["pymilvus"] = MagicMock()
 
         try:
-            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
+            from osbenchmark.engine.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
 
             client = self._make_mock_client()
             _, index_params, collection_name = bcs(client, {})
@@ -93,7 +93,7 @@ class BuildCollectionSchemaTests(TestCase):
         import sys  # pylint: disable=import-outside-toplevel
         sys.modules["pymilvus"] = MagicMock()
         try:
-            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
+            from osbenchmark.engine.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
 
             client = self._make_mock_client()
             params = {
@@ -120,7 +120,7 @@ class BuildCollectionSchemaTests(TestCase):
         import sys  # pylint: disable=import-outside-toplevel
         sys.modules["pymilvus"] = MagicMock()
         try:
-            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
+            from osbenchmark.engine.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
 
             client = self._make_mock_client()
             params = {"target_index_space_type": "l2"}
@@ -137,7 +137,7 @@ class BuildCollectionSchemaTests(TestCase):
         import sys  # pylint: disable=import-outside-toplevel
         sys.modules["pymilvus"] = MagicMock()
         try:
-            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
+            from osbenchmark.engine.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
 
             client = self._make_mock_client()
             client_options = {"index_type": "IVF_FLAT"}
@@ -153,7 +153,7 @@ class BuildCollectionSchemaTests(TestCase):
         import sys  # pylint: disable=import-outside-toplevel
         sys.modules["pymilvus"] = MagicMock()
         try:
-            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
+            from osbenchmark.engine.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
 
             client = self._make_mock_client()
             schema_mock = client.create_schema.return_value
@@ -175,7 +175,7 @@ class BuildCollectionSchemaTests(TestCase):
         import sys  # pylint: disable=import-outside-toplevel
         sys.modules["pymilvus"] = MagicMock()
         try:
-            from osbenchmark.database.clients.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
+            from osbenchmark.engine.milvus.helpers import build_collection_schema as bcs  # pylint: disable=import-outside-toplevel
 
             client = self._make_mock_client()
             client_options = {"hnsw_m": 64, "hnsw_ef_construction": 500}
