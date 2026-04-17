@@ -62,6 +62,10 @@ def register_runners():
     runner.register_runner(workload.OperationType.ForceMerge, milvus_runners.MilvusForceMerge(), async_runner=True)
     runner.register_runner(workload.OperationType.ClusterHealth, milvus_runners.MilvusClusterHealth(), async_runner=True)
     runner.register_runner(workload.OperationType.IndexStats, milvus_runners.MilvusIndicesStats(), async_runner=True)
+    runner.register_runner("warmup-knn-indices", milvus_runners.MilvusWarmupRunner(), async_runner=True)
+    for op_type in [workload.OperationType.PutPipeline, workload.OperationType.DeletePipeline,
+                    workload.OperationType.CreateSearchPipeline, workload.OperationType.PutSettings]:
+        runner.register_runner(op_type, milvus_runners.MilvusNoOp(str(op_type)), async_runner=True)
 
 
 def wait_for_client(milvus_client, max_attempts=40):

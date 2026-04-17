@@ -72,6 +72,10 @@ def register_runners():
     runner.register_runner(workload.OperationType.ForceMerge, vespa_runners.VespaForceMerge(), async_runner=True)
     runner.register_runner(workload.OperationType.ClusterHealth, vespa_runners.VespaClusterHealth(), async_runner=True)
     runner.register_runner(workload.OperationType.IndexStats, vespa_runners.VespaIndicesStats(), async_runner=True)
+    runner.register_runner("warmup-knn-indices", vespa_runners.VespaWarmupIndicesRunner(), async_runner=True)
+    for op_type in [workload.OperationType.PutPipeline, workload.OperationType.DeletePipeline,
+                    workload.OperationType.CreateSearchPipeline, workload.OperationType.PutSettings]:
+        runner.register_runner(op_type, vespa_runners.VespaNoOp(str(op_type)), async_runner=True)
 
 
 def wait_for_client(vespa_client, max_attempts=40):
