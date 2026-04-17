@@ -136,7 +136,7 @@ class StartWorker:
     Starts a worker.
     """
 
-    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None, 
+    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None,
                 error_queue=None, queue_lock=None, shared_states=None, sample_post_processor_actor=None):
         """
         :param worker_id: Unique (numeric) id of the worker.
@@ -226,13 +226,12 @@ class CloseMetricsStore:
     """
     Used to signal the sample post processor actor to close the metrics store.
     """
-    pass
 
 class GetExternalizableMetricsStore:
     """
     Used to request an externalizable version of the metrics store from the sample post processor actor.
     """
-    
+
     def __init__(self, clear=True, reason=None, waiting_period=None):
         self.clear = clear
         self.reason = reason
@@ -247,7 +246,6 @@ class ResetRelativeTimeRequest:
     """
     Used to signal the sample post processor actor to reset the relative time marker for all incoming samples.
     """
-    pass
 
 def load_redline_config():
     config = configparser.ConfigParser()
@@ -757,7 +755,12 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         return self.createActor(Worker, targetActorRequirements=self._requirements(host))
 
     def start_worker(self, worker_coordinator, worker_id, cfg, workload, allocations, error_queue=None, queue_lock=None, shared_states=None):
-        self.send(worker_coordinator, StartWorker(worker_id, cfg, workload, allocations, self.feedback_actor, error_queue, queue_lock, shared_states, self.sample_post_processor_actor))
+        self.send(
+            worker_coordinator,
+            StartWorker(worker_id, cfg, workload, allocations,
+                self.feedback_actor, error_queue, queue_lock,
+                shared_states, self.sample_post_processor_actor)
+            )
 
     def start_feedbackActor(self, shared_states):
         self.send(
@@ -1308,7 +1311,10 @@ class WorkerCoordinator:
             waiting_period = 1.0
         # Some metrics store implementations return None because no external representation is required.
         # pylint: disable=assignment-from-none
-        self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True, reason=ReasonForExternalizableRequest.TASK_FINISHED, waiting_period=waiting_period))
+        self.target.send(self.target.sample_post_processor_actor,
+            GetExternalizableMetricsStore(True, 
+            reason=ReasonForExternalizableRequest.TASK_FINISHED, waiting_period=waiting_period)
+        )
         # Using a perf_counter here is fine also in the distributed case as we subtract it from `master_received_msg_at` making it
         # a relative instead of an absolute value.
         start_next_task = time.perf_counter() + waiting_period
