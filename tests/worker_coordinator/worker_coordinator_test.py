@@ -2476,3 +2476,25 @@ class TaskRampDownTests(TestCase):
 
         # Different ramp_down should produce different hashes
         self.assertNotEqual(hash(task1), hash(task2))
+
+class SamplePostProcessorActorTests(TestCase):
+    @pytest.fixture(autouse=True)
+    def setup_actor(self):
+        self.monkeypatch = pytest.MonkeyPatch()
+        self.monkeypatch.setattr("osbenchmark.log.post_configure_actor_logging", lambda: None)
+        self.actor = worker_coordinator.SamplePostProcessorActor()
+
+    def test_receive_start_sample_post_processor(self):
+        msg = worker_coordinator.StartSamplePostProcessorActor(
+            config=mock.MagicMock(name="config"),
+            workload=mock.MagicMock(name="workload"),
+            test_procedure=mock.MagicMock(name="test_procedure"),
+            downsample_factor=1
+        )
+        self.actor.receiveMsg_StartSamplePostProcessorActor(msg, None)
+
+        assert not self.actor.worker_coordinator_actor
+        assert self.actor.metrics_store is not None
+        assert self.actor.sample_post_processor is not None
+        assert self.actor.profile_metrics_post_processor is not None
+        assert self.telemetry is not None

@@ -137,7 +137,8 @@ class StartWorker:
     Starts a worker.
     """
 
-    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None, error_queue=None, queue_lock=None, shared_states=None, sample_post_processor_actor=None):
+    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None, 
+                error_queue=None, queue_lock=None, shared_states=None, sample_post_processor_actor=None):
         """
         :param worker_id: Unique (numeric) id of the worker.
         :param config: OSB internal configuration object.
@@ -1435,7 +1436,6 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
         self.prepare_telemetry(os_clients, enable=not uses_static_responses)
         self.worker_coordinator_actor = sender
-        print("Sample post processor actor is ready. Initialized successfully")
 
     def receiveMsg_ProcessSamples(self, msg, sender):
         if msg.samples:
