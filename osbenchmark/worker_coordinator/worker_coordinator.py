@@ -736,10 +736,6 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         if msg.payload == WorkerCoordinatorActor.RESET_RELATIVE_TIME_MARKER:
             self.coordinator.reset_relative_time()
         elif not self.coordinator.finished():
-            self.post_process_timer += WorkerCoordinatorActor.WAKEUP_INTERVAL_SECONDS
-            if self.post_process_timer >= WorkerCoordinatorActor.POST_PROCESS_INTERVAL_SECONDS:
-                self.post_process_timer = 0
-                self.coordinator.post_process_samples()
             self.coordinator.update_progress_message()
             self.wakeupAfter(datetime.timedelta(seconds=WorkerCoordinatorActor.WAKEUP_INTERVAL_SECONDS))
 
@@ -1023,8 +1019,6 @@ class WorkerCoordinator:
         self.raw_samples = []
         self.raw_profile_samples = []
         self.most_recent_sample_per_client = {}
-        self.sample_post_processor = None
-        self.profile_metrics_post_processor = None
 
         self.number_of_steps = 0
         self.currently_completed = 0
@@ -1279,8 +1273,6 @@ class WorkerCoordinator:
             self.most_recent_sample_per_client = {}
             self.current_step += 1
 
-            self.logger.debug("Postprocessing samples...")
-            self.post_process_samples()
             if self.finished():
                 self.target.send(self.target.sample_post_processor_actor, StopTelemetry())
                 self.logger.info("All steps completed.")
@@ -1312,7 +1304,7 @@ class WorkerCoordinator:
         # Some metrics store implementations return None because no external representation is required.
         # pylint: disable=assignment-from-none
         self.target.send(self.target.sample_post_processor_actor,
-            GetExternalizableMetricsStore(True, 
+            GetExternalizableMetricsStore(True,
             reason=ReasonForExternalizableRequest.TASK_FINISHED, waiting_period=waiting_period)
         )
         # Using a perf_counter here is fine also in the distributed case as we subtract it from `master_received_msg_at` making it
@@ -1404,25 +1396,10 @@ class WorkerCoordinator:
             if task_finished:
                 self.progress_publisher.finish()
 
-    def post_process_samples(self):
-        # we do *not* do this here to avoid concurrent updates (actors are single-threaded) but rather to make it clear that we use
-        # only a snapshot and that new data will go to a new sample set.
-        raw_samples = self.raw_samples
-        self.raw_samples = []
-        self.sample_post_processor(raw_samples)
-        profile_samples = self.raw_profile_samples
-        self.raw_profile_samples = []
-        if len(profile_samples) > 0:
-            if self.profile_metrics_post_processor is None:
-                self.profile_metrics_post_processor = ProfileMetricsSamplePostprocessor(self.metrics_store,
-                                                                                    self.workload.meta_data,
-                                                                                    self.test_procedure.meta_data)
-            self.profile_metrics_post_processor(profile_samples)
-
 class SamplePostProcessorActor(actor.BenchmarkActor):
     def __init__(self):
         super().__init__()
-        
+
     def receiveMsg_StartSamplePostProcessorActor(self, msg, sender):
         self.config = msg.config
         self.metrics_store = metrics.metrics_store(cfg=self.config,
@@ -1469,7 +1446,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         elif msg.reason == ReasonForExternalizableRequest.BENCHMARK_COMPLETED:
             self.logger.debug("Sending benchmark results...")
             self.send(self.worker_coordinator_actor, BenchmarkComplete(metric_results))
-            
+
     def receiveMsg_ResetRelativeTimeRequest(self, msg, sender):
         self.metrics_store.reset_relative_time()
 
