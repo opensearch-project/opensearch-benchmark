@@ -75,14 +75,14 @@ def wait_for_client(milvus_client, max_attempts=40):
     import requests as req
 
     host = getattr(milvus_client, "host", None) or getattr(milvus_client, "_host", "localhost")
-    rest_port = 19530  # Milvus REST lives on same port as gRPC in 2.4+
+    port = getattr(milvus_client, "port", 19530)
     for attempt in range(max_attempts):
         try:
-            resp = req.get(f"http://{host}:{rest_port}/v2/vectordb/collections/list",
-                           json={}, timeout=5,
-                           headers={"Content-Type": "application/json"})
+            # POST to REST API (Milvus 2.4+ exposes REST on same port as gRPC)
+            resp = req.post(f"http://{host}:{port}/v2/vectordb/collections/list",
+                            json={}, timeout=5,
+                            headers={"Content-Type": "application/json"})
             if resp.status_code in (200, 400):
-                # 400 is fine — means Milvus is answering, just doesn't like the body
                 return True
         except Exception:
             pass
