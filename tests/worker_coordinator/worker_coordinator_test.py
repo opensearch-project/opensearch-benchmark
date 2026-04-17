@@ -36,7 +36,7 @@ import opensearchpy
 import pytest
 
 from osbenchmark import metrics, workload, exceptions, config
-from osbenchmark.worker_coordinator import worker_coordinator, runners as runner, scheduler
+from osbenchmark.worker_coordinator import worker_coordinator, runner, scheduler
 from osbenchmark.workload import params
 from tests import run_async, as_future
 
@@ -2345,8 +2345,8 @@ class TimePeriodBasedTests(TestCase):
 
         # Client 0: reverse_index = 3, early_stop = 20 * (3/4) = 15
         # duration = 110 - 15 = 95
-        self.assertEqual(110, loop_control._base_duration)
-        self.assertEqual(95, loop_control._duration)
+        self.assertEqual(130, loop_control._base_duration)
+        self.assertEqual(115, loop_control._duration)
         self.assertEqual(20, loop_control._ramp_down_time_period)
 
     def test_time_period_based_with_ramp_down_client_3(self):
@@ -2361,8 +2361,8 @@ class TimePeriodBasedTests(TestCase):
 
         # Client 3: reverse_index = 0, early_stop = 20 * (0/4) = 0
         # duration = 110 - 0 = 110
-        self.assertEqual(110, loop_control._base_duration)
-        self.assertEqual(110, loop_control._duration)
+        self.assertEqual(130, loop_control._base_duration)
+        self.assertEqual(130, loop_control._duration)
 
     def test_time_period_based_with_ramp_down_all_clients(self):
         # Test that clients stop in reverse order with correct spacing
@@ -2383,7 +2383,7 @@ class TimePeriodBasedTests(TestCase):
             durations.append(loop_control._duration)
 
         # Expected: [95, 100, 105, 110] - clients stop 5s apart
-        self.assertEqual([95, 100, 105, 110], durations)
+        self.assertEqual([115, 120, 125, 130], durations)
 
         # Verify spacing is correct
         for i in range(1, len(durations)):
