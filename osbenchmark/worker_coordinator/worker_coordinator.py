@@ -1397,8 +1397,6 @@ class WorkerCoordinator:
                 self.progress_publisher.finish()
 
 class SamplePostProcessorActor(actor.BenchmarkActor):
-    def __init__(self):
-        super().__init__()
 
     def receiveMsg_StartSamplePostProcessorActor(self, msg, sender):
         self.config = msg.config
@@ -1442,7 +1440,6 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         metric_results = self.metrics_store.to_externalizable(clear=msg.clear)
         if msg.reason == ReasonForExternalizableRequest.TASK_FINISHED:
             self.send(self.worker_coordinator_actor, TaskFinished(metric_results, msg.waiting_period))
-            pass
         elif msg.reason == ReasonForExternalizableRequest.BENCHMARK_COMPLETED:
             self.logger.debug("Sending benchmark results...")
             self.send(self.worker_coordinator_actor, BenchmarkComplete(metric_results))
