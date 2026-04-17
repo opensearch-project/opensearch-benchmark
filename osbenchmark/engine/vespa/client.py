@@ -115,6 +115,86 @@ class VespaDatabaseClient(RequestContextHolder):
         self._sync_session = None
         self._search_executor = None
 
+        # Namespace proxies — runners call client.indices.create(), etc.
+        # We return self so those calls resolve to methods below.
+        self.indices = self
+        self.cluster = self
+        self.transport = self
+        self.nodes = self
+
+    # --- Namespace methods (called by runners via self.indices.X, etc.) ---
+
+    async def create(self, index=None, body=None, **kwargs):
+        """No-op — Vespa schemas are deployed via application packages."""
+        return {"acknowledged": True, "shards_acknowledged": True, "index": index}
+
+    async def delete(self, index=None, **kwargs):
+        """No-op — Vespa schemas are deployed via application packages."""
+        return {"acknowledged": True}
+
+    async def exists(self, index=None, **kwargs):
+        """No-op — Vespa schemas always exist once deployed."""
+        return True
+
+    async def refresh(self, index=None, **kwargs):
+        """No-op — Vespa handles visibility internally."""
+        return {"acknowledged": True, "_shards": {"total": 1, "successful": 1, "failed": 0}}
+
+    async def stats(self, index=None, metric=None, **kwargs):
+        """GET /metrics/v2/values, convert via helpers."""
+        await self._ensure_session()
+        endpoint = f"{self.endpoint}/metrics/v2/values"
+        try:
+            async with self._session.get(endpoint, timeout=10) as response:
+                metrics_data = await response.json()
+                return convert_metrics_to_stats(metrics_data, index)
+        except Exception:
+            return {"_all": {"primaries": {}, "total": {}}}
+
+    async def forcemerge(self, index=None, **kwargs):
+        """No-op, returns task format if polling mode."""
+        wait_for_completion = kwargs.get("wait_for_completion", True)
+        if wait_for_completion == "false" or wait_for_completion is False:
+            return {"task": "vespa-node:1"}
+        return {"_shards": {"total": 1, "successful": 1, "failed": 0}}
+
+    async def health(self, **kwargs):
+        """Map Vespa health status to OpenSearch green/yellow/red."""
+        await self._ensure_session()
+        endpoint = f"{self.endpoint}/state/v1/health"
+        try:
+            async with self._session.get(endpoint) as response:
+                health_data = await response.json()
+                status = health_data.get("status", {}).get("code", "red")
+        except Exception as e:
+            self.logger.error("Health check failed: %s", e)
+            return {"cluster_name": "vespa", "status": "red", "timed_out": False}
+
+        status_map = {"up": "green", "down": "red", "initializing": "yellow"}
+        return {
+            "cluster_name": "vespa",
+            "status": status_map.get(status, "yellow"),
+            "timed_out": False,
+            "number_of_nodes": 1,
+            "number_of_data_nodes": 1,
+            "active_primary_shards": 1,
+            "active_shards": 1,
+            "relocating_shards": 0,
+            "initializing_shards": 0,
+            "unassigned_shards": 0,
+        }
+
+    async def put_settings(self, body=None, **kwargs):
+        """No-op."""
+        return {"acknowledged": True}
+
+    async def perform_request(self, method, url, params=None, body=None, headers=None):
+        """Generic HTTP via session."""
+        await self._ensure_session()
+        full_url = f"{self.endpoint}{url}"
+        async with self._session.request(method, full_url, params=params, json=body, headers=headers) as resp:
+            return await resp.json()
+
     # --- Session management ---
 
     async def _ensure_session(self):
