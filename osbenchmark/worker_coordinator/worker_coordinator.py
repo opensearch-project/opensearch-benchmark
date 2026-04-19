@@ -1040,40 +1040,6 @@ class WorkerCoordinator:
             opensearch[cluster_name] = self.os_client_factory(cluster_hosts, cluster_client_options).create()
         return opensearch
 
-    def prepare_telemetry(self, opensearch, enable):
-        enabled_devices = self.config.opts("telemetry", "devices")
-        telemetry_params = self.config.opts("telemetry", "params")
-        log_root = paths.test_run_root(self.config)
-        database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
-
-        os_default = opensearch["default"]
-
-        if enable:
-            # Only enable OpenSearch-specific telemetry for OpenSearch databases
-            if database_type.lower() == "opensearch":
-                devices = [
-                    telemetry.NodeStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.ExternalEnvironmentInfo(os_default, self.metrics_store),
-                    telemetry.ClusterEnvironmentInfo(os_default, self.metrics_store),
-                    telemetry.JvmStatsSummary(os_default, self.metrics_store),
-                    telemetry.IndexStats(os_default, self.metrics_store),
-                    telemetry.MlBucketProcessingTime(os_default, self.metrics_store),
-                    telemetry.SegmentStats(log_root, os_default),
-                    telemetry.CcrStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.RecoveryStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.TransformStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.SearchableSnapshotsStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.SegmentReplicationStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.ShardStats(telemetry_params, opensearch, self.metrics_store)
-                ]
-            else:
-                # For non-OpenSearch databases, skip OS-specific telemetry devices
-                self.logger.info("Skipping OpenSearch-specific telemetry devices for database type [%s]", database_type)
-                devices = []
-        else:
-            devices = []
-        self.telemetry = telemetry.Telemetry(enabled_devices, devices=devices)
-
     def wait_for_rest_api(self, opensearch):
         os_default = opensearch["default"]
         self.logger.info("Checking if REST API is available.")

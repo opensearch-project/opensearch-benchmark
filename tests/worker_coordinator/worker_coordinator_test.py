@@ -2483,10 +2483,13 @@ class SamplePostProcessorActorTests(TestCase):
         self.monkeypatch = pytest.MonkeyPatch()
         self.monkeypatch.setattr("osbenchmark.log.post_configure_actor_logging", lambda: None)
         self.actor = worker_coordinator.SamplePostProcessorActor()
+        self.cfg = config.Config()
+        self.cfg.add(config.Scope.application, "client", "hosts",
+                     WorkerCoordinatorTests.Holder(all_hosts={"default": ["localhost:9200"]}))
 
     def test_receive_start_sample_post_processor(self):
         msg = worker_coordinator.StartSamplePostProcessorActor(
-            config=mock.MagicMock(name="config"),
+            config=self.cfg,
             workload=mock.MagicMock(name="workload"),
             test_procedure=mock.MagicMock(name="test_procedure"),
             downsample_factor=1
