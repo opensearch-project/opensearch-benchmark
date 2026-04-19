@@ -2516,4 +2516,4 @@ class SamplePostProcessorActorTests(TestCase):
         assert self.actor.metrics_store is not None
         assert self.actor.sample_post_processor is not None
         assert self.actor.profile_metrics_post_processor is not None
-        assert self.telemetry is not None
+        assert self.actor.telemetry is not None
