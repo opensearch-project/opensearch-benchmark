@@ -2484,8 +2484,24 @@ class SamplePostProcessorActorTests(TestCase):
         self.monkeypatch.setattr("osbenchmark.log.post_configure_actor_logging", lambda: None)
         self.actor = worker_coordinator.SamplePostProcessorActor()
         self.cfg = config.Config()
+        self.cfg.add(config.Scope.application, "system", "env.name", "unittest")
+        self.cfg.add(config.Scope.application, "system", "time.start", datetime(year=2017, month=8, day=20, hour=1, minute=0, second=0))
+        self.cfg.add(config.Scope.application, "system", "test_run.id", "6ebc6e53-ee20-4b0c-99b4-09697987e9f4")
+        self.cfg.add(config.Scope.application, "system", "available.cores", 8)
+        self.cfg.add(config.Scope.application, "node", "root.dir", "/tmp")
+        self.cfg.add(config.Scope.application, "workload", "test_procedure.name", "default")
+        self.cfg.add(config.Scope.application, "workload", "params", {})
+        self.cfg.add(config.Scope.application, "workload", "test.mode.enabled", True)
+        self.cfg.add(config.Scope.applicationOverride, "workload", "test_procedure.name", "default")
+        self.cfg.add(config.Scope.application, "telemetry", "devices", [])
+        self.cfg.add(config.Scope.application, "telemetry", "params", {"ccr-stats-indices": {"default": ["leader_index"]}})
+        self.cfg.add(config.Scope.application, "builder", "cluster_config.names", ["default"])
+        self.cfg.add(config.Scope.application, "builder", "skip.rest.api.check", True)
         self.cfg.add(config.Scope.application, "client", "hosts",
                      WorkerCoordinatorTests.Holder(all_hosts={"default": ["localhost:9200"]}))
+        self.cfg.add(config.Scope.application, "client", "options", WorkerCoordinatorTests.Holder(all_client_options={"default": {}}))
+        self.cfg.add(config.Scope.application, "worker_coordinator", "worker_ips", ["localhost"])
+        self.cfg.add(config.Scope.application, "reporting", "datastore.type", "in-memory")
 
     def test_receive_start_sample_post_processor(self):
         msg = worker_coordinator.StartSamplePostProcessorActor(
