@@ -2599,34 +2599,11 @@ class SamplePostProcessorActorTests(TestCase):
 
         self.actor.send.assert_called_once()
 
-    def test_get_externalizable_metrics_store_task_finished(self):
+    def test_reset_relative_time(self):
         self.actor.metrics_store = mock.MagicMock()
-        self.actor.metrics_store.to_externalizable.return_value = {"data": 123}
 
-        self.actor.worker_coordinator_actor = mock.MagicMock()
-        self.actor.send = mock.MagicMock()
+        msg = worker_coordinator.ResetRelativeTimeRequest()
 
-        msg = worker_coordinator.GetExternalizableMetricsStore(
-            clear=True,
-            reason=worker_coordinator.ReasonForExternalizableRequest.TASK_FINISHED,
-            waiting_period=5
-        )
+        self.actor.receiveMsg_ResetRelativeTimeRequest(msg, sender=None)
 
-        self.monkeypatch.setattr(
-            "osbenchmark.worker_coordinator.TaskFinished",
-            mock.MagicMock()
-        )
-
-        self.actor.receiveMsg_GetExternalizableMetricsStore(msg, sender=None)
-
-        self.actor.send.assert_called_once()
-
-    def test_close_metrics_store_via_message(self):
-        self.actor.metrics_store = mock.MagicMock()
-        self.actor.metrics_store.opened = True
-
-        msg = worker_coordinator.CloseMetricsStore()
-
-        self.actor.receiveMsg_CloseMetricsStore(msg, sender=None)
-
-        self.actor.metrics_store.close.assert_called_once()
+        self.actor.metrics_store.reset_relative_time.assert_called_once()
