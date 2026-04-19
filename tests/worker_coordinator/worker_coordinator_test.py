@@ -2519,3 +2519,114 @@ class SamplePostProcessorActorTests(TestCase):
         assert self.actor.sample_post_processor is not None
         assert self.actor.profile_metrics_post_processor is not None
         assert self.actor.telemetry is not None
+
+    def test_receive_process_samples_calls_processors(self):
+        self.actor.sample_post_processor = mock.MagicMock()
+        self.actor.profile_metrics_post_processor = mock.MagicMock()
+
+        msg = worker_coordinator.ProcessSamples(
+            samples=[1, 2],
+            profile_samples=[3]
+        )
+
+        self.actor.receiveMsg_ProcessSamples(msg, sender=None)
+
+        self.actor.sample_post_processor.assert_called_once_with([1, 2])
+        self.actor.profile_metrics_post_processor.assert_called_once_with([3])
+
+    def test_receive_process_samples_skips_when_none(self):
+        self.actor.sample_post_processor = mock.MagicMock()
+        self.actor.profile_metrics_post_processor = mock.MagicMock()
+
+        msg = worker_coordinator.ProcessSamples(
+            samples=None,
+            profile_samples=None
+        )
+
+        self.actor.receiveMsg_ProcessSamples(msg, sender=None)
+
+        self.actor.sample_post_processor.assert_not_called()
+        self.actor.profile_metrics_post_processor.assert_not_called()
+
+    def test_receive_start_telemetry(self):
+        self.actor.telemetry = mock.MagicMock()
+
+        msg = worker_coordinator.StartTelemetry()
+
+        self.actor.receiveMsg_StartTelemetry(msg, sender=None)
+
+        self.actor.telemetry.on_benchmark_start.assert_called_once()
+
+
+    def test_receive_stop_telemetry(self):
+        self.actor.telemetry = mock.MagicMock()
+
+        msg = worker_coordinator.StopTelemetry()
+
+        self.actor.receiveMsg_StopTelemetry(msg, sender=None)
+
+        self.actor.telemetry.on_benchmark_stop.assert_called_once()
+
+    def test_close_metrics_store_via_message(self):
+        self.actor.metrics_store = mock.MagicMock()
+        self.actor.metrics_store.opened = True
+
+        msg = worker_coordinator.CloseMetricsStore()
+
+        self.actor.receiveMsg_CloseMetricsStore(msg, sender=None)
+
+        self.actor.metrics_store.close.assert_called_once()
+
+    def test_get_externalizable_metrics_store_task_finished(self):
+        self.actor.metrics_store = mock.MagicMock()
+        self.actor.metrics_store.to_externalizable.return_value = {"data": 123}
+
+        self.actor.worker_coordinator_actor = mock.MagicMock()
+        self.actor.send = mock.MagicMock()
+
+        msg = worker_coordinator.GetExternalizableMetricsStore(
+            clear=True,
+            reason=worker_coordinator.ReasonForExternalizableRequest.TASK_FINISHED,
+            waiting_period=5
+        )
+
+        self.monkeypatch.setattr(
+            "osbenchmark.worker_coordinator.TaskFinished",
+            mock.MagicMock()
+        )
+
+        self.actor.receiveMsg_GetExternalizableMetricsStore(msg, sender=None)
+
+        self.actor.send.assert_called_once()
+
+    def test_get_externalizable_metrics_store_task_finished(self):
+        self.actor.metrics_store = mock.MagicMock()
+        self.actor.metrics_store.to_externalizable.return_value = {"data": 123}
+
+        self.actor.worker_coordinator_actor = mock.MagicMock()
+        self.actor.send = mock.MagicMock()
+
+        msg = worker_coordinator.GetExternalizableMetricsStore(
+            clear=True,
+            reason=worker_coordinator.ReasonForExternalizableRequest.TASK_FINISHED,
+            waiting_period=5
+        )
+
+        self.monkeypatch.setattr(
+            "osbenchmark.worker_coordinator.TaskFinished",
+            mock.MagicMock()
+        )
+
+        self.actor.receiveMsg_GetExternalizableMetricsStore(msg, sender=None)
+
+        self.actor.send.assert_called_once()
+
+    def test_close_metrics_store_via_message(self):
+        self.actor.metrics_store = mock.MagicMock()
+        self.actor.metrics_store.opened = True
+
+        msg = worker_coordinator.CloseMetricsStore()
+
+        self.actor.receiveMsg_CloseMetricsStore(msg, sender=None)
+
+        self.actor.metrics_store.close.assert_called_once()
