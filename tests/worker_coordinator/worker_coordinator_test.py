@@ -251,7 +251,9 @@ class WorkerCoordinatorTests(TestCase):
 
         # this requires at least Python 3.6
         # target.on_task_finished.assert_called_once()
-        self.assertEqual(1, target.on_task_finished.call_count)
+        # on PR https://github.com/opensearch-project/opensearch-benchmark/pull/988, 
+        # target.on_task_finished is now delegated to an extenal actor.
+        #self.assertEqual(1, target.on_task_finished.call_count)
         self.assertEqual(4, target.drive_at.call_count)
 
     @run_async
