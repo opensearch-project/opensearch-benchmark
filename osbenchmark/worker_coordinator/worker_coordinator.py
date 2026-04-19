@@ -1453,6 +1453,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
             ]
         else:
             devices = []
+        print("devices, {}, {}", enabled_devices, devices)
         self.telemetry = telemetry.Telemetry(enabled_devices, devices=devices)
 
 
