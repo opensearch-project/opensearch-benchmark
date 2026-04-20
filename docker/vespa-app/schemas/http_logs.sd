@@ -1,0 +1,49 @@
+schema http_logs {
+    document http_logs {
+        field timestamp type long {
+            indexing: summary | attribute
+            attribute: fast-search
+        }
+        field message type string {
+            indexing: summary
+        }
+        field clientip type string {
+            indexing: summary | attribute
+        }
+        field request type string {
+            indexing: summary | index
+            index: enable-bm25
+        }
+        field request_raw type string {
+            indexing: summary | attribute
+        }
+        field status type int {
+            indexing: summary | attribute
+        }
+        field size type int {
+            indexing: summary | attribute
+        }
+        field geoip_country_name type string {
+            indexing: summary | attribute
+        }
+        field geoip_city_name type string {
+            indexing: summary | attribute
+        }
+    }
+
+    fieldset default {
+        fields: request
+    }
+
+    rank-profile default {
+        first-phase {
+            expression: attribute(timestamp)
+        }
+    }
+
+    rank-profile unranked {
+        first-phase {
+            expression: 0
+        }
+    }
+}

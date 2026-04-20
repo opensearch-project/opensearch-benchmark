@@ -211,17 +211,8 @@ class VespaVectorSearch(Runner):
             return False
         return params.get("calculate-recall", True)
 
-    # Class-level timing accumulators (TIMING INSTRUMENTATION — REMOVE BEFORE MERGE)
-    _timing_total_calls = 0
-    _timing_translation_us = 0.0
-    _timing_search_us = 0.0
-    _timing_response_conv_us = 0.0
-    _timing_recall_us = 0.0
-    _timing_total_us = 0.0
 
     async def __call__(self, vespa_client, params):
-        t_call_start = time.perf_counter()
-
         index = params.get("index")
         body = params.get("body", {})
         doc_type = index or getattr(vespa_client, "_app_name", "default")  # pylint: disable=unused-variable
@@ -231,7 +222,6 @@ class VespaVectorSearch(Runner):
         # Workloads should use a Vespa-specific param source such as
         # vespa-vector-search-param-source (see vectorsearch/test_procedures/
         # default.json → "vespa-search-only" procedure).
-        t_translation_start = time.perf_counter()
         if "yql" not in body:
             raise exceptions.BenchmarkError(
                 "Vespa runner received a body without a 'yql' key. Use a Vespa-native "
@@ -279,21 +269,15 @@ class VespaVectorSearch(Runner):
                     f"{{targetHits:{k}}}",
                     f"{{targetHits:{k},approximate:true,hnsw.exploreAdditionalHits:{explore_extra}}}"
                 )
-        t_translation_end = time.perf_counter()
-
         # INSIDE timing: only the search RPC
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
-        t_search_start = time.perf_counter()
         try:
             raw_response = await vespa_client.search(index=index, body=search_params)
         finally:
             request_context_holder.on_request_end()
             request_context_holder.on_client_request_end()
-        t_search_end = time.perf_counter()
-
         # OUTSIDE timing: response conversion and recall calculation
-        t_resp_start = time.perf_counter()
         response = convert_vespa_response(raw_response)
 
         hits = response.get("hits", {}).get("total", {}).get("value", 0)
@@ -328,26 +312,6 @@ class VespaVectorSearch(Runner):
             result["recall@k"] = self._calculate_topk_recall(candidates, neighbors, k)
             result["recall@1"] = self._calculate_topk_recall(candidates, neighbors, 1)
             result["recall_time_ms"] = convert.seconds_to_ms(time.perf_counter() - recall_start)
-        t_resp_end = time.perf_counter()
-
-        # TIMING INSTRUMENTATION (REMOVE BEFORE MERGE)
-        t_call_end = time.perf_counter()
-        VespaVectorSearch._timing_total_calls += 1
-        VespaVectorSearch._timing_translation_us += (t_translation_end - t_translation_start) * 1e6
-        VespaVectorSearch._timing_search_us += (t_search_end - t_search_start) * 1e6
-        VespaVectorSearch._timing_response_conv_us += (t_resp_end - t_resp_start) * 1e6
-        VespaVectorSearch._timing_total_us += (t_call_end - t_call_start) * 1e6
-        if VespaVectorSearch._timing_total_calls % 1000 == 0:
-            n = VespaVectorSearch._timing_total_calls
-            logger.warning(
-                "[VESPA TIMING n=%d] translation=%.2fus search=%.2fus response=%.2fus total=%.2fus overhead=%.2fus",
-                n,
-                VespaVectorSearch._timing_translation_us / n,
-                VespaVectorSearch._timing_search_us / n,
-                VespaVectorSearch._timing_response_conv_us / n,
-                VespaVectorSearch._timing_total_us / n,
-                (VespaVectorSearch._timing_total_us - VespaVectorSearch._timing_search_us) / n,
-            )
 
         return result
 

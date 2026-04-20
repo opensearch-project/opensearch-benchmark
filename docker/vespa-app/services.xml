@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<services version="1.0" xmlns:deploy="vespa" xmlns:preprocess="properties">
+    <container id="default" version="1.0">
+        <search/>
+        <document-api>
+            <ignore-undefined-fields>true</ignore-undefined-fields>
+        </document-api>
+        <nodes>
+            <node hostalias="node1"/>
+        </nodes>
+    </container>
+
+    <content id="content" version="1.0">
+        <redundancy>1</redundancy>
+        <documents>
+            <document type="big5" mode="index"/>
+            <document type="target_index" mode="index"/>
+            <document type="so" mode="index"/>
+            <document type="pmc" mode="index"/>
+            <document type="http_logs" mode="index"/>
+            <document type="nyc_taxis" mode="index"/>
+        </documents>
+        <engine>
+            <proton>
+                <tuning>
+                    <searchnode>
+                        <requestthreads>
+                            <persearch>4</persearch>
+                        </requestthreads>
+                    </searchnode>
+                </tuning>
+            </proton>
+        </engine>
+        <nodes>
+            <node hostalias="node1" distribution-key="0"/>
+        </nodes>
+    </content>
+</services>

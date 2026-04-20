@@ -1,0 +1,91 @@
+schema big5 {
+    document big5 {
+        field timestamp type long {
+            indexing: summary | attribute
+            attribute: fast-search
+        }
+        field message type string {
+            indexing: summary | index
+            index: enable-bm25
+        }
+        field metrics_size type long {
+            indexing: summary | attribute
+        }
+        field metrics_tmin type long {
+            indexing: summary | attribute
+        }
+        field agent_ephemeral_id type string {
+            indexing: summary | attribute
+        }
+        field agent_id type string {
+            indexing: summary | attribute
+        }
+        field agent_name type string {
+            indexing: summary | attribute
+        }
+        field agent_type type string {
+            indexing: summary | attribute
+        }
+        field agent_version type string {
+            indexing: summary | attribute
+        }
+        field aws_cloudwatch_ingestion_time type string {
+            indexing: summary | attribute
+        }
+        field aws_cloudwatch_log_group type string {
+            indexing: summary | attribute
+        }
+        field aws_cloudwatch_log_stream type string {
+            indexing: summary | attribute
+        }
+        field cloud_region type string {
+            indexing: summary | attribute
+        }
+        field data_stream_dataset type string {
+            indexing: summary | attribute
+        }
+        field data_stream_namespace type string {
+            indexing: summary | attribute
+        }
+        field data_stream_type type string {
+            indexing: summary | attribute
+        }
+        field ecs_version type string {
+            indexing: summary | attribute
+        }
+        field event_dataset type string {
+            indexing: summary | attribute
+        }
+        field event_id type string {
+            indexing: summary | attribute
+        }
+        field event_ingested type string {
+            indexing: summary | attribute
+        }
+        field input_type type string {
+            indexing: summary | attribute
+        }
+        field log_file_path type string {
+            indexing: summary | attribute
+        }
+        field meta_file type string {
+            indexing: summary | attribute
+        }
+        field process_name type string {
+            indexing: summary | attribute
+        }
+        field tags type string {
+            indexing: summary | attribute
+        }
+    }
+
+    fieldset default {
+        fields: message
+    }
+
+    rank-profile default {
+        first-phase {
+            expression: attribute(timestamp)
+        }
+    }
+}

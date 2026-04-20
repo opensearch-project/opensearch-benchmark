@@ -1,0 +1,79 @@
+schema nyc_taxis {
+    document nyc_taxis {
+        field surcharge type double {
+            indexing: summary | attribute
+        }
+        field dropoff_datetime type long {
+            indexing: summary | attribute
+            attribute: fast-search
+        }
+        field trip_type type string {
+            indexing: summary | attribute
+        }
+        field mta_tax type double {
+            indexing: summary | attribute
+        }
+        field rate_code_id type string {
+            indexing: summary | attribute
+        }
+        field passenger_count type int {
+            indexing: summary | attribute
+        }
+        field pickup_datetime type long {
+            indexing: summary | attribute
+            attribute: fast-search
+        }
+        field tolls_amount type double {
+            indexing: summary | attribute
+        }
+        field tip_amount type float {
+            indexing: summary | attribute
+        }
+        field payment_type type string {
+            indexing: summary | attribute
+        }
+        field extra type double {
+            indexing: summary | attribute
+        }
+        field vendor_id type string {
+            indexing: summary | attribute
+        }
+        field store_and_fwd_flag type string {
+            indexing: summary | attribute
+        }
+        field improvement_surcharge type double {
+            indexing: summary | attribute
+        }
+        field fare_amount type double {
+            indexing: summary | attribute
+        }
+        field ehail_fee type double {
+            indexing: summary | attribute
+        }
+        field cab_color type string {
+            indexing: summary | attribute
+        }
+        field vendor_name type string {
+            indexing: summary | index
+            index: enable-bm25
+        }
+        field total_amount type double {
+            indexing: summary | attribute
+        }
+        field trip_distance type double {
+            indexing: summary | attribute
+        }
+    }
+
+    rank-profile default {
+        first-phase {
+            expression: attribute(dropoff_datetime)
+        }
+    }
+
+    rank-profile unranked {
+        first-phase {
+            expression: 0
+        }
+    }
+}

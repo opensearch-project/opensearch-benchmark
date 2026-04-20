@@ -1323,12 +1323,6 @@ def parse(text: BytesIO, props: List[str], lists: List[str] = None) -> dict:
     return parsed
 
 
-# TIMING INSTRUMENTATION (REMOVE BEFORE MERGE)
-_OS_TIMING_TOTAL_CALLS = 0
-_OS_TIMING_PRE_US = 0.0
-_OS_TIMING_RAW_SEARCH_US = 0.0
-_OS_TIMING_POST_US = 0.0
-_OS_TIMING_TOTAL_US = 0.0
 
 
 class Query(Runner):
@@ -1769,27 +1763,6 @@ class Query(Runner):
                     "took": took
                 })
 
-            def _record_timing_and_return(res):
-                # TIMING INSTRUMENTATION (REMOVE BEFORE MERGE)
-                global _OS_TIMING_TOTAL_CALLS, _OS_TIMING_PRE_US, _OS_TIMING_RAW_SEARCH_US, _OS_TIMING_POST_US, _OS_TIMING_TOTAL_US  # pylint: disable=global-statement
-                _t_call_end = time.perf_counter()
-                _OS_TIMING_TOTAL_CALLS += 1
-                _OS_TIMING_PRE_US += (_t_pre_end - _t_call_start) * 1e6
-                _OS_TIMING_RAW_SEARCH_US += (_t_search_end - _t_search_start) * 1e6
-                _OS_TIMING_POST_US += (_t_call_end - _t_search_end) * 1e6
-                _OS_TIMING_TOTAL_US += (_t_call_end - _t_call_start) * 1e6
-                if _OS_TIMING_TOTAL_CALLS % 1000 == 0:
-                    _n = _OS_TIMING_TOTAL_CALLS
-                    self.logger.warning(
-                        "[OS TIMING n=%d] pre=%.2fus raw_search=%.2fus post=%.2fus total=%.2fus overhead=%.2fus",
-                        _n,
-                        _OS_TIMING_PRE_US / _n,
-                        _OS_TIMING_RAW_SEARCH_US / _n,
-                        _OS_TIMING_POST_US / _n,
-                        _OS_TIMING_TOTAL_US / _n,
-                        (_OS_TIMING_TOTAL_US - _OS_TIMING_RAW_SEARCH_US) / _n,
-                    )
-                return res
 
             recall_processing_start = time.perf_counter()
             response_json = json.loads(response.getvalue())
@@ -1798,10 +1771,10 @@ class Query(Runner):
 
             if _is_empty_search_results(response_json):
                 self.logger.info("Vector search query returned no results.")
-                return _record_timing_and_return(result)
+                return result
 
             if not should_calculate_recall:
-                return _record_timing_and_return(result)
+                return result
 
             id_field = parse_string_parameter("id-field-name", params, "_id")
             candidates = []
@@ -1834,7 +1807,7 @@ class Query(Runner):
             recall_processing_end = time.perf_counter()
             recall_processing_time = convert.seconds_to_ms(recall_processing_end - recall_processing_start)
             result["recall_time_ms"] = recall_processing_time
-            return _record_timing_and_return(result)
+            return result
 
         search_method = params.get("operation-type")
         if search_method == "paginated-search":
