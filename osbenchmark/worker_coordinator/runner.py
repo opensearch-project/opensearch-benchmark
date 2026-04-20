@@ -1585,9 +1585,6 @@ class Query(Runner):
             Perform vector search and report recall@k , recall@r and time taken to perform recall in ms as
             meta object.
             """
-            global _OS_TIMING_TOTAL_CALLS, _OS_TIMING_PRE_US, _OS_TIMING_RAW_SEARCH_US, _OS_TIMING_POST_US, _OS_TIMING_TOTAL_US  # pylint: disable=global-statement
-            _t_call_start = time.perf_counter()
-
             def _is_empty_search_results(content):
                 if content is None:
                     return True
@@ -1744,10 +1741,7 @@ class Query(Runner):
                 _set_initial_recall_values(params, result)
 
             doc_type = params.get("type")
-            _t_pre_end = time.perf_counter()
-            _t_search_start = time.perf_counter()
             response = await self._raw_search(opensearch, doc_type, index, body, request_params, headers=headers)
-            _t_search_end = time.perf_counter()
 
             if detailed_results:
                 props = parse(response, ["hits.total", "hits.total.value", "hits.total.relation", "timed_out", "took"])
