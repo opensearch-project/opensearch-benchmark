@@ -318,16 +318,6 @@ class VespaVectorSearch(Runner):
         if should_recall and "k" in params:
             result.update({"recall@k": 0, "recall@1": 0})
 
-        # DEBUG — remove after verifying recall works
-        if VespaVectorSearch._timing_total_calls == 0:
-            logger.warning(
-                "[RECALL DEBUG] should_recall=%s, 'k' in params=%s, 'neighbors' in params=%s, "
-                "k=%s, num_hits=%s, param_keys=%s",
-                should_recall, "k" in params, "neighbors" in params,
-                params.get("k"), len(response.get("hits", {}).get("hits", [])),
-                [k for k in params.keys() if k not in ("body",)]
-            )
-
         if should_recall and "neighbors" in params and "k" in params:
             recall_start = time.perf_counter()
             response_hits = response.get("hits", {}).get("hits", [])
