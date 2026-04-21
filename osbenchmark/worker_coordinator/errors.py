@@ -3,7 +3,7 @@ import re
 def parse_error(error_metadata):
     error = error_metadata['error']
     status_code = None
-    description = "error occurred, check logs for details"
+    description = "error occured, check logs for details"
     operation = UnknownOperationError(description, None)
 
     if 'status' in error_metadata:
