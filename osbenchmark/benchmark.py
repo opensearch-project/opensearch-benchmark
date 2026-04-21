@@ -598,6 +598,10 @@ def create_arg_parser():
         help=f"Define a comma-separated list of client options to use. The options will be passed to the OpenSearch "
              f"Python client (default: {opts.ClientOptions.DEFAULT_CLIENT_OPTIONS}).",
         default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS)
+    test_run_parser.add_argument(
+        "--database-type",
+        help="Define the target database type (default: opensearch). Supported types: opensearch, vespa, milvus.",
+        default="opensearch")
     test_run_parser.add_argument("--on-error",
                              choices=["continue", "abort"],
                              help="Controls how OSB behaves on response errors (default: continue).",
@@ -1141,6 +1145,7 @@ def configure_test(arg_parser, args, cfg):
     cfg.add(config.Scope.applicationOverride, "workload", "randomization.alpha", args.randomization_alpha)
     cfg.add(config.Scope.applicationOverride, "workload", "visualize", args.visualize)
     cfg.add(config.Scope.applicationOverride, "workload", "visualize.output.path", args.visualize_output_path)
+    cfg.add(config.Scope.applicationOverride, "database", "type", args.database_type)
     configure_workload_params(arg_parser, args, cfg)
     configure_connection_params(arg_parser, args, cfg)
     configure_telemetry_params(args, cfg)
