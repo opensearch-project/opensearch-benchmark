@@ -2002,6 +2002,45 @@ class SourceOnlyIndexDataReader(IndexDataReader):
 register_param_source_for_operation(workload.OperationType.Bulk, BulkIndexParamSource)
 register_param_source_for_operation(workload.OperationType.ProtoBulk, BulkIndexParamSource)
 register_param_source_for_operation(workload.OperationType.BulkVectorDataSet, BulkVectorsFromDataSetParamSource)
+
+
+class ProtoBulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
+    """Create gRPC bulk index requests from a data set of vectors.
+
+    Unlike BulkVectorsFromDataSetParamSource, this keeps vectors as numpy arrays
+    for binary encoding via extra_field_values (FloatBinaryLE) instead of
+    converting to JSON lists.
+    """
+
+    def __init__(self, workload, params, **kwargs):
+        super().__init__(workload, params, Context.INDEX, **kwargs)
+        self.bulk_size: int = parse_int_parameter("bulk_size", params)
+        self.index_name: str = parse_string_parameter("index", params)
+
+    def partition(self, partition_index, total_partitions):
+        return super().partition(partition_index, total_partitions)
+
+    def params(self):
+        if self.current >= self.num_vectors + self.offset:
+            raise StopIteration
+
+        remaining = self.num_vectors + self.offset - self.current
+        bulk_size = min(self.bulk_size, remaining)
+        partition = self.data_set.read(bulk_size)
+        size = len(partition)
+        self.current += size
+        self.task_progress = (self.current / self.total, '%')
+
+        return {
+            "index": self.index_name,
+            "field": self.field_name,
+            "vectors": list(partition),
+            "bulk-size": size,
+            "unit": "docs",
+        }
+
+
+register_param_source_for_operation(workload.OperationType.ProtoBulkVectorDataSet, ProtoBulkVectorsFromDataSetParamSource)
 register_param_source_for_operation(workload.OperationType.Search, SearchParamSource)
 register_param_source_for_operation(workload.OperationType.VectorSearch, VectorSearchParamSource)
 register_param_source_for_operation(workload.OperationType.ProtoVectorSearch, VectorSearchParamSource)
