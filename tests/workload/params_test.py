@@ -36,7 +36,7 @@ from osbenchmark.utils.dataset import Context, HDF5DataSet
 from osbenchmark.utils.parse import ConfigurationError
 from osbenchmark.workload import params, workload, loader
 from osbenchmark.workload.params import VectorDataSetPartitionParamSource, VectorSearchPartitionParamSource, \
-    BulkVectorsFromDataSetParamSource
+    BulkVectorsFromDataSetParamSource, ProtoBulkVectorsFromDataSetParamSource
 from tests.utils.dataset_helper import create_data_set, create_attributes_data_set, create_parent_data_set
 from tests.utils.dataset_test import DEFAULT_NUM_VECTORS
 
@@ -3421,6 +3421,74 @@ class BulkVectorsFromDataSetParamSourceTestCase(TestCase):
                 self.assertFalse(expected_id_field in req_body)
                 continue
             self.assertTrue(expected_id_field in req_body)
+
+
+class ProtoBulkVectorsFromDataSetParamSourceTestCase(TestCase):
+    DEFAULT_INDEX_NAME = "test-index"
+    DEFAULT_VECTOR_FIELD_NAME = "test-vector-field"
+    DEFAULT_TYPE = HDF5DataSet.FORMAT_NAME
+    DEFAULT_DIMENSION = 10
+
+    def setUp(self):
+        self.data_set_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.data_set_dir)
+
+    def test_params_returns_vectors_as_numpy(self):
+        num_vectors = 5
+        bulk_size = 3
+        data_set_path = create_data_set(
+            num_vectors, self.DEFAULT_DIMENSION, self.DEFAULT_TYPE,
+            Context.INDEX, self.data_set_dir)
+
+        source = ProtoBulkVectorsFromDataSetParamSource(
+            workload.Workload(name="unit-test"), {
+                "index": self.DEFAULT_INDEX_NAME,
+                "field": self.DEFAULT_VECTOR_FIELD_NAME,
+                "data_set_format": self.DEFAULT_TYPE,
+                "data_set_path": data_set_path,
+                "bulk_size": bulk_size,
+            })
+        partition = source.partition(0, 1)
+
+        result = partition.params()
+        self.assertEqual(result["index"], self.DEFAULT_INDEX_NAME)
+        self.assertEqual(result["field"], self.DEFAULT_VECTOR_FIELD_NAME)
+        self.assertEqual(result["bulk-size"], bulk_size)
+        self.assertEqual(result["unit"], "docs")
+        vectors = result["vectors"]
+        self.assertEqual(len(vectors), bulk_size)
+        for vec in vectors:
+            self.assertIsInstance(vec, np.ndarray)
+            self.assertEqual(len(vec), self.DEFAULT_DIMENSION)
+
+    def test_params_exhausts_dataset(self):
+        num_vectors = 5
+        bulk_size = 3
+        data_set_path = create_data_set(
+            num_vectors, self.DEFAULT_DIMENSION, self.DEFAULT_TYPE,
+            Context.INDEX, self.data_set_dir)
+
+        source = ProtoBulkVectorsFromDataSetParamSource(
+            workload.Workload(name="unit-test"), {
+                "index": self.DEFAULT_INDEX_NAME,
+                "field": self.DEFAULT_VECTOR_FIELD_NAME,
+                "data_set_format": self.DEFAULT_TYPE,
+                "data_set_path": data_set_path,
+                "bulk_size": bulk_size,
+            })
+        partition = source.partition(0, 1)
+
+        # First batch: 3 vectors
+        r1 = partition.params()
+        self.assertEqual(r1["bulk-size"], 3)
+        # Second batch: remaining 2
+        r2 = partition.params()
+        self.assertEqual(r2["bulk-size"], 2)
+        # Exhausted
+        with self.assertRaises(StopIteration):
+            partition.params()
 
 
 class BulkVectorsAttributeCase(TestCase):

@@ -433,6 +433,7 @@ def register_default_runners():
     register_runner(workload.OperationType.ListAllPointInTime, ListAllPointInTime(), async_runner=True)
     register_runner(workload.OperationType.ProduceStreamMessage, ProduceStreamMessage(), async_runner=True)
     register_runner(workload.OperationType.ProtoBulk, ProtoBulkIndex(), async_runner=True)
+    register_runner(workload.OperationType.ProtoBulkVectorDataSet, ProtoBulkVectorDataSet(), async_runner=True)
     register_runner(workload.OperationType.ProtoSearch, ProtoQuery(), async_runner=True)
     register_runner(workload.OperationType.ProtoVectorSearch, ProtoKNNQuery(), async_runner=True)
 
@@ -3282,6 +3283,20 @@ class ProtoBulkIndex(Runner):
 
     def __repr__(self, *args, **kwargs):
         return "proto-bulk-index"
+
+class ProtoBulkVectorDataSet(Runner):
+    async def __call__(self, opensearch, params):
+        request_context_holder.on_client_request_start()
+        proto_req = ProtoBulkHelper.build_proto_vector_request(params)
+        stub = opensearch.document_service()
+        request_context_holder.on_request_start()
+        bulk_resp = await stub.Bulk(proto_req)
+        request_context_holder.on_request_end()
+        request_context_holder.on_client_request_end()
+        return ProtoBulkHelper.build_stats(bulk_resp, params)
+
+    def __repr__(self, *args, **kwargs):
+        return "proto-bulk-vector-data-set"
 
 class ProtoQuery(Runner):
     async def __call__(self, opensearch, params):
