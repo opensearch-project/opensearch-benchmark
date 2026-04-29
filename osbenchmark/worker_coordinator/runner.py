@@ -951,6 +951,8 @@ class BulkVectorDataSet(Runner):
         current_params = dict(params)
         retry_wait_period = params.get("retry-wait-period", 0.5)
         retry_max_wait_period = params.get("retry-max-wait-period", 60)
+        total_docs = self._doc_count(current_body, with_action_metadata)
+        cumulative_success_count = 0
 
         for attempt in range(retries):
             docs_in_request = self._doc_count(current_body, with_action_metadata)
@@ -964,14 +966,16 @@ class BulkVectorDataSet(Runner):
                 stats = self.detailed_stats(current_params, response) if detailed_results else self.simple_stats(
                     docs_in_request, unit, response
                 )
+                cumulative_success_count += stats.get("success-count", 0)
 
                 meta_data = {
-                    "size": docs_in_request,
+                    "size": total_docs,
                     "index": current_params.get("index"),
-                    "weight": docs_in_request,
+                    "weight": total_docs,
                     "unit": unit,
                 }
                 meta_data.update(stats)
+                meta_data["success-count"] = cumulative_success_count
 
                 if not stats["success"]:
                     meta_data["error-type"] = "bulk"

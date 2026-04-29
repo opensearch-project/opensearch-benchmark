@@ -7823,3 +7823,96 @@ class ProduceStreamMessageTests(TestCase):
             await self.runner_instance(mock_opensearch, params)
 
         self.assertIn("Failed to produce message", str(context.exception))
+
+
+class BulkVectorDataSetRetryTests(TestCase):
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_retry_reports_total_docs_not_just_retried(self, opensearch, on_client_request_start, on_client_request_end):
+        """When 90 of 500 docs fail then succeed on retry, weight/size should be 500, not 90."""
+        # First call: 5 docs, 2 fail (indices 1 and 3)
+        first_response = {
+            "took": 10,
+            "errors": True,
+            "items": [
+                {"index": {"_index": "test", "_id": "0", "status": 201, "result": "created",
+                           "_shards": {"total": 2, "successful": 1, "failed": 0}}},
+                {"index": {"_index": "test", "_id": "1", "status": 429, "result": "noop",
+                           "_shards": {"total": 2, "successful": 0, "failed": 2},
+                           "error": {"type": "rejected_execution_exception"}}},
+                {"index": {"_index": "test", "_id": "2", "status": 201, "result": "created",
+                           "_shards": {"total": 2, "successful": 1, "failed": 0}}},
+                {"index": {"_index": "test", "_id": "3", "status": 429, "result": "noop",
+                           "_shards": {"total": 2, "successful": 0, "failed": 2},
+                           "error": {"type": "rejected_execution_exception"}}},
+                {"index": {"_index": "test", "_id": "4", "status": 201, "result": "created",
+                           "_shards": {"total": 2, "successful": 1, "failed": 0}}},
+            ]
+        }
+        # Second call: the 2 retried docs succeed
+        retry_response = {
+            "took": 5,
+            "errors": False,
+            "items": [
+                {"index": {"_index": "test", "_id": "1", "status": 201, "result": "created",
+                           "_shards": {"total": 2, "successful": 1, "failed": 0}}},
+                {"index": {"_index": "test", "_id": "3", "status": 201, "result": "created",
+                           "_shards": {"total": 2, "successful": 1, "failed": 0}}},
+            ]
+        }
+        opensearch.bulk.side_effect = [as_future(first_response), as_future(retry_response)]
+
+        bulk = runner.BulkVectorDataSet()
+        params = {
+            "body": ["action\n", "doc0\n", "action\n", "doc1\n", "action\n", "doc2\n",
+                     "action\n", "doc3\n", "action\n", "doc4\n"],
+            "action-metadata-present": True,
+            "index": "test",
+            "retries": 2,
+            "retry-wait-period": 0,
+        }
+
+        result = await bulk(opensearch, params)
+
+        self.assertEqual(5, result["weight"])
+        self.assertEqual(5, result["size"])
+        self.assertEqual(5, result["success-count"])
+        self.assertTrue(result["success"])
+        self.assertEqual(0, result["error-count"])
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_no_retry_reports_correct_counts(self, opensearch, on_client_request_start, on_client_request_end):
+        """When all docs succeed on first attempt, weight/size/success-count should all match."""
+        response = {
+            "took": 10,
+            "errors": False,
+            "items": [
+                {"index": {"_index": "test", "_id": "0", "status": 201, "result": "created",
+                           "_shards": {"total": 2, "successful": 1, "failed": 0}}},
+                {"index": {"_index": "test", "_id": "1", "status": 201, "result": "created",
+                           "_shards": {"total": 2, "successful": 1, "failed": 0}}},
+                {"index": {"_index": "test", "_id": "2", "status": 201, "result": "created",
+                           "_shards": {"total": 2, "successful": 1, "failed": 0}}},
+            ]
+        }
+        opensearch.bulk.return_value = as_future(response)
+
+        bulk = runner.BulkVectorDataSet()
+        params = {
+            "body": ["action\n", "doc0\n", "action\n", "doc1\n", "action\n", "doc2\n"],
+            "action-metadata-present": True,
+            "index": "test",
+        }
+
+        result = await bulk(opensearch, params)
+
+        self.assertEqual(3, result["weight"])
+        self.assertEqual(3, result["size"])
+        self.assertEqual(3, result["success-count"])
+        self.assertTrue(result["success"])
+        self.assertEqual(0, result["error-count"])
