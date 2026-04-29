@@ -251,7 +251,9 @@ class WorkerCoordinatorTests(TestCase):
 
         # this requires at least Python 3.6
         # target.on_task_finished.assert_called_once()
-        self.assertEqual(1, target.on_task_finished.call_count)
+        # on PR https://github.com/opensearch-project/opensearch-benchmark/pull/988,
+        # target.on_task_finished is now delegated to an extenal actor.
+        #self.assertEqual(1, target.on_task_finished.call_count)
         self.assertEqual(4, target.drive_at.call_count)
 
     @run_async
@@ -2476,3 +2478,132 @@ class TaskRampDownTests(TestCase):
 
         # Different ramp_down should produce different hashes
         self.assertNotEqual(hash(task1), hash(task2))
+
+class SamplePostProcessorActorTests(TestCase):
+    @pytest.fixture(autouse=True)
+    def setup_actor(self):
+        self.monkeypatch = pytest.MonkeyPatch()
+        self.monkeypatch.setattr("osbenchmark.log.post_configure_actor_logging", lambda: None)
+        self.actor = worker_coordinator.SamplePostProcessorActor()
+        self.cfg = config.Config()
+        self.cfg.add(config.Scope.application, "system", "env.name", "unittest")
+        self.cfg.add(config.Scope.application, "system", "time.start", datetime(year=2017, month=8, day=20, hour=1, minute=0, second=0))
+        self.cfg.add(config.Scope.application, "system", "test_run.id", "6ebc6e53-ee20-4b0c-99b4-09697987e9f4")
+        self.cfg.add(config.Scope.application, "system", "available.cores", 8)
+        self.cfg.add(config.Scope.application, "node", "root.dir", "/tmp")
+        self.cfg.add(config.Scope.application, "workload", "test_procedure.name", "default")
+        self.cfg.add(config.Scope.application, "workload", "params", {})
+        self.cfg.add(config.Scope.application, "workload", "test.mode.enabled", True)
+        self.cfg.add(config.Scope.applicationOverride, "workload", "test_procedure.name", "default")
+        self.cfg.add(config.Scope.application, "telemetry", "devices", [])
+        self.cfg.add(config.Scope.application, "telemetry", "params", {"ccr-stats-indices": {"default": ["leader_index"]}})
+        self.cfg.add(config.Scope.application, "builder", "cluster_config.names", ["default"])
+        self.cfg.add(config.Scope.application, "builder", "skip.rest.api.check", True)
+        self.cfg.add(config.Scope.application, "client", "hosts",
+                     WorkerCoordinatorTests.Holder(all_hosts={"default": ["localhost:9200"]}))
+        self.cfg.add(config.Scope.application, "client", "options", WorkerCoordinatorTests.Holder(all_client_options={"default": {}}))
+        self.cfg.add(config.Scope.application, "worker_coordinator", "worker_ips", ["localhost"])
+        self.cfg.add(config.Scope.application, "reporting", "datastore.type", "in-memory")
+
+    def test_receive_start_sample_post_processor(self):
+        msg = worker_coordinator.StartSamplePostProcessorActor(
+            config=self.cfg,
+            workload=mock.MagicMock(name="workload"),
+            test_procedure=mock.MagicMock(name="test_procedure"),
+            downsample_factor=1
+        )
+        self.actor.receiveMsg_StartSamplePostProcessorActor(msg, None)
+
+        assert not self.actor.worker_coordinator_actor
+        assert self.actor.metrics_store is not None
+        assert self.actor.sample_post_processor is not None
+        assert self.actor.profile_metrics_post_processor is not None
+        assert self.actor.telemetry is not None
+
+    def test_receive_process_samples_calls_processors(self):
+        self.actor.sample_post_processor = mock.MagicMock()
+        self.actor.profile_metrics_post_processor = mock.MagicMock()
+
+        msg = worker_coordinator.ProcessSamples(
+            samples=[1, 2],
+            profile_samples=[3]
+        )
+
+        self.actor.receiveMsg_ProcessSamples(msg, sender=None)
+
+        self.actor.sample_post_processor.assert_called_once_with([1, 2])
+        self.actor.profile_metrics_post_processor.assert_called_once_with([3])
+
+    def test_receive_process_samples_skips_when_none(self):
+        self.actor.sample_post_processor = mock.MagicMock()
+        self.actor.profile_metrics_post_processor = mock.MagicMock()
+
+        msg = worker_coordinator.ProcessSamples(
+            samples=None,
+            profile_samples=None
+        )
+
+        self.actor.receiveMsg_ProcessSamples(msg, sender=None)
+
+        self.actor.sample_post_processor.assert_not_called()
+        self.actor.profile_metrics_post_processor.assert_not_called()
+
+    def test_receive_start_telemetry(self):
+        self.actor.telemetry = mock.MagicMock()
+
+        msg = worker_coordinator.StartTelemetry()
+
+        self.actor.receiveMsg_StartTelemetry(msg, sender=None)
+
+        self.actor.telemetry.on_benchmark_start.assert_called_once()
+
+
+    def test_receive_stop_telemetry(self):
+        self.actor.telemetry = mock.MagicMock()
+
+        msg = worker_coordinator.StopTelemetry()
+
+        self.actor.receiveMsg_StopTelemetry(msg, sender=None)
+
+        self.actor.telemetry.on_benchmark_stop.assert_called_once()
+
+    def test_close_metrics_store_via_message(self):
+        self.actor.metrics_store = mock.MagicMock()
+        self.actor.metrics_store.opened = True
+
+        msg = worker_coordinator.CloseMetricsStore()
+
+        self.actor.receiveMsg_CloseMetricsStore(msg, sender=None)
+
+        self.actor.metrics_store.close.assert_called_once()
+
+    def test_get_externalizable_metrics_store_task_finished(self):
+        self.actor.metrics_store = mock.MagicMock()
+        self.actor.metrics_store.to_externalizable.return_value = {"data": 123}
+
+        self.actor.worker_coordinator_actor = mock.MagicMock()
+        self.actor.send = mock.MagicMock()
+
+        msg = worker_coordinator.GetExternalizableMetricsStore(
+            clear=True,
+            reason=worker_coordinator.ReasonForExternalizableRequest.TASK_FINISHED,
+            waiting_period=5
+        )
+
+        self.monkeypatch.setattr(
+            "osbenchmark.worker_coordinator.TaskFinished",
+            mock.MagicMock()
+        )
+
+        self.actor.receiveMsg_GetExternalizableMetricsStore(msg, sender=None)
+
+        self.actor.send.assert_called_once()
+
+    def test_reset_relative_time(self):
+        self.actor.metrics_store = mock.MagicMock()
+
+        msg = worker_coordinator.ResetRelativeTimeRequest()
+
+        self.actor.receiveMsg_ResetRelativeTimeRequest(msg, sender=None)
+
+        self.actor.metrics_store.reset_relative_time.assert_called_once()
