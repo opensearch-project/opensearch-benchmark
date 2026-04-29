@@ -952,6 +952,9 @@ class BulkVectorDataSet(Runner):
         retry_wait_period = params.get("retry-wait-period", 0.5)
         retry_max_wait_period = params.get("retry-max-wait-period", 60)
 
+        total_docs = self._doc_count(current_body, with_action_metadata)
+        cumulative_success = 0
+
         for attempt in range(retries):
             docs_in_request = self._doc_count(current_body, with_action_metadata)
             current_params["body"] = current_body
@@ -965,16 +968,9 @@ class BulkVectorDataSet(Runner):
                     docs_in_request, unit, response
                 )
 
-                meta_data = {
-                    "size": docs_in_request,
-                    "index": current_params.get("index"),
-                    "weight": docs_in_request,
-                    "unit": unit,
-                }
-                meta_data.update(stats)
+                cumulative_success += stats.get("success-count", 0)
 
                 if not stats["success"]:
-                    meta_data["error-type"] = "bulk"
                     if detailed_results:
                         failed_indices = stats.get("failed-indices", [])
                         if failed_indices and attempt < retries - 1:
@@ -986,6 +982,20 @@ class BulkVectorDataSet(Runner):
                             current_body = self._build_retry_body(current_body, failed_indices, with_action_metadata)
                             await asyncio.sleep(backoff)
                             continue
+
+                total_error_count = total_docs - cumulative_success
+                meta_data = {
+                    "size": total_docs,
+                    "index": current_params.get("index"),
+                    "weight": total_docs,
+                    "unit": unit,
+                }
+                meta_data.update(stats)
+                meta_data["success-count"] = cumulative_success
+                meta_data["error-count"] = total_error_count
+                meta_data["success"] = total_error_count == 0
+                if total_error_count > 0:
+                    meta_data["error-type"] = "bulk"
                 return meta_data
             except ConnectionTimeout:
                 backoff = min(retry_wait_period * (2 ** attempt), retry_max_wait_period)
