@@ -1590,11 +1590,12 @@ class IndexStats(InternalTelemetryDevice):
     """
     Gathers statistics via the OpenSearch index stats API
     """
-    def __init__(self, client, metrics_store):
+    def __init__(self, client, metrics_store, index_names=None):
         super().__init__()
         self.client = client
         self.metrics_store = metrics_store
         self.first_time = True
+        self.index_names = index_names
 
     def on_benchmark_start(self):
         # we only determine this value at the start of the benchmark. This is actually only useful for
@@ -1610,7 +1611,10 @@ class IndexStats(InternalTelemetryDevice):
             self.first_time = False
 
     def on_benchmark_stop(self):
-        self.logger.info("Gathering indices stats for all primaries on benchmark stop.")
+        if self.index_names:
+            self.logger.info("Gathering indices stats for [%s] on benchmark stop.", ",".join(self.index_names))
+        else:
+            self.logger.info("Gathering indices stats for all primaries on benchmark stop.")
         index_stats = self.index_stats()
         # import json
         # self.logger.debug("Returned indices stats:\n%s", json.dumps(index_stats, indent=2))
@@ -1636,10 +1640,27 @@ class IndexStats(InternalTelemetryDevice):
         self.add_metrics(self.extract_value(index_stats, ["_all", "total", "store", "size_in_bytes"]), "store_size_in_bytes", "byte")
         self.add_metrics(self.extract_value(index_stats, ["_all", "total", "translog", "size_in_bytes"]), "translog_size_in_bytes", "byte")
 
+        self.collect_doc_count()
+
+    def collect_doc_count(self):
+        try:
+            index = ",".join(self.index_names) if self.index_names else None
+            cat_result = self.client.cat.indices(index=index, format="json", h="index,docs.count")
+            if cat_result:
+                total_docs = 0
+                for entry in cat_result:
+                    doc_count = entry.get("docs.count")
+                    if doc_count is not None:
+                        total_docs += int(doc_count)
+                self.add_metrics(total_docs, "docs_count")
+        except BaseException:
+            self.logger.exception("Could not retrieve doc count via _cat/indices.")
+
     def index_stats(self):
         # noinspection PyBroadException
         try:
-            return self.client.indices.stats(metric="_all", level="shards")
+            index = ",".join(self.index_names) if self.index_names else None
+            return self.client.indices.stats(index=index, metric="_all", level="shards")
         except BaseException:
             self.logger.exception("Could not retrieve index stats.")
             return {}
