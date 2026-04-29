@@ -157,6 +157,7 @@ class SummaryResultsPublisher:
 
         metrics_table.extend(self._publish_gc_metrics(stats))
 
+        metrics_table.extend(self._publish_doc_count(stats))
         metrics_table.extend(self._publish_disk_usage(stats))
         metrics_table.extend(self._publish_segment_memory(stats))
         metrics_table.extend(self._publish_segment_counts(stats))
@@ -344,6 +345,11 @@ class SummaryResultsPublisher:
             self._line("Total Old Gen GC count", "", stats.old_gc_count, "")
         )
 
+    def _publish_doc_count(self, stats):
+        return self._join(
+            self._line("Doc count", "", stats.docs_count, "")
+        )
+
     def _publish_disk_usage(self, stats):
         return self._join(
             self._line("Store size", "", stats.store_size, "GB", convert.bytes_to_gb),
@@ -454,6 +460,7 @@ class ComparisonResultsPublisher:
         metrics_table.extend(self._publish_total_times(baseline_stats, contender_stats))
         metrics_table.extend(self._publish_ml_processing_times(baseline_stats, contender_stats))
         metrics_table.extend(self._publish_gc_metrics(baseline_stats, contender_stats))
+        metrics_table.extend(self._publish_doc_count(baseline_stats, contender_stats))
         metrics_table.extend(self._publish_disk_usage(baseline_stats, contender_stats))
         metrics_table.extend(self._publish_segment_memory(baseline_stats, contender_stats))
         metrics_table.extend(self._publish_segment_counts(baseline_stats, contender_stats))
@@ -681,6 +688,12 @@ class ComparisonResultsPublisher:
                        treat_increase_as_improvement=False, formatter=convert.ms_to_seconds),
             self._line("Total Old Gen GC count", baseline_stats.old_gc_count, contender_stats.old_gc_count, "", "",
                        treat_increase_as_improvement=False)
+        )
+
+    def _publish_doc_count(self, baseline_stats, contender_stats):
+        return self._join(
+            self._line("Doc count", baseline_stats.docs_count, contender_stats.docs_count,
+                       "", "", treat_increase_as_improvement=False)
         )
 
     def _publish_disk_usage(self, baseline_stats, contender_stats):
