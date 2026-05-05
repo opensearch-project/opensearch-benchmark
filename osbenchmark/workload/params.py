@@ -1151,8 +1151,6 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
 
     def _update_request_params(self):
         request_params = self.query_params.get(self.PARAMS_NAME_REQUEST_PARAMS, {})
-        request_params[self.PARAMS_NAME_SOURCE] = request_params.get(
-            self.PARAMS_NAME_SOURCE, "false")
         request_params[self.PARAMS_NAME_ALLOW_PARTIAL_RESULTS] = request_params.get(
             self.PARAMS_NAME_ALLOW_PARTIAL_RESULTS, "false")
         self.query_params.update({self.PARAMS_NAME_REQUEST_PARAMS: request_params})

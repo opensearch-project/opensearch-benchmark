@@ -3289,6 +3289,79 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
         space_type = params.get("space_type")
         self.assertEqual(space_type, "l2") # TODO change this once it's all modifiable.
 
+    def test_update_request_params_with_request_params(self):
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "k": k
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {"_source": "false"},
+            }
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+        params = query_param_source_partition.params()
+        request_params = params.get("request-params")
+        self.assertEqual(request_params["_source"], "false")
+        self.assertEqual(request_params["allow_partial_search_results"], "false")
+
+    def test_update_request_params_without_request_params(self):
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "k": k
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+            }
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+        params = query_param_source_partition.params()
+        request_params = params.get("request-params")
+        self.assertEqual(request_params, {"allow_partial_search_results": "false"})
+
+
 class BulkVectorsFromDataSetParamSourceTestCase(TestCase):
 
     DEFAULT_INDEX_NAME = "test-partition-index"
