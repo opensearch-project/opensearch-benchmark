@@ -134,7 +134,7 @@ install_requires = [
     "opensearch-protobufs==1.2.0",
     # License: MIT
     # CBOR binary document format for gRPC bulk operations
-    "cbor2>=5.6.0"
+    "cbor2==6.0.1"
 ]
 
 tests_require = [
