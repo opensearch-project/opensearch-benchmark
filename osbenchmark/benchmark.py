@@ -43,6 +43,7 @@ from osbenchmark.synthetic_data_generator import synthetic_data_generator_orches
 from osbenchmark.workload_generator import workload_generator
 from osbenchmark.utils import io, convert, process, console, net, opts, versions
 from osbenchmark import aggregator
+from osbenchmark.database.registry import DatabaseType
 
 def create_arg_parser():
     def positive_number(v):
@@ -598,6 +599,13 @@ def create_arg_parser():
         help=f"Define a comma-separated list of client options to use. The options will be passed to the OpenSearch "
              f"Python client (default: {opts.ClientOptions.DEFAULT_CLIENT_OPTIONS}).",
         default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS)
+    test_run_parser.add_argument(
+        "--database-type",
+        help="Target database backend. Selects the DatabaseClient adapter used to run "
+             "the workload (default: opensearch). Choices are populated from the "
+             "registered DatabaseType enum.",
+        choices=[d.value for d in DatabaseType],
+        default=DatabaseType.OPENSEARCH.value)
     test_run_parser.add_argument("--on-error",
                              choices=["continue", "abort"],
                              help="Controls how OSB behaves on response errors (default: continue).",
@@ -1079,6 +1087,11 @@ def configure_connection_params(arg_parser, args, cfg):
     # Configure gRPC target hosts
     grpc_target_hosts = opts.TargetHosts(args.grpc_target_hosts) if hasattr(args, "grpc_target_hosts") and args.grpc_target_hosts else None
     cfg.add(config.Scope.applicationOverride, "client", "grpc_hosts", grpc_target_hosts)
+
+    # Configure database backend; worker_coordinator reads cfg.opts("database", "type")
+    # to pick the DatabaseClient factory via the database/ registry.
+    database_type = getattr(args, "database_type", "opensearch")
+    cfg.add(config.Scope.applicationOverride, "database", "type", database_type)
     if "timeout" not in client_options.default:
         console.info("You did not provide an explicit timeout in the client options. Assuming default of 10 seconds.")
     if list(target_hosts.all_hosts) != list(client_options.all_client_options):
