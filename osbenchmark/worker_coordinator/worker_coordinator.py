@@ -972,6 +972,10 @@ class WorkerCoordinator:
         self.complete_current_task_sent = False
 
         self.telemetry = None
+        # Caches the DatabaseClientFactory per cluster for non-OpenSearch backends
+        # so the same instance can be reused by wait_for_rest_api without a second
+        # construction.
+        self._database_factories = {}
 
     def create_os_clients(self):
         all_hosts = self.config.opts("client", "hosts").all_hosts
@@ -988,9 +992,12 @@ class WorkerCoordinator:
                 # Non-OpenSearch backends route through the registry so the right
                 # url_prefix / transport configuration is applied. This path
                 # mirrors the async create path at WorkerCoordinator.os_clients.
+                # Cache the factory so wait_for_rest_api can reuse it for the
+                # readiness probe rather than constructing a second instance.
                 db_factory = DatabaseClientFactory.create_client_factory(
                     database_type, cluster_hosts, cluster_client_options,
                 )
+                self._database_factories[cluster_name] = db_factory
                 opensearch[cluster_name] = db_factory.create()
         return opensearch
 
@@ -1036,11 +1043,10 @@ class WorkerCoordinator:
         # to /_cat/indices — both OS-API-shape-specific. For non-OS backends,
         # delegate to a factory-provided probe.
         if database_type.lower() != "opensearch":
-            hosts = self.config.opts("client", "hosts").all_hosts["default"]
-            client_options = dict(self.config.opts("client", "options").all_client_options["default"])
-            db_factory = DatabaseClientFactory.create_client_factory(database_type, hosts, client_options)
+            db_factory = self._database_factories.get("default")
             self.logger.info("Checking if non-OS REST layer is available (database_type=%s).", database_type)
-            if hasattr(db_factory, "wait_for_rest_layer") and db_factory.wait_for_rest_layer(max_attempts=40):
+            if db_factory is not None and hasattr(db_factory, "wait_for_rest_layer") \
+                    and db_factory.wait_for_rest_layer(max_attempts=40):
                 self.logger.info("REST layer is available.")
                 return
             self.logger.error("Non-OS REST layer is not yet available. Stopping benchmark.")
