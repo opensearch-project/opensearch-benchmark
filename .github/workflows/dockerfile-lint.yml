@@ -6,6 +6,9 @@ on:
     paths:
       - 'docker/**'
 
+permissions:
+  contents: read
+
 jobs:
   test_docker:
     runs-on: ubuntu-latest

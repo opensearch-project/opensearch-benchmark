@@ -1,5 +1,7 @@
 name: Run Integration Tests
 on: [workflow_dispatch, pull_request]
+permissions:
+  contents: read
 jobs:
   Integration-Tests:
     strategy:

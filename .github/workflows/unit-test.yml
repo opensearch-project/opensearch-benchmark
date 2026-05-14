@@ -1,5 +1,7 @@
 name: Run Unit Tests
 on: [workflow_dispatch, pull_request]
+permissions:
+  contents: read
 jobs:
   Unit-Tests:
     strategy:
