@@ -1097,6 +1097,8 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
     PARAMS_NAME_REQUEST_PARAMS = "request-params"
     PARAMS_NAME_SOURCE = "_source"
     PARAMS_NAME_ALLOW_PARTIAL_RESULTS = "allow_partial_search_results"
+    PARAMS_NAME_OVERSAMPLE_FACTOR = "oversample_factor"
+    PARAMS_NAME_RESCORE = "rescore"
 
     def __init__(self, workloads, params, query_params, **kwargs):
         super().__init__(workloads, params, Context.QUERY, **kwargs)
@@ -1112,6 +1114,11 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         self.neighbors_data_set = None
         operation_type = parse_string_parameter(self.PARAMS_NAME_OPERATION_TYPE, params,
                                                 self.PARAMS_VALUE_VECTOR_SEARCH)
+        self.oversample_factor = params.get(self.PARAMS_NAME_OVERSAMPLE_FACTOR)
+        if self.oversample_factor and ("max_distance" in query_params or "min_score" in query_params):
+            raise exceptions.InvalidSyntax(
+                "'oversample_factor' cannot be used with 'max_distance' or 'min_score'. "
+                "Rescoring is only supported with top-k search.")
         self.query_params = query_params
         self.query_params.update({
             self.PARAMS_NAME_K: self.k,
@@ -1230,6 +1237,11 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
             query.update({
                 "filter": efficient_filter,
             })
+
+        if self.oversample_factor:
+            query[self.PARAMS_NAME_RESCORE] = {
+                self.PARAMS_NAME_OVERSAMPLE_FACTOR: self.oversample_factor
+            }
 
         knn_search_query = {
             "knn": {
