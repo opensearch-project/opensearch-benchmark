@@ -174,15 +174,13 @@ class CompleteCurrentTask:
     """
 
 
-class UpdateSamples:
+class UpdateProgressSamples:
     """
-    Used to send samples from a load generator node to the master.
+    Sends the latest task progress per client from a load generator node to the master.
     """
 
-    def __init__(self, client_id, samples, profile_samples):
-        self.client_id = client_id
-        self.samples = samples
-        self.profile_samples = profile_samples
+    def __init__(self, latest_progress_per_client):
+        self.latest_progress_per_client = latest_progress_per_client
 
 
 class JoinPointReached:
@@ -667,6 +665,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
     def receiveMsg_BenchmarkCancelled(self, msg, sender):
         self.logger.info("Main worker_coordinator received a notification that the benchmark has been cancelled.")
         self.coordinator.close()
+        self.send(self.sample_post_processor_actor, thespian.actors.ActorExitRequest())
         # shut down FeedbackActor if it's active
         # we do this manually in the workercoordinator since it's fully responsible for the feedback actor
         if hasattr(self, "feedback_actor"):
@@ -728,8 +727,8 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         self.coordinator.joinpoint_reached(msg.worker_id, msg.worker_timestamp, msg.task)
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
-    def receiveMsg_UpdateSamples(self, msg, sender):
-        self.coordinator.update_samples(msg.samples)
+    def receiveMsg_UpdateProgressSamples(self, msg, sender):
+        self.coordinator.update_samples(msg.latest_progress_per_client)
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_WakeupMessage(self, msg, sender):
@@ -1018,7 +1017,7 @@ class WorkerCoordinator:
         self.allocations = None
         self.raw_samples = []
         self.raw_profile_samples = []
-        self.most_recent_sample_per_client = {}
+        self.latest_progress_per_client = {}
 
         self.number_of_steps = 0
         self.currently_completed = 0
@@ -1213,7 +1212,7 @@ class WorkerCoordinator:
         self.update_progress_message()
 
     def index_name(self, test_run_timestamp):
-        ts = time.from_is8601(test_run_timestamp)
+        ts = time.from_iso8601(test_run_timestamp)
         return "benchmark-metrics-%04d-%02d" % (ts.year, ts.month)
 
     def joinpoint_reached(self, worker_id, worker_local_timestamp, task_allocations):
@@ -1236,7 +1235,7 @@ class WorkerCoordinator:
             self.workers_completed_current_step = {}
             self.update_progress_message(task_finished=True)
             # clear per step
-            self.most_recent_sample_per_client = {}
+            self.latest_progress_per_client = {}
             self.current_step += 1
 
             if self.finished():
@@ -1329,11 +1328,10 @@ class WorkerCoordinator:
     def close_metric_store(self):
         self.target.send(self.target.sample_post_processor_actor, CloseMetricsStore())
 
-    def update_samples(self, samples):
-        if len(samples) > 0:
-            # We need to check all samples, they will be from different clients
-            for s in samples:
-                self.most_recent_sample_per_client[s.client_id] = s
+    def update_samples(self, latest_progress_per_client):
+        if len(latest_progress_per_client) > 0:
+            for client_id, task_progress in latest_progress_per_client.items():
+                self.latest_progress_per_client[client_id] = task_progress
 
     def update_progress_message(self, task_finished=False):
         if not self.quiet and self.current_step >= 0:
@@ -1342,8 +1340,8 @@ class WorkerCoordinator:
             # we only count clients which actually contribute to progress. If clients are executing tasks eternally in a parallel
             # structure, we should not count them. The reason is that progress depends entirely on the client(s) that execute the
             # task that is completing the parallel structure.
-            progress_per_client = [s.task_progress
-                                   for s in self.most_recent_sample_per_client.values() if s.task_progress is not None]
+            progress_per_client = [task_progress
+                                   for task_progress in self.latest_progress_per_client.values()]
 
             if not progress_per_client:
                 # No clients have reported.
@@ -1413,9 +1411,14 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
     def receiveMsg_ResetRelativeTimeRequest(self, msg, sender):
         self.metrics_store.reset_relative_time()
 
+    def receiveMsg_ActorExitRequest(self, msg, sender):
+        self.logger.info("SamplePostProcessorActor has received ActorExitRequest and will close the metrics store.")
+        self.close()
+
     def close(self):
         if self.metrics_store and self.metrics_store.opened:
             self.metrics_store.close()
+        self.logger.info("Metrics store close request has been processed.")
 
     def create_os_clients(self):
         all_hosts = self.config.opts("client", "hosts").all_hosts
@@ -1939,8 +1942,13 @@ class Worker(actor.BenchmarkActor):
     def send_samples(self):
         if self.sampler:
             samples = self.sampler.samples
+            # Map client ids to their latest task progress, e.g. {0: (0.5, "%")}.
+            latest_progress_per_client = {}
             if len(samples) > 0:
-                self.send(self.master, UpdateSamples(self.worker_id, samples, self.profile_sampler.samples))
+                for s in samples:
+                    if s.task_progress is not None:
+                        latest_progress_per_client[s.client_id] = s.task_progress
+                self.send(self.master, UpdateProgressSamples(latest_progress_per_client))
                 self.send(self.sample_post_processor_actor, ProcessSamples(samples, self.profile_sampler.samples))
             return samples
         return None

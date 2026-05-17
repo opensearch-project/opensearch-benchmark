@@ -2577,6 +2577,14 @@ class SamplePostProcessorActorTests(TestCase):
 
         self.actor.metrics_store.close.assert_called_once()
 
+    def test_actor_exit_request_closes_metrics_store(self):
+        self.actor.metrics_store = mock.MagicMock()
+        self.actor.metrics_store.opened = True
+
+        self.actor.receiveMsg_ActorExitRequest(mock.MagicMock(), sender=None)
+
+        self.actor.metrics_store.close.assert_called_once()
+
     def test_get_externalizable_metrics_store_task_finished(self):
         self.actor.metrics_store = mock.MagicMock()
         self.actor.metrics_store.to_externalizable.return_value = {"data": 123}
@@ -2607,3 +2615,64 @@ class SamplePostProcessorActorTests(TestCase):
         self.actor.receiveMsg_ResetRelativeTimeRequest(msg, sender=None)
 
         self.actor.metrics_store.reset_relative_time.assert_called_once()
+
+class ProgressSampleUpdateTests(TestCase):
+    def test_worker_coordinator_actor_forwards_progress_updates(self):
+        actor = worker_coordinator.WorkerCoordinatorActor()
+        actor.coordinator = mock.MagicMock()
+        latest_progress_per_client = {
+            0: (0.5, "%")
+        }
+
+        actor.receiveMsg_UpdateProgressSamples(worker_coordinator.UpdateProgressSamples(latest_progress_per_client), sender=None)
+
+        actor.coordinator.update_samples.assert_called_once_with(latest_progress_per_client)
+
+    def test_worker_coordinator_updates_latest_progress_per_client(self):
+        coordinator = worker_coordinator.WorkerCoordinator.__new__(worker_coordinator.WorkerCoordinator)
+        coordinator.latest_progress_per_client = {
+            0: (0.1, "%")
+        }
+        latest_progress_per_client = {
+            0: (0.5, "%"),
+            1: (0.75, "%")
+        }
+
+        coordinator.update_samples(latest_progress_per_client)
+
+        self.assertEqual(latest_progress_per_client[0], coordinator.latest_progress_per_client[0])
+        self.assertEqual(latest_progress_per_client[1], coordinator.latest_progress_per_client[1])
+
+    def test_worker_sends_latest_progress_to_coordinator_and_full_samples_to_post_processor(self):
+        worker = worker_coordinator.Worker()
+        worker.send = mock.MagicMock()
+        worker.master = mock.Mock(name="master")
+        worker.sample_post_processor_actor = mock.Mock(name="sample_post_processor_actor")
+
+        first_client_initial_sample = mock.Mock(client_id=0, task_progress=(0.1, "%"))
+        second_client_sample = mock.Mock(client_id=1, task_progress=(0.5, "%"))
+        first_client_latest_sample = mock.Mock(client_id=0, task_progress=(0.9, "%"))
+        samples = [first_client_initial_sample, second_client_sample, first_client_latest_sample]
+        profile_samples = [mock.Mock()]
+        worker.sampler = mock.Mock(samples=samples)
+        worker.profile_sampler = mock.Mock(samples=profile_samples)
+
+        returned_samples = worker.send_samples()
+
+        self.assertEqual(samples, returned_samples)
+        self.assertEqual(2, worker.send.call_count)
+
+        coordinator_msg = worker.send.call_args_list[0].args[1]
+        self.assertIsInstance(coordinator_msg, worker_coordinator.UpdateProgressSamples)
+        self.assertEqual(
+            {
+                0: first_client_latest_sample.task_progress,
+                1: second_client_sample.task_progress
+            },
+            coordinator_msg.latest_progress_per_client
+        )
+
+        post_processor_msg = worker.send.call_args_list[1].args[1]
+        self.assertIsInstance(post_processor_msg, worker_coordinator.ProcessSamples)
+        self.assertEqual(samples, post_processor_msg.samples)
+        self.assertEqual(profile_samples, post_processor_msg.profile_samples)

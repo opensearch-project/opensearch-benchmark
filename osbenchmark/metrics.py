@@ -850,7 +850,7 @@ class OsMetricsStore(MetricsStore):
         self._client.refresh(index=self._index)
 
     def index_name(self):
-        ts = time.from_is8601(self._test_run_timestamp)
+        ts = time.from_iso8601(self._test_run_timestamp)
         return "benchmark-metrics-%04d-%02d" % (ts.year, ts.month)
 
     def _migrated_index_name(self, original_name):
@@ -1459,7 +1459,7 @@ class TestRun:
         # TODO: cluster is optional for BWC. This can be removed after some grace period.
         cluster = d.get("cluster", {})
         return TestRun(d["benchmark-version"], d.get("benchmark-revision"), d["environment"], d["test-run-id"],
-                    time.from_is8601(d["test-run-timestamp"]),
+                    time.from_iso8601(d["test-run-timestamp"]),
                     d["pipeline"], user_tags, d["workload"], d.get("workload-params"),
                     d.get("test_procedure"), d["cluster-config-instance"],
                     d.get("cluster-config-instance-params"), d.get("plugin-params"),
