@@ -3171,6 +3171,117 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
         with self.assertRaises(StopIteration):
             query_param_source_partition.params()
 
+    def test_build_vector_search_query_body_with_oversample_factor(self):
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "k": k,
+            "oversample_factor": 5.0
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+            }
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+        params = query_param_source_partition.params()
+        body = params.get("body")
+        query = body["query"]["knn"][self.DEFAULT_FIELD_NAME]
+        self.assertIn("rescore", query)
+        self.assertEqual(query["rescore"]["oversample_factor"], 5.0)
+
+    def test_build_vector_search_query_body_without_oversample_factor(self):
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "k": k
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+            }
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+        params = query_param_source_partition.params()
+        body = params.get("body")
+        query = body["query"]["knn"][self.DEFAULT_FIELD_NAME]
+        self.assertNotIn("rescore", query)
+
+    def test_oversample_factor_with_max_distance_raises_error(self):
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "k": k,
+            "oversample_factor": 5.0
+        }
+        with self.assertRaises(exceptions.InvalidSyntax):
+            VectorSearchPartitionParamSource(
+                workload.Workload(name="unit-test"),
+                test_param_source_params, {
+                    "index": self.DEFAULT_INDEX_NAME,
+                    "request-params": {},
+                    "max_distance": -160.0,
+                }
+            )
+
     def _check_params(
             self,
             actual_params: dict,
