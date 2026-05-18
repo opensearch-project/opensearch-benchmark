@@ -1001,7 +1001,6 @@ class WorkerCoordinator:
         self.os_client_factory = os_client_factory_class
         self.workload = None
         self.test_procedure = None
-        self.metrics_store = None
         self.worker_ips = []
         self.workers = []
         # which client ids are assigned to which workers?
@@ -1246,8 +1245,6 @@ class WorkerCoordinator:
                 self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True, reason=ReasonForExternalizableRequest.BENCHMARK_COMPLETED))
                 self.logger.debug("Closing metrics store...")
                 self.close_metric_store()
-                # immediately clear as we don't need it anymore and it can consume a significant amount of memory
-                self.metrics_store = None
             else:
                 self.move_to_next_task(workers_curr_step)
                 # re-enable the feedback actor for the next task if we're in redline testing
@@ -1418,6 +1415,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
     def close(self):
         if self.metrics_store and self.metrics_store.opened:
             self.metrics_store.close()
+        self.metrics_store = None
         self.logger.info("Metrics store close request has been processed.")
 
     def create_os_clients(self):
@@ -1435,25 +1433,33 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         enabled_devices = self.config.opts("telemetry", "devices")
         telemetry_params = self.config.opts("telemetry", "params")
         log_root = paths.test_run_root(self.config)
+        database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
 
         os_default = opensearch["default"]
 
         if enable:
-            devices = [
-                telemetry.NodeStats(telemetry_params, opensearch, self.metrics_store),
-                telemetry.ExternalEnvironmentInfo(os_default, self.metrics_store),
-                telemetry.ClusterEnvironmentInfo(os_default, self.metrics_store),
-                telemetry.JvmStatsSummary(os_default, self.metrics_store),
-                telemetry.IndexStats(os_default, self.metrics_store),
-                telemetry.MlBucketProcessingTime(os_default, self.metrics_store),
-                telemetry.SegmentStats(log_root, os_default),
-                telemetry.CcrStats(telemetry_params, opensearch, self.metrics_store),
-                telemetry.RecoveryStats(telemetry_params, opensearch, self.metrics_store),
-                telemetry.TransformStats(telemetry_params, opensearch, self.metrics_store),
-                telemetry.SearchableSnapshotsStats(telemetry_params, opensearch, self.metrics_store),
-                telemetry.SegmentReplicationStats(telemetry_params, opensearch, self.metrics_store),
-                telemetry.ShardStats(telemetry_params, opensearch, self.metrics_store)
-            ]
+            # Only enable OpenSearch-specific telemetry for OpenSearch databases
+            if database_type.lower() == "opensearch":
+                devices = [
+                    telemetry.NodeStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.ExternalEnvironmentInfo(os_default, self.metrics_store),
+                    telemetry.ClusterEnvironmentInfo(os_default, self.metrics_store),
+                    telemetry.JvmStatsSummary(os_default, self.metrics_store),
+                    telemetry.IndexStats(os_default, self.metrics_store,
+                                         index_names=[idx.name for idx in self.workload.indices] if self.workload.indices else None),
+                    telemetry.MlBucketProcessingTime(os_default, self.metrics_store),
+                    telemetry.SegmentStats(log_root, os_default),
+                    telemetry.CcrStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.RecoveryStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.TransformStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.SearchableSnapshotsStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.SegmentReplicationStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.ShardStats(telemetry_params, opensearch, self.metrics_store)
+                ]
+            else:
+                # For non-OpenSearch databases, skip OS-specific telemetry devices
+                self.logger.info("Skipping OpenSearch-specific telemetry devices for database type [%s]", database_type)
+                devices = []
         else:
             devices = []
         self.telemetry = telemetry.Telemetry(enabled_devices, devices=devices)
