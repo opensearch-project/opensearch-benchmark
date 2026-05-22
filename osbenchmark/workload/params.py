@@ -1094,6 +1094,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
     PARAMS_NAME_ALLOW_PARTIAL_RESULTS = "allow_partial_search_results"
     PARAMS_NAME_OVERSAMPLE_FACTOR = "oversample_factor"
     PARAMS_NAME_RESCORE = "rescore"
+    PARAMS_NAME_SPACE_TYPE = "space_type"
 
     def __init__(self, workloads, params, query_params, **kwargs):
         super().__init__(workloads, params, Context.QUERY, **kwargs)
@@ -1123,6 +1124,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
 
         self.filter_type = self.query_params.get(self.PARAMS_NAME_FILTER_TYPE)
         self.filter_body = self.query_params.get(self.PARAMS_NAME_FILTER_BODY)
+        self.space_type = params.get(self.PARAMS_NAME_SPACE_TYPE, "l2")
 
 
         if self.PARAMS_NAME_FILTER in params:
@@ -1269,7 +1271,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
                         "params": {
                             "field": self.field_name,
                             "query_value": vector,
-                            "space_type": "l2"
+                            "space_type": self.space_type
                         }
                     }
                 }
