@@ -3298,6 +3298,70 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
                 }
             )
 
+    def test_script_score_filter_custom_space_type(self):
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir,
+        )
+        neighbors_data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+        )
+
+        SCRIPT_SCORE_FILTER_BODY = {
+            "bool": {
+                "must": [
+                    {"range": {"rating": {"gte": 8, "lte": 10}}},
+                    {"term": {"parking": "true"}},
+                ]
+            }
+        }
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "neighbors_data_set_path": neighbors_data_set_path,
+            "k": k,
+            "filter_type": "script",
+            "filter_body": SCRIPT_SCORE_FILTER_BODY,
+            "space_type": "cosinesimil",
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params,
+            {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+                "body": {
+                    "size": 100,
+                },
+            },
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+
+        for _ in range(DEFAULT_NUM_VECTORS):
+            params = query_param_source_partition.params()
+            self._check_params_script_score(
+                params,
+                self.DEFAULT_FIELD_NAME,
+                self.DEFAULT_DIMENSION,
+                k,
+                100,
+                SCRIPT_SCORE_FILTER_BODY,
+                "cosinesimil",
+            )
+
+        with self.assertRaises(StopIteration):
+            query_param_source_partition.params()
+
+
     def _check_params(
             self,
             actual_params: dict,
@@ -3366,7 +3430,8 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             expected_dimension: int,
             expected_k: int,
             expected_size=None,
-            expected_script_query=None
+            expected_script_query=None,
+            expected_space_type="l2"
             ):
         body = actual_params.get("body")
         self.assertIsInstance(body, dict)
@@ -3397,8 +3462,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
         self.assertIsInstance(vector, np.ndarray)
         self.assertEqual(len(list(vector)), expected_dimension)
 
-        space_type = params.get("space_type")
-        self.assertEqual(space_type, "l2") # TODO change this once it's all modifiable.
+        self.assertEqual(params.get("space_type"), expected_space_type)
 
     def test_update_request_params_with_request_params(self):
         k = 12
