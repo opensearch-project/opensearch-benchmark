@@ -24,8 +24,9 @@
 
 from unittest import TestCase
 
+import numpy as np
 from opensearch.protobufs.schemas import common_pb2
-from osbenchmark.worker_coordinator.proto_helpers.ProtoBulkHelper import ProtoBulkHelper
+from osbenchmark.worker_coordinator.proto_helpers.ProtoBulkHelper import ProtoBulkHelper, _build_float_binary_le
 
 class ProtoBulkHelperTests(TestCase):
     def test_build_proto_request_single_document(self):
@@ -122,3 +123,87 @@ class ProtoBulkHelperTests(TestCase):
             ProtoBulkHelper.build_stats(mock_bulk_response, params)
 
         self.assertIn("Detailed results not supported for gRPC bulk requests", str(ctx.exception))
+
+    # --- extra_field_values / vector bulk tests ---
+
+    def test_build_float_binary_le_basic(self):
+        vec = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+        result = _build_float_binary_le(vec)
+        self.assertEqual(result.dimension, 3)
+        self.assertEqual(len(result.bytes_le), 12)  # 3 * 4 bytes
+        # Verify round-trip: decode the LE bytes back to floats
+        decoded = np.frombuffer(result.bytes_le, dtype='<f4')
+        np.testing.assert_array_equal(decoded, vec)
+
+    def test_build_float_binary_le_from_float64(self):
+        """float64 input should be converted to float32."""
+        vec = np.array([1.5, 2.5], dtype=np.float64)
+        result = _build_float_binary_le(vec)
+        self.assertEqual(result.dimension, 2)
+        decoded = np.frombuffer(result.bytes_le, dtype='<f4')
+        np.testing.assert_array_almost_equal(decoded, [1.5, 2.5])
+
+    def test_build_proto_vector_request_single_vector(self):
+        vec = np.array([1.0, 2.0, 3.0], dtype=np.float32)
+        params = {
+            "index": "test-index",
+            "field": "my_vector",
+            "vectors": [vec],
+        }
+
+        result = ProtoBulkHelper.build_proto_vector_request(params)
+
+        self.assertIsInstance(result, common_pb2.BulkRequest)
+        self.assertEqual(result.index, "test-index")
+        self.assertEqual(len(result.bulk_request_body), 1)
+
+        body = result.bulk_request_body[0]
+        self.assertEqual(body.object, b'{}')
+        self.assertTrue(body.operation_container.HasField("index"))
+        self.assertIn("my_vector", body.extra_field_values)
+
+        bfv = body.extra_field_values["my_vector"]
+        self.assertTrue(bfv.HasField("float_array_value"))
+        fav = bfv.float_array_value
+        self.assertTrue(fav.HasField("binary_le"))
+        self.assertEqual(fav.binary_le.dimension, 3)
+        decoded = np.frombuffer(fav.binary_le.bytes_le, dtype='<f4')
+        np.testing.assert_array_equal(decoded, vec)
+
+    def test_build_proto_vector_request_multiple_vectors(self):
+        vecs = [
+            np.array([1.0, 0.0], dtype=np.float32),
+            np.array([0.0, 1.0], dtype=np.float32),
+            np.array([0.5, 0.5], dtype=np.float32),
+        ]
+        params = {
+            "index": "vec-index",
+            "field": "embedding",
+            "vectors": vecs,
+        }
+
+        result = ProtoBulkHelper.build_proto_vector_request(params)
+
+        self.assertEqual(len(result.bulk_request_body), 3)
+        for i, body in enumerate(result.bulk_request_body):
+            self.assertEqual(body.object, b'{}')
+            bfv = body.extra_field_values["embedding"]
+            decoded = np.frombuffer(bfv.float_array_value.binary_le.bytes_le, dtype='<f4')
+            np.testing.assert_array_equal(decoded, vecs[i])
+
+    def test_build_proto_vector_request_high_dimensional(self):
+        vec = np.random.rand(768).astype(np.float32)
+        params = {
+            "index": "test-index",
+            "field": "vec",
+            "vectors": [vec],
+        }
+
+        result = ProtoBulkHelper.build_proto_vector_request(params)
+
+        body = result.bulk_request_body[0]
+        fav = body.extra_field_values["vec"].float_array_value
+        self.assertEqual(fav.binary_le.dimension, 768)
+        self.assertEqual(len(fav.binary_le.bytes_le), 768 * 4)
+        decoded = np.frombuffer(fav.binary_le.bytes_le, dtype='<f4')
+        np.testing.assert_array_equal(decoded, vec)
