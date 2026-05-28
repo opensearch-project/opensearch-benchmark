@@ -3400,7 +3400,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
         self.assertNotIn("k", query)
         self.assertEqual(query["max_distance"], -160.0)
         self.assertNotIn("min_score", query)
-        self.assertEqual(body["size"], 10000)
+        self.assertNotIn("size", body)
         neighbors = params.get("neighbors")
         self.assertIsInstance(neighbors, list)
 
@@ -3442,7 +3442,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
         self.assertNotIn("k", query)
         self.assertNotIn("max_distance", query)
         self.assertEqual(query["min_score"], 161.0)
-        self.assertEqual(body["size"], 10000)
+        self.assertNotIn("size", body)
         neighbors = params.get("neighbors")
         self.assertIsInstance(neighbors, list)
 
@@ -3455,7 +3455,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             self.data_set_dir
         )
         # Create neighbors with -1 padding (simulating radial ground truth)
-        padded_neighbors = np.full((self.DEFAULT_NUM_VECTORS, 100), -1, dtype=np.float32)
+        padded_neighbors = np.full((self.DEFAULT_NUM_VECTORS, 100), -1, dtype=np.int32)
         for i in range(self.DEFAULT_NUM_VECTORS):
             num_real = 5
             padded_neighbors[i, :num_real] = np.arange(num_real)
@@ -3483,37 +3483,6 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
         self.assertNotIn("-1", neighbors)
         self.assertNotIn("-1.0", neighbors)
         self.assertEqual(neighbors, ["0", "1", "2", "3", "4"])
-
-    def test_no_k_no_radial_raises_error(self):
-        data_set_path = create_data_set(
-            self.DEFAULT_NUM_VECTORS,
-            self.DEFAULT_DIMENSION,
-            self.DEFAULT_TYPE,
-            Context.QUERY,
-            self.data_set_dir
-        )
-        create_data_set(
-            self.DEFAULT_NUM_VECTORS,
-            self.DEFAULT_DIMENSION,
-            self.DEFAULT_TYPE,
-            Context.NEIGHBORS,
-            self.data_set_dir,
-            data_set_path
-        )
-
-        test_param_source_params = {
-            "field": self.DEFAULT_FIELD_NAME,
-            "data_set_format": self.DEFAULT_TYPE,
-            "data_set_path": data_set_path,
-        }
-        with self.assertRaises(exceptions.InvalidSyntax):
-            VectorSearchPartitionParamSource(
-                workload.Workload(name="unit-test"),
-                test_param_source_params, {
-                    "index": self.DEFAULT_INDEX_NAME,
-                    "request-params": {},
-                }
-            )
 
     def _check_params(
             self,

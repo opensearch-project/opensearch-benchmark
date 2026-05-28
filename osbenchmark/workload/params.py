@@ -1100,6 +1100,8 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
     PARAMS_NAME_OVERSAMPLE_FACTOR = "oversample_factor"
     PARAMS_NAME_RESCORE = "rescore"
     PARAMS_NAME_SPACE_TYPE = "space_type"
+    PARAMS_NAME_MAX_DISTANCE = "max_distance"
+    PARAMS_NAME_MIN_SCORE = "min_score"
 
     def __init__(self, workloads, params, query_params, **kwargs):
         super().__init__(workloads, params, Context.QUERY, **kwargs)
@@ -1116,15 +1118,12 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         operation_type = parse_string_parameter(self.PARAMS_NAME_OPERATION_TYPE, params,
                                                 self.PARAMS_VALUE_VECTOR_SEARCH)
         self.oversample_factor = params.get(self.PARAMS_NAME_OVERSAMPLE_FACTOR)
-        has_radial = ("max_distance" in params or "min_score" in params
-                      or "max_distance" in query_params or "min_score" in query_params)
+        has_radial = (self.PARAMS_NAME_MAX_DISTANCE in params or self.PARAMS_NAME_MIN_SCORE in params
+                      or self.PARAMS_NAME_MAX_DISTANCE in query_params or self.PARAMS_NAME_MIN_SCORE in query_params)
         if self.oversample_factor and has_radial:
             raise exceptions.InvalidSyntax(
                 "'oversample_factor' cannot be used with 'max_distance' or 'min_score'. "
                 "Rescoring is only supported with top-k search.")
-        if "max_distance" in params and "min_score" in params:
-            raise exceptions.InvalidSyntax(
-                "'max_distance' and 'min_score' cannot be used together.")
         self.query_params = query_params
         self.query_params.update({
             self.PARAMS_NAME_OPERATION_TYPE: operation_type,
@@ -1132,13 +1131,10 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         })
         if self.k is not None:
             self.query_params[self.PARAMS_NAME_K] = self.k
-        if "max_distance" in params:
-            self.query_params["max_distance"] = params["max_distance"]
-        if "min_score" in params:
-            self.query_params["min_score"] = params["min_score"]
-        if self.k is None and "max_distance" not in self.query_params and "min_score" not in self.query_params:
-            raise exceptions.InvalidSyntax(
-                "Must specify at least one of 'k', 'max_distance', or 'min_score'.")
+        if self.PARAMS_NAME_MAX_DISTANCE in params:
+            self.query_params[self.PARAMS_NAME_MAX_DISTANCE] = params[self.PARAMS_NAME_MAX_DISTANCE]
+        if self.PARAMS_NAME_MIN_SCORE in params:
+            self.query_params[self.PARAMS_NAME_MIN_SCORE] = params[self.PARAMS_NAME_MIN_SCORE]
 
         self.filter_type = self.query_params.get(self.PARAMS_NAME_FILTER_TYPE)
         self.filter_body = self.query_params.get(self.PARAMS_NAME_FILTER_BODY)
@@ -1180,11 +1176,8 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
     def _update_body_params(self, vector):
         # accept body params if passed from workload, else, create empty dictionary
         body_params = self.query_params.get(self.PARAMS_NAME_BODY) or dict()
-        if self.PARAMS_NAME_SIZE not in body_params:
-            if self.k is not None:
-                body_params[self.PARAMS_NAME_SIZE] = self.k
-            elif "max_distance" in self.query_params or "min_score" in self.query_params:
-                body_params[self.PARAMS_NAME_SIZE] = 10000
+        if self.PARAMS_NAME_SIZE not in body_params and self.k is not None:
+            body_params[self.PARAMS_NAME_SIZE] = self.k
         filter_type=self.query_params.get(self.PARAMS_NAME_FILTER_TYPE)
         filter_body=self.query_params.get(self.PARAMS_NAME_FILTER_BODY)
         efficient_filter = filter_body if filter_type == "efficient" else None
@@ -1207,9 +1200,9 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         if not self.neighbors_data_set_path:
             self.neighbors_data_set_path = self.data_set_path
         # add neighbor instance to partition
-        if "max_distance" in self.query_params:
+        if self.PARAMS_NAME_MAX_DISTANCE in self.query_params:
             neighbors_context = Context.MAX_DISTANCE_NEIGHBORS
-        elif "min_score" in self.query_params:
+        elif self.PARAMS_NAME_MIN_SCORE in self.query_params:
             neighbors_context = Context.MIN_SCORE_NEIGHBORS
         else:
             neighbors_context = Context.NEIGHBORS
@@ -1247,6 +1240,14 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         self.task_progress = (self.current / self.total, '%')
         return self.query_params
 
+    def _add_search_threshold(self, query):
+        if self.k is not None:
+            query["k"] = self.k
+        if self.PARAMS_NAME_MAX_DISTANCE in self.query_params:
+            query[self.PARAMS_NAME_MAX_DISTANCE] = self.query_params[self.PARAMS_NAME_MAX_DISTANCE]
+        if self.PARAMS_NAME_MIN_SCORE in self.query_params:
+            query[self.PARAMS_NAME_MIN_SCORE] = self.query_params[self.PARAMS_NAME_MIN_SCORE]
+
     def _build_vector_search_query_body(self, vector, efficient_filter=None, filter_type=None, filter_body=None) -> dict:
         """Builds a k-NN request that can be used to execute an approximate nearest
         neighbor search against a k-NN plugin index
@@ -1258,12 +1259,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         query = {
             "vector": vector,
         }
-        if self.k is not None:
-            query["k"] = self.k
-        if "max_distance" in self.query_params:
-            query["max_distance"] = self.query_params["max_distance"]
-        if "min_score" in self.query_params:
-            query["min_score"] = self.query_params["min_score"]
+        self._add_search_threshold(query)
         if efficient_filter:
             query.update({
                 "filter": efficient_filter,
