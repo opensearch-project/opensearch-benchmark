@@ -24,8 +24,9 @@
 
 from unittest import TestCase
 
+import cbor2
 from opensearch.protobufs.schemas import common_pb2
-from osbenchmark.worker_coordinator.proto_helpers.ProtoBulkHelper import ProtoBulkHelper
+from osbenchmark.worker_coordinator.proto_helpers.ProtoBulkHelper import ProtoBulkHelper, _serialize_doc
 
 class ProtoBulkHelperTests(TestCase):
     def test_build_proto_request_single_document(self):
@@ -58,6 +59,95 @@ class ProtoBulkHelperTests(TestCase):
         self.assertEqual(len(result.bulk_request_body), 2)
         self.assertEqual(result.bulk_request_body[0].object, b'{"field1": "value1"}')
         self.assertEqual(result.bulk_request_body[1].object, b'{"field1": "value2"}')
+
+    def test_build_proto_request_defaults_to_json(self):
+        params = {
+            "index": "test-index",
+            "body": b'{"index": {}}\n{"key": "val"}\n'
+        }
+
+        result = ProtoBulkHelper.build_proto_request(params)
+
+        self.assertEqual(result.bulk_request_body[0].object, b'{"key": "val"}')
+
+    def test_build_proto_request_cbor_single_document(self):
+        params = {
+            "index": "test-index",
+            "body": b'{"index": {"_index": "test-index"}}\n{"field1": "value1", "field2": 42}\n',
+            "document-format": "cbor"
+        }
+
+        result = ProtoBulkHelper.build_proto_request(params)
+
+        self.assertEqual(len(result.bulk_request_body), 1)
+        decoded = cbor2.loads(result.bulk_request_body[0].object)
+        self.assertEqual(decoded, {"field1": "value1", "field2": 42})
+
+    def test_build_proto_request_cbor_multiple_documents(self):
+        params = {
+            "index": "test-index",
+            "body": (b'{"index": {}}\n'
+                    b'{"name": "alice", "age": 30}\n'
+                    b'{"index": {}}\n'
+                    b'{"name": "bob", "age": 25}\n'),
+            "document-format": "cbor"
+        }
+
+        result = ProtoBulkHelper.build_proto_request(params)
+
+        self.assertEqual(len(result.bulk_request_body), 2)
+        self.assertEqual(cbor2.loads(result.bulk_request_body[0].object), {"name": "alice", "age": 30})
+        self.assertEqual(cbor2.loads(result.bulk_request_body[1].object), {"name": "bob", "age": 25})
+
+    def test_build_proto_request_cbor_preserves_types(self):
+        params = {
+            "index": "test-index",
+            "body": b'{"index": {}}\n{"str": "hello", "int": 1, "float": 1.5, "bool": true, "null": null}\n',
+            "document-format": "cbor"
+        }
+
+        result = ProtoBulkHelper.build_proto_request(params)
+        decoded = cbor2.loads(result.bulk_request_body[0].object)
+
+        self.assertEqual(decoded["str"], "hello")
+        self.assertEqual(decoded["int"], 1)
+        self.assertEqual(decoded["float"], 1.5)
+        self.assertIs(decoded["bool"], True)
+        self.assertIsNone(decoded["null"])
+
+    def test_build_proto_request_cbor_is_smaller_than_json(self):
+        doc_json = '{"field1": "value1", "field2": "value2", "number": 12345}'
+        body = b'{"index": {}}\n' + doc_json.encode('utf-8') + b'\n'
+
+        result_json = ProtoBulkHelper.build_proto_request({"index": "i", "body": body})
+        result_cbor = ProtoBulkHelper.build_proto_request({"index": "i", "body": body, "document-format": "cbor"})
+
+        self.assertLess(
+            len(result_cbor.bulk_request_body[0].object),
+            len(result_json.bulk_request_body[0].object)
+        )
+
+    def test_build_proto_request_unsupported_format_raises(self):
+        params = {
+            "index": "test-index",
+            "body": b'{"index": {}}\n{"key": "val"}\n',
+            "document-format": "smile"
+        }
+
+        with self.assertRaises(ValueError) as ctx:
+            ProtoBulkHelper.build_proto_request(params)
+
+        self.assertIn("smile", str(ctx.exception))
+        self.assertIn("Unsupported document-format", str(ctx.exception))
+
+    def test_serialize_doc_json(self):
+        result = _serialize_doc('{"key": "value"}', "json")
+        self.assertEqual(result, b'{"key": "value"}')
+
+    def test_serialize_doc_cbor(self):
+        result = _serialize_doc('{"key": "value"}', "cbor")
+        decoded = cbor2.loads(result)
+        self.assertEqual(decoded, {"key": "value"})
 
     def test_build_stats_success_response(self):
         mock_bulk_response = common_pb2.BulkResponse()

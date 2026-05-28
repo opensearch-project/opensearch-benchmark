@@ -69,6 +69,7 @@ from osbenchmark.utils import convert
 from osbenchmark.utils.parse import parse_int_parameter, parse_string_parameter, parse_float_parameter
 from osbenchmark.worker_coordinator.proto_helpers.ProtoBulkHelper import ProtoBulkHelper
 from osbenchmark.worker_coordinator.proto_helpers.ProtoQueryHelper import ProtoQueryHelper
+from osbenchmark.worker_coordinator.proto_helpers.ProtoVectorBulkHelper import ProtoVectorBulkHelper
 
 class Delegator:
     """
@@ -435,6 +436,7 @@ def register_default_runners():
     register_runner(workload.OperationType.ProtoBulk, ProtoBulkIndex(), async_runner=True)
     register_runner(workload.OperationType.ProtoSearch, ProtoQuery(), async_runner=True)
     register_runner(workload.OperationType.ProtoVectorSearch, ProtoKNNQuery(), async_runner=True)
+    register_runner(workload.OperationType.ProtoBulkVectorDataSet, ProtoBulkVectorDataSet(), async_runner=True)
 
     # This is an administrative operation but there is no need for a retry here as we don't issue a request
     register_runner(workload.OperationType.Sleep, Sleep(), async_runner=True)
@@ -3292,6 +3294,20 @@ class ProtoBulkIndex(Runner):
 
     def __repr__(self, *args, **kwargs):
         return "proto-bulk-index"
+
+class ProtoBulkVectorDataSet(Runner):
+    async def __call__(self, opensearch, params):
+        request_context_holder.on_client_request_start()
+        proto_req = ProtoVectorBulkHelper.build_proto_request(params)
+        stub = opensearch.document_service()
+        request_context_holder.on_request_start()
+        bulk_resp = await stub.Bulk(proto_req)
+        request_context_holder.on_request_end()
+        request_context_holder.on_client_request_end()
+        return ProtoVectorBulkHelper.build_stats(bulk_resp, params)
+
+    def __repr__(self, *args, **kwargs):
+        return "proto-bulk-vector-data-set"
 
 class ProtoQuery(Runner):
     async def __call__(self, opensearch, params):
