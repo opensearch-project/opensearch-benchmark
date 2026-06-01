@@ -1,4 +1,9 @@
+import json
+
+import cbor2
 from opensearch.protobufs.schemas import common_pb2
+
+SUPPORTED_FORMATS = ("json", "cbor")
 
 def _parse_docs_from_body(body):
     index_op_lines = body.decode('utf-8').split('\n')
@@ -7,26 +12,35 @@ def _parse_docs_from_body(body):
         doc_list.append(doc)
     return doc_list
 
+def _serialize_doc(doc_str, doc_format):
+    if doc_format == "cbor":
+        return cbor2.dumps(json.loads(doc_str))
+    return doc_str.encode('utf-8')
+
 class ProtoBulkHelper:
-    # Build protobuf SearchRequest.
+    # Build protobuf BulkRequest.
     # Consumed from params dictionary:
     # * ``body``: JSON body of bulk ingest request
     # * ``index``: index name
+    # * ``document-format``: serialization format for documents ("json" or "cbor", default "json")
     @staticmethod
     def build_proto_request(params):
         index = params.get("index")
-        body = params.get("body")
-        doc_list = _parse_docs_from_body(body)
+        doc_format = params.get("document-format", "json")
+        if doc_format not in SUPPORTED_FORMATS:
+            raise ValueError(f"Unsupported document-format [{doc_format}]. Supported: {SUPPORTED_FORMATS}")
+
         request = common_pb2.BulkRequest()
         request.index = index
-        # All bulk requests here are index ops
         op_container = common_pb2.OperationContainer()
         op_container.index.CopyFrom(common_pb2.IndexOperation())
-        for doc in doc_list:
+
+        for doc in _parse_docs_from_body(params.get("body")):
             request_body = common_pb2.BulkRequestBody()
-            request_body.object = doc.encode('utf-8')
+            request_body.object = _serialize_doc(doc, doc_format)
             request_body.operation_container.CopyFrom(op_container)
             request.bulk_request_body.append(request_body)
+
         return request
 
     # Parse stats from protobuf response.

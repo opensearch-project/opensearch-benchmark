@@ -1027,20 +1027,50 @@ class WorkerCoordinator:
         self.complete_current_task_sent = False
 
         self.telemetry = None
+        # Caches the DatabaseClientFactory per cluster for non-OpenSearch backends
+        # so the same instance can be reused by wait_for_rest_api without a second
+        # construction.
+        self._database_factories = {}
 
     def create_os_clients(self):
         all_hosts = self.config.opts("client", "hosts").all_hosts
+        database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
         opensearch = {}
         for cluster_name, cluster_hosts in all_hosts.items():
             all_client_options = self.config.opts("client", "options").all_client_options
             cluster_client_options = dict(all_client_options[cluster_name])
             # Use retries to avoid aborts on long living connections for telemetry devices
             cluster_client_options["retry-on-timeout"] = True
-            opensearch[cluster_name] = self.os_client_factory(cluster_hosts, cluster_client_options).create()
+            if database_type.lower() == "opensearch":
+                opensearch[cluster_name] = self.os_client_factory(cluster_hosts, cluster_client_options).create()
+            else:
+                # Non-OpenSearch backends route through the registry so the right
+                # url_prefix / transport configuration is applied. This path
+                # mirrors the async create path at WorkerCoordinator.os_clients.
+                # Cache the factory so wait_for_rest_api can reuse it for the
+                # readiness probe rather than constructing a second instance.
+                db_factory = DatabaseClientFactory.create_client_factory(
+                    database_type, cluster_hosts, cluster_client_options,
+                )
+                self._database_factories[cluster_name] = db_factory
+                opensearch[cluster_name] = db_factory.create()
         return opensearch
 
     def wait_for_rest_api(self, opensearch):
         os_default = opensearch["default"]
+        database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
+        # The legacy wait_for_rest_layer probes /_cluster/health then falls back
+        # to /_cat/indices — both OS-API-shape-specific. For non-OS backends,
+        # delegate to a factory-provided probe.
+        if database_type.lower() != "opensearch":
+            db_factory = self._database_factories.get("default")
+            self.logger.info("Checking if non-OS REST layer is available (database_type=%s).", database_type)
+            if db_factory is not None and hasattr(db_factory, "wait_for_rest_layer") \
+                    and db_factory.wait_for_rest_layer(max_attempts=40):
+                self.logger.info("REST layer is available.")
+                return
+            self.logger.error("Non-OS REST layer is not yet available. Stopping benchmark.")
+            raise exceptions.SystemSetupError(f"{database_type} REST layer is not available.")
         self.logger.info("Checking if REST API is available.")
         if client.wait_for_rest_layer(os_default, max_attempts=40):
             self.logger.info("REST API is available.")
