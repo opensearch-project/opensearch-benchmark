@@ -3374,7 +3374,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             self.DEFAULT_NUM_VECTORS,
             self.DEFAULT_DIMENSION,
             self.DEFAULT_TYPE,
-            Context.MAX_DISTANCE_NEIGHBORS,
+            Context.RADIAL_NEIGHBORS,
             self.data_set_dir,
             data_set_path
         )
@@ -3416,7 +3416,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             self.DEFAULT_NUM_VECTORS,
             self.DEFAULT_DIMENSION,
             self.DEFAULT_TYPE,
-            Context.MIN_SCORE_NEIGHBORS,
+            Context.RADIAL_NEIGHBORS,
             self.data_set_dir,
             data_set_path
         )
@@ -3460,7 +3460,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             num_real = 5
             padded_neighbors[i, :num_real] = np.arange(num_real)
         with h5py.File(data_set_path, 'a') as hf:
-            hf.create_dataset("max_distance_neighbors", data=padded_neighbors)
+            hf.create_dataset("radial_neighbors", data=padded_neighbors)
 
         test_param_source_params = {
             "field": self.DEFAULT_FIELD_NAME,

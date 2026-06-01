@@ -1200,10 +1200,8 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         if not self.neighbors_data_set_path:
             self.neighbors_data_set_path = self.data_set_path
         # add neighbor instance to partition
-        if self.PARAMS_NAME_MAX_DISTANCE in self.query_params:
-            neighbors_context = Context.MAX_DISTANCE_NEIGHBORS
-        elif self.PARAMS_NAME_MIN_SCORE in self.query_params:
-            neighbors_context = Context.MIN_SCORE_NEIGHBORS
+        if self.PARAMS_NAME_MAX_DISTANCE in self.query_params or self.PARAMS_NAME_MIN_SCORE in self.query_params:
+            neighbors_context = Context.RADIAL_NEIGHBORS
         else:
             neighbors_context = Context.NEIGHBORS
 
