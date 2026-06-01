@@ -216,9 +216,10 @@ class ProcessSamples:
     Used to send samples from worker coordinator to sample post processor actor.
     """
 
-    def __init__(self, samples=None, profile_samples=None):
+    def __init__(self, samples=None, profile_samples=None, joinpoint_reached=None):
         self.samples = samples
         self.profile_samples = profile_samples
+        self.joinpoint_reached = joinpoint_reached
 
 class CloseMetricsStore:
     """
@@ -1385,6 +1386,8 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
             self.sample_post_processor(msg.samples)
         if msg.profile_samples:
             self.profile_metrics_post_processor(msg.profile_samples)
+        if msg.joinpoint_reached:
+            self.send(self.worker_coordinator_actor, msg.joinpoint_reached)
 
     def receiveMsg_StartTelemetry(self, msg, sender):
         self.telemetry.on_benchmark_start()
@@ -1913,12 +1916,11 @@ class Worker(actor.BenchmarkActor):
             # clients that don't execute tasks don't need to care about waiting
             if self.executor_future is not None:
                 self.executor_future.result()
-            self.send_samples()
+            self.send_samples(joinpoint_reached=JoinPointReached(self.worker_id, task_allocations))
             self.cancel.clear()
             self.complete.clear()
             self.executor_future = None
             self.sampler = None
-            self.send(self.master, JoinPointReached(self.worker_id, task_allocations))
         else:
             # There may be a situation where there are more (parallel) tasks than workers. If we were asked to complete all tasks, we not
             # only need to complete actively running tasks but actually all scheduled tasks until we reach the next join point.
@@ -1945,17 +1947,19 @@ class Worker(actor.BenchmarkActor):
         self.logger.debug("Worker[%d] is at task index [%d].", self.worker_id, self.current_task_index)
         return current
 
-    def send_samples(self):
+    def send_samples(self, joinpoint_reached=None):
         if self.sampler:
             samples = self.sampler.samples
+            profile_samples = self.profile_sampler.samples
             # Map client ids to their latest task progress, e.g. {0: (0.5, "%")}.
             latest_progress_per_client = {}
-            if len(samples) > 0:
-                for s in samples:
-                    if s.task_progress is not None:
-                        latest_progress_per_client[s.client_id] = s.task_progress
+            for s in samples:
+                if s.task_progress is not None:
+                    latest_progress_per_client[s.client_id] = s.task_progress
+            if latest_progress_per_client:
                 self.send(self.master, UpdateProgressSamples(latest_progress_per_client))
-                self.send(self.sample_post_processor_actor, ProcessSamples(samples, self.profile_sampler.samples))
+            if samples or profile_samples or joinpoint_reached:
+                self.send(self.sample_post_processor_actor, ProcessSamples(samples, profile_samples, joinpoint_reached=joinpoint_reached))
             return samples
         return None
 

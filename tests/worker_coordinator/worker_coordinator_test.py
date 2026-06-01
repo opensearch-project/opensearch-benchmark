@@ -2545,6 +2545,27 @@ class SamplePostProcessorActorTests(TestCase):
         self.actor.sample_post_processor.assert_not_called()
         self.actor.profile_metrics_post_processor.assert_not_called()
 
+    def test_receive_process_samples_forwards_joinpoint_after_processing_samples(self):
+        calls = []
+        joinpoint_reached = mock.MagicMock()
+        self.actor.worker_coordinator_actor = mock.MagicMock()
+        self.actor.sample_post_processor = mock.MagicMock(side_effect=lambda samples: calls.append("samples"))
+        self.actor.profile_metrics_post_processor = mock.MagicMock(side_effect=lambda samples: calls.append("profile_samples"))
+        self.actor.send = mock.MagicMock(side_effect=lambda target, msg: calls.append("joinpoint"))
+
+        msg = worker_coordinator.ProcessSamples(
+            samples=[1, 2],
+            profile_samples=[3],
+            joinpoint_reached=joinpoint_reached
+        )
+
+        self.actor.receiveMsg_ProcessSamples(msg, sender=None)
+
+        self.actor.sample_post_processor.assert_called_once_with([1, 2])
+        self.actor.profile_metrics_post_processor.assert_called_once_with([3])
+        self.actor.send.assert_called_once_with(self.actor.worker_coordinator_actor, joinpoint_reached)
+        self.assertEqual(["samples", "profile_samples", "joinpoint"], calls)
+
     def test_receive_start_telemetry(self):
         self.actor.telemetry = mock.MagicMock()
 
@@ -2673,3 +2694,25 @@ class ProgressSampleUpdateTests(TestCase):
         self.assertIsInstance(post_processor_msg, worker_coordinator.ProcessSamples)
         self.assertEqual(samples, post_processor_msg.samples)
         self.assertEqual(profile_samples, post_processor_msg.profile_samples)
+        self.assertIsNone(post_processor_msg.joinpoint_reached)
+
+    def test_worker_sends_joinpoint_to_post_processor_when_samples_are_empty(self):
+        worker = worker_coordinator.Worker()
+        worker.worker_id = 3
+        worker.send = mock.MagicMock()
+        worker.master = mock.Mock(name="master")
+        worker.sample_post_processor_actor = mock.Mock(name="sample_post_processor_actor")
+        worker.sampler = mock.Mock(samples=[])
+        worker.profile_sampler = mock.Mock(samples=[])
+        joinpoint_reached = mock.MagicMock()
+
+        returned_samples = worker.send_samples(joinpoint_reached=joinpoint_reached)
+
+        self.assertEqual([], returned_samples)
+        worker.send.assert_called_once()
+        target, msg = worker.send.call_args.args
+        self.assertEqual(worker.sample_post_processor_actor, target)
+        self.assertIsInstance(msg, worker_coordinator.ProcessSamples)
+        self.assertEqual([], msg.samples)
+        self.assertEqual([], msg.profile_samples)
+        self.assertEqual(joinpoint_reached, msg.joinpoint_reached)
