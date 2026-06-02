@@ -1100,11 +1100,13 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
     PARAMS_NAME_OVERSAMPLE_FACTOR = "oversample_factor"
     PARAMS_NAME_RESCORE = "rescore"
     PARAMS_NAME_SPACE_TYPE = "space_type"
+    PARAMS_NAME_MAX_DISTANCE = "max_distance"
+    PARAMS_NAME_MIN_SCORE = "min_score"
 
     def __init__(self, workloads, params, query_params, **kwargs):
         super().__init__(workloads, params, Context.QUERY, **kwargs)
         self.logger = logging.getLogger(__name__)
-        self.k = parse_int_parameter(self.PARAMS_NAME_K, params)
+        self.k = parse_int_parameter(self.PARAMS_NAME_K, params) if self.PARAMS_NAME_K in params else None
         self.repetitions = parse_int_parameter(self.PARAMS_NAME_REPETITIONS, params, 1)
         self.current_rep = 1
         self.neighbors_data_set_format = parse_string_parameter(
@@ -1116,16 +1118,23 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         operation_type = parse_string_parameter(self.PARAMS_NAME_OPERATION_TYPE, params,
                                                 self.PARAMS_VALUE_VECTOR_SEARCH)
         self.oversample_factor = params.get(self.PARAMS_NAME_OVERSAMPLE_FACTOR)
-        if self.oversample_factor and ("max_distance" in query_params or "min_score" in query_params):
+        has_radial = (self.PARAMS_NAME_MAX_DISTANCE in params or self.PARAMS_NAME_MIN_SCORE in params
+                      or self.PARAMS_NAME_MAX_DISTANCE in query_params or self.PARAMS_NAME_MIN_SCORE in query_params)
+        if self.oversample_factor and has_radial:
             raise exceptions.InvalidSyntax(
                 "'oversample_factor' cannot be used with 'max_distance' or 'min_score'. "
                 "Rescoring is only supported with top-k search.")
         self.query_params = query_params
         self.query_params.update({
-            self.PARAMS_NAME_K: self.k,
             self.PARAMS_NAME_OPERATION_TYPE: operation_type,
             self.PARAMS_NAME_ID_FIELD_NAME: params.get(self.PARAMS_NAME_ID_FIELD_NAME),
         })
+        if self.k is not None:
+            self.query_params[self.PARAMS_NAME_K] = self.k
+        if self.PARAMS_NAME_MAX_DISTANCE in params:
+            self.query_params[self.PARAMS_NAME_MAX_DISTANCE] = params[self.PARAMS_NAME_MAX_DISTANCE]
+        if self.PARAMS_NAME_MIN_SCORE in params:
+            self.query_params[self.PARAMS_NAME_MIN_SCORE] = params[self.PARAMS_NAME_MIN_SCORE]
 
         self.filter_type = self.query_params.get(self.PARAMS_NAME_FILTER_TYPE)
         self.filter_body = self.query_params.get(self.PARAMS_NAME_FILTER_BODY)
@@ -1167,7 +1176,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
     def _update_body_params(self, vector):
         # accept body params if passed from workload, else, create empty dictionary
         body_params = self.query_params.get(self.PARAMS_NAME_BODY) or dict()
-        if self.PARAMS_NAME_SIZE not in body_params:
+        if self.PARAMS_NAME_SIZE not in body_params and self.k is not None:
             body_params[self.PARAMS_NAME_SIZE] = self.k
         filter_type=self.query_params.get(self.PARAMS_NAME_FILTER_TYPE)
         filter_body=self.query_params.get(self.PARAMS_NAME_FILTER_BODY)
@@ -1191,8 +1200,13 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         if not self.neighbors_data_set_path:
             self.neighbors_data_set_path = self.data_set_path
         # add neighbor instance to partition
+        if self.PARAMS_NAME_MAX_DISTANCE in self.query_params or self.PARAMS_NAME_MIN_SCORE in self.query_params:
+            neighbors_context = Context.RADIAL_NEIGHBORS
+        else:
+            neighbors_context = Context.NEIGHBORS
+
         partition.neighbors_data_set = get_data_set(
-            self.neighbors_data_set_format, self.neighbors_data_set_path, Context.NEIGHBORS)
+            self.neighbors_data_set_format, self.neighbors_data_set_path, neighbors_context)
         partition.neighbors_data_set.seek(partition.offset)
         return partition
 
@@ -1211,7 +1225,10 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
             raise StopIteration
         vector = self.data_set.read(1)[0]
         neighbor = self.neighbors_data_set.read(1)[0]
-        true_neighbors = list(map(str, neighbor[:self.k]))
+        if self.k is not None:
+            true_neighbors = list(map(str, neighbor[:self.k].astype(int)))
+        else:
+            true_neighbors = list(map(str, neighbor[neighbor >= 0].astype(int)))
         self.query_params.update({
             "neighbors": true_neighbors,
         })
@@ -1220,6 +1237,14 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         self.current += 1
         self.task_progress = (self.current / self.total, '%')
         return self.query_params
+
+    def _add_search_threshold(self, query):
+        if self.k is not None:
+            query["k"] = self.k
+        if self.PARAMS_NAME_MAX_DISTANCE in self.query_params:
+            query[self.PARAMS_NAME_MAX_DISTANCE] = self.query_params[self.PARAMS_NAME_MAX_DISTANCE]
+        if self.PARAMS_NAME_MIN_SCORE in self.query_params:
+            query[self.PARAMS_NAME_MIN_SCORE] = self.query_params[self.PARAMS_NAME_MIN_SCORE]
 
     def _build_vector_search_query_body(self, vector, efficient_filter=None, filter_type=None, filter_body=None) -> dict:
         """Builds a k-NN request that can be used to execute an approximate nearest
@@ -1231,8 +1256,8 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         """
         query = {
             "vector": vector,
-            "k": self.k,
         }
+        self._add_search_threshold(query)
         if efficient_filter:
             query.update({
                 "filter": efficient_filter,
