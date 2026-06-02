@@ -1440,7 +1440,11 @@ class DefaultSamplePostprocessor(SamplePostprocessor):
             if sample.request_meta_data and len(sample.request_meta_data) > 1:
                 self.logger.debug("Found: %s", sample.request_meta_data)
 
-                recall_metric_names = ["recall@k", "recall@1"]
+                recall_metric_names = [
+                    "recall@k", "recall@1",
+                    "recall@max_distance", "recall@max_distance_1",
+                    "recall@min_score", "recall@min_score_1",
+                ]
 
                 for recall_metric_name in recall_metric_names:
                     if recall_metric_name in sample.request_meta_data:
