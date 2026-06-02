@@ -42,7 +42,8 @@ def list_telemetry():
                                                                                Heapdump, NodeStats, RecoveryStats,
                                                                                CcrStats, SegmentStats, TransformStats,
                                                                                SearchableSnapshotsStats,
-                                                                               SegmentReplicationStats, ShardStats]]
+                                                                               SegmentReplicationStats, ShardStats,
+                                                                               DataFusionStats]]
     console.println(tabulate.tabulate(devices, ["Command", "Name", "Description"]))
     console.println("\nKeep in mind that each telemetry device may incur a runtime overhead which can skew results.")
 
@@ -1966,3 +1967,60 @@ class SegmentReplicationStatsRecorder:
         }
 
         self.metrics_store.put_doc(doc, level=MetaInfoScope.cluster, meta_data=meta_data)
+
+
+class DataFusionStats(TelemetryDevice):
+    internal = False
+    command = "datafusion-stats"
+    human_name = "DataFusion Stats"
+    help = "Regularly samples analytics backend DataFusion runtime stats"
+
+    def __init__(self, telemetry_params, clients, metrics_store):
+        super().__init__()
+        self.telemetry_params = telemetry_params
+        self.clients = clients
+        self.sample_interval = telemetry_params.get("datafusion-stats-sample-interval", 1)
+        if self.sample_interval <= 0:
+            raise exceptions.SystemSetupError(
+                f"The telemetry parameter 'datafusion-stats-sample-interval' must be greater than zero "
+                f"but was [{self.sample_interval}].")
+        self.metrics_store = metrics_store
+        self.sampler = None
+
+    def on_benchmark_start(self):
+        recorder = DataFusionStatsRecorder(self.clients["default"], self.metrics_store, self.sample_interval)
+        self.sampler = SamplerThread(recorder)
+        self.sampler.daemon = True
+        self.sampler.start()
+
+    def on_benchmark_stop(self):
+        if self.sampler:
+            self.sampler.finish()
+
+
+class DataFusionStatsRecorder:
+    def __init__(self, client, metrics_store, sample_interval):
+        self.client = client
+        self.metrics_store = metrics_store
+        self.sample_interval = sample_interval
+        self.logger = logging.getLogger(__name__)
+
+    def __str__(self):
+        return "datafusion stats"
+
+    def record(self):
+        try:
+            stats = self.client.transport.perform_request(
+                "GET", "/_plugins/analytics_backend_datafusion/stats")
+        except opensearchpy.TransportError:
+            msg = "A transport error occurred while collecting DataFusion stats"
+            self.logger.exception(msg)
+            raise exceptions.BenchmarkError(msg)
+
+        doc = {"name": "datafusion-stats"}
+        for section_name, section_values in stats.items():
+            if isinstance(section_values, dict):
+                for key, value in section_values.items():
+                    doc[f"{section_name}_{key}"] = value
+
+        self.metrics_store.put_doc(doc, level=MetaInfoScope.cluster)
