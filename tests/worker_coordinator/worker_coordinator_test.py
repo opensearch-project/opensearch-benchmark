@@ -2696,6 +2696,33 @@ class ProgressSampleUpdateTests(TestCase):
         self.assertEqual(profile_samples, post_processor_msg.profile_samples)
         self.assertIsNone(post_processor_msg.joinpoint_reached)
 
+    def test_worker_routes_joinpoint_through_sample_processing(self):
+        worker = worker_coordinator.Worker()
+        worker.worker_id = 3
+        worker.current_task_index = 0
+        worker.next_task_index = 0
+        worker.client_allocations = mock.MagicMock()
+        task_allocations = [
+            worker_coordinator.ClientAllocation(client_id=0, task=worker_coordinator.JoinPoint(id=0))
+        ]
+        worker.client_allocations.tasks.return_value = task_allocations
+        worker.client_allocations.is_joinpoint.return_value = True
+        worker.executor_future = None
+        worker.cancel = mock.MagicMock()
+        worker.complete = mock.MagicMock()
+        worker.send = mock.MagicMock()
+        worker.send_samples = mock.MagicMock()
+        worker.sampler = mock.MagicMock()
+
+        worker.drive()
+
+        worker.send.assert_not_called()
+        worker.send_samples.assert_called_once()
+        joinpoint_reached = worker.send_samples.call_args.kwargs["joinpoint_reached"]
+        self.assertIsInstance(joinpoint_reached, worker_coordinator.JoinPointReached)
+        self.assertEqual(worker.worker_id, joinpoint_reached.worker_id)
+        self.assertEqual(task_allocations, joinpoint_reached.task)
+
     def test_worker_sends_joinpoint_to_post_processor_when_samples_are_empty(self):
         worker = worker_coordinator.Worker()
         worker.worker_id = 3
@@ -2716,3 +2743,54 @@ class ProgressSampleUpdateTests(TestCase):
         self.assertEqual([], msg.samples)
         self.assertEqual([], msg.profile_samples)
         self.assertEqual(joinpoint_reached, msg.joinpoint_reached)
+
+    def test_post_processor_forwarded_joinpoint_reaches_coordinator_actor(self):
+        coordinator_actor = worker_coordinator.WorkerCoordinatorActor()
+        coordinator_actor.coordinator = mock.MagicMock()
+        task_allocations = [
+            worker_coordinator.ClientAllocation(client_id=0, task=worker_coordinator.JoinPoint(id=0))
+        ]
+        joinpoint_reached = worker_coordinator.JoinPointReached(worker_id=3, task=task_allocations)
+
+        coordinator_actor.receiveMsg_JoinPointReached(joinpoint_reached, sender=None)
+
+        coordinator_actor.coordinator.joinpoint_reached.assert_called_once_with(
+            joinpoint_reached.worker_id,
+            joinpoint_reached.worker_timestamp,
+            joinpoint_reached.task
+        )
+
+    def test_final_forwarded_joinpoint_closes_metrics_store_after_coordinator_advances(self):
+        target = mock.MagicMock()
+        target.sample_post_processor_actor = mock.Mock(name="sample_post_processor_actor")
+        coordinator = worker_coordinator.WorkerCoordinator.__new__(worker_coordinator.WorkerCoordinator)
+        coordinator.target = target
+        coordinator.config = mock.MagicMock()
+        coordinator.config.opts.return_value = False
+        coordinator.currently_completed = 0
+        coordinator.complete_current_task_sent = False
+        coordinator.workers = [mock.Mock(name="worker")]
+        coordinator.workers_completed_current_step = {}
+        coordinator.current_step = 0
+        coordinator.number_of_steps = 1
+        task = mock.Mock()
+        task.name = "task"
+        coordinator.tasks_per_join_point = [[task]]
+        coordinator.latest_progress_per_client = {}
+        coordinator.progress_publisher = mock.MagicMock()
+
+        task_allocations = [
+            worker_coordinator.ClientAllocation(client_id=0, task=worker_coordinator.JoinPoint(id=0))
+        ]
+        joinpoint_reached = worker_coordinator.JoinPointReached(worker_id=0, task=task_allocations)
+
+        coordinator.joinpoint_reached(
+            joinpoint_reached.worker_id,
+            joinpoint_reached.worker_timestamp,
+            joinpoint_reached.task
+        )
+
+        sent_messages = [call.args[1] for call in target.send.call_args_list]
+        self.assertTrue(any(isinstance(msg, worker_coordinator.StopTelemetry) for msg in sent_messages))
+        self.assertTrue(any(isinstance(msg, worker_coordinator.GetExternalizableMetricsStore) for msg in sent_messages))
+        self.assertTrue(any(isinstance(msg, worker_coordinator.CloseMetricsStore) for msg in sent_messages))
