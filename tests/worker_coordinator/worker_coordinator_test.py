@@ -251,7 +251,6 @@ class WorkerCoordinatorTests(TestCase):
 
         # this requires at least Python 3.6
         # target.on_task_finished.assert_called_once()
-        self.assertEqual(1, target.on_task_finished.call_count)
         self.assertEqual(4, target.drive_at.call_count)
 
     @run_async
@@ -2476,3 +2475,322 @@ class TaskRampDownTests(TestCase):
 
         # Different ramp_down should produce different hashes
         self.assertNotEqual(hash(task1), hash(task2))
+
+class SamplePostProcessorActorTests(TestCase):
+    @pytest.fixture(autouse=True)
+    def setup_actor(self):
+        self.monkeypatch = pytest.MonkeyPatch()
+        self.monkeypatch.setattr("osbenchmark.log.post_configure_actor_logging", lambda: None)
+        self.actor = worker_coordinator.SamplePostProcessorActor()
+        self.cfg = config.Config()
+        self.cfg.add(config.Scope.application, "system", "env.name", "unittest")
+        self.cfg.add(config.Scope.application, "system", "time.start", datetime(year=2017, month=8, day=20, hour=1, minute=0, second=0))
+        self.cfg.add(config.Scope.application, "system", "test_run.id", "6ebc6e53-ee20-4b0c-99b4-09697987e9f4")
+        self.cfg.add(config.Scope.application, "system", "available.cores", 8)
+        self.cfg.add(config.Scope.application, "node", "root.dir", "/tmp")
+        self.cfg.add(config.Scope.application, "workload", "test_procedure.name", "default")
+        self.cfg.add(config.Scope.application, "workload", "params", {})
+        self.cfg.add(config.Scope.application, "workload", "test.mode.enabled", True)
+        self.cfg.add(config.Scope.applicationOverride, "workload", "test_procedure.name", "default")
+        self.cfg.add(config.Scope.application, "telemetry", "devices", [])
+        self.cfg.add(config.Scope.application, "telemetry", "params", {"ccr-stats-indices": {"default": ["leader_index"]}})
+        self.cfg.add(config.Scope.application, "builder", "cluster_config.names", ["default"])
+        self.cfg.add(config.Scope.application, "builder", "skip.rest.api.check", True)
+        self.cfg.add(config.Scope.application, "client", "hosts",
+                     WorkerCoordinatorTests.Holder(all_hosts={"default": ["localhost:9200"]}))
+        self.cfg.add(config.Scope.application, "client", "options", WorkerCoordinatorTests.Holder(all_client_options={"default": {}}))
+        self.cfg.add(config.Scope.application, "worker_coordinator", "worker_ips", ["localhost"])
+        self.cfg.add(config.Scope.application, "reporting", "datastore.type", "in-memory")
+
+    def test_receive_start_sample_post_processor(self):
+        msg = worker_coordinator.StartSamplePostProcessorActor(
+            config=self.cfg,
+            workload=mock.MagicMock(name="workload"),
+            test_procedure=mock.MagicMock(name="test_procedure"),
+            downsample_factor=1
+        )
+        self.actor.receiveMsg_StartSamplePostProcessorActor(msg, None)
+
+        assert not self.actor.worker_coordinator_actor
+        assert self.actor.metrics_store is not None
+        assert self.actor.sample_post_processor is not None
+        assert self.actor.profile_metrics_post_processor is not None
+        assert self.actor.telemetry is not None
+
+    def test_receive_process_samples_calls_processors(self):
+        self.actor.sample_post_processor = mock.MagicMock()
+        self.actor.profile_metrics_post_processor = mock.MagicMock()
+
+        msg = worker_coordinator.ProcessSamples(
+            samples=[1, 2],
+            profile_samples=[3]
+        )
+
+        self.actor.receiveMsg_ProcessSamples(msg, sender=None)
+
+        self.actor.sample_post_processor.assert_called_once_with([1, 2])
+        self.actor.profile_metrics_post_processor.assert_called_once_with([3])
+
+    def test_receive_process_samples_skips_when_none(self):
+        self.actor.sample_post_processor = mock.MagicMock()
+        self.actor.profile_metrics_post_processor = mock.MagicMock()
+
+        msg = worker_coordinator.ProcessSamples(
+            samples=None,
+            profile_samples=None
+        )
+
+        self.actor.receiveMsg_ProcessSamples(msg, sender=None)
+
+        self.actor.sample_post_processor.assert_not_called()
+        self.actor.profile_metrics_post_processor.assert_not_called()
+
+    def test_receive_process_samples_forwards_joinpoint_after_processing_samples(self):
+        calls = []
+        joinpoint_reached = mock.MagicMock()
+        self.actor.worker_coordinator_actor = mock.MagicMock()
+        self.actor.sample_post_processor = mock.MagicMock(side_effect=lambda samples: calls.append("samples"))
+        self.actor.profile_metrics_post_processor = mock.MagicMock(side_effect=lambda samples: calls.append("profile_samples"))
+        self.actor.send = mock.MagicMock(side_effect=lambda target, msg: calls.append("joinpoint"))
+
+        msg = worker_coordinator.ProcessSamples(
+            samples=[1, 2],
+            profile_samples=[3],
+            joinpoint_reached=joinpoint_reached
+        )
+
+        self.actor.receiveMsg_ProcessSamples(msg, sender=None)
+
+        self.actor.sample_post_processor.assert_called_once_with([1, 2])
+        self.actor.profile_metrics_post_processor.assert_called_once_with([3])
+        self.actor.send.assert_called_once_with(self.actor.worker_coordinator_actor, joinpoint_reached)
+        self.assertEqual(["samples", "profile_samples", "joinpoint"], calls)
+
+    def test_receive_start_telemetry(self):
+        self.actor.telemetry = mock.MagicMock()
+
+        msg = worker_coordinator.StartTelemetry()
+
+        self.actor.receiveMsg_StartTelemetry(msg, sender=None)
+
+        self.actor.telemetry.on_benchmark_start.assert_called_once()
+
+
+    def test_receive_stop_telemetry(self):
+        self.actor.telemetry = mock.MagicMock()
+
+        msg = worker_coordinator.StopTelemetry()
+
+        self.actor.receiveMsg_StopTelemetry(msg, sender=None)
+
+        self.actor.telemetry.on_benchmark_stop.assert_called_once()
+
+    def test_close_metrics_store_via_message(self):
+        self.actor.metrics_store = mock.MagicMock()
+        self.actor.metrics_store.opened = True
+
+        msg = worker_coordinator.CloseMetricsStore()
+
+        self.actor.receiveMsg_CloseMetricsStore(msg, sender=None)
+
+        self.actor.metrics_store.close.assert_called_once()
+
+    def test_actor_exit_request_closes_metrics_store(self):
+        self.actor.metrics_store = mock.MagicMock()
+        self.actor.metrics_store.opened = True
+
+        self.actor.receiveMsg_ActorExitRequest(mock.MagicMock(), sender=None)
+
+        self.actor.metrics_store.close.assert_called_once()
+
+    def test_get_externalizable_metrics_store_task_finished(self):
+        self.actor.metrics_store = mock.MagicMock()
+        self.actor.metrics_store.to_externalizable.return_value = {"data": 123}
+
+        self.actor.worker_coordinator_actor = mock.MagicMock()
+        self.actor.send = mock.MagicMock()
+
+        msg = worker_coordinator.GetExternalizableMetricsStore(
+            clear=True,
+            reason=worker_coordinator.ReasonForExternalizableRequest.TASK_FINISHED,
+            waiting_period=5
+        )
+
+        self.monkeypatch.setattr(
+            "osbenchmark.worker_coordinator.TaskFinished",
+            mock.MagicMock()
+        )
+
+        self.actor.receiveMsg_GetExternalizableMetricsStore(msg, sender=None)
+
+        self.actor.send.assert_called_once()
+
+    def test_reset_relative_time(self):
+        self.actor.metrics_store = mock.MagicMock()
+
+        msg = worker_coordinator.ResetRelativeTimeRequest()
+
+        self.actor.receiveMsg_ResetRelativeTimeRequest(msg, sender=None)
+
+        self.actor.metrics_store.reset_relative_time.assert_called_once()
+
+class ProgressSampleUpdateTests(TestCase):
+    def test_worker_coordinator_actor_forwards_progress_updates(self):
+        actor = worker_coordinator.WorkerCoordinatorActor()
+        actor.coordinator = mock.MagicMock()
+        latest_progress_per_client = {
+            0: (0.5, "%")
+        }
+
+        actor.receiveMsg_UpdateProgressSamples(worker_coordinator.UpdateProgressSamples(latest_progress_per_client), sender=None)
+
+        actor.coordinator.update_samples.assert_called_once_with(latest_progress_per_client)
+
+    def test_worker_coordinator_updates_latest_progress_per_client(self):
+        coordinator = worker_coordinator.WorkerCoordinator.__new__(worker_coordinator.WorkerCoordinator)
+        coordinator.latest_progress_per_client = {
+            0: (0.1, "%")
+        }
+        latest_progress_per_client = {
+            0: (0.5, "%"),
+            1: (0.75, "%")
+        }
+
+        coordinator.update_samples(latest_progress_per_client)
+
+        self.assertEqual(latest_progress_per_client[0], coordinator.latest_progress_per_client[0])
+        self.assertEqual(latest_progress_per_client[1], coordinator.latest_progress_per_client[1])
+
+    def test_worker_sends_latest_progress_to_coordinator_and_full_samples_to_post_processor(self):
+        worker = worker_coordinator.Worker()
+        worker.send = mock.MagicMock()
+        worker.master = mock.Mock(name="master")
+        worker.sample_post_processor_actor = mock.Mock(name="sample_post_processor_actor")
+
+        first_client_initial_sample = mock.Mock(client_id=0, task_progress=(0.1, "%"))
+        second_client_sample = mock.Mock(client_id=1, task_progress=(0.5, "%"))
+        first_client_latest_sample = mock.Mock(client_id=0, task_progress=(0.9, "%"))
+        samples = [first_client_initial_sample, second_client_sample, first_client_latest_sample]
+        profile_samples = [mock.Mock()]
+        worker.sampler = mock.Mock(samples=samples)
+        worker.profile_sampler = mock.Mock(samples=profile_samples)
+
+        returned_samples = worker.send_samples()
+
+        self.assertEqual(samples, returned_samples)
+        self.assertEqual(2, worker.send.call_count)
+
+        coordinator_msg = worker.send.call_args_list[0].args[1]
+        self.assertIsInstance(coordinator_msg, worker_coordinator.UpdateProgressSamples)
+        self.assertEqual(
+            {
+                0: first_client_latest_sample.task_progress,
+                1: second_client_sample.task_progress
+            },
+            coordinator_msg.latest_progress_per_client
+        )
+
+        post_processor_msg = worker.send.call_args_list[1].args[1]
+        self.assertIsInstance(post_processor_msg, worker_coordinator.ProcessSamples)
+        self.assertEqual(samples, post_processor_msg.samples)
+        self.assertEqual(profile_samples, post_processor_msg.profile_samples)
+        self.assertIsNone(post_processor_msg.joinpoint_reached)
+
+    def test_worker_routes_joinpoint_through_sample_processing(self):
+        worker = worker_coordinator.Worker()
+        worker.worker_id = 3
+        worker.current_task_index = 0
+        worker.next_task_index = 0
+        worker.client_allocations = mock.MagicMock()
+        task_allocations = [
+            worker_coordinator.ClientAllocation(client_id=0, task=worker_coordinator.JoinPoint(id=0))
+        ]
+        worker.client_allocations.tasks.return_value = task_allocations
+        worker.client_allocations.is_joinpoint.return_value = True
+        worker.executor_future = None
+        worker.cancel = mock.MagicMock()
+        worker.complete = mock.MagicMock()
+        worker.send = mock.MagicMock()
+        worker.send_samples = mock.MagicMock()
+        worker.sampler = mock.MagicMock()
+
+        worker.drive()
+
+        worker.send.assert_not_called()
+        worker.send_samples.assert_called_once()
+        joinpoint_reached = worker.send_samples.call_args.kwargs["joinpoint_reached"]
+        self.assertIsInstance(joinpoint_reached, worker_coordinator.JoinPointReached)
+        self.assertEqual(worker.worker_id, joinpoint_reached.worker_id)
+        self.assertEqual(task_allocations, joinpoint_reached.task)
+
+    def test_worker_sends_joinpoint_to_post_processor_when_samples_are_empty(self):
+        worker = worker_coordinator.Worker()
+        worker.worker_id = 3
+        worker.send = mock.MagicMock()
+        worker.master = mock.Mock(name="master")
+        worker.sample_post_processor_actor = mock.Mock(name="sample_post_processor_actor")
+        worker.sampler = mock.Mock(samples=[])
+        worker.profile_sampler = mock.Mock(samples=[])
+        joinpoint_reached = mock.MagicMock()
+
+        returned_samples = worker.send_samples(joinpoint_reached=joinpoint_reached)
+
+        self.assertEqual([], returned_samples)
+        worker.send.assert_called_once()
+        target, msg = worker.send.call_args.args
+        self.assertEqual(worker.sample_post_processor_actor, target)
+        self.assertIsInstance(msg, worker_coordinator.ProcessSamples)
+        self.assertEqual([], msg.samples)
+        self.assertEqual([], msg.profile_samples)
+        self.assertEqual(joinpoint_reached, msg.joinpoint_reached)
+
+    def test_post_processor_forwarded_joinpoint_reaches_coordinator_actor(self):
+        coordinator_actor = worker_coordinator.WorkerCoordinatorActor()
+        coordinator_actor.coordinator = mock.MagicMock()
+        task_allocations = [
+            worker_coordinator.ClientAllocation(client_id=0, task=worker_coordinator.JoinPoint(id=0))
+        ]
+        joinpoint_reached = worker_coordinator.JoinPointReached(worker_id=3, task=task_allocations)
+
+        coordinator_actor.receiveMsg_JoinPointReached(joinpoint_reached, sender=None)
+
+        coordinator_actor.coordinator.joinpoint_reached.assert_called_once_with(
+            joinpoint_reached.worker_id,
+            joinpoint_reached.worker_timestamp,
+            joinpoint_reached.task
+        )
+
+    def test_final_forwarded_joinpoint_closes_metrics_store_after_coordinator_advances(self):
+        target = mock.MagicMock()
+        target.sample_post_processor_actor = mock.Mock(name="sample_post_processor_actor")
+        coordinator = worker_coordinator.WorkerCoordinator.__new__(worker_coordinator.WorkerCoordinator)
+        coordinator.target = target
+        coordinator.config = mock.MagicMock()
+        coordinator.config.opts.return_value = False
+        coordinator.currently_completed = 0
+        coordinator.complete_current_task_sent = False
+        coordinator.workers = [mock.Mock(name="worker")]
+        coordinator.workers_completed_current_step = {}
+        coordinator.current_step = 0
+        coordinator.number_of_steps = 1
+        task = mock.Mock()
+        task.name = "task"
+        coordinator.tasks_per_join_point = [[task]]
+        coordinator.latest_progress_per_client = {}
+        coordinator.progress_publisher = mock.MagicMock()
+
+        task_allocations = [
+            worker_coordinator.ClientAllocation(client_id=0, task=worker_coordinator.JoinPoint(id=0))
+        ]
+        joinpoint_reached = worker_coordinator.JoinPointReached(worker_id=0, task=task_allocations)
+
+        coordinator.joinpoint_reached(
+            joinpoint_reached.worker_id,
+            joinpoint_reached.worker_timestamp,
+            joinpoint_reached.task
+        )
+
+        sent_messages = [call.args[1] for call in target.send.call_args_list]
+        self.assertTrue(any(isinstance(msg, worker_coordinator.StopTelemetry) for msg in sent_messages))
+        self.assertTrue(any(isinstance(msg, worker_coordinator.GetExternalizableMetricsStore) for msg in sent_messages))
+        self.assertTrue(any(isinstance(msg, worker_coordinator.CloseMetricsStore) for msg in sent_messages))

@@ -136,7 +136,8 @@ class StartWorker:
     Starts a worker.
     """
 
-    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None, error_queue=None, queue_lock=None, shared_states=None):
+    def __init__(self, worker_id, config, workload, client_allocations, feedback_actor=None,
+                error_queue=None, queue_lock=None, shared_states=None, sample_post_processor_actor=None):
         """
         :param worker_id: Unique (numeric) id of the worker.
         :param config: OSB internal configuration object.
@@ -151,6 +152,7 @@ class StartWorker:
         self.error_queue = error_queue
         self.queue_lock = queue_lock
         self.shared_states = shared_states
+        self.sample_post_processor_actor = sample_post_processor_actor
 
 
 class Drive:
@@ -172,15 +174,13 @@ class CompleteCurrentTask:
     """
 
 
-class UpdateSamples:
+class UpdateProgressSamples:
     """
-    Used to send samples from a load generator node to the master.
+    Sends the latest task progress per client from a load generator node to the master.
     """
 
-    def __init__(self, client_id, samples, profile_samples):
-        self.client_id = client_id
-        self.samples = samples
-        self.profile_samples = profile_samples
+    def __init__(self, latest_progress_per_client):
+        self.latest_progress_per_client = latest_progress_per_client
 
 
 class JoinPointReached:
@@ -210,6 +210,41 @@ class TaskFinished:
     def __init__(self, metrics, next_task_scheduled_in):
         self.metrics = metrics
         self.next_task_scheduled_in = next_task_scheduled_in
+
+class ProcessSamples:
+    """
+    Used to send samples from worker coordinator to sample post processor actor.
+    """
+
+    def __init__(self, samples=None, profile_samples=None, joinpoint_reached=None):
+        self.samples = samples
+        self.profile_samples = profile_samples
+        self.joinpoint_reached = joinpoint_reached
+
+class CloseMetricsStore:
+    """
+    Used to signal the sample post processor actor to close the metrics store.
+    """
+
+class GetExternalizableMetricsStore:
+    """
+    Used to request an externalizable version of the metrics store from the sample post processor actor.
+    """
+
+    def __init__(self, clear=True, reason=None, waiting_period=None):
+        self.clear = clear
+        self.reason = reason
+        self.waiting_period = waiting_period
+
+class ReasonForExternalizableRequest(Enum):
+    """Reasons for requesting an externalizable version of the metrics store."""
+    BENCHMARK_COMPLETED = "Benchmark completed"
+    TASK_FINISHED = "Task finished"
+
+class ResetRelativeTimeRequest:
+    """
+    Used to signal the sample post processor actor to reset the relative time marker for all incoming samples.
+    """
 
 def load_redline_config():
     config = configparser.ConfigParser()
@@ -281,6 +316,19 @@ class StartFeedbackActor:
         self.shared_states = shared_states
         self.error_queue = error_queue
         self.queue_lock = queue_lock
+
+class StartSamplePostProcessorActor:
+    def __init__(self, config, workload, test_procedure, downsample_factor):
+        self.config = config
+        self.workload = workload
+        self.test_procedure = test_procedure
+        self.downsample_factor = downsample_factor
+
+class StartTelemetry:
+    pass
+
+class StopTelemetry:
+    pass
 
 # pylint: disable=too-many-public-methods
 class FeedbackActor(actor.BenchmarkActor):
@@ -603,6 +651,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         self.cluster_details = None
         self.feedback_actor = None
         self.worker_shared_states = {}
+        self.sample_post_processor_actor = None
 
     def receiveMsg_PoisonMessage(self, poisonmsg, sender):
         self.logger.error("Main worker_coordinator received a fatal indication from load generator (%s). Shutting down.", poisonmsg.details)
@@ -617,6 +666,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
     def receiveMsg_BenchmarkCancelled(self, msg, sender):
         self.logger.info("Main worker_coordinator received a notification that the benchmark has been cancelled.")
         self.coordinator.close()
+        self.send(self.sample_post_processor_actor, thespian.actors.ActorExitRequest())
         # shut down FeedbackActor if it's active
         # we do this manually in the workercoordinator since it's fully responsible for the feedback actor
         if hasattr(self, "feedback_actor"):
@@ -678,27 +728,35 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         self.coordinator.joinpoint_reached(msg.worker_id, msg.worker_timestamp, msg.task)
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
-    def receiveMsg_UpdateSamples(self, msg, sender):
-        self.coordinator.update_samples(msg.samples)
-        self.coordinator.update_profile_samples(msg.profile_samples)
+    def receiveMsg_UpdateProgressSamples(self, msg, sender):
+        self.coordinator.update_samples(msg.latest_progress_per_client)
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_WakeupMessage(self, msg, sender):
         if msg.payload == WorkerCoordinatorActor.RESET_RELATIVE_TIME_MARKER:
             self.coordinator.reset_relative_time()
         elif not self.coordinator.finished():
-            self.post_process_timer += WorkerCoordinatorActor.WAKEUP_INTERVAL_SECONDS
-            if self.post_process_timer >= WorkerCoordinatorActor.POST_PROCESS_INTERVAL_SECONDS:
-                self.post_process_timer = 0
-                self.coordinator.post_process_samples()
             self.coordinator.update_progress_message()
             self.wakeupAfter(datetime.timedelta(seconds=WorkerCoordinatorActor.WAKEUP_INTERVAL_SECONDS))
+
+    @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
+    def receiveMsg_BenchmarkComplete(self, msg, sender):
+        self.on_benchmark_complete(msg.metrics)
+
+    @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
+    def receiveMsg_TaskFinished(self, msg, sender):
+        self.on_task_finished(msg.metrics, msg.next_task_scheduled_in)
 
     def create_client(self, host):
         return self.createActor(Worker, targetActorRequirements=self._requirements(host))
 
     def start_worker(self, worker_coordinator, worker_id, cfg, workload, allocations, error_queue=None, queue_lock=None, shared_states=None):
-        self.send(worker_coordinator, StartWorker(worker_id, cfg, workload, allocations, self.feedback_actor, error_queue, queue_lock, shared_states))
+        self.send(
+            worker_coordinator,
+            StartWorker(worker_id, cfg, workload, allocations,
+                self.feedback_actor, error_queue, queue_lock,
+                shared_states, self.sample_post_processor_actor)
+            )
 
     def start_feedbackActor(self, shared_states):
         self.send(
@@ -944,7 +1002,6 @@ class WorkerCoordinator:
         self.os_client_factory = os_client_factory_class
         self.workload = None
         self.test_procedure = None
-        self.metrics_store = None
         self.worker_ips = []
         self.workers = []
         # which client ids are assigned to which workers?
@@ -960,9 +1017,7 @@ class WorkerCoordinator:
         self.allocations = None
         self.raw_samples = []
         self.raw_profile_samples = []
-        self.most_recent_sample_per_client = {}
-        self.sample_post_processor = None
-        self.profile_metrics_post_processor = None
+        self.latest_progress_per_client = {}
 
         self.number_of_steps = 0
         self.currently_completed = 0
@@ -1001,41 +1056,6 @@ class WorkerCoordinator:
                 opensearch[cluster_name] = db_factory.create()
         return opensearch
 
-    def prepare_telemetry(self, opensearch, enable):
-        enabled_devices = self.config.opts("telemetry", "devices")
-        telemetry_params = self.config.opts("telemetry", "params")
-        log_root = paths.test_run_root(self.config)
-        database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
-
-        os_default = opensearch["default"]
-
-        if enable:
-            # Only enable OpenSearch-specific telemetry for OpenSearch databases
-            if database_type.lower() == "opensearch":
-                devices = [
-                    telemetry.NodeStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.ExternalEnvironmentInfo(os_default, self.metrics_store),
-                    telemetry.ClusterEnvironmentInfo(os_default, self.metrics_store),
-                    telemetry.JvmStatsSummary(os_default, self.metrics_store),
-                    telemetry.IndexStats(os_default, self.metrics_store,
-                                         index_names=[idx.name for idx in self.workload.indices] if self.workload.indices else None),
-                    telemetry.MlBucketProcessingTime(os_default, self.metrics_store),
-                    telemetry.SegmentStats(log_root, os_default),
-                    telemetry.CcrStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.RecoveryStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.TransformStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.SearchableSnapshotsStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.SegmentReplicationStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.ShardStats(telemetry_params, opensearch, self.metrics_store)
-                ]
-            else:
-                # For non-OpenSearch databases, skip OS-specific telemetry devices
-                self.logger.info("Skipping OpenSearch-specific telemetry devices for database type [%s]", database_type)
-                devices = []
-        else:
-            devices = []
-        self.telemetry = telemetry.Telemetry(enabled_devices, devices=devices)
-
     def wait_for_rest_api(self, opensearch):
         os_default = opensearch["default"]
         database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
@@ -1072,15 +1092,8 @@ class WorkerCoordinator:
         downsample_factor = int(self.config.opts(
             "reporting", "metrics.request.downsample.factor",
             mandatory=False, default_value=1))
-        self.metrics_store = metrics.metrics_store(cfg=self.config,
-                                                   workload=self.workload.name,
-                                                   test_procedure=self.test_procedure.name,
-                                                   read_only=False)
-
-        self.sample_post_processor = DefaultSamplePostprocessor(self.metrics_store,
-                                                         downsample_factor,
-                                                         self.workload.meta_data,
-                                                         self.test_procedure.meta_data)
+        self.target.sample_post_processor_actor = self.target.createActor(SamplePostProcessorActor)
+        self.target.send(self.target.sample_post_processor_actor, StartSamplePostProcessorActor(self.config, self.workload, self.test_procedure, downsample_factor))
 
         os_clients = self.create_os_clients()
 
@@ -1107,7 +1120,6 @@ class WorkerCoordinator:
 
         # Avoid issuing any requests to the target cluster when static responses are enabled. The results
         # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
-        self.prepare_telemetry(os_clients, enable=not uses_static_responses)
 
         for host in self.config.opts("worker_coordinator", "worker_ips"):
             host_config = {
@@ -1128,7 +1140,7 @@ class WorkerCoordinator:
         # ensure relative time starts when the benchmark starts.
         self.reset_relative_time()
         self.logger.info("Attaching cluster-level telemetry devices.")
-        self.telemetry.on_benchmark_start()
+        self.target.send(self.target.sample_post_processor_actor, StartTelemetry())
         self.logger.info("Cluster-level telemetry devices are now attached.")
         # if redline testing or load testing is enabled, modify the client + throughput number for the task(s)
         # target throughput + clients will then be equal to the qps passed in through --redline-test or --load-test
@@ -1196,14 +1208,16 @@ class WorkerCoordinator:
             test_run_id = None
             # we must have a metrics store connected for CPU based feedback
             cpu_max = self.config.opts("workload", "redline.max_cpu_usage", default_value=None, mandatory=False)
-            if cpu_max and isinstance(self.metrics_store, metrics.InMemoryMetricsStore):
+            metrics_store_type = metrics.metrics_store_class(self.config)
+            if cpu_max and metrics_store_type is metrics.InMemoryMetricsStore:
                 raise exceptions.SystemSetupError("CPU-based feedback requires a metrics store. You are using an in-memory metrics store")
             elif cpu_max and "node-stats" not in self.config.opts("telemetry", "devices"):
                 raise exceptions.SystemSetupError("Node stats telemetry not enabled — this is required for CPU-based redline feedback.")
-            elif cpu_max and isinstance(self.metrics_store, metrics.OsMetricsStore):
+            elif cpu_max and metrics_store_type is metrics.OsMetricsStore:
                 # pass over the index and test run ID so the feedbackActor can query the datastore
-                metrics_index = self.metrics_store.index
-                test_run_id = self.metrics_store.test_run_id
+                test_run_timestamp = time.to_iso8601(self.config.opts("system", "time.start"))
+                metrics_index = self.index_name(test_run_timestamp)
+                test_run_id = self.config.opts("system", "test_run.id")
 
             scale_step = self.config.opts("workload", "redline.scale_step", default_value=0)
             scale_down_pct = self.config.opts("workload", "redline.scale_down_pct", default_value=0)
@@ -1227,6 +1241,10 @@ class WorkerCoordinator:
 
         self.update_progress_message()
 
+    def index_name(self, test_run_timestamp):
+        ts = time.from_iso8601(test_run_timestamp)
+        return "benchmark-metrics-%04d-%02d" % (ts.year, ts.month)
+
     def joinpoint_reached(self, worker_id, worker_local_timestamp, task_allocations):
         self.currently_completed += 1
         self.workers_completed_current_step[worker_id] = (worker_local_timestamp, time.perf_counter())
@@ -1247,23 +1265,17 @@ class WorkerCoordinator:
             self.workers_completed_current_step = {}
             self.update_progress_message(task_finished=True)
             # clear per step
-            self.most_recent_sample_per_client = {}
+            self.latest_progress_per_client = {}
             self.current_step += 1
 
-            self.logger.debug("Postprocessing samples...")
-            self.post_process_samples()
             if self.finished():
-                self.telemetry.on_benchmark_stop()
+                self.target.send(self.target.sample_post_processor_actor, StopTelemetry())
                 self.logger.info("All steps completed.")
                 # Some metrics store implementations return None because no external representation is required.
                 # pylint: disable=assignment-from-none
-                m = self.metrics_store.to_externalizable(clear=True)
+                self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True, reason=ReasonForExternalizableRequest.BENCHMARK_COMPLETED))
                 self.logger.debug("Closing metrics store...")
-                self.metrics_store.close()
-                # immediately clear as we don't need it anymore and it can consume a significant amount of memory
-                self.metrics_store = None
-                self.logger.debug("Sending benchmark results...")
-                self.target.on_benchmark_complete(m)
+                self.close_metric_store()
             else:
                 self.move_to_next_task(workers_curr_step)
                 # re-enable the feedback actor for the next task if we're in redline testing
@@ -1284,8 +1296,10 @@ class WorkerCoordinator:
             waiting_period = 1.0
         # Some metrics store implementations return None because no external representation is required.
         # pylint: disable=assignment-from-none
-        m = self.metrics_store.to_externalizable(clear=True)
-        self.target.on_task_finished(m, waiting_period)
+        self.target.send(self.target.sample_post_processor_actor,
+            GetExternalizableMetricsStore(True,
+            reason=ReasonForExternalizableRequest.TASK_FINISHED, waiting_period=waiting_period)
+        )
         # Using a perf_counter here is fine also in the distributed case as we subtract it from `master_received_msg_at` making it
         # a relative instead of an absolute value.
         start_next_task = time.perf_counter() + waiting_period
@@ -1330,26 +1344,22 @@ class WorkerCoordinator:
 
     def reset_relative_time(self):
         self.logger.debug("Resetting relative time of request metrics store.")
-        self.metrics_store.reset_relative_time()
+        self.target.send(self.target.sample_post_processor_actor, ResetRelativeTimeRequest())
 
     def finished(self):
         return self.current_step == self.number_of_steps
 
     def close(self):
         self.progress_publisher.finish()
-        if self.metrics_store and self.metrics_store.opened:
-            self.metrics_store.close()
+        self.close_metric_store()
 
-    def update_samples(self, samples):
-        if len(samples) > 0:
-            self.raw_samples += samples
-            # We need to check all samples, they will be from different clients
-            for s in samples:
-                self.most_recent_sample_per_client[s.client_id] = s
+    def close_metric_store(self):
+        self.target.send(self.target.sample_post_processor_actor, CloseMetricsStore())
 
-    def update_profile_samples(self, profile_samples):
-        if len(profile_samples) > 0:
-            self.raw_profile_samples += profile_samples
+    def update_samples(self, latest_progress_per_client):
+        if len(latest_progress_per_client) > 0:
+            for client_id, task_progress in latest_progress_per_client.items():
+                self.latest_progress_per_client[client_id] = task_progress
 
     def update_progress_message(self, task_finished=False):
         if not self.quiet and self.current_step >= 0:
@@ -1358,8 +1368,8 @@ class WorkerCoordinator:
             # we only count clients which actually contribute to progress. If clients are executing tasks eternally in a parallel
             # structure, we should not count them. The reason is that progress depends entirely on the client(s) that execute the
             # task that is completing the parallel structure.
-            progress_per_client = [s.task_progress
-                                   for s in self.most_recent_sample_per_client.values() if s.task_progress is not None]
+            progress_per_client = [task_progress
+                                   for task_progress in self.latest_progress_per_client.values()]
 
             if not progress_per_client:
                 # No clients have reported.
@@ -1378,20 +1388,115 @@ class WorkerCoordinator:
             if task_finished:
                 self.progress_publisher.finish()
 
-    def post_process_samples(self):
-        # we do *not* do this here to avoid concurrent updates (actors are single-threaded) but rather to make it clear that we use
-        # only a snapshot and that new data will go to a new sample set.
-        raw_samples = self.raw_samples
-        self.raw_samples = []
-        self.sample_post_processor(raw_samples)
-        profile_samples = self.raw_profile_samples
-        self.raw_profile_samples = []
-        if len(profile_samples) > 0:
-            if self.profile_metrics_post_processor is None:
-                self.profile_metrics_post_processor = ProfileMetricsSamplePostprocessor(self.metrics_store,
-                                                                                    self.workload.meta_data,
-                                                                                    self.test_procedure.meta_data)
-            self.profile_metrics_post_processor(profile_samples)
+class SamplePostProcessorActor(actor.BenchmarkActor):
+
+    def receiveMsg_StartSamplePostProcessorActor(self, msg, sender):
+        self.config = msg.config
+        self.metrics_store = metrics.metrics_store(cfg=self.config,
+                                                   workload=msg.workload.name,
+                                                   test_procedure=msg.test_procedure.name,
+                                                   read_only=False)
+        self.sample_post_processor = DefaultSamplePostprocessor(self.metrics_store,
+                                                         msg.downsample_factor,
+                                                         msg.workload.meta_data,
+                                                         msg.test_procedure.meta_data)
+        self.profile_metrics_post_processor = ProfileMetricsSamplePostprocessor(self.metrics_store,
+                                                                            msg.workload.meta_data,
+                                                                            msg.test_procedure.meta_data)
+        os_clients = self.create_os_clients()
+        uses_static_responses = self.config.opts("client", "options").uses_static_responses
+
+        # Avoid issuing any requests to the target cluster when static responses are enabled. The results
+        # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
+        self.prepare_telemetry(os_clients, enable=not uses_static_responses)
+        self.worker_coordinator_actor = sender
+
+    def receiveMsg_ProcessSamples(self, msg, sender):
+        if msg.samples:
+            self.sample_post_processor(msg.samples)
+        if msg.profile_samples:
+            self.profile_metrics_post_processor(msg.profile_samples)
+        if msg.joinpoint_reached:
+            self.send(self.worker_coordinator_actor, msg.joinpoint_reached)
+
+    def receiveMsg_StartTelemetry(self, msg, sender):
+        self.telemetry.on_benchmark_start()
+
+    def receiveMsg_StopTelemetry(self, msg, sender):
+        self.telemetry.on_benchmark_stop()
+
+    def receiveMsg_CloseMetricsStore(self, msg, sender):
+        self.close()
+
+    def receiveMsg_GetExternalizableMetricsStore(self, msg, sender):
+        # Some metrics store implementations return None because no external representation is required.
+        # pylint: disable=assignment-from-none
+        metric_results = self.metrics_store.to_externalizable(clear=msg.clear)
+        if msg.reason == ReasonForExternalizableRequest.TASK_FINISHED:
+            self.send(self.worker_coordinator_actor, TaskFinished(metric_results, msg.waiting_period))
+        elif msg.reason == ReasonForExternalizableRequest.BENCHMARK_COMPLETED:
+            self.logger.debug("Sending benchmark results...")
+            self.send(self.worker_coordinator_actor, BenchmarkComplete(metric_results))
+
+    def receiveMsg_ResetRelativeTimeRequest(self, msg, sender):
+        self.metrics_store.reset_relative_time()
+
+    def receiveMsg_ActorExitRequest(self, msg, sender):
+        self.logger.info("SamplePostProcessorActor has received ActorExitRequest and will close the metrics store.")
+        self.close()
+
+    def close(self):
+        if self.metrics_store and self.metrics_store.opened:
+            self.metrics_store.close()
+        self.metrics_store = None
+        self.logger.info("Metrics store close request has been processed.")
+
+    def create_os_clients(self):
+        all_hosts = self.config.opts("client", "hosts").all_hosts
+        opensearch = {}
+        for cluster_name, cluster_hosts in all_hosts.items():
+            all_client_options = self.config.opts("client", "options").all_client_options
+            cluster_client_options = dict(all_client_options[cluster_name])
+            # Use retries to avoid aborts on long living connections for telemetry devices
+            cluster_client_options["retry-on-timeout"] = True
+            opensearch[cluster_name] = client.OsClientFactory(cluster_hosts, cluster_client_options).create()
+        return opensearch
+
+    def prepare_telemetry(self, opensearch, enable):
+        enabled_devices = self.config.opts("telemetry", "devices")
+        telemetry_params = self.config.opts("telemetry", "params")
+        log_root = paths.test_run_root(self.config)
+        database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
+
+        os_default = opensearch["default"]
+
+        if enable:
+            # Only enable OpenSearch-specific telemetry for OpenSearch databases
+            if database_type.lower() == "opensearch":
+                devices = [
+                    telemetry.NodeStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.ExternalEnvironmentInfo(os_default, self.metrics_store),
+                    telemetry.ClusterEnvironmentInfo(os_default, self.metrics_store),
+                    telemetry.JvmStatsSummary(os_default, self.metrics_store),
+                    telemetry.IndexStats(os_default, self.metrics_store,
+                                         index_names=[idx.name for idx in self.workload.indices] if self.workload.indices else None),
+                    telemetry.MlBucketProcessingTime(os_default, self.metrics_store),
+                    telemetry.SegmentStats(log_root, os_default),
+                    telemetry.CcrStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.RecoveryStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.TransformStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.SearchableSnapshotsStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.SegmentReplicationStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.ShardStats(telemetry_params, opensearch, self.metrics_store)
+                ]
+            else:
+                # For non-OpenSearch databases, skip OS-specific telemetry devices
+                self.logger.info("Skipping OpenSearch-specific telemetry devices for database type [%s]", database_type)
+                devices = []
+        else:
+            devices = []
+        self.telemetry = telemetry.Telemetry(enabled_devices, devices=devices)
+
 
 class SamplePostprocessor():
     """
@@ -1714,6 +1819,7 @@ class Worker(actor.BenchmarkActor):
         self.feedback_actor = None
         self.error_queue = None
         self.queue_lock = None
+        self.sample_post_processor_actor = None
 
     @actor.no_retry("worker")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StartWorker(self, msg, sender):
@@ -1732,6 +1838,7 @@ class Worker(actor.BenchmarkActor):
         self.shared_states = msg.shared_states
         self.error_queue = msg.error_queue
         self.queue_lock = msg.queue_lock
+        self.sample_post_processor_actor = msg.sample_post_processor_actor
         # we need to wake up more often in test mode
         if self.config.opts("workload", "test.mode.enabled"):
             self.wakeup_interval = 0.5
@@ -1843,12 +1950,11 @@ class Worker(actor.BenchmarkActor):
             # clients that don't execute tasks don't need to care about waiting
             if self.executor_future is not None:
                 self.executor_future.result()
-            self.send_samples()
+            self.send_samples(joinpoint_reached=JoinPointReached(self.worker_id, task_allocations))
             self.cancel.clear()
             self.complete.clear()
             self.executor_future = None
             self.sampler = None
-            self.send(self.master, JoinPointReached(self.worker_id, task_allocations))
         else:
             # There may be a situation where there are more (parallel) tasks than workers. If we were asked to complete all tasks, we not
             # only need to complete actively running tasks but actually all scheduled tasks until we reach the next join point.
@@ -1875,11 +1981,19 @@ class Worker(actor.BenchmarkActor):
         self.logger.debug("Worker[%d] is at task index [%d].", self.worker_id, self.current_task_index)
         return current
 
-    def send_samples(self):
+    def send_samples(self, joinpoint_reached=None):
         if self.sampler:
             samples = self.sampler.samples
-            if len(samples) > 0:
-                self.send(self.master, UpdateSamples(self.worker_id, samples, self.profile_sampler.samples))
+            profile_samples = self.profile_sampler.samples
+            # Map client ids to their latest task progress, e.g. {0: (0.5, "%")}.
+            latest_progress_per_client = {}
+            for s in samples:
+                if s.task_progress is not None:
+                    latest_progress_per_client[s.client_id] = s.task_progress
+            if latest_progress_per_client:
+                self.send(self.master, UpdateProgressSamples(latest_progress_per_client))
+            if samples or profile_samples or joinpoint_reached:
+                self.send(self.sample_post_processor_actor, ProcessSamples(samples, profile_samples, joinpoint_reached=joinpoint_reached))
             return samples
         return None
 
