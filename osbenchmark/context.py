@@ -50,7 +50,8 @@ class RequestContextManager:
         client_end = self.client_request_end
         if client_end is None or "request_end_list" not in self.ctx:
             return None
-        return max((value for value in self.ctx["request_end_list"] if value < client_end))
+        request_ends = [value for value in self.ctx["request_end_list"] if value is not None and value < client_end]
+        return max(request_ends) if request_ends else None
 
     @property
     def client_request_start(self):
@@ -62,18 +63,21 @@ class RequestContextManager:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         # propagate earliest request start and most recent request end to parent
-        client_request_start = self.client_request_start
-        client_request_end = self.client_request_end
-        request_start = self.request_start
-        request_end = self.request_end
-        self.ctx_holder.restore_context(self.token)
-        # don't attempt to restore these values on the top-level context as they don't exist
-        if self.token.old_value != contextvars.Token.MISSING:
-            self.ctx_holder.update_request_start(request_start)
-            self.ctx_holder.update_request_end(request_end)
-            self.ctx_holder.update_client_request_start(client_request_start)
-            self.ctx_holder.update_client_request_end(client_request_end)
-        self.token = None
+        try:
+            client_request_start = self.client_request_start
+            client_request_end = self.client_request_end
+            request_start = self.request_start
+            request_end = self.request_end
+            # don't attempt to restore these values on the top-level context as they don't exist
+            if self.token.old_value != contextvars.Token.MISSING:
+                self.ctx_holder.update_request_start(request_start)
+                self.ctx_holder.update_request_end(request_end)
+                self.ctx_holder.update_client_request_start(client_request_start)
+                self.ctx_holder.update_client_request_end(client_request_end)
+        finally:
+            if self.token is not None:
+                self.ctx_holder.restore_context(self.token)
+                self.token = None
         return False
 
 
@@ -98,6 +102,8 @@ class RequestContextHolder:
 
     @classmethod
     def update_request_start(cls, new_request_start):
+        if new_request_start is None:
+            return
         meta = cls.request_context.get()
         # this can happen if multiple requests are sent on the wire for one logical request (e.g. scrolls)
         if "request_start" not in meta and "client_request_start" in meta:
@@ -105,6 +111,8 @@ class RequestContextHolder:
 
     @classmethod
     def update_request_end(cls, new_request_end):
+        if new_request_end is None:
+            return
         meta = cls.request_context.get()
         if "request_end_list" not in meta:
             meta["request_end_list"] = []
@@ -112,12 +120,16 @@ class RequestContextHolder:
 
     @classmethod
     def update_client_request_start(cls, new_client_request_start):
+        if new_client_request_start is None:
+            return
         meta = cls.request_context.get()
         if "client_request_start" not in meta:
             meta["client_request_start"] = new_client_request_start
 
     @classmethod
     def update_client_request_end(cls, new_client_request_end):
+        if new_client_request_end is None:
+            return
         meta = cls.request_context.get()
         meta["client_request_end"] = new_client_request_end
 

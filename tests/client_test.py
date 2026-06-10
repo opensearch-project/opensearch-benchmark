@@ -504,6 +504,45 @@ class RequestContextManagerTests(TestCase):
         # nested request should only cover nested duration
         self.assertAlmostEqual(nested_duration, 0.1, delta=0.05)
 
+    @run_async
+    async def test_nested_context_without_request_end_preserves_original_exception(self):
+        test_client = client.RequestContextHolder()
+        with self.assertRaisesRegex(RuntimeError, "runner failed"):
+            async with test_client.new_request_context():
+                test_client.on_client_request_start()
+                async with test_client.new_request_context():
+                    test_client.on_client_request_start()
+                    raise RuntimeError("runner failed")
+
+    def test_request_end_ignores_none_values(self):
+        test_client = client.RequestContextHolder()
+        ctx, token = test_client.init_request_context()
+        try:
+            ctx["client_request_end"] = 2.0
+            ctx["request_end_list"] = [None, 1.0]
+            manager = test_client.new_request_context()
+            manager.ctx = ctx
+
+            self.assertEqual(1.0, manager.request_end)
+        finally:
+            test_client.restore_context(token)
+
+    def test_update_end_methods_ignore_none(self):
+        test_client = client.RequestContextHolder()
+        ctx, token = test_client.init_request_context()
+        try:
+            test_client.update_request_start(None)
+            test_client.update_request_end(None)
+            test_client.update_client_request_start(None)
+            test_client.update_client_request_end(None)
+
+            self.assertNotIn("request_start", ctx)
+            self.assertNotIn("request_end_list", ctx)
+            self.assertNotIn("client_request_start", ctx)
+            self.assertNotIn("client_request_end", ctx)
+        finally:
+            test_client.restore_context(token)
+
 
 class RestLayerTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
