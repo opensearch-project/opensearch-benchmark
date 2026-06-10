@@ -31,7 +31,6 @@ from copy import deepcopy
 from unittest import TestCase, mock
 
 import opensearchpy
-import pytest
 import urllib3.exceptions
 
 from osbenchmark import client, exceptions, doc_link
@@ -484,19 +483,22 @@ class OsClientFactoryTests(TestCase):
 
 
 class RequestContextManagerTests(TestCase):
-    @pytest.mark.skip(reason="latency is system-dependent")
     @run_async
     async def test_propagates_nested_context(self):
         test_client = client.RequestContextHolder()
         async with test_client.new_request_context() as top_level_ctx:
+            test_client.on_client_request_start()
             test_client.on_request_start()
             await asyncio.sleep(0.1)
             async with test_client.new_request_context() as nested_ctx:
+                test_client.on_client_request_start()
                 test_client.on_request_start()
                 await asyncio.sleep(0.1)
                 test_client.on_request_end()
+                test_client.on_client_request_end()
                 nested_duration = nested_ctx.request_end - nested_ctx.request_start
             test_client.on_request_end()
+            test_client.on_client_request_end()
             top_level_duration = top_level_ctx.request_end - top_level_ctx.request_start
 
         # top level request should cover total duration
