@@ -63,13 +63,17 @@ class RequestContextManager:
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         # propagate earliest request start and most recent request end to parent
+        client_request_start = self.client_request_start
+        client_request_end = self.client_request_end
+        request_start = self.request_start
+        request_end = self.request_end
+        self.ctx_holder.restore_context(self.token)
         # don't attempt to restore these values on the top-level context as they don't exist
         if self.token.old_value != contextvars.Token.MISSING:
-            self.ctx_holder.update_request_start(self.request_start)
-            self.ctx_holder.update_request_end(self.request_end)
-            self.ctx_holder.update_client_request_start(self.client_request_start)
-            self.ctx_holder.update_client_request_end(self.client_request_end)
-        self.ctx_holder.restore_context(self.token)
+            self.ctx_holder.update_client_request_start(client_request_start)
+            self.ctx_holder.update_request_start(request_start)
+            self.ctx_holder.update_request_end(request_end)
+            self.ctx_holder.update_client_request_end(client_request_end)
         self.token = None
         return False
 

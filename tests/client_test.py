@@ -545,6 +545,21 @@ class RequestContextManagerTests(TestCase):
         finally:
             test_client.restore_context(token)
 
+    @run_async
+    async def test_nested_context_propagates_to_parent(self):
+        test_client = client.RequestContextHolder()
+        async with test_client.new_request_context() as top_level_ctx:
+            async with test_client.new_request_context():
+                test_client.on_client_request_start()
+                test_client.on_request_start()
+                await asyncio.sleep(0.01)
+                test_client.on_request_end()
+                test_client.on_client_request_end()
+            self.assertIsNotNone(top_level_ctx.client_request_start)
+            self.assertIsNotNone(top_level_ctx.client_request_end)
+            self.assertIsNotNone(top_level_ctx.request_start)
+            self.assertIsNotNone(top_level_ctx.request_end)
+
 
 class RestLayerTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
