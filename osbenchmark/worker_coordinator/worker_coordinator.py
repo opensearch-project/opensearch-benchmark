@@ -1215,6 +1215,8 @@ class WorkerCoordinator:
                 raise exceptions.SystemSetupError("Node stats telemetry not enabled — this is required for CPU-based redline feedback.")
             elif cpu_max and metrics_store_type is metrics.OsMetricsStore:
                 # pass over the index and test run ID so the feedbackActor can query the datastore
+                self.logger.info("Time start before conversion: {}", self.config.opts("system", "time.start"))
+                self.logger.info("Time start after conversion: {}", time.to_iso8601(self.config.opts("system", "time.start")))
                 test_run_timestamp = time.to_iso8601(self.config.opts("system", "time.start"))
                 metrics_index = self.index_name(test_run_timestamp)
                 test_run_id = self.config.opts("system", "test_run.id")
@@ -1368,8 +1370,7 @@ class WorkerCoordinator:
             # we only count clients which actually contribute to progress. If clients are executing tasks eternally in a parallel
             # structure, we should not count them. The reason is that progress depends entirely on the client(s) that execute the
             # task that is completing the parallel structure.
-            progress_per_client = [task_progress
-                                   for task_progress in self.latest_progress_per_client.values()]
+            progress_per_client = list(self.latest_progress_per_client.values())
 
             if not progress_per_client:
                 # No clients have reported.
