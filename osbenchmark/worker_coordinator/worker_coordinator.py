@@ -1410,6 +1410,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
         self.prepare_telemetry(os_clients, enable=not uses_static_responses)
         self.worker_coordinator_actor = sender
+        self.workload = msg.workload
 
     def receiveMsg_ProcessSamples(self, msg, sender):
         if msg.samples:
