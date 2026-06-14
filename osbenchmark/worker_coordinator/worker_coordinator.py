@@ -666,7 +666,9 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
     def receiveMsg_BenchmarkCancelled(self, msg, sender):
         self.logger.info("Main worker_coordinator received a notification that the benchmark has been cancelled.")
         self.coordinator.close()
-        self.send(self.sample_post_processor_actor, thespian.actors.ActorExitRequest())
+        if hasattr(self, "sample_post_processor_actor"):
+            self.logger.info("Shutting down SamplePostProcessorActor due to benchmark cancellation.")
+            self.send(self.sample_post_processor_actor, thespian.actors.ActorExitRequest())
         # shut down FeedbackActor if it's active
         # we do this manually in the workercoordinator since it's fully responsible for the feedback actor
         if hasattr(self, "feedback_actor"):
@@ -1015,8 +1017,6 @@ class WorkerCoordinator:
         self.progress_counter = 0
         self.quiet = False
         self.allocations = None
-        self.raw_samples = []
-        self.raw_profile_samples = []
         self.latest_progress_per_client = {}
 
         self.number_of_steps = 0
@@ -1391,6 +1391,7 @@ class WorkerCoordinator:
 class SamplePostProcessorActor(actor.BenchmarkActor):
 
     def receiveMsg_StartSamplePostProcessorActor(self, msg, sender):
+        self.workload = msg.workload
         self.config = msg.config
         self.metrics_store = metrics.metrics_store(cfg=self.config,
                                                    workload=msg.workload.name,
@@ -1410,7 +1411,6 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
         self.prepare_telemetry(os_clients, enable=not uses_static_responses)
         self.worker_coordinator_actor = sender
-        self.workload = msg.workload
 
     def receiveMsg_ProcessSamples(self, msg, sender):
         if msg.samples:
