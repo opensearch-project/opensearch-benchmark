@@ -1815,6 +1815,7 @@ class Worker(actor.BenchmarkActor):
         self.complete = threading.Event()
         self.executor_future = None
         self.sampler = None
+        self.profile_sampler = None
         self.start_driving = False
         self.wakeup_interval = Worker.WAKEUP_INTERVAL_SECONDS
         self.sample_queue_size = None
@@ -1987,20 +1988,25 @@ class Worker(actor.BenchmarkActor):
     def send_samples(self, joinpoint_reached=None):
         if self.sampler:
             samples = self.sampler.samples
+        else:
+            samples = []
+        if self.profile_sampler:
             profile_samples = self.profile_sampler.samples
-            # Map client ids to their latest task progress, e.g. {0: (0.5, "%")}.
-            latest_progress_per_client = {}
-            for s in samples:
-                if s.task_progress is not None:
-                    latest_progress_per_client[s.client_id] = s.task_progress
-            if latest_progress_per_client:
-                self.send(self.master, UpdateProgressSamples(latest_progress_per_client))
-            if samples or profile_samples or joinpoint_reached:
-                self.logger.debug("Worker[%d] is sending [%d] samples and [%d] profile samples to post processor. Join point reached: %s",
-                                 self.worker_id, len(samples), len(profile_samples), str(joinpoint_reached))
-                self.send(self.sample_post_processor_actor, ProcessSamples(samples, profile_samples, joinpoint_reached=joinpoint_reached))
-            return samples
-        return None
+        else:
+            profile_samples = []
+
+        # Map client ids to their latest task progress, e.g. {0: (0.5, "%")}.
+        latest_progress_per_client = {}
+        for s in samples:
+            if s.task_progress is not None:
+                latest_progress_per_client[s.client_id] = s.task_progress
+        if latest_progress_per_client:
+            self.send(self.master, UpdateProgressSamples(latest_progress_per_client))
+        if samples or profile_samples or joinpoint_reached:
+            self.logger.debug("Worker[%d] is sending [%d] samples and [%d] profile samples to post processor. Join point reached: %s",
+                              self.worker_id, len(samples), len(profile_samples), str(joinpoint_reached))
+            self.send(self.sample_post_processor_actor, ProcessSamples(samples, profile_samples, joinpoint_reached=joinpoint_reached))
+        return samples
 
 
 class Sampler:

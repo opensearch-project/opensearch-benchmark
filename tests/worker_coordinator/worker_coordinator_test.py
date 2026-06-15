@@ -2744,6 +2744,26 @@ class ProgressSampleUpdateTests(TestCase):
         self.assertEqual([], msg.profile_samples)
         self.assertEqual(joinpoint_reached, msg.joinpoint_reached)
 
+    def test_worker_sends_initial_joinpoint_to_post_processor_without_samplers(self):
+        worker = worker_coordinator.Worker()
+        worker.worker_id = 3
+        worker.send = mock.MagicMock()
+        worker.sample_post_processor_actor = mock.Mock(name="sample_post_processor_actor")
+        worker.sampler = None
+        worker.profile_sampler = None
+        joinpoint_reached = mock.MagicMock()
+
+        returned_samples = worker.send_samples(joinpoint_reached=joinpoint_reached)
+
+        self.assertEqual([], returned_samples)
+        worker.send.assert_called_once()
+        target, msg = worker.send.call_args.args
+        self.assertEqual(worker.sample_post_processor_actor, target)
+        self.assertIsInstance(msg, worker_coordinator.ProcessSamples)
+        self.assertEqual([], msg.samples)
+        self.assertEqual([], msg.profile_samples)
+        self.assertEqual(joinpoint_reached, msg.joinpoint_reached)
+
     def test_post_processor_forwarded_joinpoint_reaches_coordinator_actor(self):
         coordinator_actor = worker_coordinator.WorkerCoordinatorActor()
         coordinator_actor.coordinator = mock.MagicMock()
