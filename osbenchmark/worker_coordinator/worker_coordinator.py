@@ -727,6 +727,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_JoinPointReached(self, msg, sender):
+        self.logger.info("Worker [%s] has reached join point for task [%s].", msg.worker_id, msg.task)
         self.coordinator.joinpoint_reached(msg.worker_id, msg.worker_timestamp, msg.task)
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
@@ -1419,6 +1420,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         if msg.profile_samples:
             self.profile_metrics_post_processor(msg.profile_samples)
         if msg.joinpoint_reached:
+            self.logger.debug("Join point reached message received in SamplePostProcessorActor. Notifying WorkerCoordinatorActor...")
             self.send(self.worker_coordinator_actor, msg.joinpoint_reached)
 
     def receiveMsg_StartTelemetry(self, msg, sender):
@@ -1991,6 +1993,8 @@ class Worker(actor.BenchmarkActor):
             if latest_progress_per_client:
                 self.send(self.master, UpdateProgressSamples(latest_progress_per_client))
             if samples or profile_samples or joinpoint_reached:
+                self.logger.debug("Worker[%d] is sending [%d] samples and [%d] profile samples to post processor. Join point reached: %s",
+                                 self.worker_id, len(samples), len(profile_samples), str(joinpoint_reached))
                 self.send(self.sample_post_processor_actor, ProcessSamples(samples, profile_samples, joinpoint_reached=joinpoint_reached))
             return samples
         return None
