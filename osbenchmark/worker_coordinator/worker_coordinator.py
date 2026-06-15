@@ -1216,11 +1216,12 @@ class WorkerCoordinator:
                 raise exceptions.SystemSetupError("Node stats telemetry not enabled — this is required for CPU-based redline feedback.")
             elif cpu_max and metrics_store_type is metrics.OsMetricsStore:
                 # pass over the index and test run ID so the feedbackActor can query the datastore
-                self.logger.info("Time start before conversion: {}", self.config.opts("system", "time.start"))
-                self.logger.info("Time start after conversion: {}", time.to_iso8601(self.config.opts("system", "time.start")))
+                self.logger.info("Time start before conversion: %s", self.config.opts("system", "time.start"))
+                self.logger.info("Time start after conversion: %s", time.to_iso8601(self.config.opts("system", "time.start")))
                 test_run_timestamp = time.to_iso8601(self.config.opts("system", "time.start"))
                 metrics_index = self.index_name(test_run_timestamp)
                 test_run_id = self.config.opts("system", "test_run.id")
+                self.logger.info("New Index name [%s], new test run id [%s]", metrics_index, test_run_id)
 
             scale_step = self.config.opts("workload", "redline.scale_step", default_value=0)
             scale_down_pct = self.config.opts("workload", "redline.scale_down_pct", default_value=0)
@@ -1400,6 +1401,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
                                                    workload=msg.workload.name,
                                                    test_procedure=msg.test_procedure.name,
                                                    read_only=False)
+        self.logger.info("Metric Store true index name [%s], true test run name [%s]", self.metrics_store.index, self.metrics_store.test_run_id)
         self.sample_post_processor = DefaultSamplePostprocessor(self.metrics_store,
                                                          msg.downsample_factor,
                                                          msg.workload.meta_data,
