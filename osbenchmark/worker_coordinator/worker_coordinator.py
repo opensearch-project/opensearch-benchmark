@@ -1477,6 +1477,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         if enable:
             # Only enable OpenSearch-specific telemetry for OpenSearch databases
             if database_type.lower() == "opensearch":
+                self.logger.info("Enabling OpenSearch-specific telemetry devices for database type [%s]", database_type)
                 devices = [
                     telemetry.NodeStats(telemetry_params, opensearch, self.metrics_store),
                     telemetry.ExternalEnvironmentInfo(os_default, self.metrics_store),
@@ -1500,6 +1501,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         else:
             devices = []
         self.telemetry = telemetry.Telemetry(enabled_devices, devices=devices)
+        self.logger.info("Finished preparing telemetry devices. Enabled devices: %s", enabled_devices)
 
 
 class SamplePostprocessor():
