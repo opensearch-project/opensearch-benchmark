@@ -1242,6 +1242,7 @@ class WorkerCoordinator:
             ))
             self.target.start_feedbackActor(self.shared_client_dict)
 
+        self.logger.info("All workers started!!!!! Benchmark is now running.")
         self.update_progress_message()
 
     def index_name(self, test_run_timestamp):
