@@ -1401,7 +1401,8 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
                                                    workload=msg.workload.name,
                                                    test_procedure=msg.test_procedure.name,
                                                    read_only=False)
-        self.logger.info("Metric Store true index name [%s], true test run name [%s]", self.metrics_store.index, self.metrics_store.test_run_id)
+        if metrics.metrics_store_class(self.config) is metrics.OsMetricsStore:
+            self.logger.info("Metric Store true index name [%s], true test run name [%s]", self.metrics_store.index, self.metrics_store.test_run_id)
         self.sample_post_processor = DefaultSamplePostprocessor(self.metrics_store,
                                                          msg.downsample_factor,
                                                          msg.workload.meta_data,
