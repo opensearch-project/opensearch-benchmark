@@ -1210,6 +1210,7 @@ class WorkerCoordinator:
             # we must have a metrics store connected for CPU based feedback
             cpu_max = self.config.opts("workload", "redline.max_cpu_usage", default_value=None, mandatory=False)
             metrics_store_type = metrics.metrics_store_class(self.config)
+            self.logger.info("Metrics store type is %s!!!", metrics_store_type)
             if cpu_max and metrics_store_type is metrics.InMemoryMetricsStore:
                 raise exceptions.SystemSetupError("CPU-based feedback requires a metrics store. You are using an in-memory metrics store")
             elif cpu_max and "node-stats" not in self.config.opts("telemetry", "devices"):
