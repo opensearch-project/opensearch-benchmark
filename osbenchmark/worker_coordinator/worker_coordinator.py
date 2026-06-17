@@ -46,7 +46,7 @@ from enum import Enum
 import thespian.actors
 
 from osbenchmark.utils import opts
-from osbenchmark import time, actor, config, exceptions, metrics, workload, client, paths, PROGRAM_NAME, telemetry
+from osbenchmark import time as osb_time, actor, config, exceptions, metrics, workload, client, paths, PROGRAM_NAME, telemetry
 from osbenchmark.worker_coordinator import runner, scheduler
 from osbenchmark.database.factory import DatabaseClientFactory
 from osbenchmark.database.registry import DatabaseType, get_client_factory
@@ -1218,8 +1218,8 @@ class WorkerCoordinator:
             elif cpu_max and metrics_store_type is metrics.OsMetricsStore:
                 # pass over the index and test run ID so the feedbackActor can query the datastore
                 self.logger.info("Time start before conversion: %s", self.config.opts("system", "time.start"))
-                self.logger.info("Time start after conversion: %s", time.to_iso8601(self.config.opts("system", "time.start")))
-                test_run_timestamp = time.to_iso8601(self.config.opts("system", "time.start"))
+                self.logger.info("Time start after conversion: %s", osb_time.to_iso8601(self.config.opts("system", "time.start")))
+                test_run_timestamp = osb_time.to_iso8601(self.config.opts("system", "time.start"))
                 metrics_index = self.index_name(test_run_timestamp)
                 test_run_id = self.config.opts("system", "test_run.id")
                 self.logger.info("New Index name [%s], new test run id [%s]", metrics_index, test_run_id)
