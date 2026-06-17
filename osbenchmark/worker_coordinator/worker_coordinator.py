@@ -1248,7 +1248,7 @@ class WorkerCoordinator:
         self.update_progress_message()
 
     def index_name(self, test_run_timestamp):
-        ts = time.from_iso8601(test_run_timestamp)
+        ts = osb_time.from_iso8601(test_run_timestamp)
         return "benchmark-metrics-%04d-%02d" % (ts.year, ts.month)
 
     def joinpoint_reached(self, worker_id, worker_local_timestamp, task_allocations):
