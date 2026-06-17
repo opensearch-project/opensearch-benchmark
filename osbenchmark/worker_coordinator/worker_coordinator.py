@@ -46,7 +46,7 @@ from enum import Enum
 import thespian.actors
 
 from osbenchmark.utils import opts
-from osbenchmark import actor, config, exceptions, metrics, workload, client, paths, PROGRAM_NAME, telemetry
+from osbenchmark import time, actor, config, exceptions, metrics, workload, client, paths, PROGRAM_NAME, telemetry
 from osbenchmark.worker_coordinator import runner, scheduler
 from osbenchmark.database.factory import DatabaseClientFactory
 from osbenchmark.database.registry import DatabaseType, get_client_factory
