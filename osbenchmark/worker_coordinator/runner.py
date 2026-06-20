@@ -1698,18 +1698,10 @@ class Query(Runner):
                     return 1
 
                 if enable_top_1_recall:
-                    min_num_of_results = 1
+                    return 1.0 if predictions and predictions[0] in truth_set else 0.0
 
-                for j in range(min_num_of_results):
-                    if j >= len(predictions):
-                        self.logger.info("No more neighbors in prediction to compare against ground truth.\n"
-                                         "Total neighbors in prediction: [%d].\n"
-                                         "Total neighbors in ground truth: [%d]", len(predictions), min_num_of_results)
-                        break
-                    if predictions[j] in truth_set:
-                        correct += 1.0
-
-                return correct / min_num_of_results
+                correct = len(set(predictions) & set(truth_set))
+                return correct / len(truth_set)
 
             def _set_initial_recall_values(params: dict, result: dict) -> None:
                 # Add recall@k and recall@1 to the initial result only if k is present in the params and calculate_recall is true
