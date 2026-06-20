@@ -1279,9 +1279,9 @@ class WorkerCoordinator:
                 self.logger.info("All steps completed.")
                 # Some metrics store implementations return None because no external representation is required.
                 # pylint: disable=assignment-from-none
+                # Keep final externalization and close in one SamplePostProcessorActor mailbox turn so all final docs
+                # are flushed before BenchmarkComplete is sent.
                 self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True, reason=ReasonForExternalizableRequest.BENCHMARK_COMPLETED))
-                self.logger.debug("Closing metrics store...")
-                self.close_metric_store()
             else:
                 self.move_to_next_task(workers_curr_step)
                 # re-enable the feedback actor for the next task if we're in redline testing
@@ -1394,8 +1394,18 @@ class WorkerCoordinator:
                 self.progress_publisher.finish()
 
 class SamplePostProcessorActor(actor.BenchmarkActor):
+    """
+    Actor responsible for processing samples received from workers and feeding them into the metrics store. It also manages cluster-level telemetry devices.
+    """
+    def __init__(self):
+        super().__init__()
+        self.closed = False
+        self.telemetry_started = False
+        self.metrics_store = None
+        self.telemetry = None
 
     def receiveMsg_StartSamplePostProcessorActor(self, msg, sender):
+        self.closed = False
         self.workload = msg.workload
         self.config = msg.config
         self.metrics_store = metrics.metrics_store(cfg=self.config,
@@ -1420,6 +1430,10 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         self.worker_coordinator_actor = sender
 
     def receiveMsg_ProcessSamples(self, msg, sender):
+        if self.closed:
+            # Cancellation can race with in-flight samples from workers. Once closed, cancelled-run samples are best-effort.
+            self.logger.debug("Ignoring samples received after SamplePostProcessorActor has closed.")
+            return
         if msg.samples:
             self.sample_post_processor(msg.samples)
         if msg.profile_samples:
@@ -1430,20 +1444,27 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
 
     def receiveMsg_StartTelemetry(self, msg, sender):
         self.telemetry.on_benchmark_start()
+        self.telemetry_started = True
 
     def receiveMsg_StopTelemetry(self, msg, sender):
-        self.telemetry.on_benchmark_stop()
+        self.stop_telemetry()
 
     def receiveMsg_CloseMetricsStore(self, msg, sender):
         self.close()
 
     def receiveMsg_GetExternalizableMetricsStore(self, msg, sender):
+        if self.closed:
+            self.logger.debug("Ignoring externalizable metrics store request after SamplePostProcessorActor has closed.")
+            return
         # Some metrics store implementations return None because no external representation is required.
         # pylint: disable=assignment-from-none
         metric_results = self.metrics_store.to_externalizable(clear=msg.clear)
         if msg.reason == ReasonForExternalizableRequest.TASK_FINISHED:
             self.send(self.worker_coordinator_actor, TaskFinished(metric_results, msg.waiting_period))
         elif msg.reason == ReasonForExternalizableRequest.BENCHMARK_COMPLETED:
+            # OsMetricsStore persists directly and returns None above; close() performs the final flush.
+            self.logger.debug("Closing metrics store...")
+            self.close()
             self.logger.debug("Sending benchmark results...")
             self.send(self.worker_coordinator_actor, BenchmarkComplete(metric_results))
 
@@ -1455,10 +1476,24 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         self.close()
 
     def close(self):
+        if self.closed:
+            self.logger.info("Metrics store close request has already been processed.")
+            return
+        # Close can be reached through normal completion, cancellation, or ActorExitRequest.
+        self.stop_telemetry()
         if self.metrics_store and self.metrics_store.opened:
             self.metrics_store.close()
         self.metrics_store = None
+        self.closed = True
         self.logger.info("Metrics store close request has been processed.")
+
+    def stop_telemetry(self):
+        if self.telemetry_started and self.telemetry:
+            self.telemetry_started = False
+            try:
+                self.telemetry.on_benchmark_stop()
+            except BaseException:
+                self.logger.exception("Could not stop telemetry cleanly.")
 
     def create_os_clients(self):
         all_hosts = self.config.opts("client", "hosts").all_hosts

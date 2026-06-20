@@ -2531,6 +2531,22 @@ class SamplePostProcessorActorTests(TestCase):
         self.actor.sample_post_processor.assert_called_once_with([1, 2])
         self.actor.profile_metrics_post_processor.assert_called_once_with([3])
 
+    def test_receive_process_samples_ignores_late_samples_after_close(self):
+        self.actor.closed = True
+        self.actor.sample_post_processor = mock.MagicMock()
+        self.actor.profile_metrics_post_processor = mock.MagicMock()
+
+        msg = worker_coordinator.ProcessSamples(
+            samples=[1, 2],
+            profile_samples=[3],
+            joinpoint_reached=mock.MagicMock()
+        )
+
+        self.actor.receiveMsg_ProcessSamples(msg, sender=None)
+
+        self.actor.sample_post_processor.assert_not_called()
+        self.actor.profile_metrics_post_processor.assert_not_called()
+
     def test_receive_process_samples_skips_when_none(self):
         self.actor.sample_post_processor = mock.MagicMock()
         self.actor.profile_metrics_post_processor = mock.MagicMock()
@@ -2578,12 +2594,14 @@ class SamplePostProcessorActorTests(TestCase):
 
     def test_receive_stop_telemetry(self):
         self.actor.telemetry = mock.MagicMock()
+        self.actor.telemetry_started = True
 
         msg = worker_coordinator.StopTelemetry()
 
         self.actor.receiveMsg_StopTelemetry(msg, sender=None)
 
         self.actor.telemetry.on_benchmark_stop.assert_called_once()
+        self.assertFalse(self.actor.telemetry_started)
 
     def test_close_metrics_store_via_message(self):
         self.actor.metrics_store = mock.MagicMock()
@@ -2602,6 +2620,42 @@ class SamplePostProcessorActorTests(TestCase):
         self.actor.receiveMsg_ActorExitRequest(mock.MagicMock(), sender=None)
 
         self.actor.metrics_store.close.assert_called_once()
+
+    def test_close_is_idempotent(self):
+        metrics_store = mock.MagicMock()
+        metrics_store.opened = True
+        self.actor.metrics_store = metrics_store
+
+        self.actor.close()
+        self.actor.close()
+
+        metrics_store.close.assert_called_once()
+
+    def test_close_stops_running_telemetry_before_closing_metrics_store(self):
+        calls = []
+        self.actor.telemetry = mock.MagicMock()
+        self.actor.telemetry.on_benchmark_stop.side_effect = lambda: calls.append("telemetry")
+        self.actor.telemetry_started = True
+        self.actor.metrics_store = mock.MagicMock()
+        self.actor.metrics_store.opened = True
+        self.actor.metrics_store.close.side_effect = lambda: calls.append("metrics_store")
+
+        self.actor.close()
+
+        self.assertEqual(["telemetry", "metrics_store"], calls)
+
+    def test_close_continues_when_stopping_telemetry_fails(self):
+        self.actor.telemetry = mock.MagicMock()
+        self.actor.telemetry.on_benchmark_stop.side_effect = RuntimeError("telemetry failed")
+        self.actor.telemetry_started = True
+        self.actor.metrics_store = mock.MagicMock()
+        self.actor.metrics_store.opened = True
+
+        self.actor.close()
+
+        self.actor.telemetry.on_benchmark_stop.assert_called_once()
+        self.actor.metrics_store.close.assert_called_once()
+        self.assertFalse(self.actor.telemetry_started)
 
     def test_get_externalizable_metrics_store_task_finished(self):
         self.actor.metrics_store = mock.MagicMock()
@@ -2813,4 +2867,4 @@ class ProgressSampleUpdateTests(TestCase):
         sent_messages = [call.args[1] for call in target.send.call_args_list]
         self.assertTrue(any(isinstance(msg, worker_coordinator.StopTelemetry) for msg in sent_messages))
         self.assertTrue(any(isinstance(msg, worker_coordinator.GetExternalizableMetricsStore) for msg in sent_messages))
-        self.assertTrue(any(isinstance(msg, worker_coordinator.CloseMetricsStore) for msg in sent_messages))
+        self.assertFalse(any(isinstance(msg, worker_coordinator.CloseMetricsStore) for msg in sent_messages))
