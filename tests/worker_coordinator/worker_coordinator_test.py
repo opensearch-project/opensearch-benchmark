@@ -2535,6 +2535,7 @@ class SamplePostProcessorActorTests(TestCase):
         self.actor.closed = True
         self.actor.sample_post_processor = mock.MagicMock()
         self.actor.profile_metrics_post_processor = mock.MagicMock()
+        self.actor.send = mock.MagicMock()
 
         msg = worker_coordinator.ProcessSamples(
             samples=[1, 2],
@@ -2546,6 +2547,7 @@ class SamplePostProcessorActorTests(TestCase):
 
         self.actor.sample_post_processor.assert_not_called()
         self.actor.profile_metrics_post_processor.assert_not_called()
+        self.actor.send.assert_not_called()
 
     def test_receive_process_samples_skips_when_none(self):
         self.actor.sample_post_processor = mock.MagicMock()
@@ -2590,6 +2592,7 @@ class SamplePostProcessorActorTests(TestCase):
         self.actor.receiveMsg_StartTelemetry(msg, sender=None)
 
         self.actor.telemetry.on_benchmark_start.assert_called_once()
+        self.assertTrue(self.actor.telemetry_started)
 
 
     def test_receive_stop_telemetry(self):
@@ -2670,14 +2673,37 @@ class SamplePostProcessorActorTests(TestCase):
             waiting_period=5
         )
 
-        self.monkeypatch.setattr(
-            "osbenchmark.worker_coordinator.TaskFinished",
-            mock.MagicMock()
+        self.actor.receiveMsg_GetExternalizableMetricsStore(msg, sender=None)
+
+        self.actor.metrics_store.to_externalizable.assert_called_once_with(clear=True)
+        self.actor.send.assert_called_once()
+        target, sent_msg = self.actor.send.call_args.args
+        self.assertEqual(self.actor.worker_coordinator_actor, target)
+        self.assertIsInstance(sent_msg, worker_coordinator.TaskFinished)
+        self.assertEqual({"data": 123}, sent_msg.metrics)
+        self.assertEqual(5, sent_msg.next_task_scheduled_in)
+
+    def test_get_externalizable_metrics_store_benchmark_completed_closes_before_sending_complete(self):
+        calls = []
+        self.actor.metrics_store = mock.MagicMock()
+        self.actor.metrics_store.opened = True
+        self.actor.metrics_store.to_externalizable.side_effect = lambda clear: calls.append("externalize") or {"data": 123}
+        self.actor.metrics_store.close.side_effect = lambda: calls.append("close")
+        self.actor.worker_coordinator_actor = mock.MagicMock()
+        self.actor.send = mock.MagicMock(side_effect=lambda target, msg: calls.append("send"))
+
+        msg = worker_coordinator.GetExternalizableMetricsStore(
+            clear=True,
+            reason=worker_coordinator.ReasonForExternalizableRequest.BENCHMARK_COMPLETED
         )
 
         self.actor.receiveMsg_GetExternalizableMetricsStore(msg, sender=None)
 
-        self.actor.send.assert_called_once()
+        self.assertEqual(["externalize", "close", "send"], calls)
+        target, sent_msg = self.actor.send.call_args.args
+        self.assertEqual(self.actor.worker_coordinator_actor, target)
+        self.assertIsInstance(sent_msg, worker_coordinator.BenchmarkComplete)
+        self.assertEqual({"data": 123}, sent_msg.metrics)
 
     def test_reset_relative_time(self):
         self.actor.metrics_store = mock.MagicMock()
@@ -2687,6 +2713,16 @@ class SamplePostProcessorActorTests(TestCase):
         self.actor.receiveMsg_ResetRelativeTimeRequest(msg, sender=None)
 
         self.actor.metrics_store.reset_relative_time.assert_called_once()
+
+    def test_reset_relative_time_ignores_late_message_after_close(self):
+        self.actor.closed = True
+        self.actor.metrics_store = mock.MagicMock()
+
+        msg = worker_coordinator.ResetRelativeTimeRequest()
+
+        self.actor.receiveMsg_ResetRelativeTimeRequest(msg, sender=None)
+
+        self.actor.metrics_store.reset_relative_time.assert_not_called()
 
 class ProgressSampleUpdateTests(TestCase):
     def test_worker_coordinator_actor_forwards_progress_updates(self):

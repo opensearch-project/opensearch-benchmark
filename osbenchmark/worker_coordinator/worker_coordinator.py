@@ -1469,6 +1469,9 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
             self.send(self.worker_coordinator_actor, BenchmarkComplete(metric_results))
 
     def receiveMsg_ResetRelativeTimeRequest(self, msg, sender):
+        if self.closed:
+            self.logger.debug("Ignoring relative-time reset after SamplePostProcessorActor has closed.")
+            return
         self.metrics_store.reset_relative_time()
 
     def receiveMsg_ActorExitRequest(self, msg, sender):
