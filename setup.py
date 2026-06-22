@@ -98,7 +98,9 @@ install_requires = [
     #   botocore: Apache 2.0
     #   jmespath: MIT
     #   s3transfer: Apache 2.0
-    "boto3>=1.28.62",
+    # boto3 1.34 covers the PutLogEvents sequence-token deprecation cleanly,
+    # used by the CloudWatch metrics store backend.
+    "boto3>=1.34.0",
     # Licence: BSD-3-Clause
     "zstandard>=0.22.0",
     # License: BSD
