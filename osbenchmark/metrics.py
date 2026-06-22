@@ -1804,17 +1804,24 @@ register_datastore(
 # users on other datastore backends.
 try:
     from osbenchmark.metrics_stores.cloudwatch.metrics_store import CloudWatchMetricsStore as _CloudWatchMetricsStore
+    from osbenchmark.metrics_stores.cloudwatch.test_run_store import (
+        CloudWatchTestRunStore as _CloudWatchTestRunStore,
+        FileBackedCompositeTestRunStore as _CloudWatchCompositeStore,
+    )
+    from osbenchmark.metrics_stores.cloudwatch.results_store import CloudWatchResultsStore as _CloudWatchResultsStore
 
     register_datastore(
         datastore_type="cloudwatch",
         metrics_store_class=_CloudWatchMetricsStore,
-        # TestRunStore + ResultsStore wiring lands in commit #8; until then
-        # CloudWatch users get the file-based test-run store and a no-op
-        # results store, matching the InMemoryMetricsStore defaults.
-        test_run_store=lambda cfg: FileTestRunStore(cfg),
-        results_store=lambda cfg: NoopResultsStore(),
-        test_run_store_log_message="Creating file test_run store (CloudWatch test-run store not yet wired)",
-        results_store_log_message="Creating no-op results store (CloudWatch results store not yet wired)",
+        # Writes fan out to CloudWatch + file; reads come from file until
+        # commit #12 wires Logs Insights. The dedicated composite avoids
+        # regressing `osbenchmark compare` / `aggregate` / `list test-runs`
+        # while the CloudWatch read path is stubbed.
+        test_run_store=lambda cfg: _CloudWatchCompositeStore(
+            _CloudWatchTestRunStore(cfg), FileTestRunStore(cfg)),
+        results_store=lambda cfg: _CloudWatchResultsStore(cfg),
+        test_run_store_log_message="Creating CloudWatch + file test_run store",
+        results_store_log_message="Creating CloudWatch results store",
     )
 except Exception as _e:  # noqa: BLE001 — intentionally broad to keep other backends working
     logging.getLogger(__name__).warning(
