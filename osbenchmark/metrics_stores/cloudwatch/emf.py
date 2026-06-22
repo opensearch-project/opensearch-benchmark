@@ -191,6 +191,12 @@ def build_event(doc: Dict[str, Any], namespace: str) -> Optional[Dict[str, Any]]
         event["Operation"] = doc["operation"]
     if doc.get("relative-time-ms") is not None:
         event["RelativeTimeMs"] = doc["relative-time-ms"]
+    if doc.get("unit") is not None:
+        # Surface the OSB unit as a top-level log field so the read path
+        # can return it from MetricsStore.get_unit (the CloudWatch Unit
+        # enum value inside _aws.CloudWatchMetrics is what CW Metrics
+        # uses, but it's not queryable from Logs Insights).
+        event["Unit"] = doc["unit"]
     if doc.get("workload-params"):
         # Truthy check matches metrics.py:647 — skip empty dicts.
         event["WorkloadParams"] = doc["workload-params"]
