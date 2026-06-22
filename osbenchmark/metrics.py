@@ -324,7 +324,12 @@ def metrics_store(cfg, read_only=True, workload=None, test_procedure=None, clust
 
 
 def metrics_store_class(cfg):
-    return _datastore_factories(cfg)["metrics_store_class"]
+    entry = _datastore_factories(cfg)["metrics_store_class"]
+    # Allow registry entries to defer class resolution to first use by
+    # registering a 0-arg callable instead of the class itself. This avoids
+    # forcing import-time circular dependencies for backends (e.g.
+    # CloudWatch) that import from osbenchmark.metrics at module top.
+    return entry() if callable(entry) and not isinstance(entry, type) else entry
 
 
 # Datastore registry. Each entry maps a `datastore.type` value to a factory
@@ -1797,37 +1802,42 @@ register_datastore(
     results_store_log_message="Creating OS results store",
 )
 
-# CloudWatch backend registration. Must run after MetricsStore and the
-# default-bundle class references above are defined, since register_datastore
-# captures them by reference. Wrapped in try/except so a bug in the
-# CloudWatch submodules can't take down the entire osbenchmark package for
-# users on other datastore backends.
-try:
-    from osbenchmark.metrics_stores.cloudwatch.metrics_store import CloudWatchMetricsStore as _CloudWatchMetricsStore
-    from osbenchmark.metrics_stores.cloudwatch.test_run_store import (
-        CloudWatchTestRunStore as _CloudWatchTestRunStore,
-        FileBackedCompositeTestRunStore as _CloudWatchCompositeStore,
-    )
-    from osbenchmark.metrics_stores.cloudwatch.results_store import CloudWatchResultsStore as _CloudWatchResultsStore
+# CloudWatch backend registration. Imports are deferred to first-use
+# callables so that importing osbenchmark.metrics (or any of the cloudwatch
+# submodules) in arbitrary order doesn't trigger a circular import. The
+# cloudwatch.* modules `from osbenchmark.metrics import MetricsStore` at
+# module top, and they would re-enter this file mid-load if we imported
+# them eagerly here.
+def _cloudwatch_metrics_store_class():
+    from osbenchmark.metrics_stores.cloudwatch.metrics_store import CloudWatchMetricsStore
+    return CloudWatchMetricsStore
 
-    register_datastore(
-        datastore_type="cloudwatch",
-        metrics_store_class=_CloudWatchMetricsStore,
-        # Writes fan out to CloudWatch + file; reads come from file until
-        # commit #12 wires Logs Insights. The dedicated composite avoids
-        # regressing `osbenchmark compare` / `aggregate` / `list test-runs`
-        # while the CloudWatch read path is stubbed.
-        test_run_store=lambda cfg: _CloudWatchCompositeStore(
-            _CloudWatchTestRunStore(cfg), FileTestRunStore(cfg)),
-        results_store=lambda cfg: _CloudWatchResultsStore(cfg),
-        test_run_store_log_message="Creating CloudWatch + file test_run store",
-        results_store_log_message="Creating CloudWatch results store",
+
+def _cloudwatch_test_run_store(cfg):
+    from osbenchmark.metrics_stores.cloudwatch.test_run_store import (
+        CloudWatchTestRunStore, FileBackedCompositeTestRunStore,
     )
-except Exception as _e:  # noqa: BLE001 — intentionally broad to keep other backends working
-    logging.getLogger(__name__).warning(
-        "Failed to register CloudWatch metrics datastore backend: %s. "
-        "datastore.type=cloudwatch will not be available; other datastores "
-        "(opensearch, in-memory) are unaffected.", _e)
+    # Writes fan out to CloudWatch + file; reads come from file until commit
+    # #12 wires Logs Insights. The dedicated composite avoids regressing
+    # `osbenchmark compare` / `aggregate` / `list test-runs` while the
+    # CloudWatch read path is stubbed.
+    return FileBackedCompositeTestRunStore(
+        CloudWatchTestRunStore(cfg), FileTestRunStore(cfg))
+
+
+def _cloudwatch_results_store(cfg):
+    from osbenchmark.metrics_stores.cloudwatch.results_store import CloudWatchResultsStore
+    return CloudWatchResultsStore(cfg)
+
+
+register_datastore(
+    datastore_type="cloudwatch",
+    metrics_store_class=_cloudwatch_metrics_store_class,
+    test_run_store=_cloudwatch_test_run_store,
+    results_store=_cloudwatch_results_store,
+    test_run_store_log_message="Creating CloudWatch + file test_run store",
+    results_store_log_message="Creating CloudWatch results store",
+)
 
 
 # helper function for encoding and decoding float keys so that the OpenSearch metrics store can save them.
