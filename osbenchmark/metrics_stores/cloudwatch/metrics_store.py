@@ -160,13 +160,24 @@ class CloudWatchMetricsStore(MetricsStore):
         """
         Transform an OSB metric document into an EMF event and buffer it.
 
+        Routes between the single-metric ``put_value_*_level`` shape (doc
+        has both ``name`` and ``value``) and the multi-metric telemetry
+        ``put_doc`` shape (doc has ``name`` but no ``value`` — many
+        numeric fields keyed by flattened prefix).
+
         Flushes synchronously when the in-memory batch reaches CloudWatch's
         per-call limits so the writer never has to subdivide a single
         flush.
         """
-        event = emf.build_event(doc, namespace=self._cw_config.namespace)
+        if "value" in doc:
+            event = emf.build_event(doc, namespace=self._cw_config.namespace)
+        else:
+            event = emf.build_telemetry_event(
+                doc, namespace=self._cw_config.namespace)
         if event is None:
-            # Non-numeric value — emf.build_event already logged a warning.
+            # build_event returns None for non-numeric single-metric values
+            # (already logged at WARNING). build_telemetry_event always
+            # returns an event — nested-only docs land as log-only events.
             return
         message = json.dumps(event, separators=(",", ":"))
         encoded_size = len(message.encode("utf-8"))
