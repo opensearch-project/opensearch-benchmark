@@ -30,18 +30,19 @@ Buffers samples in memory and flushes to CloudWatch Logs via PutLogEvents
 when the batch reaches CloudWatch's per-call limits (10,000 events or 1 MiB
 of payload, accounting for the per-event overhead) or when an explicit
 flush is requested. Read methods (get_one, get_stats, get_percentiles,
-get_error_rate) currently return empty/zero values so the result-summary
-path runs without crashing; CloudWatch Logs Insights wiring lands in a
-later commit.
+get_error_rate, get_unit) execute CloudWatch Logs Insights queries
+against the configured metrics log group.
 """
 import collections
+import datetime as _datetime
 import json
 import os
 import re
+import time as _time
 
 from osbenchmark import time
 from osbenchmark.metrics import MetricsStore
-from osbenchmark.metrics_stores.cloudwatch import emf
+from osbenchmark.metrics_stores.cloudwatch import emf, insights
 from osbenchmark.metrics_stores.cloudwatch.client import CloudWatchClientFactory
 from osbenchmark.metrics_stores.cloudwatch.config import (
     CloudWatchConfig,
@@ -75,11 +76,12 @@ class CloudWatchMetricsStore(MetricsStore):
     configurable CloudWatch Logs group on ``flush()`` or whenever the
     in-memory buffer reaches one of CloudWatch's per-call limits.
 
-    Read methods inherited from ``MetricsStore`` currently return safe
-    empty/zero values so the result-summary path
-    (``test_run_orchestrator.calculate_results``) runs without crashing.
-    Real Logs Insights queries land in a later commit; until then,
-    percentile/stats reports for CloudWatch test runs will be blank.
+    Read methods (``get_one``, ``get_stats``, ``get_percentiles``,
+    ``get_error_rate``, ``get_unit``) execute CloudWatch Logs Insights
+    queries against the configured metrics log group; return shapes
+    match :class:`osbenchmark.metrics.OsMetricsStore` so callers
+    (publisher, aggregator, ``GlobalStatsCalculator``) don't need to
+    care which backend they're talking to.
     """
 
     def __init__(self, cfg,
@@ -243,29 +245,244 @@ class CloudWatchMetricsStore(MetricsStore):
     # is exactly what we want.
 
     # ------------------------------------------------------------------ reads
-    # Stubbed to safe empty/zero values so result-summary code paths
-    # (test_run_orchestrator.calculate_results → GlobalStatsCalculator)
-    # don't crash for CloudWatch users until commit #11 wires Logs Insights.
+    # Backed by CloudWatch Logs Insights against the configured metrics
+    # log group. Every query is scoped to the current TestRunId so reads
+    # never bleed across runs.
+
+    def _read_logs_client(self):
+        """
+        Lazily build a CloudWatch Logs client for read-only operations.
+        Reuses the writer's client if open() already established one;
+        otherwise builds a fresh client (skipping STS probe — reads only
+        need logs:* permissions, no need to surface caller identity).
+        """
+        if self._logs_client is not None:
+            return self._logs_client
+        self._logs_client = self._client_factory.logs_client()
+        return self._logs_client
+
+    def _insights_window(self):
+        """
+        Time window used for every Insights query on this store. Spans
+        the test-run timestamp (epoch seconds) up to "now"; broad enough
+        that a slow benchmark plus clock skew still falls inside.
+
+        ``time.from_is8601`` returns a naive datetime — we explicitly
+        attach UTC because OSB's ``to_iso8601`` (osbenchmark/time.py:38)
+        always serializes UTC, and ``.timestamp()`` on a naive datetime
+        would otherwise apply the local timezone and skew the window by
+        hours on non-UTC hosts.
+        """
+        ts = time.from_is8601(self._test_run_timestamp)
+        ts_utc = ts.replace(tzinfo=_datetime.timezone.utc)
+        start = int(ts_utc.timestamp()) - 60  # 60s grace for clock skew
+        end = int(_time.time()) + 60
+        return start, end
+
+    @staticmethod
+    def _escape_query_value(value):
+        """
+        Defensive escaping for values interpolated into Insights query
+        strings. Backticks and double-quotes would break out of the
+        quoted literal; replace them with underscores. OSB inputs
+        (workload-defined task / operation names) shouldn't contain
+        these in practice, but the workload track files are user-
+        authored — defending against accidental query corruption is
+        cheap.
+        """
+        return str(value).replace("`", "_").replace('"', "_")
+
+    def _filter_clause(self, name, task, operation_type, sample_type, node_name):
+        """Build the ``filter`` clause shared by every read-side query."""
+        safe_name = self._escape_query_value(name)
+        parts = [f'TestRunId = "{self._test_run_id}"']
+        parts.append(f'ispresent(`{safe_name}`)')
+        if task is not None:
+            parts.append(f'Task = "{self._escape_query_value(task)}"')
+        if operation_type is not None:
+            parts.append(f'OperationType = "{self._escape_query_value(operation_type)}"')
+        if sample_type is not None:
+            parts.append(f'SampleType = "{sample_type.name.lower()}"')
+        if node_name is not None:
+            parts.append(f'`meta.node_name` = "{self._escape_query_value(node_name)}"')
+        return " and ".join(parts)
+
+    def _run_insights(self, query: str, limit: int = 10_000):
+        """Wrap insights.run_query with this store's log group / window."""
+        start, end = self._insights_window()
+        return insights.run_query(
+            self._read_logs_client(),
+            self._cw_config.metrics_log_group,
+            query, start, end, limit=limit,
+        )
+
+    # Fields that the parent's standard accessors read; we always coerce
+    # these to float when materializing docs so callers like
+    # ``GlobalStatsCalculator.duration`` (which reads ``relative-time-ms``)
+    # don't accidentally get Insights's string-typed values.
+    _NUMERIC_DOC_FIELDS = frozenset({"value", "relative-time-ms"})
+
+    def _row_to_doc(self, row, name):
+        """
+        Materialize an Insights row into the OSB doc shape callers
+        expect: ``{value, task, operation, operation-type, sample-type,
+        unit, relative-time-ms, meta: {node_name, success}, ...}``.
+        ``value`` is taken from the metric-named column (the EMF pivot
+        from emf.build_event).
+        """
+        doc = {"value": insights.to_float(row.get(name))}
+        if row.get("Task") is not None:
+            doc["task"] = row["Task"]
+        if row.get("OperationType") is not None:
+            doc["operation-type"] = row["OperationType"]
+        if row.get("Operation") is not None:
+            doc["operation"] = row["Operation"]
+        if row.get("SampleType") is not None:
+            doc["sample-type"] = row["SampleType"]
+        if row.get("Unit") is not None:
+            doc["unit"] = row["Unit"]
+        if row.get("RelativeTimeMs") is not None:
+            doc["relative-time-ms"] = insights.to_float(row["RelativeTimeMs"])
+        meta = {}
+        if row.get("meta.node_name") is not None:
+            meta["node_name"] = row["meta.node_name"]
+        if row.get("meta.success") is not None:
+            meta["success"] = row["meta.success"]
+        if meta:
+            doc["meta"] = meta
+        return doc
+
+    # Common set of fields fetched alongside the metric value so the
+    # caller's mapper can read any of OSB's standard doc fields without
+    # the read path having to guess at intent.
+    _DEFAULT_FIELDS_QUERY = (
+        "Task, OperationType, Operation, SampleType, Unit, "
+        "RelativeTimeMs, `meta.node_name`, `meta.success`"
+    )
 
     def _get(self, name, task, operation_type, sample_type, node_name, mapper):
-        return []
-
-    def get_error_rate(self, task, operation_type=None, sample_type=None):
-        return 0.0
-
-    def get_stats(self, name, task=None, operation_type=None, sample_type=None):
-        return {"min": None, "max": None, "avg": None,
-                "sum": None, "count": 0}
-
-    def get_percentiles(self, name, task=None, operation_type=None,
-                        sample_type=None, percentiles=None):
-        # Mirror OsMetricsStore's "no hits" return value.
-        return None
+        filter_ = self._filter_clause(name, task, operation_type, sample_type, node_name)
+        safe_name = self._escape_query_value(name)
+        query = (
+            f"filter {filter_}\n"
+            f"| fields `{safe_name}`, {self._DEFAULT_FIELDS_QUERY}\n"
+            f"| limit 10000"
+        )
+        rows = self._run_insights(query)
+        return [mapper(self._row_to_doc(row, name)) for row in rows]
 
     def get_one(self, name, sample_type=None, node_name=None, task=None,
                 mapper=lambda doc: doc["value"],
                 sort_key=None, sort_reverse=False):
-        return None
+        filter_ = self._filter_clause(name, task, None, sample_type, node_name)
+        order = "desc" if sort_reverse else "asc"
+        sort_field = sort_key if sort_key else "@timestamp"
+        safe_name = self._escape_query_value(name)
+        # Always fetch the full default field set so mappers like
+        # ``doc["relative-time-ms"]`` or ``doc["unit"]`` resolve to
+        # properly-typed values regardless of which sort key the caller
+        # supplied. _row_to_doc coerces numerics.
+        query = (
+            f"filter {filter_}\n"
+            f"| fields `{safe_name}`, {self._DEFAULT_FIELDS_QUERY}, `{sort_field}`\n"
+            f"| sort `{sort_field}` {order}\n"
+            f"| limit 1"
+        )
+        rows = self._run_insights(query, limit=1)
+        if not rows:
+            return None
+        return mapper(self._row_to_doc(rows[0], name))
+
+    def get_error_rate(self, task, operation_type=None, sample_type=None):
+        filter_ = self._filter_clause("service_time", task, operation_type, sample_type, None)
+        query = (
+            f"filter {filter_}\n"
+            f"| stats count(*) as samples by `meta.success`"
+        )
+        rows = self._run_insights(query)
+        success = 0
+        errors = 0
+        for row in rows:
+            count = int(insights.to_float(row.get("samples")) or 0)
+            success_val = row.get("meta.success")
+            # Insights returns booleans as string "0"/"1" or "true"/"false"
+            # depending on how the source field was serialized; accept both.
+            if success_val in ("true", "1", "True"):
+                success += count
+            elif success_val in ("false", "0", "False"):
+                errors += count
+        if errors == 0:
+            return 0.0
+        if success == 0:
+            return 1.0
+        return errors / (errors + success)
+
+    def get_stats(self, name, task=None, operation_type=None, sample_type=None):
+        """Return a dict compatible with the OS ``stats`` aggregation:
+        ``{count, min, max, avg, sum}``."""
+        filter_ = self._filter_clause(name, task, operation_type, sample_type, None)
+        safe_name = self._escape_query_value(name)
+        query = (
+            f"filter {filter_}\n"
+            f"| stats min(`{safe_name}`) as min, max(`{safe_name}`) as max, "
+            f"avg(`{safe_name}`) as avg, sum(`{safe_name}`) as sum, "
+            f"count(*) as count"
+        )
+        rows = self._run_insights(query)
+        if not rows:
+            return {"count": 0, "min": None, "max": None,
+                    "avg": None, "sum": None}
+        row = rows[0]
+        return {
+            "count": int(insights.to_float(row.get("count")) or 0),
+            "min": insights.to_float(row.get("min")),
+            "max": insights.to_float(row.get("max")),
+            "avg": insights.to_float(row.get("avg")),
+            "sum": insights.to_float(row.get("sum")),
+        }
+
+    def get_percentiles(self, name, task=None, operation_type=None,
+                        sample_type=None, percentiles=None):
+        """Return an OrderedDict ``{<percentile>: <value>}`` or ``None``
+        when there are no samples (matches OsMetricsStore semantics)."""
+        if percentiles is None:
+            percentiles = [99, 99.9, 100]
+        filter_ = self._filter_clause(name, task, operation_type, sample_type, None)
+        safe_name = self._escape_query_value(name)
+
+        # Build the stats list. Insights's pct() doesn't accept 100; use
+        # max() for the p100 case so we always return a numeric value.
+        stats_parts = []
+        for p in percentiles:
+            if float(p) >= 100:
+                stats_parts.append(f"max(`{safe_name}`) as `p_{_alias(p)}`")
+            else:
+                stats_parts.append(f"pct(`{safe_name}`, {p}) as `p_{_alias(p)}`")
+        # count(*) so we can replicate OS's "no hits → None" behavior.
+        stats_parts.append(f"count(*) as count")
+        query = (
+            f"filter {filter_}\n"
+            f"| stats " + ", ".join(stats_parts)
+        )
+        rows = self._run_insights(query)
+        if not rows:
+            return None
+        row = rows[0]
+        if int(insights.to_float(row.get("count")) or 0) == 0:
+            return None
+        result = collections.OrderedDict()
+        for p in sorted(percentiles, key=float):
+            value = insights.to_float(row.get(f"p_{_alias(p)}"))
+            result[str(p)] = value
+        return result
 
     def __str__(self):
         return "CloudWatch metrics store"
+
+
+def _alias(percentile) -> str:
+    """
+    Insights field aliases can't contain dots. Convert ``99.9`` -> ``99_9``
+    so the alias survives the ``stats ... as p_<alias>`` rename.
+    """
+    return str(percentile).replace(".", "_")
