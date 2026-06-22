@@ -1797,6 +1797,31 @@ register_datastore(
     results_store_log_message="Creating OS results store",
 )
 
+# CloudWatch backend registration. Must run after MetricsStore and the
+# default-bundle class references above are defined, since register_datastore
+# captures them by reference. Wrapped in try/except so a bug in the
+# CloudWatch submodules can't take down the entire osbenchmark package for
+# users on other datastore backends.
+try:
+    from osbenchmark.metrics_stores.cloudwatch.metrics_store import CloudWatchMetricsStore as _CloudWatchMetricsStore
+
+    register_datastore(
+        datastore_type="cloudwatch",
+        metrics_store_class=_CloudWatchMetricsStore,
+        # TestRunStore + ResultsStore wiring lands in commit #8; until then
+        # CloudWatch users get the file-based test-run store and a no-op
+        # results store, matching the InMemoryMetricsStore defaults.
+        test_run_store=lambda cfg: FileTestRunStore(cfg),
+        results_store=lambda cfg: NoopResultsStore(),
+        test_run_store_log_message="Creating file test_run store (CloudWatch test-run store not yet wired)",
+        results_store_log_message="Creating no-op results store (CloudWatch results store not yet wired)",
+    )
+except Exception as _e:  # noqa: BLE001 — intentionally broad to keep other backends working
+    logging.getLogger(__name__).warning(
+        "Failed to register CloudWatch metrics datastore backend: %s. "
+        "datastore.type=cloudwatch will not be available; other datastores "
+        "(opensearch, in-memory) are unaffected.", _e)
+
 
 # helper function for encoding and decoding float keys so that the OpenSearch metrics store can save them.
 def encode_float_key(k):
