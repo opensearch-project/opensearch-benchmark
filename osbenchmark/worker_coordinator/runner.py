@@ -1778,8 +1778,9 @@ class Query(Runner):
             add_profile_to_results(response_json, params, result)
 
             if _is_empty_search_results(response_json):
-                self.logger.info("Vector search query returned no results.")
-                return result
+                if "max_distance" not in params and "min_score" not in params:
+                    self.logger.info("Vector search query returned no results.")
+                    return result
 
             if not should_calculate_recall:
                 return result
