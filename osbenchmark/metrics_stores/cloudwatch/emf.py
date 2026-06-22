@@ -25,17 +25,21 @@
 """
 Embedded Metric Format (EMF) document builder.
 
-Transforms the OSB metric document shape — produced by
-``MetricsStore.put_value_*_level()`` and exposed to backends via
-``MetricsStore._add(doc)`` — into an EMF log event with an
-``_aws.CloudWatchMetrics`` block so CloudWatch Logs auto-extracts the
-numeric value as a CloudWatch metric.
+Two entry points cover the two OSB metric-document shapes:
 
-Pure transform — no I/O, no boto3 dependency. Unit-testable in isolation.
+* ``build_event(doc, namespace)`` — for ``MetricsStore.put_value_*_level()``
+  docs that carry a ``{name, value}`` pair. Pivots the name to a top-level
+  key and declares a single metric in the ``_aws.CloudWatchMetrics`` block.
 
-Telemetry payloads (``MetricsStore.put_doc(doc, ...)``) deliver flattened
-``{prefix_field: value}`` dicts rather than the ``{name, value}`` pair handled
-here; their multi-directive grouping is added in a subsequent commit.
+* ``build_telemetry_event(doc, namespace)`` — for
+  ``MetricsStore.put_doc(doc, ...)`` payloads (NodeStats, ShardStats,
+  RecoveryStats, etc.) where the document carries many numeric fields
+  flattened by prefix. Groups numeric fields by their first underscore-
+  delimited segment and emits multiple ``CloudWatchMetrics`` directives in
+  one log event to stay under EMF's 100-metrics-per-directive cap.
+
+Both transforms are pure — no I/O, no boto3 dependency. Unit-testable in
+isolation.
 """
 import logging
 import numbers
@@ -223,4 +227,167 @@ def build_event(doc: Dict[str, Any], namespace: str) -> Optional[Dict[str, Any]]
             }],
         }],
     }
+    return event
+
+
+# EMF caps each MetricDirective at 100 metric definitions. NodeStats can
+# easily exceed this, so we group by the first underscore-delimited prefix
+# and spill overflows into additional directives within the same
+# CloudWatchMetrics[] list of the same log event.
+_MAX_METRICS_PER_DIRECTIVE = 100
+
+# Well-known fields injected by MetricsStore.put_doc (osbenchmark/metrics.py).
+# These are identity/metadata strings (or the run-scoped dict), not numeric
+# metric candidates, so the telemetry transform skips them when scanning the
+# doc for metrics. Anything else that happens to be numeric becomes a metric.
+_TELEMETRY_NON_METRIC_FIELDS = frozenset({
+    "@timestamp", "relative-time-ms",
+    "test-run-id", "test-run-timestamp",
+    "environment", "workload", "test_procedure",
+    "cluster-config-instance",
+    "name",
+    "meta", "workload-params",
+    # MetricsStore.put_doc passes "task" / "operation" / "operation-type" /
+    # "sample-type" through for non-telemetry callers; skip them as metric
+    # candidates so they only contribute to dimensions / log fields.
+    "task", "operation", "operation-type", "sample-type",
+    "unit", "value",
+})
+
+
+def _telemetry_group_key(field_name: str) -> str:
+    """First underscore-delimited segment of a flattened telemetry field
+    name (``indices_segments_count`` -> ``indices``). Used to partition
+    metric definitions into EMF MetricDirectives by subsystem prefix."""
+    head, sep, _rest = field_name.partition("_")
+    return (head or field_name) if sep else field_name
+
+
+def build_telemetry_event(doc: Dict[str, Any], namespace: str) -> Dict[str, Any]:
+    """
+    Build a single EMF log event from a telemetry-style OSB metric document.
+
+    Telemetry devices fall into two shapes:
+
+    * **Flattened** (NodeStats, IndexStats, etc.): ``{"name": ...,
+      "indices_segments_count": 42, "jvm_mem_heap_used_percent": 73,
+      ...}``. Numeric leaves become CloudWatch metrics grouped into
+      ``CloudWatchMetrics`` directives by their first underscore-
+      delimited prefix.
+    * **Nested** (RecoveryStats, ShardStats): ``{"name": ...,
+      "shard": <dict>, ...}``. No numeric fields at the top level. We
+      still emit a log event so the data is searchable via Logs
+      Insights — the nested payload is serialized to JSON under a
+      single top-level key. No metrics are extracted.
+
+    In both cases the function returns an event ready to be
+    ``json.dumps()`` and shipped through PutLogEvents.
+    """
+    # Identify metric fields: numeric, non-bool, non-identity.
+    metric_fields: List[str] = []
+    nested_fields: List[str] = []
+    for key, value in doc.items():
+        if key in _TELEMETRY_NON_METRIC_FIELDS:
+            continue
+        if isinstance(value, bool):
+            nested_fields.append(key)
+            continue
+        if isinstance(value, numbers.Real):
+            metric_fields.append(key)
+        else:
+            # String / list / nested dict — keep as a top-level log field
+            # so Logs Insights can query it even though it's not a metric.
+            nested_fields.append(key)
+
+    # OSB's @timestamp is already epoch ms; fall back to "now" if missing.
+    timestamp = doc.get("@timestamp")
+    if timestamp is None:
+        timestamp = int(_time.time() * 1000)
+
+    event: Dict[str, Any] = {}
+
+    # Dimensions: same fixed set as the single-metric path. Telemetry events
+    # typically only have Workload + SampleType (NodeStats etc. are not
+    # request-scoped), but if a doc carries a task it gets dimensioned the
+    # same way as a per-request sample.
+    dimensions_present: List[str] = []
+    for source_key, event_key in (
+        ("workload", "Workload"),
+        ("task", "Task"),
+        ("operation-type", "OperationType"),
+        ("sample-type", "SampleType"),
+    ):
+        value = doc.get(source_key)
+        if value is not None:
+            event[event_key] = value
+            dimensions_present.append(event_key)
+
+    # Top-level fields (queryable via Logs Insights, not dimensions).
+    for source_key, event_key in (
+        ("test-run-id", "TestRunId"),
+        ("test-run-timestamp", "TestRunTimestamp"),
+        ("environment", "Environment"),
+        ("test_procedure", "TestProcedure"),
+        ("cluster-config-instance", "ClusterConfigInstance"),
+        ("operation", "Operation"),
+        ("relative-time-ms", "RelativeTimeMs"),
+        ("name", "Name"),  # e.g. "node-stats" — useful for filtering
+    ):
+        if doc.get(source_key) is not None:
+            event[event_key] = doc[source_key]
+    if doc.get("workload-params"):
+        event["WorkloadParams"] = doc["workload-params"]
+
+    meta = doc.get("meta")
+    if isinstance(meta, dict):
+        for key, value in meta.items():
+            if value is None:
+                continue
+            event[f"meta.{key}"] = value
+
+    # Copy non-metric / nested values through to the top level so they're
+    # queryable via Logs Insights even though they don't become metrics.
+    # Done before metric copy so a numeric field shadows a same-named
+    # nested field — Python dict semantics make this deterministic.
+    for field in nested_fields:
+        event[field] = doc[field]
+
+    # Copy the numeric metric values to the top level (EMF requirement
+    # for the keys referenced from CloudWatchMetrics[].Metrics[].Name).
+    # Field names produced by ``flatten_stats_fields`` are snake_case
+    # while the run-identity fields populated above are PascalCase, so a
+    # real collision is unreachable from the current telemetry code, but
+    # writing this assignment LAST means a future namespace clash would
+    # preserve the numeric metric value rather than the identity string.
+    for field in metric_fields:
+        event[field] = doc[field]
+
+    aws_block: Dict[str, Any] = {"Timestamp": timestamp}
+
+    if metric_fields:
+        # Group metric fields by prefix and chunk into ≤100-metric directives.
+        groups: Dict[str, List[str]] = {}
+        for field in metric_fields:
+            groups.setdefault(_telemetry_group_key(field), []).append(field)
+
+        directives: List[Dict[str, Any]] = []
+        dimensions_for_directive = [dimensions_present] if dimensions_present else [[]]
+        for _prefix in sorted(groups):  # deterministic ordering for stable test output
+            group_fields = groups[_prefix]
+            # Split into chunks of ≤100 metrics each.
+            for chunk_start in range(0, len(group_fields), _MAX_METRICS_PER_DIRECTIVE):
+                chunk = group_fields[chunk_start:chunk_start + _MAX_METRICS_PER_DIRECTIVE]
+                directives.append({
+                    "Namespace": namespace,
+                    "Dimensions": dimensions_for_directive,
+                    "Metrics": [{"Name": f, "Unit": "None"} for f in chunk],
+                })
+
+        aws_block["CloudWatchMetrics"] = directives
+    # Nested-only documents (e.g. RecoveryStats' {"shard": ...}) get no
+    # CloudWatchMetrics directives, just the Timestamp — they land in
+    # CloudWatch Logs and remain queryable via Logs Insights, but
+    # CloudWatch doesn't extract any metric from them.
+
+    event["_aws"] = aws_block
     return event
