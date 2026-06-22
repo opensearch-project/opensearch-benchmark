@@ -32,18 +32,17 @@ Mirrors the responsibilities of OsTestRunStore. Intended to be wrapped by
 CompositeTestRunStore alongside FileTestRunStore so local files continue to
 work even when CloudWatch shipping is configured.
 
-Read paths (``list()`` / ``find_by_test_run_id``) are stubbed in this
-commit and will be wired against CloudWatch Logs Insights in a later
-commit; until then they return safe empty / not-found values so the
-osbenchmark CLI surfaces (``list test-runs``, ``compare``) don't crash
-for users on the CloudWatch backend.
+``list()`` and ``find_by_test_run_id`` query the test-runs log group via
+CloudWatch Logs Insights and deserialize the stored JSON back into the
+canonical ``TestRun`` shape consumers expect.
 """
 import json
 import logging
 import time as _time
 
 from osbenchmark import exceptions
-from osbenchmark.metrics import TestRunStore
+from osbenchmark.metrics import TestRun, TestRunStore
+from osbenchmark.metrics_stores.cloudwatch import insights
 from osbenchmark.metrics_stores.cloudwatch.client import CloudWatchClientFactory
 from osbenchmark.metrics_stores.cloudwatch.config import (
     CloudWatchConfig,
@@ -72,9 +71,13 @@ class CloudWatchTestRunStore(TestRunStore):
     # Single shared stream per environment is fine: writes are
     # low-frequency (once per run) and CloudWatch Logs no longer requires
     # sequence-token coordination.
-    # TODO(commit #12): honor self.environment_name when wiring Logs
-    # Insights for list() / find_by_test_run_id().
     _STREAM_NAME = "test-runs"
+
+    # Insights query covers up to this far in the past for `list()`. The
+    # CloudWatch Logs metrics retention default (commit #3 config) is
+    # 30 days, so a 90-day window happily covers everything that still
+    # exists while keeping the query cheap.
+    _LIST_WINDOW_DAYS = 90
 
     def __init__(self, cfg,
                  client_factory_class=CloudWatchClientFactory,
@@ -126,35 +129,88 @@ class CloudWatchTestRunStore(TestRunStore):
             self._cw_config.test_runs_log_group,
         )
 
+    def _logs_client(self):
+        """Lazy logs client for read paths (no STS probe — reads only)."""
+        return self._client_factory.logs_client()
+
     def list(self):
-        # Insights-backed listing lands in commit #12.
-        logger.warning(
-            "CloudWatch test-run listing is not yet implemented; returning [].")
-        return []
+        """
+        Return the most recent test-run documents for this environment.
+
+        Wraps a Logs Insights query that fetches the stored ``@message``
+        for every log event in the test-runs log group filtered by
+        ``environment``, then deserialises each JSON message back into a
+        ``TestRun`` via the existing ``from_dict`` constructor.
+        """
+        end = int(_time.time())
+        start = end - (self._LIST_WINDOW_DAYS * 86400)
+        env_filter = _escape(self.environment_name)
+        # CloudWatch Logs Insights auto-discovers top-level JSON keys, so
+        # we can filter on `environment` directly without an explicit
+        # `parse @message ...` directive. TestRun.as_dict (metrics.py)
+        # emits `environment` as a top-level key in the stored event.
+        query = (
+            f'fields @message, @timestamp\n'
+            f'| filter environment = "{env_filter}"\n'
+            f'| sort @timestamp desc\n'
+            f'| limit {self._max_results()}'
+        )
+        rows = insights.run_query(
+            self._logs_client(),
+            self._cw_config.test_runs_log_group,
+            query, start, end, limit=self._max_results())
+        return [tr for tr in (_parse_test_run(row.get("@message")) for row in rows) if tr is not None]
 
     def find_by_test_run_id(self, test_run_id):
-        # Insights-backed lookup lands in commit #12.
+        """
+        Fetch a single test-run by id. Uses a tighter (7 day) window
+        than ``list`` because finding a specific run is usually about a
+        recent one. Falls through to the wider ``_LIST_WINDOW_DAYS``
+        window on miss so a long-ago run is still discoverable.
+        """
+        for window_days in (7, self._LIST_WINDOW_DAYS):
+            end = int(_time.time())
+            start = end - (window_days * 86400)
+            safe_id = _escape(test_run_id)
+            query = (
+                f'fields @message\n'
+                f'| filter `test-run-id` = "{safe_id}"\n'
+                f'| limit 1'
+            )
+            rows = insights.run_query(
+                self._logs_client(),
+                self._cw_config.test_runs_log_group,
+                query, start, end, limit=1,
+                # Tighter poll timeout than the default — find is
+                # interactive (osbenchmark compare uses it inline) and
+                # 30s is enough to fail fast on a miss without cutting
+                # off legitimately slow Insights scheduling.
+                poll_timeout_seconds=30)
+            if rows:
+                parsed = _parse_test_run(rows[0].get("@message"))
+                if parsed is not None:
+                    return parsed
+        # Match OsTestRunStore's exact wording (metrics.py:1749) so log
+        # scrapers / external callers can match the same string across
+        # both backends.
         raise exceptions.NotFound(
-            f"CloudWatch test-run lookup is not yet implemented; cannot "
-            f"resolve test_run_id={test_run_id!r}.")
+            "No test_run with test_run id [{}]".format(test_run_id))
 
 
 class FileBackedCompositeTestRunStore:
     """
-    Hybrid test-run store used by ``datastore.type = cloudwatch`` until
-    Logs Insights wiring (commit #12) lands.
+    Hybrid test-run store used by ``datastore.type = cloudwatch`` that
+    fans writes out to BOTH the CloudWatch store and the file store, and
+    falls back to the local file store for reads when CloudWatch returns
+    nothing or errors out.
 
-    Writes fan out to BOTH the CloudWatch store (ships to AWS) and the
-    file store (persists locally). Reads come from the FILE store so that
-    ``osbenchmark list test-runs``, ``compare``, and ``aggregate`` keep
-    working against the local on-disk records while the cloudwatch read
-    path is still stubbed.
-
-    This is intentionally distinct from
-    ``osbenchmark.metrics.CompositeTestRunStore`` (which reads from the
-    OpenSearch store). When commit #12 wires up Insights-backed reads,
-    the cloudwatch backend can swap to the existing CompositeTestRunStore
-    with CW as the read source.
+    Why fallback rather than pure CloudWatch reads: a freshly-shipped
+    test run is not immediately visible to Logs Insights (CW Logs has a
+    several-second ingest delay before queries see new events), so
+    ``osbenchmark compare $JUST_FINISHED_RUN`` would intermittently fail
+    if we relied on CloudWatch alone. The file store always has the
+    just-stored record, so we consult it first and use CloudWatch as the
+    historical / cross-host backstop.
     """
 
     def __init__(self, cloudwatch_store: "CloudWatchTestRunStore", file_store):
@@ -162,7 +218,10 @@ class FileBackedCompositeTestRunStore:
         self._file_store = file_store
 
     def find_by_test_run_id(self, test_run_id):
-        return self._file_store.find_by_test_run_id(test_run_id)
+        try:
+            return self._file_store.find_by_test_run_id(test_run_id)
+        except exceptions.NotFound:
+            return self._cw_store.find_by_test_run_id(test_run_id)
 
     def store_test_run(self, test_run):
         self._file_store.store_test_run(test_run)
@@ -172,4 +231,57 @@ class FileBackedCompositeTestRunStore:
         self._file_store.store_html_results(test_run)
 
     def list(self):
-        return self._file_store.list()
+        # Local file is the source of truth for short-term history; the
+        # cloudwatch store is consulted for runs the local box never saw
+        # (e.g. cross-host benchmarking, replay after laptop reformat).
+        file_runs = self._file_store.list()
+        file_ids = {run.test_run_id for run in file_runs}
+        try:
+            cw_runs = [run for run in self._cw_store.list()
+                       if run.test_run_id not in file_ids]
+        except Exception as e:  # noqa: BLE001 — see comment below
+            # Catch broadly: InsightsQueryError is the expected case, but
+            # boto3 ClientError (AccessDenied, ProfileNotFound,
+            # ExpiredToken) and credential-resolution errors come from
+            # building the boto3 client itself. The docstring promises
+            # graceful degradation, so a missing-permissions case should
+            # NOT break a previously file-only-working `list test-runs`.
+            logger.warning(
+                "CloudWatch test-run listing failed (%s); falling back to "
+                "file-store results only.", e)
+            cw_runs = []
+        return file_runs + cw_runs
+
+
+def _escape(value) -> str:
+    """
+    Sanitize values interpolated into Logs Insights query string
+    literals. CloudWatch Logs Insights wraps string literals in double
+    quotes; backticks separately delimit field names. Replacing both
+    with underscores prevents accidentally breaking out of the literal
+    when a user-supplied environment name or test-run-id contains them.
+    Real test_run_ids are UUIDs, but defense in depth is cheap.
+    """
+    return str(value).replace('"', "_").replace("`", "_")
+
+
+def _parse_test_run(message):
+    """Deserialise a stored test-run JSON log message back into TestRun.
+
+    Returns None if the message cannot be parsed — a malformed line in
+    the log group shouldn't crash a list / find call.
+    """
+    if not message:
+        return None
+    try:
+        doc = json.loads(message)
+    except (TypeError, ValueError):
+        logger.warning(
+            "CloudWatch test-run store: skipping unparseable log event")
+        return None
+    try:
+        return TestRun.from_dict(doc)
+    except Exception:  # noqa: BLE001 — TestRun.from_dict may raise various
+        logger.warning(
+            "CloudWatch test-run store: skipping malformed test-run doc")
+        return None
