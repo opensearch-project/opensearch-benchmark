@@ -61,6 +61,10 @@ install_requires = [
     #   urllib3: MIT
     #   aiohttp: Apache 2.0
     "opensearch-py[async]>=2.5.0,<3.0.0",
+    # Pin aiohttp below 3.14: 3.14 made `stream_writer` mandatory on
+    # ClientResponse.__init__, which breaks osbenchmark/async_connection.py
+    # static-response path. opensearch-py only constrains aiohttp to <4.
+    "aiohttp>=3.9.4,<3.14",
     # License: BSD
     "psutil>=5.8.0",
     # License: MIT
