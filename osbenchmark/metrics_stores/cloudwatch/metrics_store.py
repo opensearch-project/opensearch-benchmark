@@ -308,13 +308,30 @@ class CloudWatchMetricsStore(MetricsStore):
         return " and ".join(parts)
 
     def _run_insights(self, query: str, limit: int = 10_000):
-        """Wrap insights.run_query with this store's log group / window."""
+        """Wrap insights.run_query with this store's log group / window.
+
+        Returns ``[]`` if the query fails for any reason (Insights
+        timeout, permission denied, log group missing, throttle
+        exhaustion). The result-summary path
+        (``test_run_orchestrator.calculate_results``) tolerates empty
+        results by returning ``None`` / ``0.0`` from the calling
+        read methods, so a read-permission gap doesn't crash the
+        benchmark. Reads of the test-run / results stores are
+        already fail-soft via FileBackedCompositeTestRunStore."""
         start, end = self._insights_window()
-        return insights.run_query(
-            self._read_logs_client(),
-            self._cw_config.metrics_log_group,
-            query, start, end, limit=limit,
-        )
+        try:
+            return insights.run_query(
+                self._read_logs_client(),
+                self._cw_config.metrics_log_group,
+                query, start, end, limit=limit,
+            )
+        except insights.InsightsQueryError as e:
+            self.logger.warning(
+                "CloudWatch Logs Insights query failed (%s); falling back "
+                "to empty result. Reports for this test run will be blank.",
+                e,
+            )
+            return []
 
     # Fields that the parent's standard accessors read; we always coerce
     # these to float when materializing docs so callers like
