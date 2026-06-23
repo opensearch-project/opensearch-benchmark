@@ -3029,6 +3029,95 @@ class VectorSearchQueryRunnerTests(TestCase):
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
+    async def test_query_radial_search_empty_results_empty_neighbors(self, opensearch, on_client_request_start, on_client_request_end):
+        search_response = {
+            "timed_out": False,
+            "took": 1,
+            "hits": {
+                "total": {
+                    "value": 0,
+                    "relation": "eq"
+                },
+                "hits": []
+            }
+        }
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+
+        query_runner = runner.Query()
+
+        params = {
+            "index": "unittest",
+            "operation-type": "vector-search",
+            "detailed-results": True,
+            "response-compression-enabled": False,
+            "max_distance": 159.29,
+            "neighbors": ["-1", "-1", "-1"],
+            "body": {
+                "query": {
+                    "knn": {
+                        "location": {
+                            "vector": [5, 4],
+                            "max_distance": 159.29
+                        }
+                    }}
+            }
+        }
+
+        async with query_runner:
+            result = await query_runner(opensearch, params)
+
+        self.assertIn("recall@max_distance", result.keys())
+        self.assertEqual(result["recall@max_distance"], 1.0)
+        self.assertIn("recall@max_distance_1", result.keys())
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_query_radial_search_empty_results_with_neighbors(self, opensearch, on_client_request_start, on_client_request_end):
+        search_response = {
+            "timed_out": False,
+            "took": 1,
+            "hits": {
+                "total": {
+                    "value": 0,
+                    "relation": "eq"
+                },
+                "hits": []
+            }
+        }
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+
+        query_runner = runner.Query()
+
+        params = {
+            "index": "unittest",
+            "operation-type": "vector-search",
+            "detailed-results": True,
+            "response-compression-enabled": False,
+            "max_distance": 159.29,
+            "neighbors": ["101", "102", "103", "-1"],
+            "body": {
+                "query": {
+                    "knn": {
+                        "location": {
+                            "vector": [5, 4],
+                            "max_distance": 159.29
+                        }
+                    }}
+            }
+        }
+
+        async with query_runner:
+            result = await query_runner(opensearch, params)
+
+        self.assertIn("recall@max_distance", result.keys())
+        self.assertEqual(result["recall@max_distance"], 0.0)
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
     async def test_query_vector_search_with_custom_id_field(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
