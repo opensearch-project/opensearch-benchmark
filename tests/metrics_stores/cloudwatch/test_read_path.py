@@ -357,6 +357,24 @@ class TestMetricsStoreReads:
         # Window is [expected-60, now+60]; allow ±5s slop for clock skew
         assert abs(sq["startTime"] - (expected - 60)) < 5
 
+    def test_insights_error_degrades_to_empty(self, fake_logs_client, open_store):
+        # Real-world E2E: IAM role has logs:PutLogEvents but not
+        # logs:StartQuery. Reads should fail-soft to empty results so
+        # the result-summary path doesn't crash the run. (Same fail-soft
+        # contract as FileBackedCompositeTestRunStore.list.)
+        from .conftest import make_client_error
+        def boom(**kw):
+            raise make_client_error("AccessDeniedException", op="StartQuery")
+        fake_logs_client.start_query = boom
+
+        store = open_store()
+        assert store.get_stats("x") == {"count": 0, "min": None, "max": None,
+                                         "avg": None, "sum": None}
+        assert store.get_percentiles("x") is None
+        assert store.get_error_rate("term") == 0.0
+        assert store.get_one("x") is None
+        assert store.get("x") == []
+
     def test_input_escaping(self, fake_logs_client, open_store):
         # Backticks and quotes must not break out of the literal.
         fake_logs_client.queue_query_results([])
