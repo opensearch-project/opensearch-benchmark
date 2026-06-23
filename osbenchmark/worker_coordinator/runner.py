@@ -1695,7 +1695,7 @@ class Query(Runner):
                 min_num_of_results = len(truth_set)
                 if min_num_of_results == 0:
                     self.logger.info("No neighbors are provided for recall calculation")
-                    return 1
+                    return 1.0
 
                 if enable_top_1_recall:
                     return 1.0 if predictions and predictions[0] in truth_set else 0.0
@@ -1779,7 +1779,7 @@ class Query(Runner):
 
             id_field = parse_string_parameter("id-field-name", params, "_id")
             candidates = []
-            for hit in response_json['hits']['hits']:
+            for hit in response_json.get('hits', {}).get('hits', []):
                 field_value = _get_field_value(hit, id_field)
                 if field_value is None:  # Will add to candidates if field value is present
                     self.logger.warning("No value found for field %s", id_field)
