@@ -10,6 +10,7 @@ For repository conventions (build, test, code style, PR guidelines), see [AGENTS
 - **Running a benchmark against a cluster:** start with [`skills/run-benchmark.md`](skills/run-benchmark.md).
 - **Comparing two test runs:** [`skills/compare-runs.md`](skills/compare-runs.md).
 - **Spinning up a target cluster on AWS:** [`skills/provision-target.md`](skills/provision-target.md).
+- **Using OSB through MCP tools** (when available in your LLM client): [`skills/mcp-server.md`](skills/mcp-server.md).
 - **Connecting to EC2 instances or refreshing AWS credentials:** [`reference/aws-access.md`](reference/aws-access.md).
 - **Diagnosing a benchmark that failed or produced weird results:** [`reference/troubleshooting.md`](reference/troubleshooting.md).
 
