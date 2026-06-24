@@ -2753,7 +2753,7 @@ class SamplePostProcessorActorTests(TestCase):
         self.actor.metrics_store.close.assert_called_once()
         self.assertFalse(self.actor.telemetry_started)
 
-    def test_get_externalizable_metrics_store_task_finished(self):
+    def test_get_externalizable_metrics_store_task_finished_flushes_buffered_samples(self):
         self.actor.metrics_store = mock.MagicMock()
         self.actor.metrics_store.to_externalizable.return_value = {"data": 123}
         self.set_sample_processors()
@@ -2780,7 +2780,7 @@ class SamplePostProcessorActorTests(TestCase):
         self.assertEqual({"data": 123}, sent_msg.metrics)
         self.assertEqual(5, sent_msg.next_task_scheduled_in)
 
-    def test_get_externalizable_metrics_store_benchmark_completed_closes_before_sending_complete(self):
+    def test_get_externalizable_metrics_store_benchmark_completed_flushes_and_closes_before_sending_complete(self):
         calls = []
         self.actor.metrics_store = mock.MagicMock()
         self.actor.metrics_store.opened = True
@@ -2823,7 +2823,7 @@ class SamplePostProcessorActorTests(TestCase):
 
         self.actor.metrics_store.reset_relative_time.assert_not_called()
 
-class ProgressSampleUpdateTests(TestCase):
+class SampleRoutingAndProgressUpdateTests(TestCase):
     def test_worker_coordinator_actor_forwards_progress_updates(self):
         actor = worker_coordinator.WorkerCoordinatorActor()
         actor.coordinator = mock.MagicMock()
@@ -2836,7 +2836,10 @@ class ProgressSampleUpdateTests(TestCase):
         actor.coordinator.update_samples.assert_called_once_with(latest_progress_per_client)
 
     def test_worker_coordinator_updates_latest_progress_per_client(self):
-        coordinator = worker_coordinator.WorkerCoordinator.__new__(worker_coordinator.WorkerCoordinator)
+        coordinator = worker_coordinator.WorkerCoordinator(
+            target=mock.MagicMock(),
+            config=mock.MagicMock()
+        )
         coordinator.latest_progress_per_client = {
             0: (0.1, "%")
         }
