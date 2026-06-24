@@ -253,6 +253,38 @@ class WorkerCoordinatorTests(TestCase):
         # target.on_task_finished.assert_called_once()
         self.assertEqual(4, target.drive_at.call_count)
 
+    def test_final_joinpoint_requests_final_metrics_without_separate_close(self):
+        target = self.create_test_worker_coordinator_target()
+        target.sample_post_processor_actor = mock.Mock(name="sample_post_processor_actor")
+        d = worker_coordinator.WorkerCoordinator(target, self.cfg, os_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
+
+        d.prepare_benchmark(t=self.workload)
+        d.start_benchmark()
+        task_allocations = [
+            worker_coordinator.ClientAllocation(client_id=0, task=worker_coordinator.JoinPoint(id=0))
+        ]
+        for worker_id in range(len(d.workers)):
+            d.joinpoint_reached(worker_id=worker_id, worker_local_timestamp=10 + worker_id, task_allocations=task_allocations)
+
+        self.assertEqual(0, d.current_step)
+        target.send.reset_mock()
+
+        for worker_id in range(len(d.workers)):
+            d.joinpoint_reached(worker_id=worker_id, worker_local_timestamp=20 + worker_id, task_allocations=task_allocations)
+
+        sent_messages = [call.args[1] for call in target.send.call_args_list]
+        self.assertTrue(any(isinstance(msg, worker_coordinator.StopTelemetry) for msg in sent_messages))
+        final_metric_requests = [
+            msg for msg in sent_messages
+            if isinstance(msg, worker_coordinator.GetExternalizableMetricsStore)
+        ]
+        self.assertEqual(1, len(final_metric_requests))
+        self.assertEqual(
+            worker_coordinator.ReasonForExternalizableRequest.BENCHMARK_COMPLETED,
+            final_metric_requests[0].reason
+        )
+        self.assertFalse(any(isinstance(msg, worker_coordinator.CloseMetricsStore) for msg in sent_messages))
+
     @run_async
     async def test_load_test_clients_override(self):
         self.cfg.add(config.Scope.applicationOverride, "workload", "load.test.clients", 100)
@@ -2502,6 +2534,21 @@ class SamplePostProcessorActorTests(TestCase):
         self.cfg.add(config.Scope.application, "worker_coordinator", "worker_ips", ["localhost"])
         self.cfg.add(config.Scope.application, "reporting", "datastore.type", "in-memory")
 
+    def tearDown(self):
+        self.monkeypatch.undo()
+
+    def set_sample_processors(self, calls=None):
+        if calls is None:
+            self.actor.sample_post_processor = mock.MagicMock()
+            self.actor.profile_metrics_post_processor = mock.MagicMock()
+        else:
+            self.actor.sample_post_processor = mock.MagicMock(side_effect=lambda samples: calls.append("samples"))
+            self.actor.profile_metrics_post_processor = mock.MagicMock(side_effect=lambda samples: calls.append("profile_samples"))
+
+    def set_buffered_samples(self, samples=None, profile_samples=None):
+        self.actor.raw_samples = [1] if samples is None else samples
+        self.actor.raw_profile_samples = [2] if profile_samples is None else profile_samples
+
     def test_receive_start_sample_post_processor(self):
         msg = worker_coordinator.StartSamplePostProcessorActor(
             config=self.cfg,
@@ -2517,9 +2564,8 @@ class SamplePostProcessorActorTests(TestCase):
         assert self.actor.profile_metrics_post_processor is not None
         assert self.actor.telemetry is not None
 
-    def test_receive_process_samples_calls_processors(self):
-        self.actor.sample_post_processor = mock.MagicMock()
-        self.actor.profile_metrics_post_processor = mock.MagicMock()
+    def test_receive_process_samples_buffers_until_post_processing(self):
+        self.set_sample_processors()
 
         msg = worker_coordinator.ProcessSamples(
             samples=[1, 2],
@@ -2528,8 +2574,17 @@ class SamplePostProcessorActorTests(TestCase):
 
         self.actor.receiveMsg_ProcessSamples(msg, sender=None)
 
+        self.assertEqual([1, 2], self.actor.raw_samples)
+        self.assertEqual([3], self.actor.raw_profile_samples)
+        self.actor.sample_post_processor.assert_not_called()
+        self.actor.profile_metrics_post_processor.assert_not_called()
+
+        self.actor.post_process_samples()
+
         self.actor.sample_post_processor.assert_called_once_with([1, 2])
         self.actor.profile_metrics_post_processor.assert_called_once_with([3])
+        self.assertEqual([], self.actor.raw_samples)
+        self.assertEqual([], self.actor.raw_profile_samples)
 
     def test_receive_process_samples_ignores_late_samples_after_close(self):
         self.actor.closed = True
@@ -2550,8 +2605,7 @@ class SamplePostProcessorActorTests(TestCase):
         self.actor.send.assert_not_called()
 
     def test_receive_process_samples_skips_when_none(self):
-        self.actor.sample_post_processor = mock.MagicMock()
-        self.actor.profile_metrics_post_processor = mock.MagicMock()
+        self.set_sample_processors()
 
         msg = worker_coordinator.ProcessSamples(
             samples=None,
@@ -2560,6 +2614,8 @@ class SamplePostProcessorActorTests(TestCase):
 
         self.actor.receiveMsg_ProcessSamples(msg, sender=None)
 
+        self.assertEqual([], self.actor.raw_samples)
+        self.assertEqual([], self.actor.raw_profile_samples)
         self.actor.sample_post_processor.assert_not_called()
         self.actor.profile_metrics_post_processor.assert_not_called()
 
@@ -2567,8 +2623,7 @@ class SamplePostProcessorActorTests(TestCase):
         calls = []
         joinpoint_reached = mock.MagicMock()
         self.actor.worker_coordinator_actor = mock.MagicMock()
-        self.actor.sample_post_processor = mock.MagicMock(side_effect=lambda samples: calls.append("samples"))
-        self.actor.profile_metrics_post_processor = mock.MagicMock(side_effect=lambda samples: calls.append("profile_samples"))
+        self.set_sample_processors(calls)
         self.actor.send = mock.MagicMock(side_effect=lambda target, msg: calls.append("joinpoint"))
 
         msg = worker_coordinator.ProcessSamples(
@@ -2584,6 +2639,31 @@ class SamplePostProcessorActorTests(TestCase):
         self.actor.send.assert_called_once_with(self.actor.worker_coordinator_actor, joinpoint_reached)
         self.assertEqual(["samples", "profile_samples", "joinpoint"], calls)
 
+    def test_wakeup_message_processes_buffered_samples_and_reschedules(self):
+        self.set_sample_processors()
+        self.actor.wakeupAfter = mock.MagicMock()
+        self.set_buffered_samples(samples=[1, 2], profile_samples=[3])
+
+        self.actor.receiveMsg_WakeupMessage(mock.MagicMock(), sender=None)
+
+        self.actor.sample_post_processor.assert_called_once_with([1, 2])
+        self.actor.profile_metrics_post_processor.assert_called_once_with([3])
+        self.actor.wakeupAfter.assert_called_once_with(
+            datetime.timedelta(seconds=worker_coordinator.WorkerCoordinatorActor.POST_PROCESS_INTERVAL_SECONDS)
+        )
+
+    def test_wakeup_message_does_not_process_after_close(self):
+        self.actor.closed = True
+        self.set_sample_processors()
+        self.actor.wakeupAfter = mock.MagicMock()
+        self.set_buffered_samples(samples=[1, 2], profile_samples=[3])
+
+        self.actor.receiveMsg_WakeupMessage(mock.MagicMock(), sender=None)
+
+        self.actor.sample_post_processor.assert_not_called()
+        self.actor.profile_metrics_post_processor.assert_not_called()
+        self.actor.wakeupAfter.assert_not_called()
+
     def test_receive_start_telemetry(self):
         self.actor.telemetry = mock.MagicMock()
 
@@ -2593,7 +2673,6 @@ class SamplePostProcessorActorTests(TestCase):
 
         self.actor.telemetry.on_benchmark_start.assert_called_once()
         self.assertTrue(self.actor.telemetry_started)
-
 
     def test_receive_stop_telemetry(self):
         self.actor.telemetry = mock.MagicMock()
@@ -2647,6 +2726,20 @@ class SamplePostProcessorActorTests(TestCase):
 
         self.assertEqual(["telemetry", "metrics_store"], calls)
 
+    def test_close_processes_buffered_samples_before_closing_metrics_store(self):
+        calls = []
+        self.set_sample_processors(calls)
+        self.set_buffered_samples()
+        self.actor.metrics_store = mock.MagicMock()
+        self.actor.metrics_store.opened = True
+        self.actor.metrics_store.close.side_effect = lambda: calls.append("metrics_store")
+
+        self.actor.close()
+
+        self.assertEqual(["samples", "profile_samples", "metrics_store"], calls)
+        self.assertEqual([], self.actor.raw_samples)
+        self.assertEqual([], self.actor.raw_profile_samples)
+
     def test_close_continues_when_stopping_telemetry_fails(self):
         self.actor.telemetry = mock.MagicMock()
         self.actor.telemetry.on_benchmark_stop.side_effect = RuntimeError("telemetry failed")
@@ -2663,6 +2756,8 @@ class SamplePostProcessorActorTests(TestCase):
     def test_get_externalizable_metrics_store_task_finished(self):
         self.actor.metrics_store = mock.MagicMock()
         self.actor.metrics_store.to_externalizable.return_value = {"data": 123}
+        self.set_sample_processors()
+        self.set_buffered_samples()
 
         self.actor.worker_coordinator_actor = mock.MagicMock()
         self.actor.send = mock.MagicMock()
@@ -2675,6 +2770,8 @@ class SamplePostProcessorActorTests(TestCase):
 
         self.actor.receiveMsg_GetExternalizableMetricsStore(msg, sender=None)
 
+        self.actor.sample_post_processor.assert_called_once_with([1])
+        self.actor.profile_metrics_post_processor.assert_called_once_with([2])
         self.actor.metrics_store.to_externalizable.assert_called_once_with(clear=True)
         self.actor.send.assert_called_once()
         target, sent_msg = self.actor.send.call_args.args
@@ -2687,6 +2784,8 @@ class SamplePostProcessorActorTests(TestCase):
         calls = []
         self.actor.metrics_store = mock.MagicMock()
         self.actor.metrics_store.opened = True
+        self.set_sample_processors(calls)
+        self.set_buffered_samples()
         self.actor.metrics_store.to_externalizable.side_effect = lambda clear: calls.append("externalize") or {"data": 123}
         self.actor.metrics_store.close.side_effect = lambda: calls.append("close")
         self.actor.worker_coordinator_actor = mock.MagicMock()
@@ -2699,7 +2798,7 @@ class SamplePostProcessorActorTests(TestCase):
 
         self.actor.receiveMsg_GetExternalizableMetricsStore(msg, sender=None)
 
-        self.assertEqual(["externalize", "close", "send"], calls)
+        self.assertEqual(["samples", "profile_samples", "externalize", "close", "send"], calls)
         target, sent_msg = self.actor.send.call_args.args
         self.assertEqual(self.actor.worker_coordinator_actor, target)
         self.assertIsInstance(sent_msg, worker_coordinator.BenchmarkComplete)
@@ -2869,38 +2968,3 @@ class ProgressSampleUpdateTests(TestCase):
             joinpoint_reached.worker_timestamp,
             joinpoint_reached.task
         )
-
-    def test_final_forwarded_joinpoint_closes_metrics_store_after_coordinator_advances(self):
-        target = mock.MagicMock()
-        target.sample_post_processor_actor = mock.Mock(name="sample_post_processor_actor")
-        coordinator = worker_coordinator.WorkerCoordinator.__new__(worker_coordinator.WorkerCoordinator)
-        coordinator.target = target
-        coordinator.config = mock.MagicMock()
-        coordinator.config.opts.return_value = False
-        coordinator.currently_completed = 0
-        coordinator.complete_current_task_sent = False
-        coordinator.workers = [mock.Mock(name="worker")]
-        coordinator.workers_completed_current_step = {}
-        coordinator.current_step = 0
-        coordinator.number_of_steps = 1
-        task = mock.Mock()
-        task.name = "task"
-        coordinator.tasks_per_join_point = [[task]]
-        coordinator.latest_progress_per_client = {}
-        coordinator.progress_publisher = mock.MagicMock()
-
-        task_allocations = [
-            worker_coordinator.ClientAllocation(client_id=0, task=worker_coordinator.JoinPoint(id=0))
-        ]
-        joinpoint_reached = worker_coordinator.JoinPointReached(worker_id=0, task=task_allocations)
-
-        coordinator.joinpoint_reached(
-            joinpoint_reached.worker_id,
-            joinpoint_reached.worker_timestamp,
-            joinpoint_reached.task
-        )
-
-        sent_messages = [call.args[1] for call in target.send.call_args_list]
-        self.assertTrue(any(isinstance(msg, worker_coordinator.StopTelemetry) for msg in sent_messages))
-        self.assertTrue(any(isinstance(msg, worker_coordinator.GetExternalizableMetricsStore) for msg in sent_messages))
-        self.assertFalse(any(isinstance(msg, worker_coordinator.CloseMetricsStore) for msg in sent_messages))

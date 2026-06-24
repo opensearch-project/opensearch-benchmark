@@ -647,7 +647,6 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         self.start_sender = None
         self.coordinator = None
         self.status = "init"
-        self.post_process_timer = 0
         self.cluster_details = None
         self.feedback_actor = None
         self.worker_shared_states = {}
@@ -1363,9 +1362,8 @@ class WorkerCoordinator:
         self.target.send(self.target.sample_post_processor_actor, CloseMetricsStore())
 
     def update_samples(self, latest_progress_per_client):
-        if len(latest_progress_per_client) > 0:
-            for client_id, task_progress in latest_progress_per_client.items():
-                self.latest_progress_per_client[client_id] = task_progress
+        for client_id, task_progress in latest_progress_per_client.items():
+            self.latest_progress_per_client[client_id] = task_progress
 
     def update_progress_message(self, task_finished=False):
         if not self.quiet and self.current_step >= 0:
@@ -1403,6 +1401,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         self.telemetry_started = False
         self.metrics_store = None
         self.telemetry = None
+        self.reset_sample_buffers()
 
     def receiveMsg_StartSamplePostProcessorActor(self, msg, sender):
         self.closed = False
@@ -1428,6 +1427,8 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
         self.prepare_telemetry(os_clients, enable=not uses_static_responses)
         self.worker_coordinator_actor = sender
+        self.reset_sample_buffers()
+        self.wakeupAfter(datetime.timedelta(seconds=WorkerCoordinatorActor.POST_PROCESS_INTERVAL_SECONDS))
 
     def receiveMsg_ProcessSamples(self, msg, sender):
         if self.closed:
@@ -1435,12 +1436,18 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
             self.logger.debug("Ignoring samples received after SamplePostProcessorActor has closed.")
             return
         if msg.samples:
-            self.sample_post_processor(msg.samples)
+            self.raw_samples.extend(msg.samples)
         if msg.profile_samples:
-            self.profile_metrics_post_processor(msg.profile_samples)
+            self.raw_profile_samples.extend(msg.profile_samples)
         if msg.joinpoint_reached:
+            self.post_process_samples()
             self.logger.debug("Join point reached message received in SamplePostProcessorActor. Notifying WorkerCoordinatorActor...")
             self.send(self.worker_coordinator_actor, msg.joinpoint_reached)
+
+    def receiveMsg_WakeupMessage(self, msg, sender):
+        if not self.closed:
+            self.post_process_samples()
+            self.wakeupAfter(datetime.timedelta(seconds=WorkerCoordinatorActor.POST_PROCESS_INTERVAL_SECONDS))
 
     def receiveMsg_StartTelemetry(self, msg, sender):
         self.telemetry.on_benchmark_start()
@@ -1456,6 +1463,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         if self.closed:
             self.logger.debug("Ignoring externalizable metrics store request after SamplePostProcessorActor has closed.")
             return
+        self.post_process_samples()
         # Some metrics store implementations return None because no external representation is required.
         # pylint: disable=assignment-from-none
         metric_results = self.metrics_store.to_externalizable(clear=msg.clear)
@@ -1483,12 +1491,29 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
             self.logger.info("Metrics store close request has already been processed.")
             return
         # Close can be reached through normal completion, cancellation, or ActorExitRequest.
+        self.post_process_samples()
         self.stop_telemetry()
         if self.metrics_store and self.metrics_store.opened:
             self.metrics_store.close()
         self.metrics_store = None
         self.closed = True
         self.logger.info("Metrics store close request has been processed.")
+
+    def post_process_samples(self):
+        # Swap buffers before processing so samples received in a later actor turn go to a fresh batch.
+        raw_samples = self.raw_samples
+        self.raw_samples = []
+        if raw_samples:
+            self.sample_post_processor(raw_samples)
+
+        raw_profile_samples = self.raw_profile_samples
+        self.raw_profile_samples = []
+        if raw_profile_samples:
+            self.profile_metrics_post_processor(raw_profile_samples)
+
+    def reset_sample_buffers(self):
+        self.raw_samples = []
+        self.raw_profile_samples = []
 
     def stop_telemetry(self):
         if self.telemetry_started and self.telemetry:
