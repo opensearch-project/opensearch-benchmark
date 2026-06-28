@@ -212,6 +212,9 @@ class TaskFinished:
         self.next_task_scheduled_in = next_task_scheduled_in
 
 class TaskBoundaryFlushed:
+    """
+    Indicates that the metrics store has been flushed and externalized at a task boundary.
+    """
     def __init__(self, metrics, next_task_scheduled_in, workers_curr_step):
         self.metrics = metrics
         self.next_task_scheduled_in = next_task_scheduled_in
