@@ -211,14 +211,27 @@ class TaskFinished:
         self.metrics = metrics
         self.next_task_scheduled_in = next_task_scheduled_in
 
+class TaskBoundaryFlushed:
+    def __init__(self, metrics, next_task_scheduled_in, workers_curr_step):
+        self.metrics = metrics
+        self.next_task_scheduled_in = next_task_scheduled_in
+        self.workers_curr_step = workers_curr_step
+
 class ProcessSamples:
     """
     Used to send samples from worker coordinator to sample post processor actor.
     """
 
-    def __init__(self, samples=None, profile_samples=None, joinpoint_reached=None):
+    def __init__(self, samples=None, profile_samples=None):
         self.samples = samples
         self.profile_samples = profile_samples
+
+class FlushAndForwardJoinPoint:
+    """
+    Used to flush samples before forwarding a worker's join point to the worker coordinator.
+    """
+
+    def __init__(self, joinpoint_reached):
         self.joinpoint_reached = joinpoint_reached
 
 class CloseMetricsStore:
@@ -226,20 +239,23 @@ class CloseMetricsStore:
     Used to signal the sample post processor actor to close the metrics store.
     """
 
-class GetExternalizableMetricsStore:
+class FlushForTaskBoundary:
     """
-    Used to request an externalizable version of the metrics store from the sample post processor actor.
+    Used to flush samples and externalize the metrics store before advancing to the next task.
     """
 
-    def __init__(self, clear=True, reason=None, waiting_period=None):
-        self.clear = clear
-        self.reason = reason
+    def __init__(self, workers_curr_step, waiting_period, clear=True):
+        self.workers_curr_step = workers_curr_step
         self.waiting_period = waiting_period
+        self.clear = clear
 
-class ReasonForExternalizableRequest(Enum):
-    """Reasons for requesting an externalizable version of the metrics store."""
-    BENCHMARK_COMPLETED = "Benchmark completed"
-    TASK_FINISHED = "Task finished"
+class FlushAndClose:
+    """
+    Used to stop telemetry, flush samples, externalize, and close the metrics store at benchmark completion.
+    """
+
+    def __init__(self, clear=True):
+        self.clear = clear
 
 class ResetRelativeTimeRequest:
     """
@@ -748,6 +764,11 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_TaskFinished(self, msg, sender):
         self.on_task_finished(msg.metrics, msg.next_task_scheduled_in)
+
+    @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
+    def receiveMsg_TaskBoundaryFlushed(self, msg, sender):
+        self.on_task_finished(msg.metrics, msg.next_task_scheduled_in)
+        self.coordinator.drive_workers_for_next_task(msg.workers_curr_step, msg.next_task_scheduled_in)
 
     def create_client(self, host):
         return self.createActor(Worker, targetActorRequirements=self._requirements(host))
@@ -1274,18 +1295,10 @@ class WorkerCoordinator:
             self.current_step += 1
 
             if self.finished():
-                self.target.send(self.target.sample_post_processor_actor, StopTelemetry())
                 self.logger.info("All steps completed.")
-                # Some metrics store implementations return None because no external representation is required.
-                # pylint: disable=assignment-from-none
-                # Keep final externalization and close in one SamplePostProcessorActor mailbox turn so all final docs
-                # are flushed before BenchmarkComplete is sent.
-                self.target.send(self.target.sample_post_processor_actor, GetExternalizableMetricsStore(True, reason=ReasonForExternalizableRequest.BENCHMARK_COMPLETED))
+                self.target.send(self.target.sample_post_processor_actor, FlushAndClose())
             else:
                 self.move_to_next_task(workers_curr_step)
-                # re-enable the feedback actor for the next task if we're in redline testing
-                if self.config.opts("workload", "redline.test", mandatory=False):
-                    self.target.send(self.target.feedback_actor, EnableFeedbackScaling())
         else:
             self.may_complete_current_task(task_allocations)
 
@@ -1299,14 +1312,9 @@ class WorkerCoordinator:
             # Assumption: We don't have a lot of clock skew between reaching the join point and sending the next task
             #             (it doesn't matter too much if we're a few ms off).
             waiting_period = 1.0
-        # Some metrics store implementations return None because no external representation is required.
-        # pylint: disable=assignment-from-none
-        self.target.send(self.target.sample_post_processor_actor,
-            GetExternalizableMetricsStore(True,
-            reason=ReasonForExternalizableRequest.TASK_FINISHED, waiting_period=waiting_period)
-        )
-        # Using a perf_counter here is fine also in the distributed case as we subtract it from `master_received_msg_at` making it
-        # a relative instead of an absolute value.
+        self.target.send(self.target.sample_post_processor_actor, FlushForTaskBoundary(workers_curr_step, waiting_period))
+
+    def drive_workers_for_next_task(self, workers_curr_step, waiting_period):
         start_next_task = time.perf_counter() + waiting_period
         for worker_id, worker in enumerate(self.workers):
             worker_ended_task_at, master_received_msg_at = workers_curr_step[worker_id]
@@ -1314,6 +1322,9 @@ class WorkerCoordinator:
             self.logger.info("Scheduling next task for worker id [%d] at their timestamp [%f] (master timestamp [%f])",
                              worker_id, worker_start_timestamp, start_next_task)
             self.target.drive_at(worker, worker_start_timestamp)
+        # re-enable the feedback actor for the next task if we're in redline testing
+        if self.config.opts("workload", "redline.test", mandatory=False):
+            self.target.send(self.target.feedback_actor, EnableFeedbackScaling())
 
     def may_complete_current_task(self, task_allocations):
         joinpoints_completing_parent = [a for a in task_allocations if a.task.preceding_task_completes_parent]
@@ -1403,6 +1414,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         self.telemetry = None
         self.reset_sample_buffers()
 
+    @actor.no_retry("sample post processor")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StartSamplePostProcessorActor(self, msg, sender):
         self.closed = False
         self.workload = msg.workload
@@ -1430,6 +1442,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         self.reset_sample_buffers()
         self.wakeupAfter(datetime.timedelta(seconds=WorkerCoordinatorActor.POST_PROCESS_INTERVAL_SECONDS))
 
+    @actor.no_retry("sample post processor")  # pylint: disable=no-value-for-parameter
     def receiveMsg_ProcessSamples(self, msg, sender):
         if self.closed:
             # Cancellation can race with in-flight samples from workers. Once closed, cancelled-run samples are best-effort.
@@ -1439,65 +1452,110 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
             self.raw_samples.extend(msg.samples)
         if msg.profile_samples:
             self.raw_profile_samples.extend(msg.profile_samples)
-        if msg.joinpoint_reached:
-            self.post_process_samples()
-            self.logger.debug("Join point reached message received in SamplePostProcessorActor. Notifying WorkerCoordinatorActor...")
-            self.send(self.worker_coordinator_actor, msg.joinpoint_reached)
 
+    @actor.no_retry("sample post processor")  # pylint: disable=no-value-for-parameter
+    def receiveMsg_FlushAndForwardJoinPoint(self, msg, sender):
+        self.logger.debug("Forwarding join point before sample post-processing attempt.")
+        self.send(self.worker_coordinator_actor, msg.joinpoint_reached)
+        try:
+            self.post_process_samples()
+        except BaseException as e:
+            self.logger.exception("Could not post-process samples after forwarding join point.")
+            self.send(self.worker_coordinator_actor, actor.BenchmarkFailure("Error in sample post processor ({})".format(str(e))))
+
+    @actor.no_retry("sample post processor")  # pylint: disable=no-value-for-parameter
     def receiveMsg_WakeupMessage(self, msg, sender):
         if not self.closed:
-            self.post_process_samples()
+            try:
+                self.post_process_samples()
+            except BaseException as e:
+                self.logger.exception("Could not post-process samples on periodic wakeup.")
+                self.send(self.worker_coordinator_actor, actor.BenchmarkFailure("Error in sample post processor ({})".format(str(e))))
             self.wakeupAfter(datetime.timedelta(seconds=WorkerCoordinatorActor.POST_PROCESS_INTERVAL_SECONDS))
 
+    @actor.no_retry("sample post processor")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StartTelemetry(self, msg, sender):
         self.telemetry.on_benchmark_start()
         self.telemetry_started = True
 
+    @actor.no_retry("sample post processor")  # pylint: disable=no-value-for-parameter
     def receiveMsg_StopTelemetry(self, msg, sender):
         self.stop_telemetry()
 
+    @actor.no_retry("sample post processor")  # pylint: disable=no-value-for-parameter
     def receiveMsg_CloseMetricsStore(self, msg, sender):
         self.close()
 
-    def receiveMsg_GetExternalizableMetricsStore(self, msg, sender):
+    @actor.no_retry("sample post processor")  # pylint: disable=no-value-for-parameter
+    def receiveMsg_FlushForTaskBoundary(self, msg, sender):
+        metric_results = None
         if self.closed:
-            self.logger.debug("Ignoring externalizable metrics store request after SamplePostProcessorActor has closed.")
+            self.logger.debug("Ignoring task-boundary flush after SamplePostProcessorActor has closed.")
+            self.send(self.worker_coordinator_actor, TaskBoundaryFlushed(metric_results, msg.waiting_period, msg.workers_curr_step))
             return
-        self.post_process_samples()
-        # Some metrics store implementations return None because no external representation is required.
-        # pylint: disable=assignment-from-none
-        metric_results = self.metrics_store.to_externalizable(clear=msg.clear)
-        if msg.reason == ReasonForExternalizableRequest.TASK_FINISHED:
-            self.send(self.worker_coordinator_actor, TaskFinished(metric_results, msg.waiting_period))
-        elif msg.reason == ReasonForExternalizableRequest.BENCHMARK_COMPLETED:
-            # OsMetricsStore persists directly and returns None above; close() performs the final flush.
-            self.logger.debug("Closing metrics store...")
-            self.close()
-            self.logger.debug("Sending benchmark results...")
+        try:
+            self.post_process_samples()
+            # Some metrics store implementations return None because no external representation is required.
+            # pylint: disable=assignment-from-none
+            metric_results = self.metrics_store.to_externalizable(clear=msg.clear)
+        except BaseException as e:
+            self.logger.exception("Could not flush samples at task boundary.")
+            self.send(self.worker_coordinator_actor, actor.BenchmarkFailure("Error in sample post processor ({})".format(str(e))))
+        finally:
+            self.send(self.worker_coordinator_actor, TaskBoundaryFlushed(metric_results, msg.waiting_period, msg.workers_curr_step))
+
+    @actor.no_retry("sample post processor")  # pylint: disable=no-value-for-parameter
+    def receiveMsg_FlushAndClose(self, msg, sender):
+        metric_results = None
+        if self.closed:
+            self.logger.debug("Sending benchmark completion after SamplePostProcessorActor has already closed.")
+            self.send(self.worker_coordinator_actor, BenchmarkComplete(metric_results))
+            return
+        try:
+            self.stop_telemetry()
+            self.post_process_samples()
+            # Some metrics store implementations return None because no external representation is required.
+            # pylint: disable=assignment-from-none
+            metric_results = self.metrics_store.to_externalizable(clear=msg.clear)
+            self.close(process_samples=False, stop_telemetry=False)
+        except BaseException as e:
+            self.logger.exception("Could not flush and close samples at benchmark completion.")
+            self.send(self.worker_coordinator_actor, actor.BenchmarkFailure("Error in sample post processor ({})".format(str(e))))
+            self.close(process_samples=False, stop_telemetry=False, suppress_errors=True)
+        finally:
             self.send(self.worker_coordinator_actor, BenchmarkComplete(metric_results))
 
+    @actor.no_retry("sample post processor")  # pylint: disable=no-value-for-parameter
     def receiveMsg_ResetRelativeTimeRequest(self, msg, sender):
         if self.closed:
             self.logger.debug("Ignoring relative-time reset after SamplePostProcessorActor has closed.")
             return
         self.metrics_store.reset_relative_time()
 
+    @actor.no_retry("sample post processor")  # pylint: disable=no-value-for-parameter
     def receiveMsg_ActorExitRequest(self, msg, sender):
         self.logger.info("SamplePostProcessorActor has received ActorExitRequest and will close the metrics store.")
         self.close()
 
-    def close(self):
+    def close(self, process_samples=True, stop_telemetry=True, suppress_errors=False):
         if self.closed:
             self.logger.info("Metrics store close request has already been processed.")
             return
-        # Close can be reached through normal completion, cancellation, or ActorExitRequest.
-        self.post_process_samples()
-        self.stop_telemetry()
-        if self.metrics_store and self.metrics_store.opened:
-            self.metrics_store.close()
-        self.metrics_store = None
-        self.closed = True
-        self.logger.info("Metrics store close request has been processed.")
+        try:
+            # Close can be reached through normal completion, cancellation, or ActorExitRequest.
+            if process_samples:
+                self.post_process_samples()
+            if stop_telemetry:
+                self.stop_telemetry()
+            if self.metrics_store and self.metrics_store.opened:
+                self.metrics_store.close()
+            self.metrics_store = None
+            self.closed = True
+            self.logger.info("Metrics store close request has been processed.")
+        except BaseException:
+            if not suppress_errors:
+                raise
+            self.logger.exception("Could not close metrics store cleanly.")
 
     def post_process_samples(self):
         # Swap buffers before processing so samples received in a later actor turn go to a fresh batch.
@@ -2073,10 +2131,14 @@ class Worker(actor.BenchmarkActor):
                 latest_progress_per_client[s.client_id] = s.task_progress
         if latest_progress_per_client:
             self.send(self.master, UpdateProgressSamples(latest_progress_per_client))
-        if samples or profile_samples or joinpoint_reached:
-            self.logger.debug("Worker[%d] is sending [%d] samples and [%d] profile samples to post processor. Join point reached: %s",
-                              self.worker_id, len(samples), len(profile_samples), str(joinpoint_reached))
-            self.send(self.sample_post_processor_actor, ProcessSamples(samples, profile_samples, joinpoint_reached=joinpoint_reached))
+        if samples or profile_samples:
+            self.logger.debug("Worker[%d] is sending [%d] samples and [%d] profile samples to post processor.",
+                              self.worker_id, len(samples), len(profile_samples))
+            self.send(self.sample_post_processor_actor, ProcessSamples(samples, profile_samples))
+        if joinpoint_reached:
+            self.logger.debug("Worker[%d] is asking post processor to flush and forward join point [%s].",
+                              self.worker_id, str(joinpoint_reached))
+            self.send(self.sample_post_processor_actor, FlushAndForwardJoinPoint(joinpoint_reached))
         return samples
 
 
