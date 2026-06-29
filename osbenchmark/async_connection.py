@@ -14,6 +14,7 @@ from typing import Optional, List
 import aiohttp
 import opensearchpy
 from aiohttp import RequestInfo, BaseConnector
+from aiohttp.abc import AbstractStreamWriter
 from aiohttp.client_proto import ResponseHandler
 from aiohttp.helpers import BaseTimerContext
 from multidict import CIMultiDictProxy, CIMultiDict
@@ -65,9 +66,9 @@ class StaticRequest(aiohttp.ClientRequest):
 class StaticResponse(aiohttp.ClientResponse):
     def __init__(self, method: str, url: URL, *, writer: "asyncio.Task[None]",
                  continue100: Optional["asyncio.Future[bool]"], timer: BaseTimerContext, request_info: RequestInfo,
-                 traces: List["Trace"], loop: asyncio.AbstractEventLoop, session: "ClientSession") -> None:
+                 traces: List["Trace"], loop: asyncio.AbstractEventLoop, session: "ClientSession", stream_writer: AbstractStreamWriter) -> None:
         super().__init__(method, url, writer=writer, continue100=continue100, timer=timer, request_info=request_info,
-                         traces=traces, loop=loop, session=session)
+                         traces=traces, loop=loop, session=session, stream_writer=stream_writer)
         self.static_body = None
 
     async def start(self, connection: "Connection") -> "ClientResponse":
