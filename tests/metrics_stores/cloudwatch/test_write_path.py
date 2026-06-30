@@ -185,7 +185,7 @@ class TestEmfBuildEvent:
             ["Workload", "Task", "OperationType", "SampleType"]
         ]
         assert directive["Metrics"] == [
-            {"Name": "service_time", "Unit": "Milliseconds"}
+            {"Name": "service_time", "Unit": "Milliseconds", "StorageResolution": 1}
         ]
 
     def test_no_dimensions_uses_inner_empty(self):

@@ -230,6 +230,10 @@ def build_event(doc: Dict[str, Any], namespace: str) -> Optional[Dict[str, Any]]
             "Metrics": [{
                 "Name": metric_name,
                 "Unit": osb_unit_to_cloudwatch(doc.get("unit")),
+                # 1s resolution so short benchmark windows graph as a
+                # line at 1-second period instead of a single dot at
+                # the default 60s standard-resolution bucket.
+                "StorageResolution": 1,
             }],
         }],
     }
@@ -386,7 +390,10 @@ def build_telemetry_event(doc: Dict[str, Any], namespace: str) -> Dict[str, Any]
                 directives.append({
                     "Namespace": namespace,
                     "Dimensions": dimensions_for_directive,
-                    "Metrics": [{"Name": f, "Unit": "None"} for f in chunk],
+                    "Metrics": [
+                        {"Name": f, "Unit": "None", "StorageResolution": 1}
+                        for f in chunk
+                    ],
                 })
 
         aws_block["CloudWatchMetrics"] = directives
