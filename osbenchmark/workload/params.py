@@ -1456,7 +1456,7 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
             self.action_buffer = {outer_field_name: []}
             self.action_parent_id = parents_ids[first_index_of_parent_ids]
             if add_id_field_to_body:
-                self.action_buffer.update({self.id_field_name: self.action_parent_id})
+                self.action_buffer.update({self.id_field_name: int(self.action_parent_id)})
 
         part_list = partition.tolist()
         for i in range(len(partition)):
@@ -1481,7 +1481,7 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
                 self.action_buffer = {outer_field_name: []}
                 if add_id_field_to_body:
 
-                    self.action_buffer.update({self.id_field_name: current_parent_id})
+                    self.action_buffer.update({self.id_field_name: int(current_parent_id)})
 
                 self.action_buffer[outer_field_name].append(nested)
 
@@ -1513,7 +1513,7 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
             metadata = {"_index": self.index_name}
             # Add id field to metadata only if it is _id
             if id_field_name == self.DEFAULT_ID_FIELD_NAME:
-                metadata.update({id_field_name: doc_id})
+                metadata.update({id_field_name: int(doc_id)})
             return {bulk_action: metadata}
 
         remaining_vectors_in_partition = self.num_vectors + self.offset - self.current
