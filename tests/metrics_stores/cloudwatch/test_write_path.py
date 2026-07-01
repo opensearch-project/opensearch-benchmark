@@ -304,6 +304,39 @@ class TestEmfBuildTelemetryEvent:
         }
         assert metric_names == {"count"}
 
+    def test_metric_names_with_invalid_chars_are_sanitized(self):
+        # NodeStats can produce field names like
+        # ``jvm_gc_collectors_G1 Concurrent GC_collection_count`` or
+        # ``jvm_buffer_pools_mapped - 'non-volatile memory'_count``.
+        # CloudWatch's EMF extractor rejects the entire MetricDirective
+        # when any Name contains characters outside [A-Za-z0-9_.-], so
+        # the sanitizer replaces those with underscores in BOTH the
+        # top-level key and the directive's Metrics[].Name so they still
+        # line up.
+        doc = {
+            "@timestamp": 1,
+            "workload": "geonames",
+            "name": "node-stats",
+            "jvm_gc_collectors_G1 Concurrent GC_collection_count": 12,
+            "jvm_buffer_pools_mapped - 'non-volatile memory'_count": 0,
+            "os_cpu_percent": 41,
+        }
+        evt = emf.build_telemetry_event(doc, namespace="OSB")
+
+        # Directive names sanitized:
+        declared = {
+            m["Name"]
+            for d in evt["_aws"]["CloudWatchMetrics"]
+            for m in d["Metrics"]
+        }
+        assert "jvm_gc_collectors_G1_Concurrent_GC_collection_count" in declared
+        assert "jvm_buffer_pools_mapped_-__non-volatile_memory__count" in declared
+        assert "os_cpu_percent" in declared
+
+        # Top-level keys match the directive names so CW can find the values.
+        for name in declared:
+            assert name in evt, f"declared metric {name!r} missing from event top-level"
+
 
 # ------------------------------------------------------------------ LogStreamWriter
 

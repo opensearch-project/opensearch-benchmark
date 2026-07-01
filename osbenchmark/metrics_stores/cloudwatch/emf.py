@@ -43,6 +43,7 @@ isolation.
 """
 import logging
 import numbers
+import re
 import time as _time
 from typing import Any, Dict, List, Optional
 
@@ -128,7 +129,7 @@ def build_event(doc: Dict[str, Any], namespace: str) -> Optional[Dict[str, Any]]
     all other OSB fields are exposed as plain top-level fields so Logs
     Insights can filter on them.
     """
-    metric_name = doc["name"]
+    metric_name = _sanitize_metric_name(doc["name"])
     metric_value = doc["value"]
 
     # EMF requires the metric target to be a numeric value. Reject non-numeric
@@ -245,6 +246,19 @@ def build_event(doc: Dict[str, Any], namespace: str) -> Optional[Dict[str, Any]]
 # and spill overflows into additional directives within the same
 # CloudWatchMetrics[] list of the same log event.
 _MAX_METRICS_PER_DIRECTIVE = 100
+
+# CloudWatch rejects metric names that contain characters outside
+# [A-Za-z0-9_.-]. OpenSearch NodeStats flattening can produce names like
+# ``jvm_buffer_pools_mapped - 'non-volatile memory'_count`` or
+# ``jvm_gc_collectors_G1 Concurrent GC_collection_count`` — the space,
+# apostrophe, and dash silently invalidate the whole EMF MetricDirective
+# so *no* metric in that directive gets extracted. Sanitize before use.
+_INVALID_METRIC_NAME_CHAR = re.compile(r"[^A-Za-z0-9_.\-]")
+
+
+def _sanitize_metric_name(name: str) -> str:
+    """Replace CW-invalid characters in a metric name with underscores."""
+    return _INVALID_METRIC_NAME_CHAR.sub("_", name)
 
 # Well-known fields injected by MetricsStore.put_doc (osbenchmark/metrics.py).
 # These are identity/metadata strings (or the run-scoped dict), not numeric
@@ -369,8 +383,10 @@ def build_telemetry_event(doc: Dict[str, Any], namespace: str) -> Dict[str, Any]
     # real collision is unreachable from the current telemetry code, but
     # writing this assignment LAST means a future namespace clash would
     # preserve the numeric metric value rather than the identity string.
+    # Sanitize keys so the top-level name matches the sanitized metric
+    # Name declared in _aws.CloudWatchMetrics[].Metrics[].
     for field in metric_fields:
-        event[field] = doc[field]
+        event[_sanitize_metric_name(field)] = doc[field]
 
     aws_block: Dict[str, Any] = {"Timestamp": timestamp}
 
@@ -391,7 +407,7 @@ def build_telemetry_event(doc: Dict[str, Any], namespace: str) -> Dict[str, Any]
                     "Namespace": namespace,
                     "Dimensions": dimensions_for_directive,
                     "Metrics": [
-                        {"Name": f, "Unit": "None", "StorageResolution": 1}
+                        {"Name": _sanitize_metric_name(f), "Unit": "None", "StorageResolution": 1}
                         for f in chunk
                     ],
                 })
