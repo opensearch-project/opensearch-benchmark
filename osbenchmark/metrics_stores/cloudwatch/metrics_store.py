@@ -160,12 +160,13 @@ class CloudWatchMetricsStore(MetricsStore):
 
     def _add(self, doc):
         """
-        Transform an OSB metric document into an EMF event and buffer it.
+        Transform an OSB metric document into one or more EMF events and buffer them.
 
         Routes between the single-metric ``put_value_*_level`` shape (doc
-        has both ``name`` and ``value``) and the multi-metric telemetry
-        ``put_doc`` shape (doc has ``name`` but no ``value`` — many
-        numeric fields keyed by flattened prefix).
+        has both ``name`` and ``value``, produces one event) and the
+        multi-metric telemetry ``put_doc`` shape (many numeric fields;
+        may produce multiple events because CloudWatch caps the total
+        metrics-per-log-event at ~100).
 
         Flushes synchronously when the in-memory batch reaches CloudWatch's
         per-call limits so the writer never has to subdivide a single
@@ -173,28 +174,29 @@ class CloudWatchMetricsStore(MetricsStore):
         """
         if "value" in doc:
             event = emf.build_event(doc, namespace=self._cw_config.namespace)
+            if event is None:
+                # Non-numeric single-metric value — already logged at WARNING.
+                return
+            events = [event]
         else:
-            event = emf.build_telemetry_event(
+            events = emf.build_telemetry_event(
                 doc, namespace=self._cw_config.namespace)
-        if event is None:
-            # build_event returns None for non-numeric single-metric values
-            # (already logged at WARNING). build_telemetry_event always
-            # returns an event — nested-only docs land as log-only events.
-            return
-        message = json.dumps(event, separators=(",", ":"))
-        encoded_size = len(message.encode("utf-8"))
-        timestamp = event["_aws"]["Timestamp"]
 
-        # If appending this event would push us over a CloudWatch limit,
-        # flush first so the buffer always fits in a single PutLogEvents.
-        if self._buffered_events and (
-            len(self._buffered_events) >= _MAX_BUFFERED_EVENTS
-            or self._buffered_bytes + encoded_size > _MAX_BUFFERED_BYTES
-        ):
-            self.flush(refresh=False)
+        for e in events:
+            message = json.dumps(e, separators=(",", ":"))
+            encoded_size = len(message.encode("utf-8"))
+            timestamp = e["_aws"]["Timestamp"]
 
-        self._buffered_events.append({"timestamp": timestamp, "message": message})
-        self._buffered_bytes += encoded_size
+            # If appending this event would push us over a CloudWatch limit,
+            # flush first so the buffer always fits in a single PutLogEvents.
+            if self._buffered_events and (
+                len(self._buffered_events) >= _MAX_BUFFERED_EVENTS
+                or self._buffered_bytes + encoded_size > _MAX_BUFFERED_BYTES
+            ):
+                self.flush(refresh=False)
+
+            self._buffered_events.append({"timestamp": timestamp, "message": message})
+            self._buffered_bytes += encoded_size
 
     def flush(self, refresh=True):
         """

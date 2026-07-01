@@ -247,6 +247,16 @@ def build_event(doc: Dict[str, Any], namespace: str) -> Optional[Dict[str, Any]]
 # CloudWatchMetrics[] list of the same log event.
 _MAX_METRICS_PER_DIRECTIVE = 100
 
+# Undocumented per-event cap enforced by the CloudWatch EMF extractor:
+# events declaring more than ~100 distinct metric Names (across ALL
+# CloudWatchMetrics directives combined) get silently rejected — no
+# metric is extracted, though the log line still lands in Logs. The
+# public spec (docs.aws.amazon.com/.../CloudWatch_Embedded_Metric_Format_Specification.html)
+# only advertises the 100/directive cap, so this is empirical. We split
+# telemetry documents that exceed the cap into multiple log events
+# (identical top-level identity + same Timestamp), each below the cap.
+_MAX_METRICS_PER_EVENT = 100
+
 # CloudWatch rejects metric names that contain characters outside
 # [A-Za-z0-9_.-]. OpenSearch NodeStats flattening can produce names like
 # ``jvm_buffer_pools_mapped - 'non-volatile memory'_count`` or
@@ -287,9 +297,17 @@ def _telemetry_group_key(field_name: str) -> str:
     return (head or field_name) if sep else field_name
 
 
-def build_telemetry_event(doc: Dict[str, Any], namespace: str) -> Dict[str, Any]:
+def build_telemetry_event(doc: Dict[str, Any], namespace: str) -> List[Dict[str, Any]]:
     """
-    Build a single EMF log event from a telemetry-style OSB metric document.
+    Build one or more EMF log events from a telemetry-style OSB metric document.
+
+    Returns a **list** of events (rather than a single event) because
+    CloudWatch's EMF metric-extractor enforces a per-log-event cap on the
+    total number of distinct metrics ingested (empirically ~100 across
+    ALL directives, not just per directive as the public spec suggests).
+    NodeStats emits ~600 numeric fields; we therefore split the metric
+    definitions across multiple log events sharing the same Timestamp
+    and top-level identity/dimension fields.
 
     Telemetry devices fall into two shapes:
 
@@ -297,15 +315,16 @@ def build_telemetry_event(doc: Dict[str, Any], namespace: str) -> Dict[str, Any]
       "indices_segments_count": 42, "jvm_mem_heap_used_percent": 73,
       ...}``. Numeric leaves become CloudWatch metrics grouped into
       ``CloudWatchMetrics`` directives by their first underscore-
-      delimited prefix.
+      delimited prefix, then packed into events up to
+      ``_MAX_METRICS_PER_EVENT`` metrics each.
     * **Nested** (RecoveryStats, ShardStats): ``{"name": ...,
       "shard": <dict>, ...}``. No numeric fields at the top level. We
-      still emit a log event so the data is searchable via Logs
-      Insights — the nested payload is serialized to JSON under a
-      single top-level key. No metrics are extracted.
+      still emit one log event so the data is searchable via Logs
+      Insights — the nested payload is serialized under a top-level
+      key. No metrics are extracted.
 
-    In both cases the function returns an event ready to be
-    ``json.dumps()`` and shipped through PutLogEvents.
+    Each returned dict is ready to be ``json.dumps()`` and shipped as a
+    separate PutLogEvents entry.
     """
     # Identify metric fields: numeric, non-bool, non-identity.
     metric_fields: List[str] = []
@@ -388,35 +407,77 @@ def build_telemetry_event(doc: Dict[str, Any], namespace: str) -> Dict[str, Any]
     for field in metric_fields:
         event[_sanitize_metric_name(field)] = doc[field]
 
-    aws_block: Dict[str, Any] = {"Timestamp": timestamp}
+    if not metric_fields:
+        # Nested-only documents (e.g. RecoveryStats' {"shard": ...}): a
+        # single log event with just the Timestamp — data is queryable via
+        # Logs Insights but no metric is extracted.
+        event["_aws"] = {"Timestamp": timestamp}
+        return [event]
 
-    if metric_fields:
-        # Group metric fields by prefix and chunk into ≤100-metric directives.
-        groups: Dict[str, List[str]] = {}
+    # Group metric fields by prefix (indices_*, jvm_*, etc.) so a chunk
+    # boundary aligns with a subsystem boundary when possible. Directives
+    # are still capped at _MAX_METRICS_PER_DIRECTIVE per the public spec.
+    groups: Dict[str, List[str]] = {}
+    for field in metric_fields:
+        groups.setdefault(_telemetry_group_key(field), []).append(field)
+
+    dimensions_for_directive = [dimensions_present] if dimensions_present else [[]]
+
+    # Build directives (each ≤ _MAX_METRICS_PER_DIRECTIVE metrics).
+    directives: List[Dict[str, Any]] = []
+    for _prefix in sorted(groups):
+        group_fields = groups[_prefix]
+        for chunk_start in range(0, len(group_fields), _MAX_METRICS_PER_DIRECTIVE):
+            chunk = group_fields[chunk_start:chunk_start + _MAX_METRICS_PER_DIRECTIVE]
+            directives.append({
+                "Namespace": namespace,
+                "Dimensions": dimensions_for_directive,
+                "Metrics": [
+                    {"Name": _sanitize_metric_name(f), "Unit": "None", "StorageResolution": 1}
+                    for f in chunk
+                ],
+            })
+
+    # Pack directives into events, respecting _MAX_METRICS_PER_EVENT (the
+    # cap on total metric definitions per log event). Every event carries
+    # the same top-level identity/dimension fields; only the
+    # `_aws.CloudWatchMetrics` list — and consequently which top-level
+    # numeric fields are present — varies per event.
+    events: List[Dict[str, Any]] = []
+    current_directives: List[Dict[str, Any]] = []
+    current_metric_count = 0
+
+    def _emit(directives_for_event: List[Dict[str, Any]]) -> None:
+        # Collect the metric names in this event so we only include the
+        # matching top-level numeric fields (avoids shipping ALL 596
+        # numeric values in every one of the 6 sub-events; each event
+        # only carries the values its directives reference).
+        event_copy: Dict[str, Any] = {k: v for k, v in event.items()}
+        names_in_event = {
+            m["Name"] for d in directives_for_event for m in d["Metrics"]
+        }
+        # Trim to just the metric top-level keys used in this event's
+        # directives. Identity/dimension fields already present in
+        # event_copy are kept regardless.
         for field in metric_fields:
-            groups.setdefault(_telemetry_group_key(field), []).append(field)
+            sanitized = _sanitize_metric_name(field)
+            if sanitized not in names_in_event:
+                event_copy.pop(sanitized, None)
+        event_copy["_aws"] = {
+            "Timestamp": timestamp,
+            "CloudWatchMetrics": directives_for_event,
+        }
+        events.append(event_copy)
 
-        directives: List[Dict[str, Any]] = []
-        dimensions_for_directive = [dimensions_present] if dimensions_present else [[]]
-        for _prefix in sorted(groups):  # deterministic ordering for stable test output
-            group_fields = groups[_prefix]
-            # Split into chunks of ≤100 metrics each.
-            for chunk_start in range(0, len(group_fields), _MAX_METRICS_PER_DIRECTIVE):
-                chunk = group_fields[chunk_start:chunk_start + _MAX_METRICS_PER_DIRECTIVE]
-                directives.append({
-                    "Namespace": namespace,
-                    "Dimensions": dimensions_for_directive,
-                    "Metrics": [
-                        {"Name": _sanitize_metric_name(f), "Unit": "None", "StorageResolution": 1}
-                        for f in chunk
-                    ],
-                })
+    for directive in directives:
+        d_count = len(directive["Metrics"])
+        if current_directives and current_metric_count + d_count > _MAX_METRICS_PER_EVENT:
+            _emit(current_directives)
+            current_directives = []
+            current_metric_count = 0
+        current_directives.append(directive)
+        current_metric_count += d_count
+    if current_directives:
+        _emit(current_directives)
 
-        aws_block["CloudWatchMetrics"] = directives
-    # Nested-only documents (e.g. RecoveryStats' {"shard": ...}) get no
-    # CloudWatchMetrics directives, just the Timestamp — they land in
-    # CloudWatch Logs and remain queryable via Logs Insights, but
-    # CloudWatch doesn't extract any metric from them.
-
-    event["_aws"] = aws_block
-    return event
+    return events

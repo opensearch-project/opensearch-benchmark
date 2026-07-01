@@ -252,7 +252,10 @@ class TestEmfBuildTelemetryEvent:
             "jvm_mem_heap_used_percent": 73,
             "os_mem_used_percent": 41,
         }
-        evt = emf.build_telemetry_event(doc, namespace="OSB")
+        events = emf.build_telemetry_event(doc, namespace="OSB")
+        # 4 metrics well under the per-event cap — everything fits in one event.
+        assert len(events) == 1
+        evt = events[0]
         directives = evt["_aws"]["CloudWatchMetrics"]
         prefixes = {d["Metrics"][0]["Name"].split("_")[0] for d in directives}
         assert prefixes == {"indices", "jvm", "os"}
@@ -260,15 +263,56 @@ class TestEmfBuildTelemetryEvent:
         for d in directives:
             assert d["Dimensions"] == [["Workload", "SampleType"]]
 
-    def test_chunked_when_more_than_100_metrics(self):
+    def test_chunked_when_more_than_100_metrics_per_directive(self):
         # NodeStats can exceed EMF's 100-metric-per-directive cap.
+        # Directive chunking splits a single prefix group into ≤100-metric
+        # directives; event-level packing (below) additionally distributes
+        # directives across multiple log events.
         doc = {"@timestamp": 1, "workload": "w", "sample-type": "normal",
                "name": "stress"}
         for i in range(250):
             doc[f"indices_metric_{i:03d}"] = i
-        evt = emf.build_telemetry_event(doc, namespace="OSB")
-        chunks = [len(d["Metrics"]) for d in evt["_aws"]["CloudWatchMetrics"]]
-        assert chunks == [100, 100, 50]
+        events = emf.build_telemetry_event(doc, namespace="OSB")
+        all_directive_sizes = [
+            len(d["Metrics"])
+            for e in events
+            for d in e["_aws"]["CloudWatchMetrics"]
+        ]
+        assert all_directive_sizes == [100, 100, 50]
+        # 250 metrics > 100 per-event cap, so must produce >1 event.
+        assert len(events) >= 3
+
+    def test_split_into_multiple_events_when_over_100_metrics_total(self):
+        # CloudWatch caps total metric definitions per log event at ~100
+        # (undocumented). 250 metrics across a single prefix group must
+        # be split into >=3 log events, none exceeding 100 metrics.
+        doc = {"@timestamp": 42, "workload": "geonames",
+               "sample-type": "normal", "name": "node-stats"}
+        for i in range(250):
+            doc[f"jvm_field_{i:03d}"] = i
+        events = emf.build_telemetry_event(doc, namespace="OSB")
+        assert len(events) >= 3
+        for e in events:
+            n_metrics = sum(len(d["Metrics"]) for d in e["_aws"]["CloudWatchMetrics"])
+            assert n_metrics <= 100
+            # Every event carries the same identity + timestamp
+            assert e["_aws"]["Timestamp"] == 42
+            assert e["Workload"] == "geonames"
+            assert e["SampleType"] == "normal"
+        # Every declared metric name in every event must exist at top-level.
+        for e in events:
+            for d in e["_aws"]["CloudWatchMetrics"]:
+                for m in d["Metrics"]:
+                    assert m["Name"] in e, (
+                        f"declared metric {m['Name']!r} missing from event")
+        # Union of all declared names covers all 250 fields.
+        all_declared = {
+            m["Name"]
+            for e in events
+            for d in e["_aws"]["CloudWatchMetrics"]
+            for m in d["Metrics"]
+        }
+        assert len(all_declared) == 250
 
     def test_nested_dict_payload_becomes_log_only_event(self):
         # RecoveryStats: {"name": "...", "shard": <dict>} with no
@@ -281,8 +325,9 @@ class TestEmfBuildTelemetryEvent:
             "name": "recovery-stats",
             "shard": {"id": 0, "state": "DONE", "primary": True},
         }
-        evt = emf.build_telemetry_event(doc, namespace="OSB")
-        assert evt is not None
+        events = emf.build_telemetry_event(doc, namespace="OSB")
+        assert len(events) == 1
+        evt = events[0]
         # Nested data preserved at top level
         assert evt["shard"]["state"] == "DONE"
         # NO CloudWatchMetrics directive (no metrics to extract)
@@ -293,7 +338,9 @@ class TestEmfBuildTelemetryEvent:
     def test_bool_fields_preserved_as_log_only(self):
         doc = {"@timestamp": 1, "workload": "w", "sample-type": "normal",
                "name": "x", "is_primary": True, "count": 5}
-        evt = emf.build_telemetry_event(doc, namespace="OSB")
+        events = emf.build_telemetry_event(doc, namespace="OSB")
+        assert len(events) == 1
+        evt = events[0]
         # Bool preserved as a log field (not a metric)
         assert evt["is_primary"] is True
         # Numeric is the only metric
@@ -321,7 +368,9 @@ class TestEmfBuildTelemetryEvent:
             "jvm_buffer_pools_mapped - 'non-volatile memory'_count": 0,
             "os_cpu_percent": 41,
         }
-        evt = emf.build_telemetry_event(doc, namespace="OSB")
+        events = emf.build_telemetry_event(doc, namespace="OSB")
+        assert len(events) == 1
+        evt = events[0]
 
         # Directive names sanitized:
         declared = {
