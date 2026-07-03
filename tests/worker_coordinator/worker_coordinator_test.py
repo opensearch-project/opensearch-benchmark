@@ -2508,9 +2508,9 @@ class TaskRampDownTests(TestCase):
         # Different ramp_down should produce different hashes
         self.assertNotEqual(hash(task1), hash(task2))
 
-class SamplePostProcessorActorTests(TestCase):
+class SamplePostProcessorActorTestCase(TestCase):
     @pytest.fixture(autouse=True)
-    def setup_actor(self):
+    def _setup_actor(self):
         self.monkeypatch = pytest.MonkeyPatch()
         self.monkeypatch.setattr("osbenchmark.log.post_configure_actor_logging", lambda: None)
         self.actor = worker_coordinator.SamplePostProcessorActor()
@@ -2537,7 +2537,7 @@ class SamplePostProcessorActorTests(TestCase):
     def tearDown(self):
         self.monkeypatch.undo()
 
-    def set_sample_processors(self, calls=None):
+    def _set_sample_processors(self, calls=None):
         if calls is None:
             self.actor.sample_post_processor = mock.MagicMock()
             self.actor.profile_metrics_post_processor = mock.MagicMock()
@@ -2545,10 +2545,12 @@ class SamplePostProcessorActorTests(TestCase):
             self.actor.sample_post_processor = mock.MagicMock(side_effect=lambda samples: calls.append("samples"))
             self.actor.profile_metrics_post_processor = mock.MagicMock(side_effect=lambda samples: calls.append("profile_samples"))
 
-    def set_buffered_samples(self, samples=None, profile_samples=None):
+    def _set_buffered_samples(self, samples=None, profile_samples=None):
         self.actor.raw_samples = [1] if samples is None else samples
         self.actor.raw_profile_samples = [2] if profile_samples is None else profile_samples
 
+
+class SamplePostProcessorActorBufferingTests(SamplePostProcessorActorTestCase):
     def test_receive_start_sample_post_processor(self):
         msg = worker_coordinator.StartSamplePostProcessorActor(
             config=self.cfg,
@@ -2565,7 +2567,7 @@ class SamplePostProcessorActorTests(TestCase):
         assert self.actor.telemetry is not None
 
     def test_receive_process_samples_buffers_until_post_processing(self):
-        self.set_sample_processors()
+        self._set_sample_processors()
 
         msg = worker_coordinator.ProcessSamples(
             samples=[1, 2],
@@ -2604,7 +2606,7 @@ class SamplePostProcessorActorTests(TestCase):
         self.actor.send.assert_not_called()
 
     def test_receive_process_samples_skips_when_none(self):
-        self.set_sample_processors()
+        self._set_sample_processors()
 
         msg = worker_coordinator.ProcessSamples(
             samples=None,
@@ -2622,8 +2624,8 @@ class SamplePostProcessorActorTests(TestCase):
         calls = []
         joinpoint_reached = mock.MagicMock()
         self.actor.worker_coordinator_actor = mock.MagicMock()
-        self.set_sample_processors(calls)
-        self.set_buffered_samples(samples=[1, 2], profile_samples=[3])
+        self._set_sample_processors(calls)
+        self._set_buffered_samples(samples=[1, 2], profile_samples=[3])
         self.actor.send = mock.MagicMock(side_effect=lambda target, msg: calls.append("joinpoint"))
 
         msg = worker_coordinator.FlushAndForwardJoinPoint(joinpoint_reached)
@@ -2640,7 +2642,7 @@ class SamplePostProcessorActorTests(TestCase):
         self.actor.worker_coordinator_actor = mock.MagicMock()
         self.actor.sample_post_processor = mock.MagicMock(side_effect=RuntimeError("boom"))
         self.actor.profile_metrics_post_processor = mock.MagicMock()
-        self.set_buffered_samples(samples=[1], profile_samples=[])
+        self._set_buffered_samples(samples=[1], profile_samples=[])
         self.actor.send = mock.MagicMock()
 
         msg = worker_coordinator.FlushAndForwardJoinPoint(joinpoint_reached)
@@ -2652,9 +2654,9 @@ class SamplePostProcessorActorTests(TestCase):
         self.assertTrue(any(isinstance(sent_msg, actor.BenchmarkFailure) for sent_msg in sent_messages))
 
     def test_wakeup_message_processes_buffered_samples_and_reschedules(self):
-        self.set_sample_processors()
+        self._set_sample_processors()
         self.actor.wakeupAfter = mock.MagicMock()
-        self.set_buffered_samples(samples=[1, 2], profile_samples=[3])
+        self._set_buffered_samples(samples=[1, 2], profile_samples=[3])
 
         self.actor.receiveMsg_WakeupMessage(mock.MagicMock(), sender=None)
 
@@ -2666,9 +2668,9 @@ class SamplePostProcessorActorTests(TestCase):
 
     def test_wakeup_message_does_not_process_after_close(self):
         self.actor.closed = True
-        self.set_sample_processors()
+        self._set_sample_processors()
         self.actor.wakeupAfter = mock.MagicMock()
-        self.set_buffered_samples(samples=[1, 2], profile_samples=[3])
+        self._set_buffered_samples(samples=[1, 2], profile_samples=[3])
 
         self.actor.receiveMsg_WakeupMessage(mock.MagicMock(), sender=None)
 
@@ -2682,7 +2684,7 @@ class SamplePostProcessorActorTests(TestCase):
         self.actor.profile_metrics_post_processor = mock.MagicMock()
         self.actor.wakeupAfter = mock.MagicMock()
         self.actor.send = mock.MagicMock()
-        self.set_buffered_samples(samples=[1], profile_samples=[])
+        self._set_buffered_samples(samples=[1], profile_samples=[])
 
         self.actor.receiveMsg_WakeupMessage(mock.MagicMock(), sender=None)
 
@@ -2693,6 +2695,8 @@ class SamplePostProcessorActorTests(TestCase):
             datetime.timedelta(seconds=worker_coordinator.WorkerCoordinatorActor.POST_PROCESS_INTERVAL_SECONDS)
         )
 
+
+class SamplePostProcessorActorLifecycleTests(SamplePostProcessorActorTestCase):
     def test_receive_start_telemetry(self):
         self.actor.telemetry = mock.MagicMock()
 
@@ -2757,8 +2761,8 @@ class SamplePostProcessorActorTests(TestCase):
 
     def test_close_processes_buffered_samples_before_closing_metrics_store(self):
         calls = []
-        self.set_sample_processors(calls)
-        self.set_buffered_samples()
+        self._set_sample_processors(calls)
+        self._set_buffered_samples()
         self.actor.metrics_store = mock.MagicMock()
         self.actor.metrics_store.opened = True
         self.actor.metrics_store.close.side_effect = lambda: calls.append("metrics_store")
@@ -2782,11 +2786,13 @@ class SamplePostProcessorActorTests(TestCase):
         self.actor.metrics_store.close.assert_called_once()
         self.assertFalse(self.actor.telemetry_started)
 
+
+class SamplePostProcessorActorBoundaryTests(SamplePostProcessorActorTestCase):
     def test_flush_for_task_boundary_flushes_buffered_samples_and_replies(self):
         self.actor.metrics_store = mock.MagicMock()
         self.actor.metrics_store.to_externalizable.return_value = {"data": 123}
-        self.set_sample_processors()
-        self.set_buffered_samples()
+        self._set_sample_processors()
+        self._set_buffered_samples()
         workers_curr_step = {0: (10, 20)}
 
         self.actor.worker_coordinator_actor = mock.MagicMock()
@@ -2807,11 +2813,11 @@ class SamplePostProcessorActorTests(TestCase):
         self.assertEqual(5, sent_msg.next_task_scheduled_in)
         self.assertEqual(workers_curr_step, sent_msg.workers_curr_step)
 
-    def test_flush_for_task_boundary_replies_after_processing_failure(self):
+    def test_flush_for_task_boundary_reports_failure_without_boundary_ack(self):
         self.actor.metrics_store = mock.MagicMock()
         self.actor.sample_post_processor = mock.MagicMock(side_effect=RuntimeError("boom"))
         self.actor.profile_metrics_post_processor = mock.MagicMock()
-        self.set_buffered_samples(samples=[1], profile_samples=[])
+        self._set_buffered_samples(samples=[1], profile_samples=[])
         self.actor.worker_coordinator_actor = mock.MagicMock()
         self.actor.send = mock.MagicMock()
         workers_curr_step = {0: (10, 20)}
@@ -2822,9 +2828,18 @@ class SamplePostProcessorActorTests(TestCase):
 
         sent_messages = [call.args[1] for call in self.actor.send.call_args_list]
         self.assertTrue(any(isinstance(sent_msg, actor.BenchmarkFailure) for sent_msg in sent_messages))
-        self.assertIsInstance(sent_messages[-1], worker_coordinator.TaskBoundaryFlushed)
-        self.assertIsNone(sent_messages[-1].metrics)
-        self.assertEqual(workers_curr_step, sent_messages[-1].workers_curr_step)
+        self.assertFalse(any(isinstance(sent_msg, worker_coordinator.TaskBoundaryFlushed) for sent_msg in sent_messages))
+
+    def test_flush_for_task_boundary_ignores_message_after_close(self):
+        self.actor.closed = True
+        self.actor.worker_coordinator_actor = mock.MagicMock()
+        self.actor.send = mock.MagicMock()
+
+        msg = worker_coordinator.FlushForTaskBoundary(workers_curr_step={0: (10, 20)}, waiting_period=5, clear=True)
+
+        self.actor.receiveMsg_FlushForTaskBoundary(msg, sender=None)
+
+        self.actor.send.assert_not_called()
 
     def test_flush_and_close_stops_telemetry_flushes_and_closes_before_sending_complete(self):
         calls = []
@@ -2833,8 +2848,8 @@ class SamplePostProcessorActorTests(TestCase):
         self.actor.telemetry_started = True
         self.actor.metrics_store = mock.MagicMock()
         self.actor.metrics_store.opened = True
-        self.set_sample_processors(calls)
-        self.set_buffered_samples()
+        self._set_sample_processors(calls)
+        self._set_buffered_samples()
         self.actor.metrics_store.to_externalizable.side_effect = lambda clear: calls.append("externalize") or {"data": 123}
         self.actor.metrics_store.close.side_effect = lambda: calls.append("close")
         self.actor.worker_coordinator_actor = mock.MagicMock()
@@ -2850,12 +2865,12 @@ class SamplePostProcessorActorTests(TestCase):
         self.assertIsInstance(sent_msg, worker_coordinator.BenchmarkComplete)
         self.assertEqual({"data": 123}, sent_msg.metrics)
 
-    def test_flush_and_close_replies_after_processing_failure(self):
+    def test_flush_and_close_reports_failure_without_benchmark_complete(self):
         self.actor.metrics_store = mock.MagicMock()
         self.actor.metrics_store.opened = True
         self.actor.sample_post_processor = mock.MagicMock(side_effect=RuntimeError("boom"))
         self.actor.profile_metrics_post_processor = mock.MagicMock()
-        self.set_buffered_samples(samples=[1], profile_samples=[])
+        self._set_buffered_samples(samples=[1], profile_samples=[])
         self.actor.worker_coordinator_actor = mock.MagicMock()
         self.actor.send = mock.MagicMock()
 
@@ -2865,8 +2880,7 @@ class SamplePostProcessorActorTests(TestCase):
 
         sent_messages = [call.args[1] for call in self.actor.send.call_args_list]
         self.assertTrue(any(isinstance(sent_msg, actor.BenchmarkFailure) for sent_msg in sent_messages))
-        self.assertIsInstance(sent_messages[-1], worker_coordinator.BenchmarkComplete)
-        self.assertIsNone(sent_messages[-1].metrics)
+        self.assertFalse(any(isinstance(sent_msg, worker_coordinator.BenchmarkComplete) for sent_msg in sent_messages))
 
     def test_reset_relative_time(self):
         self.actor.metrics_store = mock.MagicMock()
@@ -2919,6 +2933,17 @@ class SampleRoutingAndProgressUpdateTests(TestCase):
         self.assertIsInstance(sent_msg, worker_coordinator.TaskFinished)
         self.assertEqual({"data": 123}, sent_msg.metrics)
         self.assertEqual(5, sent_msg.next_task_scheduled_in)
+
+    def test_worker_coordinator_actor_ignores_task_boundary_flushed_while_exiting(self):
+        actor = worker_coordinator.WorkerCoordinatorActor()
+        actor.status = "exiting"
+        actor.coordinator = mock.MagicMock()
+        actor.send = mock.MagicMock()
+
+        actor.receiveMsg_TaskBoundaryFlushed(worker_coordinator.TaskBoundaryFlushed({"data": 123}, 5, {0: (10, 20)}), sender=None)
+
+        actor.coordinator.drive_workers_for_next_task.assert_not_called()
+        actor.send.assert_not_called()
 
     def test_worker_coordinator_updates_latest_progress_per_client(self):
         coordinator = worker_coordinator.WorkerCoordinator(

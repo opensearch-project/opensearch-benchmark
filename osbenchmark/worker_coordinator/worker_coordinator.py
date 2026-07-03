@@ -678,18 +678,20 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
 
     def receiveMsg_BenchmarkFailure(self, msg, sender):
         self.logger.error("Main worker_coordinator received a fatal exception from load generator. Shutting down.")
+        self.status = "exiting"
         self.coordinator.close()
         self.send(self.start_sender, msg)
 
     def receiveMsg_BenchmarkCancelled(self, msg, sender):
         self.logger.info("Main worker_coordinator received a notification that the benchmark has been cancelled.")
+        self.status = "exiting"
         self.coordinator.close()
-        if hasattr(self, "sample_post_processor_actor"):
+        if self.sample_post_processor_actor is not None:
             self.logger.info("Shutting down SamplePostProcessorActor due to benchmark cancellation.")
             self.send(self.sample_post_processor_actor, thespian.actors.ActorExitRequest())
         # shut down FeedbackActor if it's active
         # we do this manually in the workercoordinator since it's fully responsible for the feedback actor
-        if hasattr(self, "feedback_actor"):
+        if self.feedback_actor is not None:
             self.logger.info("Shutting down FeedbackActor due to benchmark cancellation.")
             self.send(self.feedback_actor, thespian.actors.ActorExitRequest())
         self.send(self.start_sender, msg)
@@ -765,11 +767,10 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
         self.on_benchmark_complete(msg.metrics)
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
-    def receiveMsg_TaskFinished(self, msg, sender):
-        self.on_task_finished(msg.metrics, msg.next_task_scheduled_in)
-
-    @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_TaskBoundaryFlushed(self, msg, sender):
+        if self.status == "exiting":
+            self.logger.info("Ignoring task-boundary flush because worker coordinator is exiting.")
+            return
         self.on_task_finished(msg.metrics, msg.next_task_scheduled_in)
         self.coordinator.drive_workers_for_next_task(msg.workers_curr_step, msg.next_task_scheduled_in)
 
@@ -1494,7 +1495,6 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         metric_results = None
         if self.closed:
             self.logger.debug("Ignoring task-boundary flush after SamplePostProcessorActor has closed.")
-            self.send(self.worker_coordinator_actor, TaskBoundaryFlushed(metric_results, msg.waiting_period, msg.workers_curr_step))
             return
         try:
             self.post_process_samples()
@@ -1504,7 +1504,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         except BaseException as e:
             self.logger.exception("Could not flush samples at task boundary.")
             self.send(self.worker_coordinator_actor, actor.BenchmarkFailure("Error in sample post processor ({})".format(str(e))))
-        finally:
+        else:
             self.send(self.worker_coordinator_actor, TaskBoundaryFlushed(metric_results, msg.waiting_period, msg.workers_curr_step))
 
     @actor.no_retry("sample post processor")  # pylint: disable=no-value-for-parameter
@@ -1525,7 +1525,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
             self.logger.exception("Could not flush and close samples at benchmark completion.")
             self.send(self.worker_coordinator_actor, actor.BenchmarkFailure("Error in sample post processor ({})".format(str(e))))
             self.close(process_samples=False, stop_telemetry=False, suppress_errors=True)
-        finally:
+        else:
             self.send(self.worker_coordinator_actor, BenchmarkComplete(metric_results))
 
     @actor.no_retry("sample post processor")  # pylint: disable=no-value-for-parameter
