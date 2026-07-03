@@ -747,7 +747,6 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_JoinPointReached(self, msg, sender):
-        self.logger.info("Worker [%s] has reached join point for task [%s].", msg.worker_id, msg.task)
         self.coordinator.joinpoint_reached(msg.worker_id, msg.worker_timestamp, msg.task)
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
@@ -1234,19 +1233,15 @@ class WorkerCoordinator:
             # we must have a metrics store connected for CPU based feedback
             cpu_max = self.config.opts("workload", "redline.max_cpu_usage", default_value=None, mandatory=False)
             metrics_store_type = metrics.metrics_store_class(self.config)
-            self.logger.info("Metrics store type is %s!!!", metrics_store_type)
             if cpu_max and metrics_store_type is metrics.InMemoryMetricsStore:
                 raise exceptions.SystemSetupError("CPU-based feedback requires a metrics store. You are using an in-memory metrics store")
             elif cpu_max and "node-stats" not in self.config.opts("telemetry", "devices"):
                 raise exceptions.SystemSetupError("Node stats telemetry not enabled — this is required for CPU-based redline feedback.")
             elif cpu_max and metrics_store_type is metrics.OsMetricsStore:
                 # pass over the index and test run ID so the feedbackActor can query the datastore
-                self.logger.info("Time start before conversion: %s", self.config.opts("system", "time.start"))
-                self.logger.info("Time start after conversion: %s", osb_time.to_iso8601(self.config.opts("system", "time.start")))
                 test_run_timestamp = osb_time.to_iso8601(self.config.opts("system", "time.start"))
                 metrics_index = self.index_name(test_run_timestamp)
                 test_run_id = self.config.opts("system", "test_run.id")
-                self.logger.info("New Index name [%s], new test run id [%s]", metrics_index, test_run_id)
 
             scale_step = self.config.opts("workload", "redline.scale_step", default_value=0)
             scale_down_pct = self.config.opts("workload", "redline.scale_down_pct", default_value=0)
@@ -1268,7 +1263,6 @@ class WorkerCoordinator:
             ))
             self.target.start_feedbackActor(self.shared_client_dict)
 
-        self.logger.info("All workers started!!!!! Benchmark is now running.")
         self.update_progress_message()
 
     def index_name(self, test_run_timestamp):
@@ -1427,8 +1421,6 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
                                                    workload=msg.workload.name,
                                                    test_procedure=msg.test_procedure.name,
                                                    read_only=False)
-        if metrics.metrics_store_class(self.config) is metrics.OsMetricsStore:
-            self.logger.info("Metric Store true index name [%s], true test run name [%s]", self.metrics_store.index, self.metrics_store.test_run_id)
         self.sample_post_processor = DefaultSamplePostprocessor(self.metrics_store,
                                                          msg.downsample_factor,
                                                          msg.workload.meta_data,
@@ -2135,12 +2127,8 @@ class Worker(actor.BenchmarkActor):
         if latest_progress_per_client:
             self.send(self.master, UpdateProgressSamples(latest_progress_per_client))
         if samples or profile_samples:
-            self.logger.debug("Worker[%d] is sending [%d] samples and [%d] profile samples to post processor.",
-                              self.worker_id, len(samples), len(profile_samples))
             self.send(self.sample_post_processor_actor, ProcessSamples(samples, profile_samples))
         if joinpoint_reached:
-            self.logger.debug("Worker[%d] is asking post processor to flush and forward join point [%s].",
-                              self.worker_id, str(joinpoint_reached))
             self.send(self.sample_post_processor_actor, FlushAndForwardJoinPoint(joinpoint_reached))
         return samples
 
