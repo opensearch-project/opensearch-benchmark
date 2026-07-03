@@ -29,7 +29,7 @@ import queue
 import threading
 import time
 import unittest.mock as mock
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest import TestCase
 
 import opensearchpy
@@ -2552,6 +2552,7 @@ class SamplePostProcessorActorTestCase(TestCase):
 
 class SamplePostProcessorActorBufferingTests(SamplePostProcessorActorTestCase):
     def test_receive_start_sample_post_processor(self):
+        self.actor.wakeupAfter = mock.MagicMock()
         msg = worker_coordinator.StartSamplePostProcessorActor(
             config=self.cfg,
             workload=mock.MagicMock(name="workload"),
@@ -2663,7 +2664,7 @@ class SamplePostProcessorActorBufferingTests(SamplePostProcessorActorTestCase):
         self.actor.sample_post_processor.assert_called_once_with([1, 2])
         self.actor.profile_metrics_post_processor.assert_called_once_with([3])
         self.actor.wakeupAfter.assert_called_once_with(
-            datetime.timedelta(seconds=worker_coordinator.WorkerCoordinatorActor.POST_PROCESS_INTERVAL_SECONDS)
+            timedelta(seconds=worker_coordinator.WorkerCoordinatorActor.POST_PROCESS_INTERVAL_SECONDS)
         )
 
     def test_wakeup_message_does_not_process_after_close(self):
@@ -2692,7 +2693,7 @@ class SamplePostProcessorActorBufferingTests(SamplePostProcessorActorTestCase):
         self.assertEqual(self.actor.worker_coordinator_actor, target)
         self.assertIsInstance(sent_msg, actor.BenchmarkFailure)
         self.actor.wakeupAfter.assert_called_once_with(
-            datetime.timedelta(seconds=worker_coordinator.WorkerCoordinatorActor.POST_PROCESS_INTERVAL_SECONDS)
+            timedelta(seconds=worker_coordinator.WorkerCoordinatorActor.POST_PROCESS_INTERVAL_SECONDS)
         )
 
 
@@ -2719,22 +2720,24 @@ class SamplePostProcessorActorLifecycleTests(SamplePostProcessorActorTestCase):
         self.assertFalse(self.actor.telemetry_started)
 
     def test_close_metrics_store_via_message(self):
-        self.actor.metrics_store = mock.MagicMock()
-        self.actor.metrics_store.opened = True
+        metrics_store = mock.MagicMock()
+        metrics_store.opened = True
+        self.actor.metrics_store = metrics_store
 
         msg = worker_coordinator.CloseMetricsStore()
 
         self.actor.receiveMsg_CloseMetricsStore(msg, sender=None)
 
-        self.actor.metrics_store.close.assert_called_once()
+        metrics_store.close.assert_called_once()
 
     def test_actor_exit_request_closes_metrics_store(self):
-        self.actor.metrics_store = mock.MagicMock()
-        self.actor.metrics_store.opened = True
+        metrics_store = mock.MagicMock()
+        metrics_store.opened = True
+        self.actor.metrics_store = metrics_store
 
         self.actor.receiveMsg_ActorExitRequest(mock.MagicMock(), sender=None)
 
-        self.actor.metrics_store.close.assert_called_once()
+        metrics_store.close.assert_called_once()
 
     def test_close_is_idempotent(self):
         metrics_store = mock.MagicMock()
@@ -2777,13 +2780,14 @@ class SamplePostProcessorActorLifecycleTests(SamplePostProcessorActorTestCase):
         self.actor.telemetry = mock.MagicMock()
         self.actor.telemetry.on_benchmark_stop.side_effect = RuntimeError("telemetry failed")
         self.actor.telemetry_started = True
-        self.actor.metrics_store = mock.MagicMock()
-        self.actor.metrics_store.opened = True
+        metrics_store = mock.MagicMock()
+        metrics_store.opened = True
+        self.actor.metrics_store = metrics_store
 
         self.actor.close()
 
         self.actor.telemetry.on_benchmark_stop.assert_called_once()
-        self.actor.metrics_store.close.assert_called_once()
+        metrics_store.close.assert_called_once()
         self.assertFalse(self.actor.telemetry_started)
 
 
