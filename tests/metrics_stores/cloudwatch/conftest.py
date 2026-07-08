@@ -46,12 +46,11 @@ class _ResourceNotFound(Exception):
 class FakeLogsClient:
     """Minimal stand-in for the boto3 logs client used across tests.
 
-    Mirrors the surface that ``log_streams`` / ``insights`` /
-    ``replay`` call: create_log_group, create_log_stream,
-    put_retention_policy, put_log_events, start_query,
-    get_query_results, stop_query. Tests configure failure injection
-    via ``fail_with`` / ``fail_count`` and read the captured AWS calls
-    from public attributes.
+    Mirrors the surface that ``log_streams`` / ``insights`` call:
+    create_log_group, create_log_stream, put_retention_policy,
+    put_log_events, start_query, get_query_results, stop_query. Tests
+    configure failure injection via ``fail_with`` / ``fail_count`` and
+    read the captured AWS calls from public attributes.
     """
 
     def __init__(self):
@@ -150,10 +149,6 @@ def cw_config():
         log_retention_days=None,
         profile=None,
         role_arn=None,
-        spool_enabled=True,
-        spool_dir="~/.osb/cw-spool",
-        spool_trigger_failures=3,
-        spool_recheck_seconds=60,
     )
 
 

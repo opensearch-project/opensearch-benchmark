@@ -28,16 +28,12 @@ CloudWatch metrics store.
 
 The CloudWatch backend reads the same ``[reporting]`` section of
 ``~/.osb/benchmark.ini`` that the OpenSearch backend reads, but a disjoint
-subset of keys. All keys live under ``datastore.*`` (existing convention),
-prefixed with ``datastore.cloudwatch.*`` for keys that are specific to
-this backend's behavior (e.g. spool settings) and unlikely to be meaningful
-to a future backend.
+subset of keys. All keys live under ``datastore.*`` (existing convention).
 """
 from dataclasses import dataclass
 from typing import Optional
 
 from osbenchmark import exceptions
-from osbenchmark.utils import convert
 
 
 # CloudWatch Logs PutRetentionPolicy accepts only this fixed enum (days).
@@ -60,12 +56,6 @@ class CloudWatchConfig:
     log_retention_days: Optional[int]
     profile: Optional[str]
     role_arn: Optional[str]
-
-    # Spool (long-run resilience)
-    spool_enabled: bool
-    spool_dir: str
-    spool_trigger_failures: int
-    spool_recheck_seconds: int
 
 
 def load(cfg) -> CloudWatchConfig:
@@ -97,15 +87,6 @@ def load(cfg) -> CloudWatchConfig:
     profile = _opt_str(cfg, "datastore.profile", default=None)
     role_arn = _opt_str(cfg, "datastore.role_arn", default=None)
 
-    spool_enabled = _opt_bool(
-        cfg, "datastore.cloudwatch.spool.enabled", default=True)
-    spool_dir = _opt_str(
-        cfg, "datastore.cloudwatch.spool.dir", default="~/.osb/cw-spool")
-    spool_trigger_failures = _opt_int(
-        cfg, "datastore.cloudwatch.spool.trigger_failures", default=3, minimum=1)
-    spool_recheck_seconds = _opt_int(
-        cfg, "datastore.cloudwatch.spool.recheck_seconds", default=60, minimum=1)
-
     return CloudWatchConfig(
         region=region,
         namespace=namespace,
@@ -115,10 +96,6 @@ def load(cfg) -> CloudWatchConfig:
         log_retention_days=log_retention_days,
         profile=profile,
         role_arn=role_arn,
-        spool_enabled=spool_enabled,
-        spool_dir=spool_dir,
-        spool_trigger_failures=spool_trigger_failures,
-        spool_recheck_seconds=spool_recheck_seconds,
     )
 
 
@@ -127,33 +104,6 @@ def _opt_str(cfg, key: str, default) -> Optional[str]:
     if value is None:
         return None
     return str(value).strip()
-
-
-def _opt_bool(cfg, key: str, default: bool) -> bool:
-    value = cfg.opts("reporting", key, default_value=default, mandatory=False)
-    try:
-        return convert.to_bool(value)
-    except ValueError as e:
-        raise exceptions.SystemSetupError(
-            f"[reporting] {key} must be a boolean (true/false/yes/no/1/0), got {value!r}.") from e
-
-
-def _opt_int(cfg, key: str, default: int, minimum: int) -> int:
-    value = cfg.opts("reporting", key, default_value=default, mandatory=False)
-    # int() coerces bools to 0/1 silently; reject bools explicitly so a stray
-    # `true` in benchmark.ini doesn't become 1 without complaint.
-    if isinstance(value, bool):
-        raise exceptions.SystemSetupError(
-            f"[reporting] {key} must be an integer, got {value!r}.")
-    try:
-        result = int(value)
-    except (TypeError, ValueError):
-        raise exceptions.SystemSetupError(
-            f"[reporting] {key} must be an integer, got {value!r}.")
-    if result < minimum:
-        raise exceptions.SystemSetupError(
-            f"[reporting] {key} must be >= {minimum}, got {result}.")
-    return result
 
 
 def _validate_retention(raw) -> Optional[int]:

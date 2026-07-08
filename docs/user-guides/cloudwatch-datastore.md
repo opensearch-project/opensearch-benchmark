@@ -73,10 +73,6 @@ All keys live in the `[reporting]` section of `benchmark.ini`.
 | `datastore.log_retention_days` | (none — never expires) | CloudWatch Logs retention. Must be one of CW's accepted values (1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1096, 1827, 2192, 2557, 2922, 3288, 3653). |
 | `datastore.profile` | (none) | Named AWS profile (`~/.aws/credentials` or `~/.aws/config`). |
 | `datastore.role_arn` | (none) | If set, OSB calls `sts:AssumeRole` and uses the assumed-role creds for all subsequent calls. boto3 handles auto-refresh. |
-| `datastore.cloudwatch.spool.enabled` | `true` | Spool to disk when credentials fail mid-run; replay later via `cw-replay`. Set to `false` if you'd rather fail the run on auth errors. |
-| `datastore.cloudwatch.spool.dir` | `~/.osb/cw-spool` | Spool root directory. |
-| `datastore.cloudwatch.spool.trigger_failures` | `3` | Consecutive auth failures before the spool engages. |
-| `datastore.cloudwatch.spool.recheck_seconds` | `60` | Background `sts:GetCallerIdentity` probe interval while spooled. |
 
 ## IAM permissions
 
@@ -151,35 +147,12 @@ than the OpenSearch backend's sub-second aggregations.
 ## Long-running benchmarks
 
 For benchmarks that outlast their credential session (typically 1–12
-hours), OSB has two levers:
-
-1. **Use a renewable credential source**. Best option: run OSB on EC2
-   with an IAM instance role attached. boto3 auto-rotates STS
-   credentials in the background; a 24-hour benchmark needs no
-   intervention.
-2. **Trust the disk spool**. If credentials *do* die mid-run (e.g. an
-   SSO session on a laptop expired), OSB does not stop the benchmark
-   and does not lose data:
-   - After 3 consecutive auth failures (configurable) the writer
-     switches to spool mode: events go to
-     `~/.osb/cw-spool/<test-run-id>/<log-group>.jsonl` instead of
-     CloudWatch.
-   - A background thread probes `sts:GetCallerIdentity` every 60s; if
-     credentials come back the spool drains automatically and live
-     shipping resumes.
-   - If credentials stay dead until the benchmark ends, OSB finishes
-     successfully (exit 0, local `test_run.json` written) and prints:
-
-     ```
-     [WARN] CloudWatch datastore: credentials expired at 14:23:01 UTC.
-            Buffered 47,832 events (12.4 MB) to ~/.osb/cw-spool/<run-id>/
-            After refreshing credentials, replay with:
-              opensearch-benchmark cw-replay --test-run-id=<run-id>
-     ```
-
-`cw-replay` is idempotent: a `.cursor` file tracks the byte offset of
-the next un-shipped record, so a crash-and-restart picks up where it
-left off.
+hours), use a renewable credential source. The best option is to run
+OSB on EC2 with an IAM instance role attached: boto3 auto-rotates STS
+credentials in the background, so a 24-hour benchmark needs no
+intervention. If credentials die mid-run with no rotation available,
+OSB raises and fails the run loudly (same behavior as the OpenSearch
+backend).
 
 ## Troubleshooting
 
@@ -188,8 +161,6 @@ left off.
 | `Unable to resolve AWS credentials` | boto3 can't find creds in any chain step | Run `aws sts get-caller-identity` to confirm and pick a credential source (env vars, profile, role) |
 | `AccessDenied` on PutLogEvents | Role lacks `logs:PutLogEvents` on the configured log group | Attach the minimum IAM policy above |
 | Empty `compare` / `list` results | Logs Insights ingest lag (events take seconds to be queryable) | Wait 10–30 s after the run finishes |
-| `Multiple test runs in ...` from `cw-replay` | Spool root has more than one run directory | Pass `--test-run-id=<id>` explicitly |
-| Spool file remains after `cw-replay` | At least one batch failed mid-drain | Re-run `cw-replay`; the cursor resumes from the failed record |
 
 ## Limitations vs. the OpenSearch backend
 

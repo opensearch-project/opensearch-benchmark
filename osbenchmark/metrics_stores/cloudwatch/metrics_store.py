@@ -206,8 +206,7 @@ class CloudWatchMetricsStore(MetricsStore):
             metrics store; CloudWatch Logs has no index-refresh concept.
 
         On a transient write failure the buffer is restored so a follow-up
-        flush (or the disk-spool path in a later commit) can retry the
-        same events rather than losing them.
+        flush can retry the same events rather than losing them.
         """
         if not self._buffered_events:
             return
@@ -223,8 +222,8 @@ class CloudWatchMetricsStore(MetricsStore):
         try:
             sent = self._writer.write_batch(events_to_send)
         except Exception:
-            # Re-buffer so the events aren't lost. The disk-spool path in
-            # a later commit can intercept here when persistent.
+            # Re-buffer so the events aren't lost on a transient failure;
+            # a follow-up flush can retry the same batch.
             self._buffered_events = events_to_send + self._buffered_events
             self._buffered_bytes = prior_bytes + self._buffered_bytes
             raise

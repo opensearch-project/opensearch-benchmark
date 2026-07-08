@@ -64,8 +64,8 @@ class CloudWatchTestRunStore(TestRunStore):
     CloudWatch Logs group.
 
     Unlike the metrics path, each store_test_run call ships a single small
-    document via PutLogEvents synchronously — no batching, no spool,
-    because writes happen at most once per benchmark run.
+    document via PutLogEvents synchronously — no batching, because writes
+    happen at most once per benchmark run.
     """
 
     # Single shared stream per environment is fine: writes are
@@ -233,7 +233,7 @@ class FileBackedCompositeTestRunStore:
     def list(self):
         # Local file is the source of truth for short-term history; the
         # cloudwatch store is consulted for runs the local box never saw
-        # (e.g. cross-host benchmarking, replay after laptop reformat).
+        # (e.g. cross-host benchmarking, recovery after laptop reformat).
         file_runs = self._file_store.list()
         file_ids = {run.test_run_id for run in file_runs}
         try:

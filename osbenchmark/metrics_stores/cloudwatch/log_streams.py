@@ -72,8 +72,7 @@ _RETRYABLE_THROTTLE_CODES = frozenset({
 })
 
 # Credential-rotation race codes. boto3 owns the refresh and a follow-up
-# call typically succeeds, so we retry these exactly once before bubbling
-# up — anything more persistent is the disk-spool path's job.
+# call typically succeeds, so we retry these exactly once before bubbling up.
 _TRANSIENT_AUTH_CODES = frozenset({
     "ExpiredTokenException",
     "ExpiredToken",
@@ -138,7 +137,7 @@ class LogStreamWriter:
     - Chunk the batch to respect per-call event count / payload byte limits.
     - Retry transient throttles with exponential backoff + jitter.
     - Surface credential / endpoint / permission failures unchanged so the
-      enclosing store can drive its disk-spool fallback.
+      enclosing store can decide how to react.
 
     Sequence tokens are intentionally NOT tracked: as of the 2023 CloudWatch
     Logs deprecation they are no longer required, and boto3 >= 1.34 accepts

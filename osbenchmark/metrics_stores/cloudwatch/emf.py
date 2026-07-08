@@ -452,7 +452,7 @@ def build_telemetry_event(doc: Dict[str, Any], namespace: str) -> List[Dict[str,
         # matching top-level numeric fields (avoids shipping ALL 596
         # numeric values in every one of the 6 sub-events; each event
         # only carries the values its directives reference).
-        event_copy: Dict[str, Any] = {k: v for k, v in event.items()}
+        event_copy: Dict[str, Any] = dict(event)
         names_in_event = {
             m["Name"] for d in directives_for_event for m in d["Metrics"]
         }
