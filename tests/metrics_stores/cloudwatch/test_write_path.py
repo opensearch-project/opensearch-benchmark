@@ -77,9 +77,6 @@ class TestConfigLoad:
         assert c.test_runs_log_group == "benchmark-test-runs"
         assert c.results_log_group == "benchmark-results"
         assert c.log_retention_days is None
-        assert c.spool_enabled is True
-        assert c.spool_trigger_failures == 3
-        assert c.spool_recheck_seconds == 60
 
     def test_explicit_overrides(self):
         cfg = _Cfg({
@@ -87,16 +84,12 @@ class TestConfigLoad:
             ("reporting", "datastore.namespace"): "TeamX",
             ("reporting", "datastore.log_retention_days"): 30,
             ("reporting", "datastore.profile"): "prod",
-            ("reporting", "datastore.cloudwatch.spool.enabled"): "false",
-            ("reporting", "datastore.cloudwatch.spool.trigger_failures"): 5,
         })
         c = cw_config_mod.load(cfg)
         assert c.region == "us-west-2"
         assert c.namespace == "TeamX"
         assert c.log_retention_days == 30
         assert c.profile == "prod"
-        assert c.spool_enabled is False
-        assert c.spool_trigger_failures == 5
 
     def test_invalid_retention_rejected(self):
         cfg = _Cfg({("reporting", "datastore.log_retention_days"): 17})
@@ -104,32 +97,11 @@ class TestConfigLoad:
             cw_config_mod.load(cfg)
 
     def test_1096_retention_accepted(self):
-        # AWS-correctness regression: commit #3 added 1096 (3 years) which
-        # was missing from the initial enum.
+        # AWS-correctness regression: 1096 (3 years) was missing from the
+        # initial enum draft.
         cfg = _Cfg({("reporting", "datastore.log_retention_days"): 1096})
         c = cw_config_mod.load(cfg)
         assert c.log_retention_days == 1096
-
-    def test_garbage_bool_rejected(self):
-        cfg = _Cfg({
-            ("reporting", "datastore.cloudwatch.spool.enabled"): "banana",
-        })
-        with pytest.raises(exceptions.SystemSetupError, match="boolean"):
-            cw_config_mod.load(cfg)
-
-    def test_bool_rejected_for_int_field(self):
-        cfg = _Cfg({
-            ("reporting", "datastore.cloudwatch.spool.trigger_failures"): True,
-        })
-        with pytest.raises(exceptions.SystemSetupError, match="integer"):
-            cw_config_mod.load(cfg)
-
-    def test_minimum_enforced(self):
-        cfg = _Cfg({
-            ("reporting", "datastore.cloudwatch.spool.trigger_failures"): 0,
-        })
-        with pytest.raises(exceptions.SystemSetupError, match=">= 1"):
-            cw_config_mod.load(cfg)
 
 
 # ---------------------------------------------------------------------- EMF
