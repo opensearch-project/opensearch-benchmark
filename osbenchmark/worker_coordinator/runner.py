@@ -1339,6 +1339,8 @@ def parse(text: BytesIO, props: List[str], lists: List[str] = None) -> dict:
     return parsed
 
 
+
+
 class Query(Runner):
     """
     Runs a request body search against OpenSearch.
@@ -1599,7 +1601,6 @@ class Query(Runner):
             Perform vector search and report recall@k , recall@r and time taken to perform recall in ms as
             meta object.
             """
-
             def _is_empty_search_results(content):
                 if content is None:
                     return True
@@ -1763,6 +1764,7 @@ class Query(Runner):
                     "timed_out": timed_out,
                     "took": took
                 })
+
 
             recall_processing_start = time.perf_counter()
             response_json = json.loads(response.getvalue())
