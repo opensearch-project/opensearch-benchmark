@@ -184,13 +184,16 @@ class BenchmarkCoordinator:
         # but there are rare cases (external pipeline and user did not specify the distribution version) where we need
         # to derive it ourselves. For source builds we always assume "master"
         oss_distribution_version = "2.11.0"
-        # Distribution-version auto-detection probes the target with a raw opensearchpy
-        # client and the legacy wait_for_rest_layer. For non-OpenSearch backends the
-        # OS-flavored health/info routes either don't exist or differ enough to make
-        # this probe meaningless. Skip the whole branch for non-OS databases; the
-        # OS-min-version check below is also OS-specific.
         database_type = self.cfg.opts("database", "type", default_value="opensearch", mandatory=False)
-        if not sources and not self.cfg.exists("builder", "distribution.version") and database_type.lower() == "opensearch":
+        if database_type.lower() != "opensearch":
+            # Non-OpenSearch databases don't have distribution versions.
+            # Use latest workload branch (3.x) so we get the newest workload definitions.
+            non_os_version = "3.0.0"
+            if not self.cfg.exists("builder", "distribution.version"):
+                self.logger.info("Non-OpenSearch database type [%s], using default distribution version [%s] for template rendering.",
+                                 database_type, non_os_version)
+                self.cfg.add(config.Scope.benchmark, "builder", "distribution.version", non_os_version)
+        elif not sources and not self.cfg.exists("builder", "distribution.version"):
             distribution_version = builder.cluster_distribution_version(self.cfg)
             if distribution_version == 'oss':
                 self.logger.info("Automatically derived serverless collection, setting distribution version to 2.11.0")

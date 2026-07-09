@@ -35,9 +35,9 @@ runner classes without changes:
 
     from osbenchmark.worker_coordinator.runner import PutSettings, Retry, Runner
 
-New database backends (Vespa, Milvus, ...) live under
-osbenchmark/worker_coordinator/runners/ as a separate subpackage and import
-their base classes from this module.
+New engine backends (Vespa, Milvus, ...) live under osbenchmark/engine/<name>/
+as self-contained modules. Their runners import Runner and request_context_holder
+from this module (osbenchmark.worker_coordinator.runner).
 """
 
 import asyncio

@@ -1432,7 +1432,13 @@ class WorkloadPluginReader:
 
     def register_runner(self, name, runner, **kwargs):
         if self.runner_registry:
-            self.runner_registry(name, runner, **kwargs)
+            try:
+                self.runner_registry(name, runner, **kwargs)
+            except exceptions.BenchmarkAssertionError:
+                logging.getLogger(__name__).warning(
+                    "Workload plugin runner [%s] could not be registered (likely not async). "
+                    "Skipping — a database-specific runner may already handle this operation.", name)
+
 
     def register_scheduler(self, name, scheduler):
         if self.scheduler_registry:

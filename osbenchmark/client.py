@@ -30,10 +30,6 @@ import opensearchpy
 import urllib3
 from urllib3.util.ssl_ import is_ipaddress
 
-import grpc
-from opensearch.protobufs.services.document_service_pb2_grpc import DocumentServiceStub
-from opensearch.protobufs.services.search_service_pb2_grpc import SearchServiceStub
-
 from osbenchmark.kafka_client import KafkaMessageProducer
 from osbenchmark import exceptions, doc_link, async_connection
 from osbenchmark.context import RequestContextHolder
@@ -303,6 +299,14 @@ class GrpcClientFactory:
         Create gRPC service stubs.
         Returns a dict of {cluster_name: {service_name: stub}} structure.
         """
+        # Import grpc and protobuf stubs lazily — loading the grpc C extension
+        # initializes background threads. If that happens in the main process
+        # before Thespian forks actor children, the forked processes inherit
+        # broken gRPC thread state and may deadlock.
+        import grpc  # pylint: disable=import-outside-toplevel
+        from opensearch.protobufs.services.document_service_pb2_grpc import DocumentServiceStub  # pylint: disable=import-outside-toplevel
+        from opensearch.protobufs.services.search_service_pb2_grpc import SearchServiceStub  # pylint: disable=import-outside-toplevel
+
         stubs = {}
 
         if len(self.grpc_hosts.all_hosts.items()) > 1:
