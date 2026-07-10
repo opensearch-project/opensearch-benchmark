@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for osbenchmark.engine.clickhouse.helpers."""
+# pylint: disable=protected-access,import-outside-toplevel
 
 from unittest import TestCase, mock
 

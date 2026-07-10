@@ -10,7 +10,7 @@ import json
 import logging
 import re
 import time
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 import requests
 

@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 """Tests for osbenchmark.engine.clickhouse.client."""
+# pylint: disable=protected-access,no-name-in-module,import-outside-toplevel,unused-import,no-self-argument,unused-variable
 
 import asyncio
 from unittest import TestCase, IsolatedAsyncioTestCase, mock
 
 from osbenchmark import exceptions
-from osbenchmark.engine.clickhouse import client as ch_client_mod
+from osbenchmark.engine.clickhouse import client as ch_client_mod  # noqa: F401
 from osbenchmark.engine.clickhouse.client import (
     ClickHouseClientFactory,
     ClickHouseDatabaseClient,
