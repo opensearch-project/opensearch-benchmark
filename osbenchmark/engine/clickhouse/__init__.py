@@ -54,28 +54,54 @@ def register_runners():
     Called AFTER runner.register_default_runners() so ClickHouse implementations win
     over OS defaults for ops that both engines support (Bulk, Search, VectorSearch,
     CreateIndex, DeleteIndex, ClusterHealth, IndexStats, Refresh, ForceMerge).
+
+    Admin ops are wrapped in Retry(...) to match OS default retry semantics.
+    Data-plane ops (Bulk, Search, VectorSearch, ScrollSearch, BulkVectorDataSet)
+    are NOT wrapped - retrying a bulk on transient failure would double-insert rows.
     """
     # pylint: disable=import-outside-toplevel
     from osbenchmark import workload
     from osbenchmark.worker_coordinator import runner
+    from osbenchmark.worker_coordinator.runner import Retry
     from osbenchmark.engine.clickhouse import runners as ch_runners
 
-    runner.register_runner(workload.OperationType.Bulk, ch_runners.ClickHouseBulkIndex(), async_runner=True)
-    runner.register_runner(workload.OperationType.Search, ch_runners.ClickHouseQuery(), async_runner=True)
-    runner.register_runner(workload.OperationType.PaginatedSearch, ch_runners.ClickHouseQuery(), async_runner=True)
-    runner.register_runner(workload.OperationType.ScrollSearch, ch_runners.ClickHouseScrollQuery(), async_runner=True)
-    runner.register_runner(workload.OperationType.VectorSearch, ch_runners.ClickHouseVectorSearch(), async_runner=True)
-    runner.register_runner(workload.OperationType.BulkVectorDataSet, ch_runners.ClickHouseBulkVectorDataSet(), async_runner=True)
-    runner.register_runner(workload.OperationType.CreateIndex, ch_runners.ClickHouseCreateTable(), async_runner=True)
-    runner.register_runner(workload.OperationType.DeleteIndex, ch_runners.ClickHouseDropTable(), async_runner=True)
-    runner.register_runner(workload.OperationType.Refresh, ch_runners.ClickHouseNoOp("refresh"), async_runner=True)
-    runner.register_runner(workload.OperationType.ForceMerge, ch_runners.ClickHouseOptimizeTable(), async_runner=True)
-    runner.register_runner(workload.OperationType.ClusterHealth, ch_runners.ClickHouseClusterHealth(), async_runner=True)
-    runner.register_runner(workload.OperationType.IndexStats, ch_runners.ClickHouseSystemParts(), async_runner=True)
-    runner.register_runner("warmup-knn-indices", ch_runners.ClickHouseNoOp("warmup-knn-indices"), async_runner=True)
+    # Data-plane runners: NO Retry wrapping.
+    runner.register_runner(workload.OperationType.Bulk,
+                           ch_runners.ClickHouseBulkIndex(), async_runner=True)
+    runner.register_runner(workload.OperationType.Search,
+                           ch_runners.ClickHouseQuery(), async_runner=True)
+    runner.register_runner(workload.OperationType.PaginatedSearch,
+                           ch_runners.ClickHouseQuery(), async_runner=True)
+    runner.register_runner(workload.OperationType.ScrollSearch,
+                           ch_runners.ClickHouseScrollQuery(), async_runner=True)
+    runner.register_runner(workload.OperationType.VectorSearch,
+                           ch_runners.ClickHouseVectorSearch(), async_runner=True)
+    runner.register_runner(workload.OperationType.BulkVectorDataSet,
+                           ch_runners.ClickHouseBulkVectorDataSet(), async_runner=True)
+
+    # Admin-plane runners: WRAP in Retry to match OS default semantics.
+    runner.register_runner(workload.OperationType.CreateIndex,
+                           Retry(ch_runners.ClickHouseCreateTable()), async_runner=True)
+    runner.register_runner(workload.OperationType.DeleteIndex,
+                           Retry(ch_runners.ClickHouseDropTable()), async_runner=True)
+    runner.register_runner(workload.OperationType.Refresh,
+                           ch_runners.ClickHouseNoOp("refresh"), async_runner=True)
+    runner.register_runner(workload.OperationType.ForceMerge,
+                           Retry(ch_runners.ClickHouseOptimizeTable()), async_runner=True)
+    runner.register_runner(workload.OperationType.ClusterHealth,
+                           Retry(ch_runners.ClickHouseClusterHealth()), async_runner=True)
+    runner.register_runner(workload.OperationType.IndexStats,
+                           Retry(ch_runners.ClickHouseSystemParts()), async_runner=True)
+
+    # NoOp stubs.
+    runner.register_runner("warmup-knn-indices",
+                           ch_runners.ClickHouseNoOp("warmup-knn-indices"), async_runner=True)
     for op_type in [workload.OperationType.PutPipeline, workload.OperationType.DeletePipeline,
-                    workload.OperationType.CreateSearchPipeline, workload.OperationType.PutSettings]:
+                    workload.OperationType.CreateSearchPipeline]:
         runner.register_runner(op_type, ch_runners.ClickHouseNoOp(str(op_type)), async_runner=True)
+    # PutSettings is admin-plane -> wrap in Retry.
+    runner.register_runner(workload.OperationType.PutSettings,
+                           Retry(ch_runners.ClickHouseNoOp("put-settings")), async_runner=True)
 
 
 def wait_for_client(ch_client, max_attempts=40):
