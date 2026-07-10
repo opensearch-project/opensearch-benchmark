@@ -205,6 +205,7 @@ setup(name="opensearch-benchmark",
           "develop": tests_require + develop_require,
           "vespa": ["pyvespa>=0.62.0"],
           "milvus": ["pymilvus>=2.5.0"],
+          "clickhouse": ["clickhouse-connect>=0.9.2,<1.0"],
       },
       entry_points={
           "console_scripts": [

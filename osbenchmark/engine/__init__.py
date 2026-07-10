@@ -90,6 +90,12 @@ def _ensure_builtin_engines():
             register_engine("milvus", milvus_engine)
         except ImportError as e:
             logger.debug("Milvus engine not available: %s", e)
+    if "clickhouse" not in _ENGINE_REGISTRY:
+        try:
+            from osbenchmark.engine import clickhouse as clickhouse_engine  # pylint: disable=import-outside-toplevel
+            register_engine("clickhouse", clickhouse_engine)
+        except ImportError as e:
+            logger.debug("ClickHouse engine not available: %s", e)
 
 
 def get_engine(name):
