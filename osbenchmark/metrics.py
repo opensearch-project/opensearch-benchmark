@@ -1844,6 +1844,15 @@ class GlobalStatsCalculator:
                         duration
                     )
 
+                    result.add_radial_correctness_metrics(
+                        task_name,
+                        task.operation.name,
+                        self.single_latency(task_name, op_type, metric_name="recall@max_distance"),
+                        self.single_latency(task_name, op_type, metric_name="recall@max_distance_1"),
+                        self.single_latency(task_name, op_type, metric_name="recall@min_score"),
+                        self.single_latency(task_name, op_type, metric_name="recall@min_score_1"),
+                    )
+
                     profile_metrics = task.operation.params.get("profile-metrics", None)
                     if profile_metrics:
                         profile_metrics.append("query_time")
@@ -1886,6 +1895,7 @@ class GlobalStatsCalculator:
         result.memory_norms = self.median("segments_norms_memory_in_bytes")
         result.memory_points = self.median("segments_points_memory_in_bytes")
         result.memory_stored_fields = self.median("segments_stored_fields_memory_in_bytes")
+        result.docs_count = self.sum("docs_count")
         result.store_size = self.sum("store_size_in_bytes")
         result.translog_size = self.sum("translog_size_in_bytes")
 
@@ -2077,6 +2087,7 @@ class GlobalStats:
         self.memory_norms = self.v(d, "memory_norms")
         self.memory_points = self.v(d, "memory_points")
         self.memory_stored_fields = self.v(d, "memory_stored_fields")
+        self.docs_count = self.v(d, "docs_count")
         self.store_size = self.v(d, "store_size")
         self.translog_size = self.v(d, "translog_size")
         self.segment_count = self.v(d, "segment_count")
@@ -2136,7 +2147,9 @@ class GlobalStats:
                     })
             elif metric == "correctness_metrics":
                 for item in value:
-                    for knn_metric in ["recall@k", "recall@1"]:
+                    for knn_metric in ["recall@k", "recall@1",
+                                       "recall@max_distance", "recall@max_distance_1",
+                                       "recall@min_score", "recall@min_score_1"]:
                         if knn_metric in item:
                             all_results.append({
                                 "task": item["task"],
@@ -2206,6 +2219,20 @@ class GlobalStats:
             "error_rate": error_rate,
             "duration": duration,
             })
+
+    def add_radial_correctness_metrics(self, task, operation, recall_max_dist_stats, recall_max_dist_1_stats,
+                                       recall_min_score_stats, recall_min_score_1_stats):
+        entry = {"task": task, "operation": operation}
+        if recall_max_dist_stats:
+            entry["recall@max_distance"] = recall_max_dist_stats
+        if recall_max_dist_1_stats:
+            entry["recall@max_distance_1"] = recall_max_dist_1_stats
+        if recall_min_score_stats:
+            entry["recall@min_score"] = recall_min_score_stats
+        if recall_min_score_1_stats:
+            entry["recall@min_score_1"] = recall_min_score_1_stats
+        if len(entry) > 2:
+            self.correctness_metrics.append(entry)
 
     def add_profile_metrics(self, task, operation, profile_metrics):
         self.profile_metrics.append({

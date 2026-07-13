@@ -624,6 +624,7 @@ class OperationType(Enum):
     ProtoBulk = (201, AdminStatus.No, ServerlessStatus.Blocked)
     ProtoSearch = (202, AdminStatus.No, ServerlessStatus.Blocked)
     ProtoVectorSearch = (203, AdminStatus.No, ServerlessStatus.Blocked)
+    ProtoBulkVectorDataSet = (204, AdminStatus.No, ServerlessStatus.Blocked)
 
     # administrative actions
     ForceMerge = (22, AdminStatus.Yes, ServerlessStatus.Blocked)
@@ -702,6 +703,8 @@ class OperationType(Enum):
             return OperationType.ProtoVectorSearch
         elif v == "bulk-vector-data-set":
             return OperationType.BulkVectorDataSet
+        elif v == "proto-bulk-vector-data-set":
+            return OperationType.ProtoBulkVectorDataSet
         elif v == "cluster-health":
             return OperationType.ClusterHealth
         elif v == "bulk":

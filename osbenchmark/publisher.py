@@ -157,6 +157,7 @@ class SummaryResultsPublisher:
 
         metrics_table.extend(self._publish_gc_metrics(stats))
 
+        metrics_table.extend(self._publish_doc_count(stats))
         metrics_table.extend(self._publish_disk_usage(stats))
         metrics_table.extend(self._publish_segment_memory(stats))
         metrics_table.extend(self._publish_segment_counts(stats))
@@ -198,6 +199,12 @@ class SummaryResultsPublisher:
             recall_keys_in_task_dict = "recall@1" in keys and "recall@k" in keys
             if recall_keys_in_task_dict and "mean" in record["recall@1"] and "mean" in record["recall@k"]:
                 metrics_table.extend(self._publish_recall(record, task))
+            radial_max_dist_keys = "recall@max_distance" in keys and "recall@max_distance_1" in keys
+            if radial_max_dist_keys and "mean" in record["recall@max_distance"] and "mean" in record["recall@max_distance_1"]:
+                metrics_table.extend(self._publish_radial_recall(record, task, "max_distance"))
+            radial_min_score_keys = "recall@min_score" in keys and "recall@min_score_1" in keys
+            if radial_min_score_keys and "mean" in record["recall@min_score"] and "mean" in record["recall@min_score_1"]:
+                metrics_table.extend(self._publish_radial_recall(record, task, "min_score"))
 
         for record in stats.profile_metrics:
             task = record["task"]
@@ -254,6 +261,15 @@ class SummaryResultsPublisher:
         return self._join(
             self._line("Mean recall@k", task, recall_k_mean, "", lambda v: "%.2f" % v),
             self._line("Mean recall@1", task, recall_1_mean, "", lambda v: "%.2f" % v)
+        )
+
+    def _publish_radial_recall(self, values, task, query_type):
+        recall_mean = values[f"recall@{query_type}"]["mean"]
+        recall_1_mean = values[f"recall@{query_type}_1"]["mean"]
+
+        return self._join(
+            self._line(f"Mean recall@{query_type}", task, recall_mean, "", lambda v: "%.2f" % v),
+            self._line(f"Mean recall@{query_type}_1", task, recall_1_mean, "", lambda v: "%.2f" % v)
         )
 
     def _publish_profile_metrics(self, metrics, task):
@@ -342,6 +358,11 @@ class SummaryResultsPublisher:
             self._line("Total Young Gen GC count", "", stats.young_gc_count, ""),
             self._line("Total Old Gen GC time", "", stats.old_gc_time, "s", convert.ms_to_seconds),
             self._line("Total Old Gen GC count", "", stats.old_gc_count, "")
+        )
+
+    def _publish_doc_count(self, stats):
+        return self._join(
+            self._line("Doc count", "", stats.docs_count, "")
         )
 
     def _publish_disk_usage(self, stats):
@@ -454,6 +475,7 @@ class ComparisonPublisher:
         metrics_table.extend(self._publish_total_times(baseline_stats, contender_stats))
         metrics_table.extend(self._publish_ml_processing_times(baseline_stats, contender_stats))
         metrics_table.extend(self._publish_gc_metrics(baseline_stats, contender_stats))
+        metrics_table.extend(self._publish_doc_count(baseline_stats, contender_stats))
         metrics_table.extend(self._publish_disk_usage(baseline_stats, contender_stats))
         metrics_table.extend(self._publish_segment_memory(baseline_stats, contender_stats))
         metrics_table.extend(self._publish_segment_counts(baseline_stats, contender_stats))
@@ -681,6 +703,12 @@ class ComparisonPublisher:
                        treat_increase_as_improvement=False, formatter=convert.ms_to_seconds),
             self._line("Total Old Gen GC count", baseline_stats.old_gc_count, contender_stats.old_gc_count, "", "",
                        treat_increase_as_improvement=False)
+        )
+
+    def _publish_doc_count(self, baseline_stats, contender_stats):
+        return self._join(
+            self._line("Doc count", baseline_stats.docs_count, contender_stats.docs_count,
+                       "", "", treat_increase_as_improvement=False)
         )
 
     def _publish_disk_usage(self, baseline_stats, contender_stats):

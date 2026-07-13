@@ -28,6 +28,7 @@ import shutil
 import tempfile
 from unittest import TestCase
 
+import h5py
 import numpy as np
 
 from osbenchmark import exceptions
@@ -3187,6 +3188,302 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
         with self.assertRaises(StopIteration):
             query_param_source_partition.params()
 
+    def test_build_vector_search_query_body_with_oversample_factor(self):
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "k": k,
+            "oversample_factor": 5.0
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+            }
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+        params = query_param_source_partition.params()
+        body = params.get("body")
+        query = body["query"]["knn"][self.DEFAULT_FIELD_NAME]
+        self.assertIn("rescore", query)
+        self.assertEqual(query["rescore"]["oversample_factor"], 5.0)
+
+    def test_build_vector_search_query_body_without_oversample_factor(self):
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "k": k
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+            }
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+        params = query_param_source_partition.params()
+        body = params.get("body")
+        query = body["query"]["knn"][self.DEFAULT_FIELD_NAME]
+        self.assertNotIn("rescore", query)
+
+    def test_oversample_factor_with_max_distance_raises_error(self):
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "k": k,
+            "oversample_factor": 5.0
+        }
+        with self.assertRaises(exceptions.InvalidSyntax):
+            VectorSearchPartitionParamSource(
+                workload.Workload(name="unit-test"),
+                test_param_source_params, {
+                    "index": self.DEFAULT_INDEX_NAME,
+                    "request-params": {},
+                    "max_distance": -160.0,
+                }
+            )
+
+    def test_script_score_filter_custom_space_type(self):
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir,
+        )
+        neighbors_data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+        )
+
+        SCRIPT_SCORE_FILTER_BODY = {
+            "bool": {
+                "must": [
+                    {"range": {"rating": {"gte": 8, "lte": 10}}},
+                    {"term": {"parking": "true"}},
+                ]
+            }
+        }
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "neighbors_data_set_path": neighbors_data_set_path,
+            "k": k,
+            "filter_type": "script",
+            "filter_body": SCRIPT_SCORE_FILTER_BODY,
+            "space_type": "cosinesimil",
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params,
+            {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+                "body": {
+                    "size": 100,
+                },
+            },
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+
+        for _ in range(DEFAULT_NUM_VECTORS):
+            params = query_param_source_partition.params()
+            self._check_params_script_score(
+                params,
+                self.DEFAULT_FIELD_NAME,
+                self.DEFAULT_DIMENSION,
+                k,
+                100,
+                SCRIPT_SCORE_FILTER_BODY,
+                "cosinesimil",
+            )
+
+        with self.assertRaises(StopIteration):
+            query_param_source_partition.params()
+
+    def test_radial_search_max_distance(self):
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.RADIAL_NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "max_distance": -160.0,
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+            }
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+        params = query_param_source_partition.params()
+
+        body = params.get("body")
+        query = body["query"]["knn"][self.DEFAULT_FIELD_NAME]
+        self.assertNotIn("k", query)
+        self.assertEqual(query["max_distance"], -160.0)
+        self.assertNotIn("min_score", query)
+        self.assertNotIn("size", body)
+        neighbors = params.get("neighbors")
+        self.assertIsInstance(neighbors, list)
+
+    def test_radial_search_min_score(self):
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.RADIAL_NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "min_score": 161.0,
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+            }
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+        params = query_param_source_partition.params()
+
+        body = params.get("body")
+        query = body["query"]["knn"][self.DEFAULT_FIELD_NAME]
+        self.assertNotIn("k", query)
+        self.assertNotIn("max_distance", query)
+        self.assertEqual(query["min_score"], 161.0)
+        self.assertNotIn("size", body)
+        neighbors = params.get("neighbors")
+        self.assertIsInstance(neighbors, list)
+
+    def test_radial_search_neighbors_filter_padding(self):
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        # Create neighbors with -1 padding (simulating radial ground truth)
+        padded_neighbors = np.full((self.DEFAULT_NUM_VECTORS, 100), -1, dtype=np.int32)
+        for i in range(self.DEFAULT_NUM_VECTORS):
+            num_real = 5
+            padded_neighbors[i, :num_real] = np.arange(num_real)
+        with h5py.File(data_set_path, 'a') as hf:
+            hf.create_dataset("radial_neighbors", data=padded_neighbors)
+
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "max_distance": -160.0,
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+            }
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+        params = query_param_source_partition.params()
+
+        neighbors = params.get("neighbors")
+        self.assertEqual(len(neighbors), 5)
+        self.assertNotIn("-1", neighbors)
+        self.assertNotIn("-1.0", neighbors)
+        self.assertEqual(neighbors, ["0", "1", "2", "3", "4"])
+
     def _check_params(
             self,
             actual_params: dict,
@@ -3255,7 +3552,8 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             expected_dimension: int,
             expected_k: int,
             expected_size=None,
-            expected_script_query=None
+            expected_script_query=None,
+            expected_space_type="l2"
             ):
         body = actual_params.get("body")
         self.assertIsInstance(body, dict)
@@ -3286,8 +3584,80 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
         self.assertIsInstance(vector, np.ndarray)
         self.assertEqual(len(list(vector)), expected_dimension)
 
-        space_type = params.get("space_type")
-        self.assertEqual(space_type, "l2") # TODO change this once it's all modifiable.
+        self.assertEqual(params.get("space_type"), expected_space_type)
+
+    def test_update_request_params_with_request_params(self):
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "k": k
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {"_source": "false"},
+            }
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+        params = query_param_source_partition.params()
+        request_params = params.get("request-params")
+        self.assertEqual(request_params["_source"], "false")
+        self.assertEqual(request_params["allow_partial_search_results"], "false")
+
+    def test_update_request_params_without_request_params(self):
+        k = 12
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "k": k
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+            }
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+        params = query_param_source_partition.params()
+        request_params = params.get("request-params")
+        self.assertEqual(request_params, {"allow_partial_search_results": "false"})
+
 
 class BulkVectorsFromDataSetParamSourceTestCase(TestCase):
 

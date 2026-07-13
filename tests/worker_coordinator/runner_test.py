@@ -3029,6 +3029,95 @@ class VectorSearchQueryRunnerTests(TestCase):
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
+    async def test_query_radial_search_empty_results_empty_neighbors(self, opensearch, on_client_request_start, on_client_request_end):
+        search_response = {
+            "timed_out": False,
+            "took": 1,
+            "hits": {
+                "total": {
+                    "value": 0,
+                    "relation": "eq"
+                },
+                "hits": []
+            }
+        }
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+
+        query_runner = runner.Query()
+
+        params = {
+            "index": "unittest",
+            "operation-type": "vector-search",
+            "detailed-results": True,
+            "response-compression-enabled": False,
+            "max_distance": 159.29,
+            "neighbors": ["-1", "-1", "-1"],
+            "body": {
+                "query": {
+                    "knn": {
+                        "location": {
+                            "vector": [5, 4],
+                            "max_distance": 159.29
+                        }
+                    }}
+            }
+        }
+
+        async with query_runner:
+            result = await query_runner(opensearch, params)
+
+        self.assertIn("recall@max_distance", result.keys())
+        self.assertEqual(result["recall@max_distance"], 1.0)
+        self.assertIn("recall@max_distance_1", result.keys())
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_query_radial_search_empty_results_with_neighbors(self, opensearch, on_client_request_start, on_client_request_end):
+        search_response = {
+            "timed_out": False,
+            "took": 1,
+            "hits": {
+                "total": {
+                    "value": 0,
+                    "relation": "eq"
+                },
+                "hits": []
+            }
+        }
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO(json.dumps(search_response)))
+
+        query_runner = runner.Query()
+
+        params = {
+            "index": "unittest",
+            "operation-type": "vector-search",
+            "detailed-results": True,
+            "response-compression-enabled": False,
+            "max_distance": 159.29,
+            "neighbors": ["101", "102", "103", "-1"],
+            "body": {
+                "query": {
+                    "knn": {
+                        "location": {
+                            "vector": [5, 4],
+                            "max_distance": 159.29
+                        }
+                    }}
+            }
+        }
+
+        async with query_runner:
+            result = await query_runner(opensearch, params)
+
+        self.assertIn("recall@max_distance", result.keys())
+        self.assertEqual(result["recall@max_distance"], 0.0)
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
     async def test_query_vector_search_with_custom_id_field(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
@@ -7823,3 +7912,133 @@ class ProduceStreamMessageTests(TestCase):
             await self.runner_instance(mock_opensearch, params)
 
         self.assertIn("Failed to produce message", str(context.exception))
+
+
+class BulkVectorDataSetTests(TestCase):
+    def _bulk_response(self, items):
+        return {
+            "errors": any(item[next(iter(item))]["status"] > 299 for item in items),
+            "took": 5,
+            "items": items,
+        }
+
+    def _ok_item(self, idx=0):
+        return {"index": {"_id": str(idx), "status": 201, "result": "created",
+                          "_shards": {"total": 2, "successful": 1, "failed": 0}}}
+
+    def _err_item(self, idx=0):
+        return {"index": {"_id": str(idx), "status": 429, "result": "rejected",
+                          "_shards": {"total": 2, "successful": 0, "failed": 1},
+                          "error": {"reason": "rejected"}}}
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_all_docs_succeed_no_retry(self, opensearch, on_client_request_start, on_client_request_end):
+        response = self._bulk_response([self._ok_item(0), self._ok_item(1), self._ok_item(2)])
+        opensearch.bulk.return_value = as_future(response)
+        opensearch.return_raw_response.return_value = None
+
+        bulk = runner.BulkVectorDataSet()
+        params = {
+            "body": ["action0", "doc0", "action1", "doc1", "action2", "doc2"],
+            "action-metadata-present": True,
+            "retries": 2,
+            "index": "test",
+        }
+
+        result = await bulk(opensearch, params)
+
+        self.assertEqual(3, result["weight"])
+        self.assertEqual(3, result["size"])
+        self.assertEqual(3, result["success-count"])
+        self.assertEqual(0, result["error-count"])
+        self.assertTrue(result["success"])
+        self.assertNotIn("error-type", result)
+        opensearch.bulk.assert_called_once()
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_retry_counts_all_successful_docs(self, opensearch, on_client_request_start, on_client_request_end):
+        first_response = self._bulk_response([self._ok_item(0), self._err_item(1), self._ok_item(2)])
+        retry_response = self._bulk_response([self._ok_item(1)])
+
+        opensearch.bulk.side_effect = [as_future(first_response), as_future(retry_response)]
+        opensearch.return_raw_response.return_value = None
+
+        bulk = runner.BulkVectorDataSet()
+        params = {
+            "body": ["action0", "doc0", "action1", "doc1", "action2", "doc2"],
+            "action-metadata-present": True,
+            "retries": 2,
+            "index": "test",
+            "retry-wait-period": 0,
+        }
+
+        result = await bulk(opensearch, params)
+
+        self.assertEqual(3, result["weight"])
+        self.assertEqual(3, result["size"])
+        self.assertEqual(3, result["success-count"])
+        self.assertEqual(0, result["error-count"])
+        self.assertTrue(result["success"])
+        self.assertEqual(2, opensearch.bulk.call_count)
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_retry_partial_failure_still_reports_total(self, opensearch, on_client_request_start, on_client_request_end):
+        first_response = self._bulk_response([self._ok_item(0), self._err_item(1), self._err_item(2)])
+        retry_response = self._bulk_response([self._ok_item(1), self._err_item(2)])
+
+        opensearch.bulk.side_effect = [as_future(first_response), as_future(retry_response)]
+        opensearch.return_raw_response.return_value = None
+
+        bulk = runner.BulkVectorDataSet()
+        params = {
+            "body": ["action0", "doc0", "action1", "doc1", "action2", "doc2"],
+            "action-metadata-present": True,
+            "retries": 1,
+            "index": "test",
+            "retry-wait-period": 0,
+        }
+
+        result = await bulk(opensearch, params)
+
+        self.assertEqual(3, result["weight"])
+        self.assertEqual(3, result["size"])
+        self.assertEqual(2, result["success-count"])
+        self.assertEqual(1, result["error-count"])
+        self.assertFalse(result["success"])
+        self.assertEqual("bulk", result["error-type"])
+        self.assertEqual(2, opensearch.bulk.call_count)
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
+    async def test_no_retry_configured_reports_original_counts(self, opensearch, on_client_request_start, on_client_request_end):
+        response = self._bulk_response([self._ok_item(0), self._err_item(1), self._ok_item(2)])
+        opensearch.bulk.return_value = as_future(response)
+        opensearch.return_raw_response.return_value = None
+
+        bulk = runner.BulkVectorDataSet()
+        params = {
+            "body": ["action0", "doc0", "action1", "doc1", "action2", "doc2"],
+            "action-metadata-present": True,
+            "retries": 0,
+            "index": "test",
+        }
+
+        result = await bulk(opensearch, params)
+
+        self.assertEqual(3, result["weight"])
+        self.assertEqual(3, result["size"])
+        self.assertEqual(2, result["success-count"])
+        self.assertEqual(1, result["error-count"])
+        self.assertFalse(result["success"])
+        opensearch.bulk.assert_called_once()

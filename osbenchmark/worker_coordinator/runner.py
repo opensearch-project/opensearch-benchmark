@@ -69,6 +69,7 @@ from osbenchmark.utils import convert
 from osbenchmark.utils.parse import parse_int_parameter, parse_string_parameter, parse_float_parameter
 from osbenchmark.worker_coordinator.proto_helpers.ProtoBulkHelper import ProtoBulkHelper
 from osbenchmark.worker_coordinator.proto_helpers.ProtoQueryHelper import ProtoQueryHelper
+from osbenchmark.worker_coordinator.proto_helpers.ProtoVectorBulkHelper import ProtoVectorBulkHelper
 
 class Delegator:
     """
@@ -90,7 +91,7 @@ class Runner:
     async def __aenter__(self):
         return self
 
-    async def __call__(self, opensearch, params):
+    async def __call__(self, opensearch, params):  # pylint: disable=too-many-nested-blocks
         """
         Runs the actual method that should be benchmarked.
 
@@ -435,6 +436,7 @@ def register_default_runners():
     register_runner(workload.OperationType.ProtoBulk, ProtoBulkIndex(), async_runner=True)
     register_runner(workload.OperationType.ProtoSearch, ProtoQuery(), async_runner=True)
     register_runner(workload.OperationType.ProtoVectorSearch, ProtoKNNQuery(), async_runner=True)
+    register_runner(workload.OperationType.ProtoBulkVectorDataSet, ProtoBulkVectorDataSet(), async_runner=True)
 
     # This is an administrative operation but there is no need for a retry here as we don't issue a request
     register_runner(workload.OperationType.Sleep, Sleep(), async_runner=True)
@@ -938,7 +940,7 @@ class BulkVectorDataSet(Runner):
 
     NAME = "bulk-vector-data-set"
 
-    async def __call__(self, opensearch, params):  # pylint: disable=too-many-nested-blocks
+    async def __call__(self, opensearch, params): # pylint: disable=too-many-nested-blocks
         with_action_metadata = params.get("action-metadata-present", True)
         unit = params.get("unit", "docs")
         retries = parse_int_parameter("retries", params, 0) + 1
@@ -951,6 +953,9 @@ class BulkVectorDataSet(Runner):
         current_params = dict(params)
         retry_wait_period = params.get("retry-wait-period", 0.5)
         retry_max_wait_period = params.get("retry-max-wait-period", 60)
+
+        total_docs = self._doc_count(current_body, with_action_metadata)
+        cumulative_success = 0
 
         for attempt in range(retries):
             docs_in_request = self._doc_count(current_body, with_action_metadata)
@@ -965,16 +970,9 @@ class BulkVectorDataSet(Runner):
                     docs_in_request, unit, response
                 )
 
-                meta_data = {
-                    "size": docs_in_request,
-                    "index": current_params.get("index"),
-                    "weight": docs_in_request,
-                    "unit": unit,
-                }
-                meta_data.update(stats)
+                cumulative_success += stats.get("success-count", 0)
 
                 if not stats["success"]:
-                    meta_data["error-type"] = "bulk"
                     if detailed_results:
                         failed_indices = stats.get("failed-indices", [])
                         if failed_indices and attempt < retries - 1:
@@ -986,6 +984,20 @@ class BulkVectorDataSet(Runner):
                             current_body = self._build_retry_body(current_body, failed_indices, with_action_metadata)
                             await asyncio.sleep(backoff)
                             continue
+
+                total_error_count = total_docs - cumulative_success
+                meta_data = {
+                    "size": total_docs,
+                    "index": current_params.get("index"),
+                    "weight": total_docs,
+                    "unit": unit,
+                }
+                meta_data.update(stats)
+                meta_data["success-count"] = cumulative_success
+                meta_data["error-count"] = total_error_count
+                meta_data["success"] = total_error_count == 0
+                if total_error_count > 0:
+                    meta_data["error-type"] = "bulk"
                 return meta_data
             except ConnectionTimeout:
                 backoff = min(retry_wait_period * (2 ** attempt), retry_max_wait_period)
@@ -1020,6 +1032,7 @@ class BulkVectorDataSet(Runner):
 
         doc_idx = 0
         for item in response["items"]:
+            # there is only one (top-level) item
             op, data = next(iter(item.items()))
             if op not in ops:
                 ops[op] = Counter()
@@ -1118,7 +1131,7 @@ class BulkVectorDataSet(Runner):
         if with_action_metadata:
             for idx in failed_indices:
                 base = idx * 2
-                retry_body.extend(body[base: base + 2])
+                retry_body.extend(body[base : base + 2])
         else:
             for idx in failed_indices:
                 retry_body.append(body[idx])
@@ -1128,10 +1141,13 @@ class BulkVectorDataSet(Runner):
         bulk_success_count = size if unit == "docs" else None
         bulk_error_count = 0
         error_details = set()
+        # parse lazily on the fast path
         props = parse(response, ["errors", "took"])
 
         if props.get("errors", False):
+            # determine success count regardless of unit because we need to iterate through all items anyway
             bulk_success_count = 0
+            # Reparse fully in case of errors - this will be slower
             parsed_response = json.loads(response.getvalue())
             for item in parsed_response["items"]:
                 data = next(iter(item.values()))
@@ -1680,21 +1696,13 @@ class Query(Runner):
                 min_num_of_results = len(truth_set)
                 if min_num_of_results == 0:
                     self.logger.info("No neighbors are provided for recall calculation")
-                    return 1
+                    return 1.0
 
                 if enable_top_1_recall:
-                    min_num_of_results = 1
+                    return 1.0 if predictions and predictions[0] in truth_set else 0.0
 
-                for j in range(min_num_of_results):
-                    if j >= len(predictions):
-                        self.logger.info("No more neighbors in prediction to compare against ground truth.\n"
-                                         "Total neighbors in prediction: [%d].\n"
-                                         "Total neighbors in ground truth: [%d]", len(predictions), min_num_of_results)
-                        break
-                    if predictions[j] in truth_set:
-                        correct += 1.0
-
-                return correct / min_num_of_results
+                correct = len(set(predictions) & set(truth_set))
+                return correct / len(truth_set)
 
             def _set_initial_recall_values(params: dict, result: dict) -> None:
                 # Add recall@k and recall@1 to the initial result only if k is present in the params and calculate_recall is true
@@ -1764,15 +1772,16 @@ class Query(Runner):
             add_profile_to_results(response_json, params, result)
 
             if _is_empty_search_results(response_json):
-                self.logger.info("Vector search query returned no results.")
-                return result
+                if "max_distance" not in params and "min_score" not in params:
+                    self.logger.info("Vector search query returned no results.")
+                    return result
 
             if not should_calculate_recall:
                 return result
 
             id_field = parse_string_parameter("id-field-name", params, "_id")
             candidates = []
-            for hit in response_json['hits']['hits']:
+            for hit in response_json.get('hits', {}).get('hits', []):
                 field_value = _get_field_value(hit, id_field)
                 if field_value is None:  # Will add to candidates if field value is present
                     self.logger.warning("No value found for field %s", id_field)
@@ -3280,6 +3289,20 @@ class ProtoBulkIndex(Runner):
 
     def __repr__(self, *args, **kwargs):
         return "proto-bulk-index"
+
+class ProtoBulkVectorDataSet(Runner):
+    async def __call__(self, opensearch, params):
+        request_context_holder.on_client_request_start()
+        proto_req = ProtoVectorBulkHelper.build_proto_request(params)
+        stub = opensearch.document_service()
+        request_context_holder.on_request_start()
+        bulk_resp = await stub.Bulk(proto_req)
+        request_context_holder.on_request_end()
+        request_context_holder.on_client_request_end()
+        return ProtoVectorBulkHelper.build_stats(bulk_resp, params)
+
+    def __repr__(self, *args, **kwargs):
+        return "proto-bulk-vector-data-set"
 
 class ProtoQuery(Runner):
     async def __call__(self, opensearch, params):

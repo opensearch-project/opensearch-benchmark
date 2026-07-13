@@ -990,7 +990,8 @@ class WorkerCoordinator:
                     telemetry.ExternalEnvironmentInfo(os_default, self.metrics_store),
                     telemetry.ClusterEnvironmentInfo(os_default, self.metrics_store),
                     telemetry.JvmStatsSummary(os_default, self.metrics_store),
-                    telemetry.IndexStats(os_default, self.metrics_store),
+                    telemetry.IndexStats(os_default, self.metrics_store,
+                                         index_names=[idx.name for idx in self.workload.indices] if self.workload.indices else None),
                     telemetry.MlBucketProcessingTime(os_default, self.metrics_store),
                     telemetry.SegmentStats(log_root, os_default),
                     telemetry.CcrStats(telemetry_params, opensearch, self.metrics_store),
@@ -1400,7 +1401,11 @@ class DefaultSamplePostprocessor(SamplePostprocessor):
             if sample.request_meta_data and len(sample.request_meta_data) > 1:
                 self.logger.debug("Found: %s", sample.request_meta_data)
 
-                recall_metric_names = ["recall@k", "recall@1"]
+                recall_metric_names = [
+                    "recall@k", "recall@1",
+                    "recall@max_distance", "recall@max_distance_1",
+                    "recall@min_score", "recall@min_score_1",
+                ]
 
                 for recall_metric_name in recall_metric_names:
                     if recall_metric_name in sample.request_meta_data:

@@ -57,15 +57,14 @@ Add backport labels to PRs and commits so that changes can be added to `main` br
     git tag 1.4.0 1.4
 ```
 
-5. Push the tag.  This starts a workflow in Jenkins and creates an automated issue in the OSB repository. The issue needs to be commented on by a maintainer of the repository for the release process to proceed.  The workflow uploads OSB to PyPI and OSB Docker Hub Staging account. Once the workflows are finished publishing OSB to PyPI and OSB Docker Hub staging account, the maintainer who pushed the tag should visit both PyPI and Docker Hub staging to perform the following steps to verify that the artifacts have been properly uploaded.
+5. Push the tag. This triggers the [publish-release.yml](.github/workflows/publish-release.yml) workflow which requires approval from reviewers configured in the `release-approval` GitHub environment before it proceeds. Once approved, the workflow builds and publishes OSB to PyPI using trusted publishers (OIDC authentication) and creates a GitHub release with auto-generated release notes.
 
 ```
     git push origin 1.4.0
 ```
 
-6. Check the progress of release here in the Jenkins console:: https://build.ci.opensearch.org/job/opensearch-benchmark-release/
-    1. For a more detailed look at what's happening, you can take the Build ID (which is the number highlighted in blue beneath "Stage View") and substitute it into this URL: https://build.ci.opensearch.org/blue/organizations/jenkins/opensearch-benchmark-release/detail/opensearch-benchmark-release/<Build ID>/pipeline/
-     2. If failed, inspect the logs.
+6. Check the progress of the release in the GitHub Actions tab of the repository.
+    1. If failed, inspect the workflow logs.
 
 7. Verify PyPI:
     1. Download the OSB distribution build from PyPI: https://pypi.org/project/opensearch-benchmark/#files.  This is a `wheel` file with the extension `.whl`.
