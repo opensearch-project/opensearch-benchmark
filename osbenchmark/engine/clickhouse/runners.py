@@ -4,11 +4,34 @@
 """ClickHouse-native runners for OSB operations."""
 
 import logging
+import re
 
 from osbenchmark import exceptions
 from osbenchmark.worker_coordinator.runner import Runner, request_context_holder
 
 logger = logging.getLogger(__name__)
+
+# Match ORDER BY as a real SQL clause boundary (whitespace-separated tokens).
+# Applied after stripping SQL comments and single-quoted string literals so it
+# doesn't false-match on identifiers or string contents like 'ORDER BYPASS'.
+_ORDER_BY_RE = re.compile(r"\bORDER\s+BY\b", re.IGNORECASE)
+# Line comment: `-- ...` to end of line. Block comment: `/* ... */`.
+_SQL_LINE_COMMENT_RE = re.compile(r"--[^\n]*")
+_SQL_BLOCK_COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
+# Single-quoted string literal. Handles doubled '' escapes.
+_SQL_STRING_LITERAL_RE = re.compile(r"'(?:''|[^'])*'")
+
+
+def _strip_sql_noise(sql: str) -> str:
+    """Return `sql` with comments and single-quoted string literals removed.
+
+    Used to make ``ORDER BY``-in-SQL detection robust against string contents
+    and comments. NOT suitable as a SQL sanitizer for execution.
+    """
+    stripped = _SQL_BLOCK_COMMENT_RE.sub(" ", sql)
+    stripped = _SQL_LINE_COMMENT_RE.sub(" ", stripped)
+    stripped = _SQL_STRING_LITERAL_RE.sub(" ", stripped)
+    return stripped
 
 
 def _compute_recall(hits, neighbors, k):
@@ -47,25 +70,48 @@ class ClickHouseBulkIndex(Runner):
     multi_cluster = False
 
     async def __call__(self, clickhouse_client, params):
+        # pylint: disable=import-outside-toplevel
+        from osbenchmark.engine.clickhouse.helpers import parse_bulk_body
         index = params.get("index") or params.get("table")
         body = params.get("body")
         bulk_size = params.get("bulk-size", 0)
         unit = params.get("unit", "docs")
 
-        # Guard against 0-doc batches when bulk-size was expected
-        if bulk_size > 0 and (not body or (isinstance(body, list) and len(body) == 0)):
-            self.logger.warning("Bulk operation on %s had 0 docs but bulk-size=%d",
-                                index, bulk_size)
-            return {"weight": 0, "unit": unit, "success": False, "error-count": 1, "took": 0}
+        # Zero-doc guard: parse the body ONCE up front so we can detect an empty
+        # feed regardless of whether the workload declared bulk-size. A missing
+        # bulk-size (defaults to 0) previously bypassed this check and let empty
+        # bulks silently "succeed".
+        try:
+            parsed_docs = parse_bulk_body(body) if body else []
+        except exceptions.BenchmarkError:
+            raise
+        except Exception as exc:  # pylint: disable=broad-except
+            # Parse errors surface as a runner failure, not a raised exception
+            # (which would abort the whole benchmark).
+            self.logger.warning("Bulk body parse failed: %s", exc)
+            return {"weight": bulk_size, "unit": unit, "success": False,
+                    "error-count": 1, "took": 0}
+        if not parsed_docs:
+            raise exceptions.BenchmarkError(
+                f"Bulk operation on {index!r} produced 0 parsed docs "
+                f"(bulk-size={bulk_size}). Workload params-source is likely "
+                f"misconfigured - non-zero bulk-size with an empty body is a bug."
+            )
 
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
             response = await clickhouse_client.bulk(body=body, index=index, params=params)
         except Exception as exc:  # pylint: disable=broad-except
-            # Handle mid-run server failures: reset client so next call re-connects
+            # Surface the failure to the sample stream. We deliberately do NOT
+            # mutate clickhouse_client._client here: forcing a re-init on any
+            # transient error is a race against _ensure_client's lock, and if
+            # the underlying client is genuinely broken the next _ensure_client
+            # call won't detect that anyway. Retry semantics belong in a retry
+            # decorator, not ad-hoc private-field mutation.
+            # TODO(P8): wire engine.clickhouse.on_execute_error into the sample
+            #   error path so transient httpx errors get consistent handling.
             self.logger.warning("Bulk RPC raised: %s", exc)
-            clickhouse_client._client = None  # trigger re-init in next _ensure_client call
             request_context_holder.on_request_end()
             request_context_holder.on_client_request_end()
             return {"weight": bulk_size, "unit": unit, "success": False,
@@ -110,8 +156,8 @@ class ClickHouseQuery(Runner):
             try:
                 response = await clickhouse_client.search(body=body)
             except Exception as exc:  # pylint: disable=broad-except
+                # Do NOT mutate clickhouse_client._client (race with _ensure_client's lock).
                 self.logger.warning("Search RPC raised: %s", exc)
-                clickhouse_client._client = None
                 return {"weight": 1, "unit": "ops", "success": False,
                         "error-count": 1, "took": 0}
         finally:
@@ -161,8 +207,10 @@ class ClickHouseVectorSearch(Runner):
         score_field = params.get("score-field", "score")
 
         settings = dict(body.get("settings") or {})
-        if ef_search:
-            settings["hnsw_candidate_list_size_for_search"] = ef_search
+        # Use `is not None` so an explicit hnsw_ef_search=0 reaches ClickHouse
+        # unchanged (0 disables candidate expansion in HNSW-style queries).
+        if ef_search is not None:
+            settings["hnsw_candidate_list_size_for_search"] = int(ef_search)
             settings.setdefault("max_limit_for_vector_search_queries", max(1000, k))
 
         parameters = coerce_parameters(body.get("parameters"))
@@ -177,8 +225,8 @@ class ClickHouseVectorSearch(Runner):
                     settings=settings or None,
                 )
             except Exception as exc:  # pylint: disable=broad-except
+                # Do NOT mutate clickhouse_client._client (race with _ensure_client's lock).
                 self.logger.warning("Vector search RPC raised: %s", exc)
-                clickhouse_client._client = None
                 return {"weight": 1, "unit": "ops", "success": False,
                         "error-count": 1, "took": 0}
         finally:
@@ -238,7 +286,9 @@ class ClickHouseScrollQuery(Runner):
                 "injection is unsafe because it corrupts SQL with existing LIMIT, "
                 "ORDER BY, or FORMAT clauses."
             )
-        if "ORDER BY" not in base_sql.upper():
+        # Strip comments and string literals BEFORE checking for ORDER BY so
+        # e.g. `WHERE label = 'ORDER BYPASS'` doesn't false-match.
+        if not _ORDER_BY_RE.search(_strip_sql_noise(base_sql)):
             raise exceptions.BenchmarkError(
                 "ClickHouseScrollQuery requires the workload SQL to include ORDER BY on a "
                 "deterministic key; pagination without ordering returns different rows per page."
@@ -259,8 +309,8 @@ class ClickHouseScrollQuery(Runner):
                         base_sql, parameters=base_params, settings=body.get("settings"),
                     )
                 except Exception as exc:  # pylint: disable=broad-except
+                    # Do NOT mutate clickhouse_client._client (race with _ensure_client's lock).
                     self.logger.warning("Scroll RPC raised: %s", exc)
-                    clickhouse_client._client = None
                     return {
                         "weight": 1, "unit": "ops", "success": False,
                         "error-count": 1, "pages_actual": pages_actual, "took": 0,
@@ -292,9 +342,11 @@ class ClickHouseBulkVectorDataSet(Runner):
     ``clickhouse_client.bulk`` which requires ``column-names`` for the fast
     Native path (or triggers the JSONEachRow fallback if absent).
 
-    RETURN SHAPE: returns 2-tuple ``(size, unit)`` - this is the ONE runner
-    that uses the tuple return; every other ClickHouse runner returns a dict.
-    Matches OSB's BulkVectorDataSet sampling contract.
+    RETURN SHAPE: returns a 2-tuple ``(size, "docs")`` on success and a dict on
+    failure. The tuple return matches OSB's BulkVectorDataSet sampling contract
+    (execute_single treats a 2-tuple as ``(weight, unit)`` with success=True);
+    a dict return with ``success: False`` short-circuits the success path so
+    ClickHouse errors don't fabricate throughput.
     """
     multi_cluster = False
 
@@ -317,8 +369,15 @@ class ClickHouseBulkVectorDataSet(Runner):
             try:
                 await clickhouse_client.bulk(body=docs, index=params.get("index"), params=params)
             except Exception as exc:  # pylint: disable=broad-except
+                # Do NOT swallow: return an error dict so execute_single records
+                # success=False and does NOT fabricate throughput on ClickHouse crash.
+                # Do NOT mutate clickhouse_client._client (race with _ensure_client).
                 self.logger.warning("BulkVectorDataSet RPC raised: %s", exc)
-                clickhouse_client._client = None
+                return {
+                    "weight": 0, "unit": "docs", "success": False,
+                    "error-count": 1, "error-type": "clickhouse",
+                    "error-description": str(exc),
+                }
         finally:
             request_context_holder.on_request_end()
             request_context_holder.on_client_request_end()
@@ -356,6 +415,17 @@ class ClickHouseDropTable(Runner):
         indices = params.get("indices", [])
         if not indices and params.get("index"):
             indices = [params["index"]]
+        # Split any comma-separated entries so `indices=['a,b']` (OSB's typical
+        # DeleteIndex shape) drops both tables individually. Without this, the
+        # exists()/delete() calls would receive the literal string 'a,b' and
+        # fail to match either table.
+        expanded = []
+        for entry in indices:
+            if isinstance(entry, str) and "," in entry:
+                expanded.extend(part.strip() for part in entry.split(",") if part.strip())
+            else:
+                expanded.append(entry)
+        indices = expanded
         only_if_exists = params.get("only-if-exists", False)
         deleted = 0
         request_context_holder.on_client_request_start()

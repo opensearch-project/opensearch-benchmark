@@ -89,8 +89,9 @@ class ClickHouseClientInitTests(TestCase):
         self.assertIsInstance(c.nodes, _NodesProxy)
 
     def test_nodes_proxy_stats_returns_dict(self):
+        # F4: nodes.stats/info are async so telemetry's `await` doesn't raise.
         c = self._client()
-        stats = c.nodes.stats()
+        stats = asyncio.run(c.nodes.stats())
         self.assertIn("nodes", stats)
         self.assertIn("cluster_name", stats)
 
@@ -549,28 +550,42 @@ class WaitForRestLayerTests(TestCase):
 class NodesStatsSyncTests(TestCase):
 
     def test_sync_stub_returns_envelope(self):
+        # F4: nodes.stats is async - kept named 'Sync' for history but it is
+        # now awaited (telemetry's default runner does `await ...stats(...)`).
         c = ClickHouseDatabaseClient([{"host": "h", "port": 8123}], {"cluster_name": "abc"})
-        stats = c.nodes.stats()
+        stats = asyncio.run(c.nodes.stats())
         self.assertEqual(stats["nodes"], {})
         self.assertEqual(stats["cluster_name"], "abc")
 
 
 class PerformRequestTests(IsolatedAsyncioTestCase):
 
-    async def test_get_shape_returns_empty(self):
+    async def test_get_shape_raises(self):
+        # F3: perform_request now raises loudly for any OS-shaped REST call so
+        # workloads using OS default runners fail fast instead of silently
+        # succeeding with an empty response.
         c = ClickHouseDatabaseClient([{"host": "h", "port": 8123}], {})
         m = mock.AsyncMock()
         c._client = m
-        result = await c.perform_request("GET", "/some/path")
-        self.assertEqual(result, {})
+        with self.assertRaises(exceptions.BenchmarkError) as ctx:
+            await c.perform_request("GET", "/some/path")
+        self.assertIn("GET /some/path", str(ctx.exception))
         m.command.assert_not_called()
 
-    async def test_body_carrying_routes_to_command(self):
+    async def test_body_carrying_raises(self):
         c = ClickHouseDatabaseClient([{"host": "h", "port": 8123}], {})
         m = mock.AsyncMock()
         c._client = m
-        await c.perform_request("POST", "/", body="SELECT 1")
-        m.command.assert_awaited_once_with("SELECT 1")
+        with self.assertRaises(exceptions.BenchmarkError) as ctx:
+            await c.perform_request("POST", "/", body="SELECT 1")
+        self.assertIn("POST /", str(ctx.exception))
+        m.command.assert_not_called()
+
+    async def test_arbitrary_url_and_method_raises(self):
+        c = ClickHouseDatabaseClient([{"host": "h", "port": 8123}], {})
+        c._client = mock.AsyncMock()
+        with self.assertRaises(exceptions.BenchmarkError):
+            await c.perform_request("PUT", "/_async_search/status/xyz")
 
 
 class PutSettingsTests(IsolatedAsyncioTestCase):
@@ -579,3 +594,101 @@ class PutSettingsTests(IsolatedAsyncioTestCase):
         c = ClickHouseDatabaseClient([{"host": "h", "port": 8123}], {})
         result = await c.cluster.put_settings(body={"a": 1})
         self.assertEqual(result, {"acknowledged": True})
+
+
+# -----------------------------------------------------------------
+# Regression tests for review findings (P7)
+# -----------------------------------------------------------------
+
+
+class NodesProxyAsyncRegressionTests(IsolatedAsyncioTestCase):
+    """F4/F11: _NodesProxy.stats and .info must be awaitable and return dicts
+    shaped like the OS default NodeStats runner expects."""
+
+    async def test_stats_is_awaitable_and_returns_dict(self):
+        c = ClickHouseDatabaseClient([{"host": "h", "port": 8123}], {"cluster_name": "cn"})
+        result = await c.nodes.stats()
+        self.assertIsInstance(result, dict)
+        self.assertEqual(result["nodes"], {})
+        self.assertEqual(result["cluster_name"], "cn")
+
+    async def test_info_is_awaitable_and_returns_os_shape(self):
+        c = ClickHouseDatabaseClient([{"host": "h", "port": 8123}], {"cluster_name": "cn"})
+        result = await c.nodes.info()
+        # Must have a 'nodes' key so callers that do result["nodes"].items() don't KeyError.
+        self.assertIn("nodes", result)
+        self.assertEqual(result["nodes"], {})
+        self.assertEqual(result["cluster_name"], "cn")
+        self.assertEqual(result["cluster_uuid"], "clickhouse")
+
+
+class Ipv6EndpointRegressionTests(TestCase):
+    """F7: IPv6 hosts must be re-wrapped in brackets in the endpoint URL."""
+
+    def test_ipv6_loopback_endpoint(self):
+        c = ClickHouseDatabaseClient([{"host": "[::1]", "port": 8123}], {})
+        self.assertEqual(c.endpoint, "http://[::1]:8123")
+
+    def test_ipv6_full_address_endpoint(self):
+        # parse_hosts strips brackets; endpoint must re-wrap since ':' in host
+        # makes the URL ambiguous.
+        c = ClickHouseDatabaseClient([{"host": "[2001:db8::1]", "port": 8443}], {})
+        self.assertEqual(c.endpoint, "https://[2001:db8::1]:8443")
+
+    def test_ipv4_endpoint_not_wrapped(self):
+        c = ClickHouseDatabaseClient([{"host": "10.0.0.1", "port": 8123}], {})
+        self.assertEqual(c.endpoint, "http://10.0.0.1:8123")
+
+
+class DdlFileResolutionRegressionTests(IsolatedAsyncioTestCase):
+    """F13: ddl-file resolution honors workload-path, workload_path, and falls
+    back to cwd with a WARNING."""
+
+    async def test_workload_path_underscore_variant(self):
+        import tempfile
+        import os as _os
+        c = ClickHouseDatabaseClient([{"host": "h", "port": 8123}], {})
+        c._client = mock.AsyncMock()
+        with tempfile.TemporaryDirectory() as td:
+            path = _os.path.join(td, "t.sql")
+            with open(path, "w", encoding="utf-8") as fp:
+                fp.write("CREATE TABLE t (a UInt64) ENGINE=Memory")
+            await c.indices.create(index="t", body={"ddl-file": "t.sql"},
+                                   params={"workload_path": td})
+        c._client.command.assert_awaited_once()
+
+    async def test_no_workload_path_falls_back_to_cwd_with_warning(self):
+        import tempfile
+        import os as _os
+        c = ClickHouseDatabaseClient([{"host": "h", "port": 8123}], {})
+        c._client = mock.AsyncMock()
+        with tempfile.TemporaryDirectory() as td:
+            path = _os.path.join(td, "t.sql")
+            with open(path, "w", encoding="utf-8") as fp:
+                fp.write("CREATE TABLE t (a UInt64) ENGINE=Memory")
+            cwd = _os.getcwd()
+            _os.chdir(td)
+            try:
+                with self.assertLogs("osbenchmark.engine.clickhouse.client",
+                                     level="WARNING") as cm:
+                    await c.indices.create(index="t", body={"ddl-file": "t.sql"})
+            finally:
+                _os.chdir(cwd)
+        self.assertTrue(any("workload-path" in m for m in cm.output))
+        c._client.command.assert_awaited_once()
+
+
+class InfoUnexpectedExceptionRegressionTests(TestCase):
+    """F12: info() logs a WARNING with the exception type on unexpected errors
+    (not just an empty except: pass) so the failure is visible in logs."""
+
+    def test_unexpected_exception_logs_warning_with_type(self):
+        c = ClickHouseDatabaseClient([{"host": "h", "port": 8123}], {})
+        # A ValueError isn't in the expected (ClickHouseError/httpx.HTTPError) set.
+        with mock.patch.object(c, "_ensure_sync_client", side_effect=ValueError("oops")):
+            with self.assertLogs("osbenchmark.engine.clickhouse.client",
+                                 level="WARNING") as cm:
+                info = c.info()
+        self.assertEqual(info["version"]["number"], "24.8.0")
+        # The unexpected-branch WARNING mentions the exception type name.
+        self.assertTrue(any("ValueError" in m and "unexpected" in m for m in cm.output))

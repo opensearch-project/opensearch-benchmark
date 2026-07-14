@@ -96,7 +96,7 @@ class ParseBulkBodyTests(TestCase):
             helpers.parse_bulk_body(body)
 
     def test_corruption_above_threshold_raises(self):
-        # 3 corrupt lines out of 10 total -> >1% -> raises
+        # 3 corrupt lines out of 10 total -> raises
         body = "\n".join(["not-json", "not-json", "not-json"] +
                          ['{"index":{"_id":"1"}}', '{"a":1}'] * 3 +
                          ['{"index":{"_id":"2"}}'])
@@ -263,3 +263,90 @@ class WaitForClickHouseAndHostsTests(TestCase):
         self.assertTrue(secure_8443)
         self.assertTrue(secure_9440)
         self.assertFalse(secure_8123)
+
+
+# -----------------------------------------------------------------
+# Regression tests for review findings (P7)
+# -----------------------------------------------------------------
+
+
+class ParseBulkBodyStrictParseRegressionTests(TestCase):
+    """F2: parse_bulk_body raises on ANY JSON parse error; even a single
+    corrupt line silently mis-aligns the pair-consumer below."""
+
+    def test_single_corrupt_line_raises(self):
+        # 2 corrupt lines out of 200 total = 1% (previously silently tolerated).
+        # Now: raises immediately.
+        body_lines = ['{"index":{"_id":"' + str(i) + '"}}\n{"a":' + str(i) + '}'
+                      for i in range(99)]
+        body = "\n".join(body_lines[:50] + ["not-json", "still-not-json"] + body_lines[50:])
+        with self.assertRaises(exceptions.BenchmarkError) as ctx:
+            helpers.parse_bulk_body(body)
+        self.assertIn("line", str(ctx.exception).lower())
+
+    def test_zero_corrupt_lines_succeeds(self):
+        body = '{"index":{"_id":"1"}}\n{"a":1}\n{"index":{"_id":"2"}}\n{"a":2}\n'
+        docs = helpers.parse_bulk_body(body)
+        self.assertEqual(len(docs), 2)
+
+
+class ExtractActionRegressionTests(TestCase):
+    """F10: _extract_action must raise on unknown action-meta so misaligned
+    bulk bodies surface loudly instead of coercing to 'index'."""
+
+    def test_unknown_key_raises(self):
+        with self.assertRaises(exceptions.BenchmarkError):
+            helpers._extract_action({"random": {"_id": "1"}})
+
+    def test_empty_dict_raises(self):
+        with self.assertRaises(exceptions.BenchmarkError):
+            helpers._extract_action({})
+
+    def test_recognized_key_still_works(self):
+        self.assertEqual(helpers._extract_action({"index": {"_id": "1"}}), "index")
+        self.assertEqual(helpers._extract_action({"create": {"_id": "1"}}), "create")
+
+
+class ConvertQueryResultNullIdRegressionTests(TestCase):
+    """F15: SQL NULL _id must coerce to '' (empty string), not the literal 'None'."""
+
+    def test_search_response_null_id(self):
+        rows = [(None, "a")]
+        cols = ("_id", "name")
+        resp = helpers.convert_query_result_to_search_response(rows, cols)
+        self.assertEqual(resp["hits"]["hits"][0]["_id"], "")
+        # Ensure the string 'None' didn't leak through
+        self.assertNotEqual(resp["hits"]["hits"][0]["_id"], "None")
+
+    def test_vector_response_null_id(self):
+        rows = [(None, 0.9)]
+        cols = ("id", "score")
+        resp = helpers.convert_query_result_for_vector_search(rows, cols)
+        self.assertEqual(resp["hits"]["hits"][0]["_id"], "")
+        self.assertNotEqual(resp["hits"]["hits"][0]["_id"], "None")
+
+
+class MultiHostWarnRegressionTests(TestCase):
+    """F16: multi-host config must emit a WARNING pointing at the follow-up."""
+
+    def test_two_hosts_logs_warning(self):
+        with self.assertLogs("osbenchmark.engine.clickhouse.helpers",
+                             level="WARNING") as cm:
+            host, port, _ = helpers.parse_hosts([
+                {"host": "h1", "port": 8123},
+                {"host": "h2", "port": 8123},
+            ])
+        self.assertEqual(host, "h1")
+        self.assertEqual(port, 8123)
+        self.assertTrue(any("only the first" in m for m in cm.output))
+
+    def test_single_host_no_warning(self):
+        # Use a fresh logger context: assertNoLogs would be cleaner but is 3.10+;
+        # we accept it may match INFO/DEBUG from prior tests. Guard by checking
+        # that our WARNING pattern is NOT present.
+        with self.assertLogs("osbenchmark.engine.clickhouse.helpers",
+                             level="WARNING") as cm:
+            helpers.parse_hosts([{"host": "h1", "port": 8123}])
+            # Ensure the log records list has SOMETHING (assertLogs requires it).
+            helpers.logger.warning("noise")
+        self.assertFalse(any("only the first" in m for m in cm.output))

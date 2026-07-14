@@ -26,21 +26,27 @@ except ImportError:
 
 
 class _NodesProxy:
-    """Sync proxy for the ``client.nodes`` namespace.
+    """Async proxy for the ``client.nodes`` namespace.
 
-    Avoids having ``client.nodes.stats(...)`` resolve to the async
-    ``stats(index, metric, ...)`` on the client (which would silently
-    return a coroutine when telemetry devices call it synchronously).
+    Both ``stats`` and ``info`` are async because OSB's default NodeStats runner
+    does ``await opensearch.nodes.stats(...)``. Returning a coroutine from a sync
+    method (or awaiting a sync method) would raise TypeError when telemetry
+    fires. Both return OS-shaped envelopes (with a populated ``nodes`` key) so
+    downstream iterators don't KeyError.
     """
 
     def __init__(self, parent: "ClickHouseDatabaseClient") -> None:
         self._parent = parent
 
-    def stats(self, *args: Any, **kwargs: Any) -> Dict:
+    async def stats(self, *args: Any, **kwargs: Any) -> Dict:
         return self._parent.nodes_stats(*args, **kwargs)
 
-    def info(self, *_args: Any, **_kwargs: Any) -> Dict:
-        return {}
+    async def info(self, *_args: Any, **_kwargs: Any) -> Dict:
+        return {
+            "nodes": {},
+            "cluster_name": self._parent.client_options.get("cluster_name", "clickhouse"),
+            "cluster_uuid": "clickhouse",
+        }
 
 
 class ClickHouseDatabaseClient(RequestContextHolder):
@@ -158,6 +164,9 @@ class ClickHouseDatabaseClient(RequestContextHolder):
         from osbenchmark.engine.clickhouse.helpers import parse_hosts  # pylint: disable=import-outside-toplevel
         host, port, secure = parse_hosts(self._hosts)
         scheme = "https" if secure else "http"
+        # IPv6 addresses contain colons; wrap in brackets so the URL is unambiguous.
+        if ":" in host:
+            host = f"[{host}]"
         return f"{scheme}://{host}:{port}"
 
     # -----------------------------------------------------------------
@@ -253,7 +262,8 @@ class ClickHouseDatabaseClient(RequestContextHolder):
         items = [{"index": {"_index": index, "_id": d.get("_id"), "status": 201}} for d in docs]
         return {"took": took, "errors": False, "items": items}
 
-    async def index(self, index: str, body: Dict, id: Any = None,  # pylint: disable=redefined-builtin
+    # pylint: disable-next=redefined-builtin,too-many-positional-arguments
+    async def index(self, index: str, body: Dict, id: Any = None,
                     doc_type: Any = None, params: Optional[Dict] = None,
                     **_kwargs: Any) -> Dict:
         client = await self._ensure_client()
@@ -313,9 +323,21 @@ class ClickHouseDatabaseClient(RequestContextHolder):
         if not ddl:
             ddl_file = body.get("ddl-file")
             if ddl_file:
-                # Resolve relative paths against params["workload-path"] (OSB standard)
-                if not os.path.isabs(ddl_file) and params and params.get("workload-path"):
-                    ddl_file = os.path.join(params["workload-path"], ddl_file)
+                # Resolve relative paths against params["workload-path"] (OSB standard).
+                # Also accept the legacy underscore variant and fall back to cwd when
+                # neither is present, emitting a WARNING so users aren't surprised.
+                if not os.path.isabs(ddl_file):
+                    workload_path = None
+                    if params:
+                        workload_path = (params.get("workload-path")
+                                         or params.get("workload_path"))
+                    if not workload_path:
+                        workload_path = os.getcwd()
+                        self.logger.warning(
+                            "ddl-file %r is relative but no 'workload-path' param was "
+                            "supplied; resolving against cwd %r", ddl_file, workload_path
+                        )
+                    ddl_file = os.path.join(workload_path, ddl_file)
                 with open(ddl_file, "r", encoding="utf-8") as fp:
                     ddl = fp.read()
         if not ddl:
@@ -442,28 +464,47 @@ class ClickHouseDatabaseClient(RequestContextHolder):
     # Transport namespace
     # -----------------------------------------------------------------
 
+    # pylint: disable-next=too-many-positional-arguments
     async def perform_request(self, method: str, url: str, params: Any = None,
                               body: Any = None, headers: Any = None) -> Any:
-        """Minimal escape hatch.
+        """Unsupported for ClickHouse.
 
-        Routes body-carrying calls through client.command so tests / rarely-used
-        workload paths can still exercise the client. Returns {} for GET-shape calls
-        since ClickHouse's transport is HTTP+SQL, not the REST-DSL that the URL
-        argument implies.
+        OSB's default runners (SubmitAsyncSearch, ML ops, RawRequest,
+        CreatePointInTime, ...) call ``client.transport.perform_request`` with a
+        REST-DSL URL. ClickHouse has no OS-shaped REST API, so a silent stub
+        would fabricate success. Raise loudly instead so workloads using these
+        runners fail fast and switch to a ClickHouse-native operation.
         """
-        client = await self._ensure_client()
-        if body is not None:
-            # Assume the body is either a SQL string or a JSON-encoded string
-            sql_body = body if isinstance(body, str) else _json.dumps(body)
-            await client.command(sql_body)
-        return {}
+        # Reference params/headers so pylint doesn't complain about unused args
+        # while keeping the OSB-compatible signature.
+        _ = (params, headers)
+        raise exceptions.BenchmarkError(
+            f"ClickHouseDatabaseClient.transport.perform_request is not supported; "
+            f"the {method} {url} operation has no ClickHouse equivalent. "
+            f"Use a ClickHouse-native operation."
+        )
 
     # -----------------------------------------------------------------
     # Sync helpers
     # -----------------------------------------------------------------
 
     def info(self, **_kwargs: Any) -> Dict:
-        from osbenchmark.engine.clickhouse.helpers import parse_version  # pylint: disable=import-outside-toplevel
+        # pylint: disable=import-outside-toplevel
+        from osbenchmark.engine.clickhouse.helpers import parse_version
+        # Narrow the expected-exception set. Anything outside these is unexpected
+        # and should log at WARNING (with the exception type) so it surfaces in
+        # operator logs rather than being silently masked.
+        expected_exc: tuple = ()
+        try:
+            import clickhouse_connect.driver.exceptions as ch_exc
+            expected_exc = expected_exc + (ch_exc.ClickHouseError,)
+        except ImportError:
+            pass
+        try:
+            import httpx
+            expected_exc = expected_exc + (httpx.HTTPError,)
+        except ImportError:
+            pass
         try:
             sync = self._ensure_sync_client()
             result = sync.query("SELECT version()")
@@ -475,9 +516,17 @@ class ClickHouseDatabaseClient(RequestContextHolder):
                     "Could not parse ClickHouse version %r; using fallback %s. "
                     "Metrics store version field may be misleading.", version_str, semver
                 )
-        except Exception as exc:  # pylint: disable=broad-except
+        except expected_exc as exc:
             self.logger.warning(
                 "ClickHouse info() failed: %s - using fallback version 24.8.0", exc
+            )
+            semver = "24.8.0"
+        except Exception as exc:  # pylint: disable=broad-except
+            # Unexpected exception - still return a fallback so metrics store
+            # doesn't crash, but WARN with the exception type so it's visible.
+            self.logger.warning(
+                "ClickHouse info() raised unexpected %s: %s - using fallback version 24.8.0",
+                type(exc).__name__, exc
             )
             semver = "24.8.0"
         return {
@@ -493,7 +542,7 @@ class ClickHouseDatabaseClient(RequestContextHolder):
             "tagline": "You Know, for Analytics",
         }
 
-    def return_raw_response(self) -> None:
+    def return_raw_response(self) -> None:  # pylint: disable=arguments-differ
         return None
 
     # -----------------------------------------------------------------

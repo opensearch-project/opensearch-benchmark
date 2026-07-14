@@ -53,8 +53,9 @@ class ClickHouseBulkIndexTests(_RunnerCase):
         r = ch_runners.ClickHouseBulkIndex()
         client = _make_client()
         client.bulk.return_value = {"errors": False, "took": 5, "items": [{}, {}]}
-        result = await r(client, {"index": "t", "body": [{"a": 1}], "bulk-size": 100,
-                                  "column-names": ["a"]})
+        result = await r(client, {"index": "t",
+                                  "body": [{"index": {"_id": "1"}}, {"a": 1}],
+                                  "bulk-size": 100, "column-names": ["a"]})
         self.assertTrue(result["success"])
         self.assertEqual(result["weight"], 100)
         self.assertEqual(result["error-count"], 0)
@@ -65,25 +66,31 @@ class ClickHouseBulkIndexTests(_RunnerCase):
         r = ch_runners.ClickHouseBulkIndex()
         client = _make_client()
         client.bulk.return_value = {"errors": True, "took": 0, "items": []}
-        result = await r(client, {"index": "t", "body": [{"a": 1}], "bulk-size": 100})
+        result = await r(client, {"index": "t",
+                                  "body": [{"index": {"_id": "1"}}, {"a": 1}],
+                                  "bulk-size": 100})
         self.assertFalse(result["success"])
         self.assertEqual(result["error-count"], 1)
 
     async def test_zero_doc_guard(self):
+        # F9: parsed doc count check - 0-doc bulk raises regardless of bulk-size.
         r = ch_runners.ClickHouseBulkIndex()
         client = _make_client()
-        result = await r(client, {"index": "t", "body": [], "bulk-size": 50})
-        self.assertFalse(result["success"])
-        self.assertEqual(result["error-count"], 1)
+        with self.assertRaises(exceptions.BenchmarkError):
+            await r(client, {"index": "t", "body": [], "bulk-size": 50})
         client.bulk.assert_not_called()
 
-    async def test_client_reset_on_exception(self):
+    async def test_error_returns_dict_without_client_mutation(self):
+        # F6: on RPC failure the runner returns an error dict but MUST NOT
+        # mutate client._client (race with _ensure_client's lock).
         r = ch_runners.ClickHouseBulkIndex()
         client = _make_client()
         client.bulk.side_effect = RuntimeError("boom")
-        result = await r(client, {"index": "t", "body": [{"a": 1}], "bulk-size": 1})
+        result = await r(client, {"index": "t",
+                                  "body": [{"index": {"_id": "1"}}, {"a": 1}],
+                                  "bulk-size": 1})
         self.assertFalse(result["success"])
-        self.assertIsNone(client._client)
+        self.assertIsNotNone(client._client)
 
     def test_repr(self):
         self.assertEqual(repr(ch_runners.ClickHouseBulkIndex()), "clickhouse-bulk-index")
@@ -109,13 +116,15 @@ class ClickHouseQueryTests(_RunnerCase):
         with self.assertRaises(exceptions.BenchmarkError):
             await r(client, {"body": {}})
 
-    async def test_client_reset_on_exception(self):
+    async def test_error_returns_dict_without_client_mutation(self):
+        # F6: on RPC failure the runner returns an error dict but MUST NOT
+        # mutate client._client (race with _ensure_client's lock).
         r = ch_runners.ClickHouseQuery()
         client = _make_client()
         client.search.side_effect = RuntimeError("boom")
         result = await r(client, {"body": {"sql": "SELECT 1"}})
         self.assertFalse(result["success"])
-        self.assertIsNone(client._client)
+        self.assertIsNotNone(client._client)
 
     def test_repr(self):
         self.assertEqual(repr(ch_runners.ClickHouseQuery()), "clickhouse-query")
@@ -434,7 +443,10 @@ class RegisterRunnersTests(TestCase):
         for _op, _r, kwargs in registrations:
             self.assertTrue(kwargs.get("async_runner"))
 
-    def test_admin_ops_wrapped_in_retry(self):
+    def test_admin_ops_not_wrapped_in_retry(self):
+        # F5: Retry() only catches opensearchpy exceptions, so wrapping
+        # ClickHouse admin runners in it was dead code that hid the real
+        # exception path. Assert we don't reintroduce the wrapper.
         registrations = []
         with mock.patch(
             "osbenchmark.worker_coordinator.runner.register_runner",
@@ -451,7 +463,8 @@ class RegisterRunnersTests(TestCase):
         }
         for op, r, _ in registrations:
             if op in admin_ops:
-                self.assertIsInstance(r, Retry, f"{op} should be wrapped in Retry")
+                self.assertNotIsInstance(r, Retry,
+                                         f"{op} MUST NOT be wrapped in Retry (F5)")
 
     def test_data_plane_ops_not_wrapped(self):
         registrations = []
@@ -521,3 +534,147 @@ class ClickHouseRunnerSqlContractTests(_RunnerCase):
             ctx.on_request_start.assert_called_once()
             ctx.on_request_end.assert_called_once()
             ctx.on_client_request_end.assert_called_once()
+
+
+# -----------------------------------------------------------------
+# Regression tests for review findings (P7)
+# -----------------------------------------------------------------
+
+
+class BulkVectorDataSetErrorPathRegressionTests(_RunnerCase):
+    """F1: on RPC exception, BulkVectorDataSet must return an error DICT so
+    execute_single records success=False. Returning (size, unit) would fabricate
+    throughput on ClickHouse crash."""
+
+    async def test_httpx_connect_error_returns_error_dict(self):
+        # Import lazily so tests don't fail if httpx isn't installed.
+        try:
+            import httpx  # pylint: disable=import-outside-toplevel
+        except ImportError:  # pragma: no cover - httpx is in the ClickHouse extra
+            self.skipTest("httpx not available")
+        r = ch_runners.ClickHouseBulkVectorDataSet()
+        client = _make_client()
+        client.bulk.side_effect = httpx.ConnectError("connection refused")
+        body = [{"index": {"_id": "1"}}, {"id": 1, "vec": [0.1, 0.2]}]
+        result = await r(client, {"index": "t", "size": 1, "body": body})
+        # MUST be a dict (not a tuple) so execute_single sees success=False
+        self.assertIsInstance(result, dict)
+        self.assertFalse(result["success"])
+        self.assertEqual(result["error-count"], 1)
+        self.assertEqual(result["error-type"], "clickhouse")
+        self.assertIn("connection refused", result["error-description"])
+        # And MUST NOT mutate the client (F6-style race prevention)
+        self.assertIsNotNone(client._client)
+
+    async def test_success_path_still_returns_tuple(self):
+        # Success path is unchanged: still returns (size, "docs").
+        r = ch_runners.ClickHouseBulkVectorDataSet()
+        client = _make_client()
+        body = [{"index": {"_id": "1"}}, {"id": 1, "vec": [0.1, 0.2]}]
+        result = await r(client, {"index": "t", "size": 1, "body": body})
+        self.assertEqual(result, (1, "docs"))
+
+
+class ScrollQueryOrderByRegressionTests(_RunnerCase):
+    """F8: ORDER BY detection ignores SQL comments and string literals so
+    `WHERE label = 'ORDER BYPASS'` without an actual ORDER BY still raises."""
+
+    async def test_order_by_in_string_literal_does_not_pass(self):
+        r = ch_runners.ClickHouseScrollQuery()
+        client = _make_client()
+        sql = ("SELECT id FROM t WHERE label = 'ORDER BYPASS' "
+               "LIMIT {limit:UInt32} OFFSET {offset:UInt32}")
+        with self.assertRaises(exceptions.BenchmarkError):
+            await r(client, {"body": {"sql": sql}})
+
+    async def test_order_by_in_line_comment_does_not_pass(self):
+        r = ch_runners.ClickHouseScrollQuery()
+        client = _make_client()
+        sql = ("SELECT id FROM t -- ORDER BY id\n"
+               "LIMIT {limit:UInt32} OFFSET {offset:UInt32}")
+        with self.assertRaises(exceptions.BenchmarkError):
+            await r(client, {"body": {"sql": sql}})
+
+    async def test_order_by_in_block_comment_does_not_pass(self):
+        r = ch_runners.ClickHouseScrollQuery()
+        client = _make_client()
+        sql = ("SELECT id FROM t /* ORDER BY id */ "
+               "LIMIT {limit:UInt32} OFFSET {offset:UInt32}")
+        with self.assertRaises(exceptions.BenchmarkError):
+            await r(client, {"body": {"sql": sql}})
+
+    async def test_real_order_by_passes(self):
+        r = ch_runners.ClickHouseScrollQuery()
+        client = _make_client()
+        client.execute_query.return_value = _query_result([(1,)], ["id"])
+        sql = ("SELECT id FROM t WHERE label = 'foo' ORDER BY id "
+               "LIMIT {limit:UInt32} OFFSET {offset:UInt32}")
+        result = await r(client, {"body": {"sql": sql}, "pages": 1, "results-per-page": 1})
+        self.assertTrue(result["success"])
+
+    async def test_lowercase_order_by_passes(self):
+        r = ch_runners.ClickHouseScrollQuery()
+        client = _make_client()
+        client.execute_query.return_value = _query_result([(1,)], ["id"])
+        sql = ("SELECT id FROM t order by id "
+               "LIMIT {limit:UInt32} OFFSET {offset:UInt32}")
+        result = await r(client, {"body": {"sql": sql}, "pages": 1, "results-per-page": 1})
+        self.assertTrue(result["success"])
+
+
+class VectorEfSearchZeroRegressionTests(_RunnerCase):
+    """F14: hnsw_ef_search=0 is a legitimate value (disables candidate expansion)
+    and must reach ClickHouse instead of being dropped by a truthiness check."""
+
+    async def test_zero_ef_search_reaches_settings(self):
+        r = ch_runners.ClickHouseVectorSearch()
+        client = _make_client()
+        client.execute_query.return_value = _query_result([], [])
+        await r(client, {"body": {"sql": "SELECT 1"}, "hnsw_ef_search": 0, "k": 10})
+        kwargs = client.execute_query.await_args.kwargs
+        self.assertIn("hnsw_candidate_list_size_for_search", kwargs["settings"])
+        self.assertEqual(kwargs["settings"]["hnsw_candidate_list_size_for_search"], 0)
+
+
+class DropTableCommaSplitRegressionTests(_RunnerCase):
+    """F17: comma-separated names in indices must be split so exists() and
+    delete() are called per-name, not with the literal 'a,b'."""
+
+    async def test_comma_separated_names_split(self):
+        r = ch_runners.ClickHouseDropTable()
+        client = _make_client()
+        client.indices.exists = mock.AsyncMock(return_value=True)
+        result = await r(client, {"indices": ["a,b"], "only-if-exists": True})
+        # exists() called twice (once per split name), delete() called twice
+        self.assertEqual(client.indices.exists.await_count, 2)
+        self.assertEqual(client.indices.delete.await_count, 2)
+        self.assertEqual(result["weight"], 2)
+        # Verify the split names were passed cleanly (stripped of whitespace)
+        called_with = [c.kwargs.get("index") for c in client.indices.delete.await_args_list]
+        self.assertEqual(sorted(called_with), ["a", "b"])
+
+    async def test_comma_with_whitespace_handled(self):
+        r = ch_runners.ClickHouseDropTable()
+        client = _make_client()
+        await r(client, {"indices": ["a , b , c"]})
+        self.assertEqual(client.indices.delete.await_count, 3)
+
+
+class BulkIndexZeroDocRegressionTests(_RunnerCase):
+    """F9: zero-doc guard operates on parsed doc count, not the bulk-size param.
+    Missing bulk-size (defaults to 0) previously bypassed the guard entirely."""
+
+    async def test_missing_bulk_size_with_empty_body_still_raises(self):
+        r = ch_runners.ClickHouseBulkIndex()
+        client = _make_client()
+        # No bulk-size param at all - previously bypassed the guard.
+        with self.assertRaises(exceptions.BenchmarkError):
+            await r(client, {"index": "t", "body": []})
+        client.bulk.assert_not_called()
+
+    async def test_missing_bulk_size_with_bytes_body_of_zero_docs_raises(self):
+        r = ch_runners.ClickHouseBulkIndex()
+        client = _make_client()
+        with self.assertRaises(exceptions.BenchmarkError):
+            await r(client, {"index": "t", "body": b""})
+        client.bulk.assert_not_called()

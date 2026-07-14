@@ -70,9 +70,9 @@ def parse_bulk_body(body: Any) -> List[Dict[str, Any]]:
     BenchmarkError, since ClickHouse's insert-only bulk path cannot route
     these actions.
 
-    Fails LOUD on excessive corruption: if more than 1% of lines could not be
-    parsed as JSON, raises BenchmarkError. Prevents silent throughput fraud
-    from a truncated bulk feed.
+    Fails LOUD on the very first parse error. A silent tolerance is worse than
+    a benchmark abort because a single skipped line mis-aligns the pair-consumer
+    below, silently misattributing every downstream doc.
     """
     # bytes -> str
     if isinstance(body, (bytes, bytearray)):
@@ -83,18 +83,15 @@ def parse_bulk_body(body: Any) -> List[Dict[str, Any]]:
     if isinstance(body, str):
         raw_lines = [line for line in body.split("\n") if line.strip()]
         parsed: List[Dict[str, Any]] = []
-        skipped = 0
-        for line in raw_lines:
+        for lineno, line in enumerate(raw_lines):
             try:
                 parsed.append(json.loads(line))
             except json.JSONDecodeError as exc:
-                logger.warning("Skipping invalid bulk NDJSON: %s", exc)
-                skipped += 1
-        if raw_lines and skipped / len(raw_lines) > 0.01:
-            raise exceptions.BenchmarkError(
-                f"parse_bulk_body: {skipped}/{len(raw_lines)} lines could not be parsed as JSON "
-                f"(>1% corruption). Bulk feed is likely truncated or malformed."
-            )
+                raise exceptions.BenchmarkError(
+                    f"parse_bulk_body: line {lineno} could not be parsed as JSON "
+                    f"({exc}). Bulk feed is truncated or malformed - aborting to avoid "
+                    f"silent pair-consumer misalignment."
+                ) from exc
         # Reject delete actions BEFORE pair-consumption to prevent mis-pairing
         i = 0
         while i < len(parsed):
@@ -148,7 +145,15 @@ def _extract_action(action_meta: Dict[str, Any]) -> str:
     for key in _ALL_BULK_ACTIONS:
         if key in action_meta:
             return key
-    return "index"
+    # No recognized action key. This means either the bulk body is misaligned
+    # (a source doc appeared where an action-meta was expected) or the workload
+    # emitted an unknown action. Raising here surfaces the corruption loudly
+    # instead of silently coercing to 'index'.
+    raise exceptions.BenchmarkError(
+        f"parse_bulk_body: action_meta {action_meta!r} has no recognized action key "
+        f"(expected one of {sorted(_ALL_BULK_ACTIONS)}). This indicates a misaligned "
+        f"bulk body or an unsupported action type."
+    )
 
 
 def _extract_doc_id(action_meta: Dict[str, Any]) -> Optional[str]:
@@ -246,9 +251,12 @@ def convert_query_result_to_search_response(
     for row in result_rows:
         source = dict(zip(column_names, row))
         hit_id = source.pop("_id", "") if "_id" in source else ""
+        # Coerce SQL NULL (Python None) to empty string BEFORE the "" check so
+        # None doesn't become the literal string 'None' downstream.
+        hit_id = "" if hit_id is None else str(hit_id)
         hits.append({
             "_index": "",
-            "_id": str(hit_id) if hit_id != "" else "",
+            "_id": hit_id if hit_id != "" else "",
             "_score": None,
             "_source": source,
         })
@@ -280,12 +288,15 @@ def convert_query_result_for_vector_search(
         source = dict(zip(column_names, row))
         score = source.pop(score_column, None) if score_column in source else None
         hit_id = source.pop(id_column, "") if id_column in source else ""
+        # Coerce SQL NULL (Python None) to empty string BEFORE the "" check so
+        # None doesn't become the literal string 'None' downstream.
+        hit_id = "" if hit_id is None else str(hit_id)
         if score is not None:
             if max_score is None or score > max_score:
                 max_score = score
         hits.append({
             "_index": "",
-            "_id": str(hit_id) if hit_id != "" else "",
+            "_id": hit_id if hit_id != "" else "",
             "_score": score,
             "_source": source,
         })
@@ -399,6 +410,14 @@ def parse_hosts(hosts: Any) -> Tuple[str, int, bool]:
         hosts = hosts.get("default", [])
     if not hosts:
         raise exceptions.SystemSetupError("No ClickHouse hosts configured")
+    if len(hosts) > 1:
+        # Multi-host load balancing is a v2 follow-up. Warn so users know their
+        # extra hosts are being dropped instead of silently used.
+        logger.warning(
+            "ClickHouse client received %d hosts but only the first (%r) will be used. "
+            "Multi-host load balancing is a v2 follow-up.",
+            len(hosts), hosts[0]
+        )
     first = hosts[0]
     host = first.get("host", "localhost")
     # IPv6: strip brackets if present so clickhouse-connect can parse
