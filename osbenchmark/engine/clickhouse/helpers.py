@@ -31,10 +31,12 @@ _ALL_BULK_ACTIONS = ("index", "create", "update", "delete")
 # Semver validator used by info()
 _SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
-# Module-level flag to dedupe the multi-host warning. parse_hosts is called
+# Dedupe the multi-host warning per unique host tuple. parse_hosts is called
 # from _ensure_client, _ensure_sync_client, and endpoint property; without
-# dedupe the same message logs N * 3 times per worker.
-_MULTI_HOST_WARNED = False
+# dedupe the same message logs N * 3 times per worker. Keyed by the host set
+# so a second benchmark launched in the same Python process against a
+# DIFFERENT multi-host config still warns (a plain bool would silence it).
+_MULTI_HOST_WARNED_KEYS: set = set()
 
 
 def _ns_to_ms(summary_dict: Optional[Mapping[str, Any]]) -> int:
@@ -420,18 +422,20 @@ def parse_hosts(hosts: Any) -> Tuple[str, int, bool]:
     if not hosts:
         raise exceptions.SystemSetupError("No ClickHouse hosts configured")
     if len(hosts) > 1:
-        # Multi-host load balancing is a v2 follow-up. Warn ONCE per process
-        # (parse_hosts is called by _ensure_client, _ensure_sync_client, and
-        # endpoint — dedupe so we don't log the same message ~24 times per
-        # 8-worker benchmark).
-        global _MULTI_HOST_WARNED  # pylint: disable=global-statement
-        if not _MULTI_HOST_WARNED:
+        # Multi-host load balancing is a v2 follow-up. Warn ONCE per unique
+        # host set (parse_hosts is called by _ensure_client,
+        # _ensure_sync_client, and endpoint — dedupe so we don't log the same
+        # message ~24 times per 8-worker benchmark). Keying on the host tuple
+        # ensures a second benchmark against a different multi-host config
+        # still emits its own warning.
+        key = tuple(sorted((h.get("host"), h.get("port")) for h in hosts))
+        if key not in _MULTI_HOST_WARNED_KEYS:
             logger.warning(
                 "ClickHouse client received %d hosts but only the first (%r) will be used. "
                 "Multi-host load balancing is a v2 follow-up.",
                 len(hosts), hosts[0]
             )
-            _MULTI_HOST_WARNED = True
+            _MULTI_HOST_WARNED_KEYS.add(key)
     first = hosts[0]
     host = first.get("host", "localhost")
     # IPv6: strip brackets if present so clickhouse-connect can parse

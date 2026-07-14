@@ -359,11 +359,15 @@ class MultiHostWarnRegressionTests(TestCase):
 class MultiHostWarningDedupeTests(TestCase):
     """P8: parse_hosts is called from _ensure_client, _ensure_sync_client, and
     endpoint - without dedupe, the multi-host warning logs ~24 times per
-    8-worker benchmark. Fixed with module-level `_MULTI_HOST_WARNED` flag."""
+    8-worker benchmark. Fixed with per-host-tuple `_MULTI_HOST_WARNED_KEYS` set."""
 
     def setUp(self):
-        # Reset the module flag between tests
-        helpers._MULTI_HOST_WARNED = False
+        # Reset the module dedupe set between tests
+        helpers._MULTI_HOST_WARNED_KEYS.clear()
+
+    def tearDown(self):
+        # Also clear on teardown so we don't leak state into other test classes.
+        helpers._MULTI_HOST_WARNED_KEYS.clear()
 
     def test_multi_host_warning_fires_once(self):
         multi = [{"host": "h1", "port": 8123}, {"host": "h2", "port": 8123}]

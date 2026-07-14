@@ -21,7 +21,7 @@ _ORDER_BY_RE = re.compile(r"(?:^|[\s,()])ORDER\s+BY(?=[\s(]|$)", re.IGNORECASE)
 # SQL dialect) requires whitespace after -- to distinguish a comment from
 # arithmetic operators or identifier fragments. Matching the whitespace here
 # avoids false-stripping legitimate SQL like `WHERE x = 'a--b'`.
-_SQL_LINE_COMMENT_RE = re.compile(r"--\s[^\n]*")
+_SQL_LINE_COMMENT_RE = re.compile(r"--[ \t\r\f\v][^\n]*")
 _SQL_BLOCK_COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
 # Single-quoted string literal. Handles doubled '' escapes.
 _SQL_STRING_LITERAL_RE = re.compile(r"'(?:''|[^'])*'")
