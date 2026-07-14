@@ -742,6 +742,27 @@ class DoubleParseRegressionTests(_RunnerCase):
         self.assertIn("parsed_docs", call.kwargs)
         self.assertEqual(len(call.kwargs["parsed_docs"]), 1)
 
+    async def test_parse_bulk_body_invoked_exactly_once(self):
+        # The complementary end-to-end assertion: patch parse_bulk_body itself
+        # so we can COUNT invocations. The runner MUST parse once and the
+        # client MUST NOT reparse when parsed_docs is passed. Without this
+        # test, dropping parsed_docs from the client.bulk() signature would
+        # silently double the parse cost on every bulk op with no test failure.
+        from osbenchmark.engine.clickhouse import helpers as ch_helpers
+        original = ch_helpers.parse_bulk_body
+        r = ch_runners.ClickHouseBulkIndex()
+        client = _make_client()
+        client.bulk = mock.AsyncMock(return_value={"took": 5, "errors": False})
+        body = b'{"index":{"_id":"1"}}\n{"a":1}\n'
+        with mock.patch(
+            "osbenchmark.engine.clickhouse.helpers.parse_bulk_body",
+            wraps=original,
+        ) as spy:
+            await r(client, {"index": "t", "body": body, "bulk-size": 1})
+        self.assertEqual(spy.call_count, 1,
+                         f"parse_bulk_body must be called exactly once per "
+                         f"bulk op; got {spy.call_count}")
+
 
 class OrderByRegexRegressionTests(_RunnerCase):
     """P8: F8's ORDER BY regex was too strict - `\\bORDER\\s+BY\\b` failed to
@@ -771,16 +792,22 @@ class OrderByRegexRegressionTests(_RunnerCase):
         self.assertIn("ORDER BY", str(ctx.exception))
 
     async def test_order_by_identifier_variant_rejected(self):
-        # 'ORDER BYPASS_COL' as a bare identifier after t
+        # 'ORDER BYPASS_COL' - a space between ORDER and BYPASS is what the
+        # new regex must reject; using an underscore ('ORDER_BYPASS_COL') would
+        # have been rejected by the OLD regex too and wouldn't exercise the fix.
         with self.assertRaises(exceptions.BenchmarkError):
             await self._run_scroll(
-                "SELECT ORDER_BYPASS_COL FROM t LIMIT {limit:UInt32} OFFSET {offset:UInt32}")
+                "SELECT id FROM t ORDER BYPASS_COL LIMIT {limit:UInt32} OFFSET {offset:UInt32}")
 
     async def test_double_dash_inside_string_literal_preserved(self):
-        # 'foo--bar' inside a string literal must NOT be stripped as a line
-        # comment - the string strip has to happen before line-comment strip.
+        # 'foo-- bar' inside a string literal must NOT be stripped as a line
+        # comment. The whitespace AFTER `--` is required for the SQL comment
+        # regex to match, so this literal would (incorrectly) look like a
+        # comment if the string-literal strip did not run first. Do NOT use
+        # 'foo--bar' here: without a following whitespace char the regex would
+        # never match, so the test would silently pass under both orderings.
         result = await self._run_scroll(
-            "SELECT id FROM t WHERE label = 'foo--bar' "
+            "SELECT id FROM t WHERE label = 'foo-- bar' "
             "ORDER BY id LIMIT {limit:UInt32} OFFSET {offset:UInt32}")
         self.assertTrue(result["success"])
 

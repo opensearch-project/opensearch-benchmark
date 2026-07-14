@@ -395,6 +395,22 @@ class ActionExtractionDeterminismTests(TestCase):
         # Guard against a future refactor that switches back to a set/frozenset.
         self.assertIsInstance(helpers._ALL_BULK_ACTIONS, tuple)
 
+    def test_all_bulk_actions_exact_priority_order(self):
+        # Do NOT rely on CPython dict iteration ordering to prove determinism -
+        # assert the priority tuple directly. If the tuple's contents or order
+        # ever change, callers that depend on 'index'-before-'update' will
+        # silently start behaving differently.
+        self.assertEqual(helpers._ALL_BULK_ACTIONS,
+                         ("index", "create", "update", "delete"))
+
+    def test_ambiguous_action_meta_deterministic_under_shuffled_iteration(self):
+        # Force iteration order to expose the priority: if _extract_action's
+        # loop iterated over the dict directly instead of _ALL_BULK_ACTIONS,
+        # this would return 'update' on some Python versions.
+        shuffled = {"update": {"_id": "1"}, "delete": {"_id": "1"},
+                    "create": {"_id": "1"}, "index": {"_id": "1"}}
+        self.assertEqual(helpers._extract_action(shuffled), "index")
+
 
 class DeadTernaryRegressionTests(TestCase):
     """P8: `hit_id if hit_id != '' else ''` was dead code because the preceding

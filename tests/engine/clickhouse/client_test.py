@@ -712,11 +712,11 @@ class InfoExceptionTracebackRegressionTests(TestCase):
             with self.assertLogs("osbenchmark.engine.clickhouse.client",
                                  level="WARNING") as cm:
                 c.info()
-        # exc_info=True adds the traceback to the formatted message. If it were
-        # missing, the log message would just be a single line.
-        traceback_present = any("Traceback" in m or "ValueError: kaboom" in m
-                                for m in cm.output)
-        self.assertTrue(traceback_present,
+        # exc_info=True adds "Traceback (most recent call last):" to the
+        # formatted message. Assert ONLY on that: the exception's str/type
+        # already appears in the WARN body via `%s: %s`, so a substring match
+        # on "ValueError: kaboom" would pass even if exc_info=True were dropped.
+        self.assertTrue(any("Traceback" in m for m in cm.output),
                         f"Expected traceback in log output; got: {cm.output}")
 
 
@@ -730,3 +730,34 @@ class BulkParsedDocsPassthroughTests(TestCase):
         self.assertIn("parsed_docs", sig.parameters,
                       "client.bulk() must accept parsed_docs kwarg for hot-path "
                       "reuse of pre-parsed NDJSON bodies")
+
+
+class BulkParsedDocsHonoredTests(IsolatedAsyncioTestCase):
+    """Verify client.bulk() actually SKIPS parse_bulk_body when parsed_docs is
+    supplied. Without this test, dropping the parsed_docs branch from bulk()
+    (silently double-parsing on the hot path) would leave the signature test
+    happy while doubling per-bulk parse cost."""
+
+    async def test_parsed_docs_bypasses_reparse(self):
+        c = ClickHouseDatabaseClient([{"host": "h", "port": 8123}], {})
+        m = mock.AsyncMock()
+        c._client = m
+        m.insert.return_value = mock.MagicMock(
+            summary={"elapsed_ns": "1000000", "written_rows": "1"})
+        pre_parsed = [{"_id": "1", "_source": {"a": 1, "b": "x"}, "_action": "index"}]
+        # Body is intentionally malformed NDJSON: if the client re-parses it,
+        # parse_bulk_body will raise. Passing parsed_docs must make it skip
+        # the parse entirely.
+        with mock.patch(
+            "osbenchmark.engine.clickhouse.helpers.parse_bulk_body",
+            side_effect=AssertionError("parse_bulk_body should not be called "
+                                       "when parsed_docs is supplied"),
+        ) as spy:
+            result = await c.bulk(
+                body=b"malformed-would-blow-up-if-re-parsed",
+                index="t",
+                params={"column-names": ["a", "b"]},
+                parsed_docs=pre_parsed,
+            )
+        spy.assert_not_called()
+        self.assertFalse(result["errors"])
