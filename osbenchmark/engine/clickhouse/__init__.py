@@ -55,21 +55,26 @@ def register_runners():
     over OS defaults for ops that both engines support (Bulk, Search, VectorSearch,
     CreateIndex, DeleteIndex, ClusterHealth, IndexStats, Refresh, ForceMerge).
 
-    We deliberately do NOT wrap admin runners in ``Retry(...)``. The Retry class
-    in ``worker_coordinator/runner.py`` only catches ``socket.timeout``,
-    ``opensearchpy.ConnectionError`` and ``opensearchpy.TransportError``;
-    ClickHouse's ``httpx.ConnectError`` and ``clickhouse_connect.ClickHouseError``
-    bypass it entirely, so the retry never fires and the wrapper only obscures
-    the exception path. Admin ops (CREATE TABLE, DROP TABLE, OPTIMIZE, ...) are
-    one-shot at benchmark start; a legitimate error should surface immediately
-    so operators can fix the workload rather than disappear into a phantom retry.
+    ClusterHealth is wrapped in ``Retry(...)`` so workloads can set
+    ``retry-until-success: true`` and get the same polling semantics as the OS
+    default. Retry's return-value-based retry path (``retry-on-error`` /
+    ``retry-until-success``) works engine-agnostically — it inspects the
+    runner's dict return, not exception types — so this wrapping is genuinely
+    useful even though Retry's exception-based branches only recognize
+    opensearchpy transport errors.
 
-    Follow-up (P8): wire ``engine.clickhouse.on_execute_error`` into the sample
+    Other admin runners (CREATE TABLE, DROP TABLE, OPTIMIZE, SystemParts) are
+    NOT wrapped: they are one-shot at benchmark start with no retry-until-success
+    use case, and Retry's exception clauses can't catch ClickHouse's httpx /
+    clickhouse-connect exceptions anyway.
+
+    Follow-up: wire ``engine.clickhouse.on_execute_error`` into the sample
     error path so transient httpx/ClickHouse exceptions get consistent handling.
     """
     # pylint: disable=import-outside-toplevel
     from osbenchmark import workload
     from osbenchmark.worker_coordinator import runner
+    from osbenchmark.worker_coordinator.runner import Retry
     from osbenchmark.engine.clickhouse import runners as ch_runners
 
     # Data-plane runners.
@@ -86,7 +91,7 @@ def register_runners():
     runner.register_runner(workload.OperationType.BulkVectorDataSet,
                            ch_runners.ClickHouseBulkVectorDataSet(), async_runner=True)
 
-    # Admin-plane runners. NOT wrapped in Retry - see docstring.
+    # Admin-plane runners.
     runner.register_runner(workload.OperationType.CreateIndex,
                            ch_runners.ClickHouseCreateTable(), async_runner=True)
     runner.register_runner(workload.OperationType.DeleteIndex,
@@ -95,8 +100,10 @@ def register_runners():
                            ch_runners.ClickHouseNoOp("refresh"), async_runner=True)
     runner.register_runner(workload.OperationType.ForceMerge,
                            ch_runners.ClickHouseOptimizeTable(), async_runner=True)
+    # ClusterHealth wraps in Retry: preserves retry-until-success/retry-on-error
+    # (return-value based, engine-agnostic) that workloads use for bootstrap.
     runner.register_runner(workload.OperationType.ClusterHealth,
-                           ch_runners.ClickHouseClusterHealth(), async_runner=True)
+                           Retry(ch_runners.ClickHouseClusterHealth()), async_runner=True)
     runner.register_runner(workload.OperationType.IndexStats,
                            ch_runners.ClickHouseSystemParts(), async_runner=True)
 

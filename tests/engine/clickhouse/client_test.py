@@ -692,3 +692,41 @@ class InfoUnexpectedExceptionRegressionTests(TestCase):
         self.assertEqual(info["version"]["number"], "24.8.0")
         # The unexpected-branch WARNING mentions the exception type name.
         self.assertTrue(any("ValueError" in m and "unexpected" in m for m in cm.output))
+
+
+# ============================================================================
+# P8 regression tests (second-pass review findings)
+# ============================================================================
+
+class InfoExceptionTracebackRegressionTests(TestCase):
+    """P8: F12's unexpected-exception branch was missing exc_info=True on the
+    logger.warning call, which meant the traceback was lost and the narrower
+    except clause had no diagnostic value. Fixed: exc_info=True on the WARN."""
+
+    def test_unexpected_exception_logs_traceback(self):
+        c = ClickHouseDatabaseClient([{"host": "h", "port": 8123}], {})
+        # Force a full traceback so we can grep for it in the captured log.
+        def _boom():
+            raise ValueError("kaboom from deep in a function")
+        with mock.patch.object(c, "_ensure_sync_client", side_effect=_boom):
+            with self.assertLogs("osbenchmark.engine.clickhouse.client",
+                                 level="WARNING") as cm:
+                c.info()
+        # exc_info=True adds the traceback to the formatted message. If it were
+        # missing, the log message would just be a single line.
+        traceback_present = any("Traceback" in m or "ValueError: kaboom" in m
+                                for m in cm.output)
+        self.assertTrue(traceback_present,
+                        f"Expected traceback in log output; got: {cm.output}")
+
+
+class BulkParsedDocsPassthroughTests(TestCase):
+    """P8: client.bulk() now accepts parsed_docs kwarg so ClickHouseBulkIndex
+    can pre-parse for the zero-doc guard without triggering a second parse."""
+
+    def test_bulk_signature_accepts_parsed_docs_kwarg(self):
+        import inspect
+        sig = inspect.signature(ClickHouseDatabaseClient.bulk)
+        self.assertIn("parsed_docs", sig.parameters,
+                      "client.bulk() must accept parsed_docs kwarg for hot-path "
+                      "reuse of pre-parsed NDJSON bodies")

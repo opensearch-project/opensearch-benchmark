@@ -71,8 +71,11 @@ class ClickHouseDatabaseClient(RequestContextHolder):
         self._database: Optional[str] = None
         self._stats_caveat_logged = False
 
-        # namespace proxies (Vespa pattern). nodes uses a sync proxy so telemetry
-        # devices can call it synchronously.
+        # namespace proxies (Vespa pattern). indices/cluster/transport are
+        # self-references — runners resolve client.indices.create() etc. to
+        # methods on this class directly. nodes is a dedicated async proxy
+        # (see _NodesProxy) so the OS-default NodeStats runner's
+        # `await client.nodes.stats(...)` resolves to an awaitable.
         self.indices = self
         self.cluster = self
         self.transport = self
@@ -197,11 +200,11 @@ class ClickHouseDatabaseClient(RequestContextHolder):
     # -----------------------------------------------------------------
 
     def nodes_stats(self, **_kwargs: Any) -> Dict:
-        """Sync stub. Real Node telemetry is deferred to v2.
+        """Return an OS-shaped nodes-stats stub.
 
-        Called synchronously by OSB telemetry devices (NodeStats). Returns an
-        empty envelope with an OS-shaped 'nodes' key so callers that iterate
-        over it don't KeyError.
+        Called by ``_NodesProxy.stats`` (which is async and wraps this method).
+        Real Node telemetry is deferred to v2. The 'nodes' key is populated
+        (with an empty dict) so callers that iterate over it don't KeyError.
         """
         return {"nodes": {}, "cluster_name": self.client_options.get("cluster_name", "clickhouse")}
 
@@ -211,12 +214,16 @@ class ClickHouseDatabaseClient(RequestContextHolder):
 
     async def bulk(self, body: Any, index: Optional[str] = None,
                    doc_type: Any = None, params: Optional[Dict] = None,
+                   parsed_docs: Optional[List[Dict[str, Any]]] = None,
                    **kwargs: Any) -> Dict:
         from osbenchmark.engine.clickhouse.helpers import (  # pylint: disable=import-outside-toplevel
             parse_bulk_body, rows_from_docs, docs_have_extra_keys, _ns_to_ms
         )
         client = await self._ensure_client()
-        docs = parse_bulk_body(body)
+        # If the caller already parsed the body (e.g. ClickHouseBulkIndex parses
+        # up front for the zero-doc guard), reuse those docs to avoid a
+        # second full parse of the NDJSON stream on the hot path.
+        docs = parsed_docs if parsed_docs is not None else parse_bulk_body(body)
         if not docs:
             return {"took": 0, "errors": False, "items": []}
 
@@ -523,10 +530,12 @@ class ClickHouseDatabaseClient(RequestContextHolder):
             semver = "24.8.0"
         except Exception as exc:  # pylint: disable=broad-except
             # Unexpected exception - still return a fallback so metrics store
-            # doesn't crash, but WARN with the exception type so it's visible.
+            # doesn't crash, but log the full traceback so operators can
+            # diagnose. exc_info=True is critical: without it, WARN loses the
+            # stack trace and the narrower except clause has no diagnostic value.
             self.logger.warning(
                 "ClickHouse info() raised unexpected %s: %s - using fallback version 24.8.0",
-                type(exc).__name__, exc
+                type(exc).__name__, exc, exc_info=True
             )
             semver = "24.8.0"
         return {

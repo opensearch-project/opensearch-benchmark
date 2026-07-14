@@ -443,10 +443,12 @@ class RegisterRunnersTests(TestCase):
         for _op, _r, kwargs in registrations:
             self.assertTrue(kwargs.get("async_runner"))
 
-    def test_admin_ops_not_wrapped_in_retry(self):
-        # F5: Retry() only catches opensearchpy exceptions, so wrapping
-        # ClickHouse admin runners in it was dead code that hid the real
-        # exception path. Assert we don't reintroduce the wrapper.
+    def test_one_shot_admin_ops_not_wrapped_in_retry(self):
+        # Retry's exception clauses only catch opensearchpy transport errors,
+        # so wrapping is useless for one-shot admin ops that never use
+        # retry-until-success. ClusterHealth is intentionally excluded from
+        # this set because workloads DO use retry-until-success on it (see
+        # test_cluster_health_wrapped_in_retry below).
         registrations = []
         with mock.patch(
             "osbenchmark.worker_coordinator.runner.register_runner",
@@ -456,15 +458,35 @@ class RegisterRunnersTests(TestCase):
             clickhouse.register_runners()
         from osbenchmark.worker_coordinator.runner import Retry
         from osbenchmark.workload import workload as wl
-        admin_ops = {
+        one_shot_admin_ops = {
             wl.OperationType.CreateIndex, wl.OperationType.DeleteIndex,
-            wl.OperationType.ForceMerge, wl.OperationType.ClusterHealth,
-            wl.OperationType.IndexStats, wl.OperationType.PutSettings,
+            wl.OperationType.ForceMerge, wl.OperationType.IndexStats,
+            wl.OperationType.PutSettings,
         }
         for op, r, _ in registrations:
-            if op in admin_ops:
+            if op in one_shot_admin_ops:
                 self.assertNotIsInstance(r, Retry,
-                                         f"{op} MUST NOT be wrapped in Retry (F5)")
+                                         f"{op} is one-shot admin and MUST NOT be wrapped in Retry")
+
+    def test_cluster_health_wrapped_in_retry(self):
+        # ClusterHealth is wrapped in Retry so workloads can set
+        # retry-until-success:true to poll for cluster readiness. Retry's
+        # return-value-based retry (via .get('success')) works engine-agnostic.
+        registrations = []
+        with mock.patch(
+            "osbenchmark.worker_coordinator.runner.register_runner",
+            side_effect=self._capture(registrations),
+        ):
+            from osbenchmark.engine import clickhouse
+            clickhouse.register_runners()
+        from osbenchmark.worker_coordinator.runner import Retry
+        from osbenchmark.workload import workload as wl
+        cluster_health_reg = [(op, r) for op, r, _ in registrations
+                              if op == wl.OperationType.ClusterHealth]
+        self.assertEqual(len(cluster_health_reg), 1)
+        self.assertIsInstance(cluster_health_reg[0][1], Retry,
+                              "ClusterHealth MUST be wrapped in Retry so "
+                              "retry-until-success works during bootstrap polling.")
 
     def test_data_plane_ops_not_wrapped(self):
         registrations = []
@@ -658,6 +680,9 @@ class DropTableCommaSplitRegressionTests(_RunnerCase):
         client = _make_client()
         await r(client, {"indices": ["a , b , c"]})
         self.assertEqual(client.indices.delete.await_count, 3)
+        # Whitespace must be stripped from each split name.
+        called_with = [c.kwargs.get("index") for c in client.indices.delete.await_args_list]
+        self.assertEqual(sorted(called_with), ["a", "b", "c"])
 
 
 class BulkIndexZeroDocRegressionTests(_RunnerCase):
@@ -678,3 +703,97 @@ class BulkIndexZeroDocRegressionTests(_RunnerCase):
         with self.assertRaises(exceptions.BenchmarkError):
             await r(client, {"index": "t", "body": b""})
         client.bulk.assert_not_called()
+
+
+# ============================================================================
+# P8 regression tests (second-pass review findings)
+# ============================================================================
+
+class ParseErrorSampleFailureRegressionTests(_RunnerCase):
+    """P8: parse_bulk_body raises BenchmarkError on data corruption. That MUST
+    be caught in ClickHouseBulkIndex and reported as a per-sample failure, not
+    propagated as an actor crash that aborts the whole benchmark."""
+
+    async def test_malformed_ndjson_returns_error_dict_not_raises(self):
+        r = ch_runners.ClickHouseBulkIndex()
+        client = _make_client()
+        # NDJSON with 1 malformed line - parse_bulk_body raises BenchmarkError
+        malformed = b'{"index":{"_id":"1"}}\nnot-json-at-all\n'
+        result = await r(client, {"index": "t", "body": malformed, "bulk-size": 1})
+        self.assertEqual(result["success"], False)
+        self.assertEqual(result["error-count"], 1)
+        self.assertIn("error-description", result)
+        client.bulk.assert_not_called()
+
+
+class DoubleParseRegressionTests(_RunnerCase):
+    """P8: parse_bulk_body was called TWICE per bulk (once for zero-doc guard,
+    once inside client.bulk). Fixed by threading parsed_docs kwarg through."""
+
+    async def test_bulk_index_threads_parsed_docs_to_client(self):
+        r = ch_runners.ClickHouseBulkIndex()
+        client = _make_client()
+        client.bulk = mock.AsyncMock(return_value={"took": 5, "errors": False})
+        body = b'{"index":{"_id":"1"}}\n{"a":1}\n'
+        await r(client, {"index": "t", "body": body, "bulk-size": 1})
+        # client.bulk should have received parsed_docs kwarg (avoiding re-parse)
+        client.bulk.assert_awaited_once()
+        call = client.bulk.await_args
+        self.assertIn("parsed_docs", call.kwargs)
+        self.assertEqual(len(call.kwargs["parsed_docs"]), 1)
+
+
+class OrderByRegexRegressionTests(_RunnerCase):
+    """P8: F8's ORDER BY regex was too strict - `\\bORDER\\s+BY\\b` failed to
+    match 'ORDER BYPASS' (which is what triggered the false-positive originally
+    since BY was followed by P not \\W). The fix uses lookahead for whitespace
+    or paren after BY, so 'ORDER BYPASS_COL' is correctly rejected."""
+
+    async def _run_scroll(self, sql):
+        r = ch_runners.ClickHouseScrollQuery()
+        client = _make_client()
+        client.execute_query = mock.AsyncMock(
+            return_value=mock.MagicMock(result_rows=[]))
+        body = {"sql": sql, "parameters": {}}
+        return await r(client, {"body": body, "pages": 1, "results-per-page": 10})
+
+    async def test_valid_order_by_accepted(self):
+        result = await self._run_scroll(
+            "SELECT id FROM t ORDER BY id LIMIT {limit:UInt32} OFFSET {offset:UInt32}")
+        self.assertTrue(result["success"])
+
+    async def test_order_by_in_string_literal_rejected(self):
+        # 'ORDER BYPASS' inside a string literal, no real ORDER BY clause
+        with self.assertRaises(exceptions.BenchmarkError) as ctx:
+            await self._run_scroll(
+                "SELECT id FROM t WHERE label = 'ORDER BYPASS' "
+                "LIMIT {limit:UInt32} OFFSET {offset:UInt32}")
+        self.assertIn("ORDER BY", str(ctx.exception))
+
+    async def test_order_by_identifier_variant_rejected(self):
+        # 'ORDER BYPASS_COL' as a bare identifier after t
+        with self.assertRaises(exceptions.BenchmarkError):
+            await self._run_scroll(
+                "SELECT ORDER_BYPASS_COL FROM t LIMIT {limit:UInt32} OFFSET {offset:UInt32}")
+
+    async def test_double_dash_inside_string_literal_preserved(self):
+        # 'foo--bar' inside a string literal must NOT be stripped as a line
+        # comment - the string strip has to happen before line-comment strip.
+        result = await self._run_scroll(
+            "SELECT id FROM t WHERE label = 'foo--bar' "
+            "ORDER BY id LIMIT {limit:UInt32} OFFSET {offset:UInt32}")
+        self.assertTrue(result["success"])
+
+
+class BulkIndexUnexpectedParseErrorTests(_RunnerCase):
+    """P8: broad `except Exception` on parse-body path used to swallow
+    programmer errors. Now: BenchmarkError = sample failure, others re-raise."""
+
+    async def test_unexpected_exception_reraised(self):
+        r = ch_runners.ClickHouseBulkIndex()
+        client = _make_client()
+        # Force parse_bulk_body to raise something other than BenchmarkError
+        with mock.patch("osbenchmark.engine.clickhouse.helpers.parse_bulk_body",
+                        side_effect=RuntimeError("dev-time bug")):
+            with self.assertRaises(RuntimeError):
+                await r(client, {"index": "t", "body": b"x", "bulk-size": 1})

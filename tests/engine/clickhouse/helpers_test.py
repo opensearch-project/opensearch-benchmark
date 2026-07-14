@@ -350,3 +350,68 @@ class MultiHostWarnRegressionTests(TestCase):
             # Ensure the log records list has SOMETHING (assertLogs requires it).
             helpers.logger.warning("noise")
         self.assertFalse(any("only the first" in m for m in cm.output))
+
+
+# ============================================================================
+# P8 regression tests (second-pass review findings)
+# ============================================================================
+
+class MultiHostWarningDedupeTests(TestCase):
+    """P8: parse_hosts is called from _ensure_client, _ensure_sync_client, and
+    endpoint - without dedupe, the multi-host warning logs ~24 times per
+    8-worker benchmark. Fixed with module-level `_MULTI_HOST_WARNED` flag."""
+
+    def setUp(self):
+        # Reset the module flag between tests
+        helpers._MULTI_HOST_WARNED = False
+
+    def test_multi_host_warning_fires_once(self):
+        multi = [{"host": "h1", "port": 8123}, {"host": "h2", "port": 8123}]
+        with self.assertLogs("osbenchmark.engine.clickhouse.helpers",
+                             level="WARNING") as cm:
+            helpers.parse_hosts(multi)
+            helpers.parse_hosts(multi)
+            helpers.parse_hosts(multi)
+        matches = [m for m in cm.output if "only the first" in m]
+        self.assertEqual(len(matches), 1, f"Expected 1 dedupe'd warning, got {len(matches)}")
+
+
+class ActionExtractionDeterminismTests(TestCase):
+    """P8: _ALL_BULK_ACTIONS was a frozenset. Iteration order under
+    PYTHONHASHSEED randomization was non-deterministic, so an action_meta with
+    multiple recognized keys returned different actions across runs. Fixed by
+    making _ALL_BULK_ACTIONS an ordered tuple with a fixed priority."""
+
+    def test_ambiguous_action_meta_deterministic(self):
+        # If both 'index' and 'update' are present, priority is fixed.
+        result = helpers._extract_action({"index": {"_id": "1"}, "update": {"_id": "1"}})
+        self.assertEqual(result, "index")
+
+    def test_all_bulk_actions_is_ordered(self):
+        # Guard against a future refactor that switches back to a set/frozenset.
+        self.assertIsInstance(helpers._ALL_BULK_ACTIONS, tuple)
+
+
+class DeadTernaryRegressionTests(TestCase):
+    """P8: `hit_id if hit_id != '' else ''` was dead code because the preceding
+    line already normalizes None -> ''. Simplified to just `hit_id`."""
+
+    def test_none_id_becomes_empty_string(self):
+        rows = [(None, 42)]
+        cols = ("_id", "value")
+        resp = helpers.convert_query_result_to_search_response(rows, cols)
+        # Must be empty string, NOT the literal 'None' (which would happen if
+        # str(None) fired without the earlier None guard).
+        self.assertEqual(resp["hits"]["hits"][0]["_id"], "")
+
+    def test_integer_id_stringified(self):
+        rows = [(42, "row1")]
+        cols = ("_id", "value")
+        resp = helpers.convert_query_result_to_search_response(rows, cols)
+        self.assertEqual(resp["hits"]["hits"][0]["_id"], "42")
+
+    def test_vector_search_null_id_empty(self):
+        rows = [(None, 0.9, "x")]
+        cols = ("id", "score", "name")
+        resp = helpers.convert_query_result_for_vector_search(rows, cols)
+        self.assertEqual(resp["hits"]["hits"][0]["_id"], "")

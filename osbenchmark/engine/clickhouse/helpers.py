@@ -22,10 +22,19 @@ logger = logging.getLogger(__name__)
 # actions ("update", "delete") are not currently routable to ClickHouse's
 # insert-only path and MUST be rejected at parse time.
 _SUPPORTED_BULK_ACTIONS = frozenset({"index", "create"})
-_ALL_BULK_ACTIONS = frozenset({"index", "create", "update", "delete"})
+# Fixed-order tuple, not a frozenset: iteration order matters when an
+# action_meta dict happens to contain multiple recognized keys. A set-based
+# iteration would return different actions across Python runs (PYTHONHASHSEED
+# randomization) and produce non-deterministic behavior.
+_ALL_BULK_ACTIONS = ("index", "create", "update", "delete")
 
 # Semver validator used by info()
 _SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
+
+# Module-level flag to dedupe the multi-host warning. parse_hosts is called
+# from _ensure_client, _ensure_sync_client, and endpoint property; without
+# dedupe the same message logs N * 3 times per worker.
+_MULTI_HOST_WARNED = False
 
 
 def _ns_to_ms(summary_dict: Optional[Mapping[str, Any]]) -> int:
@@ -151,7 +160,7 @@ def _extract_action(action_meta: Dict[str, Any]) -> str:
     # instead of silently coercing to 'index'.
     raise exceptions.BenchmarkError(
         f"parse_bulk_body: action_meta {action_meta!r} has no recognized action key "
-        f"(expected one of {sorted(_ALL_BULK_ACTIONS)}). This indicates a misaligned "
+        f"(expected one of {list(_ALL_BULK_ACTIONS)}). This indicates a misaligned "
         f"bulk body or an unsupported action type."
     )
 
@@ -251,12 +260,12 @@ def convert_query_result_to_search_response(
     for row in result_rows:
         source = dict(zip(column_names, row))
         hit_id = source.pop("_id", "") if "_id" in source else ""
-        # Coerce SQL NULL (Python None) to empty string BEFORE the "" check so
-        # None doesn't become the literal string 'None' downstream.
+        # Coerce SQL NULL (Python None) to empty string so None doesn't
+        # become the literal string 'None' downstream.
         hit_id = "" if hit_id is None else str(hit_id)
         hits.append({
             "_index": "",
-            "_id": hit_id if hit_id != "" else "",
+            "_id": hit_id,
             "_score": None,
             "_source": source,
         })
@@ -288,15 +297,15 @@ def convert_query_result_for_vector_search(
         source = dict(zip(column_names, row))
         score = source.pop(score_column, None) if score_column in source else None
         hit_id = source.pop(id_column, "") if id_column in source else ""
-        # Coerce SQL NULL (Python None) to empty string BEFORE the "" check so
-        # None doesn't become the literal string 'None' downstream.
+        # Coerce SQL NULL (Python None) to empty string so None doesn't
+        # become the literal string 'None' downstream.
         hit_id = "" if hit_id is None else str(hit_id)
         if score is not None:
             if max_score is None or score > max_score:
                 max_score = score
         hits.append({
             "_index": "",
-            "_id": hit_id if hit_id != "" else "",
+            "_id": hit_id,
             "_score": score,
             "_source": source,
         })
@@ -411,13 +420,18 @@ def parse_hosts(hosts: Any) -> Tuple[str, int, bool]:
     if not hosts:
         raise exceptions.SystemSetupError("No ClickHouse hosts configured")
     if len(hosts) > 1:
-        # Multi-host load balancing is a v2 follow-up. Warn so users know their
-        # extra hosts are being dropped instead of silently used.
-        logger.warning(
-            "ClickHouse client received %d hosts but only the first (%r) will be used. "
-            "Multi-host load balancing is a v2 follow-up.",
-            len(hosts), hosts[0]
-        )
+        # Multi-host load balancing is a v2 follow-up. Warn ONCE per process
+        # (parse_hosts is called by _ensure_client, _ensure_sync_client, and
+        # endpoint — dedupe so we don't log the same message ~24 times per
+        # 8-worker benchmark).
+        global _MULTI_HOST_WARNED  # pylint: disable=global-statement
+        if not _MULTI_HOST_WARNED:
+            logger.warning(
+                "ClickHouse client received %d hosts but only the first (%r) will be used. "
+                "Multi-host load balancing is a v2 follow-up.",
+                len(hosts), hosts[0]
+            )
+            _MULTI_HOST_WARNED = True
     first = hosts[0]
     host = first.get("host", "localhost")
     # IPv6: strip brackets if present so clickhouse-connect can parse

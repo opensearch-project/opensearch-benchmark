@@ -11,12 +11,17 @@ from osbenchmark.worker_coordinator.runner import Runner, request_context_holder
 
 logger = logging.getLogger(__name__)
 
-# Match ORDER BY as a real SQL clause boundary (whitespace-separated tokens).
-# Applied after stripping SQL comments and single-quoted string literals so it
-# doesn't false-match on identifiers or string contents like 'ORDER BYPASS'.
-_ORDER_BY_RE = re.compile(r"\bORDER\s+BY\b", re.IGNORECASE)
-# Line comment: `-- ...` to end of line. Block comment: `/* ... */`.
-_SQL_LINE_COMMENT_RE = re.compile(r"--[^\n]*")
+# Match ORDER BY as a real SQL clause boundary. We require ORDER to be
+# preceded by a non-word character (space/newline/paren) and followed by
+# whitespace + BY + a non-word character. This matches real SQL clauses but
+# NOT identifiers like 'ORDER_BY_ID' or truncated substrings inside a longer
+# identifier like 'ORDER BYPASS_COL'.
+_ORDER_BY_RE = re.compile(r"(?:^|[\s,()])ORDER\s+BY(?=[\s(]|$)", re.IGNORECASE)
+# Line comment: `-- ...` to end of line. ClickHouse (and every ISO-compliant
+# SQL dialect) requires whitespace after -- to distinguish a comment from
+# arithmetic operators or identifier fragments. Matching the whitespace here
+# avoids false-stripping legitimate SQL like `WHERE x = 'a--b'`.
+_SQL_LINE_COMMENT_RE = re.compile(r"--\s[^\n]*")
 _SQL_BLOCK_COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
 # Single-quoted string literal. Handles doubled '' escapes.
 _SQL_STRING_LITERAL_RE = re.compile(r"'(?:''|[^'])*'")
@@ -27,10 +32,16 @@ def _strip_sql_noise(sql: str) -> str:
 
     Used to make ``ORDER BY``-in-SQL detection robust against string contents
     and comments. NOT suitable as a SQL sanitizer for execution.
+
+    Ordering: strip block comments first (they can contain -- or '), then
+    string literals (they can contain -- or /* */), then line comments last
+    (they can appear anywhere). This ordering prevents the classic bug where
+    stripping line comments first eats content inside a string literal like
+    ``WHERE label = 'first--second'``.
     """
     stripped = _SQL_BLOCK_COMMENT_RE.sub(" ", sql)
-    stripped = _SQL_LINE_COMMENT_RE.sub(" ", stripped)
     stripped = _SQL_STRING_LITERAL_RE.sub(" ", stripped)
+    stripped = _SQL_LINE_COMMENT_RE.sub(" ", stripped)
     return stripped
 
 
@@ -77,21 +88,32 @@ class ClickHouseBulkIndex(Runner):
         bulk_size = params.get("bulk-size", 0)
         unit = params.get("unit", "docs")
 
-        # Zero-doc guard: parse the body ONCE up front so we can detect an empty
-        # feed regardless of whether the workload declared bulk-size. A missing
-        # bulk-size (defaults to 0) previously bypassed this check and let empty
-        # bulks silently "succeed".
+        # Zero-doc guard + one-shot parse. We parse the body once here and
+        # thread the result to client.bulk() so it doesn't re-parse. This
+        # avoids the double-parse hot-path cost on every bulk operation.
+        #
+        # parse_bulk_body raises BenchmarkError on data corruption (malformed
+        # NDJSON, misaligned action/source pairs, unsupported action types).
+        # These are per-sample failures, NOT benchmark-aborting configuration
+        # errors, so catch here and return an error dict rather than letting
+        # the exception propagate through the actor system.
         try:
             parsed_docs = parse_bulk_body(body) if body else []
-        except exceptions.BenchmarkError:
-            raise
-        except Exception as exc:  # pylint: disable=broad-except
-            # Parse errors surface as a runner failure, not a raised exception
-            # (which would abort the whole benchmark).
+        except exceptions.BenchmarkError as exc:
             self.logger.warning("Bulk body parse failed: %s", exc)
             return {"weight": bulk_size, "unit": unit, "success": False,
-                    "error-count": 1, "took": 0}
+                    "error-count": 1, "error-type": "clickhouse",
+                    "error-description": str(exc), "took": 0}
+        except Exception:  # pylint: disable=broad-except
+            # Programmer error inside parse_bulk_body: re-raise so the actor
+            # log captures it. This is intentionally different from the
+            # BenchmarkError branch above.
+            self.logger.exception("Unexpected parse error")
+            raise
         if not parsed_docs:
+            # Empty body IS a workload configuration bug (non-zero bulk-size
+            # with nothing to insert), NOT a data corruption issue. Raise so
+            # operators fix their workload before continuing.
             raise exceptions.BenchmarkError(
                 f"Bulk operation on {index!r} produced 0 parsed docs "
                 f"(bulk-size={bulk_size}). Workload params-source is likely "
@@ -101,7 +123,9 @@ class ClickHouseBulkIndex(Runner):
         request_context_holder.on_client_request_start()
         request_context_holder.on_request_start()
         try:
-            response = await clickhouse_client.bulk(body=body, index=index, params=params)
+            # Pass pre-parsed docs to skip re-parsing inside client.bulk().
+            response = await clickhouse_client.bulk(
+                body=body, index=index, params=params, parsed_docs=parsed_docs)
         except Exception as exc:  # pylint: disable=broad-except
             # Surface the failure to the sample stream. We deliberately do NOT
             # mutate clickhouse_client._client here: forcing a re-init on any
@@ -109,13 +133,14 @@ class ClickHouseBulkIndex(Runner):
             # the underlying client is genuinely broken the next _ensure_client
             # call won't detect that anyway. Retry semantics belong in a retry
             # decorator, not ad-hoc private-field mutation.
-            # TODO(P8): wire engine.clickhouse.on_execute_error into the sample
+            # Follow-up: wire engine.clickhouse.on_execute_error into the sample
             #   error path so transient httpx errors get consistent handling.
             self.logger.warning("Bulk RPC raised: %s", exc)
             request_context_holder.on_request_end()
             request_context_holder.on_client_request_end()
             return {"weight": bulk_size, "unit": unit, "success": False,
-                    "error-count": 1, "took": 0}
+                    "error-count": 1, "error-type": "clickhouse",
+                    "error-description": str(exc), "took": 0}
         request_context_holder.on_request_end()
         request_context_holder.on_client_request_end()
 
