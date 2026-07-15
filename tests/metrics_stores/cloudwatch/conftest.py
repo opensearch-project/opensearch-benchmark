@@ -28,6 +28,7 @@ These fakes stand in for boto3 wherever the production code would
 otherwise hit AWS. Each test gets a fresh ``FakeLogsClient`` so state
 between tests stays isolated.
 """
+import botocore.exceptions
 import pytest
 
 import osbenchmark.metrics_stores.cloudwatch.insights as insights_mod
@@ -94,7 +95,7 @@ class FakeLogsClient:
         if self.fail_count > 0:
             self.fail_count -= 1
             if self.fail_with is not None:
-                raise self.fail_with
+                raise self.fail_with  # pylint: disable=raising-bad-type
         self.put_calls.append(kw)
 
     # ----- Logs Insights -----
@@ -161,6 +162,5 @@ def make_insights_rows(rows):
 
 
 def make_client_error(code, op="PutLogEvents"):
-    import botocore.exceptions
     return botocore.exceptions.ClientError(
         {"Error": {"Code": code, "Message": "test"}}, op)

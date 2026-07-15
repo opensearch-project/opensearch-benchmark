@@ -107,6 +107,7 @@ class CloudWatchClientFactory:
         # credential resolver. The `_credentials` attribute is the documented
         # private-but-stable extension point — `create_assume_role_refresher`
         # itself sets credentials this way internally.
+        # pylint: disable=import-outside-toplevel
         from botocore.credentials import (
             DeferredRefreshableCredentials,
             create_assume_role_refresher,

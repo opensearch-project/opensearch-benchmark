@@ -239,7 +239,6 @@ class CloudWatchMetricsStore(MetricsStore):
         # for interface parity but has no separate meaning here — flushing
         # is the only externalization step.
         self.flush(refresh=False)
-        return None
 
     # `close()` inherited from MetricsStore — its implementation already
     # calls self.flush(), clears meta-info, and sets opened=False, which
@@ -477,7 +476,7 @@ class CloudWatchMetricsStore(MetricsStore):
             else:
                 stats_parts.append(f"pct(`{safe_name}`, {p}) as `p_{_alias(p)}`")
         # count(*) so we can replicate OS's "no hits → None" behavior.
-        stats_parts.append(f"count(*) as count")
+        stats_parts.append("count(*) as count")
         query = (
             f"filter {filter_}\n"
             f"| stats " + ", ".join(stats_parts)

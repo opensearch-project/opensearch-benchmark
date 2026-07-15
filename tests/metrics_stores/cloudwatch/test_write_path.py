@@ -27,6 +27,7 @@ Unit tests for the CloudWatch datastore write path: config parsing,
 EMF document builders, log-stream writer (chunking + retry), and the
 three store classes' write flows.
 """
+# pylint: disable=protected-access
 import datetime
 import json
 
@@ -36,7 +37,6 @@ import pytest
 from osbenchmark import exceptions, metrics
 from osbenchmark.metrics_stores.cloudwatch import config as cw_config_mod
 from osbenchmark.metrics_stores.cloudwatch import emf
-from osbenchmark.metrics_stores.cloudwatch.config import CloudWatchConfig
 from osbenchmark.metrics_stores.cloudwatch.log_streams import (
     LogStreamWriter,
     _MAX_EVENTS_PER_BATCH,
@@ -52,7 +52,7 @@ from osbenchmark.metrics_stores.cloudwatch.test_run_store import (
     CloudWatchTestRunStore,
 )
 
-from .conftest import make_client_error
+from .conftest import _ResourceNotFound, make_client_error
 
 
 # --------------------------------------------------------------------- config
@@ -412,7 +412,6 @@ class TestLogStreamWriter:
             w.write_batch([{"timestamp": 1, "message": "x"}])
 
     def test_stream_recreated_on_resource_not_found(self, fake_logs_client):
-        from .conftest import _ResourceNotFound
         fake_logs_client.fail_with = _ResourceNotFound("stream gone")
         fake_logs_client.fail_count = 1
         w = LogStreamWriter(fake_logs_client, "g", "s")
@@ -596,7 +595,9 @@ class TestCloudWatchResultsStoreWrite:
     def test_empty_results_does_not_provision(self, fake_logs_client, cw_config):
         class _Empty:
             test_run_id = "x"
-            def to_result_dicts(self): return []
+
+            def to_result_dicts(self):
+                return []
         store = CloudWatchResultsStore(
             cfg=_StoreCfg(),
             client_factory_class=_make_fake_factory(fake_logs_client),

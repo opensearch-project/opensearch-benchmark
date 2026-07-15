@@ -380,7 +380,7 @@ def _datastore_factories(cfg):
 
 _DATASTORE_DEFAULT = {
     "metrics_store_class": None,  # populated below once classes are imported
-    "test_run_store": lambda cfg: FileTestRunStore(cfg),
+    "test_run_store": lambda cfg: FileTestRunStore(cfg),  # pylint: disable=unnecessary-lambda
     "results_store": lambda cfg: NoopResultsStore(),
     "test_run_store_log_message": "Creating file test_run store",
     "results_store_log_message": "Creating no-op results store",
@@ -1797,7 +1797,7 @@ register_datastore(
     datastore_type="opensearch",
     metrics_store_class=OsMetricsStore,
     test_run_store=lambda cfg: CompositeTestRunStore(OsTestRunStore(cfg), FileTestRunStore(cfg)),
-    results_store=lambda cfg: OsResultsStore(cfg),
+    results_store=OsResultsStore,
     test_run_store_log_message="Creating OS test run store",
     results_store_log_message="Creating OS results store",
 )
@@ -1809,23 +1809,22 @@ register_datastore(
 # module top, and they would re-enter this file mid-load if we imported
 # them eagerly here.
 def _cloudwatch_metrics_store_class():
+    # pylint: disable=import-outside-toplevel
     from osbenchmark.metrics_stores.cloudwatch.metrics_store import CloudWatchMetricsStore
     return CloudWatchMetricsStore
 
 
 def _cloudwatch_test_run_store(cfg):
+    # pylint: disable=import-outside-toplevel
     from osbenchmark.metrics_stores.cloudwatch.test_run_store import (
         CloudWatchTestRunStore, FileBackedCompositeTestRunStore,
     )
-    # Writes fan out to CloudWatch + file; reads come from file until commit
-    # #12 wires Logs Insights. The dedicated composite avoids regressing
-    # `osbenchmark compare` / `aggregate` / `list test-runs` while the
-    # CloudWatch read path is stubbed.
     return FileBackedCompositeTestRunStore(
         CloudWatchTestRunStore(cfg), FileTestRunStore(cfg))
 
 
 def _cloudwatch_results_store(cfg):
+    # pylint: disable=import-outside-toplevel
     from osbenchmark.metrics_stores.cloudwatch.results_store import CloudWatchResultsStore
     return CloudWatchResultsStore(cfg)
 

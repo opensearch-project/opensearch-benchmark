@@ -35,7 +35,6 @@ import pytest
 
 from osbenchmark import exceptions
 from osbenchmark.metrics import SampleType
-from osbenchmark.metrics_stores.cloudwatch import insights
 from osbenchmark.metrics_stores.cloudwatch.insights import (
     InsightsQueryError,
     _flatten_rows,
@@ -50,7 +49,7 @@ from osbenchmark.metrics_stores.cloudwatch.test_run_store import (
     FileBackedCompositeTestRunStore,
 )
 
-from .conftest import make_insights_rows
+from .conftest import make_client_error, make_insights_rows
 
 
 # ----------------------------------------------------------------- Insights helper
@@ -177,8 +176,12 @@ def _make_factory(fake_client):
     class _F:
         def __init__(self, cw_cfg):
             self._client = fake_client
-        def probe_caller_identity(self): pass
-        def logs_client(self): return self._client
+
+        def probe_caller_identity(self):
+            pass
+
+        def logs_client(self):
+            return self._client
     return _F
 
 
@@ -362,7 +365,6 @@ class TestMetricsStoreReads:
         # logs:StartQuery. Reads should fail-soft to empty results so
         # the result-summary path doesn't crash the run. (Same fail-soft
         # contract as FileBackedCompositeTestRunStore.list.)
-        from .conftest import make_client_error
         def boom(**kw):
             raise make_client_error("AccessDeniedException", op="StartQuery")
         fake_logs_client.start_query = boom
@@ -470,13 +472,20 @@ class _FakeFile:
     def __init__(self):
         self.runs = {}
         self.stored = []
-    def store_test_run(self, run): self.stored.append(run)
+
+    def store_test_run(self, run):
+        self.stored.append(run)
+
     def find_by_test_run_id(self, tid):
         if tid in self.runs:
             return self.runs[tid]
         raise exceptions.NotFound("not local")
-    def list(self): return list(self.runs.values())
-    def store_html_results(self, run): pass
+
+    def list(self):
+        return list(self.runs.values())
+
+    def store_html_results(self, run):
+        pass
 
 
 class _FakeCW:
@@ -485,10 +494,14 @@ class _FakeCW:
         self.list_called = False
         self.find_result = None
         self.find_called = False
-    def store_test_run(self, run): pass
+
+    def store_test_run(self, run):
+        pass
+
     def list(self):
         self.list_called = True
         return self.list_result
+
     def find_by_test_run_id(self, tid):
         self.find_called = True
         if self.find_result is not None:
@@ -497,7 +510,8 @@ class _FakeCW:
 
 
 class _Run:
-    def __init__(self, test_run_id): self.test_run_id = test_run_id
+    def __init__(self, test_run_id):
+        self.test_run_id = test_run_id
 
 
 class TestFileBackedComposite:
@@ -535,7 +549,8 @@ class TestFileBackedComposite:
 
     def test_list_degrades_gracefully_on_cw_error(self):
         class _FailingCW:
-            def list(self): raise RuntimeError("boom (any exception)")
+            def list(self):
+                raise RuntimeError("boom (any exception)")
         f = _FakeFile()
         f.runs["a"] = _Run("a")
         c = FileBackedCompositeTestRunStore(_FailingCW(), f)
@@ -548,7 +563,9 @@ class TestFileBackedComposite:
         cw.stored = []
         # Add `stored` to _FakeCW for the test
         cw_stored = []
-        def store(run): cw_stored.append(run)
+
+        def store(run):
+            cw_stored.append(run)
         cw.store_test_run = store
         c = FileBackedCompositeTestRunStore(cw, f)
         c.store_test_run(_Run("x"))
