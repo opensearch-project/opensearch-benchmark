@@ -1124,6 +1124,18 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         self._validate_neighbors_data_set(self.neighbors_data_set_path, self.neighbors_data_set_corpus)
         self.neighbors_data_set = None
         self.radial_search_type = params.get(self.PARAMS_NAME_RADIAL_SEARCH_TYPE)
+        if self.PARAMS_NAME_RADIAL_SEARCH_TYPE in params:
+            self.radial_search_type = parse_string_parameter(self.PARAMS_NAME_RADIAL_SEARCH_TYPE, params)
+            if self.radial_search_type not in (self.PARAMS_NAME_MAX_DISTANCE, self.PARAMS_NAME_MIN_SCORE):
+                raise exceptions.InvalidSyntax(
+                    "'radial_search_type' must be either 'max_distance' or 'min_score'.")
+            if self.k is None:
+                raise exceptions.InvalidSyntax(
+                    "'k' must be provided when using 'radial_search_type'.")
+            if (self.PARAMS_NAME_MAX_DISTANCE in params or self.PARAMS_NAME_MIN_SCORE in params
+                    or self.PARAMS_NAME_MAX_DISTANCE in query_params or self.PARAMS_NAME_MIN_SCORE in query_params):
+                raise exceptions.InvalidSyntax(
+                    "'radial_search_type' cannot be combined with 'max_distance' or 'min_score'.")
         self.threshold_data_set = None
         operation_type = parse_string_parameter(self.PARAMS_NAME_OPERATION_TYPE, params,
                                                 self.PARAMS_VALUE_VECTOR_SEARCH)
