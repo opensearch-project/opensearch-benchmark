@@ -1164,11 +1164,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         self.space_type = params.get(self.PARAMS_NAME_SPACE_TYPE, "l2")
 
         if self.radial_search_type:
-            index_body = params.get("target_index_body", "")
-            if "lucene" in index_body.lower():
-                self.radial_engine = "lucene"
-            else:
-                self.radial_engine = "faiss"
+            self.radial_engine = params.get("radial_engine", "faiss")
 
 
         if self.PARAMS_NAME_FILTER in params:
