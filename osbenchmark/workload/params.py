@@ -1102,6 +1102,14 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
     PARAMS_NAME_SPACE_TYPE = "space_type"
     PARAMS_NAME_MAX_DISTANCE = "max_distance"
     PARAMS_NAME_MIN_SCORE = "min_score"
+    PARAMS_NAME_RADIAL_SEARCH_TYPE = "radial_search_type"
+
+    RADIAL_THRESHOLD_CONTEXTS = {
+        ("faiss", "max_distance"): Context.FAISS_MAX_DISTANCE,
+        ("faiss", "min_score"): Context.FAISS_MIN_SCORE,
+        ("lucene", "max_distance"): Context.LUCENE_MAX_DISTANCE,
+        ("lucene", "min_score"): Context.LUCENE_MIN_SCORE,
+    }
 
     def __init__(self, workloads, params, query_params, **kwargs):
         super().__init__(workloads, params, Context.QUERY, **kwargs)
@@ -1115,11 +1123,26 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         self.neighbors_data_set_corpus = params.get(self.PARAMS_NAME_NEIGHBORS_DATA_SET_CORPUS)
         self._validate_neighbors_data_set(self.neighbors_data_set_path, self.neighbors_data_set_corpus)
         self.neighbors_data_set = None
+        self.radial_search_type = params.get(self.PARAMS_NAME_RADIAL_SEARCH_TYPE)
+        if self.PARAMS_NAME_RADIAL_SEARCH_TYPE in params:
+            self.radial_search_type = parse_string_parameter(self.PARAMS_NAME_RADIAL_SEARCH_TYPE, params)
+            if self.radial_search_type not in (self.PARAMS_NAME_MAX_DISTANCE, self.PARAMS_NAME_MIN_SCORE):
+                raise exceptions.InvalidSyntax(
+                    "'radial_search_type' must be either 'max_distance' or 'min_score'.")
+            if self.k is None:
+                raise exceptions.InvalidSyntax(
+                    "'k' must be provided when using 'radial_search_type'.")
+            if (self.PARAMS_NAME_MAX_DISTANCE in params or self.PARAMS_NAME_MIN_SCORE in params
+                    or self.PARAMS_NAME_MAX_DISTANCE in query_params or self.PARAMS_NAME_MIN_SCORE in query_params):
+                raise exceptions.InvalidSyntax(
+                    "'radial_search_type' cannot be combined with 'max_distance' or 'min_score'.")
+        self.threshold_data_set = None
         operation_type = parse_string_parameter(self.PARAMS_NAME_OPERATION_TYPE, params,
                                                 self.PARAMS_VALUE_VECTOR_SEARCH)
         self.oversample_factor = params.get(self.PARAMS_NAME_OVERSAMPLE_FACTOR)
         has_radial = (self.PARAMS_NAME_MAX_DISTANCE in params or self.PARAMS_NAME_MIN_SCORE in params
-                      or self.PARAMS_NAME_MAX_DISTANCE in query_params or self.PARAMS_NAME_MIN_SCORE in query_params)
+                      or self.PARAMS_NAME_MAX_DISTANCE in query_params or self.PARAMS_NAME_MIN_SCORE in query_params
+                      or self.radial_search_type is not None)
         if self.oversample_factor and has_radial:
             raise exceptions.InvalidSyntax(
                 "'oversample_factor' cannot be used with 'max_distance' or 'min_score'. "
@@ -1129,7 +1152,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
             self.PARAMS_NAME_OPERATION_TYPE: operation_type,
             self.PARAMS_NAME_ID_FIELD_NAME: params.get(self.PARAMS_NAME_ID_FIELD_NAME),
         })
-        if self.k is not None:
+        if self.k is not None and self.radial_search_type is None:
             self.query_params[self.PARAMS_NAME_K] = self.k
         if self.PARAMS_NAME_MAX_DISTANCE in params:
             self.query_params[self.PARAMS_NAME_MAX_DISTANCE] = params[self.PARAMS_NAME_MAX_DISTANCE]
@@ -1139,6 +1162,9 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         self.filter_type = self.query_params.get(self.PARAMS_NAME_FILTER_TYPE)
         self.filter_body = self.query_params.get(self.PARAMS_NAME_FILTER_BODY)
         self.space_type = params.get(self.PARAMS_NAME_SPACE_TYPE, "l2")
+
+        if self.radial_search_type:
+            self.radial_engine = params.get("radial_engine", "faiss")
 
 
         if self.PARAMS_NAME_FILTER in params:
@@ -1200,7 +1226,9 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         if not self.neighbors_data_set_path:
             self.neighbors_data_set_path = self.data_set_path
         # add neighbor instance to partition
-        if self.PARAMS_NAME_MAX_DISTANCE in self.query_params or self.PARAMS_NAME_MIN_SCORE in self.query_params:
+        if self.radial_search_type:
+            neighbors_context = Context.NEIGHBORS
+        elif self.PARAMS_NAME_MAX_DISTANCE in self.query_params or self.PARAMS_NAME_MIN_SCORE in self.query_params:
             neighbors_context = Context.RADIAL_NEIGHBORS
         else:
             neighbors_context = Context.NEIGHBORS
@@ -1208,6 +1236,14 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         partition.neighbors_data_set = get_data_set(
             self.neighbors_data_set_format, self.neighbors_data_set_path, neighbors_context)
         partition.neighbors_data_set.seek(partition.offset)
+
+        if self.radial_search_type:
+            threshold_context = self.RADIAL_THRESHOLD_CONTEXTS[
+                (self.radial_engine, self.radial_search_type)]
+            partition.threshold_data_set = get_data_set(
+                self.neighbors_data_set_format, self.neighbors_data_set_path, threshold_context)
+            partition.threshold_data_set.seek(partition.offset)
+
         return partition
 
     def params(self):
@@ -1219,16 +1255,25 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         if is_dataset_exhausted and self.current_rep < self.repetitions:
             self.data_set.seek(self.offset)
             self.neighbors_data_set.seek(self.offset)
+            if self.threshold_data_set:
+                self.threshold_data_set.seek(self.offset)
             self.current = self.offset
             self.current_rep += 1
         elif is_dataset_exhausted:
             raise StopIteration
         vector = self.data_set.read(1)[0]
         neighbor = self.neighbors_data_set.read(1)[0]
-        if self.k is not None:
+
+        if self.radial_search_type:
+            true_neighbors = list(map(str, neighbor[:self.k].astype(int)))
+            threshold_row = self.threshold_data_set.read(1)[0]
+            threshold_value = float(threshold_row[self.k - 1])
+            self.query_params[self.radial_search_type] = threshold_value
+        elif self.k is not None:
             true_neighbors = list(map(str, neighbor[:self.k].astype(int)))
         else:
             true_neighbors = list(map(str, neighbor[neighbor >= 0].astype(int)))
+
         self.query_params.update({
             "neighbors": true_neighbors,
         })
@@ -1239,11 +1284,13 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         return self.query_params
 
     def _add_search_threshold(self, query):
-        if self.k is not None:
+        if self.radial_search_type:
+            query[self.radial_search_type] = self.query_params[self.radial_search_type]
+        elif self.k is not None:
             query["k"] = self.k
-        if self.PARAMS_NAME_MAX_DISTANCE in self.query_params:
+        if self.PARAMS_NAME_MAX_DISTANCE in self.query_params and not self.radial_search_type:
             query[self.PARAMS_NAME_MAX_DISTANCE] = self.query_params[self.PARAMS_NAME_MAX_DISTANCE]
-        if self.PARAMS_NAME_MIN_SCORE in self.query_params:
+        if self.PARAMS_NAME_MIN_SCORE in self.query_params and not self.radial_search_type:
             query[self.PARAMS_NAME_MIN_SCORE] = self.query_params[self.PARAMS_NAME_MIN_SCORE]
 
     def _build_vector_search_query_body(self, vector, efficient_filter=None, filter_type=None, filter_body=None) -> dict:

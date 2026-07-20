@@ -3484,6 +3484,134 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
         self.assertNotIn("-1.0", neighbors)
         self.assertEqual(neighbors, ["0", "1", "2", "3", "4"])
 
+    def test_radial_search_type_max_distance_faiss(self):
+        k = 5
+        num_vectors = 10
+        data_set_path = create_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+        threshold_data = np.arange(num_vectors * self.DEFAULT_DIMENSION, dtype=np.float32).reshape(
+            num_vectors, self.DEFAULT_DIMENSION)
+        with h5py.File(data_set_path, 'a') as hf:
+            hf.create_dataset("faiss_max_distance", data=threshold_data)
+
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "k": k,
+            "radial_search_type": "max_distance",
+            "radial_engine": "faiss",
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+            }
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+        params = query_param_source_partition.params()
+
+        body = params.get("body")
+        query = body["query"]["knn"][self.DEFAULT_FIELD_NAME]
+        self.assertNotIn("k", query)
+        self.assertIn("max_distance", query)
+        self.assertEqual(query["max_distance"], float(threshold_data[0][k - 1]))
+        self.assertEqual(body["size"], k)
+        neighbors = params.get("neighbors")
+        self.assertEqual(len(neighbors), k)
+
+    def test_radial_search_type_min_score_lucene(self):
+        k = 3
+        num_vectors = 10
+        data_set_path = create_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+        threshold_data = np.arange(num_vectors * self.DEFAULT_DIMENSION, dtype=np.float32).reshape(
+            num_vectors, self.DEFAULT_DIMENSION)
+        with h5py.File(data_set_path, 'a') as hf:
+            hf.create_dataset("lucene_min_score", data=threshold_data)
+
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "k": k,
+            "radial_search_type": "min_score",
+            "radial_engine": "lucene",
+        }
+        query_param_source = VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+            }
+        )
+        query_param_source_partition = query_param_source.partition(0, 1)
+        params = query_param_source_partition.params()
+
+        body = params.get("body")
+        query = body["query"]["knn"][self.DEFAULT_FIELD_NAME]
+        self.assertNotIn("k", query)
+        self.assertNotIn("max_distance", query)
+        self.assertIn("min_score", query)
+        self.assertEqual(query["min_score"], float(threshold_data[0][k - 1]))
+        self.assertEqual(body["size"], k)
+        neighbors = params.get("neighbors")
+        self.assertEqual(len(neighbors), k)
+
+    def test_radial_search_type_oversample_raises_error(self):
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+
+        test_param_source_params = {
+            "field": self.DEFAULT_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "k": 100,
+            "radial_search_type": "max_distance",
+            "radial_engine": "faiss",
+            "oversample_factor": 5.0,
+        }
+        with self.assertRaises(exceptions.InvalidSyntax):
+            VectorSearchPartitionParamSource(
+                workload.Workload(name="unit-test"),
+                test_param_source_params, {
+                    "index": self.DEFAULT_INDEX_NAME,
+                    "request-params": {},
+                }
+            )
+
     def _check_params(
             self,
             actual_params: dict,
