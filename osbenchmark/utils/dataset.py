@@ -27,6 +27,10 @@ class Context(Enum):
     RADIAL_NEIGHBORS = 4
     PARENTS = 6
     ATTRIBUTES = 7
+    FAISS_MAX_DISTANCE = 8
+    FAISS_MIN_SCORE = 9
+    LUCENE_MAX_DISTANCE = 10
+    LUCENE_MIN_SCORE = 11
 
 
 class DataSet(ABC):
@@ -152,6 +156,18 @@ class HDF5DataSet(DataSet):
 
         if context == Context.ATTRIBUTES:
             return "attributes"
+
+        if context == Context.FAISS_MAX_DISTANCE:
+            return "faiss_max_distance"
+
+        if context == Context.FAISS_MIN_SCORE:
+            return "faiss_min_score"
+
+        if context == Context.LUCENE_MAX_DISTANCE:
+            return "lucene_max_distance"
+
+        if context == Context.LUCENE_MIN_SCORE:
+            return "lucene_min_score"
 
         raise Exception("Unsupported context")
 
