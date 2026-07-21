@@ -324,10 +324,67 @@ def metrics_store(cfg, read_only=True, workload=None, test_procedure=None, clust
 
 
 def metrics_store_class(cfg):
-    if cfg.opts("reporting", "datastore.type") == "opensearch":
-        return OsMetricsStore
-    else:
-        return InMemoryMetricsStore
+    entry = _datastore_factories(cfg)["metrics_store_class"]
+    # Allow registry entries to defer class resolution to first use by
+    # registering a 0-arg callable instead of the class itself. This avoids
+    # forcing import-time circular dependencies for backends (e.g.
+    # CloudWatch) that import from osbenchmark.metrics at module top.
+    return entry() if callable(entry) and not isinstance(entry, type) else entry
+
+
+# Datastore registry. Each entry maps a `datastore.type` value to a factory
+# bundle used by `metrics_store_class`, `test_run_store`, and `results_store`.
+# Entries are added via `register_datastore` so future backends (e.g.
+# CloudWatch) can plug in without editing this module directly.
+_DATASTORE_REGISTRY = {}
+
+
+def register_datastore(datastore_type, metrics_store_class,  # noqa: A002 — shadows the module function intentionally
+                       test_run_store, results_store,
+                       test_run_store_log_message, results_store_log_message):
+    """
+    Register a metrics datastore backend.
+
+    :param datastore_type: The string value matched against
+        ``cfg.opts("reporting", "datastore.type")``.
+    :param metrics_store_class: A ``MetricsStore`` subclass (a class object,
+        not an instance) returned from ``metrics_store_class(cfg)``.
+    :param test_run_store: Callable ``cfg -> TestRunStore`` invoked by
+        ``test_run_store(cfg)``.
+    :param results_store: Callable ``cfg -> ResultsStore`` invoked by
+        ``results_store(cfg)``.
+    :param test_run_store_log_message: Log line emitted when the test-run
+        store is created. Preserved verbatim for log-scrape compatibility.
+    :param results_store_log_message: Log line emitted when the results
+        store is created. Preserved verbatim for log-scrape compatibility.
+    """
+    _DATASTORE_REGISTRY[datastore_type] = {
+        "metrics_store_class": metrics_store_class,
+        "test_run_store": test_run_store,
+        "results_store": results_store,
+        "test_run_store_log_message": test_run_store_log_message,
+        "results_store_log_message": results_store_log_message,
+    }
+
+
+def _datastore_factories(cfg):
+    """
+    Look up the factory bundle for the configured datastore type.
+
+    When no entry matches ``datastore.type``, the default bundle is returned
+    so behavior matches the pre-registry implementation: any non-registered
+    value falls through to the in-memory / file / no-op stores.
+    """
+    return _DATASTORE_REGISTRY.get(cfg.opts("reporting", "datastore.type"), _DATASTORE_DEFAULT)
+
+
+_DATASTORE_DEFAULT = {
+    "metrics_store_class": None,  # populated below once classes are imported
+    "test_run_store": lambda cfg: FileTestRunStore(cfg),  # pylint: disable=unnecessary-lambda
+    "results_store": lambda cfg: NoopResultsStore(),
+    "test_run_store_log_message": "Creating file test_run store",
+    "results_store_log_message": "Creating no-op results store",
+}
 
 
 def extract_user_tags_from_config(cfg):
@@ -1210,13 +1267,9 @@ def test_run_store(cfg):
     :param cfg: Config object. Mandatory.
     :return: A test_run store implementation.
     """
-    logger = logging.getLogger(__name__)
-    if cfg.opts("reporting", "datastore.type") == "opensearch":
-        logger.info("Creating OS test run store")
-        return CompositeTestRunStore(OsTestRunStore(cfg), FileTestRunStore(cfg))
-    else:
-        logger.info("Creating file test_run store")
-        return FileTestRunStore(cfg)
+    factories = _datastore_factories(cfg)
+    logging.getLogger(__name__).info(factories["test_run_store_log_message"])
+    return factories["test_run_store"](cfg)
 
 
 def results_store(cfg):
@@ -1225,13 +1278,9 @@ def results_store(cfg):
     :param cfg: Config object. Mandatory.
     :return: A test_run store implementation.
     """
-    logger = logging.getLogger(__name__)
-    if cfg.opts("reporting", "datastore.type") == "opensearch":
-        logger.info("Creating OS results store")
-        return OsResultsStore(cfg)
-    else:
-        logger.info("Creating no-op results store")
-        return NoopResultsStore()
+    factories = _datastore_factories(cfg)
+    logging.getLogger(__name__).info(factories["results_store_log_message"])
+    return factories["results_store"](cfg)
 
 
 def list_test_helper(store_item, title):
@@ -1738,6 +1787,56 @@ class NoopResultsStore:
     """
     def store_results(self, test_run):
         pass
+
+
+# Built-in datastore registrations. Custom backends register themselves at
+# import time via `register_datastore(...)`; see the cloudwatch backend.
+_DATASTORE_DEFAULT["metrics_store_class"] = InMemoryMetricsStore
+
+register_datastore(
+    datastore_type="opensearch",
+    metrics_store_class=OsMetricsStore,
+    test_run_store=lambda cfg: CompositeTestRunStore(OsTestRunStore(cfg), FileTestRunStore(cfg)),
+    results_store=OsResultsStore,
+    test_run_store_log_message="Creating OS test run store",
+    results_store_log_message="Creating OS results store",
+)
+
+# CloudWatch backend registration. Imports are deferred to first-use
+# callables so that importing osbenchmark.metrics (or any of the cloudwatch
+# submodules) in arbitrary order doesn't trigger a circular import. The
+# cloudwatch.* modules `from osbenchmark.metrics import MetricsStore` at
+# module top, and they would re-enter this file mid-load if we imported
+# them eagerly here.
+def _cloudwatch_metrics_store_class():
+    # pylint: disable=import-outside-toplevel
+    from osbenchmark.metrics_stores.cloudwatch.metrics_store import CloudWatchMetricsStore
+    return CloudWatchMetricsStore
+
+
+def _cloudwatch_test_run_store(cfg):
+    # pylint: disable=import-outside-toplevel
+    from osbenchmark.metrics_stores.cloudwatch.test_run_store import (
+        CloudWatchTestRunStore, FileBackedCompositeTestRunStore,
+    )
+    return FileBackedCompositeTestRunStore(
+        CloudWatchTestRunStore(cfg), FileTestRunStore(cfg))
+
+
+def _cloudwatch_results_store(cfg):
+    # pylint: disable=import-outside-toplevel
+    from osbenchmark.metrics_stores.cloudwatch.results_store import CloudWatchResultsStore
+    return CloudWatchResultsStore(cfg)
+
+
+register_datastore(
+    datastore_type="cloudwatch",
+    metrics_store_class=_cloudwatch_metrics_store_class,
+    test_run_store=_cloudwatch_test_run_store,
+    results_store=_cloudwatch_results_store,
+    test_run_store_log_message="Creating CloudWatch + file test_run store",
+    results_store_log_message="Creating CloudWatch results store",
+)
 
 
 # helper function for encoding and decoding float keys so that the OpenSearch metrics store can save them.
