@@ -199,6 +199,12 @@ class SummaryResultsPublisher:
             recall_keys_in_task_dict = "recall@1" in keys and "recall@k" in keys
             if recall_keys_in_task_dict and "mean" in record["recall@1"] and "mean" in record["recall@k"]:
                 metrics_table.extend(self._publish_recall(record, task))
+            radial_max_dist_keys = "recall@max_distance" in keys and "recall@max_distance_1" in keys
+            if radial_max_dist_keys and "mean" in record["recall@max_distance"] and "mean" in record["recall@max_distance_1"]:
+                metrics_table.extend(self._publish_radial_recall(record, task, "max_distance"))
+            radial_min_score_keys = "recall@min_score" in keys and "recall@min_score_1" in keys
+            if radial_min_score_keys and "mean" in record["recall@min_score"] and "mean" in record["recall@min_score_1"]:
+                metrics_table.extend(self._publish_radial_recall(record, task, "min_score"))
 
         for record in stats.profile_metrics:
             task = record["task"]
@@ -255,6 +261,15 @@ class SummaryResultsPublisher:
         return self._join(
             self._line("Mean recall@k", task, recall_k_mean, "", lambda v: "%.2f" % v),
             self._line("Mean recall@1", task, recall_1_mean, "", lambda v: "%.2f" % v)
+        )
+
+    def _publish_radial_recall(self, values, task, query_type):
+        recall_mean = values[f"recall@{query_type}"]["mean"]
+        recall_1_mean = values[f"recall@{query_type}_1"]["mean"]
+
+        return self._join(
+            self._line(f"Mean recall@{query_type}", task, recall_mean, "", lambda v: "%.2f" % v),
+            self._line(f"Mean recall@{query_type}_1", task, recall_1_mean, "", lambda v: "%.2f" % v)
         )
 
     def _publish_profile_metrics(self, metrics, task):
