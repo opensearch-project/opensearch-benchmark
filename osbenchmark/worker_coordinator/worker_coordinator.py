@@ -1026,7 +1026,8 @@ class WorkerCoordinator:
                     telemetry.TransformStats(telemetry_params, opensearch, self.metrics_store),
                     telemetry.SearchableSnapshotsStats(telemetry_params, opensearch, self.metrics_store),
                     telemetry.SegmentReplicationStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.ShardStats(telemetry_params, opensearch, self.metrics_store)
+                    telemetry.ShardStats(telemetry_params, opensearch, self.metrics_store),
+                    telemetry.DataFusionStats(telemetry_params, opensearch, self.metrics_store)
                 ]
             else:
                 # For non-OpenSearch databases, skip OS-specific telemetry devices

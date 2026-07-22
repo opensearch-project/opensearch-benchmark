@@ -3760,3 +3760,136 @@ class SegmentReplicationStatsRecorderTests(TestCase):
         with self.assertRaisesRegex(exceptions.BenchmarkError,
                                     r"A transport error occurred while collecting segment replication stats on cluster \[default\]"):
             telemetry.SegmentReplicationStatsRecorder("default", client, metrics_store, 1).record()
+
+
+class DataFusionStatsTests(TestCase):
+    def test_negative_sample_interval_forbidden(self):
+        clients = {"default": Client()}
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        telemetry_params = {
+            "datafusion-stats-sample-interval": -1 * random.random()
+        }
+        with self.assertRaisesRegex(exceptions.SystemSetupError,
+                                    r"The telemetry parameter 'datafusion-stats-sample-interval' must be "
+                                    r"greater than zero but was .*\."):
+            telemetry.DataFusionStats(telemetry_params, clients, metrics_store)
+
+    def test_zero_sample_interval_forbidden(self):
+        clients = {"default": Client()}
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        telemetry_params = {
+            "datafusion-stats-sample-interval": 0
+        }
+        with self.assertRaisesRegex(exceptions.SystemSetupError,
+                                    r"The telemetry parameter 'datafusion-stats-sample-interval' must be "
+                                    r"greater than zero but was .*\."):
+            telemetry.DataFusionStats(telemetry_params, clients, metrics_store)
+
+    def test_default_sample_interval(self):
+        clients = {"default": Client()}
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        device = telemetry.DataFusionStats({}, clients, metrics_store)
+        self.assertEqual(1, device.sample_interval)
+
+
+class DataFusionStatsRecorderTests(TestCase):
+    stats_response = {
+        "io_runtime": {
+            "workers_count": 16,
+            "total_polls_count": 0,
+            "total_busy_duration_ms": 0,
+            "total_overflow_count": 0,
+            "global_queue_depth": 0,
+            "blocking_queue_depth": 0,
+            "num_alive_tasks": 0,
+            "spawned_tasks_count": 0,
+            "total_local_queue_depth": 0
+        },
+        "cpu_runtime": {
+            "workers_count": 8,
+            "total_polls_count": 0,
+            "total_busy_duration_ms": 0,
+            "total_overflow_count": 0,
+            "global_queue_depth": 0,
+            "blocking_queue_depth": 0,
+            "num_alive_tasks": 0,
+            "spawned_tasks_count": 0,
+            "total_local_queue_depth": 0
+        },
+        "coordinator_reduce": {
+            "total_poll_duration_ms": 0,
+            "total_scheduled_duration_ms": 0,
+            "total_idle_duration_ms": 0
+        },
+        "query_execution": {
+            "total_poll_duration_ms": 7,
+            "total_scheduled_duration_ms": 0,
+            "total_idle_duration_ms": 0
+        },
+        "stream_next": {
+            "total_poll_duration_ms": 0,
+            "total_scheduled_duration_ms": 0,
+            "total_idle_duration_ms": 0
+        },
+        "plan_setup": {
+            "total_poll_duration_ms": 34,
+            "total_scheduled_duration_ms": 0,
+            "total_idle_duration_ms": 3
+        }
+    }
+
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
+    def test_stores_flattened_stats(self, metrics_store_put_doc):
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        client = Client(transport_client=TransportClient(responses=[DataFusionStatsRecorderTests.stats_response]))
+
+        recorder = telemetry.DataFusionStatsRecorder(client, metrics_store, sample_interval=1)
+        recorder.record()
+
+        metrics_store_put_doc.assert_called_once_with(
+            {
+                "name": "datafusion-stats",
+                "io_runtime_workers_count": 16,
+                "io_runtime_total_polls_count": 0,
+                "io_runtime_total_busy_duration_ms": 0,
+                "io_runtime_total_overflow_count": 0,
+                "io_runtime_global_queue_depth": 0,
+                "io_runtime_blocking_queue_depth": 0,
+                "io_runtime_num_alive_tasks": 0,
+                "io_runtime_spawned_tasks_count": 0,
+                "io_runtime_total_local_queue_depth": 0,
+                "cpu_runtime_workers_count": 8,
+                "cpu_runtime_total_polls_count": 0,
+                "cpu_runtime_total_busy_duration_ms": 0,
+                "cpu_runtime_total_overflow_count": 0,
+                "cpu_runtime_global_queue_depth": 0,
+                "cpu_runtime_blocking_queue_depth": 0,
+                "cpu_runtime_num_alive_tasks": 0,
+                "cpu_runtime_spawned_tasks_count": 0,
+                "cpu_runtime_total_local_queue_depth": 0,
+                "coordinator_reduce_total_poll_duration_ms": 0,
+                "coordinator_reduce_total_scheduled_duration_ms": 0,
+                "coordinator_reduce_total_idle_duration_ms": 0,
+                "query_execution_total_poll_duration_ms": 7,
+                "query_execution_total_scheduled_duration_ms": 0,
+                "query_execution_total_idle_duration_ms": 0,
+                "stream_next_total_poll_duration_ms": 0,
+                "stream_next_total_scheduled_duration_ms": 0,
+                "stream_next_total_idle_duration_ms": 0,
+                "plan_setup_total_poll_duration_ms": 34,
+                "plan_setup_total_scheduled_duration_ms": 0,
+                "plan_setup_total_idle_duration_ms": 3,
+            },
+            level=MetaInfoScope.cluster
+        )
+
+    def test_exception_on_transport_error(self):
+        client = Client(transport_client=TransportClient(responses=[], force_error=True))
+        metrics_store = metrics.OsMetricsStore(create_config())
+        with self.assertRaisesRegex(exceptions.BenchmarkError,
+                                    r"A transport error occurred while collecting DataFusion stats"):
+            telemetry.DataFusionStatsRecorder(client, metrics_store, 1).record()
