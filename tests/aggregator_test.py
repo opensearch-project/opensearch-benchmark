@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 import pytest
 from osbenchmark import config
+from osbenchmark import metrics
 from osbenchmark.aggregator import Aggregator, AggregatedResults
 
 @pytest.fixture
@@ -119,6 +120,21 @@ def test_calculate_weighted_average(aggregator):
     assert result["throughput"] == 160  # (100*2 + 200*3) / (2+3)
     assert result["latency"]["avg"] == 16  # (10*2 + 20*3) / (2+3)
     assert result["latency"]["unit"] == "ms"
+
+def test_update_config_object_reads_attributes_that_test_runs_actually_have(aggregator):
+    # a real TestRun, not a Mock: a Mock creates whatever attribute is asked of it, so it cannot
+    # tell us whether update_config_object reads attributes that a test run really carries
+    test_run = metrics.TestRun(
+        benchmark_version="1.0.0", benchmark_revision="abc123", environment_name="unit-test",
+        test_run_id="test1", test_run_timestamp="20250101T000000Z", pipeline="benchmark-only",
+        user_tags={}, workload="workload1", workload_params={}, test_procedure="test_proc1",
+        cluster_config=["external"], cluster_config_params={"heap_size": "6g"}, plugin_params={},
+        meta_data={})
+
+    aggregator.update_config_object(test_run)
+
+    aggregator.config.add.assert_any_call(config.Scope.applicationOverride, "builder",
+                                          "cluster_config.params", {"heap_size": "6g"})
 
 def test_calculate_rsd(aggregator):
     values = [1, 2, 3, 4, 5]
