@@ -213,7 +213,6 @@ class Aggregator:
         # Get iterations for each test run
         iterations_per_run = [self.accumulated_iterations[test_id][task_name]
                                     for test_id in self.test_runs.keys()]
-        total_iterations = sum(iterations_per_run)
 
         for metric, values in task_metrics.items():
             if isinstance(values[0], dict):
@@ -222,23 +221,44 @@ class Aggregator:
                     if metric_field == 'unit':
                         weighted_metrics[metric][metric_field] = values[0][metric_field]
                     elif metric_field == 'min':
-                        weighted_metrics[metric]['overall_min'] = min(value.get(metric_field, 0) for value in values)
+                        item_values = [value.get(metric_field) for value in values]
+                        weighted_metrics[metric]['overall_min'] = min(
+                            (value for value in item_values if value is not None), default=None)
                     elif metric_field == 'max':
-                        weighted_metrics[metric]['overall_max'] = max(value.get(metric_field, 0) for value in values)
+                        item_values = [value.get(metric_field) for value in values]
+                        weighted_metrics[metric]['overall_max'] = max(
+                            (value for value in item_values if value is not None), default=None)
                     else:
                         # for items like median or containing percentile values
-                        item_values = [value.get(metric_field, 0) for value in values]
-                        weighted_sum = sum(value * iterations for value, iterations in zip(item_values, iterations_per_run))
-                        weighted_metrics[metric][metric_field] = weighted_sum / total_iterations
+                        item_values = [value.get(metric_field) for value in values]
+                        weighted_metrics[metric][metric_field] = self.weighted_mean(item_values, iterations_per_run)
             else:
-                weighted_sum = sum(value * iterations for value, iterations in zip(values, iterations_per_run))
-                weighted_metrics[metric] = weighted_sum / total_iterations
+                weighted_metrics[metric] = self.weighted_mean(values, iterations_per_run)
 
         return weighted_metrics
+
+    @staticmethod
+    def weighted_mean(values: List[Any], iterations_per_run: List[int]) -> Any:
+        """
+        Weights each test run's value by that run's iteration count.
+        Operations that produced no valid samples report their metrics as None; those are left out
+        of both the sum and the divisor, and the result is None when no run contributed a value,
+        so that "not measured" stays distinct from a measured zero
+        """
+        contributions = [(value, iterations) for value, iterations in zip(values, iterations_per_run)
+                         if value is not None]
+        total_iterations = sum(iterations for _, iterations in contributions)
+        if not total_iterations:
+            return None
+        return sum(value * iterations for value, iterations in contributions) / total_iterations
 
     def calculate_rsd(self, values: List[Union[int, float]], metric_name: str) -> Union[float, str]:
         if not values:
             raise ValueError(f"Cannot calculate RSD for metric '{metric_name}': empty list of values")
+        # operations that produced no valid samples report None, which cannot contribute to a deviation
+        values = [value for value in values if value is not None]
+        if not values:
+            return "NA"  # no test run measured this metric
         if len(values) == 1:
             return "NA"  # RSD is not applicable for a single value
         mean = statistics.mean(values)

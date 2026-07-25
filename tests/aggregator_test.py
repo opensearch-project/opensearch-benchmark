@@ -136,6 +136,47 @@ def test_update_config_object_reads_attributes_that_test_runs_actually_have(aggr
     aggregator.config.add.assert_any_call(config.Scope.applicationOverride, "builder",
                                           "cluster_config.params", {"heap_size": "6g"})
 
+def test_calculate_weighted_average_with_null_metric_fields(aggregator):
+    # An operation that produced no valid samples reports null metric fields, e.g. `optimize`
+    # in the geonames workload, which reports error_rate 1.0 and a fully null throughput.
+    task_metrics = {
+        "throughput": [
+            {"min": None, "mean": None, "median": None, "max": None, "unit": "ops/s"},
+            {"min": None, "mean": None, "median": None, "max": None, "unit": "ops/s"}
+        ]
+    }
+    aggregator.accumulated_iterations = {"test1": {"op1": 1}, "test2": {"op1": 1}}
+    aggregator.test_runs = {"test1": Mock(), "test2": Mock()}
+
+    result = aggregator.calculate_weighted_average(task_metrics, "op1")
+
+    # null is carried through rather than replaced by 0, which would read as a real
+    # measurement of zero throughput
+    assert result["throughput"]["overall_min"] is None
+    assert result["throughput"]["overall_max"] is None
+    assert result["throughput"]["mean"] is None
+    assert result["throughput"]["median"] is None
+    assert result["throughput"]["unit"] == "ops/s"
+
+def test_calculate_weighted_average_with_partially_null_metric_fields(aggregator):
+    # A metric that has samples in one test run but not another: the valid values are
+    # still aggregated, weighted only by the runs that contributed them.
+    task_metrics = {
+        "throughput": [
+            {"min": 10, "mean": 20, "median": 20, "max": 30, "unit": "ops/s"},
+            {"min": None, "mean": None, "median": None, "max": None, "unit": "ops/s"}
+        ]
+    }
+    aggregator.accumulated_iterations = {"test1": {"op1": 2}, "test2": {"op1": 3}}
+    aggregator.test_runs = {"test1": Mock(), "test2": Mock()}
+
+    result = aggregator.calculate_weighted_average(task_metrics, "op1")
+
+    assert result["throughput"]["overall_min"] == 10
+    assert result["throughput"]["overall_max"] == 30
+    assert result["throughput"]["mean"] == 20
+    assert result["throughput"]["unit"] == "ops/s"
+
 def test_calculate_rsd(aggregator):
     values = [1, 2, 3, 4, 5]
     rsd = aggregator.calculate_rsd(values, "test_metric")
