@@ -292,7 +292,10 @@ class Aggregator:
         if self.test_run_compatibility_check():
             self.test_run = self.test_store.find_by_test_run_id(list(self.test_runs.keys())[0])
             self.test_procedure_name = self.test_run.test_procedure
-            self.config.add(config.Scope.applicationOverride, "workload", "repository.name", self.args.workload_repository)
+            # a workload given as a path is already configured; naming a repository too would send the
+            # loader looking for the workload in that repository instead
+            if not self.args.workload_path:
+                self.config.add(config.Scope.applicationOverride, "workload", "repository.name", self.args.workload_repository)
             self.config.add(config.Scope.applicationOverride, "workload", "workload.name", self.test_run.workload)
             self.loaded_workload = workload.load_workload(self.config)
             for id in self.test_runs.keys():
