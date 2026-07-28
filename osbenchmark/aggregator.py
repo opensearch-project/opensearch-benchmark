@@ -166,7 +166,7 @@ class Aggregator:
         self.config.add(config.Scope.applicationOverride, "test_run", "pipeline", test_run.pipeline)
         self.config.add(config.Scope.applicationOverride, "workload", "params", test_run.workload_params)
         self.config.add(config.Scope.applicationOverride, "builder",
-                        "cluster_config.params", test_run.cluster_config_instance_params)
+                        "cluster_config.params", test_run.cluster_config_params)
         self.config.add(config.Scope.applicationOverride, "builder", "plugin.params", test_run.plugin_params)
         self.config.add(config.Scope.applicationOverride, "workload", "latency.percentiles", test_run.latency_percentiles)
         self.config.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", test_run.throughput_percentiles)
