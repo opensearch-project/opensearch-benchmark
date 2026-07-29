@@ -138,11 +138,10 @@ class Aggregator:
                 if isinstance(aggregated_task_metrics[metric], dict):
                     # Calculate RSD for the mean values across all test runs
                     # We use mean here as it's more sensitive to outliers, which is desirable for assessing variability
-                    # Use .get('mean') and drop missing/None entries: a stored op_metric may lack 'mean'
-                    # (older/partial results), which would otherwise raise KeyError here. Matches the
-                    # defensive .get(field, 0) in calculate_weighted_average.
-                    mean_values = [v['mean'] for v in task_metrics[metric]
-                                   if isinstance(v, dict) and v.get('mean') is not None]
+                    # Use .get('mean'): a stored op_metric may lack 'mean' (older/partial results) or carry
+                    # None (an op that produced no valid samples, e.g. index-only throughput). We pass those
+                    # through to calculate_rsd, which tolerates None/empty and returns "NA" rather than raising.
+                    mean_values = [v.get('mean') for v in task_metrics[metric] if isinstance(v, dict)]
                     rsd = self.calculate_rsd(mean_values, f"{task}.{metric}.mean")
                     op_metric[metric]['mean_rsd'] = rsd
 
@@ -273,12 +272,12 @@ class Aggregator:
         return sum(value * iterations for value, iterations in contributions) / total_iterations
 
     def calculate_rsd(self, values: List[Union[int, float]], metric_name: str) -> Union[float, str]:
-        if not values:
-            raise ValueError(f"Cannot calculate RSD for metric '{metric_name}': empty list of values")
         # operations that produced no valid samples report None, which cannot contribute to a deviation
         values = [value for value in values if value is not None]
         if not values:
-            return "NA"  # no test run measured this metric
+            # No test run measured this metric (all None, or nothing collected).
+            # RSD is undefined; report "NA" rather than crashing the whole aggregation.
+            return "NA"
         if len(values) == 1:
             return "NA"  # RSD is not applicable for a single value
         mean = statistics.mean(values)

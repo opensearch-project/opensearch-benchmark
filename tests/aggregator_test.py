@@ -215,6 +215,14 @@ def test_calculate_rsd(aggregator):
     rsd = aggregator.calculate_rsd(values, "test_metric")
     assert isinstance(rsd, float)
 
+def test_calculate_rsd_empty_or_all_none_returns_na(aggregator):
+    # Regression: aggregate crashed with ValueError when a metric had no valid
+    # samples across runs (e.g. index-only throughput.mean is None). RSD is
+    # undefined here; it must return "NA", not raise and abort the aggregation.
+    assert aggregator.calculate_rsd([], "empty.metric") == "NA"
+    assert aggregator.calculate_rsd([None, None], "allnone.metric") == "NA"
+    assert aggregator.calculate_rsd([42.0], "single.metric") == "NA"
+
 def test_weighted_average_raises_clean_error_on_task_not_in_schedule(aggregator):
     # Robustness: a task present in the stored op_metrics but absent from the
     # currently-loaded workload schedule (e.g. an operation was renamed/removed)
