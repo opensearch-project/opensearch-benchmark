@@ -113,10 +113,10 @@ class BuilderTests(TestCase):
 
     # We stub irrelevant methods for the test
     class TestBuilder(builder.Builder):
-        def _current_test_run(self):
-            return "test_run 17"
+        def _current_test_execution(self):
+            return "test_execution 17"
 
-        def _add_results(self, current_test_run, node):
+        def _add_results(self, current_test_execution, node):
             pass
 
     @mock.patch("osbenchmark.builder.provisioner.cleanup")

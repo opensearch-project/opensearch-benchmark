@@ -1123,7 +1123,10 @@ class QueryRandomizerWorkloadProcessor(WorkloadProcessor):
         # We could achieve this by passing in the task name to get_randomized_values as a kwarg?
         try:
             root = params["body"]["query"]
-        except KeyError:
+        except (KeyError, TypeError):
+            # KeyError: "body" or "query" key absent. TypeError: "body" is not a
+            # dict (e.g. a string or list), so subscripting by "query" fails.
+            # Both mean the operation body is malformed — report it cleanly.
             raise exceptions.SystemSetupError(
                 f"Cannot extract range query fields from these params: {params}\n, missing params[\"body\"][\"query\"]\n"
                 f"Make sure the operation in operations/default.json is well-formed")
@@ -1432,7 +1435,13 @@ class WorkloadPluginReader:
 
     def register_runner(self, name, runner, **kwargs):
         if self.runner_registry:
-            self.runner_registry(name, runner, **kwargs)
+            try:
+                self.runner_registry(name, runner, **kwargs)
+            except exceptions.BenchmarkAssertionError:
+                logging.getLogger(__name__).warning(
+                    "Workload plugin runner [%s] could not be registered (likely not async). "
+                    "Skipping — a database-specific runner may already handle this operation.", name)
+
 
     def register_scheduler(self, name, scheduler):
         if self.scheduler_registry:
@@ -1720,6 +1729,9 @@ class WorkloadSpecificationReader:
 
             for op in self._r(test_procedure_spec, "schedule", error_ctx=name):
                 if "clients_list" in op:
+                    if not isinstance(op["clients_list"], list) or not op["clients_list"]:
+                        self._error("'clients_list' must be a non-empty list of client counts "
+                                    "(e.g. [1, 2, 4]) but was %r." % (op["clients_list"],))
                     self.logger.info("Clients list specified: %s. Running multiple search tasks, "\
                                      "each scheduled with the corresponding number of clients from the list.", op["clients_list"])
                     for num_clients in op["clients_list"]:

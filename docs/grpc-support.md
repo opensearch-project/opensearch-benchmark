@@ -28,7 +28,7 @@ OpenSearch Benchmark supports benchmarking OpenSearch clusters via gRPC transpor
 To benchmark with gRPC, specify both REST and gRPC endpoints:
 
 ```bash
-opensearch-benchmark run \
+opensearch-benchmark execute-test \
     --target-hosts=localhost:9200 \
     --grpc-target-hosts=localhost:9401 \
     --workload=http_logs \
