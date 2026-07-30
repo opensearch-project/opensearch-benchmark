@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 import pytest
 from osbenchmark import config
 from osbenchmark import metrics
@@ -22,7 +22,8 @@ def mock_args():
     return Mock(
         results_file="",
         test_run_id="",
-        workload_repository="default"
+        workload_repository="default",
+        workload_path=None
     )
 
 @pytest.fixture
@@ -176,6 +177,34 @@ def test_calculate_weighted_average_with_partially_null_metric_fields(aggregator
     assert result["throughput"]["overall_max"] == 30
     assert result["throughput"]["mean"] == 20
     assert result["throughput"]["unit"] == "ops/s"
+def _stub_run_for_aggregate(aggregator):
+    aggregator.test_store.find_by_test_run_id.side_effect = None
+    aggregator.test_store.find_by_test_run_id.return_value = Mock(
+        results={}, workload="workload1", test_procedure="test_proc1")
+
+def test_aggregate_names_the_workload_repository(aggregator):
+    _stub_run_for_aggregate(aggregator)
+
+    with patch("osbenchmark.workload.load_workload"), patch.object(aggregator, "build_aggregated_results"), \
+            patch("osbenchmark.aggregator.FileTestRunStore"):
+        aggregator.aggregate()
+
+    aggregator.config.add.assert_any_call(config.Scope.applicationOverride, "workload",
+                                          "repository.name", "default")
+
+def test_aggregate_leaves_a_workload_path_alone(aggregator):
+    # a workload passed as a path is already configured; also naming a repository would send the
+    # loader hunting for the workload inside that repository instead
+    aggregator.args.workload_path = "/path/to/my/workload"
+    _stub_run_for_aggregate(aggregator)
+
+    with patch("osbenchmark.workload.load_workload"), patch.object(aggregator, "build_aggregated_results"), \
+            patch("osbenchmark.aggregator.FileTestRunStore"):
+        aggregator.aggregate()
+
+    repository_calls = [c for c in aggregator.config.add.call_args_list
+                        if c.args[1:3] == ("workload", "repository.name")]
+    assert repository_calls == []
 
 def test_calculate_rsd(aggregator):
     values = [1, 2, 3, 4, 5]
