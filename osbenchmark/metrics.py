@@ -1481,13 +1481,19 @@ class TestExecution:
         test_execution_id = d["test-execution-id"] if "test-execution-id" in d else d["test-run-id"]
         test_execution_timestamp = d["test-execution-timestamp"] if "test-execution-timestamp" in d \
             else d["test-run-timestamp"]
+        # back-compat: accept the pre-2.x provision-config-* field names (1.x vocab) as
+        # fallbacks for the reverted cluster-config-* names. Explicit "in" on the required
+        # config-instance field so a doc missing BOTH still raises KeyError (matches id/timestamp).
+        cluster_config = d["cluster-config-instance"] if "cluster-config-instance" in d \
+            else d["provision-config-instance"]
+        cluster_config_params = d.get("cluster-config-instance-params", d.get("provision-config-instance-params"))
         return TestExecution(d["benchmark-version"], d.get("benchmark-revision"), d["environment"], test_execution_id,
                     time.from_is8601(test_execution_timestamp),
                     d["pipeline"], user_tags, d["workload"], d.get("workload-params"),
-                    d.get("test_procedure"), d["cluster-config-instance"],
-                    d.get("cluster-config-instance-params"), d.get("plugin-params"),
+                    d.get("test_procedure"), cluster_config,
+                    cluster_config_params, d.get("plugin-params"),
                     workload_revision=d.get("workload-revision"),
-                    cluster_config_revision=cluster.get("cluster-config-revision"),
+                    cluster_config_revision=cluster.get("cluster-config-revision", cluster.get("provision-config-revision")),
                     distribution_version=cluster.get("distribution-version"),
                     distribution_flavor=cluster.get("distribution-flavor"),
                     revision=cluster.get("revision"), results=d.get("results"), meta_data=d.get("meta", {}))
@@ -1619,12 +1625,23 @@ class FileTestExecutionStore(TestExecutionStore):
         else:
             return os.path.join(root_dir, "test-runs", glob_id, "test_run.json")
 
+    def _legacy_1x_test_execution_file(self, test_execution_id=None, is_aggregated=False):
+        # back-compat read-only helper for the 1.x on-disk layout
+        # (test_executions/ UNDERSCORE dir + test_execution.json). Only the
+        # individual-run directory name differs from the reverted layout; 1.x
+        # aggregated results already match the canonical aggregated_test_execution.json
+        # path, so no aggregated branch is added here. Nothing writes to this path.
+        root_dir = self.cfg.opts("node", "root.dir")
+        glob_id = test_execution_id if test_execution_id else "*"
+        return os.path.join(root_dir, "test_executions", glob_id, "test_execution.json")
+
     def list(self):
-        # back-compat: glob BOTH the reverted (test-executions/*/test_execution.json)
-        # and the pre-revert (test-runs/*/test_run.json) layouts so historical
-        # runs stay listable.
+        # back-compat: glob the reverted (test-executions/*/test_execution.json), the
+        # pre-revert 2.x (test-runs/*/test_run.json), and the 1.x underscore
+        # (test_executions/*/test_execution.json) layouts so historical runs stay listable.
         results = glob.glob(self._test_execution_file(test_execution_id="*")) + \
-            glob.glob(self._legacy_test_run_file(test_execution_id="*"))
+            glob.glob(self._legacy_test_run_file(test_execution_id="*")) + \
+            glob.glob(self._legacy_1x_test_execution_file(test_execution_id="*"))
         all_test_executions = self._to_test_executions(results)
         return all_test_executions[:self._max_results()]
 
@@ -1639,7 +1656,8 @@ class FileTestExecutionStore(TestExecutionStore):
         # back-compat: look up the reverted layout first, then fall back to the
         # pre-revert on-disk file so historical runs remain retrievable.
         for candidate in (self._test_execution_file(test_execution_id=test_execution_id, is_aggregated=is_aggregated),
-                          self._legacy_test_run_file(test_execution_id=test_execution_id, is_aggregated=is_aggregated)):
+                          self._legacy_test_run_file(test_execution_id=test_execution_id, is_aggregated=is_aggregated),
+                          self._legacy_1x_test_execution_file(test_execution_id=test_execution_id, is_aggregated=is_aggregated)):
             if io.exists(candidate):
                 test_executions = self._to_test_executions([candidate])
                 if test_executions:

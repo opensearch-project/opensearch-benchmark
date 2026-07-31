@@ -1332,6 +1332,34 @@ class OsTestExecutionStoreTests(TestCase):
             test_execution_id=OsTestExecutionStoreTests.TEST_RUN_ID)
         self.assertEqual(test_execution.test_execution_id, OsTestExecutionStoreTests.TEST_RUN_ID)
 
+    def test_from_dict_parses_1x_provision_config_fields(self):
+        # 1.x back-compat: a genuine 1.x doc uses test-run-id/timestamp AND the
+        # pre-2.x provision-config-* field names. from_dict must parse it without a
+        # KeyError and recover the provision-config-* values into the cluster_config* attrs.
+        d = {
+            "benchmark-version": "1.19.0",
+            "environment": "unittest",
+            "test-run-id": OsTestExecutionStoreTests.TEST_RUN_ID,
+            "test-run-timestamp": "20160131T000000Z",
+            "pipeline": "from-sources",
+            "workload": "unittest",
+            "test_procedure": "index",
+            "workload-revision": "abc1",
+            "provision-config-instance": "4gheap",
+            "provision-config-instance-params": {"foo": "bar"},
+            "cluster": {
+                "revision": "aaaeeef",
+                "distribution-version": "5.0.0",
+                "distribution-flavor": "oss",
+                "provision-config-revision": "abc12333",
+            },
+        }
+        test_execution = metrics.TestExecution.from_dict(d)
+        self.assertEqual(OsTestExecutionStoreTests.TEST_RUN_ID, test_execution.test_execution_id)
+        self.assertEqual("4gheap", test_execution.cluster_config)
+        self.assertEqual({"foo": "bar"}, test_execution.cluster_config_params)
+        self.assertEqual("abc12333", test_execution.cluster_config_revision)
+
     def test_does_not_find_missing_test_execution_by_test_execution_id(self):
         self.es_mock.search.return_value = {
             "hits": {
@@ -2085,6 +2113,43 @@ class FileTestExecutionStoreTests(TestCase):
         self.assertEqual(test_execution.test_execution_id, retrieved_test_execution.test_execution_id)
         self.assertEqual(test_execution.test_execution_timestamp, retrieved_test_execution.test_execution_timestamp)
         self.assertEqual(1, len(self.test_execution_store.list()))
+
+    def test_list_and_find_1x_underscore_layout(self):
+        # 1.x back-compat: a run produced by OSB 1.x lives on disk under the UNDERSCORE
+        # directory test_executions/<id>/test_execution.json and uses the pre-2.x
+        # provision-config-* vocab. Both list() and find_by_test_execution_id must read it.
+        one_x_id = "1a2b3c4d-0000-0000-0000-000000000001"
+        root_dir = self.cfg.opts("node", "root.dir")
+        run_dir = os.path.join(root_dir, "test_executions", one_x_id)
+        os.makedirs(run_dir, exist_ok=True)
+        one_x_doc = {
+            "benchmark-version": "1.19.0",
+            "environment": "unittest-env",
+            "test-run-id": one_x_id,
+            "test-run-timestamp": "20160131T000000Z",
+            "pipeline": "from-sources",
+            "workload": "unittest",
+            "test_procedure": "index",
+            "workload-revision": "abc1",
+            "provision-config-instance": "4gheap",
+            "provision-config-instance-params": {"foo": "bar"},
+            "cluster": {
+                "revision": "aaaeeef",
+                "distribution-version": "5.0.0",
+                "distribution-flavor": "oss",
+                "provision-config-revision": "abc12333",
+            },
+        }
+        with open(os.path.join(run_dir, "test_execution.json"), mode="wt", encoding="utf-8") as f:
+            f.write(json.dumps(one_x_doc))
+
+        retrieved = self.test_execution_store.find_by_test_execution_id(test_execution_id=one_x_id)
+        self.assertEqual(one_x_id, retrieved.test_execution_id)
+        self.assertEqual("4gheap", retrieved.cluster_config)
+
+        listed = self.test_execution_store.list()
+        self.assertEqual(1, len(listed))
+        self.assertEqual(one_x_id, listed[0].test_execution_id)
 
 
 class StatsCalculatorTests(TestCase):
