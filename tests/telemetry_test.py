@@ -2133,7 +2133,8 @@ class NodeStatsRecorderTests(TestCase):
         metrics_store = metrics.OsMetricsStore(cfg)
         node_name = [NodeStatsRecorderTests.node_stats_response["nodes"][node]["name"]
                      for node in NodeStatsRecorderTests.node_stats_response["nodes"]][0]
-        metrics_store_meta_data = {"cluster": "remote", "node_name": node_name}
+        roles = [self.node_stats_response["nodes"][node]["roles"] for node in self.node_stats_response["nodes"]][0]
+        metrics_store_meta_data = {"cluster": "remote", "node_name": node_name, "roles": roles}
 
         telemetry_params = {}
         recorder = telemetry.NodeStatsRecorder(telemetry_params, cluster_name="remote", client=client, metrics_store=metrics_store)
@@ -2384,7 +2385,8 @@ class NodeStatsRecorderTests(TestCase):
         cfg = create_config()
         metrics_store = metrics.OsMetricsStore(cfg)
         node_name = [node_stats_response["nodes"][node]["name"] for node in node_stats_response["nodes"]][0]
-        metrics_store_meta_data = {"cluster": "remote", "node_name": node_name}
+        roles = [node_stats_response["nodes"][node]["roles"] for node in node_stats_response["nodes"]][0]
+        metrics_store_meta_data = {"cluster": "remote", "node_name": node_name, "roles": roles}
         telemetry_params = {
             "node-stats-include-indices": True
         }
@@ -2726,7 +2728,8 @@ class NodeStatsRecorderTests(TestCase):
         cfg = create_config()
         metrics_store = metrics.OsMetricsStore(cfg)
         node_name = [node_stats_response["nodes"][node]["name"] for node in node_stats_response["nodes"]][0]
-        metrics_store_meta_data = {"cluster": "remote", "node_name": node_name}
+        roles = [node_stats_response["nodes"][node]["roles"] for node in node_stats_response["nodes"]][0]
+        metrics_store_meta_data = {"cluster": "remote", "node_name": node_name, "roles":roles}
         telemetry_params = {
             "node-stats-include-indices-metrics": "refresh,docs"
         }
