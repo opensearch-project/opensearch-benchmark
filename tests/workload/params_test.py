@@ -3497,7 +3497,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             "data_set_path": data_set_path,
             "k": k,
             "radial_search_type": "max_distance",
-            "radial_engine": "faiss",
+            "target_index_body": "indices/faiss-index.json",
         }
         query_param_source = VectorSearchPartitionParamSource(
             workload.Workload(name="unit-test"),
@@ -3547,7 +3547,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             "data_set_path": data_set_path,
             "k": k,
             "radial_search_type": "min_score",
-            "radial_engine": "lucene",
+            "target_index_body": "indices/lucene-index.json",
         }
         query_param_source = VectorSearchPartitionParamSource(
             workload.Workload(name="unit-test"),
@@ -3584,7 +3584,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
             "data_set_path": data_set_path,
             "k": 100,
             "radial_search_type": "max_distance",
-            "radial_engine": "faiss",
+            "target_index_body": "indices/faiss-index.json",
             "oversample_factor": 5.0,
         }
         with self.assertRaises(exceptions.InvalidSyntax):
