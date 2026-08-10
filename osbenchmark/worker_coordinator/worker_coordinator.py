@@ -982,6 +982,7 @@ class WorkerCoordinator:
                 telemetry.MlBucketProcessingTime(os_default, self.metrics_store),
                 telemetry.SegmentStats(log_root, os_default),
                 telemetry.CcrStats(telemetry_params, opensearch, self.metrics_store),
+                telemetry.CcrStatsV2(telemetry_params, opensearch, self.metrics_store),
                 telemetry.RecoveryStats(telemetry_params, opensearch, self.metrics_store),
                 telemetry.TransformStats(telemetry_params, opensearch, self.metrics_store),
                 telemetry.SearchableSnapshotsStats(telemetry_params, opensearch, self.metrics_store),

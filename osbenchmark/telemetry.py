@@ -40,7 +40,8 @@ def list_telemetry():
     console.println("Available telemetry devices:\n")
     devices = [[device.command, device.human_name, device.help] for device in [JitCompiler, Gc, FlightRecorder,
                                                                                Heapdump, NodeStats, RecoveryStats,
-                                                                               CcrStats, SegmentStats, TransformStats,
+                                                                               CcrStats, CcrStatsV2, SegmentStats,
+                                                                               TransformStats,
                                                                                SearchableSnapshotsStats,
                                                                                SegmentReplicationStats, ShardStats]]
     console.println(tabulate.tabulate(devices, ["Command", "Name", "Description"]))
@@ -482,6 +483,156 @@ class CcrStatsRecorder:
         return len(leader_checkpoint_queue) * self.sample_interval
 
 
+class CcrStatsV2(TelemetryDevice):
+    internal = False
+    command = "ccr-stats-v2"
+    human_name = "CCR Stats v2"
+    help = ("Regularly samples Cross Cluster Replication (CCR) follower stats at index level using the "
+            "_remote_replication/secondary_stats API. Replication lag is reported directly by the API, "
+            "so no leader stats are collected and no lag is calculated by OSB.")
+
+    """
+    Gathers CCR follower stats on a cluster level
+    """
+    def __init__(self, telemetry_params, clients, metrics_store):
+        """
+        :param telemetry_params: The configuration object for telemetry_params.
+            May optionally specify:
+            ``ccr-stats-v2-indices``: index/index-pattern or list of indices or index-patterns per cluster to publish
+            statistics from. Not all clusters need to be specified, but any name used must be present in target.hosts.
+            Alternatively, the index or index pattern can be specified as a string in case only one cluster is involved.
+            Example:
+            {"ccr-stats-v2-indices": {"follower": ["big5"]}}
+            ``ccr-stats-v2-sample-interval``: positive integer controlling the sampling interval. Default: 1 second.
+        :param clients: A dict of clients to all clusters.
+        :param metrics_store: The configured metrics store we write to.
+        """
+        super().__init__()
+        self.telemetry_params = telemetry_params
+        self.clients = clients
+        self.sample_interval = telemetry_params.get("ccr-stats-v2-sample-interval", 1)
+        if self.sample_interval <= 0:
+            raise exceptions.SystemSetupError(
+                "The telemetry parameter 'ccr-stats-v2-sample-interval' must be greater than zero but was {}.".format(
+                    self.sample_interval))
+        self.specified_cluster_names = self.clients.keys()
+        indices_per_cluster = self.telemetry_params.get("ccr-stats-v2-indices", None)
+        # allow the user to specify either an index pattern as string or as a JSON object
+        if isinstance(indices_per_cluster, str):
+            self.indices_per_cluster = {opts.TargetHosts.DEFAULT: [indices_per_cluster]}
+        else:
+            self.indices_per_cluster = indices_per_cluster
+
+        if self.indices_per_cluster:
+            for cluster_name in self.indices_per_cluster.keys():
+                if cluster_name not in clients:
+                    raise exceptions.SystemSetupError(
+                        "The telemetry parameter 'ccr-stats-v2-indices' must be a JSON Object with keys matching "
+                        "the cluster names [{}] specified in --target-hosts "
+                        "but it had [{}].".format(",".join(sorted(clients.keys())), cluster_name))
+            self.specified_cluster_names = self.indices_per_cluster.keys()
+
+        self.metrics_store = metrics_store
+        self.samplers = []
+
+    def on_benchmark_start(self):
+        for cluster_name in self.specified_cluster_names:
+            recorder = CcrStatsV2Recorder(cluster_name, self.clients[cluster_name], self.metrics_store,
+                                          self.sample_interval,
+                                          self.indices_per_cluster[cluster_name] if self.indices_per_cluster else None)
+            sampler = SamplerThread(recorder)
+            self.samplers.append(sampler)
+            sampler.daemon = True
+            # we don't require starting recorders precisely at the same time
+            sampler.start()
+
+    def on_benchmark_stop(self):
+        if self.samplers:
+            for sampler in self.samplers:
+                sampler.finish()
+
+
+class CcrStatsV2Recorder:
+    """
+    Collects and pushes CCR follower stats for the specified cluster to the metric store.
+    """
+
+    def __init__(self, cluster_name, client, metrics_store, sample_interval, indices=None):
+        """
+        :param cluster_name: The cluster_name that the client connects to, as specified in target.hosts.
+        :param client: The OpenSearch client for this cluster.
+        :param metrics_store: The configured metrics store we write to.
+        :param sample_interval: integer controlling the interval, in seconds, between collecting samples.
+        :param indices: optional list of indices or index-patterns to filter results from.
+        """
+        self.cluster_name = cluster_name
+        self.client = client
+        self.metrics_store = metrics_store
+        self.sample_interval = sample_interval
+        self.indices = indices
+        self.logger = logging.getLogger(__name__)
+
+    def __str__(self):
+        return "ccr stats v2"
+
+    def record(self):
+        """
+        Collect CCR follower stats for indices (optionally) specified in telemetry parameters and push to metrics store.
+        """
+        try:
+            stats = self.client.transport.perform_request(
+                "GET", "/_remote_replication/secondary_stats", params={"level": "indices"})
+        except opensearchpy.TransportError:
+            msg = "A transport error occurred while collecting CCR secondary stats on cluster [{}]".format(self.cluster_name)
+            self.logger.exception(msg)
+            raise exceptions.BenchmarkError(msg)
+
+        for index_name, index_stats in stats.get("indices", {}).items():
+            if not self._match_list_or_pattern(index_name):
+                continue
+            self.record_stats_per_index(index_name, index_stats)
+
+    def record_stats_per_index(self, name, stats):
+        """
+        :param name: The index name.
+        :param stats: A dict with returned CCR follower stats for the index.
+        """
+        doc = {
+            "name": "ccr-stats-v2",
+            "index": name,
+        }
+        # ingest all fields from the index-level stats block, flattening any nested objects (e.g. bootstrap)
+        doc.update(self._flatten(stats))
+
+        index_metadata = {
+            "cluster": self.cluster_name,
+            "index": name
+        }
+        self.metrics_store.put_doc(doc, level=MetaInfoScope.cluster, meta_data=index_metadata)
+
+    def _flatten(self, stats, prefix=""):
+        flattened = {}
+        for key, value in stats.items():
+            new_key = "{}_{}".format(prefix, key) if prefix else key
+            if isinstance(value, dict):
+                flattened.update(self._flatten(value, new_key))
+            else:
+                flattened[new_key] = value
+        return flattened
+
+    def _match_list_or_pattern(self, idx):
+        """
+        Match idx against self.indices. If no indices filter was specified, everything matches.
+
+        :param idx: String that may include shell style wildcards (https://docs.python.org/3/library/fnmatch.html)
+        :return: Boolean whether idx matches anything from self.indices (or True if no filter is set).
+        """
+        if not self.indices:
+            return True
+        for index_param in self.indices:
+            if fnmatch.fnmatch(idx, index_param):
+                return True
+        return False
 
 
 class RecoveryStats(TelemetryDevice):

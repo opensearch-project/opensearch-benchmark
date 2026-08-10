@@ -23,6 +23,7 @@
 # under the License.
 # pylint: disable=protected-access
 
+import bz2
 import logging
 import os
 import subprocess
@@ -124,6 +125,37 @@ class TestDecompression:
 
         mocked_warn_logger.assert_called_once_with(expected_err, archive_path, decompress_cmd, stderr_msg)
         assert result is False
+
+    @mock.patch.object(io, "_do_decompress_manually_external", return_value=True)
+    @mock.patch.object(io, "is_executable", return_value=True)
+    def test_prefers_first_available_command(self, mocked_is_executable, mocked_external):
+        # When both lbzip2 and pbzip2 are available, the first (lbzip2) must be used.
+        commands = [["lbzip2", "-d", "-k", "-c"], ["pbzip2", "-d", "-k", "-m10000", "-c"]]
+        io._do_decompress_manually("/tmp", "/tmp/docs.json.bz2", commands, bz2.open)
+
+        assert mocked_external.call_count == 1
+        assert mocked_external.call_args[0][3] == ["lbzip2", "-d", "-k", "-c"]
+
+    @mock.patch.object(io, "_do_decompress_manually_external", return_value=True)
+    def test_falls_back_to_next_available_command(self, mocked_external):
+        # lbzip2 missing, pbzip2 present: pbzip2 must be used, no stdlib fallback.
+        commands = [["lbzip2", "-d", "-k", "-c"], ["pbzip2", "-d", "-k", "-m10000", "-c"]]
+        with mock.patch.object(io, "is_executable", side_effect=lambda name: name == "pbzip2"):
+            io._do_decompress_manually("/tmp", "/tmp/docs.json.bz2", commands, bz2.open)
+
+        assert mocked_external.call_count == 1
+        assert mocked_external.call_args[0][3] == ["pbzip2", "-d", "-k", "-m10000", "-c"]
+
+    @mock.patch.object(io, "_do_decompress_manually_with_lib")
+    @mock.patch.object(io, "_do_decompress_manually_external", return_value=False)
+    @mock.patch.object(io, "is_executable", return_value=True)
+    def test_falls_back_to_lib_when_all_external_fail(self, mocked_is_executable, mocked_external, mocked_lib):
+        # Both tools available but each fails at runtime: every candidate is tried, then stdlib.
+        commands = [["lbzip2", "-d", "-k", "-c"], ["pbzip2", "-d", "-k", "-m10000", "-c"]]
+        io._do_decompress_manually("/tmp", "/tmp/docs.json.bz2", commands, mock.MagicMock())
+
+        assert mocked_external.call_count == 2
+        assert mocked_lib.call_count == 1
 
     def read(self, f):
         with open(f, 'r') as content_file:
