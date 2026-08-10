@@ -695,6 +695,163 @@ class CcrStatsRecorderTests(TestCase):
         recorder.record()
         assert metrics_store_put_doc.call_count == 1
 
+
+class CcrStatsV2Tests(TestCase):
+    def test_negative_sample_interval_forbidden(self):
+        clients = {"default": Client(), "cluster_b": Client()}
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        telemetry_params = {
+            "ccr-stats-v2-sample-interval": -1 * random.random()
+        }
+        with self.assertRaisesRegex(exceptions.SystemSetupError,
+                                    r"The telemetry parameter 'ccr-stats-v2-sample-interval' must be greater than zero but was .*\."):
+            telemetry.CcrStatsV2(telemetry_params, clients, metrics_store)
+
+    def test_wrong_cluster_name_in_ccr_stats_v2_indices_forbidden(self):
+        clients = {"default": Client(), "cluster_b": Client()}
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        telemetry_params = {
+            "ccr-stats-v2-indices": {
+                "default": ["big5"],
+                "wrong_cluster_name": ["big5"]
+            }
+        }
+        with self.assertRaisesRegex(exceptions.SystemSetupError,
+                                    r"The telemetry parameter 'ccr-stats-v2-indices' must be a JSON Object with keys matching "
+                                    r"the cluster names \[{}] specified in --target-hosts "
+                                    r"but it had \[wrong_cluster_name\].".format(",".join(sorted(clients.keys())))
+                                    ):
+            telemetry.CcrStatsV2(telemetry_params, clients, metrics_store)
+
+
+class CcrStatsV2RecorderTests(TestCase):
+    def secondary_stats_response(self, index_name):
+        return {
+            "_nodes": {"total": 1, "successful": 1, "failed": 0},
+            "total_shards": 96,
+            "healthy_shards": 96,
+            "failed_shards": 0,
+            "unmeasured_shards": 0,
+            "indices_count": 1,
+            "num_failed_indices": 0,
+            "max_lag_ops": 0,
+            "approximate_max_lag_time_millis": 9391,
+            "total_received_total": 4337701,
+            "total_receive_failures": 0,
+            "total_receive_throttles": 0,
+            "total_heartbeats": 429508,
+            "total_ops_read": 1020000000,
+            "total_ops_written": 1020000000,
+            "total_bytes_read": 1016099382267,
+            "total_replay_time_millis": 304443504,
+            "oldest_lease_age_millis": 28335,
+            "num_bootstrapping_indices": 0,
+            "metadata": {
+                "my-relationship": {
+                    "controller_node": "ip-10-1-132-89.us-west-2.compute.internal",
+                    "last_applied_metadata_version": 76,
+                    "last_successful_poll_millis": 1786122358940,
+                    "lag_seconds": 7
+                }
+            },
+            "indices": {
+                index_name: {
+                    "bootstrap": {
+                        "duration_millis": 142,
+                        "attempts": 1
+                    },
+                    "total_shards": 96,
+                    "healthy_shards": 96,
+                    "failed_shards": 0,
+                    "unmeasured_shards": 0,
+                    "max_lag_ops": 0,
+                    "approximate_max_lag_time_millis": 9391,
+                    "total_received_total": 4337701,
+                    "total_receive_failures": 0,
+                    "total_receive_throttles": 0,
+                    "total_heartbeats": 429508,
+                    "total_ops_read": 1020000000,
+                    "total_ops_written": 1020000000,
+                    "total_bytes_read": 1016099382267,
+                    "total_replay_time_millis": 304443504,
+                    "oldest_lease_age_millis": 28335
+                }
+            }
+        }
+
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
+    def test_stores_all_indices_fields(self, metrics_store_put_doc):
+        index_name = "big5"
+        mock_responses = [self.secondary_stats_response(index_name)]
+        client = Client(transport_client=TransportClient(responses=copy.copy(mock_responses)))
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        recorder = telemetry.CcrStatsV2Recorder("follower", client, metrics_store, 1)
+        recorder.record()
+
+        expected_doc = {
+            "name": "ccr-stats-v2",
+            "index": index_name,
+            "bootstrap_duration_millis": 142,
+            "bootstrap_attempts": 1,
+            "total_shards": 96,
+            "healthy_shards": 96,
+            "failed_shards": 0,
+            "unmeasured_shards": 0,
+            "max_lag_ops": 0,
+            "approximate_max_lag_time_millis": 9391,
+            "total_received_total": 4337701,
+            "total_receive_failures": 0,
+            "total_receive_throttles": 0,
+            "total_heartbeats": 429508,
+            "total_ops_read": 1020000000,
+            "total_ops_written": 1020000000,
+            "total_bytes_read": 1016099382267,
+            "total_replay_time_millis": 304443504,
+            "oldest_lease_age_millis": 28335
+        }
+        index_metadata = {
+            "cluster": "follower",
+            "index": index_name
+        }
+        metrics_store_put_doc.assert_called_once_with(expected_doc, level=MetaInfoScope.cluster, meta_data=index_metadata)
+
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
+    def test_filters_indices_by_pattern(self, metrics_store_put_doc):
+        response = self.secondary_stats_response("big5")
+        response["indices"]["nyc_taxis"] = dict(response["indices"]["big5"])
+        client = Client(transport_client=TransportClient(responses=[response]))
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        recorder = telemetry.CcrStatsV2Recorder("follower", client, metrics_store, 1, ["big5*"])
+        recorder.record()
+
+        assert metrics_store_put_doc.call_count == 1
+        recorded_doc = metrics_store_put_doc.call_args.args[0]
+        assert recorded_doc["index"] == "big5"
+
+    @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
+    def test_stores_all_indices_when_no_filter(self, metrics_store_put_doc):
+        response = self.secondary_stats_response("big5")
+        response["indices"]["nyc_taxis"] = dict(response["indices"]["big5"])
+        client = Client(transport_client=TransportClient(responses=[response]))
+        cfg = create_config()
+        metrics_store = metrics.OsMetricsStore(cfg)
+        recorder = telemetry.CcrStatsV2Recorder("follower", client, metrics_store, 1)
+        recorder.record()
+
+        assert metrics_store_put_doc.call_count == 2
+
+    def test_error_on_transport_error(self):
+        client = Client(transport_client=TransportClient(responses=[], force_error=True))
+        metrics_store = metrics.OsMetricsStore(create_config())
+        with self.assertRaisesRegex(exceptions.BenchmarkError,
+                                    r"A transport error occurred while collecting CCR secondary stats on cluster \[follower\]"):
+            telemetry.CcrStatsV2Recorder("follower", client, metrics_store, 1).record()
+
+
 class RecoveryStatsTests(TestCase):
     @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
     def test_no_metrics_if_no_pending_recoveries(self, metrics_store_put_doc):

@@ -319,13 +319,16 @@ def decompress(zip_name, target_directory):
     if extension == ".zip":
         _do_decompress(target_directory, zipfile.ZipFile(zip_name))
     elif extension == ".bz2":
-        decompressor_args = ["pbzip2", "-d", "-k", "-m10000", "-c"]
+        # Prefer lbzip2: unlike pbzip2, it parallelizes decompression of any bz2 file, including
+        # single-stream files not produced by pbzip2 (as is the case for most published corpora).
+        # The candidate commands are tried in order, falling back to the single-threaded standard library.
+        decompressor_commands = [["lbzip2", "-d", "-k", "-c"], ["pbzip2", "-d", "-k", "-m10000", "-c"]]
         decompressor_lib = bz2.open
-        _do_decompress_manually(target_directory, zip_name, decompressor_args, decompressor_lib)
+        _do_decompress_manually(target_directory, zip_name, decompressor_commands, decompressor_lib)
     elif extension == ".gz":
-        decompressor_args = ["pigz", "-d", "-k", "-c"]
+        decompressor_commands = [["pigz", "-d", "-k", "-c"]]
         decompressor_lib = gzip.open
-        _do_decompress_manually(target_directory, zip_name, decompressor_args, decompressor_lib)
+        _do_decompress_manually(target_directory, zip_name, decompressor_commands, decompressor_lib)
     elif extension in [".tar", ".tar.gz", ".tgz", ".tar.bz2"]:
         _do_decompress(target_directory, tarfile.open(zip_name))
     elif extension == ".zst":
@@ -334,16 +337,19 @@ def decompress(zip_name, target_directory):
         raise RuntimeError("Unsupported file extension [%s]. Cannot decompress [%s]" % (extension, zip_name))
 
 
-def _do_decompress_manually(target_directory, filename, decompressor_args, decompressor_lib):
-    decompressor_bin = decompressor_args[0]
+def _do_decompress_manually(target_directory, filename, decompressor_commands, decompressor_lib):
     base_path_without_extension = basename(splitext(filename)[0])
 
-    if is_executable(decompressor_bin):
+    # Try each external command in order of preference. The first one that is both available on the
+    # PATH and succeeds wins; otherwise we fall back to the single-threaded standard library.
+    available = [cmd for cmd in decompressor_commands if is_executable(cmd[0])]
+    for decompressor_args in available:
         if _do_decompress_manually_external(target_directory, filename, base_path_without_extension, decompressor_args):
             return
-    else:
+
+    if not available:
         logging.getLogger(__name__).warning("%s not found in PATH. Using standard library, decompression will take longer.",
-                                            decompressor_bin)
+                                            " or ".join(cmd[0] for cmd in decompressor_commands))
 
     _do_decompress_manually_with_lib(target_directory, filename, decompressor_lib(filename))
 
