@@ -109,6 +109,11 @@ class HDF5DataSet(DataSet):
     def _load(self):
         if self.data is None:
             file = h5py.File(self.dataset_path)
+            if self.context not in file:
+                raise ConfigurationError(
+                    f"Dataset key '{self.context}' does not exist in {self.dataset_path}. "
+                    f"Available keys: {sorted(file.keys())}. If filter_percentage is set, "
+                    f"ensure the dataset was generated with that percentage.")
             self.data = cast(h5py.Dataset, file[self.context])
 
     def read(self, chunk_size: int):

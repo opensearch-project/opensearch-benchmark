@@ -93,3 +93,16 @@ class DataSetTestCase(TestCase):
             data_set_instance = get_data_set(
                 "hdf5", data_set_path, Context.FAISS_MAX_DISTANCE, "10pct")
             self.assertTrue(np.array_equal(data_set_instance.read(1)[0], max_distance_10pct[0]))
+
+    def testHDF5MissingKeyRaisesConfigurationError(self):
+        with tempfile.TemporaryDirectory() as data_set_dir:
+            data_set_path = os.path.join(data_set_dir, "missing-key.hdf5")
+            with h5py.File(data_set_path, "w") as file:
+                file.create_dataset(
+                    "neighbors", data=np.zeros((DEFAULT_NUM_VECTORS, DEFAULT_DIMENSION), dtype=np.int32))
+
+            data_set_instance = get_data_set("hdf5", data_set_path, Context.NEIGHBORS, "5pct")
+            with self.assertRaises(ConfigurationError) as ctx:
+                data_set_instance.read(1)
+            self.assertIn("neighbors_5pct", str(ctx.exception))
+            self.assertIn("Available keys", str(ctx.exception))
