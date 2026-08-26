@@ -1157,6 +1157,12 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         self.filter_type = self.query_params.get(self.PARAMS_NAME_FILTER_TYPE)
         self.filter_body = self.query_params.get(self.PARAMS_NAME_FILTER_BODY)
         self.space_type = params.get(self.PARAMS_NAME_SPACE_TYPE, "l2")
+        # Suffix selecting per-percentage ground truth datasets, e.g. "10pct"
+        # reads neighbors_10pct and faiss_max_distance_10pct instead of the
+        # unsuffixed keys. Used by filtered benchmarks.
+        self.filter_percentage = None
+        if "filter_percentage" in params:
+            self.filter_percentage = parse_string_parameter("filter_percentage", params)
 
         if self.radial_search_type:
             index_body = params.get("target_index_body", "")
@@ -1235,14 +1241,16 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
             neighbors_context = Context.NEIGHBORS
 
         partition.neighbors_data_set = get_data_set(
-            self.neighbors_data_set_format, self.neighbors_data_set_path, neighbors_context)
+            self.neighbors_data_set_format, self.neighbors_data_set_path, neighbors_context,
+            self.filter_percentage)
         partition.neighbors_data_set.seek(partition.offset)
 
         if self.radial_search_type:
             threshold_context = self.RADIAL_THRESHOLD_CONTEXTS[
                 (self.radial_engine, self.radial_search_type)]
             partition.threshold_data_set = get_data_set(
-                self.neighbors_data_set_format, self.neighbors_data_set_path, threshold_context)
+                self.neighbors_data_set_format, self.neighbors_data_set_path, threshold_context,
+                self.filter_percentage)
             partition.threshold_data_set.seek(partition.offset)
 
         return partition
