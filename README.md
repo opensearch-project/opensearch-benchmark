@@ -47,6 +47,11 @@ How to Contribute
 
 See all details in the [contributor guidelines](<https://github.com/opensearch-project/OpenSearch-Benchmark/blob/main/CONTRIBUTING.md>).
 
+For AI coding assistants
+------------------------
+
+If you're using an AI coding assistant (Claude, Codex, Cursor, Aider, etc.) to contribute to this repo, point it at [`AGENTS.md`](AGENTS.md) — it covers repository layout, build commands, conventions, and common gotchas. Playbooks for actually running benchmarks against real clusters live under [`docs/agents/`](docs/agents/).
+
 License
 -------
 
