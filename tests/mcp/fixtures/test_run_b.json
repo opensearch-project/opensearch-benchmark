@@ -1,0 +1,27 @@
+{
+  "benchmark-version": "1.18.0",
+  "test-run-id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+  "test-run-timestamp": "20260102T000000Z",
+  "pipeline": "benchmark-only",
+  "user-tags": {"purpose": "contender"},
+  "workload": "geonames",
+  "test_procedure": "append-no-conflicts",
+  "cluster": {
+    "distribution-version": "3.1.0",
+    "distribution-flavor": "oss",
+    "cluster-config-revision": "fedcba"
+  },
+  "results": {
+    "op_metrics": [
+      {
+        "task": "index-append",
+        "operation": "index-append",
+        "throughput": {"min": 95, "mean": 105, "median": 103, "max": 115, "unit": "docs/s"},
+        "latency": {"50_0": 52, "90_0": 65, "99_0": 90, "mean": 58, "unit": "ms"},
+        "service_time": {"50_0": 51, "90_0": 64, "99_0": 89, "mean": 57, "unit": "ms"},
+        "error_rate": 0.001,
+        "duration": 10.7
+      }
+    ]
+  }
+}
