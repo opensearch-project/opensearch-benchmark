@@ -4223,6 +4223,172 @@ class VectorsNestedCase(TestCase):
                 continue
             self.assertTrue(expected_id_field in req_body)
 
-    def test_nested_vector_query_body(self):
-        # assert that _build_vector_search_query_body returns the correct thing.
-        pass
+    def _create_query_data_set(self):
+        data_set_path = create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.QUERY,
+            self.data_set_dir
+        )
+        create_data_set(
+            self.DEFAULT_NUM_VECTORS,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.NEIGHBORS,
+            self.data_set_dir,
+            data_set_path
+        )
+        return data_set_path
+
+    def _nested_query_param_source(self, data_set_path, k, filter_type, filter_body):
+        test_param_source_params = {
+            "field": self.DEFAULT_VECTOR_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "k": k,
+            "filter_type": filter_type,
+            "filter_body": filter_body,
+        }
+        return VectorSearchPartitionParamSource(
+            workload.Workload(name="unit-test"),
+            test_param_source_params, {
+                "index": self.DEFAULT_INDEX_NAME,
+                "request-params": {},
+            }
+        )
+
+    def test_nested_efficient_filter(self):
+        k = 12
+        efficient_filter_body = {
+            "term": {"filter10pct": "true"}
+        }
+        query_param_source = self._nested_query_param_source(
+            self._create_query_data_set(), k, "efficient", efficient_filter_body)
+        query_param_source_partition = query_param_source.partition(0, 1)
+
+        for _ in range(self.DEFAULT_NUM_VECTORS):
+            self._check_query_params(
+                query_param_source_partition.params(),
+                self.DEFAULT_VECTOR_FIELD_NAME,
+                self.DEFAULT_DIMENSION,
+                k,
+                expected_filter=efficient_filter_body,
+            )
+
+        with self.assertRaises(StopIteration):
+            query_param_source_partition.params()
+
+    def test_nested_bool_filter(self):
+        k = 12
+        bool_filter_body = {
+            "term": {"filter10pct": "true"}
+        }
+        query_param_source = self._nested_query_param_source(
+            self._create_query_data_set(), k, "boolean", bool_filter_body)
+        query_param_source_partition = query_param_source.partition(0, 1)
+
+        for _ in range(self.DEFAULT_NUM_VECTORS):
+            params_dict = query_param_source_partition.params()
+            query = params_dict.get("body").get("query")
+            bool_query = query.get("bool")
+            self.assertIsInstance(bool_query, dict)
+            self.assertEqual(bool_query.get("filter"), bool_filter_body)
+
+            must = bool_query.get("must")
+            self.assertIsInstance(must, list)
+            self.assertEqual(len(must), 1)
+            nested = must[0].get("nested")
+            self.assertIsInstance(nested, dict)
+
+            outer, _inner = self.DEFAULT_VECTOR_FIELD_NAME.split(".")
+            self.assertEqual(nested.get("path"), outer)
+            field = nested.get("query").get("knn").get(self.DEFAULT_VECTOR_FIELD_NAME)
+            self.assertEqual(field.get("k"), k)
+            self.assertEqual(len(list(field.get("vector"))), self.DEFAULT_DIMENSION)
+            # the filter wraps the nested query; it must not leak into the knn clause
+            self.assertIsNone(field.get("filter"))
+
+        with self.assertRaises(StopIteration):
+            query_param_source_partition.params()
+
+    def test_nested_script_filter_raises(self):
+        k = 12
+        query_param_source = self._nested_query_param_source(
+            self._create_query_data_set(), k, "script", {"term": {"filter10pct": "true"}})
+        query_param_source_partition = query_param_source.partition(0, 1)
+
+        with self.assertRaises(exceptions.ConfigurationError):
+            query_param_source_partition.params()
+
+    def test_params_default_with_attributes(self):
+        attributes_list = ['taste', 'color', 'age']
+        num_vectors = 49
+        bulk_size = 15
+        parent_group_size = 10
+        data_set_path = create_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.INDEX,
+            self.data_set_dir,
+        )
+        parent_data_set_path = create_parent_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.PARENTS,
+            self.data_set_dir,
+        )
+        create_attributes_data_set(
+            num_vectors,
+            self.DEFAULT_DIMENSION,
+            self.DEFAULT_TYPE,
+            Context.ATTRIBUTES,
+            self.data_set_dir,
+            parent_data_set_path,
+        )
+        with h5py.File(parent_data_set_path, "r") as f:
+            raw_attributes = f["attributes"][:]
+
+        test_param_source_params = {
+            "index": self.DEFAULT_INDEX_NAME,
+            "field": self.DEFAULT_VECTOR_FIELD_NAME,
+            "data_set_format": self.DEFAULT_TYPE,
+            "data_set_path": data_set_path,
+            "bulk_size": bulk_size,
+            "id-field-name": self.DEFAULT_ID_FIELD_NAME,
+            "filter_attributes": attributes_list,
+        }
+        bulk_param_source = BulkVectorsFromDataSetParamSource(
+            workload.Workload(name="unit-test"), test_param_source_params
+        )
+        bulk_param_source.parent_data_set_path = parent_data_set_path
+        bulk_param_source_partition = bulk_param_source.partition(0, 1)
+
+        vectors_consumed = 0
+        while vectors_consumed < num_vectors:
+            expected_num_vectors = min(num_vectors - vectors_consumed, bulk_size)
+            actual_params = bulk_param_source_partition.params()
+            expected_num_docs = len(actual_params["body"]) // 2
+
+            self._check_params_nested(
+                actual_params,
+                self.DEFAULT_INDEX_NAME,
+                self.DEFAULT_VECTOR_FIELD_NAME,
+                self.DEFAULT_DIMENSION,
+                expected_num_vectors,
+                expected_num_docs,
+                self.DEFAULT_ID_FIELD_NAME,
+            )
+            # every parent doc carries the attributes of its first child row
+            for header, req_body in zip(*[iter(actual_params["body"])] * 2):
+                parent_id = header["index"]["_id"]
+                first_child_row = (parent_id - 1) * parent_group_size
+                for idx, attribute_name in enumerate(attributes_list):
+                    expected_attribute = raw_attributes[first_child_row][idx].decode()
+                    self.assertEqual(req_body.get(attribute_name), expected_attribute)
+            vectors_consumed += expected_num_vectors
+
+        with self.assertRaises(StopIteration):
+            bulk_param_source_partition.params()
