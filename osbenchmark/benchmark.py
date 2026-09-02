@@ -36,14 +36,14 @@ import thespian.actors
 
 from osbenchmark import PROGRAM_NAME, BANNER, FORUM_LINK, SKULL, check_python_version, doc_link, telemetry
 from osbenchmark import version, actor, config, paths, \
-    test_run_orchestrator, publisher, \
+    test_execution_orchestrator, publisher, \
         metrics, workload, exceptions, log
 from osbenchmark.builder import cluster_config, builder
 from osbenchmark.synthetic_data_generator import synthetic_data_generator_orchestrator
 from osbenchmark.workload_generator import workload_generator
 from osbenchmark.utils import io, convert, process, console, net, opts, versions
 from osbenchmark import aggregator
-from osbenchmark.database.registry import DatabaseType
+
 
 def create_arg_parser():
     def positive_number(v):
@@ -70,7 +70,14 @@ def create_arg_parser():
     def supported_os_version(v):
         if v:
             min_os_version = versions.Version.from_string(version.minimum_os_version())
-            specified_version = versions.Version.from_string(v)
+            try:
+                specified_version = versions.Version.from_string(v)
+            except exceptions.InvalidSyntax:
+                # Convert to ArgumentTypeError so argparse prints a clean
+                # "error: argument --distribution-version: ..." and exits,
+                # instead of letting InvalidSyntax escape as a raw traceback.
+                raise argparse.ArgumentTypeError(
+                    f"must be a valid version string (e.g. 1.2.3) but was {v!r}")
             if specified_version < min_os_version:
                 raise argparse.ArgumentTypeError(f"must be at least {min_os_version} but was {v}")
         return v
@@ -114,19 +121,19 @@ def create_arg_parser():
         dest="subcommand",
         help="")
 
-    test_run_parser = subparsers.add_parser("run", help="Run a benchmark")
+    test_execution_parser = subparsers.add_parser("execute-test", aliases=["run", "execute"], help="Run a benchmark")
     # change in favor of "list telemetry", "list workloads", "list pipelines"
     list_parser = subparsers.add_parser("list", help="List configuration options")
     list_parser.add_argument(
         "configuration",
         metavar="configuration",
         help="The configuration for which OSB should show the available options. "
-             "Possible values are: telemetry, workloads, pipelines, test-runs, cluster-configs, opensearch-plugins",
-        choices=["telemetry", "workloads", "pipelines", "test-runs", "aggregated-results",
+             "Possible values are: telemetry, workloads, pipelines, test-executions, cluster-configs, opensearch-plugins",
+        choices=["telemetry", "workloads", "pipelines", "test-executions", "test-runs", "aggregated-results",
                  "cluster-configs", "opensearch-plugins"])
     list_parser.add_argument(
         "--limit",
-        help="Limit the number of search results for recent test-runs (default: 10).",
+        help="Limit the number of search results for recent test-executions (default: 10).",
         default=10,
     )
     add_workload_source(list_parser)
@@ -258,17 +265,17 @@ def create_arg_parser():
         "Ensure that index name also exists in --indices parameter. " +
         "To specify several indices and doc counts, use format: <index1>:<sample-frequency-1> <index2>:<sample-frequency-2> ...")
 
-    compare_parser = subparsers.add_parser("compare", help="Compare two test_runs")
+    compare_parser = subparsers.add_parser("compare", help="Compare two test_executions")
     compare_parser.add_argument(
         "--baseline",
         "-b",
         required=True,
-        help=f"TestRun ID of the baseline (see {PROGRAM_NAME} list test-runs).")
+        help=f"TestExecution ID of the baseline (see {PROGRAM_NAME} list test-executions).")
     compare_parser.add_argument(
         "--contender",
         "-c",
         required=True,
-        help=f"TestRun ID of the contender (see {PROGRAM_NAME} list test-runs).")
+        help=f"TestExecution ID of the contender (see {PROGRAM_NAME} list test-executions).")
     compare_parser.add_argument(
         "--percentiles",
         help=f"A comma-separated list of percentiles to report latency and service time."
@@ -293,29 +300,34 @@ def create_arg_parser():
         help="Whether to include the comparison in the results file.",
         default=True)
 
-    visualize_parser = subparsers.add_parser("visualize", help="Generate HTML visualization for a test run")
+    visualize_parser = subparsers.add_parser("visualize", help="Generate HTML visualization for a test execution")
     visualize_parser.add_argument(
+        "--test-execution-id",
         "--test-run-id",
         "-tid",
-        dest="test_run_id",
+        dest="test_execution_id",
         required=True,
-        help=f"TestRun ID to visualize (see {PROGRAM_NAME} list test_runs).")
+        help=f"TestExecution ID to visualize (see {PROGRAM_NAME} list test-executions).")
     visualize_parser.add_argument(
         "--output-path",
         dest="output_path",
-        help="Path where the HTML report should be saved. If not specified, it will be saved in the test run directory, where test_run.json can be found.",
+        help="Path where the HTML report should be saved. If not specified, it will be saved in the test execution directory, where test_execution.json can be found.",
         default=None)
 
-    aggregate_parser = subparsers.add_parser("aggregate", help="Aggregate multiple test-runs")
+    aggregate_parser = subparsers.add_parser("aggregate", help="Aggregate multiple test-executions")
     aggregate_parser.add_argument(
+        "--test-executions",
         "--test-runs",
+        dest="test_executions",
         type=non_empty_list,
         required=True,
-        help="Comma-separated list of TestRun IDs to aggregate")
+        help="Comma-separated list of TestExecution IDs to aggregate")
     aggregate_parser.add_argument(
+        "--test-executions-id",
         "--test-runs-id",
         "-tid",
-        help="Define a unique id for this aggregated test-run.",
+        dest="test_execution_id",
+        help="Define a unique id for this aggregated test-execution.",
         default="")
     aggregate_parser.add_argument(
         "--results-file",
@@ -457,14 +469,16 @@ def create_arg_parser():
         required=True,
         help="The id of the installation to start",
         # the default will be dynamically derived by
-        # test_run_orchestrator based on the
+        # test_execution_orchestrator based on the
         # presence / absence of other command line options
         default="")
     start_parser.add_argument(
+        "--test-execution-id",
         "--test-run-id",
         "-tid",
+        dest="test_execution_id",
         required=True,
-        help="Define a unique id for this test_run.",
+        help="Define a unique id for this test_execution.",
         default="")
     start_parser.add_argument(
         "--runtime-jdk",
@@ -488,7 +502,7 @@ def create_arg_parser():
         required=True,
         help="The id of the installation to stop",
         # the default will be dynamically derived by
-        # test_run_orchestrator based on the
+        # test_execution_orchestrator based on the
         # presence / absence of other command line options
         default="")
     stop_parser.add_argument(
@@ -497,7 +511,7 @@ def create_arg_parser():
         default=preserve_install,
         action="store_true")
 
-    for p in [list_parser, test_run_parser]:
+    for p in [list_parser, test_execution_parser]:
         p.add_argument(
             "--distribution-version",
             type=supported_os_version,
@@ -516,227 +530,222 @@ def create_arg_parser():
             help="Define a specific revision in the cluster-config repository that OSB should use.",
             default=None)
 
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
+        "--test-execution-id",
         "--test-run-id",
         "-tid",
-        help="Define a unique id for this test-run.",
+        dest="test_execution_id",
+        help="Define a unique id for this test-execution.",
         default=str(uuid.uuid4()))
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--pipeline",
         help="Select the pipeline to run.",
         # the default will be dynamically derived by
-        # test_run_orchestrator based on the
+        # test_execution_orchestrator based on the
         # presence / absence of other command line options
         default="")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--revision",
         help="Define the source code revision for building the benchmark candidate. 'current' uses the source tree as is,"
              " 'latest' fetches the latest version on main. It is also possible to specify a commit id or a timestamp."
              " The timestamp must be specified as: \"@ts\" where \"ts\" must be a valid ISO 8601 timestamp, "
              "e.g. \"@2013-07-27T10:37:00Z\" (default: current).",
         default="current")  # optimized for local usage, don't fetch sources
-    add_workload_source(test_run_parser)
-    test_run_parser.add_argument(
+    add_workload_source(test_execution_parser)
+    test_execution_parser.add_argument(
         "--workload",
         "-w",
         help=f"Define the workload to use. List possible workloads with `{PROGRAM_NAME} list workloads`."
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--workload-params",
         "-wp",
         help="Define a comma-separated list of key:value pairs that are injected verbatim to the workload as variables.",
         default=""
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--test-procedure",
         help=f"Define the test_procedure to use. List possible test_procedures for workloads with `{PROGRAM_NAME} list workloads`.")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--cluster-config",
         help=f"Define the cluster-config to use. List possible "
         f"cluster-configs with `{PROGRAM_NAME} list "
         f"cluster-configs` (default: defaults).",
         default="defaults")  # optimized for local usage
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--cluster-config-params",
         help="Define a comma-separated list of key:value pairs that are injected verbatim as variables for the cluster-config.",
         default=""
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--runtime-jdk",
         type=runtime_jdk,
         help="The major version of the runtime JDK to use.",
         default=None)
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--opensearch-plugins",
         help="Define the OpenSearch plugins to install. (default: install no plugins).",
         default="")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--plugin-params",
         help="Define a comma-separated list of key:value pairs that are injected verbatim to all plugins as variables.",
         default=""
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--target-hosts",
         "-t",
         help="Define a comma-separated list of host:port pairs which should be targeted if using the pipeline 'benchmark-only' "
              "(default: localhost:9200).",
         default="")  # actually the default is pipeline specific and it is set later
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--worker-ips",
         help="Define a comma-separated list of hosts which should generate load (default: localhost).",
         default="localhost")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--grpc-target-hosts",
         help="Define a comma-separated list of host:port pairs for gRPC endpoints "
              "(default: localhost:9400).",
         default="")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--client-options",
         "-c",
         help=f"Define a comma-separated list of client options to use. The options will be passed to the OpenSearch "
              f"Python client (default: {opts.ClientOptions.DEFAULT_CLIENT_OPTIONS}).",
         default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS)
-    test_run_parser.add_argument(
-        "--database-type",
-        help="Target database backend. Selects the DatabaseClient adapter used to run "
-             "the workload (default: opensearch). Choices are populated from the "
-             "registered DatabaseType enum.",
-        choices=[d.value for d in DatabaseType],
-        default=DatabaseType.OPENSEARCH.value)
-    test_run_parser.add_argument("--on-error",
+    test_execution_parser.add_argument("--on-error",
                              choices=["continue", "abort"],
                              help="Controls how OSB behaves on response errors (default: continue).",
                              default="continue")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--telemetry",
         help=f"Enable the provided telemetry devices, provided as a comma-separated list. List possible telemetry "
              f"devices with `{PROGRAM_NAME} list telemetry`.",
         default="")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--telemetry-params",
         help="Define a comma-separated list of key:value pairs that are injected verbatim to the telemetry devices as parameters.",
         default=""
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--distribution-repository",
         help="Define the repository from where the OpenSearch distribution should be downloaded (default: release).",
         default="release")
 
-    task_filter_group = test_run_parser.add_mutually_exclusive_group()
+    task_filter_group = test_execution_parser.add_mutually_exclusive_group()
     task_filter_group.add_argument(
         "--include-tasks",
         help="Defines a comma-separated list of tasks to run. By default all tasks of a test_procedure are run.")
     task_filter_group.add_argument(
         "--exclude-tasks",
         help="Defines a comma-separated list of tasks not to run. By default all tasks of a test_procedure are run.")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--user-tag",
         help="Define a user-specific key-value pair (separated by ':'). It is added to each metric record as meta info. "
              "Example: intention:baseline-ticket-12345",
         default="")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--results-format",
         help="Define the output format for the command line results (default: markdown).",
         choices=["markdown", "csv"],
         default="markdown")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--results-numbers-align",
         help="Define the output column number alignment for the command line results (default: right).",
         choices=["right", "center", "left", "decimal"],
         default="right")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--show-in-results",
         help="Define which values are shown in the summary results published (default: available).",
         choices=["available", "all-percentiles", "all"],
         default="available")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--results-file",
         help="Write the command line results also to the provided file.",
         default="")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--preserve-install",
         help=f"Keep the benchmark candidate and its index. (default: {str(preserve_install).lower()}).",
         default=preserve_install,
         action="store_true")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--test-mode",
         help="Runs the given workload in 'test mode'. Meant to check a workload for errors but not for real benchmarks (default: false).",
         default=False,
         action="store_true")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--enable-worker-coordinator-profiling",
         help="Enables a profiler for analyzing the performance of calls in OSB's worker coordinator (default: false).",
         default=False,
         action="store_true")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--enable-assertions",
         help="Enables assertion checks for tasks (default: false).",
         default=False,
         action="store_true")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--kill-running-processes",
         "-k",
         action="store_true",
         default=False,
         help="If any processes is running, it is going to kill them and allow OSB to continue to run."
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--latency-percentiles",
         help=f"A comma-separated list of percentiles to report for latency "
              f"(default: {metrics.GlobalStatsCalculator.DEFAULT_LATENCY_PERCENTILES}).",
         default=metrics.GlobalStatsCalculator.DEFAULT_LATENCY_PERCENTILES
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--throughput-percentiles",
         help=f"A comma-separated list of percentiles to report for throughput, in addition to mean/median/max/min "
              f"(default: {metrics.GlobalStatsCalculator.DEFAULT_THROUGHPUT_PERCENTILES}).",
         default=metrics.GlobalStatsCalculator.DEFAULT_THROUGHPUT_PERCENTILES
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--randomization-enabled",
         help="Runs the given workload with query randomization enabled (default: false).",
         default=False,
         action="store_true")
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--randomization-repeat-frequency",
         help=f"The repeat_frequency for query randomization. Ignored if randomization is off"
              f"(default: {workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_RF}).",
         default=workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_RF)
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--randomization-n",
         help=f"The number of standard values to generate for each field for query randomization."
              f"Ignored if randomization is off (default: {workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_N}).",
         default=workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_N)
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--randomization-alpha",
         help=f"The alpha parameter used for the Zipf distribution for query randomization. Low values spread the distribution out, "
              f"high values favor the most common queries. "
              f"Ignored if randomization is off (default: {workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_ALPHA}).",
         default=workload.loader.QueryRandomizerWorkloadProcessor.DEFAULT_ALPHA)
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--test-iterations",
         help="The number of times to run the workload (default: 1).",
         default=1)
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--aggregate",
         type=lambda x: (str(x).lower() in ['true', '1', 'yes', 'y']),
-        help="Aggregate the results of multiple test runs (default: true).",
+        help="Aggregate the results of multiple test executions (default: true).",
         default=True)
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--sleep-timer",
-        help="Sleep for the specified number of seconds before starting the next test run (default: 5).",
+        help="Sleep for the specified number of seconds before starting the next test execution (default: 5).",
         default=5)
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--cancel-on-error",
         action="store_true",
         help="Stop running tests if an error occurs in one of the test iterations (default: false).",
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--load-test-qps",
         help="Run a load test on your cluster, up to a certain QPS value (default: 0)",
         default=0
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--redline-test",
         help="Run a redline test on your cluster, up to a certain QPS value (default: 1000)",
         nargs='?',
@@ -744,57 +753,57 @@ def create_arg_parser():
         default=0,  # Value to use when flag is not present
         type=int
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--redline-scale-step",
         type=int,
         help="How many clients to add while scaling up during redline testing (default: 5).",
         default=None
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--redline-scaledown-percentage",
         type=float,
         help="What percentage of clients to remove when errors occur (default: 10%%).",
         default=None
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--redline-post-scaledown-sleep",
         type=int,
         help="How many seconds to wait before scaling up again after a scale down (default: 30).",
         default=None
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--redline-max-clients",
         type=int,
         help="Maximum number of clients to allow during redline testing. If not set, will default to clients defined in the test procedure.",
         default=None
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--redline-max-cpu-usage",
         type=int,
         help="Maximum CPU utilization before scaling back client numbers. Used to activate CPU-based feedback in OSB.",
         default=None
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--redline-cpu-window-seconds",
         type=int,
         help="How many seconds the window for average CPU load should be in seconds during CPU-based redline testing. (Default: 30)",
         default=None
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--redline-cpu-check-interval",
         type=int,
         help="How many seconds between CPU checks there should be during CPU-based redline testing. (Default: 30)",
         default=None
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--visualize",
-        help="Generate HTML visualizations for benchmark results. Stored in the test runs directory by default",
+        help="Generate HTML visualizations for benchmark results. Stored in the test executions directory by default",
         action="store_true",
         default=False
     )
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
     "--visualize-output-path",
-    help="Path where the HTML visualization should be saved when --visualize is enabled. If not specified, it will be saved in the test run directory.",
+    help="Path where the HTML visualization should be saved when --visualize is enabled. If not specified, it will be saved in the test execution directory.",
     default=None
     )
 
@@ -805,19 +814,19 @@ def create_arg_parser():
     ###############################################################################
     # This option is intended to tell OSB to assume a different start date than 'now'. This is effectively just useful for things like
     # backtesting or a benchmark run across environments (think: comparison of EC2 and bare metal) but never for the typical user.
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--effective-start-date",
         help=argparse.SUPPRESS,
         type=lambda s: datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S"),
         default=None)
     # Skips checking that the REST API is available before proceeding with the benchmark
-    test_run_parser.add_argument(
+    test_execution_parser.add_argument(
         "--skip-rest-api-check",
         help=argparse.SUPPRESS,
         action="store_true",
         default=False)
 
-    for p in [list_parser, test_run_parser, compare_parser, aggregate_parser,
+    for p in [list_parser, test_execution_parser, compare_parser, aggregate_parser,
               download_parser, install_parser, start_parser, stop_parser, info_parser,
               synthetic_data_generator_parser, create_workload_parser, visualize_parser]:
         # This option is needed to support a separate configuration for the integration tests on the same machine
@@ -846,9 +855,9 @@ def dispatch_list(cfg):
     elif what == "workloads":
         workload.list_workloads(cfg)
     elif what == "pipelines":
-        test_run_orchestrator.list_pipelines()
-    elif what == "test-runs":
-        metrics.list_test_runs(cfg)
+        test_execution_orchestrator.list_pipelines()
+    elif what in ("test-executions", "test-runs"):
+        metrics.list_test_executions(cfg)
     elif what == "aggregated-results":
         metrics.list_aggregated_results(cfg)
     elif what == "cluster-configs":
@@ -859,18 +868,18 @@ def dispatch_list(cfg):
         raise exceptions.SystemSetupError("Cannot list unknown configuration option [%s]" % what)
 
 def dispatch_visualize(cfg):
-    test_run_id = cfg.opts("system", "test_run.id")
+    test_execution_id = cfg.opts("system", "test_execution.id")
     output_path = cfg.opts("visualize", "output.path", mandatory=False, default_value=None)
-    store = metrics.test_run_store(cfg)
+    store = metrics.test_execution_store(cfg)
 
     try:
-        # load the run
-        te = store.find_by_test_run_id(test_run_id)
+        # load the test execution
+        te = store.find_by_test_execution_id(test_execution_id)
 
         # render, write, and open the HTML
         html_path = (
             store.file_store.store_html_results(te)
-            if isinstance(store, metrics.CompositeTestRunStore)
+            if isinstance(store, metrics.CompositeTestExecutionStore)
             else store.store_html_results(te)
         )
 
@@ -882,9 +891,9 @@ def dispatch_visualize(cfg):
             console.info(f"HTML report copied to: {dest}")
 
     except exceptions.NotFound:
-        raise exceptions.SystemSetupError(f"No test run with id [{test_run_id}]")
+        raise exceptions.SystemSetupError(f"No test execution with id [{test_execution_id}]")
     except Exception as e:
-        raise exceptions.SystemSetupError(f"Error visualizing test run: {e}")
+        raise exceptions.SystemSetupError(f"Error visualizing test execution: {e}")
 
 def print_help_on_errors():
     heading = "Getting further help:"
@@ -934,7 +943,7 @@ def run_test(cfg, kill_running_processes=False):
         finally:
             store.close()
 
-    with_actor_system(test_run_orchestrator.run, cfg)
+    with_actor_system(test_execution_orchestrator.run, cfg)
 
 
 def with_actor_system(runnable, cfg):
@@ -995,7 +1004,7 @@ def with_actor_system(runnable, cfg):
                 console.println("")
                 console.warn("Terminating now at the risk of leaving child processes behind.")
                 console.println("")
-                console.warn("The next test_run may fail due to an unclean shutdown.")
+                console.warn("The next test_execution may fail due to an unclean shutdown.")
                 console.println("")
                 console.println(SKULL)
                 console.println("")
@@ -1085,10 +1094,6 @@ def configure_connection_params(arg_parser, args, cfg):
     grpc_target_hosts = opts.TargetHosts(args.grpc_target_hosts) if hasattr(args, "grpc_target_hosts") and args.grpc_target_hosts else None
     cfg.add(config.Scope.applicationOverride, "client", "grpc_hosts", grpc_target_hosts)
 
-    # Configure database backend; worker_coordinator reads cfg.opts("database", "type")
-    # to pick the DatabaseClient factory via the database/ registry.
-    database_type = getattr(args, "database_type", "opensearch")
-    cfg.add(config.Scope.applicationOverride, "database", "type", database_type)
     if "timeout" not in client_options.default:
         console.info("You did not provide an explicit timeout in the client options. Assuming default of 10 seconds.")
     if list(target_hosts.all_hosts) != list(client_options.all_client_options):
@@ -1101,29 +1106,29 @@ def configure_reporting_params(args, cfg):
     cfg.add(config.Scope.applicationOverride, "reporting", "output.path", args.results_file)
     cfg.add(config.Scope.applicationOverride, "reporting", "numbers.align", args.results_numbers_align)
 
-def prepare_test_runs_dict(args, cfg):
+def prepare_test_executions_dict(args, cfg):
     cfg.add(config.Scope.applicationOverride, "reporting", "output.path", args.results_file)
-    test_runs_dict = {}
-    if args.test_runs:
-        for run in args.test_runs:
+    test_executions_dict = {}
+    if args.test_executions:
+        for run in args.test_executions:
             run = run.strip()
             if run:
-                test_runs_dict[run] = None
-    return test_runs_dict
+                test_executions_dict[run] = None
+    return test_executions_dict
 
 def configure_test(arg_parser, args, cfg):
-    # As the run command is doing more work than necessary at the moment, we duplicate several parameters
+    # As the execute-test command is doing more work than necessary at the moment, we duplicate several parameters
     # in this section that actually belong to dedicated subcommands (like install, start or stop). Over time
-    # these duplicated parameters will vanish as we move towards dedicated subcommands and use "run" only
+    # these duplicated parameters will vanish as we move towards dedicated subcommands and use "execute-test" only
     # to run the actual benchmark (i.e. generating load).
-    print_test_run_id(args)
+    print_test_execution_id(args)
     if args.effective_start_date:
         cfg.add(config.Scope.applicationOverride, "system", "time.start", args.effective_start_date)
-    cfg.add(config.Scope.applicationOverride, "system", "test_run.id", args.test_run_id)
-    # use the test-run id implicitly also as the install id.
-    cfg.add(config.Scope.applicationOverride, "system", "install.id", args.test_run_id)
-    cfg.add(config.Scope.applicationOverride, "test_run", "pipeline", args.pipeline)
-    cfg.add(config.Scope.applicationOverride, "test_run", "user.tag", args.user_tag)
+    cfg.add(config.Scope.applicationOverride, "system", "test_execution.id", args.test_execution_id)
+    # use the test-execution id implicitly also as the install id.
+    cfg.add(config.Scope.applicationOverride, "system", "install.id", args.test_execution_id)
+    cfg.add(config.Scope.applicationOverride, "test_execution", "pipeline", args.pipeline)
+    cfg.add(config.Scope.applicationOverride, "test_execution", "user.tag", args.user_tag)
     cfg.add(config.Scope.applicationOverride, "worker_coordinator", "profiling", args.enable_worker_coordinator_profiling)
     cfg.add(config.Scope.applicationOverride, "worker_coordinator", "assertions", args.enable_assertions)
     cfg.add(config.Scope.applicationOverride, "worker_coordinator", "on.error", args.on_error)
@@ -1166,8 +1171,8 @@ def configure_test(arg_parser, args, cfg):
 
     configure_reporting_params(args, cfg)
 
-def print_test_run_id(args):
-    console.info(f"[Test Run ID]: {args.test_run_id}")
+def print_test_execution_id(args):
+    console.info(f"[Test Execution ID]: {args.test_execution_id}")
 
 def dispatch_sub_command(arg_parser, args, cfg):
     sub_command = args.subcommand
@@ -1182,12 +1187,12 @@ def dispatch_sub_command(arg_parser, args, cfg):
             publisher.compare(cfg, args.baseline, args.contender)
         elif sub_command == "aggregate":
             configure_workload_params(arg_parser, args, cfg, command_requires_workload=False)
-            test_runs_dict = prepare_test_runs_dict(args, cfg)
-            aggregator_instance = aggregator.Aggregator(cfg, test_runs_dict, args)
+            test_executions_dict = prepare_test_executions_dict(args, cfg)
+            aggregator_instance = aggregator.Aggregator(cfg, test_executions_dict, args)
             aggregator_instance.aggregate()
         elif sub_command == "list":
             cfg.add(config.Scope.applicationOverride, "system", "list.config.option", args.configuration)
-            cfg.add(config.Scope.applicationOverride, "system", "list.test_runs.max_results", args.limit)
+            cfg.add(config.Scope.applicationOverride, "system", "list.test_executions.max_results", args.limit)
             configure_builder_params(args, cfg, command_requires_cluster_config=False)
             configure_workload_params(arg_parser, args, cfg, command_requires_workload=False)
             dispatch_list(cfg)
@@ -1213,8 +1218,8 @@ def dispatch_sub_command(arg_parser, args, cfg):
             configure_builder_params(args, cfg)
             builder.install(cfg)
         elif sub_command == "start":
-            print_test_run_id(args)
-            cfg.add(config.Scope.applicationOverride, "system", "test_run.id", args.test_run_id)
+            print_test_execution_id(args)
+            cfg.add(config.Scope.applicationOverride, "system", "test_execution.id", args.test_execution_id)
             cfg.add(config.Scope.applicationOverride, "system", "install.id", args.installation_id)
             cfg.add(config.Scope.applicationOverride, "builder", "runtime.jdk", args.runtime_jdk)
             configure_telemetry_params(args, cfg)
@@ -1223,27 +1228,27 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "builder", "preserve.install", convert.to_bool(args.preserve_install))
             cfg.add(config.Scope.applicationOverride, "system", "install.id", args.installation_id)
             builder.stop(cfg)
-        elif sub_command == "run":
+        elif sub_command in ("execute-test", "run", "execute"):
             iterations = int(args.test_iterations)
             if iterations > 1:
-                test_runs = []
+                test_executions = []
                 for _ in range(iterations):
                     try:
                         configure_test(arg_parser, args, cfg)
                         run_test(cfg, args.kill_running_processes)
                         time.sleep(int(args.sleep_timer))
-                        test_runs.append(args.test_run_id)
-                        args.test_run_id = str(uuid.uuid4())
+                        test_executions.append(args.test_execution_id)
+                        args.test_execution_id = str(uuid.uuid4())
                     except Exception as e:
-                        console.error(f"Error occurred during test run {_+1}: {str(e)}")
+                        console.error(f"Error occurred during test execution {_+1}: {str(e)}")
                         if args.cancel_on_error:
-                            console.info("Cancelling remaining test runs.")
+                            console.info("Cancelling remaining test executions.")
                             break
 
                 if args.aggregate:
-                    args.test_runs = test_runs
-                    test_runs_dict = prepare_test_runs_dict(args, cfg)
-                    aggregator_instance = aggregator.Aggregator(cfg, test_runs_dict, args)
+                    args.test_executions = test_executions
+                    test_executions_dict = prepare_test_executions_dict(args, cfg)
+                    aggregator_instance = aggregator.Aggregator(cfg, test_executions_dict, args)
                     aggregator_instance.aggregate()
             elif args.test_iterations == 1:
                 configure_test(arg_parser, args, cfg)
@@ -1272,7 +1277,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
 
             workload_generator.create_workload(cfg)
         elif sub_command == "visualize":
-            cfg.add(config.Scope.applicationOverride, "system", "test_run.id", args.test_run_id)
+            cfg.add(config.Scope.applicationOverride, "system", "test_execution.id", args.test_execution_id)
             cfg.add(config.Scope.applicationOverride, "visualize", "output.path", args.output_path)
             # Always set visualize to true for the visualize command
             cfg.add(config.Scope.applicationOverride, "workload", "visualize", True)
@@ -1309,15 +1314,17 @@ def dispatch_sub_command(arg_parser, args, cfg):
 
 def handle_command_suggestions():
     """
-    Check for common command mistakes and provide helpful suggestions
-    Returns True if suggestion was provided, False otherwise
+    Warn when a deprecated subcommand alias is used, but let the command run.
+    'execute-test' is the primary subcommand; 'run' and 'execute' remain accepted
+    as deprecated aliases (see create_arg_parser). Returns True if a deprecation
+    warning was emitted, False otherwise.
     """
     # check-deprecated-terms-disable-1x
-    DEPRECATED_SUBCOMMANDS = ["execute-test", "execute"]
+    DEPRECATED_SUBCOMMANDS = ["run", "execute"]
     if len(sys.argv) > 1 and sys.argv[1] in DEPRECATED_SUBCOMMANDS:
-        console.info("Did you mean 'run'?")
-        console.info("Example: opensearch-benchmark run --workload=geonames --test-mode")
-        console.info("For more information, run: opensearch-benchmark run --help")
+        console.warn(f"The '{sys.argv[1]}' subcommand is deprecated; use 'execute-test' instead.")
+        console.info("Example: opensearch-benchmark execute-test --workload=geonames --test-mode")
+        console.info("For more information, run: opensearch-benchmark execute-test --help")
         return True
     return False
 
@@ -1332,9 +1339,9 @@ def main():
     # Early init of console output so we start to show everything consistently.
     console.init(quiet=False)
 
-    # Handle command suggestions before argument parsing
-    if handle_command_suggestions():
-        sys.exit(1)
+    # Emit a deprecation warning for deprecated subcommand aliases (run/execute),
+    # but still allow the command to run via the argparse aliases.
+    handle_command_suggestions()
 
     arg_parser = create_arg_parser()
     args = arg_parser.parse_args()

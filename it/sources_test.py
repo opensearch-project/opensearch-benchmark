@@ -34,5 +34,9 @@ def test_sources(cfg):
                         f"--opensearch-plugins=analysis-icu") == 0
 
     it.wait_until_port_is_free(port_number=port)
-    assert it.run_test(cfg, f"--pipeline=from-sources --workload=geonames --test-mode --target-hosts=127.0.0.1:{port} "
-                        f"--test-procedure=append-no-conflicts-index-only --cluster-config=\"4gheap,ea\"") == 0
+    # Exercise the deprecated `run` subcommand alias end-to-end so the alias path
+    # (kept working by the 3.x terminology revert) stays covered alongside the
+    # primary `execute-test` invocation above.
+    assert it.run_test_with_deprecated_alias(
+        cfg, f"--pipeline=from-sources --workload=geonames --test-mode --target-hosts=127.0.0.1:{port} "
+        f"--test-procedure=append-no-conflicts-index-only --cluster-config=\"4gheap,ea\"") == 0

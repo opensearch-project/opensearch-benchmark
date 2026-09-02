@@ -264,6 +264,10 @@ class CreateIndexParamSource(ParamSource):
             if isinstance(filter_idx, str):
                 filter_idx = [filter_idx]
             settings = params.get("settings")
+            if settings is not None and not isinstance(settings, dict):
+                raise exceptions.InvalidSyntax(
+                    f"'settings' must be a JSON object (dict) but was "
+                    f"{type(settings).__name__}: {settings!r}.")
             for idx in workload.indices:
                 if not filter_idx or idx.name in filter_idx:
                     body = idx.body

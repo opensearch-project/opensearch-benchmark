@@ -1966,7 +1966,7 @@ class AsyncExecutorHelperMethodsTests(TestCase):
         context_mock = mock.Mock()
         message_producer_mock.new_request_context.return_value = context_mock
 
-        with mock.patch('osbenchmark.database.clients.opensearch.opensearch.MessageProducerFactory.create',
+        with mock.patch('osbenchmark.client.MessageProducerFactory.create',
                         new=mock.AsyncMock(return_value=message_producer_mock)) as factory_mock:
             result = await self.executor._prepare_context_manager(params)
             factory_mock.assert_called_once_with(params)
@@ -2236,7 +2236,7 @@ class FeedbackActorTests(TestCase):
 
     def test_check_cpu_usage_adds_error_when_threshold_exceeded(self):
         self.actor.max_cpu_threshold = 80
-        self.actor.test_run_id = "abc123"
+        self.actor.test_execution_id = "abc123"
         self.actor.cpu_window_seconds = 60
         self.actor.metrics_index = "metrics-index"
         self.actor.error_queue = queue.Queue()
@@ -2266,7 +2266,7 @@ class FeedbackActorTests(TestCase):
 
     def test_check_cpu_usage_no_errors_when_under_threshold(self):
         self.actor.max_cpu_threshold = 80
-        self.actor.test_run_id = "abc123"
+        self.actor.test_execution_id = "abc123"
         self.actor.cpu_window_seconds = 60
         self.actor.metrics_index = "metrics-index"
         self.actor.error_queue = queue.Queue()
@@ -2287,7 +2287,7 @@ class FeedbackActorTests(TestCase):
 
     def test_check_cpu_usage_drops_error_when_queue_full(self):
         self.actor.max_cpu_threshold = 80
-        self.actor.test_run_id = "abc123"
+        self.actor.test_execution_id = "abc123"
         self.actor.cpu_window_seconds = 60
         self.actor.metrics_index = "metrics-index"
 

@@ -1,17 +1,17 @@
 ---
 layout: default
-title: Run Test
+title: Execute Test
 parent: OSB API
 nav_order: 10
 ---
 
-The `run` command of OpenSearch Benchmark runs tests against your OpenSearch cluster.
+The `execute-test` command of OpenSearch Benchmark runs tests against your OpenSearch cluster.
 
 
 ## Syntax
 
 ```bash
-opensearch-benchmark run <arguments>
+opensearch-benchmark execute-test <arguments>
 ```
 
 
@@ -28,13 +28,14 @@ Argument | Description | Required
 `pipeline` | Steps required to run a test, including provisioning an OpenSearch from source code or a specified distribution. Defaults to `from-sources` which provisions an OpenSearch cluster from source code. | No
 `distribution-version` | The OpenSearch version to use for a given test. Defining a version can be useful when using a `pipeline` that includes provisioning. When using a `pipeline` without provisioning, OSB will automatically determine the version | No
 `target-hosts` | The OpenSearch endpoint(s) to run a test against. This should only be specified with  `--pipeline=benchmark-only`  | No
+`database-type` | The target database engine to benchmark. Accepted values are `opensearch`, `vespa`, `milvus`, and `clickhouse` (default: `opensearch`). | No
 `test-mode` | Run a single iteration of each operation in the test procedure. The test provides a quick way for sanity checking a testing configuration. Therefore, do not use `test-mode` for actual benchmarking. | No
 `kill-running-processes` | Kill any running OpenSearch Benchmark processes on the local machine before the test runs. | No
 
 *Example 1*
 
 ```
-opensearch-benchmark run --workload eventdata --test-mode
+opensearch-benchmark execute-test --workload eventdata --test-mode
 ```
 
 Provision an OpenSearch node on the local machine based on the latest source code in Github and run the `eventdata` workload in test mode.
@@ -42,7 +43,7 @@ Provision an OpenSearch node on the local machine based on the latest source cod
 *Example 2*
 
 ```
-opensearch-benchmark run --workload http_logs --pipeline benchmark-only --target-hosts <endpoint> --workload-params "bulk_indexing_clients:1,ingest_percentage:10"
+opensearch-benchmark execute-test --workload http_logs --pipeline benchmark-only --target-hosts <endpoint> --workload-params "bulk_indexing_clients:1,ingest_percentage:10"
 ```
 
 Run the `http_logs` workload against an existing OpenSearch cluster but only use one client for indexing and only ingest 10% of the total data corpus.
@@ -50,7 +51,7 @@ Run the `http_logs` workload against an existing OpenSearch cluster but only use
 *Example 3*
 
 ```
-opensearch-benchmark run --workload nyc_taxis --pipeline benchmark-only --target-hosts <endpoint> --client-options "verify_certs:false,use_ssl:true,basic_auth_user:admin,basic_auth_password:admin"
+opensearch-benchmark execute-test --workload nyc_taxis --pipeline benchmark-only --target-hosts <endpoint> --client-options "verify_certs:false,use_ssl:true,basic_auth_user:admin,basic_auth_password:admin"
 ```
 
 Run the `nyc_taxis` workload against an existing OpenSearch cluster with the security plugin enabled.
@@ -64,7 +65,7 @@ Argument | Description | Required
 `cluster-config-path` | Define the path to the cluster-configs and plugin configurations to use. | No
 `cluster-config-repository` | Define repository from where OSB will load cluster-configs (default: `default`). | No
 `cluster-config-revision` | Define a specific revision in the cluster-config repository that OSB should use. | No
-`test-run-id` | Define a unique id for this test_run. | No
+`test-execution-id` | Define a unique id for this test_execution. | No
 `pipeline` | Select the pipeline to run. | No
 `revision` | Define the source code revision for building the benchmark candidate. 'current' uses the source tree as is, 'latest' fetches the latest version on main. It is also possible to specify a commit id or an ISO timestamp. The timestamp must be specified as: "@ts" where "ts" must be a valid ISO 8601 timestamp, e.g. "@2013-07-27T10:37:00Z" (default: `current`). | No
 `workload-repository` | Define the repository from where OSB will load workloads (default: `default`). | No
@@ -81,6 +82,7 @@ Argument | Description | Required
 `target-hosts` | Define a comma-separated list of host:port pairs which should be targeted if using the pipeline 'benchmark-only' (default: `localhost:9200`). | No
 `worker-ips` | Define a comma-separated list of hosts which should generate load (default: `localhost`). | No
 `client-options` | Define a comma-separated list of client options to use. The options will be passed to the OpenSearch Python client (default: `timeout:60`). | No
+`database-type` | Define the target database engine. Supported engines are `opensearch`, `vespa`, `milvus`, and `clickhouse` (default: `opensearch`). | No
 `on-error` | Controls how OSB behaves on response errors. Options are `continue` and `abort` (default: `continue`). | No
 `telemetry` | Enable the provided telemetry devices, provided as a comma-separated list. List possible telemetry devices with `opensearch-benchmark list telemetry`. | No
 `telemetry-params` | Define a comma-separated list of key:value pairs that are injected verbatim to the telemetry devices as parameters. | No
