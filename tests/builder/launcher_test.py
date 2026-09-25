@@ -154,8 +154,8 @@ class TerminatedProcess:
 
 def get_metrics_store(cfg):
     ms = InMemoryMetricsStore(cfg)
-    ms.open(test_run_id=str(uuid.uuid4()),
-            test_run_timestamp=datetime.now(),
+    ms.open(test_execution_id=str(uuid.uuid4()),
+            test_execution_timestamp=datetime.now(),
             workload_name="test",
             test_procedure_name="test",
             cluster_config_name="test")

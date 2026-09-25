@@ -1666,6 +1666,18 @@ class CreateIndexParamSourceTests(TestCase):
             }
         }, body)
 
+    def test_create_index_non_dict_settings_raises_clean_error(self):
+        # Robustness: a string (or other non-dict) 'settings' param would hit
+        # dict.update("...") -> ValueError. Must raise a clean InvalidSyntax.
+        index = workload.Index(name="index1", types=["type1"], body={
+            "settings": {"index.number_of_replicas": 0},
+        })
+        with self.assertRaises(exceptions.InvalidSyntax) as ctx:
+            params.CreateIndexParamSource(
+                workload.Workload(name="unit-test", indices=[index]),
+                params={"settings": "number_of_replicas=0"})
+        self.assertIn("settings", ctx.exception.args[0])
+
     def test_create_index_from_workload_without_settings(self):
         index1 = workload.Index(name="index1", types=["type1"])
         index2 = workload.Index(name="index2", types=["type1"], body={
@@ -3611,6 +3623,7 @@ class VectorSearchPartitionPartitionParamSourceTestCase(TestCase):
                     "request-params": {},
                 }
             )
+
 
     def _check_params(
             self,

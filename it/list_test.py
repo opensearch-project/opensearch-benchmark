@@ -26,7 +26,13 @@ import it
 
 
 @it.all_benchmark_configs
-def test_list_test_runs(cfg):
+def test_list_test_executions(cfg):
+    assert it.osbenchmark(cfg, "list test-executions") == 0
+
+
+@it.all_benchmark_configs
+def test_list_test_runs_deprecated_alias(cfg):
+    # the pre-3.x positional `test-runs` must remain accepted (deprecated).
     assert it.osbenchmark(cfg, "list test-runs") == 0
 
 

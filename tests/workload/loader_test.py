@@ -2135,6 +2135,14 @@ class WorkloadRandomizationTests(TestCase):
                 f"Make sure the operation in operations/default.json is well-formed",
                          ctx.exception.args[0])
 
+        # Robustness: a non-dict "body" (e.g. a string) must also produce a
+        # clean SystemSetupError, not an uncaught TypeError from subscripting a
+        # string by "query".
+        with self.assertRaises(exceptions.SystemSetupError):
+            processor.extract_fields_and_paths(
+                {"body": "my_query"},
+                loader.QueryRandomizerWorkloadProcessor.DEFAULT_QUERY_RANDOMIZATION_INFO)
+
         # Test a non-default value for query_randomization_info
         geo_point_query = {
             "name": "bbox",
@@ -2289,6 +2297,46 @@ class WorkloadSpecificationReaderTests(TestCase):
             reader("unittest", workload_specification, "/mappings")
         self.assertEqual(
             "Workload 'unittest' is invalid. Mandatory element 'document-count' is missing.", ctx.exception.args[0])
+
+    @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
+    def test_parse_with_scalar_clients_list_raises_clean_error(self, mocked_params_checker):
+        # Robustness: clients_list given a scalar (int) instead of a list must
+        # raise a clean WorkloadSyntaxError, not an uncaught TypeError from
+        # iterating an int.
+        workload_specification = {
+            "description": "description for unit test",
+            "indices": [{"name": "test-index", "body": "index.json", "types": ["docs"]}],
+            "corpora": [
+                {
+                    "name": "test",
+                    "documents": [
+                        {
+                            "source-file": "documents-main.json.bz2",
+                            "document-count": 10,
+                            "compressed-bytes": 100,
+                            "uncompressed-bytes": 10000
+                        }
+                    ]
+                }
+            ],
+            "operations": [
+                {"name": "search-op", "operation-type": "search", "body": {"query": {"match_all": {}}}}
+            ],
+            "test_procedures": [
+                {
+                    "name": "default-test_procedure",
+                    "schedule": [
+                        {"clients_list": 8, "operation": "search-op"}  # scalar, not [8]
+                    ]
+                }
+            ]
+        }
+        reader = loader.WorkloadSpecificationReader(source=io.DictStringFileSourceFactory({
+            "/mappings/index.json": ['{"mappings": {"docs": "empty-for-test"}}'],
+        }))
+        with self.assertRaises(loader.WorkloadSyntaxError) as ctx:
+            reader("unittest", workload_specification, "/mappings")
+        self.assertIn("clients_list", ctx.exception.args[0])
 
     @mock.patch("osbenchmark.workload.loader.register_all_params_in_workload")
     def test_parse_with_mixed_warmup_iterations_and_measurement(self, mocked_params_checker):

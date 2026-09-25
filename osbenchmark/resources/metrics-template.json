@@ -31,10 +31,10 @@
       "relative-time-ms": {
         "type": "float"
       },
-      "test-run-id": {
+      "test-execution-id": {
         "type": "keyword"
       },
-      "test-run-timestamp": {
+      "test-execution-timestamp": {
         "type": "date",
         "format": "basic_date_time_no_millis",
         "fields": {

@@ -85,8 +85,8 @@ def osbenchmark_command_line_for(cfg, command_line):
 
 def osbenchmark(cfg, command_line):
     """
-    This method should be used for benchmark invocations of the all commands besides test_run.
-    These commands may have different CLI options than test_run.
+    This method should be used for benchmark invocations of all commands besides execute-test.
+    These commands may have different CLI options than execute-test.
     """
     cmd = osbenchmark_command_line_for(cfg, command_line)
     print(f'\n{datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")} Invoking OSB: {cmd}')
@@ -98,8 +98,19 @@ def osbenchmark(cfg, command_line):
 
 def run_test(cfg, command_line):
     """
-    This method should be used for benchmark invocations of the test_run command.
-    It sets up some defaults for how the integration tests expect to run test_runs.
+    This method should be used for benchmark invocations of the execute-test command.
+    It sets up some defaults for how the integration tests expect to run tests.
+    Uses the primary `execute-test` subcommand; the deprecated `run` alias is
+    covered separately by run_test_with_deprecated_alias.
+    """
+    return osbenchmark(cfg, f"execute-test {command_line} --kill-running-processes --on-error='abort'")
+
+
+def run_test_with_deprecated_alias(cfg, command_line):
+    """
+    Same as run_test but invokes the deprecated `run` subcommand alias instead of
+    the primary `execute-test`. Keeps alias coverage so the deprecated path
+    (promised in the 3.x terminology revert) stays exercised end-to-end.
     """
     return osbenchmark(cfg, f"run {command_line} --kill-running-processes --on-error='abort'")
 
@@ -186,8 +197,9 @@ class TestCluster:
         except BaseException as e:
             raise AssertionError("Failed to install OpenSearch {}.".format(distribution_version), e)
 
-    def start(self, test_run_id):
-        cmd = "start --runtime-jdk=\"bundled\" --installation-id={} --test-run-id={}".format(self.installation_id, test_run_id)
+    def start(self, test_execution_id):
+        cmd = "start --runtime-jdk=\"bundled\" --installation-id={} --test-execution-id={}".format(
+            self.installation_id, test_execution_id)
         if osbenchmark(self.cfg, cmd) != 0:
             raise AssertionError("Failed to start OpenSearch test cluster.")
         opensearch = client.OsClientFactory(hosts=[{"host": "127.0.0.1", "port": self.http_port}], client_options={}).create()
@@ -213,7 +225,7 @@ class OsMetricsStore:
                              node_name="metrics-store",
                              cluster_config="defaults",
                              http_port=10200)
-        self.cluster.start(test_run_id="metrics-store")
+        self.cluster.start(test_execution_id="metrics-store")
 
     def stop(self):
         self.cluster.stop()
