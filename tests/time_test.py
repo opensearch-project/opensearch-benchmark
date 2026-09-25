@@ -23,6 +23,7 @@
 # under the License.
 
 import time
+from datetime import datetime
 from unittest import TestCase
 
 import pytest
@@ -31,6 +32,12 @@ import osbenchmark.time
 
 
 class TimeTests(TestCase):
+    def test_from_iso8601(self):
+        self.assertEqual(
+            datetime(year=2017, month=8, day=20, hour=1, minute=2, second=3),
+            osbenchmark.time.from_iso8601("20170820T010203Z")
+        )
+
     def test_split_time_increases(self):
         wait_period_seconds = 0.05
 
