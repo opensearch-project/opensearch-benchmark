@@ -1,5 +1,5 @@
-[![CI](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/main.yml/badge.svg)](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/main.yml)
-[![Integration](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/manual-integ.yml/badge.svg)](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/manual-integ.yml)
+[![CI](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/unit-test.yml/badge.svg)](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/unit-test.yml)
+[![Integration](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/integ-test.yml/badge.svg)](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/integ-test.yml)
 [![Release](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/publish-release.yml/badge.svg)](https://github.com/opensearch-project/opensearch-benchmark/actions/workflows/publish-release.yml)
 [![Version](https://img.shields.io/pypi/v/opensearch-benchmark.svg?color=blue)](https://pypi.org/project/opensearch-benchmark/)
 ![PyPI Downloads](https://static.pepy.tech/badge/opensearch-benchmark)

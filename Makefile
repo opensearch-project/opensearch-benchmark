@@ -106,4 +106,4 @@ release-checks:
 release: release-checks clean it
 	./release.sh $(release_version) $(next_version)
 
-.PHONY: install clean python-caches-clean tox-env-clean test it it310 benchmark coverage release release-checks pyinst
+.PHONY: install clean python-caches-clean tox-env-clean test it it310 it311 it312 it313 benchmark coverage release release-checks pyinst

@@ -91,17 +91,17 @@ Depending on the platform and shell you have, use the following command to activ
 | | fish | source .venv/bin/activate.fish |
 | | csh/tcsh | source .venv/bin/activate.csh |
 |  | PowerShell Core | .venv/bin/Activate.ps1 |
-| Windows | cmd.exe| C:\> <venv>\Scripts\activate.bat |
-| | PowerShell | PS C:\> <venv>\Scripts\Activate.ps1 |
+| Windows | cmd.exe| `C:\> .venv\Scripts\activate.bat` |
+| | PowerShell | `PS C:\> .venv\Scripts\Activate.ps1` |
 
 For more information regarding activating virtual environments, please see https://docs.python.org/3/library/venv.html.
 
 ## Importing the project into an IDE
 
 OpenSearch Benchmark builds using virtualenv. When importing into an IDE, such as PyCharm IDE, you will need to define an appropriate Python SDK, which is provided by virtualenv.
-Refer to IDE documentation for more details on defining a Python SDK. We recommend using the Python SDK that `make prereq` creates.
+Refer to IDE documentation for more details on defining a Python SDK. We recommend using the Python SDK that `make develop` creates.
 This is typically created in PyCharm IDE by visiting the `Python Interpreter`, selecting either `Virtualenv Environment` or `Existing Environment`, and pointing interpreter to `.venv/bin/python3` within the OpenSearch Benchmark source directory.
-`
+
 In order to run tests within the PyCharm IDE, ensure the `Python Integrated Tools` / `Testing` / `Default Test Runner` is set to `pytest`.
 
 ## Setting Up a Local OpenSearch Cluster For OSB Development (Optional)
@@ -225,7 +225,7 @@ Once your changes and tests are ready to submit for review:
 
 3. Rebase your changes
 
-    Update your local repository with the most recent code from the main OpenSearch Benchmark repository, and rebase your branch on top of the latest master branch. We prefer your initial changes to be squashed into a single commit. Later, if we ask you to make changes, add them as separate commits.  This makes them easier to review.  As a final step before merging we will either ask you to squash all commits yourself or we'll do it for you.
+    Update your local repository with the most recent code from the main OpenSearch Benchmark repository, and rebase your branch on top of the latest main branch. We prefer your initial changes to be squashed into a single commit. Later, if we ask you to make changes, add them as separate commits.  This makes them easier to review.  As a final step before merging we will either ask you to squash all commits yourself or we'll do it for you.
 
 4. Submit a pull request
 
