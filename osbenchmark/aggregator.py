@@ -166,7 +166,7 @@ class Aggregator:
         self.config.add(config.Scope.applicationOverride, "test_run", "pipeline", test_run.pipeline)
         self.config.add(config.Scope.applicationOverride, "workload", "params", test_run.workload_params)
         self.config.add(config.Scope.applicationOverride, "builder",
-                        "cluster_config.params", test_run.cluster_config_instance_params)
+                        "cluster_config.params", test_run.cluster_config_params)
         self.config.add(config.Scope.applicationOverride, "builder", "plugin.params", test_run.plugin_params)
         self.config.add(config.Scope.applicationOverride, "workload", "latency.percentiles", test_run.latency_percentiles)
         self.config.add(config.Scope.applicationOverride, "workload", "throughput.percentiles", test_run.throughput_percentiles)
@@ -213,7 +213,6 @@ class Aggregator:
         # Get iterations for each test run
         iterations_per_run = [self.accumulated_iterations[test_id][task_name]
                                     for test_id in self.test_runs.keys()]
-        total_iterations = sum(iterations_per_run)
 
         for metric, values in task_metrics.items():
             if isinstance(values[0], dict):
@@ -222,23 +221,44 @@ class Aggregator:
                     if metric_field == 'unit':
                         weighted_metrics[metric][metric_field] = values[0][metric_field]
                     elif metric_field == 'min':
-                        weighted_metrics[metric]['overall_min'] = min(value.get(metric_field, 0) for value in values)
+                        item_values = [value.get(metric_field) for value in values]
+                        weighted_metrics[metric]['overall_min'] = min(
+                            (value for value in item_values if value is not None), default=None)
                     elif metric_field == 'max':
-                        weighted_metrics[metric]['overall_max'] = max(value.get(metric_field, 0) for value in values)
+                        item_values = [value.get(metric_field) for value in values]
+                        weighted_metrics[metric]['overall_max'] = max(
+                            (value for value in item_values if value is not None), default=None)
                     else:
                         # for items like median or containing percentile values
-                        item_values = [value.get(metric_field, 0) for value in values]
-                        weighted_sum = sum(value * iterations for value, iterations in zip(item_values, iterations_per_run))
-                        weighted_metrics[metric][metric_field] = weighted_sum / total_iterations
+                        item_values = [value.get(metric_field) for value in values]
+                        weighted_metrics[metric][metric_field] = self.weighted_mean(item_values, iterations_per_run)
             else:
-                weighted_sum = sum(value * iterations for value, iterations in zip(values, iterations_per_run))
-                weighted_metrics[metric] = weighted_sum / total_iterations
+                weighted_metrics[metric] = self.weighted_mean(values, iterations_per_run)
 
         return weighted_metrics
+
+    @staticmethod
+    def weighted_mean(values: List[Any], iterations_per_run: List[int]) -> Any:
+        """
+        Weights each test run's value by that run's iteration count.
+        Operations that produced no valid samples report their metrics as None; those are left out
+        of both the sum and the divisor, and the result is None when no run contributed a value,
+        so that "not measured" stays distinct from a measured zero
+        """
+        contributions = [(value, iterations) for value, iterations in zip(values, iterations_per_run)
+                         if value is not None]
+        total_iterations = sum(iterations for _, iterations in contributions)
+        if not total_iterations:
+            return None
+        return sum(value * iterations for value, iterations in contributions) / total_iterations
 
     def calculate_rsd(self, values: List[Union[int, float]], metric_name: str) -> Union[float, str]:
         if not values:
             raise ValueError(f"Cannot calculate RSD for metric '{metric_name}': empty list of values")
+        # operations that produced no valid samples report None, which cannot contribute to a deviation
+        values = [value for value in values if value is not None]
+        if not values:
+            return "NA"  # no test run measured this metric
         if len(values) == 1:
             return "NA"  # RSD is not applicable for a single value
         mean = statistics.mean(values)
@@ -272,7 +292,10 @@ class Aggregator:
         if self.test_run_compatibility_check():
             self.test_run = self.test_store.find_by_test_run_id(list(self.test_runs.keys())[0])
             self.test_procedure_name = self.test_run.test_procedure
-            self.config.add(config.Scope.applicationOverride, "workload", "repository.name", self.args.workload_repository)
+            # a workload given as a path is already configured; naming a repository too would send the
+            # loader looking for the workload in that repository instead
+            if not self.args.workload_path:
+                self.config.add(config.Scope.applicationOverride, "workload", "repository.name", self.args.workload_repository)
             self.config.add(config.Scope.applicationOverride, "workload", "workload.name", self.test_run.workload)
             self.loaded_workload = workload.load_workload(self.config)
             for id in self.test_runs.keys():

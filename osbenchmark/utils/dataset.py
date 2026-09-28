@@ -72,17 +72,20 @@ class DataSet(ABC):
         """
 
 
-def get_data_set(data_set_format: str, path: str, context: Context):
+def get_data_set(data_set_format: str, path: str, context: Context, key_suffix: str = None):
     """
     Factory method to get instance of Dataset for given format.
     Args:
         data_set_format: File format like hdf5, bigann
         path: Data set file path
         context: Dataset Context Enum
+        key_suffix: Optional suffix appended to the HDF5 key name, e.g.
+            Context.NEIGHBORS with key_suffix "10pct" reads "neighbors_10pct".
+            Used by filtered benchmarks storing per-percentage ground truth.
     Returns: DataSet instance
     """
     if data_set_format == HDF5DataSet.FORMAT_NAME:
-        return HDF5DataSet(path, context)
+        return HDF5DataSet(path, context, key_suffix)
     if data_set_format == BigANNVectorDataSet.FORMAT_NAME:
         return create_big_ann_dataset(path)
     raise ConfigurationError("Invalid data set format")
@@ -95,15 +98,22 @@ class HDF5DataSet(DataSet):
 
     FORMAT_NAME = "hdf5"
 
-    def __init__(self, dataset_path: str, context: Context):
+    def __init__(self, dataset_path: str, context: Context, key_suffix: str = None):
         self.dataset_path = dataset_path
         self.context = self.parse_context(context)
+        if key_suffix:
+            self.context = f"{self.context}_{key_suffix}"
         self.current = self.BEGINNING
         self.data = None
 
     def _load(self):
         if self.data is None:
             file = h5py.File(self.dataset_path)
+            if self.context not in file:
+                raise ConfigurationError(
+                    f"Dataset key '{self.context}' does not exist in {self.dataset_path}. "
+                    f"Available keys: {sorted(file.keys())}. If filter_percentage is set, "
+                    f"ensure the dataset was generated with that percentage.")
             self.data = cast(h5py.Dataset, file[self.context])
 
     def read(self, chunk_size: int):

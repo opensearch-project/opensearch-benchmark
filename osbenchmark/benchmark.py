@@ -321,10 +321,7 @@ def create_arg_parser():
         "--results-file",
         help="Write the aggregated results to the provided file.",
         default="")
-    aggregate_parser.add_argument(
-        "--workload-repository",
-        help="Define the repository from where OSB will load workloads (default: default).",
-        default="default")
+    add_workload_source(aggregate_parser)
 
     download_parser = subparsers.add_parser("download", help="Downloads an artifact")
     download_parser.add_argument(
@@ -1184,6 +1181,7 @@ def dispatch_sub_command(arg_parser, args, cfg):
             cfg.add(config.Scope.applicationOverride, "reporting", "percentiles", args.percentiles)
             publisher.compare(cfg, args.baseline, args.contender)
         elif sub_command == "aggregate":
+            configure_workload_params(arg_parser, args, cfg, command_requires_workload=False)
             test_runs_dict = prepare_test_runs_dict(args, cfg)
             aggregator_instance = aggregator.Aggregator(cfg, test_runs_dict, args)
             aggregator_instance.aggregate()

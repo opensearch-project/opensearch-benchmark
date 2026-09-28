@@ -1162,9 +1162,19 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         self.filter_type = self.query_params.get(self.PARAMS_NAME_FILTER_TYPE)
         self.filter_body = self.query_params.get(self.PARAMS_NAME_FILTER_BODY)
         self.space_type = params.get(self.PARAMS_NAME_SPACE_TYPE, "l2")
+        # Suffix selecting per-percentage ground truth datasets, e.g. "10pct"
+        # reads neighbors_10pct and faiss_max_distance_10pct instead of the
+        # unsuffixed keys. Used by filtered benchmarks.
+        self.filter_percentage = None
+        if "filter_percentage" in params:
+            self.filter_percentage = parse_string_parameter("filter_percentage", params)
 
         if self.radial_search_type:
-            self.radial_engine = params.get("radial_engine", "faiss")
+            index_body = params.get("target_index_body", "")
+            if "lucene" in index_body.lower():
+                self.radial_engine = "lucene"
+            else:
+                self.radial_engine = "faiss"
 
 
         if self.PARAMS_NAME_FILTER in params:
@@ -1234,14 +1244,16 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
             neighbors_context = Context.NEIGHBORS
 
         partition.neighbors_data_set = get_data_set(
-            self.neighbors_data_set_format, self.neighbors_data_set_path, neighbors_context)
+            self.neighbors_data_set_format, self.neighbors_data_set_path, neighbors_context,
+            self.filter_percentage)
         partition.neighbors_data_set.seek(partition.offset)
 
         if self.radial_search_type:
             threshold_context = self.RADIAL_THRESHOLD_CONTEXTS[
                 (self.radial_engine, self.radial_search_type)]
             partition.threshold_data_set = get_data_set(
-                self.neighbors_data_set_format, self.neighbors_data_set_path, threshold_context)
+                self.neighbors_data_set_format, self.neighbors_data_set_path, threshold_context,
+                self.filter_percentage)
             partition.threshold_data_set.seek(partition.offset)
 
         return partition
@@ -1323,7 +1335,7 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
 
         if self.is_nested:
             outer_field_name, _inner_field_name = self.get_split_fields()
-            return {
+            knn_search_query = {
                 "nested": {
                     "path": outer_field_name,
                     "query": knn_search_query
@@ -1336,6 +1348,9 @@ class VectorSearchPartitionParamSource(VectorDataSetPartitionParamSource):
         return knn_search_query
 
     def _knn_query_with_filter(self, vector, knn_query, filter_type, filter_body) -> dict:
+        if filter_type == "script" and self.is_nested:
+            raise exceptions.ConfigurationError("Script filter is not supported with nested fields")
+
         if filter_type == "script":
             return {
                 "script_score": {
@@ -1421,6 +1436,20 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
 
         return partition
 
+    def attributes_for_row(self, attributes: np.ndarray, row: int) -> Dict[str, Any]:
+        """Filter attribute fields for one dataset row, keyed by attribute name.
+
+        For nested data sets the attributes are vector-aligned (every child
+        vector row repeats its parent document's values), so any row of a
+        parent's children yields that parent's attributes.
+        """
+        fields = {}
+        for idx, attribute_name in enumerate(self.filter_attributes):
+            attribute = attributes[row][idx].decode()
+            if attribute != "None":
+                fields[attribute_name] = attribute
+        return fields
+
     def bulk_transform_add_attributes(self, partition: np.ndarray, action, attributes: np.ndarray) ->   List[Dict[str, Any]]:
         """attributes is a (partition_len x 3) matrix. """
         actions = []
@@ -1489,8 +1518,7 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
         if not self.is_nested and not self.filter_attributes:
             return self.bulk_transform_non_nested(partition, action)
 
-        # TODO: Assumption: we won't add attributes if we're also doing a nested query.
-        if self.filter_attributes:
+        if self.filter_attributes and not self.is_nested:
             return self.bulk_transform_add_attributes(partition, action, attributes)
         actions = []
 
@@ -1504,6 +1532,8 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
             self.action_parent_id = parents_ids[first_index_of_parent_ids]
             if add_id_field_to_body:
                 self.action_buffer.update({self.id_field_name: int(self.action_parent_id)})
+            if self.filter_attributes:
+                self.action_buffer.update(self.attributes_for_row(attributes, first_index_of_parent_ids))
 
         part_list = partition.tolist()
         for i in range(len(partition)):
@@ -1529,6 +1559,8 @@ class BulkVectorsFromDataSetParamSource(VectorDataSetPartitionParamSource):
                 if add_id_field_to_body:
 
                     self.action_buffer.update({self.id_field_name: int(current_parent_id)})
+                if self.filter_attributes:
+                    self.action_buffer.update(self.attributes_for_row(attributes, i))
 
                 self.action_buffer[outer_field_name].append(nested)
 

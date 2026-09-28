@@ -5,10 +5,10 @@
 #
 # Stage 1: build packages and compile where needed
 #
-FROM python:3.11.2-slim AS build-stage
+FROM python:3.11-slim-trixie AS build-stage
 
 RUN apt-get -y update && \
-    apt-get install -y curl git gcc pbzip2 pigz make jq && \
+    apt-get install -y curl git gcc lbzip2 pbzip2 pigz make jq && \
     apt-get -y upgrade
 
 COPY . opensearch-benchmark
@@ -22,7 +22,7 @@ RUN cd opensearch-benchmark; \
 #
 # Stage 2: create image
 #
-FROM python:3.11.2-slim AS image-stage
+FROM python:3.11-slim-trixie AS image-stage
 ENV BENCHMARK_RUNNING_IN_DOCKER=True
 
 RUN groupadd --gid 1000 opensearch-benchmark && \
@@ -37,7 +37,7 @@ COPY --from=build-stage /opensearch-benchmark/dist/*.whl ./
 
 RUN set -ex; \
     apt-get -y update; \
-    apt-get install -y git pbzip2; \
+    apt-get install -y git lbzip2 pbzip2; \
     apt-get -y upgrade; \
     rm -rf /var/lib/apt/lists/*; \
     PIP_ONLY_BINARY=h5py pip install *.whl; \
