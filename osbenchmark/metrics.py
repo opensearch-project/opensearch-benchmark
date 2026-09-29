@@ -858,7 +858,7 @@ class OsMetricsStore(MetricsStore):
         self._client.refresh(index=self._index)
 
     def index_name(self):
-        ts = time.from_is8601(self._test_execution_timestamp)
+        ts = time.from_iso8601(self._test_execution_timestamp)
         return "benchmark-metrics-%04d-%02d" % (ts.year, ts.month)
 
     def _migrated_index_name(self, original_name):
@@ -1488,7 +1488,7 @@ class TestExecution:
             else d["provision-config-instance"]
         cluster_config_params = d.get("cluster-config-instance-params", d.get("provision-config-instance-params"))
         return TestExecution(d["benchmark-version"], d.get("benchmark-revision"), d["environment"], test_execution_id,
-                    time.from_is8601(test_execution_timestamp),
+                    time.from_iso8601(test_execution_timestamp),
                     d["pipeline"], user_tags, d["workload"], d.get("workload-params"),
                     d.get("test_procedure"), cluster_config,
                     cluster_config_params, d.get("plugin-params"),
