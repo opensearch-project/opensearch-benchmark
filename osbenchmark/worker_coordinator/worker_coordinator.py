@@ -2426,6 +2426,11 @@ class ThroughputCalculator:
 
 
 class AsyncIoAdapter:
+    NO_AWAIT_OPERATION_TYPES = {
+        workload.OperationType.Search.to_hyphenated_string(),
+        workload.OperationType.VectorSearch.to_hyphenated_string()
+    }
+
     def __init__(self, cfg, workload, task_allocations, sampler, profile_sampler, cancel, complete, abort_on_error,
                  shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
         self.cfg = cfg
@@ -2438,12 +2443,26 @@ class AsyncIoAdapter:
         self.abort_on_error = abort_on_error
         self.profiling_enabled = self.cfg.opts("worker_coordinator", "profiling")
         self.assertions_enabled = self.cfg.opts("worker_coordinator", "assertions")
+        self.no_await = self.cfg.opts("worker_coordinator", "no_await", mandatory=False, default_value=False)
         self.debug_event_loop = self.cfg.opts("system", "async.debug", mandatory=False, default_value=False)
         self.logger = logging.getLogger(__name__)
         self.shared_states = shared_states
         self.feedback_actor = feedback_actor
         self.error_queue = error_queue
         self.queue_lock = queue_lock
+
+    def executor_class_for(self, task):
+        if not self.no_await:
+            return AsyncExecutor
+
+        operation_type = task.operation.type
+        if isinstance(operation_type, workload.OperationType):
+            operation_type = operation_type.to_hyphenated_string()
+        if operation_type not in self.NO_AWAIT_OPERATION_TYPES:
+            raise exceptions.SystemSetupError(
+                f"--no-await only supports search and vector-search operations but task [{task}] uses [{operation_type}]."
+            )
+        return AsyncNoAwaitExecutor
 
     def __call__(self, *args, **kwargs):
         # only possible in Python 3.7+ (has introduced get_running_loop)
@@ -2528,10 +2547,15 @@ class AsyncIoAdapter:
             #
             # Now we need to ensure that we start partitioning parameters correctly in both cases. And that means we
             # need to start from (client) index 0 in both cases instead of 0 for indexA and 4 for indexB.
+
             schedule = schedule_for(task_allocation, params_per_task[task])
-            async_executor = AsyncExecutor(
+            executor_class = self.executor_class_for(task)
+            async_executor = executor_class(
                 client_id, task, schedule, opensearch, self.sampler, self.profile_sampler, self.cancel, self.complete,
-                task.error_behavior(self.abort_on_error), self.cfg, self.shared_states, self.feedback_actor, self.error_queue, self.queue_lock)
+                task.error_behavior(self.abort_on_error), self.cfg, self.shared_states, self.feedback_actor, self.error_queue,
+                self.queue_lock
+            )
+
             final_executor = AsyncProfiler(async_executor) if self.profiling_enabled else async_executor
             aws.append(final_executor())
         run_start = time.perf_counter()
@@ -2864,6 +2888,122 @@ class AsyncExecutor:
                 self.complete.set()
             await self._cleanup()
 
+class AsyncNoAwaitExecutor(AsyncExecutor):
+    def __init__(self, client_id, task, schedule, opensearch, sampler, profile_sampler, cancel, complete, on_error,
+                 config=None, shared_states=None, feedback_actor=None, error_queue=None, queue_lock=None):
+        """
+        Fire-and-forget executor for maximum throughput without response handling or metrics collection.
+        Only supports search queries.
+        """
+        super().__init__(
+            client_id, task, schedule, opensearch, sampler, profile_sampler, cancel, complete, on_error,
+            config, shared_states, feedback_actor, error_queue, queue_lock
+        )
+        self.is_0 = int(self.client_id) == 0
+        self._inflight_tasks = set()
+
+    async def _async_no_await_request(self, params: dict, expected_scheduled_time: float, total_start: float) -> None:
+        """Execute a request in fire-and-forget mode - no response handling or metrics collection."""
+        absolute_expected_schedule_time = total_start + expected_scheduled_time
+        throughput_throttled = expected_scheduled_time > 0
+
+        if throughput_throttled:
+            rest = absolute_expected_schedule_time - time.perf_counter()
+            if rest > 0:
+                await asyncio.sleep(rest)
+
+        processing_start = time.perf_counter()
+        self.logger.debug("Client [%s] executing request at processing_start [%s]", self.client_id, processing_start)
+        self.schedule_handle.before_request(processing_start)
+
+        request_params = dict(params or {})
+        request_params["fire_and_forget"] = True
+        runner_instance = self.runner
+
+        self.logger.debug("Client [%s] creating direct fire-and-forget task", self.client_id)
+
+        async def fire_and_forget_runner():
+            try:
+                context_manager = await self._prepare_context_manager(request_params)
+                async with context_manager:
+                    async with runner_instance:
+                        await runner_instance(self.opensearch, request_params)
+            except Exception:
+                self.logger.debug(
+                    "No-await request failed for client [%s].",
+                    self.client_id,
+                    exc_info=True
+                )
+
+        task = asyncio.create_task(fire_and_forget_runner())
+        self._inflight_tasks.add(task)
+
+        def handle_task_completion(completed_task):
+            self._inflight_tasks.discard(completed_task)
+            if not completed_task.cancelled():
+                completed_task.exception()
+
+        task.add_done_callback(handle_task_completion)
+
+        processing_end = time.perf_counter()
+        # Minimal metrics - just mark the request as sent
+        self.schedule_handle.after_request(processing_end, 1, "ops", {"success": True, "fire_and_forget": True})
+
+    async def __call__(self, *args, **kwargs):
+        self.task_completes_parent = self.task.completes_parent
+        total_start = time.perf_counter()
+
+        self.logger.debug("Initializing no-await schedule for client id [%s].", self.client_id)
+        schedule = self.schedule_handle()
+        self.schedule_handle.start()
+        rampup_wait_time = self.schedule_handle.ramp_up_wait_time
+
+        await self._wait_for_rampup(rampup_wait_time)
+
+        self.logger.debug("Entering no-await main loop for client id [%s].", self.client_id)
+        try:
+            async for expected_scheduled_time, sample_type, _, runner, params in schedule:
+                self.expected_scheduled_time = expected_scheduled_time
+                self.sample_type = sample_type
+                self.runner = runner
+
+                if self.cancel.is_set():
+                    self.logger.info("User cancelled execution.")
+                    break
+
+                # Fire and forget mode - don't wait for responses
+                await self._async_no_await_request(params, expected_scheduled_time, total_start)
+
+                # Check completion status
+                if self.complete.is_set():
+                    self.logger.info("Task [%s] is considered completed due to external event.", self.task)
+                    break
+        except BaseException as e:
+            self.logger.exception("Could not execute no-await schedule")
+            raise exceptions.BenchmarkError(f"Cannot run task [{self.task}]: {e}") from None
+        finally:
+            # Drain any in-flight fire-and-forget tasks before exiting. The dispatch
+            # loop completes very quickly (it just creates background tasks), so without
+            # this drain the event loop would be torn down and pending HTTP requests
+            # would be destroyed mid-flight. This also keeps metric samples flowing
+            # while the requests complete.
+            inflight_tasks = set(self._inflight_tasks)
+            if inflight_tasks:
+                self.logger.info(
+                    "Client [%s] draining [%d] in-flight fire-and-forget tasks before exit...",
+                    self.client_id, len(inflight_tasks)
+                )
+                await asyncio.gather(*inflight_tasks, return_exceptions=True)
+
+            if self.task_completes_parent:
+                self.logger.info(
+                    "Task [%s] completes parent. Client id [%s] is finished executing it and signals completion.",
+                    self.task, self.client_id
+                )
+                self.complete.set()
+            await self._cleanup()
+
+
 request_context_holder = client.RequestContextHolder()
 
 
@@ -2964,7 +3104,6 @@ async def execute_single(runner, opensearch, params, on_error, redline_enabled=F
         request_context_holder.on_request_end()
         request_context_holder.on_client_request_end()
     return total_ops, total_ops_unit, request_meta_data
-
 
 class JoinPoint:
     def __init__(self, id, clients_executing_completing_task=None):
@@ -3153,6 +3292,7 @@ def schedule_for(task_allocation, parameter_source):
     logger = logging.getLogger(__name__)
     task = task_allocation.task
     op = task.operation
+
     sched = scheduler.scheduler_for(task)
 
     client_index = task_allocation.client_index_in_task
@@ -3201,7 +3341,6 @@ def schedule_for(task_allocation, parameter_source):
             logger.info("%s schedule will determine when the schedule for [%s] terminates.", str(loop_control), task.name)
 
     return ScheduleHandle(task_allocation, sched, loop_control, runner_for_op, params_for_op)
-
 
 def requires_time_period_schedule(task, task_runner, params):
     if task.warmup_time_period is not None or task.time_period is not None:
