@@ -806,6 +806,12 @@ def create_arg_parser():
     help="Path where the HTML visualization should be saved when --visualize is enabled. If not specified, it will be saved in the test execution directory.",
     default=None
     )
+    test_execution_parser.add_argument(
+        "--no-await",
+        help="Dispatch search requests at the configured rate without waiting for responses or collecting request metrics.",
+        action="store_true",
+        default=False
+    )
 
     ###############################################################################
     #
@@ -1156,6 +1162,7 @@ def configure_test(arg_parser, args, cfg):
     cfg.add(config.Scope.applicationOverride, "workload", "randomization.alpha", args.randomization_alpha)
     cfg.add(config.Scope.applicationOverride, "workload", "visualize", args.visualize)
     cfg.add(config.Scope.applicationOverride, "workload", "visualize.output.path", args.visualize_output_path)
+    cfg.add(config.Scope.applicationOverride, "worker_coordinator", "no_await", args.no_await)
     configure_workload_params(arg_parser, args, cfg)
     configure_connection_params(arg_parser, args, cfg)
     configure_telemetry_params(args, cfg)

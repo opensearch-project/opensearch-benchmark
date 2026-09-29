@@ -3104,3 +3104,227 @@ class SampleRoutingAndProgressUpdateTests(TestCase):
             joinpoint_reached.worker_timestamp,
             joinpoint_reached.task
         )
+
+class AsyncIoAdapterNoAwaitTests(TestCase):
+    @staticmethod
+    def adapter(no_await):
+        cfg = mock.Mock()
+        values = {
+            ("worker_coordinator", "profiling"): False,
+            ("worker_coordinator", "assertions"): False,
+            ("worker_coordinator", "no_await"): no_await,
+            ("system", "async.debug"): False
+        }
+        cfg.opts.side_effect = lambda section, key, **kwargs: values[(section, key)]
+        return worker_coordinator.AsyncIoAdapter(
+            cfg=cfg,
+            workload=mock.Mock(),
+            task_allocations=[],
+            sampler=mock.Mock(),
+            profile_sampler=mock.Mock(),
+            cancel=threading.Event(),
+            complete=threading.Event(),
+            abort_on_error=False
+        )
+
+    def test_uses_no_await_executor_for_search(self):
+        adapter = self.adapter(no_await=True)
+        task = workload.Task(
+            "search-task",
+            workload.Operation("search-op", workload.OperationType.Search)
+        )
+
+        self.assertIs(worker_coordinator.AsyncNoAwaitExecutor, adapter.executor_class_for(task))
+
+    def test_uses_regular_executor_when_no_await_is_disabled(self):
+        adapter = self.adapter(no_await=False)
+        task = workload.Task(
+            "bulk-task",
+            workload.Operation("bulk-op", workload.OperationType.Bulk)
+        )
+
+        self.assertIs(worker_coordinator.AsyncExecutor, adapter.executor_class_for(task))
+
+    def test_rejects_non_search_operation_in_no_await_mode(self):
+        adapter = self.adapter(no_await=True)
+        task = workload.Task(
+            "bulk-task",
+            workload.Operation("bulk-op", workload.OperationType.Bulk)
+        )
+
+        with self.assertRaisesRegex(exceptions.SystemSetupError, "only supports search and vector-search"):
+            adapter.executor_class_for(task)
+
+
+class AsyncNoAwaitExecutorTests(TestCase):
+    class RequestContext:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            return False
+
+    class ImmediateRunner:
+        def __init__(self):
+            self.params = None
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            return False
+
+        async def __call__(self, opensearch, params):
+            self.params = params
+
+    class BlockingRunner(ImmediateRunner):
+        def __init__(self, started, release):
+            super().__init__()
+            self.started = started
+            self.release = release
+
+        async def __call__(self, opensearch, params):
+            self.params = params
+            self.started.set()
+            await self.release.wait()
+
+    def setUp(self):
+        self.cfg = config.Config()
+        self.cfg.add(config.Scope.application, "system", "env.name", "unittest")
+        self.cfg.add(config.Scope.application, "system", "available.cores", 8)
+        self.cfg.add(config.Scope.application, "workload", "test.mode.enabled", True)
+        self.cfg.add(
+            config.Scope.application,
+            "client",
+            "options",
+            WorkerCoordinatorTests.Holder(all_client_options={"default": {"timeout": 10}})
+        )
+
+        self.task = workload.Task(
+            "test-task",
+            workload.Operation("test-op", workload.OperationType.Search),
+            clients=2
+        )
+        self.sampler = mock.Mock()
+        self.profile_sampler = mock.Mock()
+        self.cancel = threading.Event()
+        self.complete = threading.Event()
+        self.schedule_handle = mock.Mock()
+        self.schedule_handle.ramp_up_wait_time = 0
+
+        opensearch_mock = mock.Mock()
+        opensearch_mock.new_request_context.return_value = self.RequestContext()
+        self.opensearch = {"default": opensearch_mock}
+
+    def executor(self, client_id=0, schedule=None):
+        return worker_coordinator.AsyncNoAwaitExecutor(
+            client_id=client_id,
+            task=self.task,
+            schedule=schedule or self.schedule_handle,
+            opensearch=self.opensearch,
+            sampler=self.sampler,
+            profile_sampler=self.profile_sampler,
+            cancel=self.cancel,
+            complete=self.complete,
+            on_error="continue",
+            config=self.cfg
+        )
+
+    @staticmethod
+    async def drain(executor):
+        await asyncio.gather(*set(executor._inflight_tasks))  # pylint: disable=protected-access
+        await asyncio.sleep(0)
+
+    def test_initialization(self):
+        executor = self.executor()
+
+        self.assertEqual(0, executor.client_id)
+        self.assertEqual(self.task, executor.task)
+        self.assertEqual(self.schedule_handle, executor.schedule_handle)
+        self.assertEqual(self.opensearch, executor.opensearch)
+        self.assertTrue(executor.is_0)
+        self.assertEqual(set(), executor._inflight_tasks)  # pylint: disable=protected-access
+
+    def test_client_id_not_zero(self):
+        executor = self.executor(client_id=1)
+
+        self.assertEqual(1, executor.client_id)
+        self.assertFalse(executor.is_0)
+
+    @run_async
+    async def test_request_returns_before_response_and_tracks_task(self):
+        started = asyncio.Event()
+        release = asyncio.Event()
+        runner_instance = self.BlockingRunner(started, release)
+        executor = self.executor()
+        executor.runner = runner_instance
+        params = {"body": {"query": {"match_all": {}}}, "request-timeout": 3}
+
+        await executor._async_no_await_request(params, 0, time.perf_counter())  # pylint: disable=protected-access
+        await asyncio.wait_for(started.wait(), timeout=1)
+
+        self.assertEqual(1, len(executor._inflight_tasks))  # pylint: disable=protected-access
+        self.assertNotIn("fire_and_forget", params)
+        self.assertTrue(runner_instance.params["fire_and_forget"])
+        self.assertEqual(3, runner_instance.params["request-timeout"])
+        self.schedule_handle.before_request.assert_called_once()
+        self.schedule_handle.after_request.assert_called_once()
+
+        release.set()
+        await self.drain(executor)
+
+        self.assertEqual(set(), executor._inflight_tasks)  # pylint: disable=protected-access
+
+    @run_async
+    async def test_request_waits_until_scheduled_time(self):
+        executor = self.executor()
+        executor.runner = self.ImmediateRunner()
+
+        with mock.patch(
+            "osbenchmark.worker_coordinator.worker_coordinator.time.perf_counter",
+            return_value=0.5
+        ), mock.patch("asyncio.sleep", new=mock.AsyncMock()) as sleep:
+            await executor._async_no_await_request({}, 1.0, 0.0)  # pylint: disable=protected-access
+
+        sleep.assert_awaited_once_with(0.5)
+        await self.drain(executor)
+
+    @run_async
+    async def test_request_does_not_sleep_when_schedule_is_late(self):
+        executor = self.executor()
+        executor.runner = self.ImmediateRunner()
+
+        with mock.patch(
+            "osbenchmark.worker_coordinator.worker_coordinator.time.perf_counter",
+            return_value=1.5
+        ), mock.patch("asyncio.sleep", new=mock.AsyncMock()) as sleep:
+            await executor._async_no_await_request({}, 1.0, 0.0)  # pylint: disable=protected-access
+
+        sleep.assert_not_awaited()
+        await self.drain(executor)
+
+    @run_async
+    async def test_call_drains_inflight_requests_before_returning(self):
+        request_finished = asyncio.Event()
+
+        class DelayedRunner(self.ImmediateRunner):
+            async def __call__(self, opensearch, params):
+                await asyncio.sleep(0)
+                request_finished.set()
+
+        runner_instance = DelayedRunner()
+        schedule_handle = mock.Mock()
+        schedule_handle.ramp_up_wait_time = 0
+
+        async def schedule():
+            yield 0, metrics.SampleType.Normal, None, runner_instance, {}
+
+        schedule_handle.return_value = schedule()
+        executor = self.executor(schedule=schedule_handle)
+
+        await executor()
+
+        self.assertTrue(request_finished.is_set())
+        self.assertEqual(set(), executor._inflight_tasks)  # pylint: disable=protected-access
+        self.sampler.add.assert_not_called()
+        self.profile_sampler.add.assert_not_called()

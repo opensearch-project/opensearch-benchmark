@@ -1393,6 +1393,41 @@ class QueryRunnerTests(TestCase):
     @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
     @mock.patch("opensearchpy.OpenSearch")
     @run_async
+    async def test_fire_and_forget_query_preserves_request_timeout(
+        self, opensearch, on_client_request_start, on_client_request_end
+    ):
+        opensearch.transport.perform_request.return_value = as_future(io.StringIO("ignored"))
+        query_runner = runner.Query()
+        params = {
+            "index": "_all",
+            "body": {"query": {"match_all": {}}},
+            "request-timeout": 3.0,
+            "fire_and_forget": True
+        }
+
+        result = await query_runner(opensearch, params)
+
+        self.assertEqual(
+            {
+                "weight": 1,
+                "unit": "ops",
+                "success": True,
+                "fire_and_forget": True
+            },
+            result
+        )
+        opensearch.transport.perform_request.assert_called_once_with(
+            "GET",
+            "/_all/_search",
+            params={"request_timeout": 3.0},
+            body=params["body"],
+            headers=None
+        )
+
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_end')
+    @mock.patch('osbenchmark.client.RequestContextHolder.on_client_request_start')
+    @mock.patch("opensearchpy.OpenSearch")
+    @run_async
     async def test_query_match_only_request_body_defined(self, opensearch, on_client_request_start, on_client_request_end):
         search_response = {
             "timed_out": False,
