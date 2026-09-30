@@ -31,6 +31,28 @@ from osbenchmark.utils import io, process
 MIN_REQUIRED_MAJOR_VERSION = 2
 VERSION_REGEX = r'.* ([0-9]+)\.([0-9]+)\..*'
 
+# directories already registered with git as safe.directory in this process, so repeated
+# operations against the same directory do not keep re-adding the same global config entry
+_safe_directories_marked = set()
+
+
+def _ensure_safe_directory(src):
+    """
+    Registers `src` with git's safe.directory allowlist.
+
+    Since git 2.35.2, git refuses to operate on a repository whose top-level directory is not
+    owned by the invoking user ("detected dubious ownership"), which fires whenever this
+    process's UID does not match the owning UID of `src` (e.g. a host directory bind-mounted
+    into a container with a different fixed UID). Marking it safe here, once per directory,
+    keeps every git subprocess call below working regardless of that mismatch.
+    """
+    resolved = os.path.abspath(src)
+    if resolved in _safe_directories_marked:
+        return
+    if not process.run_subprocess_with_logging("git config --global --add safe.directory {}".format(io.escape_path(resolved))):
+        _safe_directories_marked.add(resolved)
+
+
 def probed(f):
     def probe(src, *args, **kwargs):
         try:
@@ -43,6 +65,7 @@ def probed(f):
         if not match or int(match.group(1)) < MIN_REQUIRED_MAJOR_VERSION:
             raise exceptions.SystemSetupError("OpenSearch Benchmark requires at least version 2 of git.  "
                                               f"You have {out}.  Please update git.")
+        _ensure_safe_directory(src)
         return f(src, *args, **kwargs)
     return probe
 
