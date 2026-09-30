@@ -49,8 +49,8 @@ def _ensure_safe_directory(src):
     resolved = os.path.abspath(src)
     if resolved in _safe_directories_marked:
         return
-    process.run_subprocess_with_logging("git config --global --add safe.directory {}".format(io.escape_path(resolved)))
-    _safe_directories_marked.add(resolved)
+    if not process.run_subprocess_with_logging("git config --global --add safe.directory {}".format(io.escape_path(resolved))):
+        _safe_directories_marked.add(resolved)
 
 
 def probed(f):

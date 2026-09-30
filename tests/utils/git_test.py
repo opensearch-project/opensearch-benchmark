@@ -74,6 +74,26 @@ class GitTests(TestCase):
                                 if c == mock.call("git config --global --add safe.directory /src")]
         self.assertEqual(1, len(safe_directory_calls))
 
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_out_and_err")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
+    def test_failed_safe_directory_registration_is_retried(self, run_subprocess_with_logging, run_subprocess_with_out_and_err):
+        # pylint: disable=protected-access
+        safe_directory_cmd = "git config --global --add safe.directory /src"
+
+        def fake_run(cmd, *args, **kwargs):
+            return 1 if cmd == safe_directory_cmd else 0
+
+        run_subprocess_with_logging.side_effect = fake_run
+        run_subprocess_with_out_and_err.return_value = ("git version 2.4.0", None, 0)
+
+        git.fetch("/src", remote="my-origin")
+        git.checkout("/src", "feature-branch")
+
+        self.assertNotIn(os.path.abspath("/src"), git._safe_directories_marked)
+        safe_directory_calls = [c for c in run_subprocess_with_logging.call_args_list
+                                if c == mock.call(safe_directory_cmd)]
+        self.assertEqual(2, len(safe_directory_calls))
+
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_out_and_err")
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
