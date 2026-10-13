@@ -48,7 +48,7 @@ def test_database_runners_override_workload_plugin_runners(
     calls = []
     register_default_runners.side_effect = lambda: calls.append("defaults")
     load_workload_plugins.side_effect = lambda *args: calls.append("workload")
-    register_database_runners.side_effect = lambda database_type: calls.append(database_type)
+    register_database_runners.side_effect = calls.append
 
     cfg = mock.Mock()
     cfg.opts.return_value = "milvus"
