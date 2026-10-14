@@ -54,6 +54,30 @@ import osbenchmark.database  # noqa: F401  # pylint: disable=unused-import
 from osbenchmark.workload import WorkloadProcessorRegistry, load_workload, load_workload_plugins, ingestion_manager
 from osbenchmark.utils import convert, console, net
 from osbenchmark.worker_coordinator.errors import parse_error
+
+
+def register_database_runners(database_type):
+    """Register runners supplied by a non-OpenSearch database client factory."""
+    try:
+        client_factory_class = get_client_factory(DatabaseType(database_type.lower()))
+    except ValueError:
+        return
+
+    register_runners = getattr(client_factory_class, "register_runners", None)
+    if register_runners:
+        register_runners()
+
+
+def register_workload_runners(cfg, benchmark_workload):
+    """Register default, workload-plugin, and database runners in precedence order."""
+    runner.register_default_runners()
+    if benchmark_workload.has_plugins:
+        workload.load_workload_plugins(cfg, benchmark_workload.name, runner.register_runner, scheduler.register_scheduler)
+
+    database_type = cfg.opts("database", "type", default_value="opensearch", mandatory=False)
+    register_database_runners(database_type)
+
+
 ##################################
 #
 # Messages sent between worker_coordinators
@@ -1975,9 +1999,7 @@ class Worker(actor.BenchmarkActor):
         # we need to wake up more often in test mode
         if self.config.opts("workload", "test.mode.enabled"):
             self.wakeup_interval = 0.5
-        runner.register_default_runners()
-        if self.workload.has_plugins:
-            workload.load_workload_plugins(self.config, self.workload.name, runner.register_runner, scheduler.register_scheduler)
+        register_workload_runners(self.config, self.workload)
         self.drive()
 
     @actor.no_retry("worker")  # pylint: disable=no-value-for-parameter
