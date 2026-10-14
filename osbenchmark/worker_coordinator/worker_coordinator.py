@@ -45,37 +45,20 @@ from enum import Enum
 
 import thespian.actors
 
-from osbenchmark.utils import opts
 from osbenchmark import time as osb_time, actor, config, exceptions, metrics, workload, client, paths, PROGRAM_NAME, telemetry
 from osbenchmark.worker_coordinator import runner, scheduler
-from osbenchmark.database.factory import DatabaseClientFactory
-from osbenchmark.database.registry import DatabaseType, get_client_factory
-import osbenchmark.database  # noqa: F401  # pylint: disable=unused-import
+from osbenchmark.database import engine_for
 from osbenchmark.workload import WorkloadProcessorRegistry, load_workload, load_workload_plugins, ingestion_manager
 from osbenchmark.utils import convert, console, net
 from osbenchmark.worker_coordinator.errors import parse_error
 
 
-def register_database_runners(database_type):
-    """Register runners supplied by a non-OpenSearch database client factory."""
-    try:
-        client_factory_class = get_client_factory(DatabaseType(database_type.lower()))
-    except ValueError:
-        return
-
-    register_runners = getattr(client_factory_class, "register_runners", None)
-    if register_runners:
-        register_runners()
-
-
 def register_workload_runners(cfg, benchmark_workload):
-    """Register default, workload-plugin, and database runners in precedence order."""
+    """Register default, workload-plugin, and database engine runners in precedence order."""
     runner.register_default_runners()
     if benchmark_workload.has_plugins:
         workload.load_workload_plugins(cfg, benchmark_workload.name, runner.register_runner, scheduler.register_scheduler)
-
-    database_type = cfg.opts("database", "type", default_value="opensearch", mandatory=False)
-    register_database_runners(database_type)
+    engine_for(cfg).register_runners()
 
 
 ##################################
@@ -746,20 +729,7 @@ class WorkerCoordinatorActor(actor.BenchmarkActor):
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
     def receiveMsg_PrepareBenchmark(self, msg, sender):
         self.start_sender = sender
-        db_type_str = msg.config.opts("database", "type", default_value="opensearch", mandatory=False)
-        if db_type_str.lower() == "opensearch":
-            # OpenSearch path: identical to 2.1 — let WorkerCoordinator use the default
-            # client.OsClientFactory so that nothing about OS client construction changes.
-            self.coordinator = WorkerCoordinator(self, msg.config)
-        else:
-            # Non-OpenSearch path: route through the database abstraction registry to pick
-            # the appropriate factory class for Vespa, Milvus, etc.
-            try:
-                db_type = DatabaseType(db_type_str.lower())
-                client_factory_class = get_client_factory(db_type)
-            except (ValueError, KeyError):
-                client_factory_class = get_client_factory(DatabaseType.OPENSEARCH)
-            self.coordinator = WorkerCoordinator(self, msg.config, os_client_factory_class=client_factory_class)
+        self.coordinator = WorkerCoordinator(self, msg.config)
         self.coordinator.prepare_benchmark(msg.workload)
 
     @actor.no_retry("worker_coordinator")  # pylint: disable=no-value-for-parameter
@@ -1040,7 +1010,7 @@ def num_cores(cfg):
 
 
 class WorkerCoordinator:
-    def __init__(self, target, config, os_client_factory_class=client.OsClientFactory):
+    def __init__(self, target, config, client_factory_class=None):
         """
         Coordinates all workers. It is technology-agnostic, i.e. it does not know anything about actors. To allow us to hook in an actor,
         we provide a ``target`` parameter which will be called whenever some event has occurred. The ``target`` can use this to send
@@ -1048,12 +1018,15 @@ class WorkerCoordinator:
 
         :param target: A target that will be notified of important events.
         :param config: The current config object.
+        :param client_factory_class: Overrides the engine's client creation. Takes hosts and client options and
+                                     provides ``create()``. Intended for tests.
         """
         self.logger = logging.getLogger(__name__)
         self.target = target
         self.config = config
         ingestion_manager.IngestionManager.config = config
-        self.os_client_factory = os_client_factory_class
+        self._engine = None
+        self.client_factory_class = client_factory_class
         self.workload = None
         self.test_procedure = None
         self.worker_ips = []
@@ -1079,60 +1052,38 @@ class WorkerCoordinator:
         self.complete_current_task_sent = False
 
         self.telemetry = None
-        # Caches the DatabaseClientFactory per cluster for non-OpenSearch backends
-        # so the same instance can be reused by wait_for_rest_api without a second
-        # construction.
-        self._database_factories = {}
 
-    def create_os_clients(self):
+    @property
+    def engine(self):
+        if self._engine is None:
+            self._engine = engine_for(self.config)
+        return self._engine
+
+    def create_clients(self):
         all_hosts = self.config.opts("client", "hosts").all_hosts
-        database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
-        opensearch = {}
+        clients = {}
         for cluster_name, cluster_hosts in all_hosts.items():
             all_client_options = self.config.opts("client", "options").all_client_options
             cluster_client_options = dict(all_client_options[cluster_name])
             # Use retries to avoid aborts on long living connections for telemetry devices
             cluster_client_options["retry-on-timeout"] = True
-            if database_type.lower() == "opensearch":
-                opensearch[cluster_name] = self.os_client_factory(cluster_hosts, cluster_client_options).create()
+            if self.client_factory_class:
+                clients[cluster_name] = self.client_factory_class(cluster_hosts, cluster_client_options).create()
             else:
-                # Non-OpenSearch backends route through the registry so the right
-                # url_prefix / transport configuration is applied. This path
-                # mirrors the async create path at WorkerCoordinator.os_clients.
-                # Cache the factory so wait_for_rest_api can reuse it for the
-                # readiness probe rather than constructing a second instance.
-                db_factory = DatabaseClientFactory.create_client_factory(
-                    database_type, cluster_hosts, cluster_client_options,
-                )
-                self._database_factories[cluster_name] = db_factory
-                opensearch[cluster_name] = db_factory.create()
-        return opensearch
+                clients[cluster_name] = self.engine.create_client(cluster_hosts, cluster_client_options)
+        return clients
 
-    def wait_for_rest_api(self, opensearch):
-        os_default = opensearch["default"]
-        database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
-        # The legacy wait_for_rest_layer probes /_cluster/health then falls back
-        # to /_cat/indices — both OS-API-shape-specific. For non-OS backends,
-        # delegate to a factory-provided probe.
-        if database_type.lower() != "opensearch":
-            db_factory = self._database_factories.get("default")
-            self.logger.info("Checking if non-OS REST layer is available (database_type=%s).", database_type)
-            if db_factory is not None and hasattr(db_factory, "wait_for_rest_layer") \
-                    and db_factory.wait_for_rest_layer(max_attempts=40):
-                self.logger.info("REST layer is available.")
-                return
-            self.logger.error("Non-OS REST layer is not yet available. Stopping benchmark.")
-            raise exceptions.SystemSetupError(f"{database_type} REST layer is not available.")
+    def wait_for_rest_api(self, clients):
         self.logger.info("Checking if REST API is available.")
-        if client.wait_for_rest_layer(os_default, max_attempts=40):
+        if self.engine.wait_for_rest_layer(clients["default"], max_attempts=40):
             self.logger.info("REST API is available.")
         else:
             self.logger.error("REST API layer is not yet available. Stopping benchmark.")
-            raise exceptions.SystemSetupError("OpenSearch REST API layer is not available.")
+            raise exceptions.SystemSetupError(f"{self.engine.display_name} REST API layer is not available.")
 
-    def retrieve_cluster_info(self, opensearch):
+    def retrieve_cluster_info(self, clients):
         try:
-            return opensearch["default"].info()
+            return self.engine.cluster_info(clients["default"])
         except BaseException:
             self.logger.exception("Could not retrieve cluster info on benchmark start")
             return None
@@ -1147,7 +1098,7 @@ class WorkerCoordinator:
         self.target.sample_post_processor_actor = self.target.createActor(SamplePostProcessorActor)
         self.target.send(self.target.sample_post_processor_actor, StartSamplePostProcessorActor(self.config, self.workload, self.test_procedure, downsample_factor))
 
-        os_clients = self.create_os_clients()
+        clients = self.create_clients()
 
         skip_rest_api_check = self.config.opts("builder", "skip.rest.api.check")
         uses_static_responses = self.config.opts("client", "options").uses_static_responses
@@ -1156,8 +1107,8 @@ class WorkerCoordinator:
         elif uses_static_responses:
             self.logger.info("Skipping REST API check as static responses are used.")
         else:
-            self.wait_for_rest_api(os_clients)
-            self.target.on_cluster_details_retrieved(self.retrieve_cluster_info(os_clients))
+            self.wait_for_rest_api(clients)
+            self.target.on_cluster_details_retrieved(self.retrieve_cluster_info(clients))
 
         # Redline testing: Check if cpu feedback is enabled. Enable the node-stats telemetry device if we need to
         cpu_max = self.config.opts("workload", "redline.max_cpu_usage", default_value=None, mandatory=False)
@@ -1456,12 +1407,12 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
         self.profile_metrics_post_processor = ProfileMetricsSamplePostprocessor(self.metrics_store,
                                                                             msg.workload.meta_data,
                                                                             msg.test_procedure.meta_data)
-        os_clients = self.create_os_clients()
+        clients = self.create_clients()
         uses_static_responses = self.config.opts("client", "options").uses_static_responses
 
         # Avoid issuing any requests to the target cluster when static responses are enabled. The results
         # are not useful and attempts to connect to a non-existing cluster just lead to exception traces in logs.
-        self.prepare_telemetry(os_clients, enable=not uses_static_responses)
+        self.prepare_telemetry(clients, enable=not uses_static_responses)
         self.worker_coordinator_actor = sender
         self.reset_sample_buffers()
         self.wakeupAfter(datetime.timedelta(seconds=WorkerCoordinatorActor.POST_PROCESS_INTERVAL_SECONDS))
@@ -1604,50 +1555,22 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
             except BaseException:
                 self.logger.exception("Could not stop telemetry cleanly.")
 
-    def create_os_clients(self):
+    def create_clients(self):
+        engine = engine_for(self.config)
         all_hosts = self.config.opts("client", "hosts").all_hosts
-        opensearch = {}
+        clients = {}
         for cluster_name, cluster_hosts in all_hosts.items():
             all_client_options = self.config.opts("client", "options").all_client_options
             cluster_client_options = dict(all_client_options[cluster_name])
             # Use retries to avoid aborts on long living connections for telemetry devices
             cluster_client_options["retry-on-timeout"] = True
-            opensearch[cluster_name] = client.OsClientFactory(cluster_hosts, cluster_client_options).create()
-        return opensearch
+            clients[cluster_name] = engine.create_client(cluster_hosts, cluster_client_options)
+        return clients
 
-    def prepare_telemetry(self, opensearch, enable):
+    def prepare_telemetry(self, clients, enable):
         enabled_devices = self.config.opts("telemetry", "devices")
-        telemetry_params = self.config.opts("telemetry", "params")
-        log_root = paths.test_execution_root(self.config)
-        database_type = self.config.opts("database", "type", default_value="opensearch", mandatory=False)
-
-        os_default = opensearch["default"]
-
         if enable:
-            # Only enable OpenSearch-specific telemetry for OpenSearch databases
-            if database_type.lower() == "opensearch":
-                self.logger.info("Enabling OpenSearch-specific telemetry devices for database type [%s]", database_type)
-                devices = [
-                    telemetry.NodeStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.ExternalEnvironmentInfo(os_default, self.metrics_store),
-                    telemetry.ClusterEnvironmentInfo(os_default, self.metrics_store),
-                    telemetry.JvmStatsSummary(os_default, self.metrics_store),
-                    telemetry.IndexStats(os_default, self.metrics_store,
-                                         index_names=[idx.name for idx in self.workload.indices] if self.workload.indices else None),
-                    telemetry.MlBucketProcessingTime(os_default, self.metrics_store),
-                    telemetry.SegmentStats(log_root, os_default),
-                    telemetry.CcrStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.CcrStatsV2(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.RecoveryStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.TransformStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.SearchableSnapshotsStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.SegmentReplicationStats(telemetry_params, opensearch, self.metrics_store),
-                    telemetry.ShardStats(telemetry_params, opensearch, self.metrics_store)
-                ]
-            else:
-                # For non-OpenSearch databases, skip OS-specific telemetry devices
-                self.logger.info("Skipping OpenSearch-specific telemetry devices for database type [%s]", database_type)
-                devices = []
+            devices = engine_for(self.config).telemetry_devices(self.config, clients, self.metrics_store, self.workload)
         else:
             devices = []
         self.telemetry = telemetry.Telemetry(enabled_devices, devices=devices)
@@ -2487,49 +2410,13 @@ class AsyncIoAdapter:
         self.logger.error("Uncaught exception in event loop: %s", context)
 
     async def run(self):
-        def os_clients(all_hosts, all_client_options):
-            opensearch = {}
-            grpc_hosts = self.cfg.opts("client", "grpc_hosts", mandatory=False)
-
-            # If gRPC hosts are configured and not empty, use them. Otherwise, use defaults for gRPC operations.
-            if grpc_hosts and grpc_hosts.all_hosts:
-                # Use the provided gRPC hosts
-                pass
-            else:
-                # Provide default gRPC hosts when using gRPC operations
-                # Default: localhost:9400 (matching current environment variable defaults)
-                grpc_hosts = opts.TargetHosts("localhost:9400")
-
-            database_type = self.cfg.opts("database", "type", default_value="opensearch", mandatory=False)
-
-            if database_type.lower() == "opensearch":
-                # OpenSearch path: identical to 2.1. Direct construction of
-                # client.OsClientFactory + client.UnifiedClientFactory so that
-                # nothing about how the OS client is built changes.
-                for cluster_name, cluster_hosts in all_hosts.items():
-                    rest_client_factory = client.OsClientFactory(cluster_hosts, all_client_options[cluster_name])
-                    unified_client_factory = client.UnifiedClientFactory(rest_client_factory, grpc_hosts)
-                    opensearch[cluster_name] = unified_client_factory.create_async()
-            else:
-                # Non-OpenSearch path: route through the database abstraction layer
-                # to pick the right factory class for Vespa, Milvus, etc.
-                self.logger.info("Creating database clients with database_type=[%s]", database_type)
-                for cluster_name, cluster_hosts in all_hosts.items():
-                    db_factory = DatabaseClientFactory.create_client_factory(
-                        database_type,
-                        cluster_hosts,
-                        all_client_options[cluster_name]
-                    )
-                    db_client = db_factory.create_async()
-                    self.logger.info("Created client type=[%s] for cluster=[%s]", type(db_client).__name__, cluster_name)
-                    opensearch[cluster_name] = db_client
-            return opensearch
-
+        engine = engine_for(self.cfg)
         # Properly size the internal connection pool to match the number of expected clients but allow the user
         # to override it if needed.
         client_count = len(self.task_allocations)
-        opensearch = os_clients(self.cfg.opts("client", "hosts").all_hosts,
-                        self.cfg.opts("client", "options").with_max_connections(client_count))
+        all_client_options = self.cfg.opts("client", "options").with_max_connections(client_count)
+        clients = {cluster_name: engine.create_async_client(cluster_hosts, all_client_options[cluster_name], self.cfg)
+                   for cluster_name, cluster_hosts in self.cfg.opts("client", "hosts").all_hosts.items()}
 
         self.logger.info("Task assertions enabled: %s", str(self.assertions_enabled))
         runner.enable_assertions(self.assertions_enabled)
@@ -2552,7 +2439,7 @@ class AsyncIoAdapter:
             # need to start from (client) index 0 in both cases instead of 0 for indexA and 4 for indexB.
             schedule = schedule_for(task_allocation, params_per_task[task])
             async_executor = AsyncExecutor(
-                client_id, task, schedule, opensearch, self.sampler, self.profile_sampler, self.cancel, self.complete,
+                client_id, task, schedule, clients, self.sampler, self.profile_sampler, self.cancel, self.complete,
                 task.error_behavior(self.abort_on_error), self.cfg, self.shared_states, self.feedback_actor, self.error_queue, self.queue_lock)
             final_executor = AsyncProfiler(async_executor) if self.profiling_enabled else async_executor
             aws.append(final_executor())
@@ -2565,8 +2452,8 @@ class AsyncIoAdapter:
             await asyncio.get_event_loop().shutdown_asyncgens()
             shutdown_asyncgens_end = time.perf_counter()
             self.logger.info("Total time to shutdown asyncgens: %f seconds.", (shutdown_asyncgens_end - run_end))
-            for s in opensearch.values():
-                await s.transport.close()
+            for c in clients.values():
+                await engine.close_async_client(c)
             transport_close_end = time.perf_counter()
             self.logger.info("Total time to close transports: %f seconds.", (shutdown_asyncgens_end - transport_close_end))
 
