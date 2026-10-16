@@ -143,7 +143,7 @@ class WorkerCoordinatorTests(TestCase):
         resolve.side_effect = ["10.5.5.1", "10.5.5.2"]
 
         target = self.create_test_worker_coordinator_target()
-        d = worker_coordinator.WorkerCoordinator(target, self.cfg, os_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
+        d = worker_coordinator.WorkerCoordinator(target, self.cfg, client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
         d.prepare_benchmark(t=self.workload)
 
         target.prepare_workload.assert_called_once_with(["10.5.5.1", "10.5.5.2"], self.cfg, self.workload)
@@ -161,7 +161,7 @@ class WorkerCoordinatorTests(TestCase):
 
     def test_assign_worker_coordinators_round_robin(self):
         target = self.create_test_worker_coordinator_target()
-        d = worker_coordinator.WorkerCoordinator(target, self.cfg, os_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
+        d = worker_coordinator.WorkerCoordinator(target, self.cfg, client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
 
         d.prepare_benchmark(t=self.workload)
 
@@ -181,7 +181,7 @@ class WorkerCoordinatorTests(TestCase):
 
     def test_client_reaches_join_point_others_still_executing(self):
         target = self.create_test_worker_coordinator_target()
-        d = worker_coordinator.WorkerCoordinator(target, self.cfg, os_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
+        d = worker_coordinator.WorkerCoordinator(target, self.cfg, client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
 
         d.prepare_benchmark(t=self.workload)
         d.start_benchmark()
@@ -199,7 +199,7 @@ class WorkerCoordinatorTests(TestCase):
 
     def test_client_reaches_join_point_which_completes_parent(self):
         target = self.create_test_worker_coordinator_target()
-        d = worker_coordinator.WorkerCoordinator(target, self.cfg, os_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
+        d = worker_coordinator.WorkerCoordinator(target, self.cfg, client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
 
         d.prepare_benchmark(t=self.workload)
         d.start_benchmark()
@@ -260,7 +260,7 @@ class WorkerCoordinatorTests(TestCase):
     def test_final_joinpoint_requests_final_metrics_without_separate_close(self):
         target = self.create_test_worker_coordinator_target()
         target.sample_post_processor_actor = mock.Mock(name="sample_post_processor_actor")
-        d = worker_coordinator.WorkerCoordinator(target, self.cfg, os_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
+        d = worker_coordinator.WorkerCoordinator(target, self.cfg, client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
 
         d.prepare_benchmark(t=self.workload)
         d.start_benchmark()
@@ -293,7 +293,7 @@ class WorkerCoordinatorTests(TestCase):
         original_clients = task.clients
 
         d = worker_coordinator.WorkerCoordinator(self.create_test_worker_coordinator_target(), self.cfg,
-                                            os_client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
+                                            client_factory_class=WorkerCoordinatorTests.StaticClientFactory)
 
         d.prepare_benchmark(t=self.workload)
         d.start_benchmark()

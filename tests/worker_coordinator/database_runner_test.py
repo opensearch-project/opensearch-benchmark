@@ -6,61 +6,46 @@
 
 from unittest import mock
 
-from osbenchmark.database.registry import DatabaseType
 from osbenchmark.worker_coordinator import worker_coordinator
 
 
-@mock.patch("osbenchmark.worker_coordinator.worker_coordinator.get_client_factory")
-def test_registers_database_specific_runners(get_client_factory):
-    client_factory_class = mock.Mock()
-    get_client_factory.return_value = client_factory_class
-
-    worker_coordinator.register_database_runners("vespa")
-
-    get_client_factory.assert_called_once_with(DatabaseType.VESPA)
-    client_factory_class.register_runners.assert_called_once_with()
-
-
-@mock.patch("osbenchmark.worker_coordinator.worker_coordinator.get_client_factory")
-def test_skips_runner_registration_when_factory_has_no_hook(get_client_factory):
-    get_client_factory.return_value = mock.Mock(spec=[])
-
-    worker_coordinator.register_database_runners("opensearch")
-
-    get_client_factory.assert_called_once_with(DatabaseType.OPENSEARCH)
-
-
-@mock.patch("osbenchmark.worker_coordinator.worker_coordinator.get_client_factory")
-def test_defers_unknown_database_validation_to_client_creation(get_client_factory):
-    worker_coordinator.register_database_runners("unknown")
-
-    get_client_factory.assert_not_called()
-
-
-@mock.patch("osbenchmark.worker_coordinator.worker_coordinator.register_database_runners")
+@mock.patch("osbenchmark.worker_coordinator.worker_coordinator.engine_for")
 @mock.patch("osbenchmark.worker_coordinator.worker_coordinator.workload.load_workload_plugins")
 @mock.patch("osbenchmark.worker_coordinator.worker_coordinator.runner.register_default_runners")
 def test_database_runners_override_workload_plugin_runners(
     register_default_runners,
     load_workload_plugins,
-    register_database_runners,
+    engine_for,
 ):
     calls = []
     register_default_runners.side_effect = lambda: calls.append("defaults")
     load_workload_plugins.side_effect = lambda *args: calls.append("workload")
-    register_database_runners.side_effect = calls.append
+    engine_for.return_value.register_runners.side_effect = lambda: calls.append("engine")
 
     cfg = mock.Mock()
-    cfg.opts.return_value = "milvus"
     benchmark_workload = mock.Mock(has_plugins=True)
     benchmark_workload.name = "vectorsearch"
 
     worker_coordinator.register_workload_runners(cfg, benchmark_workload)
 
-    assert calls == ["defaults", "workload", "milvus"]
+    assert calls == ["defaults", "workload", "engine"]
+    engine_for.assert_called_once_with(cfg)
     load_workload_plugins.assert_called_once_with(
         cfg,
         "vectorsearch",
         worker_coordinator.runner.register_runner,
         worker_coordinator.scheduler.register_scheduler,
     )
+
+
+@mock.patch("osbenchmark.worker_coordinator.worker_coordinator.engine_for")
+@mock.patch("osbenchmark.worker_coordinator.worker_coordinator.workload.load_workload_plugins")
+@mock.patch("osbenchmark.worker_coordinator.worker_coordinator.runner.register_default_runners")
+def test_skips_workload_plugins_when_workload_has_none(register_default_runners, load_workload_plugins, engine_for):
+    benchmark_workload = mock.Mock(has_plugins=False)
+
+    worker_coordinator.register_workload_runners(mock.Mock(), benchmark_workload)
+
+    register_default_runners.assert_called_once_with()
+    load_workload_plugins.assert_not_called()
+    engine_for.return_value.register_runners.assert_called_once_with()
