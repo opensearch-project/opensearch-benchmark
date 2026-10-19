@@ -155,6 +155,13 @@ develop_require = [
     "pylint-quotes==0.2.1"
 ]
 
+# Optional: MCP server exposing OSB as typed tools to AI coding assistants.
+# Install with: pip install opensearch-benchmark[mcp]
+mcp_require = [
+    # License: MIT
+    "mcp>=1.0.0",
+]
+
 python_version_classifiers = ["Programming Language :: Python :: {}.{}".format(major, minor)
                               for major, minor in supported_python_versions]
 
@@ -202,12 +209,14 @@ setup(name="opensearch-benchmark",
       test_suite="tests",
       tests_require=tests_require,
       extras_require={
-          "develop": tests_require + develop_require
+          "develop": tests_require + develop_require,
+          "mcp": mcp_require,
       },
       entry_points={
           "console_scripts": [
               "opensearch-benchmark=osbenchmark.benchmark:main",
               "opensearch-benchmarkd=osbenchmark.benchmarkd:main",
+              "opensearch-benchmark-mcp=osbenchmark.mcp.server:main",
               "osb=osbenchmark.benchmark:main",
               "osbd=osbenchmark.benchmarkd:main",
           ],
