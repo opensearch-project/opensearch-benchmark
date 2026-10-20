@@ -58,7 +58,7 @@ def register_workload_runners(cfg, benchmark_workload):
     runner.register_default_runners()
     if benchmark_workload.has_plugins:
         workload.load_workload_plugins(cfg, benchmark_workload.name, runner.register_runner, scheduler.register_scheduler)
-    engine_for(cfg).register_runners()
+    runner.register_engine_runners(engine_for(cfg))
 
 
 ##################################

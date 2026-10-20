@@ -99,11 +99,12 @@ class Engine(ABC):
                              self.default_distribution_version, self.name)
             cfg.add(config.Scope.benchmark, "builder", "distribution.version", self.default_distribution_version)
 
-    def register_runners(self):
+    def runners(self):
         """
-        Register engine-specific runners. Called after the default runners and workload plugin runners are
-        registered, so engine runners take precedence.
+        :return: Engine-specific runners keyed by operation type. OSB registers them after the default runners and
+                 workload plugin runners, so they take precedence.
         """
+        return {}
 
     def telemetry_devices(self, cfg, clients, metrics_store, workload):
         """
