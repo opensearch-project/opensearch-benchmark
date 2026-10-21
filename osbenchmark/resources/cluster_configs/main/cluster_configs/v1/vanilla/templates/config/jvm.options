@@ -34,7 +34,7 @@
 
 ## GC configuration
 {# The implicit default is to use the default GC (depending on the JDK version) #}
-{%- if use_cms_gc is not defined and use_g1_gc is not defined and use_parallel_gc is not defined %}
+{%- if use_cms_gc is not defined and use_g1_gc is not defined and use_parallel_gc is not defined and use_zgc is not defined %}
 8-13:-XX:+UseConcMarkSweepGC
 8-13:-XX:CMSInitiatingOccupancyFraction=75
 8-13:-XX:+UseCMSInitiatingOccupancyOnly
@@ -53,6 +53,11 @@
 
 {%- if use_parallel_gc is defined and use_parallel_gc == 'true' %}
 -XX:+UseParallelGC
+{%- endif %}
+
+{%- if use_zgc is defined and use_zgc == 'true' %}
+-XX:+UseZGC
+21-22:-XX:+ZGenerational
 {%- endif %}
 
 ## JVM temporary directory
