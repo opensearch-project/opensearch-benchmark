@@ -126,11 +126,13 @@ install_requires = [
     "dask[distributed]==2026.8.0",
     # Licence: BSD-3-Clause
     # Serves the Dask dashboard
+    "pillow==12.3.0; python_version < '3.11'",
+    "pillow==13.0.0; python_version >= '3.11'",
+    # License: MIT-CMU
+    # Required by bokeh. Pillow 13 fixes vulnerabilities in 12.x but requires Python 3.11.
     "bokeh==3.9.2",
     # License: MIT-CMU
     # Required by bokeh. Pillow 13 fixes vulnerabilities in 12.x but requires Python 3.11.
-    "pillow==12.3.0; python_version < '3.11'",
-    "pillow==13.0.0; python_version >= '3.11'",
     # License: MIT
     "pydantic==2.14.1",
     # License: MIT
