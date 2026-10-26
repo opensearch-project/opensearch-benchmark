@@ -78,9 +78,11 @@ install_requires = [
     "thespian>=3.10.1,<3.10.7",
     # recommended library for thespian to identify actors more easily with `ps`
     # "setproctitle==1.1.10",
-    # always use the latest version, these are certificate files...
+    # CA certificates. Pinned so a compromised future release can't be picked up automatically, which also means
+    # CA changes only reach users through a new OSB release: bump this deliberately when certifi removes or adds
+    # CAs. 2026.10.19 and later remove the compromised eMudhra emSign ECC Root CA - G3.
     # License: MPL 2.0
-    "certifi",
+    "certifi==2026.10.23",
     # License: Apache 2.0
     "yappi>=1.4.0",
     # License: BSD
@@ -112,23 +114,28 @@ install_requires = [
     "aiokafka>=0.11.0",
     # License: MIT
     "tqdm",
+    # Synthetic data generation. Pinned to the newest releases that support every Python version OSB supports.
     # License: MIT
-    "faker",
+    "faker==40.43.0",
     # License: MIT
-    # This version is required for Python 3.8 and 3.9 to work
-    "mimesis==11.1.0",
+    "mimesis==22.2.0",
     # License: BSD-3-Clause
-    "pandas>=1.5.0",
+    "pandas==2.3.3",
     # Licence: BSD-3-Clause
-    "dask",
+    "dask==2026.8.0",
     # Licence: BSD-3-Clause
-    "dask[distributed]",
+    "dask[distributed]==2026.8.0",
+    # License: MIT-CMU
+    # Required by bokeh. Pillow 13 fixes vulnerabilities in 12.x but requires Python 3.11, so bokeh and pillow
+    # are only installed on Python 3.11 and later.
+    "pillow==13.0.0; python_version >= '3.11'",
     # Licence: BSD-3-Clause
-    "bokeh!=3.0.*,>=2.4.2",
+    # Serves the Dask dashboard. Data generation works without it, but the dashboard is unavailable.
+    "bokeh==3.9.2; python_version >= '3.11'",
     # License: MIT
-    "pydantic>=2.10.6",
+    "pydantic==2.14.1",
     # License: MIT
-    "pydantic_core>=2.27.2",
+    "pydantic_core==2.50.1",
     # License: Apache 2.0
     # gRPC & proto deps
     "opensearch-protobufs==1.2.0",
