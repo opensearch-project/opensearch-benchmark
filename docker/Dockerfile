@@ -2,14 +2,20 @@
 # Install OpenSearch Benchmark to build a Docker image #
 ########################################################
 
+# The Python base image bundles a pip release that trusts the compromised eMudhra emSign CA. Upgrade pip
+# from a hash-pinned wheel before it downloads anything, so the download can't be tampered with.
+ARG PINNED_PIP="pip @ https://files.pythonhosted.org/packages/3f/06/3e4420302363fbb71be3c7f35ce042f54bfca330e3e66b3a2e3c4cca579f/pip-26.2.2-py3-none-any.whl#sha256=fd7f4dfa8190e014013b9f08f3e973f4e4c26ffd179a204895533a7254813a70"
+
 #
 # Stage 1: build packages and compile where needed
 #
 FROM python:3.11-slim-trixie AS build-stage
+ARG PINNED_PIP
 
 RUN apt-get -y update && \
     apt-get install -y curl git gcc lbzip2 pbzip2 pigz make jq && \
-    apt-get -y upgrade
+    apt-get -y upgrade && \
+    pip install --no-cache-dir --disable-pip-version-check "$PINNED_PIP"
 
 COPY . opensearch-benchmark
 
@@ -23,6 +29,7 @@ RUN cd opensearch-benchmark; \
 # Stage 2: create image
 #
 FROM python:3.11-slim-trixie AS image-stage
+ARG PINNED_PIP
 ENV BENCHMARK_RUNNING_IN_DOCKER=True
 
 RUN groupadd --gid 1000 opensearch-benchmark && \
@@ -40,6 +47,7 @@ RUN set -ex; \
     apt-get install -y git lbzip2 pbzip2; \
     apt-get -y upgrade; \
     rm -rf /var/lib/apt/lists/*; \
+    pip install --no-cache-dir --disable-pip-version-check "$PINNED_PIP"; \
     PIP_ONLY_BINARY=h5py pip install *.whl; \
     rm *.whl
 
