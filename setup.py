@@ -78,9 +78,10 @@ install_requires = [
     "thespian>=3.10.1,<3.10.7",
     # recommended library for thespian to identify actors more easily with `ps`
     # "setproctitle==1.1.10",
-    # always use the latest version, these are certificate files...
+    # always use the latest version, these are certificate files. 2026.10.19 removes the compromised
+    # eMudhra emSign CA.
     # License: MPL 2.0
-    "certifi",
+    "certifi>=2026.10.19",
     # License: Apache 2.0
     "yappi>=1.4.0",
     # License: BSD
