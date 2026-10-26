@@ -78,10 +78,11 @@ install_requires = [
     "thespian>=3.10.1,<3.10.7",
     # recommended library for thespian to identify actors more easily with `ps`
     # "setproctitle==1.1.10",
-    # always use the latest version, these are certificate files. 2026.10.19 removes the compromised
-    # eMudhra emSign CA.
+    # CA certificates. Pinned so a compromised future release can't be picked up automatically, which also means
+    # CA changes only reach users through a new OSB release: bump this deliberately when certifi removes or adds
+    # CAs. 2026.10.19 and later remove the compromised eMudhra emSign ECC Root CA - G3.
     # License: MPL 2.0
-    "certifi>=2026.10.19",
+    "certifi==2026.10.23",
     # License: Apache 2.0
     "yappi>=1.4.0",
     # License: BSD
@@ -124,15 +125,13 @@ install_requires = [
     "dask==2026.8.0",
     # Licence: BSD-3-Clause
     "dask[distributed]==2026.8.0",
-    # Licence: BSD-3-Clause
-    # Serves the Dask dashboard
+    # License: MIT-CMU
+    # Required by bokeh. Pillow 13 fixes vulnerabilities in 12.x but requires Python 3.11.
     "pillow==12.3.0; python_version < '3.11'",
     "pillow==13.0.0; python_version >= '3.11'",
-    # License: MIT-CMU
-    # Required by bokeh. Pillow 13 fixes vulnerabilities in 12.x but requires Python 3.11.
+    # Licence: BSD-3-Clause
+    # Serves the Dask dashboard
     "bokeh==3.9.2",
-    # License: MIT-CMU
-    # Required by bokeh. Pillow 13 fixes vulnerabilities in 12.x but requires Python 3.11.
     # License: MIT
     "pydantic==2.14.1",
     # License: MIT
