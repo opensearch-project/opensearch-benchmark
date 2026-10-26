@@ -113,23 +113,28 @@ install_requires = [
     "aiokafka>=0.11.0",
     # License: MIT
     "tqdm",
+    # Synthetic data generation. Pinned to the newest releases that support every Python version OSB supports.
     # License: MIT
-    "faker",
+    "faker==40.43.0",
     # License: MIT
-    # This version is required for Python 3.8 and 3.9 to work
-    "mimesis==11.1.0",
+    "mimesis==22.2.0",
     # License: BSD-3-Clause
-    "pandas>=1.5.0",
+    "pandas==2.3.3",
     # Licence: BSD-3-Clause
-    "dask",
+    "dask==2026.8.0",
     # Licence: BSD-3-Clause
-    "dask[distributed]",
+    "dask[distributed]==2026.8.0",
     # Licence: BSD-3-Clause
-    "bokeh!=3.0.*,>=2.4.2",
+    # Serves the Dask dashboard
+    "bokeh==3.9.2",
+    # License: MIT-CMU
+    # Required by bokeh. Pillow 13 fixes vulnerabilities in 12.x but requires Python 3.11.
+    "pillow==12.3.0; python_version < '3.11'",
+    "pillow==13.0.0; python_version >= '3.11'",
     # License: MIT
-    "pydantic>=2.10.6",
+    "pydantic==2.14.1",
     # License: MIT
-    "pydantic_core>=2.27.2",
+    "pydantic_core==2.50.1",
     # License: Apache 2.0
     # gRPC & proto deps
     "opensearch-protobufs==1.2.0",
