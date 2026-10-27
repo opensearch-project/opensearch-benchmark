@@ -3412,6 +3412,24 @@ class JvmStatsSummaryTests(TestCase):
             }, level=MetaInfoScope.node, node_name="benchmark0"),
         ])
 
+    @staticmethod
+    def jvm_stats(collectors):
+        nodes_stats = {"nodes": {"n0": {"name": "benchmark0", "jvm": {"mem": {"pools": {}}, "gc": {"collectors": collectors}}}}}
+        return telemetry.JvmStatsSummary(Client(nodes=SubClient(nodes_stats)), metrics_store=None).jvm_stats()["benchmark0"]
+
+    def test_uses_zgc_pause_collectors(self):
+        stats = self.jvm_stats({
+            "ZGC Minor Cycles": {"collection_time_in_millis": 500, "collection_count": 20},
+            "ZGC Minor Pauses": {"collection_time_in_millis": 5, "collection_count": 60},
+            "ZGC Major Cycles": {"collection_time_in_millis": 1000, "collection_count": 1},
+            "ZGC Major Pauses": {"collection_time_in_millis": 1, "collection_count": 3},
+        })
+        self.assertEqual({"young_gc_time": 5, "young_gc_count": 60, "old_gc_time": 1, "old_gc_count": 3, "pools": {}}, stats)
+
+    def test_reports_zero_for_unknown_collectors(self):
+        stats = self.jvm_stats({"Unknown GC": {"collection_time_in_millis": 500, "collection_count": 20}})
+        self.assertEqual({"young_gc_time": 0, "young_gc_count": 0, "old_gc_time": 0, "old_gc_count": 0, "pools": {}}, stats)
+
 
 class IndexStatsTests(TestCase):
     @mock.patch("osbenchmark.metrics.OsMetricsStore.put_doc")
