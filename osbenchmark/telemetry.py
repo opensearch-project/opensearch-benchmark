@@ -1653,6 +1653,9 @@ class JvmStatsSummary(InternalTelemetryDevice):
     """
     Gathers a summary of various JVM statistics during the whole test run.
     """
+    YOUNG_GEN_COLLECTORS = ["young", "ZGC Minor Pauses"]
+    OLD_GEN_COLLECTORS = ["old", "ZGC Major Pauses", "ZGC Pauses"]
+
     def __init__(self, client, metrics_store):
         super().__init__()
         self.metrics_store = metrics_store
@@ -1720,15 +1723,13 @@ class JvmStatsSummary(InternalTelemetryDevice):
         for node in nodes.values():
             node_name = node["name"]
             gc = node["jvm"]["gc"]["collectors"]
-            old_gen_collection_time = gc["old"]["collection_time_in_millis"]
-            old_gen_collection_count = gc["old"]["collection_count"]
-            young_gen_collection_time = gc["young"]["collection_time_in_millis"]
-            young_gen_collection_count = gc["young"]["collection_count"]
+            young_gen = self.collector_stats(node_name, gc, JvmStatsSummary.YOUNG_GEN_COLLECTORS)
+            old_gen = self.collector_stats(node_name, gc, JvmStatsSummary.OLD_GEN_COLLECTORS)
             jvm_stats[node_name] = {
-                "young_gc_time": young_gen_collection_time,
-                "young_gc_count": young_gen_collection_count,
-                "old_gc_time": old_gen_collection_time,
-                "old_gc_count": old_gen_collection_count,
+                "young_gc_time": young_gen["collection_time_in_millis"],
+                "young_gc_count": young_gen["collection_count"],
+                "old_gc_time": old_gen["collection_time_in_millis"],
+                "old_gc_count": old_gen["collection_count"],
                 "pools": {}
             }
             pool_usage = node["jvm"]["mem"]["pools"]
@@ -1737,6 +1738,14 @@ class JvmStatsSummary(InternalTelemetryDevice):
                     "peak": pool_stats["peak_used_in_bytes"]
                 }
         return jvm_stats
+
+    def collector_stats(self, node_name, collectors, names):
+        for name in names:
+            if name in collectors:
+                return collectors[name]
+        self.logger.warning("Cannot determine GC stats for [%s]: none of the collectors %s found in %s.",
+                            node_name, names, list(collectors))
+        return {"collection_time_in_millis": 0, "collection_count": 0}
 
 
 class IndexStats(InternalTelemetryDevice):
