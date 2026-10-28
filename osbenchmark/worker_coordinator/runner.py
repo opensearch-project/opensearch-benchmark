@@ -414,6 +414,16 @@ def enable_assertions(enabled):
 def remove_runner(operation_type):
     del __RUNNERS[operation_type]
 
+def register_engine_runners(engine):
+    """
+    Register the runners a database engine provides, replacing any runner already registered for the same operation.
+
+    :param engine: A database engine (see ``osbenchmark.database.engine.Engine``).
+    """
+    for operation_type, engine_runner in engine.runners().items():
+        register_runner(operation_type, engine_runner, async_runner=True)
+
+
 def register_default_runners():
     register_runner(workload.OperationType.Bulk, BulkIndex(), async_runner=True)
     register_runner(workload.OperationType.ForceMerge, ForceMerge(), async_runner=True)

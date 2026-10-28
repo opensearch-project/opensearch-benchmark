@@ -23,49 +23,24 @@
 # under the License.
 
 """
-Database abstraction layer for OpenSearch Benchmark.
+Database engines for OpenSearch Benchmark.
 
-This package provides a unified interface for multiple database backends,
-allowing OSB to benchmark different search engines and databases while
-maintaining compatibility with existing workloads and runners.
+- engine.py: the Engine contract every database engine implements
+- registry.py: engines keyed by the name users pass to ``--database-type``
+- clients/: the engine implementations
 
-Architecture:
-- interface.py: Abstract base classes defining the contract
-- registry.py: Database type registry and enumeration
-- factory.py: Factory for creating database clients
-- clients/: Database-specific implementations
-
-Usage:
-    from osbenchmark.database.factory import DatabaseClientFactory
-
-    # Create a client factory
-    factory = DatabaseClientFactory.create_client_factory(
-        "opensearch",
-        [{"host": "localhost", "port": 9200}],
-        {"use_ssl": True}
-    )
-
-    # Create the async client
-    client = factory.create_async()
-
-    # Use the client (same API for all databases)
-    await client.bulk(body=documents)
-    results = await client.search(index="test", body=query)
+Engines register themselves when this package is imported.
 """
 
-# Register database implementations on module import
-from osbenchmark.database.registry import register_database, DatabaseType
-from osbenchmark.database.factory import DatabaseClientFactory
-from osbenchmark.database.clients.opensearch.opensearch import OpenSearchClientFactory
+from osbenchmark.database.registry import DEFAULT_ENGINE, engine_for, get_engine, register_engine, registered_engines
+from osbenchmark.database.clients.opensearch import OpenSearchEngine
 
-# Register OpenSearch as the default database type
-register_database(DatabaseType.OPENSEARCH, OpenSearchClientFactory)
+register_engine(OpenSearchEngine)
 
-# Note: Other database types (Vespa, Milvus, etc.) will be registered
-# when their implementations are added in future PRs.
-
-# Public API exports
 __all__ = [
-    'DatabaseType',
-    'DatabaseClientFactory',
+    "DEFAULT_ENGINE",
+    "engine_for",
+    "get_engine",
+    "register_engine",
+    "registered_engines",
 ]

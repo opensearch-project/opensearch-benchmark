@@ -25,9 +25,7 @@
 from unittest import TestCase, mock
 
 from osbenchmark import benchmark, config
-from osbenchmark.database.registry import DatabaseType
-
-REGISTERED_DATABASES = "osbenchmark.benchmark.list_registered_databases"
+REGISTERED_ENGINES = "osbenchmark.benchmark.registered_engines"
 
 
 class DatabaseTypeArgumentTests(TestCase):
@@ -40,7 +38,7 @@ class DatabaseTypeArgumentTests(TestCase):
         self.assertEqual("opensearch", args.database_type)
 
     @mock.patch("sys.argv", ["opensearch-benchmark", "execute-test"])
-    @mock.patch(REGISTERED_DATABASES, return_value=[DatabaseType.OPENSEARCH, DatabaseType.VESPA])
+    @mock.patch(REGISTERED_ENGINES, return_value=["opensearch", "vespa"])
     def test_accepts_registered_database_type(self, _):
         parser = benchmark.create_arg_parser()
 
@@ -49,7 +47,7 @@ class DatabaseTypeArgumentTests(TestCase):
         self.assertEqual("vespa", args.database_type)
 
     @mock.patch("sys.argv", ["opensearch-benchmark", "execute-test"])
-    @mock.patch(REGISTERED_DATABASES, return_value=[DatabaseType.OPENSEARCH])
+    @mock.patch(REGISTERED_ENGINES, return_value=["opensearch"])
     @mock.patch("sys.stderr")
     def test_rejects_unregistered_database_type(self, *_):
         parser = benchmark.create_arg_parser()
@@ -58,7 +56,7 @@ class DatabaseTypeArgumentTests(TestCase):
             parser.parse_args(["execute-test", "--database-type", "vespa"])
 
     @mock.patch("sys.argv", ["opensearch-benchmark", "execute-test"])
-    @mock.patch(REGISTERED_DATABASES, return_value=[DatabaseType.OPENSEARCH, DatabaseType.VESPA])
+    @mock.patch(REGISTERED_ENGINES, return_value=["opensearch", "vespa"])
     @mock.patch("osbenchmark.benchmark.print_test_execution_id")
     def test_configures_selected_database_type(self, *_):
         parser = benchmark.create_arg_parser()
