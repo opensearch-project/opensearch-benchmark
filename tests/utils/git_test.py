@@ -31,6 +31,10 @@ from osbenchmark.utils import git
 
 
 class GitTests(TestCase):
+    def setUp(self):
+        # pylint: disable=protected-access
+        git._safe_directories_marked.clear()
+
     def test_is_git_working_copy(self):
         test_dir = os.path.dirname(os.path.dirname(__file__))
         # this test is assuming that nobody stripped the git repo info in their OSB working copy
@@ -45,6 +49,50 @@ class GitTests(TestCase):
         self.assertEqual("OpenSearch Benchmark requires at least version 2 of git.  You have git version 1.4.0.  Please update git.",
                          ctx.exception.args[0])
         run_subprocess_with_out_and_err.assert_called_with("git --version")
+
+    @mock.patch("osbenchmark.utils.io.ensure_dir")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_out_and_err")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
+    def test_clone_marks_directory_safe(self, run_subprocess_with_logging, run_subprocess_with_out_and_err, ensure_dir):
+        run_subprocess_with_logging.return_value = 0
+        run_subprocess_with_out_and_err.return_value = ("git version 2.0.0", "", 0)
+
+        git.clone("/src", "http://github.com/some/project")
+
+        run_subprocess_with_logging.assert_any_call("git config --global --add safe.directory /src")
+
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_out_and_err")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
+    def test_repeated_operations_mark_directory_safe_only_once(self, run_subprocess_with_logging, run_subprocess_with_out_and_err):
+        run_subprocess_with_logging.return_value = 0
+        run_subprocess_with_out_and_err.return_value = ("git version 2.4.0", None, 0)
+
+        git.fetch("/src", remote="my-origin")
+        git.checkout("/src", "feature-branch")
+
+        safe_directory_calls = [c for c in run_subprocess_with_logging.call_args_list
+                                if c == mock.call("git config --global --add safe.directory /src")]
+        self.assertEqual(1, len(safe_directory_calls))
+
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_out_and_err")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
+    def test_failed_safe_directory_registration_is_retried(self, run_subprocess_with_logging, run_subprocess_with_out_and_err):
+        # pylint: disable=protected-access
+        safe_directory_cmd = "git config --global --add safe.directory /src"
+
+        def fake_run(cmd, *args, **kwargs):
+            return 1 if cmd == safe_directory_cmd else 0
+
+        run_subprocess_with_logging.side_effect = fake_run
+        run_subprocess_with_out_and_err.return_value = ("git version 2.4.0", None, 0)
+
+        git.fetch("/src", remote="my-origin")
+        git.checkout("/src", "feature-branch")
+
+        self.assertNotIn(os.path.abspath("/src"), git._safe_directories_marked)
+        safe_directory_calls = [c for c in run_subprocess_with_logging.call_args_list
+                                if c == mock.call(safe_directory_cmd)]
+        self.assertEqual(2, len(safe_directory_calls))
 
     @mock.patch("osbenchmark.utils.io.ensure_dir")
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_out_and_err")
@@ -170,16 +218,18 @@ class GitTests(TestCase):
         ])
 
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_output")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_out_and_err")
-    def test_head_revision(self, run_subprocess_with_out_and_err, run_subprocess_with_output):
+    def test_head_revision(self, run_subprocess_with_out_and_err, run_subprocess_with_logging, run_subprocess_with_output):
         run_subprocess_with_out_and_err.return_value = ("git version 2.4.0", None, 0)
         run_subprocess_with_output.return_value = ["3694a07"]
         self.assertEqual("3694a07", git.head_revision("/src"))
         run_subprocess_with_output.assert_called_with("git -C /src rev-parse --short HEAD")
 
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_output")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_out_and_err")
-    def test_list_remote_branches(self, run_subprocess_with_out_and_err, run_subprocess):
+    def test_list_remote_branches(self, run_subprocess_with_out_and_err, run_subprocess_with_logging, run_subprocess):
         run_subprocess_with_out_and_err.return_value = ("git version 2.4.0", None, 0)
         run_subprocess.return_value = ["  origin/HEAD",
                                        "  origin/main",
@@ -189,8 +239,9 @@ class GitTests(TestCase):
         run_subprocess.assert_called_with("git -C /src for-each-ref refs/remotes/ --format='%(refname)'")
 
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_output")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_out_and_err")
-    def test_list_local_branches(self, run_subprocess_with_out_and_err, run_subprocess):
+    def test_list_local_branches(self, run_subprocess_with_out_and_err, run_subprocess_with_logging, run_subprocess):
         run_subprocess_with_out_and_err.return_value = ("git version 2.4.0", None, 0)
         run_subprocess.return_value = ["  HEAD",
                                        "  main",
@@ -200,8 +251,9 @@ class GitTests(TestCase):
         run_subprocess.assert_called_with("git -C /src for-each-ref refs/heads/ --format='%(refname:short)'")
 
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_output")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_out_and_err")
-    def test_list_tags_with_tags_present(self, run_subprocess_with_out_and_err, run_subprocess):
+    def test_list_tags_with_tags_present(self, run_subprocess_with_out_and_err, run_subprocess_with_logging, run_subprocess):
         run_subprocess_with_out_and_err.return_value = ("git version 2.4.0", None, 0)
         run_subprocess.return_value = ["  v1",
                                        "  v2"]
@@ -209,8 +261,9 @@ class GitTests(TestCase):
         run_subprocess.assert_called_with("git -C /src tag")
 
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_output")
+    @mock.patch("osbenchmark.utils.process.run_subprocess_with_logging")
     @mock.patch("osbenchmark.utils.process.run_subprocess_with_out_and_err")
-    def test_list_tags_no_tags_available(self, run_subprocess_with_out_and_err, run_subprocess):
+    def test_list_tags_no_tags_available(self, run_subprocess_with_out_and_err, run_subprocess_with_logging, run_subprocess):
         run_subprocess_with_out_and_err.return_value = ("git version 2.4.0", None, 0)
         run_subprocess.return_value = ""
         self.assertEqual([], git.tags("/src"))
