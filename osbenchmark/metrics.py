@@ -110,6 +110,27 @@ class OsClient:
     def search(self, index, body):
         return self.guarded(self._client.search, index=index, body=body)
 
+    @staticmethod
+    def _describe_transport_error(e):
+        """
+        Describes a TransportError for the user: the HTTP status, the error type and the reason, when OpenSearch returned them.
+        """
+        details = ["HTTP status [%s]" % e.status_code]
+        error = e.args[1] if len(e.args) > 1 else None
+        info = e.args[2] if len(e.args) > 2 else None
+        if error:
+            details.append("error [%s]" % error)
+        reason = None
+        if isinstance(info, dict):
+            cause = info.get("error")
+            if isinstance(cause, dict):
+                reason = cause.get("reason")
+            elif isinstance(cause, str):
+                reason = cause
+        if reason:
+            details.append("reason [%s]" % reason)
+        return ", ".join(details)
+
     def guarded(self, target, *args, **kwargs):
         # pylint: disable=import-outside-toplevel
         import opensearchpy
@@ -163,7 +184,10 @@ class OsClient:
                 else:
                     node = self._client.transport.hosts[0]
                     msg = "A transport error occurred while running the operation [%s] against your OpenSearch metrics store on " \
-                          "host [%s] at port [%s]." % (target.__name__, node["host"], node["port"])
+                          "host [%s] at port [%s]. Details: %s. This could be related to the configuration of your metrics " \
+                          "store, for example its default number of replicas or its index templates. Please check that " \
+                          "configuration." % \
+                          (target.__name__, node["host"], node["port"], self._describe_transport_error(e))
                     self.logger.exception(msg)
                     raise exceptions.BenchmarkError(msg)
 
