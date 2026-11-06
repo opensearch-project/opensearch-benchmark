@@ -520,15 +520,17 @@ class OsClientTests(TestCase):
         with self.assertRaises(exceptions.BenchmarkError) as ctx:
             client.guarded(random_transport_error, rnd_code)
 
-        self.assertEqual("A transport error occurred while running the operation "
-                         "[random_transport_error] against your OpenSearch metrics "
-                         "store on host [127.0.0.1] at port [9243]. "
-                         "Details: HTTP status [%d], error [%s]. "
-                         "This could be related to the configuration of your metrics "
+        expected = ("A transport error occurred while running the operation "
+                    "[random_transport_error] against your OpenSearch metrics "
+                    "store on host [127.0.0.1] at port [9243]. "
+                    "Details: HTTP status [%d], error [%s]."
+                    % (rnd_code, TransportErrors.err_return_codes[rnd_code]))
+        # the configuration hint is only shown for client errors (4XX)
+        if 400 <= rnd_code < 500:
+            expected += (" This could be related to the configuration of your metrics "
                          "store, for example its default number of replicas or its "
-                         "index templates. Please check that configuration."
-                         % (rnd_code, TransportErrors.err_return_codes[rnd_code]),
-                         ctx.exception.args[0])
+                         "index templates. Please check that configuration.")
+        self.assertEqual(expected, ctx.exception.args[0])
 
     def test_transport_error_message_has_status_and_reason(self):
         def put_template_fails():
@@ -563,6 +565,29 @@ class OsClientTests(TestCase):
         message = ctx.exception.args[0]
         self.assertIn("Details: HTTP status [400]. This could be related", message)
         self.assertNotIn("reason [", message)
+
+
+    def test_transport_error_message_has_no_configuration_hint_for_server_errors(self):
+        def put_template_fails():
+            raise opensearchpy.exceptions.TransportError(
+                500,
+                "internal_server_error",
+                {"error": {"type": "internal_server_error",
+                           "reason": "something went wrong on the node"},
+                 "status": 500})
+
+        client = metrics.OsClient(OsClientTests.ClientMock([{"host": "127.0.0.1", "port": "9243"}]))
+
+        with self.assertRaises(exceptions.BenchmarkError) as ctx:
+            client.guarded(put_template_fails)
+
+        message = ctx.exception.args[0]
+        self.assertIn("[put_template_fails]", message)
+        self.assertIn("HTTP status [500]", message)
+        self.assertIn("error [internal_server_error]", message)
+        self.assertIn("reason [something went wrong on the node]", message)
+        self.assertNotIn("configuration of your metrics store", message)
+        self.assertNotIn("Please check that configuration.", message)
 
 
 class OsMetricsTests(TestCase):

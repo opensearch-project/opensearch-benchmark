@@ -183,11 +183,14 @@ class OsClient:
                     time.sleep(time_to_sleep)
                 else:
                     node = self._client.transport.hosts[0]
-                    msg = "A transport error occurred while running the operation [%s] against your OpenSearch metrics store on " \
-                          "host [%s] at port [%s]. Details: %s. This could be related to the configuration of your metrics " \
-                          "store, for example its default number of replicas or its index templates. Please check that " \
-                          "configuration." % \
+                    msg = "A transport error occurred while running the operation [%s] against your OpenSearch metrics store on "\
+                          "host [%s] at port [%s]. Details: %s." % \
                           (target.__name__, node["host"], node["port"], self._describe_transport_error(e))
+                    # Only client errors (4XX) can point at the metrics store configuration;
+                    # the hint would be misleading for server errors (5XX).
+                    if isinstance(e.status_code, int) and 400 <= e.status_code < 500:
+                        msg += " This could be related to the configuration of your metrics store, for example its default " \
+                               "number of replicas or its index templates. Please check that configuration."
                     self.logger.exception(msg)
                     raise exceptions.BenchmarkError(msg)
 
