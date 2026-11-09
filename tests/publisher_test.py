@@ -113,3 +113,29 @@ class FormatterTests(TestCase):
         self.assertEqual(len(result_aggregated), 4)
         self.assertEqual(result_aggregated[0][2], 95)  # baseline overall_min
         self.assertEqual(result_aggregated[3][3], 205)  # contender overall_max
+
+
+class SummaryResultsPublisherTotalIndexingTimeTests(TestCase):
+    def _publisher(self, values="available"):
+        config = Mock()
+
+        def opts(section, key, mandatory=True, default_value=None):
+            if (section, key) == ("reporting", "values"):
+                return values
+            if (section, key) == ("reporting", "output.processingtime"):
+                return False
+            return default_value
+
+        config.opts.side_effect = opts
+        return publisher.SummaryResultsPublisher(Mock(), config)
+
+    def test_bulk_task_publishes_total_indexing_time_in_minutes(self):
+        lines = self._publisher()._publish_total_indexing_time({"total_indexing_time": 150000}, "bulk-index")
+
+        self.assertEqual([["Total indexing time", "bulk-index", 2.5, "min"]], lines)
+
+    def test_task_without_total_indexing_time_publishes_nothing(self):
+        self.assertEqual([], self._publisher()._publish_total_indexing_time({}, "query"))
+
+    def test_task_without_total_indexing_time_publishes_nothing_even_when_publishing_all_values(self):
+        self.assertEqual([], self._publisher(values="all")._publish_total_indexing_time({}, "query"))

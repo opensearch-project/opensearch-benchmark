@@ -142,6 +142,7 @@ class SummaryResultsPublisher:
         # this is mostly needed for debugging purposes but not so relevant to end users
         if self.show_processing_time:
             metrics_table.extend(self._publish_processing_time(record, task))
+        metrics_table.extend(self._publish_total_indexing_time(record, task))
         metrics_table.extend(self._publish_error_rate(record, task))
         self.add_warnings(warnings, record, task)
 
@@ -298,6 +299,15 @@ class SummaryResultsPublisher:
     def _publish_error_rate(self, values, task):
         return self._join(
             self._line("error rate", task, values["error_rate"], "%", lambda v: "%.2f" % (v * 100.0))
+        )
+
+    def _publish_total_indexing_time(self, values, task):
+        # only present for bulk tasks: time from the start of the task until the last bulk request has completed
+        total_indexing_time = values.get("total_indexing_time")
+        if total_indexing_time is None:
+            return []
+        return self._join(
+            self._line("Total indexing time", task, total_indexing_time, "min", convert.ms_to_minutes)
         )
 
     def _publish_totals(self, stats):

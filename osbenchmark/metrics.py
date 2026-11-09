@@ -749,6 +749,16 @@ class MetricsStore:
         """
         raise NotImplementedError("abstract method")
 
+    def get_task_end_time(self, task):
+        """
+        Gets the point in time at which the last request of a task has finished.
+
+        :param task The task name to query.
+        :return: The time in milliseconds, relative to the start of the task, at which the last request of any client
+                 has completed (request start + service time) or None if there are no samples for this task.
+        """
+        raise NotImplementedError("abstract method")
+
     def get_stats(self, name, task=None, operation_type=None, sample_type=None):
         """
         Gets standard statistics for the given metric.
@@ -950,6 +960,24 @@ class OsMetricsStore(MetricsStore):
             return 1.0
         else:
             return count_errors / (count_errors + count_success)
+
+    def get_task_end_time(self, task):
+        query = {
+            "query": self._query_by_name("service_time", task, None, None, None),
+            "size": 0,
+            "aggs": {
+                "task_end_time": {
+                    "max": {
+                        "script": {
+                            "source": "doc['relative-time-ms'].value + doc['value'].value"
+                        }
+                    }
+                }
+            }
+        }
+        self.logger.debug("Issuing get_task_end_time against index=[%s], query=[%s]", self._index, query)
+        result = self._client.search(index=self._index, body=query)
+        return result["aggregations"]["task_end_time"]["value"]
 
     def get_stats(self, name, task=None, operation_type=None, sample_type=None):
         """
@@ -1176,6 +1204,12 @@ class InMemoryMetricsStore(MetricsStore):
             return error / total_count
         else:
             return 0.0
+
+    def get_task_end_time(self, task):
+        end_times = [doc["relative-time-ms"] + doc["value"]
+                     for doc in self.docs
+                     if doc["name"] == "service_time" and doc["task"] == task]
+        return max(end_times) if end_times else None
 
     def get_stats(self, name, task=None, operation_type=None, sample_type=SampleType.Normal):
         values = self.get(name, task, operation_type, sample_type)
@@ -1890,6 +1924,9 @@ class GlobalStatsCalculator:
     OTHER_PERCENTILES = [50,90,99,99.9,99.99,100]
     # Use these percentiles when the single_latency fn is called for something other than latency
 
+    # Operation types that index documents in bulk (see workload.OperationType). They report the total indexing time.
+    BULK_OPERATION_TYPES = frozenset(["bulk", "bulk-vector-data-set", "proto-bulk", "proto-bulk-vector-data-set"])
+
     def __init__(self, store, workload, test_procedure, latency_percentiles=None, throughput_percentiles=None):
         self.store = store
         self.logger = logging.getLogger(__name__)
@@ -1910,6 +1947,10 @@ class GlobalStatsCalculator:
 
                 if task.operation.include_in_reporting or error_rate > 0:
                     self.logger.debug("Gathering request metrics for [%s].", task_name)
+                    # Only bulk operations report the total time until all bulk requests have completed
+                    total_indexing_time = None
+                    if op_type in self.BULK_OPERATION_TYPES:
+                        total_indexing_time = self.store.get_task_end_time(task_name)
                     result.add_op_metrics(
                         task_name,
                         task.operation.name,
@@ -1926,6 +1967,7 @@ class GlobalStatsCalculator:
                             task.operation.meta_data,
                             task.meta_data,
                         ),
+                        total_indexing_time,
                     )
 
                     result.add_correctness_metrics(
@@ -2230,6 +2272,8 @@ class GlobalStats:
                         all_results.append(op_metrics(item, "error_rate", single_value=True))
                     if "duration" in item:
                         all_results.append(op_metrics(item, "duration", single_value=True))
+                    if "total_indexing_time" in item:
+                        all_results.append(op_metrics(item, "total_indexing_time", single_value=True))
             elif metric == "ml_processing_time":
                 for item in value:
                     all_results.append({
@@ -2291,7 +2335,7 @@ class GlobalStats:
         return d.get(k, default) if d else default
 
     def add_op_metrics(self, task, operation, throughput, latency, service_time, client_processing_time,
-                       processing_time, error_rate, duration, meta):
+                       processing_time, error_rate, duration, meta, total_indexing_time=None):
         doc = {
             "task": task,
             "operation": operation,
@@ -2303,6 +2347,8 @@ class GlobalStats:
             "error_rate": error_rate,
             "duration": duration
         }
+        if total_indexing_time is not None:
+            doc["total_indexing_time"] = total_indexing_time
         if meta:
             doc["meta"] = meta
         self.op_metrics.append(doc)
