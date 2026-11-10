@@ -751,11 +751,12 @@ class MetricsStore:
 
     def get_task_end_time(self, task):
         """
-        Gets the point in time at which the last request of a task has finished.
+        Gets the point in time at which the last request of a task has finished. This is read from the ``task_end_time``
+        metric, which is recorded for all requests and is therefore not affected by request metrics downsampling.
 
         :param task The task name to query.
         :return: The time in milliseconds, relative to the start of the task, at which the last request of any client
-                 has completed (request start + service time) or None if there are no samples for this task.
+                 has completed (request start + service time) or None if there is no ``task_end_time`` for this task.
         """
         raise NotImplementedError("abstract method")
 
@@ -963,14 +964,12 @@ class OsMetricsStore(MetricsStore):
 
     def get_task_end_time(self, task):
         query = {
-            "query": self._query_by_name("service_time", task, None, None, None),
+            "query": self._query_by_name("task_end_time", task, None, None, None),
             "size": 0,
             "aggs": {
                 "task_end_time": {
                     "max": {
-                        "script": {
-                            "source": "doc['relative-time-ms'].value + doc['value'].value"
-                        }
+                        "field": "value"
                     }
                 }
             }
@@ -1206,9 +1205,9 @@ class InMemoryMetricsStore(MetricsStore):
             return 0.0
 
     def get_task_end_time(self, task):
-        end_times = [doc["relative-time-ms"] + doc["value"]
+        end_times = [doc["value"]
                      for doc in self.docs
-                     if doc["name"] == "service_time" and doc["task"] == task]
+                     if doc["name"] == "task_end_time" and doc["task"] == task]
         return max(end_times) if end_times else None
 
     def get_stats(self, name, task=None, operation_type=None, sample_type=SampleType.Normal):

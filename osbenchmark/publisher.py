@@ -302,12 +302,12 @@ class SummaryResultsPublisher:
         )
 
     def _publish_total_indexing_time(self, values, task):
-        # only present for bulk tasks: time from the start of the task until the last bulk request has completed
+        # only present for bulk tasks: wall-clock time from the start of the task until the last bulk request has completed
         total_indexing_time = values.get("total_indexing_time")
         if total_indexing_time is None:
             return []
         return self._join(
-            self._line("Total indexing time", task, total_indexing_time, "min", convert.ms_to_minutes)
+            self._line("Bulk task duration", task, total_indexing_time, "min", convert.ms_to_minutes)
         )
 
     def _publish_totals(self, stats):

@@ -1273,7 +1273,7 @@ class OsMetricsTests(TestCase):
                         },
                         {
                             "term": {
-                                "name": "service_time"
+                                "name": "task_end_time"
                             }
                         },
                         {
@@ -1288,9 +1288,7 @@ class OsMetricsTests(TestCase):
             "aggs": {
                 "task_end_time": {
                     "max": {
-                        "script": {
-                            "source": "doc['relative-time-ms'].value + doc['value'].value"
-                        }
+                        "field": "value"
                     }
                 }
             }
@@ -2105,31 +2103,28 @@ class InMemoryMetricsStoreTests(TestCase):
         self.assertEqual(0.0, self.metrics_store.get_error_rate("term-query", sample_type=metrics.SampleType.Warmup))
         self.assertEqual(0.2, self.metrics_store.get_error_rate("term-query", sample_type=metrics.SampleType.Normal))
 
-    def _put_service_time(self, task, relative_time_s, value, op_type="bulk"):
-        self.metrics_store.put_doc(doc={"name": "service_time", "value": value, "unit": "ms",
+    def _put_task_end_time(self, task, value, op_type="bulk"):
+        self.metrics_store.put_doc(doc={"name": "task_end_time", "value": value, "unit": "ms",
                                         "sample-type": "normal", "task": task, "operation": task,
-                                        "operation-type": op_type, "meta": {"success": True}},
-                                   relative_time=relative_time_s)
+                                        "operation-type": op_type},
+                                   relative_time=0)
 
-    def test_get_task_end_time_uses_latest_request_completion_not_latest_start(self):
+    def test_get_task_end_time_returns_latest_end_time_of_the_task(self):
         self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-fast-with-conflicts", "defaults", create=True)
-        # client A starts at 1000ms and takes 800ms -> completes at 1800ms
-        self._put_service_time("bulk-index", 1.0, 800)
-        # client B starts later (1500ms) but completes earlier (1600ms)
-        self._put_service_time("bulk-index", 1.5, 100)
-        # samples of other tasks must not be considered
-        self._put_service_time("other-task", 5.0, 500)
+        self._put_task_end_time("bulk-index", 1600)
+        self._put_task_end_time("bulk-index", 1800)
+        # end times of other tasks must not be considered
+        self._put_task_end_time("other-task", 5500)
 
         self.assertEqual(1800, self.metrics_store.get_task_end_time("bulk-index"))
 
-    def test_get_task_end_time_without_samples_is_none(self):
+    def test_get_task_end_time_without_end_time_is_none(self):
         self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-fast-with-conflicts", "defaults", create=True)
-        self._put_service_time("other-task", 5.0, 500)
+        self._put_task_end_time("other-task", 5500)
 
         self.assertIsNone(self.metrics_store.get_task_end_time("bulk-index"))
-
 
 
 class FileTestExecutionStoreTests(TestCase):
@@ -2429,6 +2424,12 @@ class GlobalStatsCalculatorTests(TestCase):
                                         "operation-type": op_type, "meta": {"success": True}},
                                    relative_time=relative_time_s)
 
+    def _put_task_end_time(self, task, value, op_type):
+        self.metrics_store.put_doc(doc={"name": "task_end_time", "value": value, "unit": "ms",
+                                        "sample-type": "normal", "task": task, "operation": task,
+                                        "operation-type": op_type},
+                                   relative_time=0)
+
     def test_bulk_task_reports_total_indexing_time_until_last_request_completes(self):
         op = Operation(name='bulk-index', operation_type='bulk', params={})
         task = Task('bulk-index', operation=op, schedule='deterministic')
@@ -2437,6 +2438,7 @@ class GlobalStatsCalculatorTests(TestCase):
                                 "test", "append-fast-with-conflicts", "defaults", create=True)
         self._put_service_time("bulk-index", 1.0, 800, "bulk")
         self._put_service_time("bulk-index", 1.5, 100, "bulk")
+        self._put_task_end_time("bulk-index", 1800, "bulk")
 
         result = GlobalStatsCalculator(store=self.metrics_store, workload=Workload(name='geonames', meta_data={}),
                                        test_procedure=test_procedure)()
@@ -2460,6 +2462,7 @@ class GlobalStatsCalculatorTests(TestCase):
                 self.metrics_store.open(GlobalStatsCalculatorTests.TEST_RUN_ID, GlobalStatsCalculatorTests.TEST_RUN_TIMESTAMP,
                                         "test", "append-fast-with-conflicts", "defaults", create=True)
                 self._put_service_time("ingest", 1.0, 800, op_type)
+                self._put_task_end_time("ingest", 1800, op_type)
 
                 result = GlobalStatsCalculator(store=self.metrics_store, workload=Workload(name="geonames", meta_data={}),
                                                test_procedure=test_procedure)()

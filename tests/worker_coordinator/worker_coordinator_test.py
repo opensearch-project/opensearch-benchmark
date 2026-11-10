@@ -36,6 +36,7 @@ import opensearchpy
 import pytest
 
 from osbenchmark import metrics, workload, exceptions, config, actor
+from osbenchmark.utils import convert
 from osbenchmark.worker_coordinator import worker_coordinator, runner, scheduler
 from osbenchmark.workload import params
 from tests import run_async, as_future
@@ -444,6 +445,89 @@ class SamplePostprocessorTests(TestCase):
             self.throughput(38598, 24, 5000),
         ]
         metrics_store.put_value_cluster_level.assert_has_calls(calls)
+
+    def task_end_time(self, absolute_time, relative_time, value, task="index", operation="index-op", operation_type="bulk"):
+        return mock.call(name="task_end_time",
+                         value=value,
+                         unit="ms",
+                         task=task,
+                         operation=operation,
+                         operation_type=operation_type,
+                         sample_type=metrics.SampleType.Normal,
+                         absolute_time=absolute_time,
+                         relative_time=relative_time,
+                         meta_data={})
+
+    @mock.patch("osbenchmark.metrics.MetricsStore")
+    def test_task_end_time_is_exact_when_downsampling(self, metrics_store):
+        post_process = worker_coordinator.DefaultSamplePostprocessor(metrics_store,
+                                                  downsample_factor=2,
+                                                  workload_meta_data={},
+                                                  test_procedure_meta_data={})
+
+        task = workload.Task("index", workload.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
+        samples = [
+            # stored: completes at 24.007s
+            worker_coordinator.DefaultSample(
+                0, 38598, 24, 0, task, metrics.SampleType.Normal,
+                None, 0.01, 0.007, 0.0007, 0.009, None, 5000, "docs", 1, 1 / 3),
+            # dropped by downsampling, completes at 31.5s and is the real last request
+            worker_coordinator.DefaultSample(
+                1, 38604, 30, 0, task, metrics.SampleType.Normal,
+                None, 0.01, 1.5, 0.0007, 0.009, None, 5000, "docs", 2, 2 / 3),
+            # stored: starts later (31s) but completes earlier (31.1s)
+            worker_coordinator.DefaultSample(
+                0, 38605, 31, 0, task, metrics.SampleType.Normal,
+                None, 0.01, 0.1, 0.0007, 0.009, None, 5000, "docs", 3, 3 / 3),
+        ]
+
+        post_process(samples)
+
+        stored = [c for c in metrics_store.put_value_cluster_level.call_args_list if c.kwargs["name"] == "task_end_time"]
+        self.assertEqual([self.task_end_time(38604, 30, convert.seconds_to_ms(30 + 1.5))], stored)
+
+    @mock.patch("osbenchmark.metrics.MetricsStore")
+    def test_task_end_time_uses_latest_completion_not_latest_start(self, metrics_store):
+        post_process = worker_coordinator.DefaultSamplePostprocessor(metrics_store,
+                                                  downsample_factor=1,
+                                                  workload_meta_data={},
+                                                  test_procedure_meta_data={})
+
+        task = workload.Task("index", workload.Operation("index-op", "bulk", param_source="worker-coordinator-test-param-source"))
+        samples = [
+            # starts at 1s and takes 0.8s -> completes at 1.8s
+            worker_coordinator.DefaultSample(
+                0, 38598, 1, 0, task, metrics.SampleType.Normal,
+                None, 0.01, 0.8, 0.0007, 0.009, None, 5000, "docs", 1, 1 / 2),
+            # starts later (1.5s) but completes earlier (1.6s)
+            worker_coordinator.DefaultSample(
+                1, 38599, 1.5, 0, task, metrics.SampleType.Normal,
+                None, 0.01, 0.1, 0.0007, 0.009, None, 5000, "docs", 2, 2 / 2),
+        ]
+
+        post_process(samples)
+
+        stored = [c for c in metrics_store.put_value_cluster_level.call_args_list if c.kwargs["name"] == "task_end_time"]
+        self.assertEqual([self.task_end_time(38598, 1, convert.seconds_to_ms(1 + 0.8))], stored)
+
+    @mock.patch("osbenchmark.metrics.MetricsStore")
+    def test_task_end_time_is_only_recorded_for_bulk_operations(self, metrics_store):
+        post_process = worker_coordinator.DefaultSamplePostprocessor(metrics_store,
+                                                  downsample_factor=1,
+                                                  workload_meta_data={},
+                                                  test_procedure_meta_data={})
+
+        task = workload.Task("query", workload.Operation("query-op", "search", param_source="worker-coordinator-test-param-source"))
+        samples = [
+            worker_coordinator.DefaultSample(
+                0, 38598, 24, 0, task, metrics.SampleType.Normal,
+                None, 0.01, 0.007, 0.0007, 0.009, None, 1, "ops", 1, 1 / 1),
+        ]
+
+        post_process(samples)
+
+        names = [c.kwargs["name"] for c in metrics_store.put_value_cluster_level.call_args_list]
+        self.assertNotIn("task_end_time", names)
 
 
 class WorkerAssignmentTests(TestCase):

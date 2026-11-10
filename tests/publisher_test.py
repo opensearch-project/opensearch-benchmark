@@ -129,10 +129,10 @@ class SummaryResultsPublisherTotalIndexingTimeTests(TestCase):
         config.opts.side_effect = opts
         return publisher.SummaryResultsPublisher(Mock(), config)
 
-    def test_bulk_task_publishes_total_indexing_time_in_minutes(self):
+    def test_bulk_task_publishes_bulk_task_duration_in_minutes(self):
         lines = self._publisher()._publish_total_indexing_time({"total_indexing_time": 150000}, "bulk-index")
 
-        self.assertEqual([["Total indexing time", "bulk-index", 2.5, "min"]], lines)
+        self.assertEqual([["Bulk task duration", "bulk-index", 2.5, "min"]], lines)
 
     def test_task_without_total_indexing_time_publishes_nothing(self):
         self.assertEqual([], self._publisher()._publish_total_indexing_time({}, "query"))

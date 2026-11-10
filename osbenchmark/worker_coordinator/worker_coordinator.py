@@ -1681,12 +1681,23 @@ class DefaultSamplePostprocessor(SamplePostprocessor):
         self.throughput_calculator = ThroughputCalculator()
         self.downsample_factor = downsample_factor
 
+    @staticmethod
+    def _track_task_end_time(task_end_times, sample):
+        end_time = sample.relative_time + sample.service_time
+        key = (sample.task, sample.sample_type)
+        latest = task_end_times.get(key)
+        if latest is None or end_time > latest[0]:
+            task_end_times[key] = (end_time, sample)
+
     def __call__(self, raw_samples):
         if len(raw_samples) == 0:
             return
         total_start = time.perf_counter()
         start = total_start
         final_sample_count = 0
+        # latest request completion per task and sample type. This is tracked for all samples (i.e. before downsampling) so the
+        # end time of a task stays exact even if only every n-th request sample is stored.
+        task_end_times = {}
         for idx, sample in enumerate(raw_samples):
             self.logger.debug(
                 "All sample meta data: [%s],[%s],[%s],[%s],[%s]",
@@ -1696,6 +1707,11 @@ class DefaultSamplePostprocessor(SamplePostprocessor):
                 sample.task.meta_data,
                 sample.request_meta_data,
             )
+
+            if sample.operation_type in metrics.GlobalStatsCalculator.BULK_OPERATION_TYPES:
+                self._track_task_end_time(task_end_times, sample)
+                for timing in sample.dependent_timings:
+                    self._track_task_end_time(task_end_times, timing)
 
             # if request_meta_data exists then it will have {"success": true/false} as a parameter.
             if sample.request_meta_data and len(sample.request_meta_data) > 1:
@@ -1790,6 +1806,18 @@ class DefaultSamplePostprocessor(SamplePostprocessor):
                                                            operation=task.operation.name, operation_type=task.operation.type,
                                                            sample_type=sample_type, absolute_time=absolute_time,
                                                            relative_time=relative_time, meta_data=meta_data)
+        for (task, sample_type), (end_time, sample) in task_end_times.items():
+            meta_data = self.merge(
+                self.workload_meta_data,
+                self.test_procedure_meta_data,
+                task.operation.meta_data,
+                task.meta_data
+            )
+            self.metrics_store.put_value_cluster_level(name="task_end_time", value=convert.seconds_to_ms(end_time), unit="ms",
+                                                       task=task.name, operation=task.operation.name,
+                                                       operation_type=task.operation.type, sample_type=sample_type,
+                                                       absolute_time=sample.absolute_time, relative_time=sample.relative_time,
+                                                       meta_data=meta_data)
         end = time.perf_counter()
         self.logger.debug("Storing throughput took [%f] seconds.", (end - start))
         start = end
