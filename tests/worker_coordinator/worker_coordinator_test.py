@@ -511,7 +511,7 @@ class SamplePostprocessorTests(TestCase):
         self.assertEqual([self.task_end_time(38598, 1, convert.seconds_to_ms(1 + 0.8))], stored)
 
     @mock.patch("osbenchmark.metrics.MetricsStore")
-    def test_task_end_time_is_only_recorded_for_bulk_operations(self, metrics_store):
+    def test_task_end_time_is_recorded_for_all_operation_types(self, metrics_store):
         post_process = worker_coordinator.DefaultSamplePostprocessor(metrics_store,
                                                   downsample_factor=1,
                                                   workload_meta_data={},
@@ -526,8 +526,9 @@ class SamplePostprocessorTests(TestCase):
 
         post_process(samples)
 
-        names = [c.kwargs["name"] for c in metrics_store.put_value_cluster_level.call_args_list]
-        self.assertNotIn("task_end_time", names)
+        stored = [c for c in metrics_store.put_value_cluster_level.call_args_list if c.kwargs["name"] == "task_end_time"]
+        self.assertEqual([self.task_end_time(38598, 24, convert.seconds_to_ms(24 + 0.007),
+                                             task="query", operation="query-op", operation_type="search")], stored)
 
 
 class WorkerAssignmentTests(TestCase):

@@ -1708,10 +1708,9 @@ class DefaultSamplePostprocessor(SamplePostprocessor):
                 sample.request_meta_data,
             )
 
-            if sample.operation_type in metrics.GlobalStatsCalculator.BULK_OPERATION_TYPES:
-                self._track_task_end_time(task_end_times, sample)
-                for timing in sample.dependent_timings:
-                    self._track_task_end_time(task_end_times, timing)
+            self._track_task_end_time(task_end_times, sample)
+            for timing in sample.dependent_timings:
+                self._track_task_end_time(task_end_times, timing)
 
             # if request_meta_data exists then it will have {"success": true/false} as a parameter.
             if sample.request_meta_data and len(sample.request_meta_data) > 1:

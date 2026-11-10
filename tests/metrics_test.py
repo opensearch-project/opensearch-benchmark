@@ -2430,12 +2430,13 @@ class GlobalStatsCalculatorTests(TestCase):
                                         "operation-type": op_type},
                                    relative_time=0)
 
-    def test_bulk_task_reports_total_indexing_time_until_last_request_completes(self):
+    def test_duration_is_the_end_of_the_latest_request_and_not_affected_by_downsampling(self):
         op = Operation(name='bulk-index', operation_type='bulk', params={})
         task = Task('bulk-index', operation=op, schedule='deterministic')
         test_procedure = TestProcedure(name='append-fast-with-conflicts', schedule=[task], meta_data={})
         self.metrics_store.open(GlobalStatsCalculatorTests.TEST_RUN_ID, GlobalStatsCalculatorTests.TEST_RUN_TIMESTAMP,
                                 "test", "append-fast-with-conflicts", "defaults", create=True)
+        # only these request samples were stored, the real last request (completing at 1800ms) was dropped by downsampling
         self._put_service_time("bulk-index", 1.0, 800, "bulk")
         self._put_service_time("bulk-index", 1.5, 100, "bulk")
         self._put_task_end_time("bulk-index", 1800, "bulk")
@@ -2444,30 +2445,41 @@ class GlobalStatsCalculatorTests(TestCase):
                                        test_procedure=test_procedure)()
 
         bulk_metrics = [m for m in result.op_metrics if m["task"] == "bulk-index"][0]
-        self.assertEqual(1800, bulk_metrics["total_indexing_time"])
-        # the existing duration (start of the latest request) is unchanged
+        self.assertEqual(1800, bulk_metrics["duration"])
+        self.assertEqual("bulk", bulk_metrics["operation-type"])
+        flat = [m for m in result.as_flat_list() if m["name"] == "duration"]
+        self.assertEqual([{"task": "bulk-index", "operation": "bulk-index", "name": "duration", "value": {"single": 1800}}], flat)
+
+    def test_duration_falls_back_to_start_of_latest_stored_request_without_task_end_time(self):
+        op = Operation(name='bulk-index', operation_type='bulk', params={})
+        task = Task('bulk-index', operation=op, schedule='deterministic')
+        test_procedure = TestProcedure(name='append-fast-with-conflicts', schedule=[task], meta_data={})
+        self.metrics_store.open(GlobalStatsCalculatorTests.TEST_RUN_ID, GlobalStatsCalculatorTests.TEST_RUN_TIMESTAMP,
+                                "test", "append-fast-with-conflicts", "defaults", create=True)
+        self._put_service_time("bulk-index", 1.0, 800, "bulk")
+        self._put_service_time("bulk-index", 1.5, 100, "bulk")
+
+        result = GlobalStatsCalculator(store=self.metrics_store, workload=Workload(name='geonames', meta_data={}),
+                                       test_procedure=test_procedure)()
+
+        bulk_metrics = [m for m in result.op_metrics if m["task"] == "bulk-index"][0]
         self.assertEqual(1500, bulk_metrics["duration"])
-        flat = [m for m in result.as_flat_list() if m["name"] == "total_indexing_time"]
-        self.assertEqual([{"task": "bulk-index", "operation": "bulk-index", "name": "total_indexing_time",
-                           "value": {"single": 1800}}], flat)
 
-    def test_all_bulk_operation_types_report_total_indexing_time(self):
-        # vector search workloads ingest with bulk-vector-data-set, the proto variants use gRPC
-        for op_type in ["bulk", "bulk-vector-data-set", "proto-bulk", "proto-bulk-vector-data-set"]:
-            with self.subTest(operation_type=op_type):
-                self.metrics_store = metrics.InMemoryMetricsStore(self.cfg, clock=StaticClock)
-                op = Operation(name="ingest", operation_type=op_type, params={})
-                task = Task("ingest", operation=op, schedule="deterministic")
-                test_procedure = TestProcedure(name="append-fast-with-conflicts", schedule=[task], meta_data={})
-                self.metrics_store.open(GlobalStatsCalculatorTests.TEST_RUN_ID, GlobalStatsCalculatorTests.TEST_RUN_TIMESTAMP,
-                                        "test", "append-fast-with-conflicts", "defaults", create=True)
-                self._put_service_time("ingest", 1.0, 800, op_type)
-                self._put_task_end_time("ingest", 1800, op_type)
+    def test_non_bulk_task_duration_is_the_end_of_the_latest_request(self):
+        op = Operation(name='query', operation_type='search', params={})
+        task = Task('query', operation=op, schedule='deterministic')
+        test_procedure = TestProcedure(name='append-fast-with-conflicts', schedule=[task], meta_data={})
+        self.metrics_store.open(GlobalStatsCalculatorTests.TEST_RUN_ID, GlobalStatsCalculatorTests.TEST_RUN_TIMESTAMP,
+                                "test", "append-fast-with-conflicts", "defaults", create=True)
+        self._put_service_time("query", 1.0, 50, "search")
+        self._put_task_end_time("query", 1050, "search")
 
-                result = GlobalStatsCalculator(store=self.metrics_store, workload=Workload(name="geonames", meta_data={}),
-                                               test_procedure=test_procedure)()
+        result = GlobalStatsCalculator(store=self.metrics_store, workload=Workload(name='geonames', meta_data={}),
+                                       test_procedure=test_procedure)()
 
-                self.assertEqual(1800, result.op_metrics[0]["total_indexing_time"])
+        query_metrics = [m for m in result.op_metrics if m["task"] == "query"][0]
+        self.assertEqual(1050, query_metrics["duration"])
+        self.assertEqual("search", query_metrics["operation-type"])
 
     def test_bulk_operation_types_match_workload_operation_types(self):
         expected = {t.to_hyphenated_string() for t in [workload.OperationType.Bulk,
@@ -2475,36 +2487,6 @@ class GlobalStatsCalculatorTests(TestCase):
                                                        workload.OperationType.ProtoBulk,
                                                        workload.OperationType.ProtoBulkVectorDataSet]}
         self.assertEqual(expected, GlobalStatsCalculator.BULK_OPERATION_TYPES)
-
-    def test_total_indexing_time_is_not_queried_for_tasks_not_included_in_reporting(self):
-        op = Operation(name="ingest", operation_type="bulk", params={"include-in-reporting": False})
-        task = Task("ingest", operation=op, schedule="deterministic")
-        test_procedure = TestProcedure(name="append-fast-with-conflicts", schedule=[task], meta_data={})
-        self.metrics_store.open(GlobalStatsCalculatorTests.TEST_RUN_ID, GlobalStatsCalculatorTests.TEST_RUN_TIMESTAMP,
-                                "test", "append-fast-with-conflicts", "defaults", create=True)
-        self._put_service_time("ingest", 1.0, 800, "bulk")
-
-        with mock.patch.object(self.metrics_store, "get_task_end_time") as get_task_end_time:
-            result = GlobalStatsCalculator(store=self.metrics_store, workload=Workload(name="geonames", meta_data={}),
-                                           test_procedure=test_procedure)()
-
-        get_task_end_time.assert_not_called()
-        self.assertEqual([], result.op_metrics)
-
-    def test_non_bulk_task_does_not_report_total_indexing_time(self):
-        op = Operation(name='query', operation_type='search', params={})
-        task = Task('query', operation=op, schedule='deterministic')
-        test_procedure = TestProcedure(name='append-fast-with-conflicts', schedule=[task], meta_data={})
-        self.metrics_store.open(GlobalStatsCalculatorTests.TEST_RUN_ID, GlobalStatsCalculatorTests.TEST_RUN_TIMESTAMP,
-                                "test", "append-fast-with-conflicts", "defaults", create=True)
-        self._put_service_time("query", 1.0, 50, "search")
-
-        result = GlobalStatsCalculator(store=self.metrics_store, workload=Workload(name='geonames', meta_data={}),
-                                       test_procedure=test_procedure)()
-
-        query_metrics = [m for m in result.op_metrics if m["task"] == "query"][0]
-        self.assertNotIn("total_indexing_time", query_metrics)
-        self.assertEqual([], [m for m in result.as_flat_list() if m["name"] == "total_indexing_time"])
 
     def test_summary_stats_with_percentiles_and_no_samples_does_not_crash(self):
         # Robustness: when a task has no Normal samples (e.g. every request

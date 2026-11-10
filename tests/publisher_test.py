@@ -130,12 +130,22 @@ class SummaryResultsPublisherTotalIndexingTimeTests(TestCase):
         return publisher.SummaryResultsPublisher(Mock(), config)
 
     def test_bulk_task_publishes_bulk_task_duration_in_minutes(self):
-        lines = self._publisher()._publish_total_indexing_time({"total_indexing_time": 150000}, "bulk-index")
+        lines = self._publisher()._publish_bulk_task_duration({"duration": 150000, "operation-type": "bulk"}, "bulk-index")
 
         self.assertEqual([["Bulk task duration", "bulk-index", 2.5, "min"]], lines)
 
-    def test_task_without_total_indexing_time_publishes_nothing(self):
-        self.assertEqual([], self._publisher()._publish_total_indexing_time({}, "query"))
+    def test_all_bulk_operation_types_publish_bulk_task_duration(self):
+        for op_type in ["bulk", "bulk-vector-data-set", "proto-bulk", "proto-bulk-vector-data-set"]:
+            with self.subTest(operation_type=op_type):
+                lines = self._publisher()._publish_bulk_task_duration({"duration": 60000, "operation-type": op_type}, "ingest")
 
-    def test_task_without_total_indexing_time_publishes_nothing_even_when_publishing_all_values(self):
-        self.assertEqual([], self._publisher(values="all")._publish_total_indexing_time({}, "query"))
+                self.assertEqual([["Bulk task duration", "ingest", 1.0, "min"]], lines)
+
+    def test_non_bulk_task_publishes_nothing(self):
+        self.assertEqual([], self._publisher()._publish_bulk_task_duration({"duration": 60000, "operation-type": "search"}, "query"))
+
+    def test_task_without_operation_type_publishes_nothing(self):
+        self.assertEqual([], self._publisher()._publish_bulk_task_duration({"duration": 60000}, "query"))
+
+    def test_bulk_task_without_duration_publishes_nothing_even_when_publishing_all_values(self):
+        self.assertEqual([], self._publisher(values="all")._publish_bulk_task_duration({"operation-type": "bulk"}, "bulk-index"))

@@ -752,7 +752,8 @@ class MetricsStore:
     def get_task_end_time(self, task):
         """
         Gets the point in time at which the last request of a task has finished. This is read from the ``task_end_time``
-        metric, which is recorded for all requests and is therefore not affected by request metrics downsampling.
+        metric, which is recorded for all requests and is therefore not affected by request metrics downsampling. It is the
+        basis of the ``duration`` of a task.
 
         :param task The task name to query.
         :return: The time in milliseconds, relative to the start of the task, at which the last request of any client
@@ -1923,7 +1924,7 @@ class GlobalStatsCalculator:
     OTHER_PERCENTILES = [50,90,99,99.9,99.99,100]
     # Use these percentiles when the single_latency fn is called for something other than latency
 
-    # Operation types that index documents in bulk (see workload.OperationType). They report the total indexing time.
+    # Operation types that index documents in bulk (see workload.OperationType). The summary reports their task duration.
     BULK_OPERATION_TYPES = frozenset(["bulk", "bulk-vector-data-set", "proto-bulk", "proto-bulk-vector-data-set"])
 
     def __init__(self, store, workload, test_procedure, latency_percentiles=None, throughput_percentiles=None):
@@ -1946,10 +1947,6 @@ class GlobalStatsCalculator:
 
                 if task.operation.include_in_reporting or error_rate > 0:
                     self.logger.debug("Gathering request metrics for [%s].", task_name)
-                    # Only bulk operations report the total time until all bulk requests have completed
-                    total_indexing_time = None
-                    if op_type in self.BULK_OPERATION_TYPES:
-                        total_indexing_time = self.store.get_task_end_time(task_name)
                     result.add_op_metrics(
                         task_name,
                         task.operation.name,
@@ -1966,7 +1963,7 @@ class GlobalStatsCalculator:
                             task.operation.meta_data,
                             task.meta_data,
                         ),
-                        total_indexing_time,
+                        op_type,
                     )
 
                     result.add_correctness_metrics(
@@ -2152,6 +2149,11 @@ class GlobalStatsCalculator:
         return self.store.get_error_rate(task=task_name, operation_type=operation_type, sample_type=SampleType.Normal)
 
     def duration(self, task_name):
+        # the end of the latest request of the task, recorded for all requests and therefore not affected by downsampling
+        task_end_time = self.store.get_task_end_time(task_name)
+        if task_end_time is not None:
+            return task_end_time
+        # metrics without a recorded task end time: fall back to the start of the latest stored request
         return self.store.get_one("service_time", task=task_name, mapper=lambda doc: doc["relative-time-ms"],
                                   sort_key="relative-time-ms", sort_reverse=True)
 
@@ -2271,8 +2273,6 @@ class GlobalStats:
                         all_results.append(op_metrics(item, "error_rate", single_value=True))
                     if "duration" in item:
                         all_results.append(op_metrics(item, "duration", single_value=True))
-                    if "total_indexing_time" in item:
-                        all_results.append(op_metrics(item, "total_indexing_time", single_value=True))
             elif metric == "ml_processing_time":
                 for item in value:
                     all_results.append({
@@ -2334,7 +2334,7 @@ class GlobalStats:
         return d.get(k, default) if d else default
 
     def add_op_metrics(self, task, operation, throughput, latency, service_time, client_processing_time,
-                       processing_time, error_rate, duration, meta, total_indexing_time=None):
+                       processing_time, error_rate, duration, meta, operation_type=None):
         doc = {
             "task": task,
             "operation": operation,
@@ -2346,8 +2346,8 @@ class GlobalStats:
             "error_rate": error_rate,
             "duration": duration
         }
-        if total_indexing_time is not None:
-            doc["total_indexing_time"] = total_indexing_time
+        if operation_type is not None:
+            doc["operation-type"] = operation_type
         if meta:
             doc["meta"] = meta
         self.op_metrics.append(doc)
