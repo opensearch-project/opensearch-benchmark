@@ -372,7 +372,7 @@ class SampleType(IntEnum):
     Normal = 1
 
 
-class MetricsStore:
+class MetricsStore:  # pylint: disable=too-many-public-methods
     """
     Abstract metrics store
     """

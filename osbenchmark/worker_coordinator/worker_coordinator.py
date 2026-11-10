@@ -1684,7 +1684,8 @@ class DefaultSamplePostprocessor(SamplePostprocessor):
     @staticmethod
     def _track_task_end_time(task_end_times, sample):
         end_time = sample.relative_time + sample.service_time
-        key = (sample.task, sample.sample_type)
+        # key by task name: hashing a Task for every raw sample is comparatively expensive
+        key = (sample.task.name, sample.sample_type)
         latest = task_end_times.get(key)
         if latest is None or end_time > latest[0]:
             task_end_times[key] = (end_time, sample)
@@ -1805,7 +1806,8 @@ class DefaultSamplePostprocessor(SamplePostprocessor):
                                                            operation=task.operation.name, operation_type=task.operation.type,
                                                            sample_type=sample_type, absolute_time=absolute_time,
                                                            relative_time=relative_time, meta_data=meta_data)
-        for (task, sample_type), (end_time, sample) in task_end_times.items():
+        for (_, sample_type), (end_time, sample) in task_end_times.items():
+            task = sample.task
             meta_data = self.merge(
                 self.workload_meta_data,
                 self.test_procedure_meta_data,
