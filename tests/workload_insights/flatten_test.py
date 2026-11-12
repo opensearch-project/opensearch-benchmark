@@ -6,11 +6,13 @@
 # Modifications Copyright OpenSearch Contributors. See
 # GitHub history for details.
 
+import copy
 import logging
 
 import pytest
 
-from osbenchmark.workload_insights.analyzers.flatten import Flattener, log_skipped_fields, mapping_properties
+from osbenchmark.workload_insights.analyzers.flatten import (Flattener, _expand_dotted_names, log_skipped_fields,
+                                                              mapping_properties)
 
 PROPERTIES = {
     "id": {"type": "long"},
@@ -147,6 +149,47 @@ class TestFlattener:
 
         assert sorted(Flattener(mapping).fields) == ["user.age", "user.name"]
         assert sorted(Flattener(reversed_mapping).fields) == ["user.age", "user.name"]
+
+    @pytest.mark.parametrize("names", [["user", "user.name"], ["user.name", "user"]])
+    def test_explicit_definition_keeps_its_attributes_when_merged_with_dotted_names(self, names):
+        definitions = {
+            "user": {"type": "nested", "dynamic": "strict", "properties": {"age": {"type": "integer"}}},
+            "user.name": {"type": "keyword"},
+        }
+
+        expanded = _expand_dotted_names({name: definitions[name] for name in names})
+
+        assert expanded["user"]["type"] == "nested"
+        assert expanded["user"]["dynamic"] == "strict"
+        assert expanded["user"]["properties"] == {"age": {"type": "integer"}, "name": {"type": "keyword"}}
+
+    def test_dotted_names_below_an_explicit_object_without_properties(self):
+        expanded = _expand_dotted_names({"user": {"type": "object", "enabled": True}, "user.name": {"type": "keyword"}})
+
+        assert expanded == {"user": {"type": "object", "enabled": True, "properties": {"name": {"type": "keyword"}}}}
+
+    def test_nested_objects_defined_with_dotted_names_stay_nested_containers(self):
+        mapping = {"properties": {"comments.text": {"type": "text"}, "comments": {"type": "nested", "properties": {"likes": {"type": "long"}}}}}
+
+        flattener = Flattener(mapping)
+
+        assert sorted(flattener.fields) == ["comments.likes", "comments.text"]
+        assert flattener.flatten({"comments": [{"likes": 1, "text": "a"}, {"likes": 2}]}) == {"comments.likes": [1, 2], "comments.text": ["a"]}
+
+    def test_the_mapping_is_not_modified(self):
+        mapping = {"properties": {
+            "user": {"type": "nested", "properties": {"age": {"type": "integer"}}},
+            "user.name": {"type": "keyword"},
+            "a.b.c": {"type": "long"},
+            "a": {"properties": {"d": {"type": "long"}}},
+        }}
+        original = copy.deepcopy(mapping)
+
+        first = Flattener(mapping)
+        second = Flattener(mapping)
+
+        assert mapping == original
+        assert sorted(first.fields) == sorted(second.fields) == ["a.b.c", "a.d", "user.age", "user.name"]
 
     def test_log_skipped_fields_logs_the_count(self, caplog):
         with caplog.at_level(logging.INFO):

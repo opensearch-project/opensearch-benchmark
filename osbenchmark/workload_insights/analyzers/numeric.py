@@ -23,10 +23,12 @@ class NumericAnalyzer(Analyzer):
 
     def analyze(self, field_type: str, definition: Dict[str, Any], per_doc_values: List[List[Any]]) -> FieldStats:
         integer = field_type in INTEGER_TYPES
+        # like OpenSearch, coerce fractions of integer fields by truncating them unless the mapping disables coercion
+        coerce = str(definition.get("coerce", True)).lower() != "false"
         numbers = []
         for values in per_doc_values:
             for value in values:
-                number = self._to_number(value, integer)
+                number = self._to_number(value, integer, coerce)
                 if number is None:
                     self.logger.debug("Ignoring non-numeric or non-finite value of type [%s] in numeric field.", type(value).__name__)
                 else:
@@ -45,20 +47,31 @@ class NumericAnalyzer(Analyzer):
         return NumericStats(type=field_type, **self.common_stats(per_doc_values), **stats)
 
     @staticmethod
-    def _to_number(value: Any, integer: bool) -> Optional[Union[int, float]]:
+    def _to_number(value: Any, integer: bool, coerce: bool = True) -> Optional[Union[int, float]]:
         """
-        :return: The value as int (for integer types, if it is one) or float, or None if it is not a finite number.
+        :param integer: Whether the field is of an integer type.
+        :param coerce: Whether fractions of integer fields are truncated (the OpenSearch default) or the value is invalid.
+        :return: The value as int (for integer types) or float, or None if it is not a finite number.
         """
         # numeric fields accept numbers as strings in _source; booleans are not numbers
         if isinstance(value, bool):
             return None
-        if integer:
-            if isinstance(value, int):
-                return value
+        if not integer:
+            return NumericAnalyzer._to_finite_float(value)
+        if isinstance(value, int):
+            return value
+        if isinstance(value, str):
             try:
                 return int(value)
-            except (TypeError, ValueError):
+            except ValueError:
                 pass
+        number = NumericAnalyzer._to_finite_float(value)
+        if number is None:
+            return None
+        return int(number) if number.is_integer() or coerce else None
+
+    @staticmethod
+    def _to_finite_float(value: Any) -> Optional[float]:
         try:
             number = float(value)
         except (TypeError, ValueError, OverflowError):

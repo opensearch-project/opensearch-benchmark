@@ -16,6 +16,8 @@ from osbenchmark.workload_insights.models import DateStats, FieldStats
 EPOCH_MILLIS = "epoch_millis"
 EPOCH_SECOND = "epoch_second"
 ISO_8601 = "strict_date_optional_time"
+# the largest offset that java.time.ZoneOffset, and with it OpenSearch, accepts
+MAX_OFFSET_MINUTES = 18 * 60
 
 # strict_date_optional_time: a date (year, year and month or full date), optionally followed by a time (hours, minutes, seconds and
 # a fraction of 1 to 9 digits) and an offset. datetime.fromisoformat() cannot be used: before Python 3.11 it accepts only 3 or 6
@@ -92,7 +94,10 @@ class DateAnalyzer(Analyzer):
             tz_offset = timedelta(0)
         else:
             digits = offset[1:].replace(":", "")
-            tz_offset = timedelta(hours=int(digits[:2]), minutes=int(digits[2:] or 0))
+            hours, minutes = int(digits[:2]), int(digits[2:] or 0)
+            if minutes > 59 or hours * 60 + minutes > MAX_OFFSET_MINUTES:
+                return None
+            tz_offset = timedelta(hours=hours, minutes=minutes)
             if offset[0] == "-":
                 tz_offset = -tz_offset
         try:

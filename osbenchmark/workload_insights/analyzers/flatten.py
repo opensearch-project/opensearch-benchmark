@@ -64,19 +64,25 @@ def _expand_dotted_names(properties: Dict[str, Any]) -> Dict[str, Any]:
     """
     Expands field names with dots into objects, as OpenSearch does: {"user.name": {...}} is the same as
     {"user": {"properties": {"name": {...}}}}.
+
+    The mapping that is passed in is not modified. A field that is defined explicitly and through dotted names keeps the attributes
+    of its explicit definition (e.g. its type) and the properties of both.
     """
     expanded: Dict[str, Any] = {}
     for name, definition in properties.items():
         *parents, last = name.split(".")
         target = expanded
         for parent in parents:
-            target = target.setdefault(parent, {"properties": {}}).setdefault("properties", {})
+            target = target.setdefault(parent, {}).setdefault("properties", {})
+        definition = dict(definition)
+        if "properties" in definition:
+            definition["properties"] = dict(definition["properties"])
         existing = target.get(last)
-        if existing is not None and "properties" in definition:
-            # the field is also defined implicitly through a dotted name: keep the properties of both
-            definition = dict(definition, properties={**existing.get("properties", {}), **definition["properties"]})
-        elif existing is not None and "properties" in existing:
-            definition = dict(definition, properties=existing["properties"])
+        if existing is not None:
+            # defined implicitly through dotted names before
+            merged = {**existing.get("properties", {}), **definition.get("properties", {})}
+            if merged:
+                definition["properties"] = merged
         target[last] = definition
     return expanded
 

@@ -73,6 +73,27 @@ class TestNumericAnalyzer:
         assert stats.min == 9007199254740993 and stats.max == 9007199254740995
         assert isinstance(stats.min, int)
 
+    def test_fractions_of_integer_fields_are_truncated_like_opensearch_coerces_them(self):
+        stats = NumericAnalyzer().analyze("long", {}, [[1.5], [-1.5], ["2.7"], [3.0], ["4"]])
+
+        assert (stats.min, stats.max, stats.mean) == (-1, 4, 1.8)
+        assert isinstance(stats.min, int) and isinstance(stats.max, int)
+
+    @pytest.mark.parametrize("coerce", [False, "false", "False"])
+    def test_fractions_of_integer_fields_are_invalid_without_coercion(self, coerce):
+        stats = NumericAnalyzer().analyze("integer", {"coerce": coerce}, [[1.5], [2.0], ["2.7"], ["3"]])
+
+        assert (stats.min, stats.max) == (2, 3)
+        assert stats.sample_size == 4
+
+    def test_coercion_can_be_enabled_explicitly(self):
+        assert NumericAnalyzer().analyze("short", {"coerce": True}, [[1.9]]).max == 1
+
+    def test_fractions_of_float_fields_are_kept(self):
+        stats = NumericAnalyzer().analyze("double", {"coerce": False}, [[1.5], ["2.5"]])
+
+        assert (stats.min, stats.max) == (1.5, 2.5)
+
     def test_long_bounds_stay_exact(self):
         stats = NumericAnalyzer().analyze("long", {}, [[-2 ** 63], [2 ** 63 - 1]])
 
@@ -179,6 +200,21 @@ class TestDateAnalyzer:
     ])
     def test_iso_8601_variants(self, value, expected):
         assert DateAnalyzer._parse(value)[0].isoformat() == expected  # pylint: disable=protected-access
+
+    @pytest.mark.parametrize("value,expected", [
+        ("2021-01-01T00:00:00+18:00", "2020-12-31T06:00:00+00:00"),
+        ("2021-01-01T00:00:00-18:00", "2021-01-01T18:00:00+00:00"),
+        ("2021-01-01T00:00:00+1800", "2020-12-31T06:00:00+00:00"),
+        ("2021-01-01T00:00:00+00:59", "2020-12-31T23:01:00+00:00"),
+    ])
+    def test_offsets_up_to_18_hours(self, value, expected):
+        assert DateAnalyzer._parse(value)[0].isoformat() == expected  # pylint: disable=protected-access
+
+    @pytest.mark.parametrize("value", ["2021-01-01T00:00:00+18:01", "2021-01-01T00:00:00-1801", "2021-01-01T00:00:00+2400",
+                                       "2021-01-01T00:00:00+23:00", "2021-01-01T00:00:00+0160", "2021-01-01T00:00:00+00:60",
+                                       "2021-01-01T00:00:00+9999"])
+    def test_offsets_that_java_does_not_accept_are_invalid(self, value):
+        assert DateAnalyzer._parse(value) is None  # pylint: disable=protected-access
 
     @pytest.mark.parametrize("value", ["2021-13-01", "2021-02-30", "2021-01-01T25:00:00Z", "20210101T000000Z", "yesterday", "",
                                        "2021-01-01T00:00:00+99:99"])
