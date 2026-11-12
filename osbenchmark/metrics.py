@@ -372,7 +372,7 @@ class SampleType(IntEnum):
     Normal = 1
 
 
-class MetricsStore:
+class MetricsStore:  # pylint: disable=too-many-public-methods
     """
     Abstract metrics store
     """
@@ -749,6 +749,18 @@ class MetricsStore:
         """
         raise NotImplementedError("abstract method")
 
+    def get_task_end_time(self, task):
+        """
+        Gets the point in time at which the last request of a task has finished. This is read from the ``task_end_time``
+        metric, which is recorded for all requests and is therefore not affected by request metrics downsampling. It is the
+        basis of the ``duration`` of a task.
+
+        :param task The task name to query.
+        :return: The time in milliseconds, relative to the start of the task, at which the last request of any client
+                 has completed (request start + service time) or None if there is no ``task_end_time`` for this task.
+        """
+        raise NotImplementedError("abstract method")
+
     def get_stats(self, name, task=None, operation_type=None, sample_type=None):
         """
         Gets standard statistics for the given metric.
@@ -950,6 +962,22 @@ class OsMetricsStore(MetricsStore):
             return 1.0
         else:
             return count_errors / (count_errors + count_success)
+
+    def get_task_end_time(self, task):
+        query = {
+            "query": self._query_by_name("task_end_time", task, None, None, None),
+            "size": 0,
+            "aggs": {
+                "task_end_time": {
+                    "max": {
+                        "field": "value"
+                    }
+                }
+            }
+        }
+        self.logger.debug("Issuing get_task_end_time against index=[%s], query=[%s]", self._index, query)
+        result = self._client.search(index=self._index, body=query)
+        return result["aggregations"]["task_end_time"]["value"]
 
     def get_stats(self, name, task=None, operation_type=None, sample_type=None):
         """
@@ -1176,6 +1204,12 @@ class InMemoryMetricsStore(MetricsStore):
             return error / total_count
         else:
             return 0.0
+
+    def get_task_end_time(self, task):
+        end_times = [doc["value"]
+                     for doc in self.docs
+                     if doc["name"] == "task_end_time" and doc["task"] == task]
+        return max(end_times) if end_times else None
 
     def get_stats(self, name, task=None, operation_type=None, sample_type=SampleType.Normal):
         values = self.get(name, task, operation_type, sample_type)
@@ -1890,6 +1924,9 @@ class GlobalStatsCalculator:
     OTHER_PERCENTILES = [50,90,99,99.9,99.99,100]
     # Use these percentiles when the single_latency fn is called for something other than latency
 
+    # Operation types that index documents in bulk (see workload.OperationType). The summary reports their task duration.
+    BULK_OPERATION_TYPES = frozenset(["bulk", "bulk-vector-data-set", "proto-bulk", "proto-bulk-vector-data-set"])
+
     def __init__(self, store, workload, test_procedure, latency_percentiles=None, throughput_percentiles=None):
         self.store = store
         self.logger = logging.getLogger(__name__)
@@ -1926,6 +1963,7 @@ class GlobalStatsCalculator:
                             task.operation.meta_data,
                             task.meta_data,
                         ),
+                        op_type,
                     )
 
                     result.add_correctness_metrics(
@@ -2111,6 +2149,11 @@ class GlobalStatsCalculator:
         return self.store.get_error_rate(task=task_name, operation_type=operation_type, sample_type=SampleType.Normal)
 
     def duration(self, task_name):
+        # the end of the latest request of the task, recorded for all requests and therefore not affected by downsampling
+        task_end_time = self.store.get_task_end_time(task_name)
+        if task_end_time is not None:
+            return task_end_time
+        # metrics without a recorded task end time: fall back to the start of the latest stored request
         return self.store.get_one("service_time", task=task_name, mapper=lambda doc: doc["relative-time-ms"],
                                   sort_key="relative-time-ms", sort_reverse=True)
 
@@ -2291,7 +2334,7 @@ class GlobalStats:
         return d.get(k, default) if d else default
 
     def add_op_metrics(self, task, operation, throughput, latency, service_time, client_processing_time,
-                       processing_time, error_rate, duration, meta):
+                       processing_time, error_rate, duration, meta, operation_type=None):
         doc = {
             "task": task,
             "operation": operation,
@@ -2303,6 +2346,8 @@ class GlobalStats:
             "error_rate": error_rate,
             "duration": duration
         }
+        if operation_type is not None:
+            doc["operation-type"] = operation_type
         if meta:
             doc["meta"] = meta
         self.op_metrics.append(doc)

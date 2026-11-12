@@ -113,3 +113,39 @@ class FormatterTests(TestCase):
         self.assertEqual(len(result_aggregated), 4)
         self.assertEqual(result_aggregated[0][2], 95)  # baseline overall_min
         self.assertEqual(result_aggregated[3][3], 205)  # contender overall_max
+
+
+class SummaryResultsPublisherTotalIndexingTimeTests(TestCase):
+    def _publisher(self, values="available"):
+        config = Mock()
+
+        def opts(section, key, mandatory=True, default_value=None):
+            if (section, key) == ("reporting", "values"):
+                return values
+            if (section, key) == ("reporting", "output.processingtime"):
+                return False
+            return default_value
+
+        config.opts.side_effect = opts
+        return publisher.SummaryResultsPublisher(Mock(), config)
+
+    def test_bulk_task_publishes_bulk_task_duration_in_minutes(self):
+        lines = self._publisher()._publish_bulk_task_duration({"duration": 150000, "operation-type": "bulk"}, "bulk-index")
+
+        self.assertEqual([["Bulk task duration", "bulk-index", 2.5, "min"]], lines)
+
+    def test_all_bulk_operation_types_publish_bulk_task_duration(self):
+        for op_type in ["bulk", "bulk-vector-data-set", "proto-bulk", "proto-bulk-vector-data-set"]:
+            with self.subTest(operation_type=op_type):
+                lines = self._publisher()._publish_bulk_task_duration({"duration": 60000, "operation-type": op_type}, "ingest")
+
+                self.assertEqual([["Bulk task duration", "ingest", 1.0, "min"]], lines)
+
+    def test_non_bulk_task_publishes_nothing(self):
+        self.assertEqual([], self._publisher()._publish_bulk_task_duration({"duration": 60000, "operation-type": "search"}, "query"))
+
+    def test_task_without_operation_type_publishes_nothing(self):
+        self.assertEqual([], self._publisher()._publish_bulk_task_duration({"duration": 60000}, "query"))
+
+    def test_bulk_task_without_duration_publishes_nothing_even_when_publishing_all_values(self):
+        self.assertEqual([], self._publisher(values="all")._publish_bulk_task_duration({"operation-type": "bulk"}, "bulk-index"))

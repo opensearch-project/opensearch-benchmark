@@ -1240,6 +1240,72 @@ class OsMetricsTests(TestCase):
         return actual_error_rate
 
 
+    def _get_task_end_time(self, aggregation_value):
+        search_result = {
+            "hits": {
+                "total": 1,
+            },
+            "aggregations": {
+                "task_end_time": {
+                    "value": aggregation_value
+                }
+            }
+        }
+        self.es_mock.search = mock.MagicMock(return_value=search_result)
+
+        self.metrics_store.open(
+            OsMetricsTests.TEST_RUN_ID,
+            OsMetricsTests.TEST_RUN_TIMESTAMP,
+            "test", "append-no-conflicts", "defaults")
+
+        expected_query = {
+            "query": {
+                "bool": {
+                    "filter": [
+                        {
+                            "bool": {
+                                "should": [
+                                    {"term": {"test-execution-id": OsMetricsTests.TEST_RUN_ID}},
+                                    {"term": {"test-run-id": OsMetricsTests.TEST_RUN_ID}}
+                                ],
+                                "minimum_should_match": 1
+                            }
+                        },
+                        {
+                            "term": {
+                                "name": "task_end_time"
+                            }
+                        },
+                        {
+                            "term": {
+                                "task": "bulk-index"
+                            }
+                        }
+                    ]
+                }
+            },
+            "size": 0,
+            "aggs": {
+                "task_end_time": {
+                    "max": {
+                        "field": "value"
+                    }
+                }
+            }
+        }
+
+        actual_end_time = self.metrics_store.get_task_end_time("bulk-index")
+        self.es_mock.search.assert_called_with(index="benchmark-metrics-2016-01", body=expected_query)
+        return actual_end_time
+
+    def test_get_task_end_time(self):
+        self.assertEqual(1800.0, self._get_task_end_time(aggregation_value=1800.0))
+
+    def test_get_task_end_time_without_samples_is_none(self):
+        # the max aggregation has no value when no document matches
+        self.assertIsNone(self._get_task_end_time(aggregation_value=None))
+
+
 class OsTestExecutionStoreTests(TestCase):
     TEST_RUN_TIMESTAMP = datetime.datetime(2016, 1, 31)
     TEST_RUN_ID = "6ebc6e53-ee20-4b0c-99b4-09697987e9f4"
@@ -2037,6 +2103,29 @@ class InMemoryMetricsStoreTests(TestCase):
         self.assertEqual(0.0, self.metrics_store.get_error_rate("term-query", sample_type=metrics.SampleType.Warmup))
         self.assertEqual(0.2, self.metrics_store.get_error_rate("term-query", sample_type=metrics.SampleType.Normal))
 
+    def _put_task_end_time(self, task, value, op_type="bulk"):
+        self.metrics_store.put_doc(doc={"name": "task_end_time", "value": value, "unit": "ms",
+                                        "sample-type": "normal", "task": task, "operation": task,
+                                        "operation-type": op_type},
+                                   relative_time=0)
+
+    def test_get_task_end_time_returns_latest_end_time_of_the_task(self):
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
+                                "test", "append-fast-with-conflicts", "defaults", create=True)
+        self._put_task_end_time("bulk-index", 1600)
+        self._put_task_end_time("bulk-index", 1800)
+        # end times of other tasks must not be considered
+        self._put_task_end_time("other-task", 5500)
+
+        self.assertEqual(1800, self.metrics_store.get_task_end_time("bulk-index"))
+
+    def test_get_task_end_time_without_end_time_is_none(self):
+        self.metrics_store.open(InMemoryMetricsStoreTests.TEST_RUN_ID, InMemoryMetricsStoreTests.TEST_RUN_TIMESTAMP,
+                                "test", "append-fast-with-conflicts", "defaults", create=True)
+        self._put_task_end_time("other-task", 5500)
+
+        self.assertIsNone(self.metrics_store.get_task_end_time("bulk-index"))
+
 
 class FileTestExecutionStoreTests(TestCase):
     TEST_RUN_TIMESTAMP = datetime.datetime(2016, 1, 31)
@@ -2328,6 +2417,76 @@ class GlobalStatsCalculatorTests(TestCase):
         result = GlobalStatsCalculator(store=self.metrics_store, workload=Workload(name='geonames', meta_data={}),
                                        test_procedure=test_procedure)()
         assert "delete-index" in [op_metric.get('task') for op_metric in result.op_metrics]
+
+    def _put_service_time(self, task, relative_time_s, value, op_type):
+        self.metrics_store.put_doc(doc={"name": "service_time", "value": value, "unit": "ms",
+                                        "sample-type": "normal", "task": task, "operation": task,
+                                        "operation-type": op_type, "meta": {"success": True}},
+                                   relative_time=relative_time_s)
+
+    def _put_task_end_time(self, task, value, op_type):
+        self.metrics_store.put_doc(doc={"name": "task_end_time", "value": value, "unit": "ms",
+                                        "sample-type": "normal", "task": task, "operation": task,
+                                        "operation-type": op_type},
+                                   relative_time=0)
+
+    def test_duration_is_the_end_of_the_latest_request_and_not_affected_by_downsampling(self):
+        op = Operation(name='bulk-index', operation_type='bulk', params={})
+        task = Task('bulk-index', operation=op, schedule='deterministic')
+        test_procedure = TestProcedure(name='append-fast-with-conflicts', schedule=[task], meta_data={})
+        self.metrics_store.open(GlobalStatsCalculatorTests.TEST_RUN_ID, GlobalStatsCalculatorTests.TEST_RUN_TIMESTAMP,
+                                "test", "append-fast-with-conflicts", "defaults", create=True)
+        # only these request samples were stored, the real last request (completing at 1800ms) was dropped by downsampling
+        self._put_service_time("bulk-index", 1.0, 800, "bulk")
+        self._put_service_time("bulk-index", 1.5, 100, "bulk")
+        self._put_task_end_time("bulk-index", 1800, "bulk")
+
+        result = GlobalStatsCalculator(store=self.metrics_store, workload=Workload(name='geonames', meta_data={}),
+                                       test_procedure=test_procedure)()
+
+        bulk_metrics = [m for m in result.op_metrics if m["task"] == "bulk-index"][0]
+        self.assertEqual(1800, bulk_metrics["duration"])
+        self.assertEqual("bulk", bulk_metrics["operation-type"])
+        flat = [m for m in result.as_flat_list() if m["name"] == "duration"]
+        self.assertEqual([{"task": "bulk-index", "operation": "bulk-index", "name": "duration", "value": {"single": 1800}}], flat)
+
+    def test_duration_falls_back_to_start_of_latest_stored_request_without_task_end_time(self):
+        op = Operation(name='bulk-index', operation_type='bulk', params={})
+        task = Task('bulk-index', operation=op, schedule='deterministic')
+        test_procedure = TestProcedure(name='append-fast-with-conflicts', schedule=[task], meta_data={})
+        self.metrics_store.open(GlobalStatsCalculatorTests.TEST_RUN_ID, GlobalStatsCalculatorTests.TEST_RUN_TIMESTAMP,
+                                "test", "append-fast-with-conflicts", "defaults", create=True)
+        self._put_service_time("bulk-index", 1.0, 800, "bulk")
+        self._put_service_time("bulk-index", 1.5, 100, "bulk")
+
+        result = GlobalStatsCalculator(store=self.metrics_store, workload=Workload(name='geonames', meta_data={}),
+                                       test_procedure=test_procedure)()
+
+        bulk_metrics = [m for m in result.op_metrics if m["task"] == "bulk-index"][0]
+        self.assertEqual(1500, bulk_metrics["duration"])
+
+    def test_non_bulk_task_duration_is_the_end_of_the_latest_request(self):
+        op = Operation(name='query', operation_type='search', params={})
+        task = Task('query', operation=op, schedule='deterministic')
+        test_procedure = TestProcedure(name='append-fast-with-conflicts', schedule=[task], meta_data={})
+        self.metrics_store.open(GlobalStatsCalculatorTests.TEST_RUN_ID, GlobalStatsCalculatorTests.TEST_RUN_TIMESTAMP,
+                                "test", "append-fast-with-conflicts", "defaults", create=True)
+        self._put_service_time("query", 1.0, 50, "search")
+        self._put_task_end_time("query", 1050, "search")
+
+        result = GlobalStatsCalculator(store=self.metrics_store, workload=Workload(name='geonames', meta_data={}),
+                                       test_procedure=test_procedure)()
+
+        query_metrics = [m for m in result.op_metrics if m["task"] == "query"][0]
+        self.assertEqual(1050, query_metrics["duration"])
+        self.assertEqual("search", query_metrics["operation-type"])
+
+    def test_bulk_operation_types_match_workload_operation_types(self):
+        expected = {t.to_hyphenated_string() for t in [workload.OperationType.Bulk,
+                                                       workload.OperationType.BulkVectorDataSet,
+                                                       workload.OperationType.ProtoBulk,
+                                                       workload.OperationType.ProtoBulkVectorDataSet]}
+        self.assertEqual(expected, GlobalStatsCalculator.BULK_OPERATION_TYPES)
 
     def test_summary_stats_with_percentiles_and_no_samples_does_not_crash(self):
         # Robustness: when a task has no Normal samples (e.g. every request
