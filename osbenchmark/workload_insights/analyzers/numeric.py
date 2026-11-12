@@ -69,17 +69,28 @@ class NumericAnalyzer(Analyzer):
             return None
         if not integer:
             return NumericAnalyzer._to_finite_float(value)
-        if isinstance(value, int):
-            return value
-        if isinstance(value, str):
-            try:
-                return int(value)
-            except ValueError:
-                pass
+        exact = NumericAnalyzer._to_int(value)
+        if exact is not None:
+            return exact
         number = NumericAnalyzer._to_finite_float(value)
         if number is None:
             return None
         return int(number) if number.is_integer() or coerce else None
+
+    @staticmethod
+    def _to_int(value: Any) -> Optional[int]:
+        """
+        :return: The value if it is an int or a string of an int, unless it is too large for the float64 that the statistics are
+                 computed with: converting it raises an OverflowError.
+        """
+        if isinstance(value, str):
+            try:
+                value = int(value)
+            except ValueError:
+                return None
+        if isinstance(value, int) and NumericAnalyzer._to_finite_float(value) is not None:
+            return value
+        return None
 
     @staticmethod
     def _to_finite_float(value: Any) -> Optional[float]:

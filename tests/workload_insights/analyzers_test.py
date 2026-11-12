@@ -101,6 +101,17 @@ class TestNumericAnalyzer:
         assert (stats.min, stats.max) == (5, 5)
         assert stats.sample_size == 2
 
+    @pytest.mark.parametrize("integer", [True, False])
+    @pytest.mark.parametrize("value", [10 ** 400, -10 ** 400, "1" + "0" * 400, float("inf"), float("-inf"), float("nan"), "inf", "nan",
+                                       "Infinity", 1e400])
+    def test_numbers_that_a_float_cannot_hold_are_never_converted(self, value, integer):
+        # without relying on the range of the field type
+        assert NumericAnalyzer._to_number(value, integer) is None  # pylint: disable=protected-access
+
+    @pytest.mark.parametrize("value", [2 ** 63 - 1, -2 ** 63, "9007199254740993", 10 ** 300])
+    def test_integers_that_a_float_can_hold_are_converted_exactly(self, value):
+        assert NumericAnalyzer._to_number(value, True) == int(value)  # pylint: disable=protected-access
+
     @pytest.mark.parametrize("huge", [10 ** 400, -10 ** 400, 1e400, "inf"])
     def test_values_too_large_for_a_float_do_not_break_float_fields(self, huge):
         stats = NumericAnalyzer().analyze("double", {}, [[huge], [5]])
