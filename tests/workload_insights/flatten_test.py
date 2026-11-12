@@ -176,6 +176,31 @@ class TestFlattener:
         assert sorted(flattener.fields) == ["comments.likes", "comments.text"]
         assert flattener.flatten({"comments": [{"likes": 1, "text": "a"}, {"likes": 2}]}) == {"comments.likes": [1, 2], "comments.text": ["a"]}
 
+    @pytest.mark.parametrize("order", ["dotted_first", "explicit_first"])
+    def test_nested_siblings_of_dotted_and_explicit_definitions_are_all_kept(self, order):
+        explicit = ("user", {"type": "nested", "properties": {"address": {"properties": {"zip": {"type": "keyword"}}}}})
+        dotted = ("user.address.city", {"type": "keyword"})
+        properties = dict([dotted, explicit] if order == "dotted_first" else [explicit, dotted])
+        original = copy.deepcopy(properties)
+
+        flattener = Flattener({"properties": properties})
+
+        assert sorted(flattener.fields) == ["user.address.city", "user.address.zip"]
+        assert _expand_dotted_names(properties)["user"]["type"] == "nested"
+        assert properties == original
+
+    def test_deeper_levels_are_merged_too(self):
+        properties = {
+            "a.b.c": {"type": "long"},
+            "a": {"properties": {"b": {"properties": {"d": {"type": "long"}}, "dynamic": "strict"}, "e": {"type": "long"}}},
+            "a.b.f.g": {"type": "long"},
+        }
+
+        expanded = _expand_dotted_names(properties)
+
+        assert sorted(Flattener({"properties": properties}).fields) == ["a.b.c", "a.b.d", "a.b.f.g", "a.e"]
+        assert expanded["a"]["properties"]["b"]["dynamic"] == "strict"
+
     def test_the_mapping_is_not_modified(self):
         mapping = {"properties": {
             "user": {"type": "nested", "properties": {"age": {"type": "integer"}}},

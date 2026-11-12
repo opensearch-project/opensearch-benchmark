@@ -13,6 +13,7 @@ The flattener is independent of how the documents have been sampled: it only nee
 GET /<index>/_mapping, and the ``_source`` of the documents.
 """
 
+import copy
 import logging
 from typing import Any, Dict, Iterable, List, Optional, Set
 
@@ -60,30 +61,38 @@ class _Node:
         return self.type in CONTAINER_TYPES
 
 
+def _merge_definition(target: Dict[str, Any], name: str, definition: Dict[str, Any]):
+    """Adds a field definition to the properties in target. A field that is already there keeps the properties of both definitions."""
+    existing = target.get(name)
+    if existing is None:
+        target[name] = definition
+        return
+    # the field is defined twice, e.g. explicitly and implicitly through the dotted name of one of its fields: keep the attributes
+    # (e.g. type nested) of both, the properties are merged recursively
+    properties = existing.get("properties", {})
+    for child_name, child in definition.get("properties", {}).items():
+        _merge_definition(properties, child_name, child)
+    merged = {**existing, **definition}
+    if properties:
+        merged["properties"] = properties
+    target[name] = merged
+
+
 def _expand_dotted_names(properties: Dict[str, Any]) -> Dict[str, Any]:
     """
     Expands field names with dots into objects, as OpenSearch does: {"user.name": {...}} is the same as
     {"user": {"properties": {"name": {...}}}}.
 
-    The mapping that is passed in is not modified. A field that is defined explicitly and through dotted names keeps the attributes
-    of its explicit definition (e.g. its type) and the properties of both.
+    The mapping that is passed in is not modified.
     """
     expanded: Dict[str, Any] = {}
-    for name, definition in properties.items():
+    # merging modifies definitions, so work on a copy
+    for name, definition in copy.deepcopy(properties).items():
         *parents, last = name.split(".")
         target = expanded
         for parent in parents:
             target = target.setdefault(parent, {}).setdefault("properties", {})
-        definition = dict(definition)
-        if "properties" in definition:
-            definition["properties"] = dict(definition["properties"])
-        existing = target.get(last)
-        if existing is not None:
-            # defined implicitly through dotted names before
-            merged = {**existing.get("properties", {}), **definition.get("properties", {})}
-            if merged:
-                definition["properties"] = merged
-        target[last] = definition
+        _merge_definition(target, last, definition)
     return expanded
 
 

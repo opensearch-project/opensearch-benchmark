@@ -94,6 +94,32 @@ class TestNumericAnalyzer:
 
         assert (stats.min, stats.max) == (1.5, 2.5)
 
+    @pytest.mark.parametrize("huge", [10 ** 400, -10 ** 400, "1" + "0" * 400, 1e300])
+    def test_values_too_large_for_any_integer_type_do_not_break_the_analysis(self, huge):
+        stats = NumericAnalyzer().analyze("long", {}, [[huge], [5]])
+
+        assert (stats.min, stats.max) == (5, 5)
+        assert stats.sample_size == 2
+
+    @pytest.mark.parametrize("huge", [10 ** 400, -10 ** 400, 1e400, "inf"])
+    def test_values_too_large_for_a_float_do_not_break_float_fields(self, huge):
+        stats = NumericAnalyzer().analyze("double", {}, [[huge], [5]])
+
+        assert (stats.min, stats.max) == (5.0, 5.0)
+
+    @pytest.mark.parametrize("field_type,valid,invalid", [
+        ("byte", [-128, 127], [-129, 128]),
+        ("short", [-32768, 32767], [-32769, 32768]),
+        ("integer", [-2 ** 31, 2 ** 31 - 1], [-2 ** 31 - 1, 2 ** 31]),
+        ("long", [-2 ** 63, 2 ** 63 - 1], [-2 ** 63 - 1, 2 ** 63]),
+        ("unsigned_long", [0, 2 ** 64 - 1], [-1, 2 ** 64]),
+    ])
+    def test_integer_values_outside_of_the_range_of_the_type_are_invalid(self, field_type, valid, invalid):
+        stats = NumericAnalyzer().analyze(field_type, {}, [[value] for value in valid + invalid])
+
+        assert (stats.min, stats.max) == (min(valid), max(valid))
+        assert stats.sample_size == 4
+
     def test_long_bounds_stay_exact(self):
         stats = NumericAnalyzer().analyze("long", {}, [[-2 ** 63], [2 ** 63 - 1]])
 

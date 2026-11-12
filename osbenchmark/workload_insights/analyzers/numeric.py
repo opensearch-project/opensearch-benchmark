@@ -15,7 +15,16 @@ from osbenchmark.workload_insights.analyzers.base import Analyzer
 from osbenchmark.workload_insights.models import FieldStats, NumericStats
 
 PERCENTILES = (50, 90, 99, 99.9)
-INTEGER_TYPES = frozenset(["long", "integer", "short", "byte", "unsigned_long"])
+# the range of the values that OpenSearch can store in integer fields. Other values are invalid, e.g. in documents that were indexed
+# with ignore_malformed.
+INTEGER_RANGES = {
+    "byte": (-2 ** 7, 2 ** 7 - 1),
+    "short": (-2 ** 15, 2 ** 15 - 1),
+    "integer": (-2 ** 31, 2 ** 31 - 1),
+    "long": (-2 ** 63, 2 ** 63 - 1),
+    "unsigned_long": (0, 2 ** 64 - 1),
+}
+INTEGER_TYPES = frozenset(INTEGER_RANGES)
 
 
 class NumericAnalyzer(Analyzer):
@@ -29,8 +38,10 @@ class NumericAnalyzer(Analyzer):
         for values in per_doc_values:
             for value in values:
                 number = self._to_number(value, integer, coerce)
+                if number is not None and integer and not INTEGER_RANGES[field_type][0] <= number <= INTEGER_RANGES[field_type][1]:
+                    number = None
                 if number is None:
-                    self.logger.debug("Ignoring non-numeric or non-finite value of type [%s] in numeric field.", type(value).__name__)
+                    self.logger.debug("Ignoring non-numeric, non-finite or out-of-range value of type [%s] in numeric field.", type(value).__name__)
                 else:
                     numbers.append(number)
         stats = {}
