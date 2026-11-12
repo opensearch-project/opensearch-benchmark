@@ -3,80 +3,51 @@
 # The OpenSearch Contributors require contributions made to
 # this file be licensed under the Apache-2.0 license or a
 # compatible open source license.
-# Modifications Copyright OpenSearch Contributors. See
-# GitHub history for details.
-# Licensed to Elasticsearch B.V. under one or more contributor
-# license agreements. See the NOTICE file distributed with
-# this work for additional information regarding copyright
-# ownership. Elasticsearch B.V. licenses this file to you under
-# the Apache License, Version 2.0 (the "License"); you may
-# not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#	http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
 
 """
-Database client registry for managing multiple database backends.
-
-This module provides:
-- DatabaseType enum for supported database types
-- Registry for mapping database types to client factory classes
-- Functions to register and retrieve database implementations
+Registry of database engines, keyed by the name users pass to ``--database-type``.
 """
-from enum import Enum
-from typing import Dict, Type, Optional
+
+from osbenchmark import exceptions
+
+DEFAULT_ENGINE = "opensearch"
+
+_ENGINES = {}
 
 
-class DatabaseType(Enum):
-    """Supported database types for benchmarking"""
-    OPENSEARCH = "opensearch"
-    MILVUS = "milvus"
-    VESPA = "vespa"
-
-
-# Global registry mapping database types to their factory classes
-_DATABASE_REGISTRY: Dict[DatabaseType, Type] = {}
-
-
-def register_database(db_type: DatabaseType, client_factory_class: Type) -> None:
+def register_engine(engine_class):
     """
-    Register a database client factory.
+    Register a database engine under its ``name``.
 
-    Args:
-        db_type: The database type enum value
-        client_factory_class: The factory class for creating clients
-
-    Example:
-        register_database(DatabaseType.OPENSEARCH, OpenSearchClientFactory)
+    :param engine_class: A subclass of :class:`osbenchmark.database.engine.Engine`.
     """
-    _DATABASE_REGISTRY[db_type] = client_factory_class
+    if not engine_class.name:
+        raise ValueError(f"Engine class [{engine_class.__name__}] must define a name.")
+    _ENGINES[engine_class.name.lower()] = engine_class
 
 
-def get_client_factory(db_type: DatabaseType) -> Optional[Type]:
+def registered_engines():
     """
-    Retrieve the registered client factory for a database type.
-
-    Args:
-        db_type: The database type enum value
-
-    Returns:
-        The factory class, or None if not registered
+    :return: The names of all registered engines, in registration order.
     """
-    return _DATABASE_REGISTRY.get(db_type)
+    return list(_ENGINES.keys())
 
 
-def list_registered_databases() -> list:
+def get_engine(name):
     """
-    Get list of all registered database types.
-
-    Returns:
-        List of DatabaseType enum values
+    :param name: An engine name, as passed to ``--database-type``.
+    :return: A new instance of the engine registered under that name.
     """
-    return list(_DATABASE_REGISTRY.keys())
+    engine_class = _ENGINES.get(name.lower())
+    if engine_class is None:
+        raise exceptions.SystemSetupError(
+            f"Unknown database type [{name}]. Registered database types: {', '.join(registered_engines())}.")
+    return engine_class()
+
+
+def engine_for(cfg):
+    """
+    :param cfg: The current config object.
+    :return: The engine selected by ``database.type``, defaulting to OpenSearch.
+    """
+    return get_engine(cfg.opts("database", "type", default_value=DEFAULT_ENGINE, mandatory=False))

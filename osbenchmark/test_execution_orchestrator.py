@@ -32,8 +32,9 @@ import thespian.actors
 
 from osbenchmark import actor, config, doc_link, \
     worker_coordinator, exceptions, builder, metrics, \
-        publisher, workload, version, PROGRAM_NAME
-from osbenchmark.utils import console, opts, versions
+        publisher, workload, PROGRAM_NAME
+from osbenchmark.database import engine_for
+from osbenchmark.utils import console, opts
 
 
 pipelines = collections.OrderedDict()
@@ -183,38 +184,7 @@ class BenchmarkCoordinator:
         # to load the workload we need to know the correct cluster distribution version. Usually, this value should be set
         # but there are rare cases (external pipeline and user did not specify the distribution version) where we need
         # to derive it ourselves. For source builds we always assume "master"
-        oss_distribution_version = "2.11.0"
-        # Distribution-version auto-detection probes the target with a raw opensearchpy
-        # client and the legacy wait_for_rest_layer. For non-OpenSearch backends the
-        # OS-flavored health/info routes either don't exist or differ enough to make
-        # this probe meaningless, so non-OS databases take the branch below (which
-        # sets a default workload distribution version) and skip the OS-only probe.
-        database_type = self.cfg.opts("database", "type", default_value="opensearch", mandatory=False)
-        if database_type.lower() != "opensearch":
-            # Non-OpenSearch databases don't have distribution versions.
-            # Use latest workload branch (3.x) so we get the newest workload definitions.
-            non_os_version = "3.0.0"
-            if not self.cfg.exists("builder", "distribution.version"):
-                self.logger.info("Non-OpenSearch database type [%s], using default distribution version [%s] for template rendering.",
-                                 database_type, non_os_version)
-                self.cfg.add(config.Scope.benchmark, "builder", "distribution.version", non_os_version)
-        elif not sources and not self.cfg.exists("builder", "distribution.version"):
-            distribution_version = builder.cluster_distribution_version(self.cfg)
-            if distribution_version == 'oss':
-                self.logger.info("Automatically derived serverless collection, setting distribution version to 2.11.0")
-                distribution_version = oss_distribution_version
-                if not self.cfg.exists("worker_coordinator", "serverless.mode"):
-                    self.cfg.add(config.Scope.benchmark, "worker_coordinator", "serverless.mode", True)
-
-                if not self.cfg.exists("worker_coordinator", "serverless.operator"):
-                    self.cfg.add(config.Scope.benchmark, "worker_coordinator", "serverless.operator", True)
-            else:
-                self.logger.info("Automatically derived distribution version [%s]", distribution_version)
-            self.cfg.add(config.Scope.benchmark, "builder", "distribution.version", distribution_version)
-            min_os_version = versions.Version.from_string(version.minimum_os_version())
-            specified_version = versions.Version.from_string(distribution_version)
-            if specified_version < min_os_version:
-                raise exceptions.SystemSetupError(f"Cluster version must be at least [{min_os_version}] but was [{distribution_version}]")
+        engine_for(self.cfg).configure_distribution_version(self.cfg, sources=sources)
 
         self.current_workload = workload.load_workload(self.cfg)
         self.workload_revision = self.cfg.opts("workload", "repository.revision", mandatory=False)

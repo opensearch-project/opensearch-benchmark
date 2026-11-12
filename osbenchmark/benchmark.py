@@ -43,7 +43,7 @@ from osbenchmark.synthetic_data_generator import synthetic_data_generator_orches
 from osbenchmark.workload_generator import workload_generator
 from osbenchmark.utils import io, convert, process, console, net, opts, versions
 from osbenchmark import aggregator
-from osbenchmark.database.registry import DatabaseType, list_registered_databases
+from osbenchmark.database import DEFAULT_ENGINE, registered_engines
 
 
 def create_arg_parser():
@@ -615,9 +615,9 @@ def create_arg_parser():
         default=opts.ClientOptions.DEFAULT_CLIENT_OPTIONS)
     test_execution_parser.add_argument(
         "--database-type",
-        choices=[database_type.value for database_type in list_registered_databases()],
-        help="Define the target database type (default: opensearch).",
-        default=DatabaseType.OPENSEARCH.value)
+        choices=registered_engines(),
+        help=f"Define the target database type (default: {DEFAULT_ENGINE}).",
+        default=DEFAULT_ENGINE)
     test_execution_parser.add_argument("--on-error",
                              choices=["continue", "abort"],
                              help="Controls how OSB behaves on response errors (default: continue).",
