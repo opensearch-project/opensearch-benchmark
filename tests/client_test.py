@@ -504,6 +504,22 @@ class RequestContextManagerTests(TestCase):
         # nested request should only cover nested duration
         self.assertAlmostEqual(nested_duration, 0.1, delta=0.05)
 
+    @run_async
+    async def test_failed_nested_context_does_not_break_parent(self):
+        test_client = client.RequestContextHolder()
+        async with test_client.new_request_context() as top_level_ctx:
+            try:
+                async with test_client.new_request_context():
+                    test_client.on_client_request_start()
+                    test_client.on_request_start()
+                    raise asyncio.TimeoutError()
+            except asyncio.TimeoutError:
+                pass
+            test_client.on_request_start()
+            test_client.on_request_end()
+            test_client.on_client_request_end()
+            self.assertIsNotNone(top_level_ctx.request_end)
+
 
 class RestLayerTests(TestCase):
     @mock.patch("opensearchpy.OpenSearch")
