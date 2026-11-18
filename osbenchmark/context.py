@@ -69,10 +69,14 @@ class RequestContextManager:
         self.ctx_holder.restore_context(self.token)
         # don't attempt to restore these values on the top-level context as they don't exist
         if self.token.old_value != contextvars.Token.MISSING:
-            self.ctx_holder.update_request_start(request_start)
-            self.ctx_holder.update_request_end(request_end)
-            self.ctx_holder.update_client_request_start(client_request_start)
-            self.ctx_holder.update_client_request_end(client_request_end)
+            if request_start is not None:
+                self.ctx_holder.update_request_start(request_start)
+            if request_end is not None:
+                self.ctx_holder.update_request_end(request_end)
+            if client_request_start is not None:
+                self.ctx_holder.update_client_request_start(client_request_start)
+            if client_request_end is not None:
+                self.ctx_holder.update_client_request_end(client_request_end)
         self.token = None
         return False
 
