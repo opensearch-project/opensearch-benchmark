@@ -2706,38 +2706,38 @@ class SamplePostProcessorActorBufferingTests(SamplePostProcessorActorTestCase):
         self.actor.sample_post_processor.assert_not_called()
         self.actor.profile_metrics_post_processor.assert_not_called()
 
-    def test_flush_and_forward_joinpoint_forwards_before_processing_samples(self):
-        calls = []
+    def test_flush_and_forward_joinpoint_forwards_without_processing_samples(self):
         joinpoint_reached = mock.MagicMock()
         self.actor.worker_coordinator_actor = mock.MagicMock()
-        self._set_sample_processors(calls)
+        self._set_sample_processors()
         self._set_buffered_samples(samples=[1, 2], profile_samples=[3])
-        self.actor.send = mock.MagicMock(side_effect=lambda target, msg: calls.append("joinpoint"))
-
-        msg = worker_coordinator.FlushAndForwardJoinPoint(joinpoint_reached)
-
-        self.actor.receiveMsg_FlushAndForwardJoinPoint(msg, sender=None)
-
-        self.actor.sample_post_processor.assert_called_once_with([1, 2])
-        self.actor.profile_metrics_post_processor.assert_called_once_with([3])
-        self.actor.send.assert_called_once_with(self.actor.worker_coordinator_actor, joinpoint_reached)
-        self.assertEqual(["joinpoint", "samples", "profile_samples"], calls)
-
-    def test_flush_and_forward_joinpoint_forwards_after_processing_failure(self):
-        joinpoint_reached = mock.MagicMock()
-        self.actor.worker_coordinator_actor = mock.MagicMock()
-        self.actor.sample_post_processor = mock.MagicMock(side_effect=RuntimeError("boom"))
-        self.actor.profile_metrics_post_processor = mock.MagicMock()
-        self._set_buffered_samples(samples=[1], profile_samples=[])
         self.actor.send = mock.MagicMock()
 
         msg = worker_coordinator.FlushAndForwardJoinPoint(joinpoint_reached)
 
         self.actor.receiveMsg_FlushAndForwardJoinPoint(msg, sender=None)
 
-        sent_messages = [call.args[1] for call in self.actor.send.call_args_list]
-        self.assertEqual(joinpoint_reached, sent_messages[0])
-        self.assertTrue(any(isinstance(sent_msg, actor.BenchmarkFailure) for sent_msg in sent_messages))
+        self.actor.send.assert_called_once_with(self.actor.worker_coordinator_actor, joinpoint_reached)
+        self.actor.sample_post_processor.assert_not_called()
+        self.actor.profile_metrics_post_processor.assert_not_called()
+        self.assertEqual([1, 2], self.actor.raw_samples)
+        self.assertEqual([3], self.actor.raw_profile_samples)
+
+    def test_task_boundary_post_processes_samples_of_all_workers_together(self):
+        self.actor.metrics_store = mock.MagicMock()
+        self.actor.worker_coordinator_actor = mock.MagicMock()
+        self.actor.send = mock.MagicMock()
+        self._set_sample_processors()
+        self._set_buffered_samples(samples=[], profile_samples=[])
+
+        # each worker sends its last samples followed by its join point
+        for worker_samples in (["w0-a", "w0-b"], ["w1-a", "w1-b"]):
+            self.actor.receiveMsg_ProcessSamples(worker_coordinator.ProcessSamples(worker_samples, []), sender=None)
+            self.actor.receiveMsg_FlushAndForwardJoinPoint(worker_coordinator.FlushAndForwardJoinPoint(mock.MagicMock()), sender=None)
+        self.actor.receiveMsg_FlushForTaskBoundary(
+            worker_coordinator.FlushForTaskBoundary(workers_curr_step={}, waiting_period=1, clear=True), sender=None)
+
+        self.actor.sample_post_processor.assert_called_once_with(["w0-a", "w0-b", "w1-a", "w1-b"])
 
     def test_wakeup_message_processes_buffered_samples_and_reschedules(self):
         self._set_sample_processors()
