@@ -238,7 +238,7 @@ class ProcessSamples:
 
 class FlushAndForwardJoinPoint:
     """
-    Used to flush samples before forwarding a worker's join point to the worker coordinator.
+    Used to forward a worker's join point to the worker coordinator after the worker's samples.
     """
 
     def __init__(self, joinpoint_reached):
@@ -1430,13 +1430,7 @@ class SamplePostProcessorActor(actor.BenchmarkActor):
 
     @actor.no_retry("sample post processor")  # pylint: disable=no-value-for-parameter
     def receiveMsg_FlushAndForwardJoinPoint(self, msg, sender):
-        self.logger.debug("Forwarding join point before sample post-processing attempt.")
         self.send(self.worker_coordinator_actor, msg.joinpoint_reached)
-        try:
-            self.post_process_samples()
-        except BaseException as e:
-            self.logger.exception("Could not post-process samples after forwarding join point.")
-            self.send(self.worker_coordinator_actor, actor.BenchmarkFailure("Error in sample post processor ({})".format(str(e))))
 
     @actor.no_retry("sample post processor")  # pylint: disable=no-value-for-parameter
     def receiveMsg_WakeupMessage(self, msg, sender):
