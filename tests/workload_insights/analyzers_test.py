@@ -8,7 +8,7 @@
 
 import pytest
 
-from osbenchmark.workload_insights.analyzers import ANALYZERS, analyze
+from osbenchmark.workload_insights.analyzers import ANALYZERS, analyze, create_analyzer
 from osbenchmark.workload_insights.analyzers.base import Analyzer
 from osbenchmark.workload_insights.analyzers.date import DateAnalyzer
 from osbenchmark.workload_insights.analyzers.keyword import KeywordAnalyzer
@@ -249,7 +249,8 @@ class TestDateAnalyzer:
 
     @pytest.mark.parametrize("value", ["2021-01-01T00:00:00+18:01", "2021-01-01T00:00:00-1801", "2021-01-01T00:00:00+2400",
                                        "2021-01-01T00:00:00+23:00", "2021-01-01T00:00:00+0160", "2021-01-01T00:00:00+00:60",
-                                       "2021-01-01T00:00:00+9999"])
+                                       "2021-01-01T00:00:00+9999",
+                                       "2021-01-01T00:00:00+05:3", "2021-01-01T00:00:00+5:30"])
     def test_offsets_that_java_does_not_accept_are_invalid(self, value):
         assert DateAnalyzer._parse(value) is None  # pylint: disable=protected-access
 
@@ -355,3 +356,149 @@ class TestAnalyze:
             analyze(self.MAPPING, [{"count": 1, "x": 1, "y": 2}])
 
         assert "Skipped [2] fields" in caplog.text
+
+
+class TestIncrementalAnalysis:
+    # (field type, mapping definition, one list of values per document)
+    CASES = {
+        "base": ("text", {}, [["a"], [], ["b", "c"], [], ["d"]]),
+        "long": ("long", {}, [[1], [2, 3], [], [9007199254740993], ["4"], ["x"], [5.5]]),
+        "double": ("double", {}, [[1.5], [], [2.5, -3.0], ["NaN"], [10 ** 6]]),
+        "keyword": ("keyword", {}, [["a", "b"], ["a"], [], [True], ["true"], ["longer"]]),
+        "date": ("date", {}, [["2024-01-01T10:20:30Z"], [], [1700000040000], ["2024-02-01"], ["not a date"], ["2024-03-01T00:00:00.5Z"]]),
+    }
+
+    @staticmethod
+    def _analyzer(field_type, definition):
+        return create_analyzer(field_type, definition, capture_values=True)
+
+    @pytest.mark.parametrize("case", CASES)
+    def test_adding_documents_one_by_one_equals_analyzing_them_at_once(self, case):
+        field_type, definition, docs = self.CASES[case]
+        analyzer = self._analyzer(field_type, definition)
+
+        for values in docs:
+            analyzer.add(values)
+
+        assert analyzer.result() == self._analyzer(field_type, definition).analyze(field_type, definition, docs)
+
+    @pytest.mark.parametrize("case", CASES)
+    @pytest.mark.parametrize("split", [0, 1, 3, 100])
+    def test_merging_batches_equals_analyzing_all_documents(self, case, split):
+        field_type, definition, docs = self.CASES[case]
+        first, second = self._analyzer(field_type, definition), self._analyzer(field_type, definition)
+        for values in docs[:split]:
+            first.add(values)
+        for values in docs[split:]:
+            second.add(values)
+
+        first.merge(second)
+
+        expected = self._analyzer(field_type, definition).analyze(field_type, definition, docs)
+        merged = first.result()
+        # the running mean and stddev are combined with a different order of operations
+        assert merged.model_dump(exclude={"mean", "stddev"}) == expected.model_dump(exclude={"mean", "stddev"})
+        if case in ("long", "double"):
+            assert merged.mean == pytest.approx(expected.mean, rel=1e-12)
+            assert merged.stddev == pytest.approx(expected.stddev, rel=1e-12)
+
+    def test_result_can_be_read_while_documents_are_still_added(self):
+        analyzer = NumericAnalyzer("long", {})
+        analyzer.add([1])
+        assert analyzer.result().max == 1
+
+        analyzer.add([5])
+
+        assert analyzer.result().max == 5 and analyzer.result().sample_size == 2
+
+    def test_merging_does_not_modify_the_other_analyzer(self):
+        first, second = NumericAnalyzer("long", {}), NumericAnalyzer("long", {})
+        first.add([1])
+        second.add([2, 3])
+        before = second.result()
+
+        first.merge(second)
+
+        assert second.result() == before
+
+    @pytest.mark.parametrize("field_type", ["long", "keyword", "date"])
+    def test_merging_an_analyzer_without_documents(self, field_type):
+        analyzer = create_analyzer(field_type, {})
+        analyzer.add(["1"])
+        expected = analyzer.result()
+
+        analyzer.merge(create_analyzer(field_type, {}))
+        assert analyzer.result() == expected
+
+        empty = create_analyzer(field_type, {})
+        empty.merge(analyzer)
+        assert empty.result() == expected
+
+    def test_analyzers_of_different_types_cannot_be_merged(self):
+        with pytest.raises(TypeError):
+            NumericAnalyzer("long", {}).merge(KeywordAnalyzer("keyword", {}))
+
+    def test_analyzers_of_different_field_types_cannot_be_merged(self):
+        with pytest.raises(TypeError):
+            NumericAnalyzer("long", {}).merge(NumericAnalyzer("double", {}))
+
+    def test_running_statistics_are_precise_for_large_values_with_a_small_spread(self):
+        # the sum of squares of these values is far beyond what a float64 can distinguish: the naive formula returns 0 or garbage
+        values = [1e9 + offset for offset in (0.0, 1.0, 2.0, 3.0, 4.0)]
+        analyzer, other = NumericAnalyzer("double", {}), NumericAnalyzer("double", {})
+        for value in values[:2]:
+            analyzer.add([value])
+        for value in values[2:]:
+            other.add([value])
+
+        analyzer.merge(other)
+
+        stats = analyzer.result()
+        assert stats.mean == pytest.approx(1e9 + 2.0, rel=1e-15)
+        assert stats.stddev == pytest.approx(2 ** 0.5, rel=1e-9)
+
+    def test_integers_above_2_pow_53_stay_exact_when_merged(self):
+        first, second = NumericAnalyzer("long", {}), NumericAnalyzer("long", {})
+        first.add([9007199254740993])
+        second.add([9007199254740995])
+
+        first.merge(second)
+
+        stats = first.result()
+        assert (stats.min, stats.max) == (9007199254740993, 9007199254740995)
+        assert isinstance(stats.min, int) and isinstance(stats.max, int)
+
+    def test_date_granularity_is_the_finest_of_all_batches(self):
+        coarse, fine = DateAnalyzer("date", {}), DateAnalyzer("date", {})
+        coarse.add(["2024-01-01"])
+        fine.add(["2024-01-01T00:00:01Z"])
+
+        coarse.merge(fine)
+
+        assert coarse.result().granularity == "second"
+
+    def test_date_format_is_not_inferred_if_batches_disagree(self):
+        iso, epoch = DateAnalyzer("date", {}), DateAnalyzer("date", {})
+        iso.add(["2024-01-01"])
+        epoch.add([1700000000000])
+
+        iso.merge(epoch)
+
+        assert iso.result().format is None
+
+    def test_analyze_does_not_hold_the_documents(self):
+        consumed = []
+
+        def samples():
+            for i in range(3):
+                consumed.append(i)
+                yield {"count": i}
+
+        result = analyze({"properties": {"count": {"type": "long"}}}, samples())
+
+        assert consumed == [0, 1, 2]
+        assert result.fields["count"].sample_size == 3
+
+    def test_create_analyzer_falls_back_to_the_basic_analyzer(self):
+        assert type(create_analyzer("text", {})) is Analyzer  # pylint: disable=unidiomatic-typecheck
+        assert isinstance(create_analyzer("long", {}), NumericAnalyzer)

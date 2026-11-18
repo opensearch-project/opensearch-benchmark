@@ -7,6 +7,7 @@
 # GitHub history for details.
 
 import math
+from array import array
 from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
@@ -28,34 +29,74 @@ INTEGER_TYPES = frozenset(INTEGER_RANGES)
 
 
 class NumericAnalyzer(Analyzer):
-    """Analyzes long, integer, short, byte, unsigned_long, double, float, half_float and scaled_float fields."""
+    """
+    Analyzes long, integer, short, byte, unsigned_long, double, float, half_float and scaled_float fields.
 
-    def analyze(self, field_type: str, definition: Dict[str, Any], per_doc_values: List[List[Any]]) -> FieldStats:
-        integer = field_type in INTEGER_TYPES
+    Min and max are kept as the original numbers, because a float64 cannot hold every long exactly. Mean and stddev are accumulated with
+    Welford's algorithm (count, mean and the sum of squared differences from the mean) and combined with Chan's formula, which do not
+    lose precision for large values like a sum of squares does. They are computed in float64 and are therefore approximate for integers
+    beyond 2^53. The exact percentiles need all values, so these are kept as float64 (8 bytes each).
+    """
+
+    def __init__(self, field_type: str = "", definition: Optional[Dict[str, Any]] = None, capture_values: bool = False):
+        super().__init__(field_type, definition, capture_values)
+        self._integer = field_type in INTEGER_TYPES
         # like OpenSearch, coerce fractions of integer fields by truncating them unless the mapping disables coercion
-        coerce = str(definition.get("coerce", True)).lower() != "false"
-        numbers = []
-        for values in per_doc_values:
-            for value in values:
-                number = self._to_number(value, integer, coerce)
-                if number is not None and integer and not INTEGER_RANGES[field_type][0] <= number <= INTEGER_RANGES[field_type][1]:
-                    number = None
-                if number is None:
-                    self.logger.debug("Ignoring non-numeric, non-finite or out-of-range value of type [%s] in numeric field.", type(value).__name__)
-                else:
-                    numbers.append(number)
+        self._coerce = str(self.definition.get("coerce", True)).lower() != "false"
+        self._count = 0
+        self._mean = 0.0
+        self._sum_squared_differences = 0.0
+        self._min: Optional[Union[int, float]] = None
+        self._max: Optional[Union[int, float]] = None
+        self._floats = array("d")
+
+    def _add_values(self, values: List[Any]) -> None:
+        for value in values:
+            number = self._to_number(value, self._integer, self._coerce)
+            if number is not None and self._integer and not INTEGER_RANGES[self.field_type][0] <= number <= INTEGER_RANGES[self.field_type][1]:
+                number = None
+            if number is None:
+                self.logger.debug("Ignoring non-numeric, non-finite or out-of-range value of type [%s] in numeric field.", type(value).__name__)
+                continue
+            self._min = number if self._min is None else min(self._min, number)
+            self._max = number if self._max is None else max(self._max, number)
+            as_float = float(number)
+            self._floats.append(as_float)
+            # Welford's algorithm
+            self._count += 1
+            delta = as_float - self._mean
+            self._mean += delta / self._count
+            self._sum_squared_differences += delta * (as_float - self._mean)
+
+    def _merge_values(self, other: "NumericAnalyzer") -> None:  # pylint: disable=arguments-renamed
+        # pylint: disable=protected-access
+        if not other._count:
+            return
+        if not self._count:
+            self._min, self._max = other._min, other._max
+            self._count, self._mean = other._count, other._mean
+            self._sum_squared_differences = other._sum_squared_differences
+        else:
+            self._min, self._max = min(self._min, other._min), max(self._max, other._max)
+            # Chan's formula
+            count = self._count + other._count
+            delta = other._mean - self._mean
+            self._sum_squared_differences += other._sum_squared_differences + delta * delta * self._count * other._count / count
+            self._mean += delta * other._count / count
+            self._count = count
+        self._floats.extend(other._floats)
+
+    def result(self) -> FieldStats:
         stats = {}
-        if numbers:
-            # min and max are taken from the original numbers: a float64 cannot hold every long exactly
-            array = np.array([float(number) for number in numbers], dtype=float)
+        if self._count:
             stats = {
-                "min": min(numbers),
-                "max": max(numbers),
-                "mean": float(array.mean()),
-                "stddev": float(array.std()),
-                "percentiles": {"%g" % p: float(v) for p, v in zip(PERCENTILES, np.percentile(array, PERCENTILES))}
+                "min": self._min,
+                "max": self._max,
+                "mean": self._mean,
+                "stddev": math.sqrt(self._sum_squared_differences / self._count),
+                "percentiles": {"%g" % p: float(v) for p, v in zip(PERCENTILES, np.percentile(np.frombuffer(self._floats), PERCENTILES))}
             }
-        return NumericStats(type=field_type, **self.common_stats(per_doc_values), **stats)
+        return NumericStats(type=self.field_type, **self._common_stats(), **stats)
 
     @staticmethod
     def _to_number(value: Any, integer: bool, coerce: bool = True) -> Optional[Union[int, float]]:

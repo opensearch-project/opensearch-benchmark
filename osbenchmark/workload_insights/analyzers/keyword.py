@@ -7,7 +7,7 @@
 # GitHub history for details.
 
 from collections import Counter
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from osbenchmark.workload_insights.analyzers.base import Analyzer
 from osbenchmark.workload_insights.models import CountStats, FieldStats, KeywordStats, ValueCount
@@ -18,17 +18,26 @@ TOP_N = 10
 class KeywordAnalyzer(Analyzer):
     """Analyzes keyword fields."""
 
-    def analyze(self, field_type: str, definition: Dict[str, Any], per_doc_values: List[List[Any]]) -> FieldStats:
-        counter = Counter(self._to_keyword(value) for values in per_doc_values for value in values)
+    def __init__(self, field_type: str = "", definition: Optional[Dict[str, Any]] = None, capture_values: bool = False):
+        super().__init__(field_type, definition, capture_values)
+        self._counter: Counter = Counter()
+
+    def _add_values(self, values: List[Any]) -> None:
+        self._counter.update(self._to_keyword(value) for value in values)
+
+    def _merge_values(self, other: "KeywordAnalyzer") -> None:  # pylint: disable=arguments-renamed
+        self._counter.update(other._counter)  # pylint: disable=protected-access
+
+    def result(self) -> FieldStats:
         top_values = []
         if self.capture_values:
-            top_values = [ValueCount(value=value, count=count) for value, count in counter.most_common(TOP_N)]
+            top_values = [ValueCount(value=value, count=count) for value, count in self._counter.most_common(TOP_N)]
         return KeywordStats(
-            type=field_type,
-            **self.common_stats(per_doc_values),
-            cardinality=len(counter),
+            type=self.field_type,
+            **self._common_stats(),
+            cardinality=len(self._counter),
             top_values=top_values,
-            length=self._length_stats(counter)
+            length=self._length_stats(self._counter)
         )
 
     @staticmethod

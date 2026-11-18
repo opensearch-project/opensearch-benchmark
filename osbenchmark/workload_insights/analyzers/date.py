@@ -8,7 +8,7 @@
 
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from osbenchmark.workload_insights.analyzers.base import Analyzer
 from osbenchmark.workload_insights.models import DateStats, FieldStats
@@ -22,6 +22,9 @@ MAX_OFFSET_MINUTES = 18 * 60
 # strict_date_optional_time: a date (year, year and month or full date), optionally followed by a time (hours, minutes, seconds and
 # a fraction of 1 to 9 digits) and an offset. datetime.fromisoformat() cannot be used: before Python 3.11 it accepts only 3 or 6
 # fraction digits and offsets with a colon, and OSB supports Python 3.10.
+# from the coarsest to the finest granularity; any sub-second precision is "millisecond"
+GRANULARITIES = ("day", "hour", "minute", "second", "millisecond")
+
 _ISO_8601 = re.compile(
     r"^(?P<year>\d{4})(?:-(?P<month>\d{2})(?:-(?P<day>\d{2}))?)?"
     r"(?:[T ](?P<hour>\d{2})(?::(?P<minute>\d{2})(?::(?P<second>\d{2})(?:[.,](?P<fraction>\d{1,9}))?)?)?)?"
@@ -31,27 +34,46 @@ _ISO_8601 = re.compile(
 class DateAnalyzer(Analyzer):
     """Analyzes date and date_nanos fields."""
 
-    def analyze(self, field_type: str, definition: Dict[str, Any], per_doc_values: List[List[Any]]) -> FieldStats:
-        mapping_format = definition.get("format")
-        numeric_format = self._numeric_format(mapping_format)
-        timestamps = []
-        inferred_formats = set()
-        for values in per_doc_values:
-            for value in values:
-                parsed = self._parse(value, numeric_format)
-                if parsed is None:
-                    self.logger.debug("Ignoring unparseable value of type [%s] in date field.", type(value).__name__)
-                else:
-                    timestamps.append(parsed[0])
-                    inferred_formats.add(parsed[1])
-        stats = {"format": mapping_format}
-        if timestamps:
-            stats["min"] = min(timestamps).isoformat()
-            stats["max"] = max(timestamps).isoformat()
-            stats["granularity"] = self._granularity(timestamps)
-            if mapping_format is None and len(inferred_formats) == 1:
-                stats["format"] = next(iter(inferred_formats))
-        return DateStats(type=field_type, **self.common_stats(per_doc_values), **stats)
+    def __init__(self, field_type: str = "", definition: Optional[Dict[str, Any]] = None, capture_values: bool = False):
+        super().__init__(field_type, definition, capture_values)
+        self._mapping_format = self.definition.get("format")
+        self._numeric_format_of_mapping = self._numeric_format(self._mapping_format)
+        self._min: Optional[datetime] = None
+        self._max: Optional[datetime] = None
+        self._inferred_formats: Set[str] = set()
+        # the index in GRANULARITIES of the finest granularity of the values
+        self._granularity_index = 0
+
+    def _add_values(self, values: List[Any]) -> None:
+        for value in values:
+            parsed = self._parse(value, self._numeric_format_of_mapping)
+            if parsed is None:
+                self.logger.debug("Ignoring unparseable value of type [%s] in date field.", type(value).__name__)
+                continue
+            timestamp, inferred_format = parsed
+            self._min = timestamp if self._min is None else min(self._min, timestamp)
+            self._max = timestamp if self._max is None else max(self._max, timestamp)
+            self._inferred_formats.add(inferred_format)
+            self._granularity_index = max(self._granularity_index, self._granularity_of(timestamp))
+
+    def _merge_values(self, other: "DateAnalyzer") -> None:  # pylint: disable=arguments-renamed
+        # pylint: disable=protected-access
+        if other._min is None:
+            return
+        self._min = other._min if self._min is None else min(self._min, other._min)
+        self._max = other._max if self._max is None else max(self._max, other._max)
+        self._inferred_formats |= other._inferred_formats
+        self._granularity_index = max(self._granularity_index, other._granularity_index)
+
+    def result(self) -> FieldStats:
+        stats = {"format": self._mapping_format}
+        if self._min is not None:
+            stats["min"] = self._min.isoformat()
+            stats["max"] = self._max.isoformat()
+            stats["granularity"] = GRANULARITIES[self._granularity_index]
+            if self._mapping_format is None and len(self._inferred_formats) == 1:
+                stats["format"] = next(iter(self._inferred_formats))
+        return DateStats(type=self.field_type, **self._common_stats(), **stats)
 
     @staticmethod
     def _numeric_format(mapping_format: Optional[str]) -> str:
@@ -108,13 +130,16 @@ class DateAnalyzer(Analyzer):
             return None
 
     @staticmethod
-    def _granularity(timestamps: List[datetime]) -> str:
-        if any(t.microsecond for t in timestamps):
-            return "millisecond"
-        if any(t.second for t in timestamps):
-            return "second"
-        if any(t.minute for t in timestamps):
-            return "minute"
-        if any(t.hour for t in timestamps):
-            return "hour"
-        return "day"
+    def _granularity_of(timestamp: datetime) -> int:
+        """
+        :return: The index in GRANULARITIES of the finest unit in which the timestamp differs from midnight.
+        """
+        if timestamp.microsecond:
+            return 4
+        if timestamp.second:
+            return 3
+        if timestamp.minute:
+            return 2
+        if timestamp.hour:
+            return 1
+        return 0

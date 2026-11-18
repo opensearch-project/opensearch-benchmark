@@ -7,7 +7,7 @@
 # GitHub history for details.
 
 import logging
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable
 
 from osbenchmark.workload_insights.analyzers.base import Analyzer
 from osbenchmark.workload_insights.analyzers.date import DateAnalyzer
@@ -33,9 +33,20 @@ ANALYZERS = {
 }
 
 
+def create_analyzer(field_type: str, definition: Dict[str, Any], capture_values: bool = False) -> Analyzer:
+    """
+    :param field_type: The mapping type of the field.
+    :param definition: The mapping definition of the field.
+    :param capture_values: Whether real values from the samples may be copied into the result.
+    :return: The analyzer of the field type. It accumulates the statistics of the field with ``add()`` and returns them with ``result()``.
+             Analyzers of the same field that have seen different batches of documents can be combined with ``merge()``.
+    """
+    return ANALYZERS.get(field_type, Analyzer)(field_type, definition, capture_values)
+
+
 def analyze(mapping: Dict[str, Any], samples: Iterable[Dict[str, Any]], capture_values: bool = False) -> AnalyzerResult:
     """
-    Analyzes sampled documents per field.
+    Analyzes sampled documents per field. The documents are consumed one by one, so ``samples`` can be a stream.
 
     :param mapping: The index mapping, as returned by GET /<index>/_mapping.
     :param samples: The ``_source`` of the sampled documents.
@@ -45,15 +56,10 @@ def analyze(mapping: Dict[str, Any], samples: Iterable[Dict[str, Any]], capture_
     """
     logger = logging.getLogger(__name__)
     flattener = Flattener(mapping)
-    per_field: Dict[str, List[List[Any]]] = {path: [] for path in flattener.fields}
+    analyzers = {path: create_analyzer(node.type, node.definition, capture_values) for path, node in flattener.fields.items()}
     for doc in samples:
         values = flattener.flatten(doc)
-        for path, per_doc_values in per_field.items():
-            per_doc_values.append(values.get(path, []))
+        for path, analyzer in analyzers.items():
+            analyzer.add(values.get(path, []))
     log_skipped_fields(logger, flattener.skipped_paths)
-
-    fields = {}
-    for path, node in flattener.fields.items():
-        analyzer = ANALYZERS.get(node.type, Analyzer)(capture_values=capture_values)
-        fields[path] = analyzer.analyze(node.type, node.definition, per_field[path])
-    return AnalyzerResult(fields=fields)
+    return AnalyzerResult(fields={path: analyzer.result() for path, analyzer in analyzers.items()})
